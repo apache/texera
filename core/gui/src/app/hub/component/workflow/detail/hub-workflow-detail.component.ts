@@ -6,9 +6,8 @@ import { WorkflowActionService } from "../../../../workspace/service/workflow-gr
 import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
+import { HubService } from "../../../service/hub.service";
 import { Role, User } from "src/app/common/type/user";
-import { Location } from "@angular/common";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
@@ -43,9 +42,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private route: ActivatedRoute,
     private router: Router,
     private notificationService: NotificationService,
-    private hubWorkflowService: HubWorkflowService,
+    private hubService: HubService,
     private workflowPersistService: WorkflowPersistService,
-    private location: Location,
     @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
@@ -67,38 +65,38 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     // getting the workflow information
-    this.hubWorkflowService
-      .getLikeCount(this.wid)
+    this.hubService
+      .getLikeCount(this.wid, "workflow")
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.likeCount = count;
       });
-    this.hubWorkflowService
-      .getCloneCount(this.wid)
+    this.hubService
+      .getCloneCount(this.wid, "workflow")
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.cloneCount = count;
       });
-    this.hubWorkflowService
-      .postViewWorkflow(this.wid, this.currentUser?.uid ?? 0)
+    this.hubService
+      .postView(this.wid, this.currentUser?.uid ?? 0, "workflow")
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.viewCount = count;
       });
-    this.hubWorkflowService
+    this.workflowPersistService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(owner => {
         this.ownerName = owner.name;
       });
-    this.hubWorkflowService
+    this.workflowPersistService
       .getWorkflowName(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
       });
-    this.hubWorkflowService
+    this.workflowPersistService
       .getWorkflowDescription(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowDescription => {
@@ -109,8 +107,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     if (!isDefined(this.currentUser)) {
       return;
     }
-    this.hubWorkflowService
-      .isWorkflowLiked(this.wid, this.currentUser.uid)
+    this.hubService
+      .isLiked(this.wid, this.currentUser.uid, "workflow")
       .pipe(untilDestroyed(this))
       .subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
@@ -150,7 +148,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
           },
         });
     } else {
-      this.hubWorkflowService
+      this.workflowPersistService
         .retrievePublicWorkflow(wid)
         .pipe(untilDestroyed(this))
         .subscribe({
@@ -175,7 +173,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     if (!isDefined(this.wid)) {
       return;
     }
-    this.hubWorkflowService
+    this.hubService
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
@@ -192,8 +190,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     if (this.isLiked) {
-      this.hubWorkflowService
-        .postUnlikeWorkflow(this.wid, userId)
+      this.hubService
+        .postUnlike(this.wid, userId, "workflow")
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -201,8 +199,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
             if (!isDefined(this.wid)) {
               return;
             }
-            this.hubWorkflowService
-              .getLikeCount(this.wid)
+            this.hubService
+              .getLikeCount(this.wid, "workflow")
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
@@ -210,8 +208,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
           }
         });
     } else {
-      this.hubWorkflowService
-        .postLikeWorkflow(this.wid, userId)
+      this.hubService
+        .postLike(this.wid, userId, "workflow")
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -219,8 +217,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
             if (!isDefined(this.wid)) {
               return;
             }
-            this.hubWorkflowService
-              .getLikeCount(this.wid)
+            this.hubService
+              .getLikeCount(this.wid, "workflow")
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;

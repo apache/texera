@@ -13,13 +13,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess;
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
@@ -78,6 +78,11 @@ public class Tables {
     public static final User USER = User.USER;
 
     /**
+     * The table <code>texera_db.user_activity</code>.
+     */
+    public static final UserActivity USER_ACTIVITY = UserActivity.USER_ACTIVITY;
+
+    /**
      * The table <code>texera_db.user_config</code>.
      */
     public static final UserConfig USER_CONFIG = UserConfig.USER_CONFIG;
@@ -106,11 +111,6 @@ public class Tables {
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public static final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
-
-    /**
-     * The table <code>texera_db.workflow_user_activity</code>.
-     */
-    public static final WorkflowUserActivity WORKFLOW_USER_ACTIVITY = WorkflowUserActivity.WORKFLOW_USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.workflow_user_clones</code>.

@@ -20,7 +20,7 @@ import {
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { firstValueFrom } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
-import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
+import { HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
@@ -80,7 +80,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
     private modal: NzModalService,
-    private hubWorkflowService: HubWorkflowService,
+    private hubService: HubService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService
@@ -90,7 +90,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
-        this.hubWorkflowService
+        this.workflowPersistService
           .getWorkflowOwners(this.entry.id)
           .pipe(untilDestroyed(this))
           .subscribe((data: number[]) => {
@@ -102,14 +102,14 @@ export class ListItemComponent implements OnInit, OnChanges {
             }
             setTimeout(() => this.cdr.detectChanges(), 0);
           });
-        this.hubWorkflowService
-          .getLikeCount(this.entry.id)
+        this.hubService
+          .getLikeCount(this.entry.id, this.entry.type)
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.likeCount = count;
           });
-        this.hubWorkflowService
-          .getViewCount(this.entry.id)
+        this.hubService
+          .getViewCount(this.entry.id, this.entry.type)
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.viewCount = count;
@@ -147,8 +147,8 @@ export class ListItemComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.initializeEntry();
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      this.hubWorkflowService
-        .isWorkflowLiked(this.entry.id, this.currentUid)
+      this.hubService
+        .isLiked(this.entry.id, this.currentUid, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((isLiked: boolean) => {
           this.isLiked = isLiked;
@@ -161,8 +161,8 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.initializeEntry();
     }
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      this.hubWorkflowService
-        .isWorkflowLiked(this.entry.id, this.currentUid)
+      this.hubService
+        .isLiked(this.entry.id, this.currentUid, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((isLiked: boolean) => {
           this.isLiked = isLiked;
@@ -364,8 +364,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     const instance = modalRef.componentInstance;
     if (instance) {
       if (wid !== undefined) {
-        this.hubWorkflowService
-          .getViewCount(wid)
+        this.hubService
+          .getViewCount(wid, this.entry.type)
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.viewCount = count + 1; // hacky fix to display view correctly
@@ -380,14 +380,14 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
 
     if (this.isLiked) {
-      this.hubWorkflowService
-        .postUnlikeWorkflow(workflowId, userId)
+      this.hubService
+        .postUnlike(workflowId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = false;
-            this.hubWorkflowService
-              .getLikeCount(workflowId)
+            this.hubService
+              .getLikeCount(workflowId, this.entry.type)
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
@@ -395,14 +395,14 @@ export class ListItemComponent implements OnInit, OnChanges {
           }
         });
     } else {
-      this.hubWorkflowService
-        .postLikeWorkflow(workflowId, userId)
+      this.hubService
+        .postLike(workflowId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = true;
-            this.hubWorkflowService
-              .getLikeCount(workflowId)
+            this.hubService
+              .getLikeCount(workflowId, this.entry.type)
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;

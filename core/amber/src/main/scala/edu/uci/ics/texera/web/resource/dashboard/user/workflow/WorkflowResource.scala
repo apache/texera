@@ -15,7 +15,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
+import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
@@ -163,7 +163,6 @@ object WorkflowResource {
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
 class WorkflowResource extends LazyLogging {
 
@@ -173,6 +172,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
@@ -188,6 +188,7 @@ class WorkflowResource extends LazyLogging {
     * @return OwnerName[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-owners")
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
@@ -207,6 +208,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/search-by-operators")
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
@@ -259,6 +261,7 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
@@ -318,6 +321,7 @@ class WorkflowResource extends LazyLogging {
     * @return a json string representing an savedWorkflow
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{wid}")
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
@@ -351,6 +355,7 @@ class WorkflowResource extends LazyLogging {
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
@@ -388,6 +393,7 @@ class WorkflowResource extends LazyLogging {
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/duplicate")
   def duplicateWorkflow(
       workflowIDs: WorkflowIDs,
@@ -448,6 +454,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/clone/{wid}")
   def cloneWorkflow(
       @PathParam("wid") wid: UInteger,
@@ -468,21 +475,7 @@ class WorkflowResource extends LazyLogging {
       sessionUser
     )
 
-    recordUserActivity(request, sessionUser.getUid, wid, "clone")
-
-    val existingCloneRecord = context
-      .selectFrom(WORKFLOW_USER_CLONES)
-      .where(WORKFLOW_USER_CLONES.UID.eq(sessionUser.getUid))
-      .and(WORKFLOW_USER_CLONES.WID.eq(wid))
-      .fetchOne()
-
-    if (existingCloneRecord == null) {
-      context
-        .insertInto(WORKFLOW_USER_CLONES)
-        .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
-        .set(WORKFLOW_USER_CLONES.WID, wid)
-        .execute()
-    }
+    recordCloneActivity(request, sessionUser.getUid, wid, "workflow")
 
     newWorkflow.workflow.getWid
   }
@@ -496,6 +489,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/create")
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
@@ -522,6 +516,7 @@ class WorkflowResource extends LazyLogging {
     * @return Response, deleted - 200, not exists - 400
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
@@ -545,6 +540,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/name")
   def updateWorkflowName(
       workflow: Workflow,
@@ -556,6 +552,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/description")
   def updateWorkflowDescription(
       workflow: Workflow,
@@ -565,6 +562,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
   def makePublic(@PathParam("wid") wid: UInteger, @Auth user: SessionUser): Unit = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -573,6 +571,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/private/{wid}")
   def makePrivate(@PathParam("wid") wid: UInteger): Unit = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -581,6 +580,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/type/{wid}")
   def getWorkflowType(@PathParam("wid") wid: UInteger): String = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
@@ -589,5 +589,85 @@ class WorkflowResource extends LazyLogging {
     } else {
       "Private"
     }
+  }
+
+  @GET
+  @Path("/owner_user")
+  def getOwnerUser(@QueryParam("wid") wid: UInteger): User = {
+    context
+      .select(
+        USER.UID,
+        USER.NAME,
+        USER.EMAIL,
+        USER.PASSWORD,
+        USER.GOOGLE_ID,
+        USER.ROLE,
+        USER.GOOGLE_AVATAR
+      )
+      .from(WORKFLOW_OF_USER)
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetchOneInto(classOf[User])
+  }
+
+  @GET
+  @Path("/workflow_name")
+  def getWorkflowName(@QueryParam("wid") wid: UInteger): String = {
+    context
+      .select(
+        WORKFLOW.NAME
+      )
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[String])
+  }
+
+  @GET
+  @Path("/public/{wid}")
+  def retrievePublicWorkflow(
+      @PathParam("wid") wid: UInteger
+  ): WorkflowWithPrivilege = {
+    val workflow = workflowDao.ctx
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .and(WORKFLOW.IS_PUBLIC.isTrue)
+      .fetchOne()
+    WorkflowWithPrivilege(
+      workflow.getName,
+      workflow.getDescription,
+      workflow.getWid,
+      workflow.getContent,
+      workflow.getCreationTime,
+      workflow.getLastModifiedTime,
+      workflow.getIsPublic,
+      readonly = true
+    )
+  }
+
+  @GET
+  @Path("/workflow_description")
+  def getWorkflowDescription(@QueryParam("wid") wid: UInteger): String = {
+    context
+      .select(
+        WORKFLOW.DESCRIPTION
+      )
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[String])
+  }
+
+  @GET
+  @Path("/workflow_user_access")
+  def workflowUserAccess(
+      @QueryParam("wid") wid: UInteger
+  ): util.List[UInteger] = {
+    val records = context
+      .select(WORKFLOW_USER_ACCESS.UID)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
+      .fetch()
+
+    records.getValues(WORKFLOW_USER_ACCESS.UID)
   }
 }
