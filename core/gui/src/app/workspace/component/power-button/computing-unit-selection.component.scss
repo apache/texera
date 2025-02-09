@@ -7,6 +7,36 @@
   gap: 10px;
 }
 
+nz-option {
+  height: 100%;
+}
+
+.computing-unit-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.unit-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.terminate-box {
+  width: 16px; /* Size of the red box */
+  height: 16px;
+  background-color: red;
+  border-radius: 2px; /* Optional, if you want slightly rounded corners */
+  cursor: pointer; /* Pointer cursor to indicate it's clickable */
+}
+
+.terminate-box:hover {
+  opacity: 0.8; /* Slight opacity on hover for visual feedback */
+}
+
 #computing-units-list {
   width: 250px;
 }
@@ -18,6 +48,8 @@
   gap: 3px;
   height: 32px;
   width: 100%;
+  padding: 0;
+  border: none;
 }
 
 .metric-item {
@@ -34,4 +66,37 @@
 
 .metric-label {
   font-size: 10px;
+}
+
+.resource-metrics {
+  width: 200px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(1, 1fr);
+  justify-content: start;
+  align-items: center;
+  gap: 5px;
+}
+
+.general-metric {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #f9fafb;
+  border-radius: 3px;
+  padding: 10px;
+  gap: 3px;
+}
+
+.metric-unit {
+  font-size: 8px;
+}
+
+.metric-name {
+  font-size: 10px;
+  margin: 0;
+}
+
+.metric-value {
+  margin: 0;
 }

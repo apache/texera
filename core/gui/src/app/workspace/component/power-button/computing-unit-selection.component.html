@@ -1,5 +1,11 @@
 <div class="computing-units-selection">
-  <div id="metrics-container-id" class="metrics-container">
+  <button nz-button
+          nz-popover
+          [nzPopoverContent]="metricsTemplate"
+          nzPopoverTrigger="click"
+          nzPopoverPlacement="bottom"
+          id="metrics-container-id"
+          class="metrics-container">
     <div class="metric-item">
       <span class="metric-label">CPU</span>
       <nz-progress
@@ -25,7 +31,7 @@
         [nzShowInfo]="false"
       ></nz-progress>
     </div>
-  </div>
+  </button>
 
   <nz-select
     id="computing-units-list"
@@ -67,17 +73,36 @@
       </div>
     </nz-option>
   </nz-select>
-
-  <ng-template #renderTemplate>
-    <nz-divider></nz-divider>
-    <div class="dropdown-footer">
-      <button
-        nz-button
-        nzType="primary"
-        nzBlock
-        (click)="startComputingUnit()">
-        Start
-      </button>
-    </div>
-  </ng-template>
 </div>
+
+<ng-template #renderTemplate>
+  <nz-divider></nz-divider>
+  <div class="dropdown-footer">
+    <button
+      nz-button
+      nzType="primary"
+      nzBlock
+      (click)="startComputingUnit()">
+      Start
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #metricsTemplate>
+  <div class="resource-metrics">
+    <div class="cpu-metric general-metric">
+      <p class="metric-name">CPU</p>
+      <p class="metric-value">
+        {{(selectedComputingUnit?.metrics?.cpuUsage || 0).toFixed(2)}}
+        <span class="metric-unit">Cores</span>
+      </p>
+    </div>
+    <div class="memory-metric general-metric">
+      <p class="metric-name">Memory</p>
+      <p class="metric-value">
+        {{(selectedComputingUnit?.metrics?.memoryUsage || 0).toFixed(2)}}
+        <span class="metric-unit">MB</span>
+      </p>
+    </div>
+  </div>
+</ng-template>
