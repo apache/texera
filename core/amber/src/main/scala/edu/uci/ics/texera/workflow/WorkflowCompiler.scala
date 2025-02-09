@@ -90,7 +90,7 @@ class WorkflowCompiler(
                     (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
                       .getResourceURIs(context.executionId)
                       .contains(
-                        storageUri
+                        storageUri.get
                       )) || (AmberConfig.isUserSystemEnabled && storageUri.isEmpty)
                   ) {
                     // Create storage if it doesn't exist
@@ -125,7 +125,7 @@ class WorkflowCompiler(
                       objectMapper
                         .createObjectNode()
                         .put("storageType", storageType)
-                        .put("storageKey", storageUri.toString)
+                        .put("storageKey", storageUri.get.toString)
                     )
                   }
 
