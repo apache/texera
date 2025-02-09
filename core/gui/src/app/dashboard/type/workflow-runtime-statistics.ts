@@ -8,5 +8,5 @@ export interface WorkflowRuntimeStatistics {
   totalControlProcessingTime: number;
   totalIdleTime: number;
   numberOfWorkers: number;
-  status: number;
+  status: number; // Operator status (e.g., RUNNING, COMPLETED, FAILED, etc.)
 }
