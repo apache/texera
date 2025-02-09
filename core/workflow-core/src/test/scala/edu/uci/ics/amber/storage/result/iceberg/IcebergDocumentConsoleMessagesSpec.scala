@@ -22,20 +22,14 @@ class IcebergDocumentConsoleMessagesSpec
   private val amberSchema: Schema = IcebergTableSchema.consoleMessagesSchema
   var uri: URI = _
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
+  override def beforeEach(): Unit = {
     uri = VFSURIFactory.createConsoleMessagesURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       OperatorIdentity("test_operator")
     )
     DocumentFactory.createDocument(uri, amberSchema)
-  }
-
-  override def beforeEach(): Unit = {
     super.beforeEach()
-    document.clear()
   }
 
   override def afterAll(): Unit = {
@@ -53,8 +47,6 @@ class IcebergDocumentConsoleMessagesSpec
     (resource: BufferedItemWriter[Tuple]) => resource.close()
 
   "IcebergDocument" should "write and read console messages successfully" in {
-    val document = getDocument
-
     Using.resource(document.writer("console_messages_test")) { writer =>
       writer.open()
       generateSampleItems().foreach(writer.putOne)
