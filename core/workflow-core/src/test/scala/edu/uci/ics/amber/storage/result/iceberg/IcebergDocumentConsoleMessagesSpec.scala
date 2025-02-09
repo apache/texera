@@ -33,6 +33,11 @@ class IcebergDocumentConsoleMessagesSpec
     DocumentFactory.createDocument(uri, amberSchema)
   }
 
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    document.clear()
+  }
+
   override def afterAll(): Unit = {
     super.afterAll()
   }
