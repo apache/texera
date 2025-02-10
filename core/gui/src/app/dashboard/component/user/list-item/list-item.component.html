@@ -116,11 +116,16 @@
       nz-col
       nzFlex="40px"
       class="resource-info">
-      <ng-container *ngIf="entry.type === 'workflow'; else sizeInfo">
-        {{ formatCount(viewCount) }}<br />
-        views
-      </ng-container>
-      <ng-template #sizeInfo> Size: {{ formatSize(entry.size) }} </ng-template>
+      {{ formatCount(viewCount) }}<br />
+      views
+    </div>
+
+    <div
+      nz-col
+      nzFlex="40px"
+      class="resource-info">
+      Size: <br />
+      {{ formatSize(entry.size) }}
     </div>
 
     <div

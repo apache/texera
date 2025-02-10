@@ -155,6 +155,8 @@ export class WorkflowUtilService {
   public static parseWorkflowInfo(workflow: Workflow): Workflow {
     if (workflow != null && typeof workflow.content === "string") {
       workflow.content = jsonCast<WorkflowContent>(workflow.content);
+      workflow.size = Object.keys(workflow.content).length;
+      console.log("Workflow size: " + workflow.size);
     }
     return workflow;
   }
