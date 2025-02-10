@@ -33,6 +33,7 @@ import { ReportGenerationService } from "../../service/report-generation/report-
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { PanelService } from "../../service/panel/panel.service";
+import mapping from "../../../../assets/migration_tool/mapping";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -411,908 +412,52 @@ export class MenuComponent implements OnInit {
         // Send Notebook JSON to pod to open in jupyterlab
         this.sendNotebookToPod(notebookContent);
 
-        // TODO: Send Notebook JSON to ChatGPT to create Workflow + Mapping : Ensure consistent cell IDs in notebooks
-        // this.sendToAIGenerateWorkflow();
+        // Get workflow and mapping from OpenAI
+        console.log("Getting data from OpenAI...")
+        this.sendToAIGenerateWorkflow()
+          .then((result) => {
+            if (result) {
+              const { workflowContent, mappingContent } = result;
+              console.log("Workflow:", workflowContent);
+              console.log("Mapping:", mappingContent);
 
-        // TODO: Mapping generation needs to be done
+              mapping["cell_to_operator"] = mappingContent["cell_to_operator"];
+              mapping["operator_to_cell"] = mappingContent["operator_to_cell"];
 
-        // TODO: Replace below to integrate with a ChatGPT generated Texera Workflow
-        // Mock data conversion to a format compatible with Texera workflows
-        const workflowContent: WorkflowContent = {
-          "settings": {
-            "dataTransferBatchSize": 400
-          },
-          "operators": [
-            {
-              "operatorID": "CSVFileScan-operator-43e5d7f4-2d3d-498b-a97d-b4d242ee82cf",
-              "operatorType": "CSVFileScan",
-              "operatorVersion": "1fa249a9d55d4dcad36d93e093c2faed5c4434f0",
-              "operatorProperties": {
-                "fileEncoding": "UTF_8",
-                "customDelimiter": ",",
-                "hasHeader": true,
-                "fileName": "/ryanyz@uci.edu/diabetes/v1/diabetes.csv"
-              },
-              "inputPorts": [],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Read_In_Diabetes_Dataset",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "Distinct-operator-d6a18641-3c29-4835-b8d2-60351b0b8882",
-              "operatorType": "Distinct",
-              "operatorVersion": "95280bbcbb5758853cacb3dd29495d0bd5d697b4",
-              "operatorProperties": {},
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Remove_Duplicate_Rows",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-              "operatorType": "Filter",
-              "operatorVersion": "95280bbcbb5758853cacb3dd29495d0bd5d697b4",
-              "operatorProperties": {
-                "predicates": [
-                  {
-                    "attribute": "Pregnancies",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "Glucose",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "BloodPressure",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "SkinThickness",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "Insulin",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "BMI",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "DiabetesPedigreeFunction",
-                    "condition": "is not null"
-                  },
-                  {
-                    "attribute": "Age",
-                    "condition": "is not null"
-                  },
-                  {
-                    "value": "",
-                    "attribute": "Outcome",
-                    "condition": "is not null"
-                  }
-                ]
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Remove_if_any_null",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "Aggregate-operator-ba7c3a06-09f8-4ad3-977d-69988789e671",
-              "operatorType": "Aggregate",
-              "operatorVersion": "95280bbcbb5758853cacb3dd29495d0bd5d697b4",
-              "operatorProperties": {
-                "aggregations": [
-                  {
-                    "attribute": "Pregnancies",
-                    "result attribute": "avg_pregnancies",
-                    "aggFunction": "average"
-                  },
-                  {
-                    "result attribute": "avg_glucose",
-                    "aggFunction": "average",
-                    "attribute": "Glucose"
-                  },
-                  {
-                    "result attribute": "avg_bloodpressure",
-                    "aggFunction": "average",
-                    "attribute": "BloodPressure"
-                  },
-                  {
-                    "result attribute": "avg_skinthickness",
-                    "aggFunction": "average",
-                    "attribute": "SkinThickness"
-                  },
-                  {
-                    "result attribute": "avg_insulin",
-                    "aggFunction": "average",
-                    "attribute": "Insulin"
-                  },
-                  {
-                    "result attribute": "avg_bmi",
-                    "aggFunction": "average",
-                    "attribute": "BMI"
-                  },
-                  {
-                    "result attribute": "avg_diabetespedigreefunction",
-                    "aggFunction": "average",
-                    "attribute": "DiabetesPedigreeFunction"
-                  },
-                  {
-                    "result attribute": "avg_age",
-                    "aggFunction": "average",
-                    "attribute": "Age"
-                  },
-                  {
-                    "result attribute": "avg_outcome",
-                    "aggFunction": "average",
-                    "attribute": "Outcome"
-                  }
-                ]
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Average_of_Fields",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "Aggregate-operator-cd2cbbbf-bad0-46ed-9e13-65ccd1e67c27",
-              "operatorType": "Aggregate",
-              "operatorVersion": "95280bbcbb5758853cacb3dd29495d0bd5d697b4",
-              "operatorProperties": {
-                "aggregations": [
-                  {
-                    "attribute": "Pregnancies",
-                    "result attribute": "min_pregnancies",
-                    "aggFunction": "min"
-                  },
-                  {
-                    "result attribute": "min_glucose",
-                    "aggFunction": "min",
-                    "attribute": "Glucose"
-                  },
-                  {
-                    "result attribute": "min_bloodpressure",
-                    "aggFunction": "min",
-                    "attribute": "BloodPressure"
-                  },
-                  {
-                    "result attribute": "min_skinthickness",
-                    "aggFunction": "min",
-                    "attribute": "SkinThickness"
-                  },
-                  {
-                    "result attribute": "min_insulin",
-                    "aggFunction": "min",
-                    "attribute": "Insulin"
-                  },
-                  {
-                    "result attribute": "min_bmi",
-                    "aggFunction": "min",
-                    "attribute": "BMI"
-                  },
-                  {
-                    "result attribute": "min_diabetespedigreefunction",
-                    "aggFunction": "min",
-                    "attribute": "DiabetesPedigreeFunction"
-                  },
-                  {
-                    "result attribute": "min_age",
-                    "aggFunction": "min",
-                    "attribute": "Age"
-                  },
-                  {
-                    "result attribute": "min_outcome",
-                    "aggFunction": "min",
-                    "attribute": "Outcome"
-                  }
-                ]
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Min_of_Fields",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "Aggregate-operator-3abc30e7-9ba3-4a97-ac28-937ca950cccf",
-              "operatorType": "Aggregate",
-              "operatorVersion": "95280bbcbb5758853cacb3dd29495d0bd5d697b4",
-              "operatorProperties": {
-                "aggregations": [
-                  {
-                    "attribute": "Pregnancies",
-                    "result attribute": "max_pregnancies",
-                    "aggFunction": "max"
-                  },
-                  {
-                    "result attribute": "max_glucose",
-                    "aggFunction": "max",
-                    "attribute": "Glucose"
-                  },
-                  {
-                    "result attribute": "max_bloodpressure",
-                    "aggFunction": "max",
-                    "attribute": "BloodPressure"
-                  },
-                  {
-                    "result attribute": "max_skinthickness",
-                    "aggFunction": "max",
-                    "attribute": "SkinThickness"
-                  },
-                  {
-                    "result attribute": "max_insulin",
-                    "aggFunction": "max",
-                    "attribute": "Insulin"
-                  },
-                  {
-                    "result attribute": "max_bmi",
-                    "aggFunction": "max",
-                    "attribute": "BMI"
-                  },
-                  {
-                    "result attribute": "max_diabetespedigreefunction",
-                    "aggFunction": "max",
-                    "attribute": "DiabetesPedigreeFunction"
-                  },
-                  {
-                    "result attribute": "max_age",
-                    "aggFunction": "max",
-                    "attribute": "Age"
-                  },
-                  {
-                    "result attribute": "max_outcome",
-                    "aggFunction": "max",
-                    "attribute": "Outcome"
-                  }
-                ]
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Max_of_Fields",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "BoxPlot-operator-9ffd3dce-29b4-4373-ab38-235487393d72",
-              "operatorType": "BoxPlot",
-              "operatorVersion": "5d03929e14c0871806f53fe06905127405b98a0e",
-              "operatorProperties": {
-                "orientation": true,
-                "Quartile Method": "linear",
-                "value": "Pregnancies"
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Pregnancy_BoxPlot",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false,
-              "viewResult": false
-            },
-            {
-              "operatorID": "PythonUDFV2-operator-1d891fad-a245-4e03-ba40-ad9ffbfa2b6b",
-              "operatorType": "PythonUDFV2",
-              "operatorVersion": "3d69fdcedbb409b47162c4b55406c77e54abe416",
-              "operatorProperties": {
-                "code": "from pytexera import *\nimport pandas as pd\n\nclass ProcessTableOperator(UDFTableOperator):\n\n    @overrides\n    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n        table = pd.DataFrame(table)\n        print(table.describe())\n        yield\n",
-                "workers": 1,
-                "retainInputColumns": true
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": true,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Describe_Data",
-              "dynamicInputPorts": true,
-              "dynamicOutputPorts": true
-            },
-            {
-              "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-              "operatorType": "Split",
-              "operatorVersion": "3ba1dfe9e53f217fbe363af0d2562fcf743a6269",
-              "operatorProperties": {
-                "training percentage": 80,
-                "random seed": 1
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "training",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                },
-                {
-                  "portID": "output-1",
-                  "displayName": "testing",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Training/Testing Split",
-              "dynamicInputPorts": true,
-              "dynamicOutputPorts": true
-            },
-            {
-              "operatorID": "SklearnRandomForest-operator-7844ee52-5d28-4421-a537-d267bb52efa8",
-              "operatorType": "SklearnRandomForest",
-              "operatorVersion": "6dd0927e6ddf688cb924ecd47b03d436dec9881d",
-              "operatorProperties": {
-                "countVectorizer": false,
-                "tfidfTransformer": false,
-                "target": "Outcome"
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "training",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                },
-                {
-                  "portID": "input-1",
-                  "displayName": "testing",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": [
-                    {
-                      "id": 0,
-                      "internal": false
-                    }
-                  ]
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Random Forest",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "SklearnDecisionTree-operator-65ea9d8c-9057-4ebc-8a40-a8c01333f948",
-              "operatorType": "SklearnDecisionTree",
-              "operatorVersion": "6dd0927e6ddf688cb924ecd47b03d436dec9881d",
-              "operatorProperties": {
-                "countVectorizer": false,
-                "tfidfTransformer": false,
-                "target": "Outcome"
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "training",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                },
-                {
-                  "portID": "input-1",
-                  "displayName": "testing",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": [
-                    {
-                      "id": 0,
-                      "internal": false
-                    }
-                  ]
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Decision Tree",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "SklearnSVM-operator-7adceacc-b3f9-4af6-8319-cd3c3f96d95d",
-              "operatorType": "SklearnSVM",
-              "operatorVersion": "6dd0927e6ddf688cb924ecd47b03d436dec9881d",
-              "operatorProperties": {
-                "countVectorizer": false,
-                "tfidfTransformer": false,
-                "target": "Outcome"
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "training",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                },
-                {
-                  "portID": "input-1",
-                  "displayName": "testing",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": [
-                    {
-                      "id": 0,
-                      "internal": false
-                    }
-                  ]
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Support Vector Machine",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
-            },
-            {
-              "operatorID": "SklearnLogisticRegression-operator-eca48ee5-d808-4c5d-bb3c-6614d0bfb548",
-              "operatorType": "SklearnLogisticRegression",
-              "operatorVersion": "6dd0927e6ddf688cb924ecd47b03d436dec9881d",
-              "operatorProperties": {
-                "countVectorizer": false,
-                "tfidfTransformer": false,
-                "target": "Outcome"
-              },
-              "inputPorts": [
-                {
-                  "portID": "input-0",
-                  "displayName": "training",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": []
-                },
-                {
-                  "portID": "input-1",
-                  "displayName": "testing",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false,
-                  "dependencies": [
-                    {
-                      "id": 0,
-                      "internal": false
-                    }
-                  ]
-                }
-              ],
-              "outputPorts": [
-                {
-                  "portID": "output-0",
-                  "displayName": "",
-                  "allowMultiInputs": false,
-                  "isDynamicPort": false
-                }
-              ],
-              "showAdvanced": false,
-              "isDisabled": false,
-              "customDisplayName": "Logistic Regression",
-              "dynamicInputPorts": false,
-              "dynamicOutputPorts": false
+              const fileExtensionIndex = file.name.lastIndexOf(".");
+              var workflowName: string;
+              if (fileExtensionIndex === -1) {
+                workflowName = file.name;
+              } else {
+                workflowName = file.name.substring(0, fileExtensionIndex);
+              }
+              if (workflowName.trim() === "") {
+                workflowName = DEFAULT_WORKFLOW_NAME;
+              }
+
+              // Create a valid Workflow object with required fields
+              const workflow: Workflow = {
+                content: workflowContent,
+                name: workflowName,
+                isPublished: 0,
+                description: undefined,
+                wid: undefined,
+                creationTime: undefined,
+                lastModifiedTime: undefined,
+                readonly: false,
+              };
+
+              // Open the notebook in the Jupyter notebook panel by reloading the workflow
+              this.workflowActionService.reloadWorkflow(workflow, true);
+              this.openJupyterNotebookPanel();
+              this.notificationService.success("Successfully generated workflow and mapping from notebook.");
+            } else {
+              console.error("Result is undefined");
             }
-          ],
-          "operatorPositions": {
-            "CSVFileScan-operator-43e5d7f4-2d3d-498b-a97d-b4d242ee82cf": {
-              "x": -92,
-              "y": 222
-            },
-            "Distinct-operator-d6a18641-3c29-4835-b8d2-60351b0b8882": {
-              "x": 61,
-              "y": 290
-            },
-            "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04": {
-              "x": 206,
-              "y": 351
-            },
-            "Aggregate-operator-ba7c3a06-09f8-4ad3-977d-69988789e671": {
-              "x": 357,
-              "y": 25
-            },
-            "Aggregate-operator-cd2cbbbf-bad0-46ed-9e13-65ccd1e67c27": {
-              "x": 356,
-              "y": 158
-            },
-            "Aggregate-operator-3abc30e7-9ba3-4a97-ac28-937ca950cccf": {
-              "x": 468,
-              "y": 23
-            },
-            "BoxPlot-operator-9ffd3dce-29b4-4373-ab38-235487393d72": {
-              "x": 468,
-              "y": 157
-            },
-            "PythonUDFV2-operator-1d891fad-a245-4e03-ba40-ad9ffbfa2b6b": {
-              "x": 600,
-              "y": 156
-            },
-            "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c": {
-              "x": 304,
-              "y": 599
-            },
-            "SklearnRandomForest-operator-7844ee52-5d28-4421-a537-d267bb52efa8": {
-              "x": 487.433349609375,
-              "y": 442.433349609375
-            },
-            "SklearnDecisionTree-operator-65ea9d8c-9057-4ebc-8a40-a8c01333f948": {
-              "x": 656,
-              "y": 444
-            },
-            "SklearnSVM-operator-7adceacc-b3f9-4af6-8319-cd3c3f96d95d": {
-              "x": 487,
-              "y": 802
-            },
-            "SklearnLogisticRegression-operator-eca48ee5-d808-4c5d-bb3c-6614d0bfb548": {
-              "x": 657,
-              "y": 805
-            }
-          },
-          "links": [
-            {
-              "linkID": "link-80bfba92-fd14-4f4a-aaff-c2676c27c43f",
-              "source": {
-                "operatorID": "CSVFileScan-operator-43e5d7f4-2d3d-498b-a97d-b4d242ee82cf",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Distinct-operator-d6a18641-3c29-4835-b8d2-60351b0b8882",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "link-a69abc52-a583-48bf-a463-059060172d3e",
-              "source": {
-                "operatorID": "Distinct-operator-d6a18641-3c29-4835-b8d2-60351b0b8882",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "link-c53cc370-3628-45f2-bcd9-574e629e0c87",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Aggregate-operator-ba7c3a06-09f8-4ad3-977d-69988789e671",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "6b3accb0-8c51-4099-8cde-1ea61c551e22",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Aggregate-operator-cd2cbbbf-bad0-46ed-9e13-65ccd1e67c27",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "69e9e375-b48a-4771-8282-068646f69cd4",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Aggregate-operator-3abc30e7-9ba3-4a97-ac28-937ca950cccf",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "7eaa7d96-627b-436c-b361-7d84f1ead82f",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "BoxPlot-operator-9ffd3dce-29b4-4373-ab38-235487393d72",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "43a36387-7d39-4c41-8e92-a858c7a79ebe",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "PythonUDFV2-operator-1d891fad-a245-4e03-ba40-ad9ffbfa2b6b",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "ac044fd7-063a-4b5a-96a5-0269924334e4",
-              "source": {
-                "operatorID": "Filter-operator-b46dc58f-8100-478e-80c5-87d93c1f7e04",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "1e344ef6-e00b-47ad-b593-2698ee8af686",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "SklearnRandomForest-operator-7844ee52-5d28-4421-a537-d267bb52efa8",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "f4c74729-e854-4a85-a0c2-3273434045d9",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-1"
-              },
-              "target": {
-                "operatorID": "SklearnRandomForest-operator-7844ee52-5d28-4421-a537-d267bb52efa8",
-                "portID": "input-1"
-              }
-            },
-            {
-              "linkID": "78e7a89f-11f9-4a19-a8ac-0ab9e6bca48d",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "SklearnDecisionTree-operator-65ea9d8c-9057-4ebc-8a40-a8c01333f948",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "ca5c8d48-b027-43aa-83b9-f3c7df9bcb98",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-1"
-              },
-              "target": {
-                "operatorID": "SklearnDecisionTree-operator-65ea9d8c-9057-4ebc-8a40-a8c01333f948",
-                "portID": "input-1"
-              }
-            },
-            {
-              "linkID": "38a4986b-ea49-47e6-b737-9ccffadc305d",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "SklearnSVM-operator-7adceacc-b3f9-4af6-8319-cd3c3f96d95d",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "101d386b-fdc9-4e26-8599-925aa3866970",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-1"
-              },
-              "target": {
-                "operatorID": "SklearnSVM-operator-7adceacc-b3f9-4af6-8319-cd3c3f96d95d",
-                "portID": "input-1"
-              }
-            },
-            {
-              "linkID": "f2a48196-4400-4cb6-b3e0-a29b1181b58b",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-0"
-              },
-              "target": {
-                "operatorID": "SklearnLogisticRegression-operator-eca48ee5-d808-4c5d-bb3c-6614d0bfb548",
-                "portID": "input-0"
-              }
-            },
-            {
-              "linkID": "e97eb3b1-2801-4983-9d94-8762d6d00ccc",
-              "source": {
-                "operatorID": "Split-operator-3e01a035-69bd-487b-bb3c-edf23fb7a64c",
-                "portID": "output-1"
-              },
-              "target": {
-                "operatorID": "SklearnLogisticRegression-operator-eca48ee5-d808-4c5d-bb3c-6614d0bfb548",
-                "portID": "input-1"
-              }
-            }
-          ],
-          "groups": [],
-          "commentBoxes": []
-        }
-
-        const fileExtensionIndex = file.name.lastIndexOf(".");
-        var workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = file.name;
-        } else {
-          workflowName = file.name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-
-        // Create a valid Workflow object with required fields
-        const workflow: Workflow = {
-          content: workflowContent,
-          name: workflowName,
-          isPublished: 0,
-          description: undefined,
-          wid: undefined,
-          creationTime: undefined,
-          lastModifiedTime: undefined,
-          readonly: false,
-        };
-
-        // Open the notebook in the Jupyter notebook panel by reloading the workflow
-        this.workflowActionService.reloadWorkflow(workflow, true);
-        this.openJupyterNotebookPanel();
+          })
+          .catch((error) => {
+            console.error("Error while fetching data from OpenAI:", error);
+          });
       } catch (error) {
         this.notificationService.error("Failed to import the notebook.");
         console.error(error);
@@ -1325,6 +470,38 @@ export class MenuComponent implements OnInit {
   private openJupyterNotebookPanel(): void {
     // Assuming you have a service that handles the state of various panels
     this.panelService.openPanel("JupyterNotebookPanel");
+  }
+
+  private async sendToAIGenerateWorkflow() {
+    const apiUrl = "http://localhost:5000/get_openai_response"; // Flask API URL
+
+    try {
+      // Send POST request to the Flask server
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({})
+      });
+
+      // Check if the response is OK (status code 200)
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      // Parse JSON response from the server
+      const data = await response.json();
+      console.log("Data received from OpenAI:", data); // { "workflow": {...}, "mapping": {...} }
+
+      // Extract individual objects
+      const workflowContent = data.workflow;
+      const mappingContent = data.mapping;
+
+      return { workflowContent, mappingContent };
+    } catch (error) {
+      console.error("Error while querying OpenAI:", error);
+    }
   }
 
   private async sendNotebookToPod(notebookContent: JSON) {
