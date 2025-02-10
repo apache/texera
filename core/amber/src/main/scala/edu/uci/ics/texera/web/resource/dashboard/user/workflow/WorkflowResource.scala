@@ -4,16 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -52,6 +48,21 @@ object WorkflowResource {
     context.configuration()
   )
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
+
+
+  @GET
+  @Path("/git-describe")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def getGitHead: String = {
+    AmberConfig.latestCommitFromMaster
+  }
+
+  @GET
+  @Path("/last-deploy")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def getLastDeploy: String = {
+    AmberConfig.lastDeployTimestamp
+  }
 
   def getWorkflowName(wid: UInteger): String = {
     val workflow = workflowDao.fetchOneByWid(wid)

@@ -14,6 +14,14 @@ export class HubService {
 
   constructor(private http: HttpClient) {}
 
+  public getGitCommit(): Observable<string> {
+    return this.http.get<string>(`${this.BASE_URL}/git-describe`, { responseType: 'text' as 'json'});
+  }
+
+  public getLastDeploy(): Observable<string> {
+    return this.http.get<string>(`${this.BASE_URL}/last-deploy`, { responseType:'text' as 'json' });
+  }
+
   public getCount(entityType: string): Observable<number> {
     return this.http.get<number>(`${this.BASE_URL}/count`, {
       params: { entityType: entityType },
