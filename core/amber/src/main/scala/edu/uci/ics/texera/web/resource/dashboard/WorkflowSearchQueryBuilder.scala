@@ -106,7 +106,14 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def getGroupByFields: Seq[GroupField] = {
-    Seq(WORKFLOW.WID)
+    Seq(WORKFLOW.NAME,
+      WORKFLOW.DESCRIPTION,
+      WORKFLOW.CREATION_TIME,
+      WORKFLOW.WID,
+      WORKFLOW.LAST_MODIFIED_TIME,
+      WORKFLOW_USER_ACCESS.PRIVILEGE,
+      WORKFLOW_OF_USER.UID,
+      USER.NAME)
   }
 
   override def toEntryImpl(

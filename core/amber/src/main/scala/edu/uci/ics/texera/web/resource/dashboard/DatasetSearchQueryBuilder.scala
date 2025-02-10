@@ -99,7 +99,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def getGroupByFields: Seq[GroupField] = {
-    Seq(DATASET.DID)
+    Seq.empty
   }
 
   override protected def toEntryImpl(

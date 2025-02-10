@@ -135,7 +135,6 @@ class ProjectResource {
       .join(PROJECT)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
       .where(PROJECT.OWNER_ID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid)))
-      .groupBy(PROJECT.PID)
       .fetchInto(classOf[DashboardProject])
   }
 

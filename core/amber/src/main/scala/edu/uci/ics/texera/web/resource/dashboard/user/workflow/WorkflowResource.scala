@@ -289,7 +289,14 @@ class WorkflowResource extends LazyLogging {
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
+      .groupBy(WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME)
       .fetch()
     workflowEntries
       .map(workflowRecord =>
