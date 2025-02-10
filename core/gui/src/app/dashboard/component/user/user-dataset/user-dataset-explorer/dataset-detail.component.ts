@@ -1,7 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
@@ -11,6 +10,7 @@ import { DownloadService } from "../../../../service/user/download/download.serv
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 import { UserService } from "../../../../../common/service/user/user.service";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -18,7 +18,7 @@ import { UserService } from "../../../../../common/service/user/user.service";
   styleUrls: ["./dataset-detail.component.scss"],
 })
 export class DatasetDetailComponent implements OnInit {
-  public did: number | undefined;
+  public did: string | undefined;
   public datasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
@@ -44,10 +44,10 @@ export class DatasetDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private datasetService: DatasetService,
     private notificationService: NotificationService,
     private downloadService: DownloadService,
-    private userService: UserService
+    private userService: UserService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {
     this.userService
       .userChanged()
@@ -101,7 +101,7 @@ export class DatasetDetailComponent implements OnInit {
 
   renderVersionCreatorSider() {
     if (this.did) {
-      this.datasetService
+      this.lakefsDatasetService
         .retrieveDatasetLatestVersion(this.did)
         .pipe(untilDestroyed(this))
         .subscribe(latestVersion => {
@@ -113,8 +113,8 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
-  public onCreationFinished(creationID: number) {
-    if (creationID != 0) {
+  public onCreationFinished(creationID: string) {
+    if (creationID != "") {
       // creation succeed
       if (this.isCreatingVersion) {
         this.retrieveDatasetVersionList();
@@ -141,7 +141,7 @@ export class DatasetDetailComponent implements OnInit {
   onPublicStatusChange(checked: boolean): void {
     // Handle the change in dataset public status
     if (this.did) {
-      this.datasetService
+      this.lakefsDatasetService
         .updateDatasetPublicity(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
@@ -162,7 +162,7 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetInfo() {
     if (this.did) {
-      this.datasetService
+      this.lakefsDatasetService
         .getDataset(this.did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
@@ -180,7 +180,7 @@ export class DatasetDetailComponent implements OnInit {
 
   retrieveDatasetVersionList() {
     if (this.did) {
-      this.datasetService
+      this.lakefsDatasetService
         .retrieveDatasetVersionList(this.did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(versionNames => {
@@ -207,10 +207,10 @@ export class DatasetDetailComponent implements OnInit {
   onClickDownloadVersionAsZip = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
 
-    this.downloadService
-      .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
-      .pipe(untilDestroyed(this))
-      .subscribe();
+    // this.downloadService
+    //   .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
+    //   .pipe(untilDestroyed(this))
+    //   .subscribe();
   };
 
   onClickScaleTheView() {
@@ -224,7 +224,7 @@ export class DatasetDetailComponent implements OnInit {
   onVersionSelected(version: DatasetVersion): void {
     this.selectedVersion = version;
     if (this.did && this.selectedVersion.dvid)
-      this.datasetService
+      this.lakefsDatasetService
         .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {

@@ -3,13 +3,13 @@ import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
 import { DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -53,7 +53,7 @@ export class UserDatasetComponent implements AfterViewInit {
     private userService: UserService,
     private router: Router,
     private searchService: SearchService,
-    private datasetService: DatasetService
+    private lakefsDatasetService: LakefsDatasetService
   ) {
     this.userService
       .userChanged()
@@ -81,6 +81,7 @@ export class UserDatasetComponent implements AfterViewInit {
    *  - "private": limits the search to dataset where the user has direct access rights.
    */
   async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
+    console.log("This is the dataset search function", forced, filterScope);
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -159,7 +160,7 @@ export class UserDatasetComponent implements AfterViewInit {
     if (entry.dataset.dataset.did == undefined) {
       return;
     }
-    this.datasetService
+    this.lakefsDatasetService
       .deleteDatasets([entry.dataset.dataset.did])
       .pipe(untilDestroyed(this))
       .subscribe(_ => {

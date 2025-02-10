@@ -9,9 +9,9 @@ import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -23,7 +23,7 @@ export class ShareAccessComponent implements OnInit {
   readonly nzModalData = inject(NZ_MODAL_DATA);
   readonly writeAccess: boolean = this.nzModalData.writeAccess;
   readonly type: string = this.nzModalData.type;
-  readonly id: number = this.nzModalData.id;
+  readonly id: number | string = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
 
   readonly inWorkspace: boolean = this.nzModalData.inWorkspace;
@@ -45,8 +45,8 @@ export class ShareAccessComponent implements OnInit {
     private message: NzMessageService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
@@ -66,15 +66,15 @@ export class ShareAccessComponent implements OnInit {
       .subscribe(name => {
         this.owner = name;
       });
-    if (this.type === "workflow") {
+    if (this.type === "workflow" && typeof this.id === "number") {
       this.workflowPersistService
         .getWorkflowIsPublished(this.id)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardWorkflow => {
           this.isPublic = dashboardWorkflow === "Public";
         });
-    } else if (this.type === "dataset") {
-      this.datasetService
+    } else if (this.type === "dataset" && typeof this.id === "string") {
+      this.lakefsDatasetService
         .getDataset(this.id)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
@@ -234,7 +234,7 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public publishWorkflow(): void {
-    if (!this.isPublic) {
+    if (!this.isPublic && typeof this.id === "number") {
       console.log("Workflow " + this.id + " is published");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, true)
@@ -246,7 +246,7 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public unpublishWorkflow(): void {
-    if (this.isPublic) {
+    if (this.isPublic && typeof this.id === "number") {
       console.log("Workflow " + this.id + " is unpublished");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, false)
@@ -258,8 +258,8 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public publishDataset(): void {
-    if (!this.isPublic) {
-      this.datasetService
+    if (!this.isPublic && typeof this.id === "string") {
+      this.lakefsDatasetService
         .updateDatasetPublicity(this.id)
         .pipe(untilDestroyed(this))
         .subscribe({
@@ -276,8 +276,8 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public unpublishDataset(): void {
-    if (this.isPublic) {
-      this.datasetService
+    if (this.isPublic && typeof this.id === "string") {
+      this.lakefsDatasetService
         .updateDatasetPublicity(this.id)
         .pipe(untilDestroyed(this))
         .subscribe({

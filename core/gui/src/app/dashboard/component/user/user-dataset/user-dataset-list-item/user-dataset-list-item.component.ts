@@ -1,12 +1,12 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { Dataset } from "../../../../../common/type/dataset";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -52,8 +52,8 @@ export class UserDatasetListItemComponent {
 
   constructor(
     private modalService: NzModalService,
-    private datasetService: DatasetService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   public confirmUpdateDatasetCustomName(name: string) {
@@ -62,7 +62,7 @@ export class UserDatasetListItemComponent {
     }
 
     if (this.entry.dataset.did)
-      this.datasetService
+      this.lakefsDatasetService
         .updateDatasetName(this.entry.dataset.did, name)
         .pipe(untilDestroyed(this))
         .subscribe({
@@ -83,7 +83,7 @@ export class UserDatasetListItemComponent {
     }
 
     if (this.entry.dataset.did)
-      this.datasetService
+      this.lakefsDatasetService
         .updateDatasetDescription(this.entry.dataset.did, description)
         .pipe(untilDestroyed(this))
         .subscribe({

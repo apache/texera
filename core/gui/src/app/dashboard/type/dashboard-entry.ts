@@ -15,7 +15,7 @@ export class DashboardEntry {
   name: string;
   creationTime: number | undefined;
   lastModifiedTime: number | undefined;
-  id: number | undefined;
+  id: number | string | undefined;
   description: string | undefined;
   accessLevel: string | undefined;
   ownerName: string | undefined;

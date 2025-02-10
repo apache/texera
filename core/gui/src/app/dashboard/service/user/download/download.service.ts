@@ -3,11 +3,10 @@ import { Observable, throwError, of, forkJoin, from } from "rxjs";
 import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { DatasetService } from "../dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
-
+import { LakefsDatasetService } from "../lakefs-dataset/lakefs-dataset.service";
 interface DownloadableItem {
   blob: Blob;
   fileName: string;
@@ -20,8 +19,8 @@ export class DownloadService {
   constructor(
     private fileSaverService: FileSaverService,
     private notificationService: NotificationService,
-    private datasetService: DatasetService,
-    private workflowPersistService: WorkflowPersistService
+    private workflowPersistService: WorkflowPersistService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
@@ -36,9 +35,9 @@ export class DownloadService {
     );
   }
 
-  downloadDataset(id: number, name: string): Observable<Blob> {
+  downloadDataset(id: string, name: string): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: id }),
+      () => this.lakefsDatasetService.retrieveDatasetZip({ did: id }),
       `${name}.zip`,
       "Starting to download the latest version of the dataset as ZIP",
       "The latest version of the dataset has been downloaded as ZIP",
@@ -47,13 +46,13 @@ export class DownloadService {
   }
 
   downloadDatasetVersion(
-    datasetId: number,
-    datasetVersionId: number,
+    datasetId: string,
+    datasetVersionId: string,
     datasetName: string,
     versionName: string
   ): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
+      () => this.lakefsDatasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
       `${datasetName}-${versionName}.zip`,
       `Starting to download version ${versionName} as ZIP`,
       `Version ${versionName} has been downloaded as ZIP`,
@@ -62,15 +61,16 @@ export class DownloadService {
   }
 
   downloadSingleFile(filePath: string): Observable<Blob> {
-    const DEFAULT_FILE_NAME = "download";
-    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
-    return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
-      fileName,
-      `Starting to download file ${filePath}`,
-      `File ${filePath} has been downloaded`,
-      `Error downloading file '${filePath}'`
-    );
+    // const DEFAULT_FILE_NAME = "download";
+    // const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
+    // return this.downloadWithNotification(
+    //   () => this.lakefsDatasetService.retrieveDatasetVersionSingleFile(filePath),
+    //   fileName,
+    //   `Starting to download file ${filePath}`,
+    //   `File ${filePath} has been downloaded`,
+    //   `Error downloading file '${filePath}'`
+    // );
+    return new Observable<Blob>();
   }
 
   downloadWorkflowsAsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {

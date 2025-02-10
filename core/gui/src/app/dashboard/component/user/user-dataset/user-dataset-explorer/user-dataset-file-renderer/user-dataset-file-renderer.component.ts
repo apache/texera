@@ -1,11 +1,11 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, OnDestroy } from "@angular/core";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
 import readXlsxFile from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 export const MIME_TYPES = {
   JPEG: "image/jpeg",
@@ -87,10 +87,10 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   isMaximized: boolean = false;
 
   @Input()
-  did: number | undefined;
+  did: string | undefined;
 
   @Input()
-  dvid: number | undefined;
+  dvid: string | undefined;
 
   @Input()
   filePath: string = "";
@@ -99,9 +99,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
   constructor(
-    private datasetService: DatasetService,
     private sanitizer: DomSanitizer,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   ngOnInit(): void {
@@ -130,8 +130,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.turnOffAllDisplay();
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
-      this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath)
+      this.lakefsDatasetService
+        .retrieveDatasetVersionSingleFile(this.filePath, this.did, this.dvid)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {

@@ -7,15 +7,6 @@ import { Observable } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
-import { RepositoriesService, RepositoryCreation, Repository, CommitsService } from "lakefs"
-import { S3Client, 
-  PutObjectCommand, 
-  PutObjectCommandOutput, 
-  CreateMultipartUploadCommand, 
-  UploadPartCommand, 
-  CompleteMultipartUploadCommand, 
-  AbortMultipartUploadCommand } from "@aws-sdk/client-s3"
-import { defaultEnvironment } from "src/environments/environment.default";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -35,205 +26,12 @@ export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
 
-const LAKEFS_ACCESS_KEY = "AKIAIOSFOLKFSSAMPLES"
-const LAKEFS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB per part (AWS & LakeFS minimum)
-
 @Injectable({
   providedIn: "root",
 })
 export class DatasetService {
-  private s3ClientLakefs: S3Client;
 
-  constructor(private http: HttpClient, 
-    private repositoriesService: RepositoriesService,
-    private commitsService: CommitsService
-  ) {
-    this.repositoriesService.configuration.username = LAKEFS_ACCESS_KEY;
-    this.repositoriesService.configuration.password = LAKEFS_SECRET_KEY;
-
-    this.commitsService.configuration.username = LAKEFS_ACCESS_KEY;
-    this.commitsService.configuration.password = LAKEFS_SECRET_KEY;
-
-    this.s3ClientLakefs = new S3Client({
-      region: 'us-east-2',
-      endpoint: 'http://localhost:4200/s3',
-      credentials: {
-        accessKeyId: LAKEFS_ACCESS_KEY,
-        secretAccessKey: LAKEFS_SECRET_KEY
-      },
-      forcePathStyle: true,
-      requestChecksumCalculation: "WHEN_REQUIRED"
-    });
-  }
-
-  public createDatasetLakefs(
-    dataset: Dataset,
-    initialVersionName: string,
-    filesToBeUploaded: FileUploadItem[]
-  ): void {
-
-    const repositoryData: RepositoryCreation = {
-      name: dataset.name,
-      storage_namespace: `s3://${defaultEnvironment.s3BucketName}/${dataset.name}`,
-      default_branch: 'main'
-    };
-
-    this.repositoriesService.createRepository(repositoryData, false).subscribe({
-      next: (repository) => {
-        const uploadPromises = filesToBeUploaded.map(file =>
-          this.uploadFileS3(dataset.name, "main", file.name, file.file)
-        );
-  
-        Promise.all(uploadPromises)
-          .then(() => {
-            this.createCommitLakefs(dataset);
-          })
-          .catch(error => {
-            console.error("Error uploading files:", error);
-          });
-      },
-      error: (err) => {
-        console.error('Error creating repository:', err);
-      }
-    });
-  }
-
-  private createCommitLakefs(
-    dataset: Dataset,
-  ) {
-    const commitParams = {
-      message: dataset.description,
-    }
-
-    this.commitsService
-      .commit(commitParams, dataset.name, "main")
-      .subscribe({
-        next: (commit) => {
-          console.log("Commit created successfully:", commit);
-        },
-        error: (err) => {
-          console.error("Error creating commit:", err);
-        }
-      })
-  }
-
-  private async uploadFileS3(
-    repo: string,
-    branch: string,
-    key: string, 
-    file: File
-  ): Promise<void> {
-    if (file.size > CHUNK_SIZE) {
-      // Use multipart upload for large files
-      await this.uploadFileMultipartS3(repo, branch, key, file);
-    } else {
-      // Use simple put object for smaller files
-      const commandParams = {
-        Bucket: repo,
-        Key: `${branch}/${key}`,
-        Body: file,
-        ContentType: file.type,
-      };
-  
-      const command = new PutObjectCommand(commandParams);
-  
-      return this.s3ClientLakefs.send(command)
-        .then((data) => {
-          console.log(`File ${key} uploaded successfully:`, data);
-        })
-        .catch((error) => {
-          console.error(`Error uploading ${key} to LakeFS:`, error);
-          throw error;
-        });
-    }
-  }
-
-  private async uploadFileMultipartS3(
-    repo: string,
-    branch: string,
-    key: string,
-    file: File
-  ): Promise<void> {
-    const objectKey = `${branch}/${key}`;
-    const partCount = Math.ceil(file.size / CHUNK_SIZE);
-    let uploadId: string | undefined;
-  
-    try {
-      const createUploadResponse = await this.s3ClientLakefs.send(
-        new CreateMultipartUploadCommand({
-          Bucket: repo,
-          Key: objectKey,
-          ContentType: file.type,
-        })
-      );
-  
-      uploadId = createUploadResponse.UploadId;
-      if (!uploadId) throw new Error("Failed to initiate multipart upload");
-  
-      console.log(`Started multipart upload for ${key} with UploadId: ${uploadId}`);
-  
-      // Step 2: Upload Parts
-      const uploadPromises = [];
-      const uploadedParts: { PartNumber: number; ETag: string | undefined }[] = [];
-  
-      for (let i = 0; i < partCount; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const chunk = file.slice(start, end);
-  
-        uploadPromises.push(
-          (async () => {
-            const uploadPartResponse = await this.s3ClientLakefs.send(
-              new UploadPartCommand({
-                Bucket: repo,
-                Key: objectKey,
-                UploadId: uploadId,
-                PartNumber: i + 1,
-                Body: chunk,
-              })
-            );
-  
-            console.log(`Uploaded part ${i + 1} of ${partCount}`);
-  
-            uploadedParts.push({
-              PartNumber: i + 1,
-              ETag: uploadPartResponse.ETag,
-            });
-          })()
-        );
-      }
-  
-      await Promise.all(uploadPromises);
-  
-      // Step 3: Complete Multipart Upload
-      await this.s3ClientLakefs.send(
-        new CompleteMultipartUploadCommand({
-          Bucket: repo,
-          Key: objectKey,
-          UploadId: uploadId,
-          MultipartUpload: { Parts: uploadedParts.sort((a, b) => a.PartNumber - b.PartNumber) },
-        })
-      );
-  
-      console.log(`Multipart upload for ${key} completed successfully!`);
-    } catch (error) {
-      console.error(`Multipart upload failed for ${key}`, error);
-
-      if (uploadId) {
-        await this.s3ClientLakefs.send(
-          new AbortMultipartUploadCommand({
-            Bucket: repo,
-            Key: objectKey,
-            UploadId: uploadId,
-          })
-        );
-  
-        console.error(`Upload aborted for ${key}`);
-      }
-    }
-  }
+  constructor(private http: HttpClient) {}
 
   public createDataset(
     dataset: Dataset,
@@ -249,8 +47,6 @@ export class DatasetService {
     filesToBeUploaded.forEach(file => {
       formData.append(`file:upload:${file.name}`, file.file);
     });
-
-    this.createDatasetLakefs(dataset, initialVersionName, filesToBeUploaded);
 
     return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
   }

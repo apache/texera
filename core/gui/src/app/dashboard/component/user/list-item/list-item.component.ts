@@ -23,7 +23,7 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
-import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
+import { DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
   DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
@@ -32,6 +32,7 @@ import {
   DASHBOARD_USER_DATASET,
   DASHBOARD_HUB_DATASET_RESULT_DETAIL,
 } from "../../../../app-routing.constant";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -78,12 +79,12 @@ export class ListItemComponent implements OnInit, OnChanges {
   constructor(
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private datasetService: DatasetService,
     private modal: NzModalService,
     private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   initializeEntry() {
@@ -120,9 +121,9 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
-      if (typeof this.entry.id === "number") {
+      if (typeof this.entry.id === "string") {
         this.disableDelete = !this.entry.dataset.isOwner;
-        this.datasetService
+        this.lakefsDatasetService
           .getDatasetOwners(this.entry.id)
           .pipe(untilDestroyed(this))
           .subscribe((data: number[]) => {
@@ -146,7 +147,7 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
-    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+    if (this.entry.id !== undefined && this.currentUid !== undefined && typeof this.entry.id === "number") {
       this.hubWorkflowService
         .isWorkflowLiked(this.entry.id, this.currentUid)
         .pipe(untilDestroyed(this))
@@ -160,7 +161,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (changes["entry"]) {
       this.initializeEntry();
     }
-    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+    if (this.entry.id !== undefined && this.currentUid !== undefined && typeof this.entry.id === "number") {
       this.hubWorkflowService
         .isWorkflowLiked(this.entry.id, this.currentUid)
         .pipe(untilDestroyed(this))
@@ -177,7 +178,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
-    if (this.entry.type === "workflow") {
+    if (this.entry.type === "workflow" && typeof this.entry.id === "number") {
       this.modalService.create({
         nzContent: ShareAccessComponent,
         nzData: {
@@ -211,13 +212,14 @@ export class ListItemComponent implements OnInit, OnChanges {
   public onClickDownload = (): void => {
     if (!this.entry.id) return;
 
-    if (this.entry.type === "workflow") {
+    if (this.entry.type === "workflow" && typeof this.entry.id === "number") {
       this.downloadService
         .downloadWorkflow(this.entry.id, this.entry.workflow.workflow.name)
         .pipe(untilDestroyed(this))
         .subscribe();
     } else if (this.entry.type === "dataset") {
-      this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
+      // TODO: download dataset
+      // this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
   };
 
@@ -248,7 +250,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   private updateProperty(
-    updateMethod: (id: number, value: string) => any,
+    updateMethod: (id: number | string, value: string) => any,
     propertyName: "name" | "description",
     newValue: string,
     originalValue: string | undefined
@@ -288,14 +290,14 @@ export class ListItemComponent implements OnInit, OnChanges {
 
     if (this.entry.type === "workflow") {
       this.updateProperty(
-        this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
-        "name",
+        (id: string | number, name: string) => this.workflowPersistService.updateWorkflowName(Number(id), name),
+        "name", 
         newName,
         this.originalName
       );
     } else if (this.entry.type === "dataset") {
       this.updateProperty(
-        this.datasetService.updateDatasetName.bind(this.datasetService),
+        (id: string | number, name: string) => this.lakefsDatasetService.updateDatasetName(String(id), name),
         "name",
         newName,
         this.originalName
@@ -308,14 +310,14 @@ export class ListItemComponent implements OnInit, OnChanges {
 
     if (this.entry.type === "workflow") {
       this.updateProperty(
-        this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
+        (id: string | number, description: string) => this.workflowPersistService.updateWorkflowDescription(Number(id), description),
         "description",
         updatedDescription,
         this.originalDescription
       );
     } else if (this.entry.type === "dataset") {
       this.updateProperty(
-        this.datasetService.updateDatasetDescription.bind(this.datasetService),
+        (id: string | number, description: string) => this.lakefsDatasetService.updateDatasetDescription(String(id), description),
         "description",
         updatedDescription,
         this.originalDescription
@@ -349,7 +351,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  openDetailModal(wid: number | undefined): void {
+  openDetailModal(wid: number | string | undefined): void {
     const modalRef = this.modal.create({
       nzTitle: "Workflow Detail",
       nzContent: HubWorkflowDetailComponent,
@@ -363,7 +365,7 @@ export class ListItemComponent implements OnInit, OnChanges {
 
     const instance = modalRef.componentInstance;
     if (instance) {
-      if (wid !== undefined) {
+      if (wid !== undefined && typeof wid === "number") {
         this.hubWorkflowService
           .getViewCount(wid)
           .pipe(untilDestroyed(this))
@@ -374,12 +376,12 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+  toggleLike(workflowId: number | string | undefined, userId: number | undefined): void {
     if (workflowId === undefined || userId === undefined) {
       return;
     }
 
-    if (this.isLiked) {
+    if (this.isLiked && typeof workflowId === "number") {
       this.hubWorkflowService
         .postUnlikeWorkflow(workflowId, userId)
         .pipe(untilDestroyed(this))
@@ -394,7 +396,7 @@ export class ListItemComponent implements OnInit, OnChanges {
               });
           }
         });
-    } else {
+    } else if (typeof workflowId === "number") {
       this.hubWorkflowService
         .postLikeWorkflow(workflowId, userId)
         .pipe(untilDestroyed(this))

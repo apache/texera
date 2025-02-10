@@ -1,11 +1,13 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { SearchResult } from "../../type/search-result";
+import { SearchResult, SearchResultItem } from "../../type/search-result";
 import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { UserInfo } from "../../type/dashboard-entry";
+import { LakefsDatasetService } from "./lakefs-dataset/lakefs-dataset.service";
+import { map } from "rxjs/operators";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
@@ -15,7 +17,7 @@ const DASHBOARD_USER_INFO_URL = "dashboard/resultsOwnersInfo";
   providedIn: "root",
 })
 export class SearchService {
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private lakefsDatasetService: LakefsDatasetService) {}
 
   /**
    * Retrieves a workflow or other resource from the backend database given the specified search parameters.
@@ -44,12 +46,23 @@ export class SearchService {
     isLogin: boolean,
     includePublic: boolean = false
   ): Observable<SearchResult> {
+    console.log("search", type, keywords);
+    if (type === "dataset") {
+      return this.lakefsDatasetService.retrieveAccessibleDatasets().pipe(
+        map((datasets: any[]) => ({
+          results: datasets.map(dataset => ({
+            resourceType: "dataset",
+            dataset: dataset
+          } as SearchResultItem)),
+          more: false
+        }))
+      );
+    }
     const url = isLogin
       ? `${AppSettings.getApiEndpoint()}/${DASHBOARD_SEARCH_URL}`
       : `${AppSettings.getApiEndpoint()}/${DASHBOARD_PUBLIC_SEARCH_URL}`;
 
     const finalIncludePublic = isLogin ? includePublic : true;
-
     return this.http.get<SearchResult>(
       `${url}?${toQueryStrings(keywords, params, start, count, type, orderBy)}&includePublic=${finalIncludePublic}`
     );

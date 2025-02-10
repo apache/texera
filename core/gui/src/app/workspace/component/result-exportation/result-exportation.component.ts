@@ -2,10 +2,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, inject, Input, OnInit } from "@angular/core";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -36,13 +36,13 @@ export class ResultExportationComponent implements OnInit {
   constructor(
     public workflowResultExportService: WorkflowResultExportService,
     private modalRef: NzModalRef,
-    private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   ngOnInit(): void {
-    this.datasetService
+    this.lakefsDatasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
@@ -83,7 +83,8 @@ export class ResultExportationComponent implements OnInit {
       this.workflowResultExportService.exportWorkflowExecutionResult(
         this.exportType,
         this.workflowName,
-        [dataset.dataset.did],
+        // [dataset.dataset.did],
+        [],
         this.rowIndex,
         this.columnIndex,
         this.inputFileName,

@@ -4,8 +4,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
+import { LakefsDatasetService } from "src/app/dashboard/service/user/lakefs-dataset/lakefs-dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -28,14 +28,14 @@ export class FileSelectionComponent implements OnInit {
 
   constructor(
     private modalRef: NzModalRef,
-    private datasetService: DatasetService
+    private lakefsDatasetService: LakefsDatasetService
   ) {}
 
   ngOnInit() {
     this.isAccessibleDatasetsLoading = true;
 
     // retrieve all the accessible datasets from the backend
-    this.datasetService
+    this.lakefsDatasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
@@ -51,7 +51,7 @@ export class FileSelectionComponent implements OnInit {
         );
         this.isDatasetSelected = !!this.selectedDataset;
         if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-          this.datasetService
+          this.lakefsDatasetService
             .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
             .pipe(untilDestroyed(this))
             .subscribe(versions => {
@@ -68,7 +68,7 @@ export class FileSelectionComponent implements OnInit {
     this.suggestedFileTreeNodes = [];
     this.isDatasetSelected = !!this.selectedDataset;
     if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-      this.datasetService
+      this.lakefsDatasetService
         .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
         .pipe(untilDestroyed(this))
         .subscribe(versions => {
@@ -89,7 +89,7 @@ export class FileSelectionComponent implements OnInit {
       this.selectedVersion &&
       this.selectedVersion.dvid !== undefined
     ) {
-      this.datasetService
+      this.lakefsDatasetService
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .pipe(untilDestroyed(this))
         .subscribe(data => {

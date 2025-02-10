@@ -1,13 +1,14 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { FileUploadItem } from "../../../../../type/dashboard-file.interface";
 import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import sanitize from "sanitize-filename";
 import { HttpErrorResponse } from "@angular/common/http";
+import { LakefsDatasetService } from "../../../../../service/user/lakefs-dataset/lakefs-dataset.service";
+import { Repository } from "lakefs";
 
 @UntilDestroy()
 @Component({
@@ -24,7 +25,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   // this emits the ID of the newly created version/dataset, will emit 0 if creation is failed.
   @Output()
-  datasetOrVersionCreationID: EventEmitter<number> = new EventEmitter<number>();
+  datasetOrVersionCreationID: EventEmitter<string> = new EventEmitter<string>();
 
   isCreateButtonDisabled: boolean = false;
 
@@ -44,7 +45,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   isUploading: boolean = false;
 
   constructor(
-    private datasetService: DatasetService,
+    private lakefsDatasetService: LakefsDatasetService,
     private notificationService: NotificationService,
     private formBuilder: FormBuilder
   ) {}
@@ -117,7 +118,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
 
   onClickCancel() {
-    this.datasetOrVersionCreationID.emit(0);
+    this.datasetOrVersionCreationID.emit("");
   }
 
   onClickCreate() {
@@ -138,7 +139,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     this.isUploading = true;
     if (this.isCreatingVersion && this.baseVersion) {
       const versionName = this.form.get("versionDescription")?.value;
-      this.datasetService
+      this.lakefsDatasetService
         .createDatasetVersion(this.baseVersion?.did, versionName, this.removedFilePaths, this.newUploadFiles)
         .pipe(untilDestroyed(this))
         .subscribe({
@@ -168,7 +169,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
       // do the name sanitization
 
-      this.datasetService
+      this.lakefsDatasetService
         .createDataset(ds, initialVersionName, this.newUploadFiles)
         .pipe(untilDestroyed(this))
         .subscribe({
