@@ -32,7 +32,6 @@ import {
   DASHBOARD_USER_DATASET,
   DASHBOARD_HUB_DATASET_RESULT_DETAIL,
 } from "../../../../app-routing.constant";
-import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({
@@ -120,7 +119,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           .getSize(this.entry.id)
           .pipe(untilDestroyed(this))
           .subscribe(size => {
-            this.size = size
+            this.size = size;
           });
       }
       this.iconType = "project";
