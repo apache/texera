@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables;
 import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectUserAccessRecord;
 
 import java.util.Arrays;
@@ -25,7 +25,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -34,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
 
-    private static final long serialVersionUID = 1043932682;
+    private static final long serialVersionUID = -929790580;
 
     /**
      * The reference instance of <code>texera_db.project_user_access</code>
@@ -52,17 +51,17 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
     /**
      * The column <code>texera_db.project_user_access.uid</code>.
      */
-    public final TableField<ProjectUserAccessRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectUserAccessRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project_user_access.pid</code>.
      */
-    public final TableField<ProjectUserAccessRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectUserAccessRecord, Integer> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project_user_access.privilege</code>.
      */
-    public final TableField<ProjectUserAccessRecord, ProjectUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR(5).nullable(false).defaultValue(org.jooq.impl.DSL.inline("NONE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege.class), this, "");
+    public final TableField<ProjectUserAccessRecord, PrivilegeEnum> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR.nullable(false).defaultValue(org.jooq.impl.DSL.field("'NONE'::texera_db.privilege_enum", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum.class), this, "");
 
     /**
      * Create a <code>texera_db.project_user_access</code> table reference
@@ -104,30 +103,30 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_USER_ACCESS_PID, Indexes.PROJECT_USER_ACCESS_PRIMARY);
+        return Arrays.<Index>asList(Indexes.PROJECT_USER_ACCESS_PKEY);
     }
 
     @Override
     public UniqueKey<ProjectUserAccessRecord> getPrimaryKey() {
-        return Keys.KEY_PROJECT_USER_ACCESS_PRIMARY;
+        return Keys.PROJECT_USER_ACCESS_PKEY;
     }
 
     @Override
     public List<UniqueKey<ProjectUserAccessRecord>> getKeys() {
-        return Arrays.<UniqueKey<ProjectUserAccessRecord>>asList(Keys.KEY_PROJECT_USER_ACCESS_PRIMARY);
+        return Arrays.<UniqueKey<ProjectUserAccessRecord>>asList(Keys.PROJECT_USER_ACCESS_PKEY);
     }
 
     @Override
     public List<ForeignKey<ProjectUserAccessRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<ProjectUserAccessRecord, ?>>asList(Keys.PROJECT_USER_ACCESS_IBFK_1, Keys.PROJECT_USER_ACCESS_IBFK_2);
+        return Arrays.<ForeignKey<ProjectUserAccessRecord, ?>>asList(Keys.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_UID_FKEY, Keys.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_PID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.PROJECT_USER_ACCESS_IBFK_1);
+        return new User(this, Keys.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_UID_FKEY);
     }
 
     public Project project() {
-        return new Project(this, Keys.PROJECT_USER_ACCESS_IBFK_2);
+        return new Project(this, Keys.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_PID_FKEY);
     }
 
     @Override
@@ -161,7 +160,7 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<UInteger, UInteger, ProjectUserAccessPrivilege> fieldsRow() {
+    public Row3<Integer, Integer, PrivilegeEnum> fieldsRow() {
         return (Row3) super.fieldsRow();
     }
 }

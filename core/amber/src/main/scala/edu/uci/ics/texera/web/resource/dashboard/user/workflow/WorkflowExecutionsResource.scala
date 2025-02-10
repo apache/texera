@@ -26,7 +26,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
@@ -50,7 +49,7 @@ object WorkflowExecutionsResource {
     context.configuration
   )
 
-  def getExecutionById(eId: UInteger): WorkflowExecutions = {
+  def getExecutionById(eId: Integer): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
   }
 
@@ -77,16 +76,16 @@ object WorkflowExecutionsResource {
     * This function retrieves the latest execution id of a workflow
     *
     * @param wid workflow id
-    * @return UInteger
+    * @return Integer
     */
-  def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
+  def getLatestExecutionID(wid: Integer): Option[Integer] = {
     val executions = context
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
       .join(WORKFLOW_VERSION)
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
       .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toList
     if (executions.isEmpty) {
@@ -98,9 +97,9 @@ object WorkflowExecutionsResource {
 
   def insertOperatorExecutions(
       list: util.ArrayList[OperatorExecutions]
-  ): util.HashMap[String, ULong] = {
+  ): util.HashMap[String, Long] = {
     operatorExecutionsDao.insert(list);
-    val result = new util.HashMap[String, ULong]()
+    val result = new util.HashMap[String, Long]()
     list.forEach(execution => {
       result.put(execution.getOperatorId, execution.getOperatorExecutionId)
     })
@@ -112,8 +111,8 @@ object WorkflowExecutionsResource {
   }
 
   case class WorkflowExecutionEntry(
-      eId: UInteger,
-      vId: UInteger,
+      eId: Integer,
+      vId: Integer,
       userName: String,
       googleAvatar: String,
       status: Byte,
@@ -127,25 +126,25 @@ object WorkflowExecutionsResource {
 
   case class WorkflowRuntimeStatistics(
       operatorId: String,
-      inputTupleCount: ULong,
-      outputTupleCount: ULong,
+      inputTupleCount: Long,
+      outputTupleCount: Long,
       timestamp: Timestamp,
-      dataProcessingTime: ULong,
-      controlProcessingTime: ULong,
-      idleTime: ULong,
-      numWorkers: UInteger
+      dataProcessingTime: Long,
+      controlProcessingTime: Long,
+      idleTime: Long,
+      numWorkers: Integer
   )
 }
 
 case class ExecutionGroupBookmarkRequest(
-    wid: UInteger,
-    eIds: Array[UInteger],
+    wid: Integer,
+    eIds: Array[Integer],
     isBookmarked: Boolean
 )
 
-case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
+case class ExecutionGroupDeleteRequest(wid: Integer, eIds: Array[Integer])
 
-case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
+case class ExecutionRenameRequest(wid: Integer, eId: Integer, executionName: String)
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/executions")
@@ -156,8 +155,8 @@ class WorkflowExecutionsResource {
   @Path("/{wid}/interactions/{eid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveInteractionHistory(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("eid") eid: UInteger,
+      @PathParam("wid") wid: Integer,
+      @PathParam("eid") eid: Integer,
       @Auth sessionUser: SessionUser
   ): List[String] = {
     val user = sessionUser.getUser
@@ -197,7 +196,7 @@ class WorkflowExecutionsResource {
   @Path("/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveExecutionsOfWorkflow(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @Auth sessionUser: SessionUser
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
@@ -235,8 +234,8 @@ class WorkflowExecutionsResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/{eid}")
   def retrieveWorkflowRuntimeStatistics(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("eid") eid: UInteger
+      @PathParam("wid") wid: Integer,
+      @PathParam("eid") eid: Integer
   ): List[WorkflowRuntimeStatistics] = {
     context
       .select(
@@ -301,7 +300,7 @@ class WorkflowExecutionsResource {
   }
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
-  def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
+  def validateUserCanAccessWorkflow(uid: Integer, wid: Integer): Unit = {
     if (!WorkflowAccessResource.hasReadAccess(wid, uid))
       throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }

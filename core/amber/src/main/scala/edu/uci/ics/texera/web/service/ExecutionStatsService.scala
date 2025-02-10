@@ -33,7 +33,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import org.jooq.types.{UInteger, ULong}
 
 import java.time.Instant
 import java.util
@@ -42,7 +41,7 @@ import java.util.concurrent.Executors
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    operatorIdToExecutionId: Map[String, ULong]
+    operatorIdToExecutionId: Map[String, Long]
 ) extends SubscriptionManager
     with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
@@ -209,20 +208,20 @@ class ExecutionStatsService(
         val runtimeStats = new OperatorRuntimeStatistics()
         runtimeStats.setOperatorExecutionId(operatorIdToExecutionId(operatorId))
         runtimeStats.setInputTupleCnt(
-          ULong.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
+          stat.operatorStatistics.inputCount.map(_.tupleCount).sum
         )
         runtimeStats.setOutputTupleCnt(
-          ULong.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
+         stat.operatorStatistics.outputCount.map(_.tupleCount).sum
         )
         runtimeStats.setStatus(maptoStatusCode(stat.operatorState))
         runtimeStats.setDataProcessingTime(
-          ULong.valueOf(stat.operatorStatistics.dataProcessingTime)
+          stat.operatorStatistics.dataProcessingTime
         )
         runtimeStats.setControlProcessingTime(
-          ULong.valueOf(stat.operatorStatistics.controlProcessingTime)
+          stat.operatorStatistics.controlProcessingTime
         )
-        runtimeStats.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
-        runtimeStats.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
+        runtimeStats.setIdleTime(stat.operatorStatistics.idleTime)
+        runtimeStats.setNumWorkers(Integer.valueOf(stat.operatorStatistics.numWorkers))
         runtimeStatsList.add(runtimeStats)
       }
 

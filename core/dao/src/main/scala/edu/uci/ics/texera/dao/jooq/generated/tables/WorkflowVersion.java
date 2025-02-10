@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
 
-    private static final long serialVersionUID = -1813902570;
+    private static final long serialVersionUID = -1500066128;
 
     /**
      * The reference instance of <code>texera_db.workflow_version</code>
@@ -53,12 +52,12 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     /**
      * The column <code>texera_db.workflow_version.vid</code>.
      */
-    public final TableField<WorkflowVersionRecord, UInteger> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<WorkflowVersionRecord, Integer> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.workflow_version_vid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.workflow_version.wid</code>.
      */
-    public final TableField<WorkflowVersionRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowVersionRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_version.content</code>.
@@ -110,31 +109,31 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_VERSION_PRIMARY, Indexes.WORKFLOW_VERSION_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_VERSION_PKEY);
     }
 
     @Override
-    public Identity<WorkflowVersionRecord, UInteger> getIdentity() {
+    public Identity<WorkflowVersionRecord, Integer> getIdentity() {
         return Keys.IDENTITY_WORKFLOW_VERSION;
     }
 
     @Override
     public UniqueKey<WorkflowVersionRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_VERSION_PRIMARY;
+        return Keys.WORKFLOW_VERSION_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowVersionRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowVersionRecord>>asList(Keys.KEY_WORKFLOW_VERSION_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowVersionRecord>>asList(Keys.WORKFLOW_VERSION_PKEY);
     }
 
     @Override
     public List<ForeignKey<WorkflowVersionRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowVersionRecord, ?>>asList(Keys.WORKFLOW_VERSION_IBFK_1);
+        return Arrays.<ForeignKey<WorkflowVersionRecord, ?>>asList(Keys.WORKFLOW_VERSION__WORKFLOW_VERSION_WID_FKEY);
     }
 
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_VERSION_IBFK_1);
+        return new Workflow(this, Keys.WORKFLOW_VERSION__WORKFLOW_VERSION_WID_FKEY);
     }
 
     @Override
@@ -168,7 +167,7 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<UInteger, UInteger, String, Timestamp> fieldsRow() {
+    public Row4<Integer, Integer, String, Timestamp> fieldsRow() {
         return (Row4) super.fieldsRow();
     }
 }

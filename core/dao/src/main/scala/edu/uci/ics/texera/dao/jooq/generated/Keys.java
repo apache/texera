@@ -47,8 +47,6 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;
 import org.jooq.impl.Internal;
-import org.jooq.types.UInteger;
-import org.jooq.types.ULong;
 
 
 /**
@@ -62,139 +60,139 @@ public class Keys {
     // IDENTITY definitions
     // -------------------------------------------------------------------------
 
-    public static final Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Identities0.IDENTITY_DATASET;
-    public static final Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Identities0.IDENTITY_DATASET_VERSION;
-    public static final Identity<OperatorExecutionsRecord, ULong> IDENTITY_OPERATOR_EXECUTIONS = Identities0.IDENTITY_OPERATOR_EXECUTIONS;
-    public static final Identity<ProjectRecord, UInteger> IDENTITY_PROJECT = Identities0.IDENTITY_PROJECT;
-    public static final Identity<UserRecord, UInteger> IDENTITY_USER = Identities0.IDENTITY_USER;
-    public static final Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
-    public static final Identity<WorkflowExecutionsRecord, UInteger> IDENTITY_WORKFLOW_EXECUTIONS = Identities0.IDENTITY_WORKFLOW_EXECUTIONS;
-    public static final Identity<WorkflowVersionRecord, UInteger> IDENTITY_WORKFLOW_VERSION = Identities0.IDENTITY_WORKFLOW_VERSION;
+    public static final Identity<DatasetRecord, Integer> IDENTITY_DATASET = Identities0.IDENTITY_DATASET;
+    public static final Identity<DatasetVersionRecord, Integer> IDENTITY_DATASET_VERSION = Identities0.IDENTITY_DATASET_VERSION;
+    public static final Identity<OperatorExecutionsRecord, Long> IDENTITY_OPERATOR_EXECUTIONS = Identities0.IDENTITY_OPERATOR_EXECUTIONS;
+    public static final Identity<ProjectRecord, Integer> IDENTITY_PROJECT = Identities0.IDENTITY_PROJECT;
+    public static final Identity<UserRecord, Integer> IDENTITY_USER = Identities0.IDENTITY_USER;
+    public static final Identity<WorkflowRecord, Integer> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
+    public static final Identity<WorkflowExecutionsRecord, Integer> IDENTITY_WORKFLOW_EXECUTIONS = Identities0.IDENTITY_WORKFLOW_EXECUTIONS;
+    public static final Identity<WorkflowVersionRecord, Integer> IDENTITY_WORKFLOW_VERSION = Identities0.IDENTITY_WORKFLOW_VERSION;
 
     // -------------------------------------------------------------------------
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = UniqueKeys0.KEY_DATASET_PRIMARY;
-    public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_DATASET_USER_ACCESS_PRIMARY;
-    public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = UniqueKeys0.KEY_DATASET_VERSION_PRIMARY;
-    public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_PRIMARY = UniqueKeys0.KEY_OPERATOR_EXECUTIONS_PRIMARY;
-    public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = UniqueKeys0.KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID;
-    public static final UniqueKey<OperatorRuntimeStatisticsRecord> KEY_OPERATOR_RUNTIME_STATISTICS_PRIMARY = UniqueKeys0.KEY_OPERATOR_RUNTIME_STATISTICS_PRIMARY;
-    public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = UniqueKeys0.KEY_PROJECT_PRIMARY;
-    public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = UniqueKeys0.KEY_PROJECT_OWNER_ID;
-    public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_PROJECT_USER_ACCESS_PRIMARY;
-    public static final UniqueKey<PublicProjectRecord> KEY_PUBLIC_PROJECT_PRIMARY = UniqueKeys0.KEY_PUBLIC_PROJECT_PRIMARY;
-    public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
-    public static final UniqueKey<UserRecord> KEY_USER_EMAIL = UniqueKeys0.KEY_USER_EMAIL;
-    public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
-    public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = UniqueKeys0.KEY_USER_CONFIG_PRIMARY;
-    public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
-    public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_EXECUTIONS_PRIMARY;
-    public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
-    public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
-    public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_ACCESS_PRIMARY;
-    public static final UniqueKey<WorkflowUserClonesRecord> KEY_WORKFLOW_USER_CLONES_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_CLONES_PRIMARY;
-    public static final UniqueKey<WorkflowUserLikesRecord> KEY_WORKFLOW_USER_LIKES_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_LIKES_PRIMARY;
-    public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VERSION_PRIMARY;
-    public static final UniqueKey<WorkflowViewCountRecord> KEY_WORKFLOW_VIEW_COUNT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VIEW_COUNT_PRIMARY;
+    public static final UniqueKey<DatasetRecord> DATASET_PKEY = UniqueKeys0.DATASET_PKEY;
+    public static final UniqueKey<DatasetUserAccessRecord> DATASET_USER_ACCESS_PKEY = UniqueKeys0.DATASET_USER_ACCESS_PKEY;
+    public static final UniqueKey<DatasetVersionRecord> DATASET_VERSION_PKEY = UniqueKeys0.DATASET_VERSION_PKEY;
+    public static final UniqueKey<OperatorExecutionsRecord> OPERATOR_EXECUTIONS_PKEY = UniqueKeys0.OPERATOR_EXECUTIONS_PKEY;
+    public static final UniqueKey<OperatorExecutionsRecord> OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY = UniqueKeys0.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY;
+    public static final UniqueKey<OperatorRuntimeStatisticsRecord> OPERATOR_RUNTIME_STATISTICS_PKEY = UniqueKeys0.OPERATOR_RUNTIME_STATISTICS_PKEY;
+    public static final UniqueKey<ProjectRecord> PROJECT_PKEY = UniqueKeys0.PROJECT_PKEY;
+    public static final UniqueKey<ProjectRecord> PROJECT_OWNER_ID_NAME_KEY = UniqueKeys0.PROJECT_OWNER_ID_NAME_KEY;
+    public static final UniqueKey<ProjectUserAccessRecord> PROJECT_USER_ACCESS_PKEY = UniqueKeys0.PROJECT_USER_ACCESS_PKEY;
+    public static final UniqueKey<PublicProjectRecord> PUBLIC_PROJECT_PKEY = UniqueKeys0.PUBLIC_PROJECT_PKEY;
+    public static final UniqueKey<UserRecord> USER_PKEY = UniqueKeys0.USER_PKEY;
+    public static final UniqueKey<UserRecord> USER_EMAIL_KEY = UniqueKeys0.USER_EMAIL_KEY;
+    public static final UniqueKey<UserRecord> USER_GOOGLE_ID_KEY = UniqueKeys0.USER_GOOGLE_ID_KEY;
+    public static final UniqueKey<UserConfigRecord> USER_CONFIG_PKEY = UniqueKeys0.USER_CONFIG_PKEY;
+    public static final UniqueKey<WorkflowRecord> WORKFLOW_PKEY = UniqueKeys0.WORKFLOW_PKEY;
+    public static final UniqueKey<WorkflowExecutionsRecord> WORKFLOW_EXECUTIONS_PKEY = UniqueKeys0.WORKFLOW_EXECUTIONS_PKEY;
+    public static final UniqueKey<WorkflowOfProjectRecord> WORKFLOW_OF_PROJECT_PKEY = UniqueKeys0.WORKFLOW_OF_PROJECT_PKEY;
+    public static final UniqueKey<WorkflowOfUserRecord> WORKFLOW_OF_USER_PKEY = UniqueKeys0.WORKFLOW_OF_USER_PKEY;
+    public static final UniqueKey<WorkflowUserAccessRecord> WORKFLOW_USER_ACCESS_PKEY = UniqueKeys0.WORKFLOW_USER_ACCESS_PKEY;
+    public static final UniqueKey<WorkflowUserClonesRecord> WORKFLOW_USER_CLONES_PKEY = UniqueKeys0.WORKFLOW_USER_CLONES_PKEY;
+    public static final UniqueKey<WorkflowUserLikesRecord> WORKFLOW_USER_LIKES_PKEY = UniqueKeys0.WORKFLOW_USER_LIKES_PKEY;
+    public static final UniqueKey<WorkflowVersionRecord> WORKFLOW_VERSION_PKEY = UniqueKeys0.WORKFLOW_VERSION_PKEY;
+    public static final UniqueKey<WorkflowViewCountRecord> WORKFLOW_VIEW_COUNT_PKEY = UniqueKeys0.WORKFLOW_VIEW_COUNT_PKEY;
 
     // -------------------------------------------------------------------------
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = ForeignKeys0.DATASET_IBFK_1;
-    public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_1;
-    public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_2;
-    public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = ForeignKeys0.DATASET_VERSION_IBFK_1;
-    public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS_IBFK_1 = ForeignKeys0.OPERATOR_EXECUTIONS_IBFK_1;
-    public static final ForeignKey<OperatorRuntimeStatisticsRecord, OperatorExecutionsRecord> OPERATOR_RUNTIME_STATISTICS_IBFK_1 = ForeignKeys0.OPERATOR_RUNTIME_STATISTICS_IBFK_1;
-    public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = ForeignKeys0.PROJECT_IBFK_1;
-    public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_1;
-    public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_2;
-    public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = ForeignKeys0.PUBLIC_PROJECT_IBFK_1;
-    public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = ForeignKeys0.USER_CONFIG_IBFK_1;
-    public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_1;
-    public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_2;
-    public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_1;
-    public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_2;
-    public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_1;
-    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_2;
-    public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS_IBFK_1 = ForeignKeys0.WORKFLOW_USER_ACCESS_IBFK_1;
-    public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS_IBFK_2 = ForeignKeys0.WORKFLOW_USER_ACCESS_IBFK_2;
-    public static final ForeignKey<WorkflowUserClonesRecord, UserRecord> WORKFLOW_USER_CLONES_IBFK_1 = ForeignKeys0.WORKFLOW_USER_CLONES_IBFK_1;
-    public static final ForeignKey<WorkflowUserClonesRecord, WorkflowRecord> WORKFLOW_USER_CLONES_IBFK_2 = ForeignKeys0.WORKFLOW_USER_CLONES_IBFK_2;
-    public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES_IBFK_1 = ForeignKeys0.WORKFLOW_USER_LIKES_IBFK_1;
-    public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES_IBFK_2 = ForeignKeys0.WORKFLOW_USER_LIKES_IBFK_2;
-    public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = ForeignKeys0.WORKFLOW_VERSION_IBFK_1;
-    public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT_IBFK_1 = ForeignKeys0.WORKFLOW_VIEW_COUNT_IBFK_1;
+    public static final ForeignKey<DatasetRecord, UserRecord> DATASET__DATASET_OWNER_UID_FKEY = ForeignKeys0.DATASET__DATASET_OWNER_UID_FKEY;
+    public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY = ForeignKeys0.DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY;
+    public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY = ForeignKeys0.DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY;
+    public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION__DATASET_VERSION_DID_FKEY = ForeignKeys0.DATASET_VERSION__DATASET_VERSION_DID_FKEY;
+    public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY = ForeignKeys0.OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY;
+    public static final ForeignKey<OperatorRuntimeStatisticsRecord, OperatorExecutionsRecord> OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY = ForeignKeys0.OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY;
+    public static final ForeignKey<ProjectRecord, UserRecord> PROJECT__PROJECT_OWNER_ID_FKEY = ForeignKeys0.PROJECT__PROJECT_OWNER_ID_FKEY;
+    public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_UID_FKEY = ForeignKeys0.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_UID_FKEY;
+    public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_PID_FKEY = ForeignKeys0.PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_PID_FKEY;
+    public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT__PUBLIC_PROJECT_PID_FKEY = ForeignKeys0.PUBLIC_PROJECT__PUBLIC_PROJECT_PID_FKEY;
+    public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG__USER_CONFIG_UID_FKEY = ForeignKeys0.USER_CONFIG__USER_CONFIG_UID_FKEY;
+    public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY = ForeignKeys0.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY;
+    public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY = ForeignKeys0.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY;
+    public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY = ForeignKeys0.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY;
+    public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY = ForeignKeys0.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY;
+    public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER__WORKFLOW_OF_USER_UID_FKEY = ForeignKeys0.WORKFLOW_OF_USER__WORKFLOW_OF_USER_UID_FKEY;
+    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER__WORKFLOW_OF_USER_WID_FKEY = ForeignKeys0.WORKFLOW_OF_USER__WORKFLOW_OF_USER_WID_FKEY;
+    public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_UID_FKEY = ForeignKeys0.WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_UID_FKEY;
+    public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_WID_FKEY = ForeignKeys0.WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_WID_FKEY;
+    public static final ForeignKey<WorkflowUserClonesRecord, UserRecord> WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY = ForeignKeys0.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY;
+    public static final ForeignKey<WorkflowUserClonesRecord, WorkflowRecord> WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY = ForeignKeys0.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY;
+    public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_UID_FKEY = ForeignKeys0.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_UID_FKEY;
+    public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_WID_FKEY = ForeignKeys0.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_WID_FKEY;
+    public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION__WORKFLOW_VERSION_WID_FKEY = ForeignKeys0.WORKFLOW_VERSION__WORKFLOW_VERSION_WID_FKEY;
+    public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY = ForeignKeys0.WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
-        public static Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Internal.createIdentity(Dataset.DATASET, Dataset.DATASET.DID);
-        public static Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Internal.createIdentity(DatasetVersion.DATASET_VERSION, DatasetVersion.DATASET_VERSION.DVID);
-        public static Identity<OperatorExecutionsRecord, ULong> IDENTITY_OPERATOR_EXECUTIONS = Internal.createIdentity(OperatorExecutions.OPERATOR_EXECUTIONS, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID);
-        public static Identity<ProjectRecord, UInteger> IDENTITY_PROJECT = Internal.createIdentity(Project.PROJECT, Project.PROJECT.PID);
-        public static Identity<UserRecord, UInteger> IDENTITY_USER = Internal.createIdentity(User.USER, User.USER.UID);
-        public static Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WID);
-        public static Identity<WorkflowExecutionsRecord, UInteger> IDENTITY_WORKFLOW_EXECUTIONS = Internal.createIdentity(WorkflowExecutions.WORKFLOW_EXECUTIONS, WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
-        public static Identity<WorkflowVersionRecord, UInteger> IDENTITY_WORKFLOW_VERSION = Internal.createIdentity(WorkflowVersion.WORKFLOW_VERSION, WorkflowVersion.WORKFLOW_VERSION.VID);
+        public static Identity<DatasetRecord, Integer> IDENTITY_DATASET = Internal.createIdentity(Dataset.DATASET, Dataset.DATASET.DID);
+        public static Identity<DatasetVersionRecord, Integer> IDENTITY_DATASET_VERSION = Internal.createIdentity(DatasetVersion.DATASET_VERSION, DatasetVersion.DATASET_VERSION.DVID);
+        public static Identity<OperatorExecutionsRecord, Long> IDENTITY_OPERATOR_EXECUTIONS = Internal.createIdentity(OperatorExecutions.OPERATOR_EXECUTIONS, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID);
+        public static Identity<ProjectRecord, Integer> IDENTITY_PROJECT = Internal.createIdentity(Project.PROJECT, Project.PROJECT.PID);
+        public static Identity<UserRecord, Integer> IDENTITY_USER = Internal.createIdentity(User.USER, User.USER.UID);
+        public static Identity<WorkflowRecord, Integer> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WID);
+        public static Identity<WorkflowExecutionsRecord, Integer> IDENTITY_WORKFLOW_EXECUTIONS = Internal.createIdentity(WorkflowExecutions.WORKFLOW_EXECUTIONS, WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
+        public static Identity<WorkflowVersionRecord, Integer> IDENTITY_WORKFLOW_VERSION = Internal.createIdentity(WorkflowVersion.WORKFLOW_VERSION, WorkflowVersion.WORKFLOW_VERSION.VID);
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = Internal.createUniqueKey(Dataset.DATASET, "KEY_dataset_PRIMARY", Dataset.DATASET.DID);
-        public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "KEY_dataset_user_access_PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);
-        public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = Internal.createUniqueKey(DatasetVersion.DATASET_VERSION, "KEY_dataset_version_PRIMARY", DatasetVersion.DATASET_VERSION.DVID);
-        public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_PRIMARY = Internal.createUniqueKey(OperatorExecutions.OPERATOR_EXECUTIONS, "KEY_operator_executions_PRIMARY", OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID);
-        public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = Internal.createUniqueKey(OperatorExecutions.OPERATOR_EXECUTIONS, "KEY_operator_executions_workflow_execution_id", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID);
-        public static final UniqueKey<OperatorRuntimeStatisticsRecord> KEY_OPERATOR_RUNTIME_STATISTICS_PRIMARY = Internal.createUniqueKey(OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS, "KEY_operator_runtime_statistics_PRIMARY", OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID, OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.TIME);
-        public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = Internal.createUniqueKey(Project.PROJECT, "KEY_project_PRIMARY", Project.PROJECT.PID);
-        public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = Internal.createUniqueKey(Project.PROJECT, "KEY_project_owner_id", Project.PROJECT.OWNER_ID, Project.PROJECT.NAME);
-        public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, "KEY_project_user_access_PRIMARY", ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID);
-        public static final UniqueKey<PublicProjectRecord> KEY_PUBLIC_PROJECT_PRIMARY = Internal.createUniqueKey(PublicProject.PUBLIC_PROJECT, "KEY_public_project_PRIMARY", PublicProject.PUBLIC_PROJECT.PID);
-        public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
-        public static final UniqueKey<UserRecord> KEY_USER_EMAIL = Internal.createUniqueKey(User.USER, "KEY_user_email", User.USER.EMAIL);
-        public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
-        public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = Internal.createUniqueKey(UserConfig.USER_CONFIG, "KEY_user_config_PRIMARY", UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY);
-        public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WID);
-        public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, "KEY_workflow_executions_PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
-        public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, "KEY_workflow_of_project_PRIMARY", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
-        public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);
-        public static final UniqueKey<WorkflowUserAccessRecord> KEY_WORKFLOW_USER_ACCESS_PRIMARY = Internal.createUniqueKey(WorkflowUserAccess.WORKFLOW_USER_ACCESS, "KEY_workflow_user_access_PRIMARY", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
-        public static final UniqueKey<WorkflowUserClonesRecord> KEY_WORKFLOW_USER_CLONES_PRIMARY = Internal.createUniqueKey(WorkflowUserClones.WORKFLOW_USER_CLONES, "KEY_workflow_user_clones_PRIMARY", WorkflowUserClones.WORKFLOW_USER_CLONES.UID, WorkflowUserClones.WORKFLOW_USER_CLONES.WID);
-        public static final UniqueKey<WorkflowUserLikesRecord> KEY_WORKFLOW_USER_LIKES_PRIMARY = Internal.createUniqueKey(WorkflowUserLikes.WORKFLOW_USER_LIKES, "KEY_workflow_user_likes_PRIMARY", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID, WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
-        public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = Internal.createUniqueKey(WorkflowVersion.WORKFLOW_VERSION, "KEY_workflow_version_PRIMARY", WorkflowVersion.WORKFLOW_VERSION.VID);
-        public static final UniqueKey<WorkflowViewCountRecord> KEY_WORKFLOW_VIEW_COUNT_PRIMARY = Internal.createUniqueKey(WorkflowViewCount.WORKFLOW_VIEW_COUNT, "KEY_workflow_view_count_PRIMARY", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
+        public static final UniqueKey<DatasetRecord> DATASET_PKEY = Internal.createUniqueKey(Dataset.DATASET, "dataset_pkey", Dataset.DATASET.DID);
+        public static final UniqueKey<DatasetUserAccessRecord> DATASET_USER_ACCESS_PKEY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_pkey", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);
+        public static final UniqueKey<DatasetVersionRecord> DATASET_VERSION_PKEY = Internal.createUniqueKey(DatasetVersion.DATASET_VERSION, "dataset_version_pkey", DatasetVersion.DATASET_VERSION.DVID);
+        public static final UniqueKey<OperatorExecutionsRecord> OPERATOR_EXECUTIONS_PKEY = Internal.createUniqueKey(OperatorExecutions.OPERATOR_EXECUTIONS, "operator_executions_pkey", OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID);
+        public static final UniqueKey<OperatorExecutionsRecord> OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY = Internal.createUniqueKey(OperatorExecutions.OPERATOR_EXECUTIONS, "operator_executions_workflow_execution_id_operator_id_key", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID);
+        public static final UniqueKey<OperatorRuntimeStatisticsRecord> OPERATOR_RUNTIME_STATISTICS_PKEY = Internal.createUniqueKey(OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS, "operator_runtime_statistics_pkey", OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID, OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.TIME);
+        public static final UniqueKey<ProjectRecord> PROJECT_PKEY = Internal.createUniqueKey(Project.PROJECT, "project_pkey", Project.PROJECT.PID);
+        public static final UniqueKey<ProjectRecord> PROJECT_OWNER_ID_NAME_KEY = Internal.createUniqueKey(Project.PROJECT, "project_owner_id_name_key", Project.PROJECT.OWNER_ID, Project.PROJECT.NAME);
+        public static final UniqueKey<ProjectUserAccessRecord> PROJECT_USER_ACCESS_PKEY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_pkey", ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID);
+        public static final UniqueKey<PublicProjectRecord> PUBLIC_PROJECT_PKEY = Internal.createUniqueKey(PublicProject.PUBLIC_PROJECT, "public_project_pkey", PublicProject.PUBLIC_PROJECT.PID);
+        public static final UniqueKey<UserRecord> USER_PKEY = Internal.createUniqueKey(User.USER, "user_pkey", User.USER.UID);
+        public static final UniqueKey<UserRecord> USER_EMAIL_KEY = Internal.createUniqueKey(User.USER, "user_email_key", User.USER.EMAIL);
+        public static final UniqueKey<UserRecord> USER_GOOGLE_ID_KEY = Internal.createUniqueKey(User.USER, "user_google_id_key", User.USER.GOOGLE_ID);
+        public static final UniqueKey<UserConfigRecord> USER_CONFIG_PKEY = Internal.createUniqueKey(UserConfig.USER_CONFIG, "user_config_pkey", UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY);
+        public static final UniqueKey<WorkflowRecord> WORKFLOW_PKEY = Internal.createUniqueKey(Workflow.WORKFLOW, "workflow_pkey", Workflow.WORKFLOW.WID);
+        public static final UniqueKey<WorkflowExecutionsRecord> WORKFLOW_EXECUTIONS_PKEY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_pkey", WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
+        public static final UniqueKey<WorkflowOfProjectRecord> WORKFLOW_OF_PROJECT_PKEY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_pkey", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
+        public static final UniqueKey<WorkflowOfUserRecord> WORKFLOW_OF_USER_PKEY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_pkey", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);
+        public static final UniqueKey<WorkflowUserAccessRecord> WORKFLOW_USER_ACCESS_PKEY = Internal.createUniqueKey(WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access_pkey", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
+        public static final UniqueKey<WorkflowUserClonesRecord> WORKFLOW_USER_CLONES_PKEY = Internal.createUniqueKey(WorkflowUserClones.WORKFLOW_USER_CLONES, "workflow_user_clones_pkey", WorkflowUserClones.WORKFLOW_USER_CLONES.UID, WorkflowUserClones.WORKFLOW_USER_CLONES.WID);
+        public static final UniqueKey<WorkflowUserLikesRecord> WORKFLOW_USER_LIKES_PKEY = Internal.createUniqueKey(WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes_pkey", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID, WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
+        public static final UniqueKey<WorkflowVersionRecord> WORKFLOW_VERSION_PKEY = Internal.createUniqueKey(WorkflowVersion.WORKFLOW_VERSION, "workflow_version_pkey", WorkflowVersion.WORKFLOW_VERSION.VID);
+        public static final UniqueKey<WorkflowViewCountRecord> WORKFLOW_VIEW_COUNT_PKEY = Internal.createUniqueKey(WorkflowViewCount.WORKFLOW_VIEW_COUNT, "workflow_view_count_pkey", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, Dataset.DATASET, "dataset_ibfk_1", Dataset.DATASET.OWNER_UID);
-        public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_1", DatasetUserAccess.DATASET_USER_ACCESS.DID);
-        public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_2", DatasetUserAccess.DATASET_USER_ACCESS.UID);
-        public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetVersion.DATASET_VERSION, "dataset_version_ibfk_1", DatasetVersion.DATASET_VERSION.DID);
-        public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_EXECUTIONS_PRIMARY, OperatorExecutions.OPERATOR_EXECUTIONS, "operator_executions_ibfk_1", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID);
-        public static final ForeignKey<OperatorRuntimeStatisticsRecord, OperatorExecutionsRecord> OPERATOR_RUNTIME_STATISTICS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_OPERATOR_EXECUTIONS_PRIMARY, OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS, "operator_runtime_statistics_ibfk_1", OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID);
-        public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, Project.PROJECT, "project_ibfk_1", Project.PROJECT.OWNER_ID);
-        public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_1", ProjectUserAccess.PROJECT_USER_ACCESS.UID);
-        public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_PROJECT_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_2", ProjectUserAccess.PROJECT_USER_ACCESS.PID);
-        public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_PROJECT_PRIMARY, PublicProject.PUBLIC_PROJECT, "public_project_ibfk_1", PublicProject.PUBLIC_PROJECT.PID);
-        public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
-        public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_VERSION_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_1", WorkflowExecutions.WORKFLOW_EXECUTIONS.VID);
-        public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_2", WorkflowExecutions.WORKFLOW_EXECUTIONS.UID);
-        public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_1", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID);
-        public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_PROJECT_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_2", WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
-        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
-        public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access_ibfk_1", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID);
-        public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access_ibfk_2", WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
-        public static final ForeignKey<WorkflowUserClonesRecord, UserRecord> WORKFLOW_USER_CLONES_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowUserClones.WORKFLOW_USER_CLONES, "workflow_user_clones_ibfk_1", WorkflowUserClones.WORKFLOW_USER_CLONES.UID);
-        public static final ForeignKey<WorkflowUserClonesRecord, WorkflowRecord> WORKFLOW_USER_CLONES_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowUserClones.WORKFLOW_USER_CLONES, "workflow_user_clones_ibfk_2", WorkflowUserClones.WORKFLOW_USER_CLONES.WID);
-        public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes_ibfk_1", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID);
-        public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes_ibfk_2", WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
-        public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowVersion.WORKFLOW_VERSION, "workflow_version_ibfk_1", WorkflowVersion.WORKFLOW_VERSION.WID);
-        public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowViewCount.WORKFLOW_VIEW_COUNT, "workflow_view_count_ibfk_1", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
+        public static final ForeignKey<DatasetRecord, UserRecord> DATASET__DATASET_OWNER_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, Dataset.DATASET, "dataset__dataset_owner_uid_fkey", Dataset.DATASET.OWNER_UID);
+        public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.DATASET_PKEY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access__dataset_user_access_did_fkey", DatasetUserAccess.DATASET_USER_ACCESS.DID);
+        public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access__dataset_user_access_uid_fkey", DatasetUserAccess.DATASET_USER_ACCESS.UID);
+        public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION__DATASET_VERSION_DID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.DATASET_PKEY, DatasetVersion.DATASET_VERSION, "dataset_version__dataset_version_did_fkey", DatasetVersion.DATASET_VERSION.DID);
+        public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_EXECUTIONS_PKEY, OperatorExecutions.OPERATOR_EXECUTIONS, "operator_executions__operator_executions_workflow_execution_id_fkey", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID);
+        public static final ForeignKey<OperatorRuntimeStatisticsRecord, OperatorExecutionsRecord> OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.OPERATOR_EXECUTIONS_PKEY, OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS, "operator_runtime_statistics__operator_runtime_statistics_operator_execution_id_fkey", OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID);
+        public static final ForeignKey<ProjectRecord, UserRecord> PROJECT__PROJECT_OWNER_ID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, Project.PROJECT, "project__project_owner_id_fkey", Project.PROJECT.OWNER_ID);
+        public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access__project_user_access_uid_fkey", ProjectUserAccess.PROJECT_USER_ACCESS.UID);
+        public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS__PROJECT_USER_ACCESS_PID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.PROJECT_PKEY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access__project_user_access_pid_fkey", ProjectUserAccess.PROJECT_USER_ACCESS.PID);
+        public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT__PUBLIC_PROJECT_PID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.PROJECT_PKEY, PublicProject.PUBLIC_PROJECT, "public_project__public_project_pid_fkey", PublicProject.PUBLIC_PROJECT.PID);
+        public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG__USER_CONFIG_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, UserConfig.USER_CONFIG, "user_config__user_config_uid_fkey", UserConfig.USER_CONFIG.UID);
+        public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_VERSION_PKEY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions__workflow_executions_vid_fkey", WorkflowExecutions.WORKFLOW_EXECUTIONS.VID);
+        public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions__workflow_executions_uid_fkey", WorkflowExecutions.WORKFLOW_EXECUTIONS.UID);
+        public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project__workflow_of_project_wid_fkey", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID);
+        public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.PROJECT_PKEY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project__workflow_of_project_pid_fkey", WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
+        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER__WORKFLOW_OF_USER_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user__workflow_of_user_uid_fkey", WorkflowOfUser.WORKFLOW_OF_USER.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER__WORKFLOW_OF_USER_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user__workflow_of_user_wid_fkey", WorkflowOfUser.WORKFLOW_OF_USER.WID);
+        public static final ForeignKey<WorkflowUserAccessRecord, UserRecord> WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access__workflow_user_access_uid_fkey", WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID);
+        public static final ForeignKey<WorkflowUserAccessRecord, WorkflowRecord> WORKFLOW_USER_ACCESS__WORKFLOW_USER_ACCESS_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowUserAccess.WORKFLOW_USER_ACCESS, "workflow_user_access__workflow_user_access_wid_fkey", WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID);
+        public static final ForeignKey<WorkflowUserClonesRecord, UserRecord> WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, WorkflowUserClones.WORKFLOW_USER_CLONES, "workflow_user_clones__workflow_user_clones_uid_fkey", WorkflowUserClones.WORKFLOW_USER_CLONES.UID);
+        public static final ForeignKey<WorkflowUserClonesRecord, WorkflowRecord> WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowUserClones.WORKFLOW_USER_CLONES, "workflow_user_clones__workflow_user_clones_wid_fkey", WorkflowUserClones.WORKFLOW_USER_CLONES.WID);
+        public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_UID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.USER_PKEY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes__workflow_user_likes_uid_fkey", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID);
+        public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes__workflow_user_likes_wid_fkey", WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
+        public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION__WORKFLOW_VERSION_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowVersion.WORKFLOW_VERSION, "workflow_version__workflow_version_wid_fkey", WorkflowVersion.WORKFLOW_VERSION.WID);
+        public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.WORKFLOW_PKEY, WorkflowViewCount.WORKFLOW_VIEW_COUNT, "workflow_view_count__workflow_view_count_wid_fkey", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
     }
 }

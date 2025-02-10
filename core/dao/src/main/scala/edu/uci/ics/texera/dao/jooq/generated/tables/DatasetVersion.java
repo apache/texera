@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
 
-    private static final long serialVersionUID = 546683186;
+    private static final long serialVersionUID = 1554874669;
 
     /**
      * The reference instance of <code>texera_db.dataset_version</code>
@@ -53,17 +52,17 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     /**
      * The column <code>texera_db.dataset_version.dvid</code>.
      */
-    public final TableField<DatasetVersionRecord, UInteger> DVID = createField(DSL.name("dvid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<DatasetVersionRecord, Integer> DVID = createField(DSL.name("dvid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.dataset_version_dvid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.did</code>.
      */
-    public final TableField<DatasetVersionRecord, UInteger> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, Integer> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.creator_uid</code>.
      */
-    public final TableField<DatasetVersionRecord, UInteger> CREATOR_UID = createField(DSL.name("creator_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, Integer> CREATOR_UID = createField(DSL.name("creator_uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.name</code>.
@@ -120,31 +119,31 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_VERSION_DID, Indexes.DATASET_VERSION_IDX_DATASET_VERSION_NAME, Indexes.DATASET_VERSION_PRIMARY);
+        return Arrays.<Index>asList(Indexes.DATASET_VERSION_PKEY);
     }
 
     @Override
-    public Identity<DatasetVersionRecord, UInteger> getIdentity() {
+    public Identity<DatasetVersionRecord, Integer> getIdentity() {
         return Keys.IDENTITY_DATASET_VERSION;
     }
 
     @Override
     public UniqueKey<DatasetVersionRecord> getPrimaryKey() {
-        return Keys.KEY_DATASET_VERSION_PRIMARY;
+        return Keys.DATASET_VERSION_PKEY;
     }
 
     @Override
     public List<UniqueKey<DatasetVersionRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetVersionRecord>>asList(Keys.KEY_DATASET_VERSION_PRIMARY);
+        return Arrays.<UniqueKey<DatasetVersionRecord>>asList(Keys.DATASET_VERSION_PKEY);
     }
 
     @Override
     public List<ForeignKey<DatasetVersionRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetVersionRecord, ?>>asList(Keys.DATASET_VERSION_IBFK_1);
+        return Arrays.<ForeignKey<DatasetVersionRecord, ?>>asList(Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
     }
 
     public Dataset dataset() {
-        return new Dataset(this, Keys.DATASET_VERSION_IBFK_1);
+        return new Dataset(this, Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
     }
 
     @Override
@@ -178,7 +177,7 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, UInteger, UInteger, String, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, Integer, String, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

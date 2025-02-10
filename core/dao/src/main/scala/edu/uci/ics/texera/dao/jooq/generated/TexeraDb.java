@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.jooq.Catalog;
+import org.jooq.Sequence;
 import org.jooq.Table;
 import org.jooq.impl.SchemaImpl;
 
@@ -40,7 +41,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = 395155886;
+    private static final long serialVersionUID = 1901866689;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -158,6 +159,25 @@ public class TexeraDb extends SchemaImpl {
     @Override
     public Catalog getCatalog() {
         return DefaultCatalog.DEFAULT_CATALOG;
+    }
+
+    @Override
+    public final List<Sequence<?>> getSequences() {
+        List result = new ArrayList();
+        result.addAll(getSequences0());
+        return result;
+    }
+
+    private final List<Sequence<?>> getSequences0() {
+        return Arrays.<Sequence<?>>asList(
+            Sequences.DATASET_DID_SEQ,
+            Sequences.DATASET_VERSION_DVID_SEQ,
+            Sequences.OPERATOR_EXECUTIONS_OPERATOR_EXECUTION_ID_SEQ,
+            Sequences.PROJECT_PID_SEQ,
+            Sequences.USER_UID_SEQ,
+            Sequences.WORKFLOW_EXECUTIONS_EID_SEQ,
+            Sequences.WORKFLOW_VERSION_VID_SEQ,
+            Sequences.WORKFLOW_WID_SEQ);
     }
 
     @Override

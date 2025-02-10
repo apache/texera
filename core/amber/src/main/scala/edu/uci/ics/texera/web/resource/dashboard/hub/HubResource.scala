@@ -15,7 +15,7 @@ import HubResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
+
 
 import java.util
 import java.util.Collections
@@ -27,7 +27,7 @@ import scala.jdk.CollectionConverters._
 import EntityTables._
 
 object HubResource {
-  case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
+  case class userRequest(entityId: Integer, userId: Integer, entityType: String)
 
   /**
     * Defines the currently accepted resource types.
@@ -67,7 +67,7 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: UInteger, workflowId: UInteger, entityType: String): Boolean = {
+  def isLikedHelper(userId: Integer, workflowId: Integer, entityType: String): Boolean = {
     validateEntityType(entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
@@ -94,8 +94,8 @@ object HubResource {
     */
   def recordUserActivity(
       request: HttpServletRequest,
-      userId: UInteger = UInteger.valueOf(0),
-      entityId: UInteger,
+      userId: Integer = Integer.valueOf(0),
+      entityId: Integer,
       entityType: String,
       action: String
   ): Unit = {
@@ -171,8 +171,8 @@ object HubResource {
     */
   def recordCloneActivity(
       request: HttpServletRequest,
-      userId: UInteger,
-      entityId: UInteger,
+      userId: Integer,
+      entityId: Integer,
       entityType: String
   ): Unit = {
 
@@ -207,7 +207,7 @@ object HubResource {
     * @return The number of times the entity has been liked or cloned.
     */
   def getUserLCCount(
-      entityId: UInteger,
+      entityId: Integer,
       entityType: String,
       actionType: String
   ): Int = {
@@ -229,7 +229,7 @@ object HubResource {
   }
 
   // todo: refactor api related to landing page
-  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger]): util.List[DashboardWorkflow] = {
+  def fetchDashboardWorkflowsByWids(wids: Seq[Integer]): util.List[DashboardWorkflow] = {
     if (wids.nonEmpty) {
       context
         .select(
@@ -251,9 +251,9 @@ object HubResource {
         .asScala
         .map(record => {
           val workflow = new Workflow(
+            record.get(WORKFLOW.WID),
             record.get(WORKFLOW.NAME),
             record.get(WORKFLOW.DESCRIPTION),
-            record.get(WORKFLOW.WID),
             null,
             record.get(WORKFLOW.CREATION_TIME),
             record.get(WORKFLOW.LAST_MODIFIED_TIME),
@@ -266,7 +266,7 @@ object HubResource {
             ownerName = record.get("ownerName", classOf[String]),
             workflow = workflow,
             projectIDs = List(),
-            ownerId = record.get("ownerId", classOf[UInteger])
+            ownerId = record.get("ownerId", classOf[Integer])
           )
         })
         .toList
@@ -295,7 +295,7 @@ class HubResource {
     context
       .selectCount()
       .from(table)
-      .where(isPublicColumn.eq(1.toByte))
+      .where(isPublicColumn.eq(true))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -303,8 +303,8 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") workflowId: UInteger,
-      @QueryParam("userId") userId: UInteger,
+      @QueryParam("workflowId") workflowId: Integer,
+      @QueryParam("userId") userId: Integer,
       @QueryParam("entityType") entityType: String
   ): Boolean = {
     isLikedHelper(userId, workflowId, entityType)
@@ -334,7 +334,7 @@ class HubResource {
   @Path("/likeCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getLikeCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "like")
@@ -344,7 +344,7 @@ class HubResource {
   @Path("/cloneCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getCloneCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "clone")
@@ -369,7 +369,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityID)
-      .set(viewCountColumn, UInteger.valueOf(1))
+      .set(viewCountColumn, Integer.valueOf(1))
       .onDuplicateKeyUpdate()
       .set(viewCountColumn, viewCountColumn.add(1))
       .execute()
@@ -387,7 +387,7 @@ class HubResource {
   @Path("/viewCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getViewCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
 
@@ -399,7 +399,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityId)
-      .set(viewCountColumn, UInteger.valueOf(0))
+      .set(viewCountColumn, Integer.valueOf(0))
       .onDuplicateKeyIgnore()
       .execute()
 
@@ -419,11 +419,11 @@ class HubResource {
       .from(WORKFLOW_USER_LIKES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(true))
       .groupBy(WORKFLOW_USER_LIKES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
       .limit(8)
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toSeq
 
@@ -439,11 +439,11 @@ class HubResource {
       .from(WORKFLOW_USER_CLONES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(true))
       .groupBy(WORKFLOW_USER_CLONES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
       .limit(8)
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toSeq
 

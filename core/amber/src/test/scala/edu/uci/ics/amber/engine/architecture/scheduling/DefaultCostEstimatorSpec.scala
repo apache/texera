@@ -8,11 +8,10 @@ import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunctio
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos._
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.workflow.LogicalLink
-import org.jooq.types.{UInteger, ULong}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.jooq.DSLContext
@@ -35,9 +34,9 @@ class DefaultCostEstimatorSpec
 
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
@@ -46,7 +45,7 @@ class DefaultCostEstimatorSpec
   private val testWorkflowEntry: Workflow = {
     val workflow = new Workflow
     workflow.setName("test workflow")
-    workflow.setWid(UInteger.valueOf(1))
+    workflow.setWid(Integer.valueOf(1))
     workflow.setContent("test workflow content")
     workflow.setDescription("test description")
     workflow
@@ -54,17 +53,17 @@ class DefaultCostEstimatorSpec
 
   private val testWorkflowVersionEntry: WorkflowVersion = {
     val workflowVersion = new WorkflowVersion
-    workflowVersion.setWid(UInteger.valueOf(1))
-    workflowVersion.setVid(UInteger.valueOf(1))
+    workflowVersion.setWid(Integer.valueOf(1))
+    workflowVersion.setVid(Integer.valueOf(1))
     workflowVersion.setContent("test version content")
     workflowVersion
   }
 
   private val testWorkflowExecutionEntry: WorkflowExecutions = {
     val workflowExecution = new WorkflowExecutions
-    workflowExecution.setEid(UInteger.valueOf(1))
-    workflowExecution.setVid(UInteger.valueOf(1))
-    workflowExecution.setUid(UInteger.valueOf(1))
+    workflowExecution.setEid(Integer.valueOf(1))
+    workflowExecution.setVid(Integer.valueOf(1))
+    workflowExecution.setUid(Integer.valueOf(1))
     workflowExecution.setStatus(3.toByte)
     workflowExecution.setEnvironmentVersion("test engine")
     workflowExecution
@@ -72,59 +71,59 @@ class DefaultCostEstimatorSpec
 
   private val headerlessCsvOperatorExecutionEntry: OperatorExecutions = {
     val operatorExecution = new OperatorExecutions
-    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setWorkflowExecutionId(Integer.valueOf(1))
     operatorExecution.setOperatorId(headerlessCsvOpDesc.operatorIdentifier.id)
     operatorExecution
   }
 
   private val keywordOperatorExecutionEntry: OperatorExecutions = {
     val operatorExecution = new OperatorExecutions
-    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setWorkflowExecutionId(Integer.valueOf(1))
     operatorExecution.setOperatorId(keywordOpDesc.operatorIdentifier.id)
     operatorExecution
   }
 
   private val groupByOperatorExecutionEntry: OperatorExecutions = {
     val operatorExecution = new OperatorExecutions
-    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setWorkflowExecutionId(Integer.valueOf(1))
     operatorExecution.setOperatorId(groupByOpDesc.operatorIdentifier.id)
     operatorExecution
   }
 
   private def headerlessCsvOpRuntimeStatisticsEntry(
-      operatorExecutionId: ULong
+      operatorExecutionId: Long
   ): OperatorRuntimeStatistics = {
     val operatorRuntimeStatistics = new OperatorRuntimeStatistics
     operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
-    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(100))
-    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(100))
+    operatorRuntimeStatistics.setDataProcessingTime(100)
+    operatorRuntimeStatistics.setControlProcessingTime(100)
     operatorRuntimeStatistics
   }
 
   private def keywordOpDescRuntimeStatisticsEntry(
-      operatorExecutionId: ULong
+      operatorExecutionId: Long
   ): OperatorRuntimeStatistics = {
     val operatorRuntimeStatistics = new OperatorRuntimeStatistics
     operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
-    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(300))
-    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(300))
+    operatorRuntimeStatistics.setDataProcessingTime(300)
+    operatorRuntimeStatistics.setControlProcessingTime(300)
     operatorRuntimeStatistics
   }
 
   private def groupByOpDescRuntimeStatisticsEntry(
-      operatorExecutionId: ULong
+      operatorExecutionId: Long
   ): OperatorRuntimeStatistics = {
     val operatorRuntimeStatistics = new OperatorRuntimeStatistics
     operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
-    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(1000))
-    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(1000))
+    operatorRuntimeStatistics.setDataProcessingTime(1000)
+    operatorRuntimeStatistics.setControlProcessingTime(1000)
     operatorRuntimeStatistics
   }
 
   private def insertOperatorExecutionAndGetId(
       dslContext: DSLContext,
       operatorExecution: OperatorExecutions
-  ): ULong = {
+  ): Long = {
     val record = dslContext
       .insertInto(OPERATOR_EXECUTIONS)
       .set(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, operatorExecution.getWorkflowExecutionId)

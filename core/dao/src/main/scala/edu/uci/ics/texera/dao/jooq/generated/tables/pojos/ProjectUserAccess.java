@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProjectUserAccess;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,11 +14,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess implements IProjectUserAccess {
 
-    private static final long serialVersionUID = 1449179369;
+    private static final long serialVersionUID = 190987603;
 
-    private UInteger                   uid;
-    private UInteger                   pid;
-    private ProjectUserAccessPrivilege privilege;
+    private Integer       uid;
+    private Integer       pid;
+    private PrivilegeEnum privilege;
 
     public ProjectUserAccess() {}
 
@@ -31,9 +29,9 @@ public class ProjectUserAccess implements IProjectUserAccess {
     }
 
     public ProjectUserAccess(
-        UInteger                   uid,
-        UInteger                   pid,
-        ProjectUserAccessPrivilege privilege
+        Integer       uid,
+        Integer       pid,
+        PrivilegeEnum privilege
     ) {
         this.uid = uid;
         this.pid = pid;
@@ -41,32 +39,32 @@ public class ProjectUserAccess implements IProjectUserAccess {
     }
 
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
     @Override
-    public UInteger getPid() {
+    public Integer getPid() {
         return this.pid;
     }
 
     @Override
-    public void setPid(UInteger pid) {
+    public void setPid(Integer pid) {
         this.pid = pid;
     }
 
     @Override
-    public ProjectUserAccessPrivilege getPrivilege() {
+    public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
     @Override
-    public void setPrivilege(ProjectUserAccessPrivilege privilege) {
+    public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
     }
 

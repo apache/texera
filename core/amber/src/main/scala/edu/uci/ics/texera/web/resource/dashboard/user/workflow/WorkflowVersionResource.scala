@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
-import org.jooq.types.UInteger
+
 
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
@@ -72,7 +72,7 @@ object WorkflowVersionResource {
     * @param patch to update latest version
     * @param wid
     */
-  private def updateLatestVersion(patch: String, wid: UInteger): Unit = {
+  private def updateLatestVersion(patch: String, wid: Integer): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
     val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
@@ -86,12 +86,12 @@ object WorkflowVersionResource {
     * @param wid
     * @return vid
     */
-  def getLatestVersion(wid: UInteger): UInteger = {
+  def getLatestVersion(wid: Integer): Integer = {
     val versions = context
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toList
     // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
@@ -108,7 +108,7 @@ object WorkflowVersionResource {
     *
     * @param wid
     */
-  def insertNewVersion(wid: UInteger, content: String = "[]"): WorkflowVersion = {
+  def insertNewVersion(wid: Integer, content: String = "[]"): WorkflowVersion = {
     val workflowVersion = new WorkflowVersion()
     workflowVersion.setContent(content)
     workflowVersion.setWid(wid)
@@ -125,9 +125,9 @@ object WorkflowVersionResource {
     * @return a list of contents as strings
     */
   def isSnapshotInRangeUnimportant(
-      lowerBound: UInteger,
-      UpperBound: UInteger,
-      wid: UInteger
+      lowerBound: Integer,
+      UpperBound: Integer,
+      wid: Integer
   ): Boolean = {
     if (lowerBound == UpperBound) {
       return true
@@ -282,7 +282,7 @@ object WorkflowVersionResource {
     * @param importance false is not an important version and true is an important version
     */
   case class VersionEntry(
-      vId: UInteger,
+      vId: Integer,
       creationTime: Timestamp,
       content: String,
       importance: Boolean
@@ -304,7 +304,7 @@ class WorkflowVersionResource {
   @Path("/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveVersionsOfWorkflow(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @Auth sessionUser: SessionUser
   ): List[VersionEntry] = {
     val user = sessionUser.getUser
@@ -338,8 +338,8 @@ class WorkflowVersionResource {
   @Path("/{wid}/{vid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowVersion(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("vid") vid: UInteger,
+      @PathParam("wid") wid: Integer,
+      @PathParam("vid") vid: Integer,
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
@@ -367,10 +367,10 @@ class WorkflowVersionResource {
   @Path("/clone/{vid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def cloneVersion(
-      @PathParam("vid") vid: UInteger,
+      @PathParam("vid") vid: Integer,
       @Auth sessionUser: SessionUser,
       requestBody: java.util.Map[String, Int]
-  ): UInteger = {
+  ): Integer = {
     val displayedVersionId = requestBody.get("displayedVersionId")
 
     // Fetch the workflow ID (`wid`) associated with the specified version (`vid`)
@@ -394,13 +394,13 @@ class WorkflowVersionResource {
       try {
         workflowResource.createWorkflow(
           new Workflow(
+            null,
             newWorkflowName,
             workflowVersion.getDescription,
-            null,
             assignNewOperatorIds(workflowVersion.getContent),
             null,
             null,
-            0.toByte
+            false
           ),
           sessionUser
         )

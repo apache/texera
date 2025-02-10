@@ -24,7 +24,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserConfig extends TableImpl<UserConfigRecord> {
 
-    private static final long serialVersionUID = 585099027;
+    private static final long serialVersionUID = 147042662;
 
     /**
      * The reference instance of <code>texera_db.user_config</code>
@@ -51,7 +50,7 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
     /**
      * The column <code>texera_db.user_config.uid</code>.
      */
-    public final TableField<UserConfigRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserConfigRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_config.key</code>.
@@ -103,26 +102,26 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_CONFIG_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_CONFIG_PKEY);
     }
 
     @Override
     public UniqueKey<UserConfigRecord> getPrimaryKey() {
-        return Keys.KEY_USER_CONFIG_PRIMARY;
+        return Keys.USER_CONFIG_PKEY;
     }
 
     @Override
     public List<UniqueKey<UserConfigRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserConfigRecord>>asList(Keys.KEY_USER_CONFIG_PRIMARY);
+        return Arrays.<UniqueKey<UserConfigRecord>>asList(Keys.USER_CONFIG_PKEY);
     }
 
     @Override
     public List<ForeignKey<UserConfigRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<UserConfigRecord, ?>>asList(Keys.USER_CONFIG_IBFK_1);
+        return Arrays.<ForeignKey<UserConfigRecord, ?>>asList(Keys.USER_CONFIG__USER_CONFIG_UID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.USER_CONFIG_IBFK_1);
+        return new User(this, Keys.USER_CONFIG__USER_CONFIG_UID_FKEY);
     }
 
     @Override
@@ -156,7 +155,7 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<UInteger, String, String> fieldsRow() {
+    public Row3<Integer, String, String> fieldsRow() {
         return (Row3) super.fieldsRow();
     }
 }

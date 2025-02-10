@@ -24,7 +24,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
 
-    private static final long serialVersionUID = -1514441832;
+    private static final long serialVersionUID = 1518799894;
 
     /**
      * The reference instance of <code>texera_db.workflow_view_count</code>
@@ -51,12 +50,12 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
     /**
      * The column <code>texera_db.workflow_view_count.wid</code>.
      */
-    public final TableField<WorkflowViewCountRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowViewCountRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_view_count.view_count</code>.
      */
-    public final TableField<WorkflowViewCountRecord, UInteger> VIEW_COUNT = createField(DSL.name("view_count"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<WorkflowViewCountRecord, Integer> VIEW_COUNT = createField(DSL.name("view_count"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * Create a <code>texera_db.workflow_view_count</code> table reference
@@ -98,26 +97,26 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_VIEW_COUNT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_VIEW_COUNT_PKEY);
     }
 
     @Override
     public UniqueKey<WorkflowViewCountRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_VIEW_COUNT_PRIMARY;
+        return Keys.WORKFLOW_VIEW_COUNT_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowViewCountRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowViewCountRecord>>asList(Keys.KEY_WORKFLOW_VIEW_COUNT_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowViewCountRecord>>asList(Keys.WORKFLOW_VIEW_COUNT_PKEY);
     }
 
     @Override
     public List<ForeignKey<WorkflowViewCountRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowViewCountRecord, ?>>asList(Keys.WORKFLOW_VIEW_COUNT_IBFK_1);
+        return Arrays.<ForeignKey<WorkflowViewCountRecord, ?>>asList(Keys.WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY);
     }
 
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_VIEW_COUNT_IBFK_1);
+        return new Workflow(this, Keys.WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY);
     }
 
     @Override
@@ -151,7 +150,7 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

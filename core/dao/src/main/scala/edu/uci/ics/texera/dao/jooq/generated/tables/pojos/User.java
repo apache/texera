@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole;
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUser;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,15 +14,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = -51594379;
+    private static final long serialVersionUID = 1743077803;
 
-    private UInteger uid;
-    private String   name;
-    private String   email;
-    private String   password;
-    private String   googleId;
-    private UserRole role;
-    private String   googleAvatar;
+    private Integer      uid;
+    private String       name;
+    private String       email;
+    private String       password;
+    private String       googleId;
+    private UserRoleEnum role;
+    private String       googleAvatar;
 
     public User() {}
 
@@ -39,13 +37,13 @@ public class User implements IUser {
     }
 
     public User(
-        UInteger uid,
-        String   name,
-        String   email,
-        String   password,
-        String   googleId,
-        UserRole role,
-        String   googleAvatar
+        Integer      uid,
+        String       name,
+        String       email,
+        String       password,
+        String       googleId,
+        UserRoleEnum role,
+        String       googleAvatar
     ) {
         this.uid = uid;
         this.name = name;
@@ -57,12 +55,12 @@ public class User implements IUser {
     }
 
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
@@ -107,12 +105,12 @@ public class User implements IUser {
     }
 
     @Override
-    public UserRole getRole() {
+    public UserRoleEnum getRole() {
         return this.role;
     }
 
     @Override
-    public void setRole(UserRole role) {
+    public void setRole(UserRoleEnum role) {
         this.role = role;
     }
 

@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Project extends TableImpl<ProjectRecord> {
 
-    private static final long serialVersionUID = 586105130;
+    private static final long serialVersionUID = -1098497844;
 
     /**
      * The reference instance of <code>texera_db.project</code>
@@ -53,7 +52,7 @@ public class Project extends TableImpl<ProjectRecord> {
     /**
      * The column <code>texera_db.project.pid</code>.
      */
-    public final TableField<ProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<ProjectRecord, Integer> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.project_pid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.project.name</code>.
@@ -68,7 +67,7 @@ public class Project extends TableImpl<ProjectRecord> {
     /**
      * The column <code>texera_db.project.owner_id</code>.
      */
-    public final TableField<ProjectRecord, UInteger> OWNER_ID = createField(DSL.name("owner_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectRecord, Integer> OWNER_ID = createField(DSL.name("owner_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project.creation_time</code>.
@@ -120,31 +119,31 @@ public class Project extends TableImpl<ProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_IDX_USER_PROJECT_NAME_DESCRIPTION, Indexes.PROJECT_OWNER_ID, Indexes.PROJECT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.PROJECT_OWNER_ID_NAME_KEY, Indexes.PROJECT_PKEY);
     }
 
     @Override
-    public Identity<ProjectRecord, UInteger> getIdentity() {
+    public Identity<ProjectRecord, Integer> getIdentity() {
         return Keys.IDENTITY_PROJECT;
     }
 
     @Override
     public UniqueKey<ProjectRecord> getPrimaryKey() {
-        return Keys.KEY_PROJECT_PRIMARY;
+        return Keys.PROJECT_PKEY;
     }
 
     @Override
     public List<UniqueKey<ProjectRecord>> getKeys() {
-        return Arrays.<UniqueKey<ProjectRecord>>asList(Keys.KEY_PROJECT_PRIMARY, Keys.KEY_PROJECT_OWNER_ID);
+        return Arrays.<UniqueKey<ProjectRecord>>asList(Keys.PROJECT_PKEY, Keys.PROJECT_OWNER_ID_NAME_KEY);
     }
 
     @Override
     public List<ForeignKey<ProjectRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<ProjectRecord, ?>>asList(Keys.PROJECT_IBFK_1);
+        return Arrays.<ForeignKey<ProjectRecord, ?>>asList(Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.PROJECT_IBFK_1);
+        return new User(this, Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
     }
 
     @Override
@@ -178,7 +177,7 @@ public class Project extends TableImpl<ProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, String, String, UInteger, Timestamp, String> fieldsRow() {
+    public Row6<Integer, String, String, Integer, Timestamp, String> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

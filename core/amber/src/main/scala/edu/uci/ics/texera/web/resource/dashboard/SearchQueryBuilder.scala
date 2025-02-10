@@ -8,7 +8,7 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
 import org.jooq._
-import org.jooq.types.UInteger
+
 
 object SearchQueryBuilder {
 
@@ -27,25 +27,25 @@ trait SearchQueryBuilder {
   protected val mappedResourceSchema: UnifiedResourceSchema
 
   protected def constructFromClause(
-      uid: UInteger,
+      uid: Integer,
       params: SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_]
 
-  protected def constructWhereClause(uid: UInteger, params: SearchQueryParams): Condition
+  protected def constructWhereClause(uid: Integer, params: SearchQueryParams): Condition
 
   protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
-  protected def toEntryImpl(uid: UInteger, record: Record): DashboardClickableFileEntry
+  protected def toEntryImpl(uid: Integer, record: Record): DashboardClickableFileEntry
 
   private def translateRecord(record: Record): Record = mappedResourceSchema.translateRecord(record)
 
-  def toEntry(uid: UInteger, record: Record): DashboardClickableFileEntry = {
+  def toEntry(uid: Integer, record: Record): DashboardClickableFileEntry = {
     toEntryImpl(uid, translateRecord(record))
   }
 
   final def constructQuery(
-      uid: UInteger,
+      uid: Integer,
       params: SearchQueryParams,
       includePublic: Boolean
   ): SelectHavingStep[Record] = {

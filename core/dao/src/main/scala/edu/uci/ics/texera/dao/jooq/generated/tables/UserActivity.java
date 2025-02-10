@@ -19,7 +19,6 @@ import org.jooq.Table;
 import org.jooq.TableField;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -28,7 +27,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserActivity extends TableImpl<UserActivityRecord> {
 
-    private static final long serialVersionUID = -891466166;
+    private static final long serialVersionUID = -1337502871;
 
     /**
      * The reference instance of <code>texera_db.user_activity</code>
@@ -46,12 +45,12 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.uid</code>.
      */
-    public final TableField<UserActivityRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<UserActivityRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.user_activity.id</code>.
      */
-    public final TableField<UserActivityRecord, UInteger> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserActivityRecord, Integer> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_activity.type</code>.
@@ -142,7 +141,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, UInteger, String, String, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, String, String, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

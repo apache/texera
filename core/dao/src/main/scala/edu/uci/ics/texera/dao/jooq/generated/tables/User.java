@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables;
 import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole;
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
 
 import java.util.Arrays;
@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 1447964225;
+    private static final long serialVersionUID = -544130431;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -53,7 +52,7 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.uid</code>.
      */
-    public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<UserRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.user_uid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.user.name</code>.
@@ -78,7 +77,7 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRole.class), this, "");
+    public final TableField<UserRecord, UserRoleEnum> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR.nullable(false).defaultValue(org.jooq.impl.DSL.field("'INACTIVE'::texera_db.user_role_enum", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum.class), this, "");
 
     /**
      * The column <code>texera_db.user.google_avatar</code>.
@@ -125,22 +124,22 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_IDX_USER_NAME, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL_KEY, Indexes.USER_GOOGLE_ID_KEY, Indexes.USER_PKEY);
     }
 
     @Override
-    public Identity<UserRecord, UInteger> getIdentity() {
+    public Identity<UserRecord, Integer> getIdentity() {
         return Keys.IDENTITY_USER;
     }
 
     @Override
     public UniqueKey<UserRecord> getPrimaryKey() {
-        return Keys.KEY_USER_PRIMARY;
+        return Keys.USER_PKEY;
     }
 
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
+        return Arrays.<UniqueKey<UserRecord>>asList(Keys.USER_PKEY, Keys.USER_EMAIL_KEY, Keys.USER_GOOGLE_ID_KEY);
     }
 
     @Override
@@ -174,7 +173,7 @@ public class User extends TableImpl<UserRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, String, String, String, String, UserRole, String> fieldsRow() {
+    public Row7<Integer, String, String, String, String, UserRoleEnum, String> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

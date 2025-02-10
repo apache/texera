@@ -4,7 +4,7 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   ProjectDao,
   ProjectUserAccessDao,
@@ -18,7 +18,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessRes
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.types.UInteger
+
 
 import java.sql.Timestamp
 import java.util
@@ -53,7 +53,7 @@ object ProjectResource {
     * @param fileName name of exported file
     * @return String containing status of adding exported file to project(s)
     */
-  def addExportedFileToProject(uid: UInteger, wid: UInteger, fileName: String): String = {
+  def addExportedFileToProject(uid: Integer, wid: Integer, fileName: String): String = {
     // get map of PIDs and project names
     val pidMap = context
       .select(WORKFLOW_OF_PROJECT.PID, PROJECT.NAME)
@@ -76,7 +76,7 @@ object ProjectResource {
     }
   }
 
-  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+  private def workflowOfProjectExists(wid: Integer, pid: Integer): Boolean = {
     workflowOfProjectDao.existsById(
       context
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
@@ -85,10 +85,10 @@ object ProjectResource {
   }
 
   case class DashboardProject(
-      pid: UInteger,
+      pid: Integer,
       name: String,
       description: String,
-      ownerID: UInteger,
+      ownerID: Integer,
       creationTime: Timestamp,
       color: String,
       accessLevel: String
@@ -108,7 +108,7 @@ class ProjectResource {
     */
   @GET
   @Path("/{pid}")
-  def getProject(@PathParam("pid") pid: UInteger): Project = {
+  def getProject(@PathParam("pid") pid: Integer): Project = {
     userProjectDao.fetchOneByPid(pid)
   }
 
@@ -150,7 +150,7 @@ class ProjectResource {
   @GET
   @Path("/{pid}/workflows")
   def listProjectWorkflows(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
     val result = DashboardResource.searchAllResources(
@@ -177,7 +177,7 @@ class ProjectResource {
     try {
       userProjectDao.insert(project)
       projectUserAccessDao.merge(
-        new ProjectUserAccess(user.getUid, project.getPid, ProjectUserAccessPrivilege.WRITE)
+        new ProjectUserAccess(user.getUid, project.getPid, PrivilegeEnum.WRITE)
       )
     } catch {
       case _: Throwable =>
@@ -195,8 +195,8 @@ class ProjectResource {
   @POST
   @Path("/{pid}/workflow/{wid}/add")
   def addWorkflowToProject(
-      @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger,
+      @PathParam("pid") pid: Integer,
+      @PathParam("wid") wid: Integer,
       @Auth user: SessionUser
   ): Unit = {
     if (!hasReadAccess(wid, user.getUid)) {
@@ -217,7 +217,7 @@ class ProjectResource {
   @POST
   @Path("/{pid}/rename/{name}")
   def updateProjectName(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("name") name: String
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
@@ -242,7 +242,7 @@ class ProjectResource {
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.TEXT_PLAIN))
   def updateProjectDescription(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       description: String
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
@@ -264,7 +264,7 @@ class ProjectResource {
   @POST
   @Path("/{pid}/color/{colorHex}/add")
   def updateProjectColor(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("colorHex") colorHex: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
@@ -283,7 +283,7 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
-  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProjectColor(@PathParam("pid") pid: Integer): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(null)
     userProjectDao.update(userProject)
@@ -296,7 +296,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
-  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProject(@PathParam("pid") pid: Integer): Unit = {
     userProjectDao.deleteById(pid)
   }
 
@@ -310,8 +310,8 @@ class ProjectResource {
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
   def deleteWorkflowFromProject(
-      @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("pid") pid: Integer,
+      @PathParam("wid") wid: Integer
   ): Unit = {
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)

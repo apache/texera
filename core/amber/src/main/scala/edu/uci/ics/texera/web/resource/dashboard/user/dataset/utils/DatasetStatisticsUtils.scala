@@ -5,7 +5,7 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
-import org.jooq.types.UInteger
+
 
 import scala.jdk.CollectionConverters._
 
@@ -15,7 +15,7 @@ object DatasetStatisticsUtils {
     .createDSLContext()
 
   // this function retrieves the total counts of dataset that belongs to the user
-  def getUserCreatedDatasetCount(uid: UInteger): Int = {
+  def getUserCreatedDatasetCount(uid: Integer): Int = {
     val count = context
       .selectCount()
       .from(DATASET)
@@ -26,7 +26,7 @@ object DatasetStatisticsUtils {
   }
 
   // this function would return a list of dataset ids that belongs to the user
-  private def getUserCreatedDatasetList(uid: UInteger): List[DatasetQuota] = {
+  private def getUserCreatedDatasetList(uid: Integer): List[DatasetQuota] = {
     val result = context
       .select(
         DATASET.DID,
@@ -49,7 +49,7 @@ object DatasetStatisticsUtils {
       .toList
   }
 
-  def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
+  def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
       val size = DatasetResource.calculateDatasetVersionSize(dataset.did)

@@ -17,7 +17,7 @@
         <database>
             <!-- The database type. The format here is:
                  org.jooq.meta.[database].[database]Database -->
-            <name>org.jooq.meta.mysql.MySQLDatabase</name>
+            <name>org.jooq.meta.postgres.PostgresDatabase</name>
 
             <!-- The database schema (or in the absence of schema support, in your RDBMS this
                  can be the owner, user, database name) to be generated -->

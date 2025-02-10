@@ -14,7 +14,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables.{
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowRuntimeStatistics
-import org.jooq.types.UInteger
+
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.{Failure, Success, Try}
@@ -97,7 +97,7 @@ class DefaultCostEstimator(
         )
         .createDSLContext()
     ) { context =>
-      val widAsUInteger = UInteger.valueOf(wid)
+      val widAsInteger = wid.toInt
       val rawStats = context
         .select(
           OPERATOR_EXECUTIONS.OPERATOR_ID,
@@ -125,7 +125,7 @@ class DefaultCostEstimator(
               .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
               .where(
                 WORKFLOW_VERSION.WID
-                  .eq(widAsUInteger)
+                  .eq(widAsInteger)
                   .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
               )
               .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())

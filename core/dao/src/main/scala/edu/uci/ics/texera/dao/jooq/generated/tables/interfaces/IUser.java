@@ -4,11 +4,9 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole;
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum;
 
 import java.io.Serializable;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -20,12 +18,12 @@ public interface IUser extends Serializable {
     /**
      * Setter for <code>texera_db.user.uid</code>.
      */
-    public void setUid(UInteger value);
+    public void setUid(Integer value);
 
     /**
      * Getter for <code>texera_db.user.uid</code>.
      */
-    public UInteger getUid();
+    public Integer getUid();
 
     /**
      * Setter for <code>texera_db.user.name</code>.
@@ -70,12 +68,12 @@ public interface IUser extends Serializable {
     /**
      * Setter for <code>texera_db.user.role</code>.
      */
-    public void setRole(UserRole value);
+    public void setRole(UserRoleEnum value);
 
     /**
      * Getter for <code>texera_db.user.role</code>.
      */
-    public UserRole getRole();
+    public UserRoleEnum getRole();
 
     /**
      * Setter for <code>texera_db.user.google_avatar</code>.

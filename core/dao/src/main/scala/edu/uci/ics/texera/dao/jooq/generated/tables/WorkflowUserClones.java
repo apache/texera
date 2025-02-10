@@ -24,7 +24,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
 
-    private static final long serialVersionUID = 2096098879;
+    private static final long serialVersionUID = 276154650;
 
     /**
      * The reference instance of <code>texera_db.workflow_user_clones</code>
@@ -51,12 +50,12 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
     /**
      * The column <code>texera_db.workflow_user_clones.uid</code>.
      */
-    public final TableField<WorkflowUserClonesRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserClonesRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_user_clones.wid</code>.
      */
-    public final TableField<WorkflowUserClonesRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserClonesRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_user_clones</code> table reference
@@ -98,30 +97,30 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_CLONES_PRIMARY, Indexes.WORKFLOW_USER_CLONES_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_CLONES_PKEY);
     }
 
     @Override
     public UniqueKey<WorkflowUserClonesRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_USER_CLONES_PRIMARY;
+        return Keys.WORKFLOW_USER_CLONES_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowUserClonesRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowUserClonesRecord>>asList(Keys.KEY_WORKFLOW_USER_CLONES_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowUserClonesRecord>>asList(Keys.WORKFLOW_USER_CLONES_PKEY);
     }
 
     @Override
     public List<ForeignKey<WorkflowUserClonesRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowUserClonesRecord, ?>>asList(Keys.WORKFLOW_USER_CLONES_IBFK_1, Keys.WORKFLOW_USER_CLONES_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowUserClonesRecord, ?>>asList(Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.WORKFLOW_USER_CLONES_IBFK_1);
+        return new User(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY);
     }
 
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_USER_CLONES_IBFK_2);
+        return new Workflow(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
     }
 
     @Override
@@ -155,7 +154,7 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

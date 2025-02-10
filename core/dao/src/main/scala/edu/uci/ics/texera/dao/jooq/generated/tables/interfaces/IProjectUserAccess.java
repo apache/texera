@@ -4,11 +4,9 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 
 import java.io.Serializable;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -20,32 +18,32 @@ public interface IProjectUserAccess extends Serializable {
     /**
      * Setter for <code>texera_db.project_user_access.uid</code>.
      */
-    public void setUid(UInteger value);
+    public void setUid(Integer value);
 
     /**
      * Getter for <code>texera_db.project_user_access.uid</code>.
      */
-    public UInteger getUid();
+    public Integer getUid();
 
     /**
      * Setter for <code>texera_db.project_user_access.pid</code>.
      */
-    public void setPid(UInteger value);
+    public void setPid(Integer value);
 
     /**
      * Getter for <code>texera_db.project_user_access.pid</code>.
      */
-    public UInteger getPid();
+    public Integer getPid();
 
     /**
      * Setter for <code>texera_db.project_user_access.privilege</code>.
      */
-    public void setPrivilege(ProjectUserAccessPrivilege value);
+    public void setPrivilege(PrivilegeEnum value);
 
     /**
      * Getter for <code>texera_db.project_user_access.privilege</code>.
      */
-    public ProjectUserAccessPrivilege getPrivilege();
+    public PrivilegeEnum getPrivilege();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

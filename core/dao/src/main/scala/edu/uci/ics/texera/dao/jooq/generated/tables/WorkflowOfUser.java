@@ -24,7 +24,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
 
-    private static final long serialVersionUID = 754261799;
+    private static final long serialVersionUID = -917749367;
 
     /**
      * The reference instance of <code>texera_db.workflow_of_user</code>
@@ -51,12 +50,12 @@ public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
     /**
      * The column <code>texera_db.workflow_of_user.uid</code>.
      */
-    public final TableField<WorkflowOfUserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfUserRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_of_user.wid</code>.
      */
-    public final TableField<WorkflowOfUserRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfUserRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_of_user</code> table reference
@@ -98,30 +97,30 @@ public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_USER_PRIMARY, Indexes.WORKFLOW_OF_USER_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_USER_PKEY);
     }
 
     @Override
     public UniqueKey<WorkflowOfUserRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_OF_USER_PRIMARY;
+        return Keys.WORKFLOW_OF_USER_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowOfUserRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowOfUserRecord>>asList(Keys.KEY_WORKFLOW_OF_USER_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowOfUserRecord>>asList(Keys.WORKFLOW_OF_USER_PKEY);
     }
 
     @Override
     public List<ForeignKey<WorkflowOfUserRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowOfUserRecord, ?>>asList(Keys.WORKFLOW_OF_USER_IBFK_1, Keys.WORKFLOW_OF_USER_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowOfUserRecord, ?>>asList(Keys.WORKFLOW_OF_USER__WORKFLOW_OF_USER_UID_FKEY, Keys.WORKFLOW_OF_USER__WORKFLOW_OF_USER_WID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.WORKFLOW_OF_USER_IBFK_1);
+        return new User(this, Keys.WORKFLOW_OF_USER__WORKFLOW_OF_USER_UID_FKEY);
     }
 
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_OF_USER_IBFK_2);
+        return new Workflow(this, Keys.WORKFLOW_OF_USER__WORKFLOW_OF_USER_WID_FKEY);
     }
 
     @Override
@@ -155,7 +154,7 @@ public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

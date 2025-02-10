@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset extends TableImpl<DatasetRecord> {
 
-    private static final long serialVersionUID = 1458628918;
+    private static final long serialVersionUID = -1835472774;
 
     /**
      * The reference instance of <code>texera_db.dataset</code>
@@ -53,12 +52,12 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.did</code>.
      */
-    public final TableField<DatasetRecord, UInteger> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<DatasetRecord, Integer> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.dataset_did_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.dataset.owner_uid</code>.
      */
-    public final TableField<DatasetRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetRecord, Integer> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset.name</code>.
@@ -68,7 +67,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.is_public</code>.
      */
-    public final TableField<DatasetRecord, Byte> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("1", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+    public final TableField<DatasetRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.BOOLEAN.nullable(false).defaultValue(org.jooq.impl.DSL.field("true", org.jooq.impl.SQLDataType.BOOLEAN)), this, "");
 
     /**
      * The column <code>texera_db.dataset.description</code>.
@@ -120,31 +119,31 @@ public class Dataset extends TableImpl<DatasetRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_IDX_DATASET_NAME_DESCRIPTION, Indexes.DATASET_OWNER_UID, Indexes.DATASET_PRIMARY);
+        return Arrays.<Index>asList(Indexes.DATASET_PKEY);
     }
 
     @Override
-    public Identity<DatasetRecord, UInteger> getIdentity() {
+    public Identity<DatasetRecord, Integer> getIdentity() {
         return Keys.IDENTITY_DATASET;
     }
 
     @Override
     public UniqueKey<DatasetRecord> getPrimaryKey() {
-        return Keys.KEY_DATASET_PRIMARY;
+        return Keys.DATASET_PKEY;
     }
 
     @Override
     public List<UniqueKey<DatasetRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetRecord>>asList(Keys.KEY_DATASET_PRIMARY);
+        return Arrays.<UniqueKey<DatasetRecord>>asList(Keys.DATASET_PKEY);
     }
 
     @Override
     public List<ForeignKey<DatasetRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetRecord, ?>>asList(Keys.DATASET_IBFK_1);
+        return Arrays.<ForeignKey<DatasetRecord, ?>>asList(Keys.DATASET__DATASET_OWNER_UID_FKEY);
     }
 
     public User user() {
-        return new User(this, Keys.DATASET_IBFK_1);
+        return new User(this, Keys.DATASET__DATASET_OWNER_UID_FKEY);
     }
 
     @Override
@@ -178,7 +177,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, UInteger, String, Byte, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, String, Boolean, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

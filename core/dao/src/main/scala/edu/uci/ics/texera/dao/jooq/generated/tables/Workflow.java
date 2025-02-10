@@ -26,7 +26,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = 1942522218;
+    private static final long serialVersionUID = 563652100;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -51,6 +50,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     /**
+     * The column <code>texera_db.workflow.wid</code>.
+     */
+    public final TableField<WorkflowRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.workflow_wid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+
+    /**
      * The column <code>texera_db.workflow.name</code>.
      */
     public final TableField<WorkflowRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
@@ -59,11 +63,6 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.description</code>.
      */
     public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
-
-    /**
-     * The column <code>texera_db.workflow.wid</code>.
-     */
-    public final TableField<WorkflowRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.workflow.content</code>.
@@ -83,7 +82,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     /**
      * The column <code>texera_db.workflow.is_public</code>.
      */
-    public final TableField<WorkflowRecord, Byte> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+    public final TableField<WorkflowRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.BOOLEAN.nullable(false).defaultValue(org.jooq.impl.DSL.field("false", org.jooq.impl.SQLDataType.BOOLEAN)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
@@ -125,22 +124,22 @@ public class Workflow extends TableImpl<WorkflowRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT, Indexes.WORKFLOW_PRIMARY);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_PKEY);
     }
 
     @Override
-    public Identity<WorkflowRecord, UInteger> getIdentity() {
+    public Identity<WorkflowRecord, Integer> getIdentity() {
         return Keys.IDENTITY_WORKFLOW;
     }
 
     @Override
     public UniqueKey<WorkflowRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_PRIMARY;
+        return Keys.WORKFLOW_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowRecord>>asList(Keys.KEY_WORKFLOW_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowRecord>>asList(Keys.WORKFLOW_PKEY);
     }
 
     @Override
@@ -174,7 +173,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<String, String, UInteger, String, Timestamp, Timestamp, Byte> fieldsRow() {
+    public Row7<Integer, String, String, String, Timestamp, Timestamp, Boolean> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

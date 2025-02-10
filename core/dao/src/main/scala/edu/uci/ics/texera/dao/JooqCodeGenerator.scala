@@ -9,6 +9,7 @@ import java.nio.file.{Files, Path}
 import java.util.{Map => JMap}
 import scala.jdk.CollectionConverters._
 
+
 object JooqCodeGenerator {
   @throws[Exception]
   def main(args: Array[String]): Unit = {
@@ -38,7 +39,7 @@ object JooqCodeGenerator {
 
     // Set JDBC configuration for jOOQ
     val jooqJdbcConfig = new Jdbc
-    jooqJdbcConfig.setDriver("com.mysql.cj.jdbc.Driver")
+    jooqJdbcConfig.setDriver("org.postgresql.Driver")
     jooqJdbcConfig.setUrl(jdbcConfig("url").toString)
     jooqJdbcConfig.setUsername(jdbcConfig("username").toString)
     jooqJdbcConfig.setPassword(jdbcConfig("password").toString)

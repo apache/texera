@@ -24,7 +24,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
-    private static final long serialVersionUID = 264282867;
+    private static final long serialVersionUID = -1484117734;
 
     /**
      * The reference instance of <code>texera_db.workflow_of_project</code>
@@ -51,12 +50,12 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
     /**
      * The column <code>texera_db.workflow_of_project.wid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_of_project.pid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, Integer> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.workflow_of_project</code> table reference
@@ -98,30 +97,30 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_PROJECT_PID, Indexes.WORKFLOW_OF_PROJECT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_PROJECT_PKEY);
     }
 
     @Override
     public UniqueKey<WorkflowOfProjectRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
+        return Keys.WORKFLOW_OF_PROJECT_PKEY;
     }
 
     @Override
     public List<UniqueKey<WorkflowOfProjectRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowOfProjectRecord>>asList(Keys.KEY_WORKFLOW_OF_PROJECT_PRIMARY);
+        return Arrays.<UniqueKey<WorkflowOfProjectRecord>>asList(Keys.WORKFLOW_OF_PROJECT_PKEY);
     }
 
     @Override
     public List<ForeignKey<WorkflowOfProjectRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowOfProjectRecord, ?>>asList(Keys.WORKFLOW_OF_PROJECT_IBFK_1, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowOfProjectRecord, ?>>asList(Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY);
     }
 
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_OF_PROJECT_IBFK_1);
+        return new Workflow(this, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY);
     }
 
     public Project project() {
-        return new Project(this, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
+        return new Project(this, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY);
     }
 
     @Override
@@ -155,7 +154,7 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

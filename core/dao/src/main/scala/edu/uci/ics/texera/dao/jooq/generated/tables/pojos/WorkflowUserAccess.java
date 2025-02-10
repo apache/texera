@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowUserAccess;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,11 +14,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess implements IWorkflowUserAccess {
 
-    private static final long serialVersionUID = 1451132866;
+    private static final long serialVersionUID = -2021275644;
 
-    private UInteger                    uid;
-    private UInteger                    wid;
-    private WorkflowUserAccessPrivilege privilege;
+    private Integer       uid;
+    private Integer       wid;
+    private PrivilegeEnum privilege;
 
     public WorkflowUserAccess() {}
 
@@ -31,9 +29,9 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
     }
 
     public WorkflowUserAccess(
-        UInteger                    uid,
-        UInteger                    wid,
-        WorkflowUserAccessPrivilege privilege
+        Integer       uid,
+        Integer       wid,
+        PrivilegeEnum privilege
     ) {
         this.uid = uid;
         this.wid = wid;
@@ -41,32 +39,32 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
     }
 
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
     @Override
-    public UInteger getWid() {
+    public Integer getWid() {
         return this.wid;
     }
 
     @Override
-    public void setWid(UInteger wid) {
+    public void setWid(Integer wid) {
         this.wid = wid;
     }
 
     @Override
-    public WorkflowUserAccessPrivilege getPrivilege() {
+    public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
     @Override
-    public void setPrivilege(WorkflowUserAccessPrivilege privilege) {
+    public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
     }
 
