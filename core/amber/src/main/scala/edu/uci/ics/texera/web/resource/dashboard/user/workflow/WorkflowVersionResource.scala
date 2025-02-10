@@ -16,7 +16,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
 
-
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

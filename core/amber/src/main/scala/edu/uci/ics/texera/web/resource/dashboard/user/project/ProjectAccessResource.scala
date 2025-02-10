@@ -9,7 +9,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUse
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
 import org.jooq.DSLContext
 
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

@@ -22,7 +22,6 @@ import io.dropwizard.auth.Auth
 import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 
-
 import java.sql.Timestamp
 import java.util
 import java.util.UUID
@@ -289,14 +288,16 @@ class WorkflowResource extends LazyLogging {
       .leftJoin(WORKFLOW_OF_PROJECT)
       .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(WORKFLOW.WID,
+      .groupBy(
+        WORKFLOW.WID,
         WORKFLOW.NAME,
         WORKFLOW.DESCRIPTION,
         WORKFLOW.CREATION_TIME,
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME)
+        USER.NAME
+      )
       .fetch()
     workflowEntries
       .map(workflowRecord =>

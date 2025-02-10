@@ -10,7 +10,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.CollaborationResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 
-
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
 import scala.collection.mutable

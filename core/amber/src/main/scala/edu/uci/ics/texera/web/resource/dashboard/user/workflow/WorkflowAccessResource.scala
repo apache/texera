@@ -16,7 +16,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessRes
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

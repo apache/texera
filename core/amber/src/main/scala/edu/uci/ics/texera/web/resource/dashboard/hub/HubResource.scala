@@ -16,7 +16,6 @@ import HubResource.{
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.impl.DSL
 
-
 import java.util
 import java.util.Collections
 import java.util.regex.Pattern

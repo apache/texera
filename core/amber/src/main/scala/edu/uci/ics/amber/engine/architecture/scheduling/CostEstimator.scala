@@ -15,7 +15,6 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowRuntimeStatistics
 
-
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.{Failure, Success, Try}
 

@@ -23,7 +23,8 @@ object EntityTables {
     case object WorkflowTable extends BaseEntityTable {
       override type R = WorkflowRecord
       override val table: Table[WorkflowRecord] = WORKFLOW
-      override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] = WORKFLOW.IS_PUBLIC
+      override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] =
+        WORKFLOW.IS_PUBLIC
     }
 
     case object DatasetTable extends BaseEntityTable {

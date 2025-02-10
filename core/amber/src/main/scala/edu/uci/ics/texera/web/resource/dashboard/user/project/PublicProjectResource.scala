@@ -10,7 +10,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ProjectUserAccess, Pu
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
-
 import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed

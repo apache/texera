@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web.auth
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 
-
 import java.security.Principal
 
 class SessionUser(val user: User) extends Principal {

@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.util
 
-
-
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 

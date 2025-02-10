@@ -6,7 +6,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
 
-
 import java.net.URI
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, ZoneOffset}

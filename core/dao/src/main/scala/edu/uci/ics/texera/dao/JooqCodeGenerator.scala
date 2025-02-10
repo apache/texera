@@ -9,7 +9,6 @@ import java.nio.file.{Files, Path}
 import java.util.{Map => JMap}
 import scala.jdk.CollectionConverters._
 
-
 object JooqCodeGenerator {
   @throws[Exception]
   def main(args: Array[String]): Unit = {

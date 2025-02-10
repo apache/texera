@@ -4,7 +4,6 @@ import edu.uci.ics.texera.web.model.websocket.request.TexeraWebSocketRequest
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
 
-
 import scala.reflect.{ClassTag, classTag}
 
 class WebsocketInput(errorHandler: Throwable => Unit) {

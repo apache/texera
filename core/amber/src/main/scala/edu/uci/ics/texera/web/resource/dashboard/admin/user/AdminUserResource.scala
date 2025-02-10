@@ -9,7 +9,6 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.us
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

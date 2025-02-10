@@ -19,7 +19,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 
-
 import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed

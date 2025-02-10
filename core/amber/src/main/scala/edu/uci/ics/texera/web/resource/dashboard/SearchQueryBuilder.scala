@@ -9,7 +9,6 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
 import org.jooq._
 
-
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer

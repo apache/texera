@@ -8,7 +8,6 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionR
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
 
-
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType

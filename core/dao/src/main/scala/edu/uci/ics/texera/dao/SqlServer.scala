@@ -13,7 +13,7 @@ import org.postgresql.ds.PGSimpleDataSource
   */
 class SqlServer private (url: String, user: String, password: String) {
   val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
-  private val dataSource:PGSimpleDataSource = new PGSimpleDataSource()
+  private val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
   var context: DSLContext = _
 
   {

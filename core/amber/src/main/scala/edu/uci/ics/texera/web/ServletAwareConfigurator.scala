@@ -5,7 +5,6 @@ import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 
-
 import java.net.URI
 import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse

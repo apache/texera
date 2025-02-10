@@ -11,9 +11,9 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FulltextSearchQueryUtils {
 
   def getFullTextSearchFilter(
-                               keywords: Seq[String],
-                               fields: List[Field[String]]
-                             ): Condition = {
+      keywords: Seq[String],
+      fields: List[Field[String]]
+  ): Condition = {
     if (fields.isEmpty) return noCondition()
 
     // Filter out empty keywords and trim
@@ -23,7 +23,7 @@ object FulltextSearchQueryUtils {
     // then feeds them into to_tsvector('english', ...).
     // E.g.: to_tsvector('english', COALESCE(firstName, '') || ' ' || COALESCE(lastName, ''))
     val combinedFields = fields
-      .map(f => s"COALESCE($f, '')")       // handle null -> ''
+      .map(f => s"COALESCE($f, '')") // handle null -> ''
       .mkString(" || ' ' || ")
 
     // Fold each keyword into the final Condition
@@ -46,12 +46,11 @@ object FulltextSearchQueryUtils {
     }
   }
 
-
   def getSubstringSearchFilter(
-                                keywords: Seq[String],
-                                fields: List[Field[String]],
-                                caseInsensitive: Boolean = false
-                              ): Condition = {
+      keywords: Seq[String],
+      fields: List[Field[String]],
+      caseInsensitive: Boolean = false
+  ): Condition = {
     // If no fields, return a "no-op" condition
     if (fields.isEmpty) return noCondition()
 
@@ -63,8 +62,9 @@ object FulltextSearchQueryUtils {
     val fieldConditions: Seq[Condition] = fields.map { field =>
       trimmedKeywords.foldLeft[Condition](noCondition()) { (acc, key) =>
         val likeCondition =
-          if (caseInsensitive) field.likeIgnoreCase(s"%$key%")  // Postgres-specific case-insensitive match
-          else field.like(s"%$key%")                  // standard SQL LIKE
+          if (caseInsensitive)
+            field.likeIgnoreCase(s"%$key%") // Postgres-specific case-insensitive match
+          else field.like(s"%$key%") // standard SQL LIKE
         if (acc == noCondition()) likeCondition
         else acc.and(likeCondition)
       }
@@ -77,7 +77,6 @@ object FulltextSearchQueryUtils {
       else acc.or(cond)
     }
   }
-
 
   /**
     * Generates a filter condition for querying based on whether a specified field contains any of the given values.
@@ -146,9 +145,9 @@ object FulltextSearchQueryUtils {
     * @return The operators filter.
     */
   def getOperatorsFilter(
-                          operators: java.util.List[String],
-                          field: Field[String]
-                        ): Condition = {
+      operators: java.util.List[String],
+      field: Field[String]
+  ): Condition = {
     // Convert to a Set to avoid duplicates
     val operatorSet = operators.asScala.toSet
     // Start with a "no condition" (logical TRUE) so we can accumulate

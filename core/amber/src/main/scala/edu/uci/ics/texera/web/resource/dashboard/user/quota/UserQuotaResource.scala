@@ -11,7 +11,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import io.dropwizard.auth.Auth
 import org.bson.Document
 
-
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType

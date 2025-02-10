@@ -211,7 +211,7 @@ class ExecutionStatsService(
           stat.operatorStatistics.inputCount.map(_.tupleCount).sum
         )
         runtimeStats.setOutputTupleCnt(
-         stat.operatorStatistics.outputCount.map(_.tupleCount).sum
+          stat.operatorStatistics.outputCount.map(_.tupleCount).sum
         )
         runtimeStats.setStatus(maptoStatusCode(stat.operatorState))
         runtimeStats.setDataProcessingTime(

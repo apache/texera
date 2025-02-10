@@ -15,7 +15,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResou
 }
 import org.jooq.DSLContext
 
-
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

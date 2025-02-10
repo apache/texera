@@ -40,8 +40,7 @@ object UnifiedResourceSchema {
       lastModifiedTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
       ownerId: Field[Integer] = DSL.inline(null, classOf[Integer]),
       wid: Field[Integer] = DSL.inline(null, classOf[Integer]),
-      workflowUserAccess: Field[PrivilegeEnum] =
-        DSL.inline(null, classOf[PrivilegeEnum]),
+      workflowUserAccess: Field[PrivilegeEnum] = DSL.inline(null, classOf[PrivilegeEnum]),
       projectsOfWorkflow: Field[String] = DSL.inline(""),
       uid: Field[Integer] = DSL.inline(null, classOf[Integer]),
       userName: Field[String] = DSL.inline(""),
@@ -52,8 +51,7 @@ object UnifiedResourceSchema {
       did: Field[Integer] = DSL.inline(null, classOf[Integer]),
       datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
       isDatasetPublic: Field[java.lang.Boolean] = DSL.inline(null, classOf[java.lang.Boolean]),
-      datasetUserAccess: Field[PrivilegeEnum] =
-        DSL.inline(null, classOf[PrivilegeEnum])
+      datasetUserAccess: Field[PrivilegeEnum] = DSL.inline(null, classOf[PrivilegeEnum])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
