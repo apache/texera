@@ -43,7 +43,7 @@ export class LandingPageComponent implements OnInit {
       workflows => (this.topClonedWorkflows = workflows),
       "Top Cloned Workflows"
     );
-    this.hubWorkflowService.getGitCommit().subscribe(commit =>{
+    this.hubService.getGitCommit().subscribe(commit =>{
       // Split the text into parts
       this.deploymentCommit = commit
       const match = this.deploymentCommit.match(/(.*)(#\d+)(.*)/);
@@ -56,7 +56,7 @@ export class LandingPageComponent implements OnInit {
       }
 
     })
-    this.hubWorkflowService.getLastDeploy().subscribe(deployTime => this.lastDeployTime = deployTime)
+    this.hubService.getLastDeploy().subscribe(deployTime => this.lastDeployTime = deployTime)
   }
 
   getWorkflowCount(): void {
