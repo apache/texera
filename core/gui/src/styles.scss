@@ -82,6 +82,10 @@ hr {
   height: 100% !important;
 }
 
+#computing-units-list .ant-select-selection-item {
+  line-height: 30px !important;
+}
+
 #cpu-progress-bar .ant-progress-inner,
 #memory-progress-bar .ant-progress-inner {
   vertical-align: super !important;
