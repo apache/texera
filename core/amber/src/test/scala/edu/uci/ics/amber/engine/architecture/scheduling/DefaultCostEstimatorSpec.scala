@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
-import edu.uci.ics.amber.core.storage.result.IcebergTableSchema
+import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -85,7 +85,7 @@ class DefaultCostEstimatorSpec
       WorkflowIdentity(testWorkflowEntry.getWid.longValue()),
       ExecutionIdentity(testWorkflowExecutionEntry.getEid.longValue())
     )
-    document = DocumentFactory.createDocument(uri, IcebergTableSchema.runtimeStatisticsSchema)
+    document = DocumentFactory.createDocument(uri, ResultSchema.runtimeStatisticsSchema)
     writer = document
       .writer(s"runtime_statistics_${testWorkflowExecutionEntry.getEid.longValue()}")
       .asInstanceOf[BufferedItemWriter[Tuple]]
@@ -153,7 +153,7 @@ class DefaultCostEstimatorSpec
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
 
     val headerlessCsvOpRuntimeStatistics = new Tuple(
-      IcebergTableSchema.runtimeStatisticsSchema,
+      ResultSchema.runtimeStatisticsSchema,
       Array(
         headerlessCsvOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
@@ -167,7 +167,7 @@ class DefaultCostEstimatorSpec
       )
     )
     val keywordOpRuntimeStatistics = new Tuple(
-      IcebergTableSchema.runtimeStatisticsSchema,
+      ResultSchema.runtimeStatisticsSchema,
       Array(
         keywordOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
@@ -233,7 +233,7 @@ class DefaultCostEstimatorSpec
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
 
     val headerlessCsvOpRuntimeStatistics = new Tuple(
-      IcebergTableSchema.runtimeStatisticsSchema,
+      ResultSchema.runtimeStatisticsSchema,
       Array(
         headerlessCsvOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
@@ -247,7 +247,7 @@ class DefaultCostEstimatorSpec
       )
     )
     val groupByOpRuntimeStatistics = new Tuple(
-      IcebergTableSchema.runtimeStatisticsSchema,
+      ResultSchema.runtimeStatisticsSchema,
       Array(
         groupByOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
@@ -261,7 +261,7 @@ class DefaultCostEstimatorSpec
       )
     )
     val keywordOpRuntimeStatistics = new Tuple(
-      IcebergTableSchema.runtimeStatisticsSchema,
+      ResultSchema.runtimeStatisticsSchema,
       Array(
         keywordOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),

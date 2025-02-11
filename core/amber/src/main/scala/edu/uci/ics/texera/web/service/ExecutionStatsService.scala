@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
-import edu.uci.ics.amber.core.storage.result.IcebergTableSchema
+import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{
@@ -55,7 +55,7 @@ class ExecutionStatsService(
         workflowContext.executionId
       )
       val writer = DocumentFactory
-        .createDocument(uri, IcebergTableSchema.runtimeStatisticsSchema)
+        .createDocument(uri, ResultSchema.runtimeStatisticsSchema)
         .writer("runtime_statistics")
         .asInstanceOf[BufferedItemWriter[Tuple]]
       WorkflowExecutionsResource.updateRuntimeStatsUri(
@@ -232,7 +232,7 @@ class ExecutionStatsService(
           operatorStatistics.foreach {
             case (operatorId, stat) =>
               val runtimeStats = new Tuple(
-                IcebergTableSchema.runtimeStatisticsSchema,
+                ResultSchema.runtimeStatisticsSchema,
                 Array(
                   operatorId,
                   new java.sql.Timestamp(System.currentTimeMillis()),

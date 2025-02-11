@@ -2,7 +2,7 @@ package edu.uci.ics.amber.storage.result.iceberg
 
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model._
-import edu.uci.ics.amber.core.storage.result.IcebergTableSchema
+import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -19,7 +19,7 @@ class IcebergDocumentConsoleMessagesSpec
     with VirtualDocumentSpec[Tuple]
     with BeforeAndAfterAll {
 
-  private val amberSchema: Schema = IcebergTableSchema.consoleMessagesSchema
+  private val amberSchema: Schema = ResultSchema.consoleMessagesSchema
   var uri: URI = _
 
   override def beforeEach(): Unit = {

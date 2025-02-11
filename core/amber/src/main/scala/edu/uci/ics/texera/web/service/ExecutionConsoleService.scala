@@ -28,7 +28,7 @@ import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEv
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
-import edu.uci.ics.amber.core.storage.result.IcebergTableSchema
+import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.WorkflowContext
@@ -60,7 +60,7 @@ class ExecutionConsoleService(
         val uri = VFSURIFactory
           .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)
         val writer = DocumentFactory
-          .createDocument(uri, IcebergTableSchema.consoleMessagesSchema)
+          .createDocument(uri, ResultSchema.consoleMessagesSchema)
           .writer("console_messages")
           .asInstanceOf[BufferedItemWriter[Tuple]]
         WorkflowExecutionsResource.insertOperatorExecutions(
@@ -123,7 +123,7 @@ class ExecutionConsoleService(
         val writer = getOrCreateWriter(OperatorIdentity(opId))
         try {
           val tuple = new Tuple(
-            IcebergTableSchema.consoleMessagesSchema,
+            ResultSchema.consoleMessagesSchema,
             Array(consoleMessage.toProtoString)
           )
           writer.putOne(tuple)

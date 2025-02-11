@@ -29,9 +29,9 @@ object DocumentFactory {
     fileUri.getScheme match {
       case DATASET_FILE_URI_SCHEME => new DatasetFileDocument(fileUri)
       case "file"                  => new ReadonlyLocalFileDocument(fileUri)
-      case scheme =>
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: $scheme for creating the ReadonlyDocument"
+          s"Unsupported URI scheme: $unsupportedScheme for creating the ReadonlyDocument"
         )
     }
   }
@@ -78,14 +78,14 @@ object DocumentFactory {
               serde,
               deserde
             )
-          case mode =>
+          case unsupportedMode =>
             throw new IllegalArgumentException(
-              s"Storage mode '$mode' is not supported"
+              s"Storage mode '$unsupportedMode' is not supported"
             )
         }
-      case scheme =>
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: $scheme for creating the document"
+          s"Unsupported URI scheme: $unsupportedScheme for creating the document"
         )
     }
   }
@@ -143,9 +143,9 @@ object DocumentFactory {
               s"Storage mode '$mode' is not supported"
             )
         }
-      case scheme =>
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: $scheme for opening the document"
+          s"Unsupported URI scheme: $unsupportedScheme for opening the document"
         )
     }
   }

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.core.storage.result
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 
-object IcebergTableSchema {
+object ResultSchema {
   val runtimeStatisticsSchema: Schema = new Schema(
     new Attribute("operatorId", AttributeType.STRING),
     new Attribute("time", AttributeType.TIMESTAMP),
