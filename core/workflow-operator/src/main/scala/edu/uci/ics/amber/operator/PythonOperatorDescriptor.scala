@@ -10,19 +10,26 @@ trait PythonOperatorDescriptor extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
+    // TODO: make python code be the error reporting code
+    val pythonCode = try {
+      generatePythonCode()
+    } catch {
+      case ex: Throwable =>
+        "" // Proceed with an empty string if an exception occurs
+    }
     val physicalOp = if (asSource()) {
       PhysicalOp.sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
+        OpExecWithCode(pythonCode, "python")
       )
     } else {
       PhysicalOp.oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
+        OpExecWithCode(pythonCode, "python")
       )
     }
 
