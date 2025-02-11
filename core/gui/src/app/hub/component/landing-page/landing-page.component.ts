@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { Observable } from "rxjs";
-import { HubWorkflowService } from "../../service/workflow/hub-workflow.service";
+import { HubService } from "../../service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
@@ -21,7 +21,7 @@ export class LandingPageComponent implements OnInit {
   public topClonedWorkflows: DashboardEntry[] = [];
 
   constructor(
-    private hubWorkflowService: HubWorkflowService,
+    private hubService: HubService,
     private router: Router,
     private searchService: SearchService
   ) {}
@@ -29,20 +29,20 @@ export class LandingPageComponent implements OnInit {
   ngOnInit(): void {
     this.getWorkflowCount();
     this.fetchTopWorkflows(
-      this.hubWorkflowService.getTopLovedWorkflows(),
+      this.hubService.getTopLovedWorkflows(),
       workflows => (this.topLovedWorkflows = workflows),
       "Top Loved Workflows"
     );
     this.fetchTopWorkflows(
-      this.hubWorkflowService.getTopClonedWorkflows(),
+      this.hubService.getTopClonedWorkflows(),
       workflows => (this.topClonedWorkflows = workflows),
       "Top Cloned Workflows"
     );
   }
 
   getWorkflowCount(): void {
-    this.hubWorkflowService
-      .getWorkflowCount()
+    this.hubService
+      .getCount("workflow")
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;

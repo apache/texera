@@ -1,16 +1,12 @@
-use texera_db;
+USE texera_db;
 
-drop table if exists operator_runtime_statistics;
+DROP TABLE IF EXISTS workflow_user_activity;
 
-alter table workflow_executions add column runtime_stats_uri text default null;
-alter table operator_executions drop column operator_execution_id, add column console_messages_uri text default null;
-
-CREATE TABLE IF NOT EXISTS operator_port_executions
-(
-    workflow_execution_id INT UNSIGNED NOT NULL,
-    operator_id VARCHAR(100) NOT NULL,
-    port_id INT NOT NULL,
-    result_uri TEXT DEFAULT NULL,
-    UNIQUE (workflow_execution_id, operator_id, port_id),
-    FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions (eid) ON DELETE CASCADE
-);
+CREATE TABLE IF NOT EXISTS user_activity (
+    `uid` INT UNSIGNED NOT NULL DEFAULT 0,
+    `id` INT UNSIGNED NOT NULL,
+    `type` VARCHAR(15) NOT NULL,
+    `ip` VARCHAR(15) DEFAULT NULL,
+    `activate` VARCHAR(10) NOT NULL,
+    `activity_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE = INNODB;
