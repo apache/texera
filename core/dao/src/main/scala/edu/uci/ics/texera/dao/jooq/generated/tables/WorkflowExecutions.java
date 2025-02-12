@@ -17,7 +17,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row11;
+import org.jooq.Row12;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -104,6 +104,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.log_location</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> LOG_LOCATION = createField(DSL.name("log_location"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> RUNTIME_STATS_URI = createField(DSL.name("runtime_stats_uri"), SQLDataType.CLOB, this, "");
 
     private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -211,11 +216,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row11 type methods
+    // Row12 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row11<Integer, Integer, Integer, Short, String, LocalDateTime, LocalDateTime, Boolean, String, String, String> fieldsRow() {
-        return (Row11) super.fieldsRow();
+    public Row12<Integer, Integer, Integer, Short, String, LocalDateTime, LocalDateTime, Boolean, String, String, String, String> fieldsRow() {
+        return (Row12) super.fieldsRow();
     }
 }

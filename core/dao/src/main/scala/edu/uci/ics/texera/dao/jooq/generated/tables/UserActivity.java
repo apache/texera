@@ -72,7 +72,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.activity_time</code>.
      */
-    public final TableField<UserActivityRecord, LocalDateTime> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.LOCALDATETIME(6).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<UserActivityRecord, LocalDateTime> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
     private UserActivity(Name alias, Table<UserActivityRecord> aliased) {
         this(alias, aliased, null);

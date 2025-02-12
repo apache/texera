@@ -13,7 +13,6 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row3;
@@ -50,12 +49,6 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
 
     /**
      * The column
-     * <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public final TableField<OperatorExecutionsRecord, Long> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), SQLDataType.BIGINT.nullable(false).identity(true), this, "");
-
-    /**
-     * The column
      * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     public final TableField<OperatorExecutionsRecord, Integer> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), SQLDataType.INTEGER.nullable(false), this, "");
@@ -64,6 +57,12 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
      * The column <code>texera_db.operator_executions.operator_id</code>.
      */
     public final TableField<OperatorExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
+
+    /**
+     * The column
+     * <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public final TableField<OperatorExecutionsRecord, String> CONSOLE_MESSAGES_URI = createField(DSL.name("console_messages_uri"), SQLDataType.CLOB, this, "");
 
     private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -103,16 +102,6 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     @Override
     public Schema getSchema() {
         return aliased() ? null : TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public Identity<OperatorExecutionsRecord, Long> getIdentity() {
-        return (Identity<OperatorExecutionsRecord, Long>) super.getIdentity();
-    }
-
-    @Override
-    public UniqueKey<OperatorExecutionsRecord> getPrimaryKey() {
-        return Keys.OPERATOR_EXECUTIONS_PKEY;
     }
 
     @Override
@@ -169,7 +158,7 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<Long, Integer, String> fieldsRow() {
+    public Row3<Integer, String, String> fieldsRow() {
         return (Row3) super.fieldsRow();
     }
 }

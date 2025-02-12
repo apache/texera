@@ -28,6 +28,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String        name;
     private String        environmentVersion;
     private String        logLocation;
+    private String        runtimeStatsUri;
 
     public WorkflowExecutions() {}
 
@@ -43,6 +44,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = value.getName();
         this.environmentVersion = value.getEnvironmentVersion();
         this.logLocation = value.getLogLocation();
+        this.runtimeStatsUri = value.getRuntimeStatsUri();
     }
 
     public WorkflowExecutions(
@@ -56,7 +58,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Boolean       bookmarked,
         String        name,
         String        environmentVersion,
-        String        logLocation
+        String        logLocation,
+        String        runtimeStatsUri
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -69,6 +72,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = name;
         this.environmentVersion = environmentVersion;
         this.logLocation = logLocation;
+        this.runtimeStatsUri = runtimeStatsUri;
     }
 
     /**
@@ -249,6 +253,22 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.logLocation = logLocation;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    @Override
+    public String getRuntimeStatsUri() {
+        return this.runtimeStatsUri;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    @Override
+    public void setRuntimeStatsUri(String runtimeStatsUri) {
+        this.runtimeStatsUri = runtimeStatsUri;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
@@ -264,6 +284,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(name);
         sb.append(", ").append(environmentVersion);
         sb.append(", ").append(logLocation);
+        sb.append(", ").append(runtimeStatsUri);
 
         sb.append(")");
         return sb.toString();
@@ -286,6 +307,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setName(from.getName());
         setEnvironmentVersion(from.getEnvironmentVersion());
         setLogLocation(from.getLogLocation());
+        setRuntimeStatsUri(from.getRuntimeStatsUri());
     }
 
     @Override

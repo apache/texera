@@ -15,18 +15,6 @@ public interface IOperatorExecutions extends Serializable {
 
     /**
      * Setter for
-     * <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public void setOperatorExecutionId(Long value);
-
-    /**
-     * Getter for
-     * <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public Long getOperatorExecutionId();
-
-    /**
-     * Setter for
      * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     public void setWorkflowExecutionId(Integer value);
@@ -46,6 +34,18 @@ public interface IOperatorExecutions extends Serializable {
      * Getter for <code>texera_db.operator_executions.operator_id</code>.
      */
     public String getOperatorId();
+
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public void setConsoleMessagesUri(String value);
+
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public String getConsoleMessagesUri();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

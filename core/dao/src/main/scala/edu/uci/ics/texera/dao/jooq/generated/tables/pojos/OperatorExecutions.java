@@ -15,44 +15,26 @@ public class OperatorExecutions implements IOperatorExecutions {
 
     private static final long serialVersionUID = 1L;
 
-    private Long    operatorExecutionId;
     private Integer workflowExecutionId;
     private String  operatorId;
+    private String  consoleMessagesUri;
 
     public OperatorExecutions() {}
 
     public OperatorExecutions(IOperatorExecutions value) {
-        this.operatorExecutionId = value.getOperatorExecutionId();
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.operatorId = value.getOperatorId();
+        this.consoleMessagesUri = value.getConsoleMessagesUri();
     }
 
     public OperatorExecutions(
-        Long    operatorExecutionId,
         Integer workflowExecutionId,
-        String  operatorId
+        String  operatorId,
+        String  consoleMessagesUri
     ) {
-        this.operatorExecutionId = operatorExecutionId;
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
-    }
-
-    /**
-     * Getter for
-     * <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    @Override
-    public Long getOperatorExecutionId() {
-        return this.operatorExecutionId;
-    }
-
-    /**
-     * Setter for
-     * <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    @Override
-    public void setOperatorExecutionId(Long operatorExecutionId) {
-        this.operatorExecutionId = operatorExecutionId;
+        this.consoleMessagesUri = consoleMessagesUri;
     }
 
     /**
@@ -89,13 +71,31 @@ public class OperatorExecutions implements IOperatorExecutions {
         this.operatorId = operatorId;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    @Override
+    public String getConsoleMessagesUri() {
+        return this.consoleMessagesUri;
+    }
+
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    @Override
+    public void setConsoleMessagesUri(String consoleMessagesUri) {
+        this.consoleMessagesUri = consoleMessagesUri;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorExecutions (");
 
-        sb.append(operatorExecutionId);
-        sb.append(", ").append(workflowExecutionId);
+        sb.append(workflowExecutionId);
         sb.append(", ").append(operatorId);
+        sb.append(", ").append(consoleMessagesUri);
 
         sb.append(")");
         return sb.toString();
@@ -107,9 +107,9 @@ public class OperatorExecutions implements IOperatorExecutions {
 
     @Override
     public void from(IOperatorExecutions from) {
-        setOperatorExecutionId(from.getOperatorExecutionId());
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setOperatorId(from.getOperatorId());
+        setConsoleMessagesUri(from.getConsoleMessagesUri());
     }
 
     @Override
