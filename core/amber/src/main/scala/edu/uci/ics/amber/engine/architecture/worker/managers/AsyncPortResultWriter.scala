@@ -32,7 +32,7 @@ class AsyncPortResultWriter extends Thread {
   def terminate(): Unit = {
     stopped = true
     queue.put(Right(TerminateSignalInst))
-    gracefullyStopped.get()
+    gracefullyStopped.get() // blocks the calling thread until the writer(s) are closed
   }
 
   override def run(): Unit = {
