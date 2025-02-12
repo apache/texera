@@ -4,15 +4,7 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
-import HubResource.{
-  fetchDashboardWorkflowsByWids,
-  getUserLCCount,
-  isLikedHelper,
-  recordLikeActivity,
-  recordUserActivity,
-  userRequest,
-  validateEntityType
-}
+import HubResource.{fetchDashboardWorkflowsByWids, getUserLCCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
@@ -25,6 +17,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
+import edu.uci.ics.amber.engine.common.AmberConfig
 
 object HubResource {
   case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
@@ -283,6 +276,20 @@ class HubResource {
   final private lazy val context = SqlServer
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
+
+  @GET
+  @Path("/git-describe")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def getGitHead: String = {
+    AmberConfig.latestCommitFromMaster
+  }
+
+  @GET
+  @Path("/last-deploy")
+  @Produces(Array(MediaType.TEXT_PLAIN))
+  def getLastDeploy: String = {
+    AmberConfig.lastDeployTimestamp
+  }
 
   @GET
   @Path("/count")

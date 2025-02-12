@@ -50,20 +50,6 @@ object WorkflowResource {
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
 
-  @GET
-  @Path("/git-describe")
-  @Produces(Array(MediaType.TEXT_PLAIN))
-  def getGitHead: String = {
-    AmberConfig.latestCommitFromMaster
-  }
-
-  @GET
-  @Path("/last-deploy")
-  @Produces(Array(MediaType.TEXT_PLAIN))
-  def getLastDeploy: String = {
-    AmberConfig.lastDeployTimestamp
-  }
-
   def getWorkflowName(wid: UInteger): String = {
     val workflow = workflowDao.fetchOneByWid(wid)
     if (workflow == null) {
