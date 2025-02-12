@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
-import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
@@ -53,9 +53,9 @@ public class Tables {
     public static final OperatorExecutions OPERATOR_EXECUTIONS = OperatorExecutions.OPERATOR_EXECUTIONS;
 
     /**
-     * The table <code>texera_db.operator_runtime_statistics</code>.
+     * The table <code>texera_db.operator_port_executions</code>.
      */
-    public static final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS;
+    public static final OperatorPortExecutions OPERATOR_PORT_EXECUTIONS = OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS;
 
     /**
      * The table <code>texera_db.project</code>.

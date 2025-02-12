@@ -44,14 +44,14 @@ class DocumentFactory:
 
                 create_table(
                     IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     override_if_exists=True,
                 )
 
                 return IcebergDocument[Tuple](
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     amber_tuples_to_arrow_table,
@@ -78,7 +78,7 @@ class DocumentFactory:
 
                 table = load_table_metadata(
                     IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                 )
 
@@ -88,7 +88,7 @@ class DocumentFactory:
                 amber_schema = Schema(table.schema().as_arrow())
 
                 document = IcebergDocument(
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     table.schema(),
                     amber_tuples_to_arrow_table,
