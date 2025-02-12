@@ -3,12 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -29,7 +24,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters._
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer
@@ -371,23 +366,23 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    val eIdsList = request.eIds.toSeq.asJava
     if (request.isBookmarked) {
-      val eIdArray = request.eIds.mkString("(", ",", ")")
-      val sqlString = "update texera_db.workflow_executions " +
-        "set texera_db.workflow_executions.bookmarked = 0 " +
-        s"where texera_db.workflow_executions.eid in $eIdArray"
+      // If currently bookmarked, un-bookmark (set bookmarked = false)
       context
-        .query(sqlString)
+        .update(WORKFLOW_EXECUTIONS)
+        .set(WORKFLOW_EXECUTIONS.BOOKMARKED, java.lang.Boolean.valueOf(false))
+        .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
         .execute()
     } else {
-      val eIdArray = request.eIds.mkString("(", ",", ")")
-      val sqlString = "UPDATE texera_db.workflow_executions " +
-        "SET texera_db.workflow_executions.bookmarked = 1 " +
-        s"WHERE texera_db.workflow_executions.eid IN $eIdArray"
+      // If currently not bookmarked, bookmark (set bookmarked = true)
       context
-        .query(sqlString)
+        .update(WORKFLOW_EXECUTIONS)
+        .set(WORKFLOW_EXECUTIONS.BOOKMARKED, java.lang.Boolean.valueOf(true))
+        .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
         .execute()
     }
+
   }
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
@@ -406,12 +401,11 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    /* delete the execution in sql */
-    val eIdArray = request.eIds.mkString("(", ",", ")")
-    val sqlString: String = "DELETE FROM texera_db.workflow_executions " +
-      s"WHERE texera_db.workflow_executions.eid IN $eIdArray"
+    val eIdsList = request.eIds.toSeq.asJava
+
     context
-      .query(sqlString)
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
   }
 
