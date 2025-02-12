@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1459052104;
+    private static final long serialVersionUID = 1258377197;
 
     private UInteger  eid;
     private UInteger  vid;
@@ -30,6 +30,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String    name;
     private String    environmentVersion;
     private String    logLocation;
+    private String    runtimeStatsUri;
 
     public WorkflowExecutions() {}
 
@@ -45,6 +46,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = value.getName();
         this.environmentVersion = value.getEnvironmentVersion();
         this.logLocation = value.getLogLocation();
+        this.runtimeStatsUri = value.getRuntimeStatsUri();
     }
 
     public WorkflowExecutions(
@@ -58,7 +60,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Byte      bookmarked,
         String    name,
         String    environmentVersion,
-        String    logLocation
+        String    logLocation,
+        String    runtimeStatsUri
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -71,6 +74,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.name = name;
         this.environmentVersion = environmentVersion;
         this.logLocation = logLocation;
+        this.runtimeStatsUri = runtimeStatsUri;
     }
 
     @Override
@@ -184,6 +188,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
+    public String getRuntimeStatsUri() {
+        return this.runtimeStatsUri;
+    }
+
+    @Override
+    public void setRuntimeStatsUri(String runtimeStatsUri) {
+        this.runtimeStatsUri = runtimeStatsUri;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
 
@@ -198,6 +212,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(name);
         sb.append(", ").append(environmentVersion);
         sb.append(", ").append(logLocation);
+        sb.append(", ").append(runtimeStatsUri);
 
         sb.append(")");
         return sb.toString();
@@ -220,6 +235,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setName(from.getName());
         setEnvironmentVersion(from.getEnvironmentVersion());
         setLogLocation(from.getLogLocation());
+        setRuntimeStatsUri(from.getRuntimeStatsUri());
     }
 
     @Override

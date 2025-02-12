@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -11,6 +10,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -186,7 +186,12 @@ abstract class ScheduleGenerator(
       .get
     // create the document
     DocumentFactory.createDocument(storageUri, schema)
-    ExecutionResourcesMapping.addResourceUri(workflowContext.executionId, storageUri)
+    WorkflowExecutionsResource.insertOperatorPortResultUri(
+      workflowContext.executionId,
+      physicalLink.fromOpId.logicalOpId,
+      physicalLink.fromPortId,
+      storageUri
+    )
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(

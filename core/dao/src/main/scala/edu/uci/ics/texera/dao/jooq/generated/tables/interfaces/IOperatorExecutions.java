@@ -7,7 +7,6 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
-import org.jooq.types.ULong;
 
 
 /**
@@ -15,16 +14,6 @@ import org.jooq.types.ULong;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public interface IOperatorExecutions extends Serializable {
-
-    /**
-     * Setter for <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public void setOperatorExecutionId(ULong value);
-
-    /**
-     * Getter for <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public ULong getOperatorExecutionId();
 
     /**
      * Setter for <code>texera_db.operator_executions.workflow_execution_id</code>.
@@ -45,6 +34,16 @@ public interface IOperatorExecutions extends Serializable {
      * Getter for <code>texera_db.operator_executions.operator_id</code>.
      */
     public String getOperatorId();
+
+    /**
+     * Setter for <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public void setConsoleMessagesUri(String value);
+
+    /**
+     * Getter for <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public String getConsoleMessagesUri();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

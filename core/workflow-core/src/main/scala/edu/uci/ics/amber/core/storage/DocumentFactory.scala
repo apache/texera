@@ -1,13 +1,8 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.storage.model.{
-  DatasetFileDocument,
-  ReadonlyLocalFileDocument,
-  ReadonlyVirtualDocument,
-  VirtualDocument
-}
-import FileResolver.DATASET_FILE_URI_SCHEME
-import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
+import edu.uci.ics.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
+import edu.uci.ics.amber.core.storage.model._
+import edu.uci.ics.amber.core.storage.VFSResourceType._
 import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
@@ -19,10 +14,11 @@ import java.net.URI
 
 object DocumentFactory {
 
-  val MONGODB: String = "mongodb"
-  val ICEBERG: String = "iceberg"
+  val MONGODB = "mongodb"
+  val ICEBERG = "iceberg"
 
-  private def sanitizeURIPath(uri: URI): String = uri.getPath.stripPrefix("/").replace("/", "_")
+  private def sanitizeURIPath(uri: URI): String =
+    uri.getPath.stripPrefix("/").replace("/", "_")
 
   /**
     * Open a document specified by the uri for read purposes only.
@@ -31,15 +27,11 @@ object DocumentFactory {
     */
   def openReadonlyDocument(fileUri: URI): ReadonlyVirtualDocument[_] = {
     fileUri.getScheme match {
-      case DATASET_FILE_URI_SCHEME =>
-        new DatasetFileDocument(fileUri)
-
-      case "file" =>
-        new ReadonlyLocalFileDocument(fileUri)
-
-      case _ =>
+      case DATASET_FILE_URI_SCHEME => new DatasetFileDocument(fileUri)
+      case "file"                  => new ReadonlyLocalFileDocument(fileUri)
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: ${fileUri.getScheme} for creating the ReadonlyDocument"
+          s"Unsupported URI scheme: $unsupportedScheme for creating the ReadonlyDocument"
         )
     }
   }
@@ -55,48 +47,45 @@ object DocumentFactory {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, _, resourceType) = decodeURI(uri)
+        val storageKey = sanitizeURIPath(uri)
 
-        resourceType match {
-          case RESULT | MATERIALIZED_RESULT =>
-            val storageKey = sanitizeURIPath(uri)
-
-            StorageConfig.resultStorageMode.toLowerCase match {
-              case ICEBERG =>
-                val icebergSchema = IcebergUtil.toIcebergSchema(schema)
-                IcebergUtil.createTable(
-                  IcebergCatalogInstance.getInstance(),
-                  StorageConfig.icebergTableNamespace,
-                  storageKey,
-                  icebergSchema,
-                  overrideIfExists = true
-                )
-                val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-                val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
-                  IcebergUtil.fromRecord(record, schema)
-
-                new IcebergDocument[Tuple](
-                  StorageConfig.icebergTableNamespace,
-                  storageKey,
-                  icebergSchema,
-                  serde,
-                  deserde
-                )
-
-              case _ =>
-                throw new IllegalArgumentException(
-                  s"Storage mode '${StorageConfig.resultStorageMode}' is not supported"
-                )
-            }
-
+        val namespace = resourceType match {
+          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
-            throw new IllegalArgumentException(
-              s"Resource type $resourceType is not supported"
-            )
+            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
 
-      case _ =>
+        StorageConfig.resultStorageMode.toLowerCase match {
+          case ICEBERG =>
+            val icebergSchema = IcebergUtil.toIcebergSchema(schema)
+            IcebergUtil.createTable(
+              IcebergCatalogInstance.getInstance(),
+              namespace,
+              storageKey,
+              icebergSchema,
+              overrideIfExists = true
+            )
+            val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+            val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
+              IcebergUtil.fromRecord(record, schema)
+
+            new IcebergDocument[Tuple](
+              namespace,
+              storageKey,
+              icebergSchema,
+              serde,
+              deserde
+            )
+          case unsupportedMode =>
+            throw new IllegalArgumentException(
+              s"Storage mode '$unsupportedMode' is not supported"
+            )
+        }
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: ${uri.getScheme} for creating the document"
+          s"Unsupported URI scheme: $unsupportedScheme for creating the document"
         )
     }
   }
@@ -109,59 +98,54 @@ object DocumentFactory {
     */
   def openDocument(uri: URI): (VirtualDocument[_], Option[Schema]) = {
     uri.getScheme match {
-      case DATASET_FILE_URI_SCHEME =>
-        (new DatasetFileDocument(uri), None)
-
+      case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, _, resourceType) = decodeURI(uri)
+        val storageKey = sanitizeURIPath(uri)
 
-        resourceType match {
-          case RESULT | MATERIALIZED_RESULT =>
-            val storageKey = sanitizeURIPath(uri)
-
-            StorageConfig.resultStorageMode.toLowerCase match {
-              case ICEBERG =>
-                val table = IcebergUtil
-                  .loadTableMetadata(
-                    IcebergCatalogInstance.getInstance(),
-                    StorageConfig.icebergTableNamespace,
-                    storageKey
-                  )
-                  .getOrElse(
-                    throw new IllegalArgumentException("No storage is found for the given URI")
-                  )
-
-                val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
-                val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-                val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
-                  IcebergUtil.fromRecord(record, amberSchema)
-
-                (
-                  new IcebergDocument[Tuple](
-                    StorageConfig.icebergTableNamespace,
-                    storageKey,
-                    table.schema(),
-                    serde,
-                    deserde
-                  ),
-                  Some(amberSchema)
-                )
-
-              case _ =>
-                throw new IllegalArgumentException(
-                  s"Storage mode '${StorageConfig.resultStorageMode}' is not supported"
-                )
-            }
-
+        val namespace = resourceType match {
+          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
-            throw new IllegalArgumentException(
-              s"Resource type $resourceType is not supported"
-            )
+            throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
 
-      case _ =>
+        StorageConfig.resultStorageMode.toLowerCase match {
+          case ICEBERG =>
+            val table = IcebergUtil
+              .loadTableMetadata(
+                IcebergCatalogInstance.getInstance(),
+                namespace,
+                storageKey
+              )
+              .getOrElse(
+                throw new IllegalArgumentException("No storage is found for the given URI")
+              )
+
+            val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
+            val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+            val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
+              IcebergUtil.fromRecord(record, amberSchema)
+
+            (
+              new IcebergDocument[Tuple](
+                namespace,
+                storageKey,
+                table.schema(),
+                serde,
+                deserde
+              ),
+              Some(amberSchema)
+            )
+          case mode =>
+            throw new IllegalArgumentException(
+              s"Storage mode '$mode' is not supported"
+            )
+        }
+      case unsupportedScheme =>
         throw new UnsupportedOperationException(
-          s"Unsupported URI scheme: ${uri.getScheme} for opening the document"
+          s"Unsupported URI scheme: $unsupportedScheme for opening the document"
         )
     }
   }

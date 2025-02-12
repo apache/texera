@@ -126,6 +126,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public String getLogLocation();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    public void setRuntimeStatsUri(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    public String getRuntimeStatsUri();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

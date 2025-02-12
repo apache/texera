@@ -1,6 +1,8 @@
 CREATE SCHEMA IF NOT EXISTS `texera_db`;
 USE `texera_db`;
 
+DROP TABLE IF EXISTS operator_executions;
+DROP TABLE IF EXISTS operator_port_executions;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_config`;
@@ -13,8 +15,6 @@ DROP TABLE IF EXISTS `workflow_executions`;
 DROP TABLE IF EXISTS `dataset`;
 DROP TABLE IF EXISTS `dataset_user_access`;
 DROP TABLE IF EXISTS `dataset_version`;
-DROP TABLE IF EXISTS operator_executions;
-DROP TABLE IF EXISTS operator_runtime_statistics;
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
 SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `name`				     VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
     `environment_version`    VARCHAR(128) NOT NULL,
     `log_location`           TEXT, /* uri to log storage */
+    `runtime_stats_uri`      TEXT DEFAULT NULL,
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
@@ -235,25 +236,21 @@ ALTER TABLE workflow
 CHANGE COLUMN is_published is_public BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS operator_executions (
-    operator_execution_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
     workflow_execution_id INT UNSIGNED NOT NULL, 
     operator_id VARCHAR(100) NOT NULL, 
+    console_messages_uri TEXT DEFAULT NULL,
     UNIQUE (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions (eid) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS operator_runtime_statistics (
-    operator_execution_id BIGINT UNSIGNED NOT NULL, 
-    time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    input_tuple_cnt BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    output_tuple_cnt BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    status TINYINT NOT NULL DEFAULT 1, 
-    data_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    control_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    idle_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    num_workers INT UNSIGNED NOT NULL DEFAULT 0,
-    PRIMARY KEY (operator_execution_id, time),
-    FOREIGN KEY (operator_execution_id) REFERENCES operator_executions (operator_execution_id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS operator_port_executions 
+(
+    workflow_execution_id INT UNSIGNED NOT NULL,
+    operator_id VARCHAR(100) NOT NULL,
+    port_id INT NOT NULL,
+    result_uri TEXT DEFAULT NULL,
+    UNIQUE (workflow_execution_id, operator_id, port_id),
+    FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions (eid) ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS workflow_user_activity;

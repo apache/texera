@@ -18,10 +18,9 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import java.net.URI
 import java.sql.Timestamp
-import java.time.{Instant, LocalDate, ZoneId, ZoneOffset}
+import java.time.{LocalDate, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.jdk.CollectionConverters._
 
 class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
 
