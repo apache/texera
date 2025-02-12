@@ -6,7 +6,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkInputGateway, NetworkOutputGateway}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
@@ -155,7 +158,7 @@ class PythonWorkflowWorker(
         StorageConfig.icebergPostgresCatalogUriWithoutScheme,
         StorageConfig.icebergPostgresCatalogUsername,
         StorageConfig.icebergPostgresCatalogPassword,
-        StorageConfig.icebergTableNamespace,
+        StorageConfig.icebergTableResultNamespace,
         StorageConfig.fileStorageDirectoryPath.toString,
         StorageConfig.icebergTableCommitBatchSize.toString
       )

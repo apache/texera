@@ -21,6 +21,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.architecture.worker.managers.AsyncPortResultWriter
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 import java.net.URI
@@ -99,12 +100,12 @@ class OutputManager(
   private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
     mutable.HashMap[PhysicalLink, Partitioner]()
 
-  private val ports
-      : mutable.HashMap[PortIdentity, (WorkerPort, Option[BufferedItemWriter[Tuple]])] =
-    mutable.HashMap()
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
   private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
+
+  private var asyncPortResultWriterOption: Option[AsyncPortResultWriter] = None
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -153,18 +154,19 @@ class OutputManager(
       tupleLike: SchemaEnforceable,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
-    (outputPortId match {
-      case Some(portId) => ports.filter(_._1 == portId)
-      case None         => ports
-    }).foreach(kv => {
-      val portId = kv._1
-      kv._2._2 match {
-        case Some(writer) =>
-          val tuple = tupleLike.enforceSchema(getPort(portId).schema)
-          writer.putOne(tuple)
-        case None =>
-      }
-    })
+    this.asyncPortResultWriterOption match {
+      case Some(asyncPortResultWriter) =>
+        (outputPortId match {
+          case Some(portId) => ports.filter(_._1 == portId)
+          case None         => ports
+        }).foreach({
+          case (portId, _) =>
+            val tuple = tupleLike.enforceSchema(getPort(portId).schema)
+            // write to storage in a separate thread
+            asyncPortResultWriter.putTuple(location = portId, tuple = tuple)
+        })
+      case None => // No need to write
+    }
   }
 
   /**
@@ -200,21 +202,23 @@ class OutputManager(
     if (this.ports.contains(portId)) {
       return
     }
-    val portStorageWriterOptional = storageUriOptional match {
+    this.ports(portId) = WorkerPort(schema)
+
+    // set up result storage writer
+    storageUriOptional match {
       case Some(storageUri) =>
         val writer = DocumentFactory
           .openDocument(storageUri)
           ._1
           .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
           .asInstanceOf[BufferedItemWriter[Tuple]]
-        Some(writer)
-      case None => None
+        this.enableAsyncWriterIfNotExists()
+        this.asyncPortResultWriterOption.get.addWriter(location = portId, writer = writer)
+      case None => // No need to add a writer
     }
-    this.ports(portId) = (WorkerPort(schema), portStorageWriterOptional)
-
   }
 
-  def getPort(portId: PortIdentity): WorkerPort = ports(portId)._1
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
@@ -227,17 +231,23 @@ class OutputManager(
   }
 
   def closeOutputStorageWriters(): Unit = {
-    this.ports.values.foreach(portWithStorage => {
-      portWithStorage._2 match {
-        case Some(writer) => writer.close()
-        case None         =>
-      }
-    })
+    this.asyncPortResultWriterOption match {
+      case Some(asyncPortResultWriter) => asyncPortResultWriter.terminate()
+      case None                        => // No thread is created
+    }
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
     assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
+  }
+
+  private def enableAsyncWriterIfNotExists(): Unit = {
+    if (this.asyncPortResultWriterOption.isEmpty) { // Prevent multiple initializations
+      val writer = new AsyncPortResultWriter()
+      writer.start()
+      this.asyncPortResultWriterOption = Some(writer)
+    }
   }
 
 }

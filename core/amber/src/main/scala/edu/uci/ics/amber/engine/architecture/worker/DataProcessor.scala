@@ -165,8 +165,6 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        // TODO: why this has to be the first?
-        outputManager.closeOutputStorageWriters()
         outputManager.emitMarker(EndOfInputChannel())
         // Send Completed signal to worker actor.
         executor.close()

@@ -144,11 +144,13 @@ class WorkflowCompiler(
                   )
 
                   physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
-
-                  // TODO: move to scheduler
-                  physicalPlan = physicalPlan.setOperator(
-                    physicalOp.withOutputPortStorage(portId = outputPortId, storageUri = storageUri)
-                  )
+                  if (storageUri.isDefined) {
+                    // TODO: move to scheduler
+                    physicalPlan = physicalPlan.setOperator(
+                      physicalOp
+                        .withOutputPortStorage(portId = outputPortId, storageUri = storageUri.get)
+                    )
+                  }
               }
           }
       } match {
