@@ -3,20 +3,24 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{OPERATOR_EXECUTIONS, OPERATOR_PORT_EXECUTIONS, USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.types.UInteger
 
 import java.net.URI
 import java.sql.Timestamp
@@ -112,13 +116,13 @@ object WorkflowExecutionsResource {
       .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, uri.toString)
       .where(
         WORKFLOW_EXECUTIONS.EID
-          .eq(UInteger.valueOf(eid))
+          .eq(eid.toInt)
           .and(
             WORKFLOW_EXECUTIONS.VID.in(
               context
                 .select(WORKFLOW_VERSION.VID)
                 .from(WORKFLOW_VERSION)
-                .where(WORKFLOW_VERSION.WID.eq(UInteger.valueOf(wid)))
+                .where(WORKFLOW_VERSION.WID.eq(wid.toInt))
             )
           )
       )
@@ -130,7 +134,7 @@ object WorkflowExecutionsResource {
       context
         .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
         .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(UInteger.valueOf(eid.id)))
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .fetchInto(classOf[String])
         .asScala
         .toList
@@ -144,7 +148,7 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .delete(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(UInteger.valueOf(eid.id)))
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
     } else {
       ExecutionResourcesMapping.removeExecutionResources(eid)
@@ -164,7 +168,7 @@ object WorkflowExecutionsResource {
           .from(OPERATOR_PORT_EXECUTIONS)
           .where(
             OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-              .eq(UInteger.valueOf(eid.id))
+              .eq(eid.id.toInt)
               .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
               .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
           )
@@ -199,12 +203,12 @@ object WorkflowExecutionsResource {
   case class WorkflowRuntimeStatistics(
       operatorId: String,
       timestamp: Timestamp,
-      inputTupleCount: ULong,
-      outputTupleCount: ULong,
-      dataProcessingTime: ULong,
-      controlProcessingTime: ULong,
-      idleTime: ULong,
-      numWorkers: UInteger,
+      inputTupleCount: Long,
+      outputTupleCount: Long,
+      dataProcessingTime: Long,
+      controlProcessingTime: Long,
+      idleTime: Long,
+      numWorkers: Int,
       status: Int
   )
 }
@@ -345,12 +349,12 @@ class WorkflowExecutionsResource {
         WorkflowRuntimeStatistics(
           operatorId = record.getField(0).asInstanceOf[String],
           timestamp = record.getField(1).asInstanceOf[Timestamp],
-          inputTupleCount = ULong.valueOf(record.getField(2).asInstanceOf[Long]),
-          outputTupleCount = ULong.valueOf(record.getField(3).asInstanceOf[Long]),
-          dataProcessingTime = ULong.valueOf(record.getField(4).asInstanceOf[Long]),
-          controlProcessingTime = ULong.valueOf(record.getField(5).asInstanceOf[Long]),
-          idleTime = ULong.valueOf(record.getField(6).asInstanceOf[Long]),
-          numWorkers = UInteger.valueOf(record.getField(7).asInstanceOf[Int]),
+          inputTupleCount = record.getField(2).asInstanceOf[Long],
+          outputTupleCount = record.getField(3).asInstanceOf[Long],
+          dataProcessingTime = record.getField(4).asInstanceOf[Long],
+          controlProcessingTime = record.getField(5).asInstanceOf[Long],
+          idleTime = record.getField(6).asInstanceOf[Long],
+          numWorkers = record.getField(7).asInstanceOf[Int],
           status = record.getField(8).asInstanceOf[Int]
         )
       })

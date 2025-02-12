@@ -44,7 +44,6 @@ import java.util.concurrent.Executors
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    operatorIdToExecutionId: Map[String, Long],
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
