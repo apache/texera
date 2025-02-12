@@ -181,7 +181,8 @@ class AdminExecutionResource {
         if (workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME) == null) {
           lastUpdateTime = 0
         } else {
-          lastUpdateTime = Timestamp.valueOf(workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)).getTime
+          lastUpdateTime =
+            Timestamp.valueOf(workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)).getTime
         }
 
         val timeDifferenceSeconds = (lastUpdateTime - startingTime) / 1000.0

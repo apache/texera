@@ -16,7 +16,7 @@ trait MockTexeraDB {
   private val username: String = "postgres"
   private val password: String = ""
 
-  def executeScriptInJDBC(conn:Connection, script: String): Unit = {
+  def executeScriptInJDBC(conn: Connection, script: String): Unit = {
     assert(dbInstance.nonEmpty)
     conn.prepareStatement(script).execute()
     conn.close()
@@ -63,16 +63,16 @@ trait MockTexeraDB {
 
     dbInstance = Some(embedded)
 
-
     val ddlPath = {
       Paths.get("./scripts/sql/texera_ddl.sql").toRealPath()
     }
     val source = Source.fromFile(ddlPath.toString)
-    val content = try {
-      source.mkString
-    } finally {
-      source.close()
-    }
+    val content =
+      try {
+        source.mkString
+      } finally {
+        source.close()
+      }
     val parts: Array[String] = content.split("(?m)^\\\\c texera_db")
     def removeCCommands(sql: String): String =
       sql.linesIterator
@@ -82,7 +82,8 @@ trait MockTexeraDB {
     val texeraDB = embedded.getDatabase(username, database)
     executeScriptInJDBC(texeraDB.getConnection, removeCCommands(parts(1)))
 
-    val sqlServerInstance = SqlServer.getInstance(embedded.getJdbcUrl(username, database), username, password)
+    val sqlServerInstance =
+      SqlServer.getInstance(embedded.getJdbcUrl(username, database), username, password)
     dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))
 
     sqlServerInstance.replaceDSLContext(dslContext.get)
