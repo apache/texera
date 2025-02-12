@@ -5,6 +5,7 @@ import org.jooq.{Condition, Field}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -15,31 +16,66 @@ object FulltextSearchQueryUtils {
       fields: List[Field[String]]
   ): Condition = {
     if (fields.isEmpty) return noCondition()
+
+    // Filter out empty keywords and trim
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-    val fullFieldNames = fields.map(_.toString.replace("\"", ""))
-    val indexedCompoundFields = fullFieldNames.mkString(",")
-    trimmedKeywords.foldLeft(noCondition()) { (acc, key) =>
-      val words = key.split("\\s+")
-      acc.and(
-        condition(
-          s"MATCH($indexedCompoundFields) AGAINST('${words.mkString("+", " +", "")}' IN BOOLEAN MODE)",
-          key
-        )
-      )
+
+    // Build a SQL expression that concatenates all fields with spaces,
+    // then feeds them into to_tsvector('english', ...).
+    // E.g.: to_tsvector('english', COALESCE(firstName, '') || ' ' || COALESCE(lastName, ''))
+    val combinedFields = fields
+      .map(f => s"COALESCE($f, '')") // handle null -> ''
+      .mkString(" || ' ' || ")
+
+    // Fold each keyword into the final Condition
+    trimmedKeywords.foldLeft(noCondition()) { (acc, keyword) =>
+      // For each "keyword", split it into words
+      val words = keyword.split("\\s+").filter(_.nonEmpty)
+
+      // In Postgres tsquery syntax, an AND search uses '&' between terms
+      // e.g.: apple & banana
+      val tsQuery = words.mkString(" & ")
+
+      // Build the raw SQL string for Postgres FTS
+      // e.g.: to_tsvector('english', COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) @@ to_tsquery('english', 'apple & banana')
+      val conditionExpr =
+        s"to_tsvector('english', $combinedFields) @@ to_tsquery('english', '$tsQuery')"
+
+      // 'condition(...)' is presumably your helper method that takes a raw SQL string
+      // and an optional binding for debug/logging
+      acc.and(condition(conditionExpr, keyword))
     }
   }
 
   def getSubstringSearchFilter(
       keywords: Seq[String],
-      fields: List[Field[String]]
+      fields: List[Field[String]],
+      caseInsensitive: Boolean = false
   ): Condition = {
+    // If no fields, return a "no-op" condition
     if (fields.isEmpty) return noCondition()
+
+    // Trim and discard empty keywords
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-    val fullFieldNames = fields.map(_.toString.replace("\"", ""))
-    fullFieldNames.foldLeft(noCondition()) { (acc, fieldName) =>
-      acc.or(trimmedKeywords.foldLeft(noCondition()) { (accInner, key) =>
-        accInner.and(s"$fieldName LIKE '%$key%'")
-      })
+
+    // For each field, create a condition that all keywords must match in that field
+    // e.g. field LIKE '%keyword1%' AND field LIKE '%keyword2%'
+    val fieldConditions: Seq[Condition] = fields.map { field =>
+      trimmedKeywords.foldLeft[Condition](noCondition()) { (acc, key) =>
+        val likeCondition =
+          if (caseInsensitive)
+            field.likeIgnoreCase(s"%$key%") // Postgres-specific case-insensitive match
+          else field.like(s"%$key%") // standard SQL LIKE
+        if (acc == noCondition()) likeCondition
+        else acc.and(likeCondition)
+      }
+    }
+
+    // Finally, OR across all fields
+    // (field1Condition) OR (field2Condition) OR ...
+    fieldConditions.foldLeft[Condition](noCondition()) { (acc, cond) =>
+      if (acc == noCondition()) cond
+      else acc.or(cond)
     }
   }
 
@@ -80,21 +116,21 @@ object FulltextSearchQueryUtils {
   def getDateFilter(
       startDate: String,
       endDate: String,
-      fieldToFilterOn: Field[Timestamp]
+      fieldToFilterOn: Field[LocalDateTime]
   ): Condition = {
     if (startDate.nonEmpty || endDate.nonEmpty) {
       val start = if (startDate.nonEmpty) startDate else "1970-01-01"
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime).toLocalDateTime
       val endTimestamp =
         if (end == "9999-12-31") {
-          new Timestamp(dateFormat.parse(end).getTime)
+          new Timestamp(dateFormat.parse(end).getTime).toLocalDateTime
         } else {
           new Timestamp(
             dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-          )
+          ).toLocalDateTime
         }
       fieldToFilterOn.between(startTimestamp, endTimestamp)
     } else {
@@ -113,14 +149,23 @@ object FulltextSearchQueryUtils {
       operators: java.util.List[String],
       field: Field[String]
   ): Condition = {
+    // Convert to a Set to avoid duplicates
     val operatorSet = operators.asScala.toSet
+    // Start with a "no condition" (logical TRUE) so we can accumulate
     var fieldFilter = noCondition()
-    for (operator <- operatorSet) {
-      val quotes = "\""
-      val searchKey =
-        "%" + quotes + "operatorType" + quotes + ":" + quotes + operator + quotes + "%"
-      fieldFilter = fieldFilter.or(field.likeIgnoreCase(searchKey))
+
+    // For each operator, build the substring pattern
+    operatorSet.foreach { operator =>
+      // e.g. => % "operatorType":"someOperator" %
+      val searchKey = s"""%"operatorType":"$operator"%"""
+
+      // Use jOOQ's likeIgnoreCase for case-insensitive matching
+      val cond = field.likeIgnoreCase(searchKey)
+
+      // Accumulate with OR
+      fieldFilter = fieldFilter.or(cond)
     }
+
     fieldFilter
   }
 

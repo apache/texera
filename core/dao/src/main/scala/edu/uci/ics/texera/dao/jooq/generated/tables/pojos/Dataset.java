@@ -6,9 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDataset;
 
-import java.sql.Timestamp;
-
-import org.jooq.types.UInteger;
+import java.time.LocalDateTime;
 
 
 /**
@@ -17,14 +15,14 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset implements IDataset {
 
-    private static final long serialVersionUID = -1220666229;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger  did;
-    private UInteger  ownerUid;
-    private String    name;
-    private Byte      isPublic;
-    private String    description;
-    private Timestamp creationTime;
+    private Integer       did;
+    private Integer       ownerUid;
+    private String        name;
+    private Boolean       isPublic;
+    private String        description;
+    private LocalDateTime creationTime;
 
     public Dataset() {}
 
@@ -38,12 +36,12 @@ public class Dataset implements IDataset {
     }
 
     public Dataset(
-        UInteger  did,
-        UInteger  ownerUid,
-        String    name,
-        Byte      isPublic,
-        String    description,
-        Timestamp creationTime
+        Integer       did,
+        Integer       ownerUid,
+        String        name,
+        Boolean       isPublic,
+        String        description,
+        LocalDateTime creationTime
     ) {
         this.did = did;
         this.ownerUid = ownerUid;
@@ -53,63 +51,99 @@ public class Dataset implements IDataset {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.did</code>.
+     */
     @Override
-    public UInteger getDid() {
+    public Integer getDid() {
         return this.did;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.did</code>.
+     */
     @Override
-    public void setDid(UInteger did) {
+    public void setDid(Integer did) {
         this.did = did;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.owner_uid</code>.
+     */
     @Override
-    public UInteger getOwnerUid() {
+    public Integer getOwnerUid() {
         return this.ownerUid;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.owner_uid</code>.
+     */
     @Override
-    public void setOwnerUid(UInteger ownerUid) {
+    public void setOwnerUid(Integer ownerUid) {
         this.ownerUid = ownerUid;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.name</code>.
+     */
     @Override
     public String getName() {
         return this.name;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.name</code>.
+     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.is_public</code>.
+     */
     @Override
-    public Byte getIsPublic() {
+    public Boolean getIsPublic() {
         return this.isPublic;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.is_public</code>.
+     */
     @Override
-    public void setIsPublic(Byte isPublic) {
+    public void setIsPublic(Boolean isPublic) {
         this.isPublic = isPublic;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.description</code>.
+     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.description</code>.
+     */
     @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.creation_time</code>.
+     */
     @Override
-    public Timestamp getCreationTime() {
+    public LocalDateTime getCreationTime() {
         return this.creationTime;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset.creation_time</code>.
+     */
     @Override
-    public void setCreationTime(Timestamp creationTime) {
+    public void setCreationTime(LocalDateTime creationTime) {
         this.creationTime = creationTime;
     }
 

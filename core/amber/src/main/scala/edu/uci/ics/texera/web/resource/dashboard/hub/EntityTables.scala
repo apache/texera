@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.{
   WorkflowViewCountRecord
 }
 import org.jooq._
-import org.jooq.types.UInteger
+
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 
 object EntityTables {
@@ -16,20 +16,21 @@ object EntityTables {
   sealed trait BaseEntityTable {
     type R <: Record
     val table: Table[R]
-    val isPublicColumn: TableField[R, java.lang.Byte]
+    val isPublicColumn: TableField[R, java.lang.Boolean]
   }
 
   object BaseEntityTable {
     case object WorkflowTable extends BaseEntityTable {
       override type R = WorkflowRecord
       override val table: Table[WorkflowRecord] = WORKFLOW
-      override val isPublicColumn: TableField[WorkflowRecord, java.lang.Byte] = WORKFLOW.IS_PUBLIC
+      override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] =
+        WORKFLOW.IS_PUBLIC
     }
 
     case object DatasetTable extends BaseEntityTable {
       override type R = DatasetRecord
       override val table: Table[DatasetRecord] = DATASET
-      override val isPublicColumn: TableField[DatasetRecord, java.lang.Byte] = DATASET.IS_PUBLIC
+      override val isPublicColumn: TableField[DatasetRecord, java.lang.Boolean] = DATASET.IS_PUBLIC
     }
 
     def apply(entityType: String): BaseEntityTable = {
@@ -49,8 +50,8 @@ object EntityTables {
     type R <: Record
 
     val table: Table[R]
-    val uidColumn: TableField[R, UInteger]
-    val idColumn: TableField[R, UInteger]
+    val uidColumn: TableField[R, Integer]
+    val idColumn: TableField[R, Integer]
   }
 
   // ==================== LIKE TABLE ====================
@@ -60,9 +61,9 @@ object EntityTables {
     case object WorkflowLikeTable extends LikeTable {
       override type R = WorkflowUserLikesRecord
       override val table: Table[WorkflowUserLikesRecord] = WORKFLOW_USER_LIKES
-      override val uidColumn: TableField[WorkflowUserLikesRecord, UInteger] =
+      override val uidColumn: TableField[WorkflowUserLikesRecord, Integer] =
         WORKFLOW_USER_LIKES.UID
-      override val idColumn: TableField[WorkflowUserLikesRecord, UInteger] = WORKFLOW_USER_LIKES.WID
+      override val idColumn: TableField[WorkflowUserLikesRecord, Integer] = WORKFLOW_USER_LIKES.WID
     }
 
     def apply(entityType: String): LikeTable =
@@ -80,9 +81,9 @@ object EntityTables {
     case object WorkflowCloneTable extends CloneTable {
       override type R = WorkflowUserClonesRecord
       override val table: Table[WorkflowUserClonesRecord] = WORKFLOW_USER_CLONES
-      override val uidColumn: TableField[WorkflowUserClonesRecord, UInteger] =
+      override val uidColumn: TableField[WorkflowUserClonesRecord, Integer] =
         WORKFLOW_USER_CLONES.UID
-      override val idColumn: TableField[WorkflowUserClonesRecord, UInteger] =
+      override val idColumn: TableField[WorkflowUserClonesRecord, Integer] =
         WORKFLOW_USER_CLONES.WID
     }
 
@@ -98,16 +99,16 @@ object EntityTables {
   sealed trait ViewCountTable {
     type R <: Record
     val table: Table[R]
-    val idColumn: TableField[R, UInteger]
-    val viewCountColumn: TableField[R, UInteger]
+    val idColumn: TableField[R, Integer]
+    val viewCountColumn: TableField[R, Integer]
   }
 
   object ViewCountTable {
     case object WorkflowViewCountTable extends ViewCountTable {
       override type R = WorkflowViewCountRecord
       override val table: Table[WorkflowViewCountRecord] = WORKFLOW_VIEW_COUNT
-      override val idColumn: TableField[WorkflowViewCountRecord, UInteger] = WORKFLOW_VIEW_COUNT.WID
-      override val viewCountColumn: TableField[WorkflowViewCountRecord, UInteger] =
+      override val idColumn: TableField[WorkflowViewCountRecord, Integer] = WORKFLOW_VIEW_COUNT.WID
+      override val viewCountColumn: TableField[WorkflowViewCountRecord, Integer] =
         WORKFLOW_VIEW_COUNT.VIEW_COUNT
     }
 

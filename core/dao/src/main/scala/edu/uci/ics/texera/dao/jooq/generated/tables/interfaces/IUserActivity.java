@@ -5,9 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
-
-import org.jooq.types.UInteger;
+import java.time.LocalDateTime;
 
 
 /**
@@ -19,22 +17,22 @@ public interface IUserActivity extends Serializable {
     /**
      * Setter for <code>texera_db.user_activity.uid</code>.
      */
-    public void setUid(UInteger value);
+    public void setUid(Integer value);
 
     /**
      * Getter for <code>texera_db.user_activity.uid</code>.
      */
-    public UInteger getUid();
+    public Integer getUid();
 
     /**
      * Setter for <code>texera_db.user_activity.id</code>.
      */
-    public void setId(UInteger value);
+    public void setId(Integer value);
 
     /**
      * Getter for <code>texera_db.user_activity.id</code>.
      */
-    public UInteger getId();
+    public Integer getId();
 
     /**
      * Setter for <code>texera_db.user_activity.type</code>.
@@ -69,24 +67,26 @@ public interface IUserActivity extends Serializable {
     /**
      * Setter for <code>texera_db.user_activity.activity_time</code>.
      */
-    public void setActivityTime(Timestamp value);
+    public void setActivityTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.user_activity.activity_time</code>.
      */
-    public Timestamp getActivityTime();
+    public LocalDateTime getActivityTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IUserActivity
+     * Load data from another generated Record/POJO implementing the common
+     * interface IUserActivity
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUserActivity from);
+    public void from(IUserActivity from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IUserActivity
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IUserActivity
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUserActivity> E into(E into);
+    public <E extends IUserActivity> E into(E into);
 }

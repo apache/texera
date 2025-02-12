@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.dao
 
-import com.mysql.cj.jdbc.MysqlDataSource
-import org.jooq.{DSLContext, SQLDialect}
 import org.jooq.impl.DSL
+import org.jooq.{DSLContext, SQLDialect}
+import org.postgresql.ds.PGSimpleDataSource
 
 /**
   * SqlServer class that manages a connection to a MySQL database using jOOQ.
@@ -12,8 +12,8 @@ import org.jooq.impl.DSL
   * @param password The password for authenticating with the MySQL database.
   */
 class SqlServer private (url: String, user: String, password: String) {
-  val SQL_DIALECT: SQLDialect = SQLDialect.MYSQL
-  private val dataSource: MysqlDataSource = new MysqlDataSource()
+  val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
+  private val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
   var context: DSLContext = _
 
   {

@@ -4,12 +4,11 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
@@ -17,7 +16,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
 case class DashboardPublicProject(
-    pid: UInteger,
+    pid: Integer,
     name: String,
     owner: String,
     creationTime: Timestamp
@@ -35,7 +34,7 @@ class PublicProjectResource {
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/type/{pid}")
-  def getType(@PathParam("pid") pid: UInteger): String = {
+  def getType(@PathParam("pid") pid: Integer): String = {
     if (publicProjectDao.fetchOneByPid(pid) == null)
       "Private"
     else
@@ -45,27 +44,27 @@ class PublicProjectResource {
   @PUT
   @RolesAllowed(Array("ADMIN"))
   @Path("/public/{pid}")
-  def makePublic(@PathParam("pid") pid: UInteger, @Auth user: SessionUser): Unit = {
+  def makePublic(@PathParam("pid") pid: Integer, @Auth user: SessionUser): Unit = {
     publicProjectDao.insert(new PublicProject(pid, user.getUid))
   }
 
   @PUT
   @RolesAllowed(Array("ADMIN"))
   @Path("/private/{pid}")
-  def makePrivate(@PathParam("pid") pid: UInteger): Unit = {
+  def makePrivate(@PathParam("pid") pid: Integer): Unit = {
     publicProjectDao.deleteById(pid)
   }
 
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/add")
-  def addPublicProjects(checkedList: util.List[UInteger], @Auth user: SessionUser): Unit = {
+  def addPublicProjects(checkedList: util.List[Integer], @Auth user: SessionUser): Unit = {
     checkedList.forEach(pid => {
       projectUserAccessDao.merge(
         new ProjectUserAccess(
           user.getUid,
           pid,
-          ProjectUserAccessPrivilege.READ
+          PrivilegeEnum.READ
         )
       )
     })

@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.auth.JwtAuth.{
   jwtToken
 }
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.userDao
@@ -90,7 +90,7 @@ class GoogleAuthResource {
               user.setName(googleName)
               user.setEmail(googleEmail)
               user.setGoogleId(googleId)
-              user.setRole(UserRole.INACTIVE)
+              user.setRole(UserRoleEnum.INACTIVE)
               user.setGoogleAvatar(googleAvatar)
               userDao.insert(user)
               user

@@ -149,7 +149,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     */
   private def cleanExecutions(
       executions: List[WorkflowExecutions],
-      statusChangeFunc: Byte => Byte
+      statusChangeFunc: Short => Short
   ): Unit = {
     // drop the collection and update the status to ABORTED
     executions.foreach(execEntry => {

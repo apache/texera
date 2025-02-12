@@ -5,9 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
-
-import org.jooq.types.UInteger;
+import java.time.LocalDateTime;
 
 
 /**
@@ -19,32 +17,32 @@ public interface IDatasetVersion extends Serializable {
     /**
      * Setter for <code>texera_db.dataset_version.dvid</code>.
      */
-    public void setDvid(UInteger value);
+    public void setDvid(Integer value);
 
     /**
      * Getter for <code>texera_db.dataset_version.dvid</code>.
      */
-    public UInteger getDvid();
+    public Integer getDvid();
 
     /**
      * Setter for <code>texera_db.dataset_version.did</code>.
      */
-    public void setDid(UInteger value);
+    public void setDid(Integer value);
 
     /**
      * Getter for <code>texera_db.dataset_version.did</code>.
      */
-    public UInteger getDid();
+    public Integer getDid();
 
     /**
      * Setter for <code>texera_db.dataset_version.creator_uid</code>.
      */
-    public void setCreatorUid(UInteger value);
+    public void setCreatorUid(Integer value);
 
     /**
      * Getter for <code>texera_db.dataset_version.creator_uid</code>.
      */
-    public UInteger getCreatorUid();
+    public Integer getCreatorUid();
 
     /**
      * Setter for <code>texera_db.dataset_version.name</code>.
@@ -69,24 +67,26 @@ public interface IDatasetVersion extends Serializable {
     /**
      * Setter for <code>texera_db.dataset_version.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.dataset_version.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IDatasetVersion
+     * Load data from another generated Record/POJO implementing the common
+     * interface IDatasetVersion
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetVersion from);
+    public void from(IDatasetVersion from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IDatasetVersion
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IDatasetVersion
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetVersion> E into(E into);
+    public <E extends IDatasetVersion> E into(E into);
 }

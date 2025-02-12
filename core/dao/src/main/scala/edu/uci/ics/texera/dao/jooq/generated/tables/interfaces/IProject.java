@@ -5,9 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
-
-import org.jooq.types.UInteger;
+import java.time.LocalDateTime;
 
 
 /**
@@ -19,12 +17,12 @@ public interface IProject extends Serializable {
     /**
      * Setter for <code>texera_db.project.pid</code>.
      */
-    public void setPid(UInteger value);
+    public void setPid(Integer value);
 
     /**
      * Getter for <code>texera_db.project.pid</code>.
      */
-    public UInteger getPid();
+    public Integer getPid();
 
     /**
      * Setter for <code>texera_db.project.name</code>.
@@ -49,22 +47,22 @@ public interface IProject extends Serializable {
     /**
      * Setter for <code>texera_db.project.owner_id</code>.
      */
-    public void setOwnerId(UInteger value);
+    public void setOwnerId(Integer value);
 
     /**
      * Getter for <code>texera_db.project.owner_id</code>.
      */
-    public UInteger getOwnerId();
+    public Integer getOwnerId();
 
     /**
      * Setter for <code>texera_db.project.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.project.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     /**
      * Setter for <code>texera_db.project.color</code>.
@@ -81,12 +79,14 @@ public interface IProject extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IProject
+     * Load data from another generated Record/POJO implementing the common
+     * interface IProject
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProject from);
+    public void from(IProject from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IProject
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IProject
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProject> E into(E into);
+    public <E extends IProject> E into(E into);
 }

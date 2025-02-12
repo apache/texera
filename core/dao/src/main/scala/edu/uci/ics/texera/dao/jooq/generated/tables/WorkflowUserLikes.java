@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowUserLikesRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserLikes extends TableImpl<WorkflowUserLikesRecord> {
 
-    private static final long serialVersionUID = -1712382581;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_user_likes</code>
@@ -51,12 +50,36 @@ public class WorkflowUserLikes extends TableImpl<WorkflowUserLikesRecord> {
     /**
      * The column <code>texera_db.workflow_user_likes.uid</code>.
      */
-    public final TableField<WorkflowUserLikesRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserLikesRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_user_likes.wid</code>.
      */
-    public final TableField<WorkflowUserLikesRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserLikesRecord, Integer> WID = createField(DSL.name("wid"), SQLDataType.INTEGER.nullable(false), this, "");
+
+    private WorkflowUserLikes(Name alias, Table<WorkflowUserLikesRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowUserLikes(Name alias, Table<WorkflowUserLikesRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_user_likes</code> table
+     * reference
+     */
+    public WorkflowUserLikes(String alias) {
+        this(DSL.name(alias), WORKFLOW_USER_LIKES);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_user_likes</code> table
+     * reference
+     */
+    public WorkflowUserLikes(Name alias) {
+        this(alias, WORKFLOW_USER_LIKES);
+    }
 
     /**
      * Create a <code>texera_db.workflow_user_likes</code> table reference
@@ -65,63 +88,46 @@ public class WorkflowUserLikes extends TableImpl<WorkflowUserLikesRecord> {
         this(DSL.name("workflow_user_likes"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.workflow_user_likes</code> table reference
-     */
-    public WorkflowUserLikes(String alias) {
-        this(DSL.name(alias), WORKFLOW_USER_LIKES);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.workflow_user_likes</code> table reference
-     */
-    public WorkflowUserLikes(Name alias) {
-        this(alias, WORKFLOW_USER_LIKES);
-    }
-
-    private WorkflowUserLikes(Name alias, Table<WorkflowUserLikesRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowUserLikes(Name alias, Table<WorkflowUserLikesRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> WorkflowUserLikes(Table<O> child, ForeignKey<O, WorkflowUserLikesRecord> key) {
         super(child, key, WORKFLOW_USER_LIKES);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_LIKES_PRIMARY, Indexes.WORKFLOW_USER_LIKES_WID);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<WorkflowUserLikesRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_USER_LIKES_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<WorkflowUserLikesRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowUserLikesRecord>>asList(Keys.KEY_WORKFLOW_USER_LIKES_PRIMARY);
+        return Keys.WORKFLOW_USER_LIKES_PKEY;
     }
 
     @Override
     public List<ForeignKey<WorkflowUserLikesRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowUserLikesRecord, ?>>asList(Keys.WORKFLOW_USER_LIKES_IBFK_1, Keys.WORKFLOW_USER_LIKES_IBFK_2);
+        return Arrays.asList(Keys.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_UID_FKEY, Keys.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_WID_FKEY);
     }
 
+    private transient User _user;
+    private transient Workflow _workflow;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.WORKFLOW_USER_LIKES_IBFK_1);
+        if (_user == null)
+            _user = new User(this, Keys.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_UID_FKEY);
+
+        return _user;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.workflow</code> table.
+     */
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_USER_LIKES_IBFK_2);
+        if (_workflow == null)
+            _workflow = new Workflow(this, Keys.WORKFLOW_USER_LIKES__WORKFLOW_USER_LIKES_WID_FKEY);
+
+        return _workflow;
     }
 
     @Override
@@ -155,7 +161,7 @@ public class WorkflowUserLikes extends TableImpl<WorkflowUserLikesRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

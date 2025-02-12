@@ -23,7 +23,7 @@ object ExecutionStateStore {
     ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId) {
       execution =>
         execution.setStatus(maptoStatusCode(state))
-        execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
+        execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()).toLocalDateTime)
     }
     metadataStore.withState(state)
   }
