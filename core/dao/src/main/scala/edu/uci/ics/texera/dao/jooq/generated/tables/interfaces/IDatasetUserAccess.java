@@ -50,12 +50,14 @@ public interface IDatasetUserAccess extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IDatasetUserAccess
+     * Load data from another generated Record/POJO implementing the common
+     * interface IDatasetUserAccess
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAccess from);
+    public void from(IDatasetUserAccess from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IDatasetUserAccess
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IDatasetUserAccess
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAccess> E into(E into);
+    public <E extends IDatasetUserAccess> E into(E into);
 }

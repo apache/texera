@@ -40,7 +40,8 @@ public class WorkflowUserLikesDao extends DAOImpl<WorkflowUserLikesRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserLikes> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserLikes.WORKFLOW_USER_LIKES.UID, lowerInclusive, upperInclusive);
@@ -54,7 +55,8 @@ public class WorkflowUserLikesDao extends DAOImpl<WorkflowUserLikesRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserLikes> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserLikes.WORKFLOW_USER_LIKES.WID, lowerInclusive, upperInclusive);

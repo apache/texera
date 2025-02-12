@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowUserClonesRecord;
@@ -14,15 +13,16 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -32,7 +32,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
 
-    private static final long serialVersionUID = 276154650;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_user_clones</code>
@@ -50,12 +50,36 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
     /**
      * The column <code>texera_db.workflow_user_clones.uid</code>.
      */
-    public final TableField<WorkflowUserClonesRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<WorkflowUserClonesRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_user_clones.wid</code>.
      */
-    public final TableField<WorkflowUserClonesRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<WorkflowUserClonesRecord, Integer> WID = createField(DSL.name("wid"), SQLDataType.INTEGER.nullable(false), this, "");
+
+    private WorkflowUserClones(Name alias, Table<WorkflowUserClonesRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowUserClones(Name alias, Table<WorkflowUserClonesRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_user_clones</code> table
+     * reference
+     */
+    public WorkflowUserClones(String alias) {
+        this(DSL.name(alias), WORKFLOW_USER_CLONES);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_user_clones</code> table
+     * reference
+     */
+    public WorkflowUserClones(Name alias) {
+        this(alias, WORKFLOW_USER_CLONES);
+    }
 
     /**
      * Create a <code>texera_db.workflow_user_clones</code> table reference
@@ -64,40 +88,13 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
         this(DSL.name("workflow_user_clones"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.workflow_user_clones</code> table reference
-     */
-    public WorkflowUserClones(String alias) {
-        this(DSL.name(alias), WORKFLOW_USER_CLONES);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.workflow_user_clones</code> table reference
-     */
-    public WorkflowUserClones(Name alias) {
-        this(alias, WORKFLOW_USER_CLONES);
-    }
-
-    private WorkflowUserClones(Name alias, Table<WorkflowUserClonesRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowUserClones(Name alias, Table<WorkflowUserClonesRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> WorkflowUserClones(Table<O> child, ForeignKey<O, WorkflowUserClonesRecord> key) {
         super(child, key, WORKFLOW_USER_CLONES);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_CLONES_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
@@ -106,21 +103,31 @@ public class WorkflowUserClones extends TableImpl<WorkflowUserClonesRecord> {
     }
 
     @Override
-    public List<UniqueKey<WorkflowUserClonesRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowUserClonesRecord>>asList(Keys.WORKFLOW_USER_CLONES_PKEY);
-    }
-
-    @Override
     public List<ForeignKey<WorkflowUserClonesRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowUserClonesRecord, ?>>asList(Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
+        return Arrays.asList(Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
     }
 
+    private transient User _user;
+    private transient Workflow _workflow;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY);
+        if (_user == null)
+            _user = new User(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_UID_FKEY);
+
+        return _user;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.workflow</code> table.
+     */
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
+        if (_workflow == null)
+            _workflow = new Workflow(this, Keys.WORKFLOW_USER_CLONES__WORKFLOW_USER_CLONES_WID_FKEY);
+
+        return _workflow;
     }
 
     @Override

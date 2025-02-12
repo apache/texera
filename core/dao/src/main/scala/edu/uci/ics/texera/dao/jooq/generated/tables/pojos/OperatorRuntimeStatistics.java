@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorRuntimeStatistics;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,17 +15,17 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorRuntimeStatistics implements IOperatorRuntimeStatistics {
 
-    private static final long serialVersionUID = -1223233402;
+    private static final long serialVersionUID = 1L;
 
-    private Long      operatorExecutionId;
-    private Timestamp time;
-    private Long      inputTupleCnt;
-    private Long      outputTupleCnt;
-    private Short     status;
-    private Long      dataProcessingTime;
-    private Long      controlProcessingTime;
-    private Long      idleTime;
-    private Integer   numWorkers;
+    private Long          operatorExecutionId;
+    private LocalDateTime time;
+    private Long          inputTupleCnt;
+    private Long          outputTupleCnt;
+    private Short         status;
+    private Long          dataProcessingTime;
+    private Long          controlProcessingTime;
+    private Long          idleTime;
+    private Integer       numWorkers;
 
     public OperatorRuntimeStatistics() {}
 
@@ -42,15 +42,15 @@ public class OperatorRuntimeStatistics implements IOperatorRuntimeStatistics {
     }
 
     public OperatorRuntimeStatistics(
-        Long      operatorExecutionId,
-        Timestamp time,
-        Long      inputTupleCnt,
-        Long      outputTupleCnt,
-        Short     status,
-        Long      dataProcessingTime,
-        Long      controlProcessingTime,
-        Long      idleTime,
-        Integer   numWorkers
+        Long          operatorExecutionId,
+        LocalDateTime time,
+        Long          inputTupleCnt,
+        Long          outputTupleCnt,
+        Short         status,
+        Long          dataProcessingTime,
+        Long          controlProcessingTime,
+        Long          idleTime,
+        Integer       numWorkers
     ) {
         this.operatorExecutionId = operatorExecutionId;
         this.time = time;
@@ -63,91 +63,157 @@ public class OperatorRuntimeStatistics implements IOperatorRuntimeStatistics {
         this.numWorkers = numWorkers;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
+     */
     @Override
     public Long getOperatorExecutionId() {
         return this.operatorExecutionId;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
+     */
     @Override
     public void setOperatorExecutionId(Long operatorExecutionId) {
         this.operatorExecutionId = operatorExecutionId;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_runtime_statistics.time</code>.
+     */
     @Override
-    public Timestamp getTime() {
+    public LocalDateTime getTime() {
         return this.time;
     }
 
+    /**
+     * Setter for <code>texera_db.operator_runtime_statistics.time</code>.
+     */
     @Override
-    public void setTime(Timestamp time) {
+    public void setTime(LocalDateTime time) {
         this.time = time;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
+     */
     @Override
     public Long getInputTupleCnt() {
         return this.inputTupleCnt;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
+     */
     @Override
     public void setInputTupleCnt(Long inputTupleCnt) {
         this.inputTupleCnt = inputTupleCnt;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
+     */
     @Override
     public Long getOutputTupleCnt() {
         return this.outputTupleCnt;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
+     */
     @Override
     public void setOutputTupleCnt(Long outputTupleCnt) {
         this.outputTupleCnt = outputTupleCnt;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_runtime_statistics.status</code>.
+     */
     @Override
     public Short getStatus() {
         return this.status;
     }
 
+    /**
+     * Setter for <code>texera_db.operator_runtime_statistics.status</code>.
+     */
     @Override
     public void setStatus(Short status) {
         this.status = status;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
+     */
     @Override
     public Long getDataProcessingTime() {
         return this.dataProcessingTime;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
+     */
     @Override
     public void setDataProcessingTime(Long dataProcessingTime) {
         this.dataProcessingTime = dataProcessingTime;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
+     */
     @Override
     public Long getControlProcessingTime() {
         return this.controlProcessingTime;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
+     */
     @Override
     public void setControlProcessingTime(Long controlProcessingTime) {
         this.controlProcessingTime = controlProcessingTime;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_runtime_statistics.idle_time</code>.
+     */
     @Override
     public Long getIdleTime() {
         return this.idleTime;
     }
 
+    /**
+     * Setter for <code>texera_db.operator_runtime_statistics.idle_time</code>.
+     */
     @Override
     public void setIdleTime(Long idleTime) {
         this.idleTime = idleTime;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     */
     @Override
     public Integer getNumWorkers() {
         return this.numWorkers;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     */
     @Override
     public void setNumWorkers(Integer numWorkers) {
         this.numWorkers = numWorkers;

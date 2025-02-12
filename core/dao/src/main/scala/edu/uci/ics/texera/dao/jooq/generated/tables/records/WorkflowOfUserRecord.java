@@ -19,7 +19,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserRecord> implements Record2<Integer, Integer>, IWorkflowOfUser {
 
-    private static final long serialVersionUID = 2111298287;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_of_user.uid</code>.
@@ -158,7 +158,19 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     public WorkflowOfUserRecord(Integer uid, Integer wid) {
         super(WorkflowOfUser.WORKFLOW_OF_USER);
 
-        set(0, uid);
-        set(1, wid);
+        setUid(uid);
+        setWid(wid);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowOfUserRecord
+     */
+    public WorkflowOfUserRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowOfUser value) {
+        super(WorkflowOfUser.WORKFLOW_OF_USER);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setWid(value.getWid());
+        }
     }
 }

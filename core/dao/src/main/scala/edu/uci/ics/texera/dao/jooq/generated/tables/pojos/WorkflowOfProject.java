@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowOfProjec
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject implements IWorkflowOfProject {
 
-    private static final long serialVersionUID = -794046443;
+    private static final long serialVersionUID = 1L;
 
     private Integer wid;
     private Integer pid;
@@ -33,21 +33,33 @@ public class WorkflowOfProject implements IWorkflowOfProject {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_of_project.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_of_project.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_of_project.pid</code>.
+     */
     @Override
     public Integer getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_of_project.pid</code>.
+     */
     @Override
     public void setPid(Integer pid) {
         this.pid = pid;

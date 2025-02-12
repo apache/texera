@@ -14,7 +14,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowUserAcce
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess implements IWorkflowUserAccess {
 
-    private static final long serialVersionUID = -2021275644;
+    private static final long serialVersionUID = 1L;
 
     private Integer       uid;
     private Integer       wid;
@@ -38,31 +38,49 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
     public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
     public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;

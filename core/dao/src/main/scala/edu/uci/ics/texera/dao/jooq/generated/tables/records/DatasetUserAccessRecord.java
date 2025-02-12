@@ -21,7 +21,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetUserAccessRecord extends UpdatableRecordImpl<DatasetUserAccessRecord> implements Record3<Integer, Integer, PrivilegeEnum>, IDatasetUserAccess {
 
-    private static final long serialVersionUID = 171720249;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.dataset_user_access.did</code>.
@@ -199,8 +199,21 @@ public class DatasetUserAccessRecord extends UpdatableRecordImpl<DatasetUserAcce
     public DatasetUserAccessRecord(Integer did, Integer uid, PrivilegeEnum privilege) {
         super(DatasetUserAccess.DATASET_USER_ACCESS);
 
-        set(0, did);
-        set(1, uid);
-        set(2, privilege);
+        setDid(did);
+        setUid(uid);
+        setPrivilege(privilege);
+    }
+
+    /**
+     * Create a detached, initialised DatasetUserAccessRecord
+     */
+    public DatasetUserAccessRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetUserAccess value) {
+        super(DatasetUserAccess.DATASET_USER_ACCESS);
+
+        if (value != null) {
+            setDid(value.getDid());
+            setUid(value.getUid());
+            setPrivilege(value.getPrivilege());
+        }
     }
 }

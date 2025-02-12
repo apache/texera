@@ -12,7 +12,7 @@ CREATE DATABASE texera_db;
 \c texera_db
 
 CREATE SCHEMA IF NOT EXISTS texera_db;
-SET search_path TO texera_db;
+SET search_path TO texera_db, public;
 
 -- ============================================
 -- 3. Drop all tables if they exist 
@@ -44,17 +44,12 @@ DROP TABLE IF EXISTS user_activity CASCADE;
 -- 4. Create PostgreSQL enum types to mimic MySQL ENUM
 --    for user.role and privilege fields
 -- ============================================
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+
+DROP TYPE IF EXISTS user_role_enum CASCADE;
+DROP TYPE IF EXISTS privilege_enum CASCADE;
+
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
-END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'privilege_enum') THEN
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
-END IF;
-END
-$$;
 
 -- ============================================
 -- 5. Create tables

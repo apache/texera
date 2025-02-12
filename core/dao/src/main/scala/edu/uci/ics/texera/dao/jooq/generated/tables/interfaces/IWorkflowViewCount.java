@@ -38,12 +38,14 @@ public interface IWorkflowViewCount extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IWorkflowViewCount
+     * Load data from another generated Record/POJO implementing the common
+     * interface IWorkflowViewCount
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowViewCount from);
+    public void from(IWorkflowViewCount from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IWorkflowViewCount
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IWorkflowViewCount
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowViewCount> E into(E into);
+    public <E extends IWorkflowViewCount> E into(E into);
 }

@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
@@ -15,15 +14,16 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -33,7 +33,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetUserAccess extends TableImpl<DatasetUserAccessRecord> {
 
-    private static final long serialVersionUID = -2146163040;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.dataset_user_access</code>
@@ -51,17 +51,41 @@ public class DatasetUserAccess extends TableImpl<DatasetUserAccessRecord> {
     /**
      * The column <code>texera_db.dataset_user_access.did</code>.
      */
-    public final TableField<DatasetUserAccessRecord, Integer> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<DatasetUserAccessRecord, Integer> DID = createField(DSL.name("did"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_user_access.uid</code>.
      */
-    public final TableField<DatasetUserAccessRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<DatasetUserAccessRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_user_access.privilege</code>.
      */
-    public final TableField<DatasetUserAccessRecord, PrivilegeEnum> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR.nullable(false).defaultValue(org.jooq.impl.DSL.field("'NONE'::texera_db.privilege_enum", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum.class), this, "");
+    public final TableField<DatasetUserAccessRecord, PrivilegeEnum> PRIVILEGE = createField(DSL.name("privilege"), SQLDataType.VARCHAR.nullable(false).defaultValue(DSL.field("'NONE'::texera_db.privilege_enum", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum.class), this, "");
+
+    private DatasetUserAccess(Name alias, Table<DatasetUserAccessRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private DatasetUserAccess(Name alias, Table<DatasetUserAccessRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_user_access</code> table
+     * reference
+     */
+    public DatasetUserAccess(String alias) {
+        this(DSL.name(alias), DATASET_USER_ACCESS);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_user_access</code> table
+     * reference
+     */
+    public DatasetUserAccess(Name alias) {
+        this(alias, DATASET_USER_ACCESS);
+    }
 
     /**
      * Create a <code>texera_db.dataset_user_access</code> table reference
@@ -70,40 +94,13 @@ public class DatasetUserAccess extends TableImpl<DatasetUserAccessRecord> {
         this(DSL.name("dataset_user_access"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.dataset_user_access</code> table reference
-     */
-    public DatasetUserAccess(String alias) {
-        this(DSL.name(alias), DATASET_USER_ACCESS);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.dataset_user_access</code> table reference
-     */
-    public DatasetUserAccess(Name alias) {
-        this(alias, DATASET_USER_ACCESS);
-    }
-
-    private DatasetUserAccess(Name alias, Table<DatasetUserAccessRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private DatasetUserAccess(Name alias, Table<DatasetUserAccessRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> DatasetUserAccess(Table<O> child, ForeignKey<O, DatasetUserAccessRecord> key) {
         super(child, key, DATASET_USER_ACCESS);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_USER_ACCESS_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
@@ -112,21 +109,31 @@ public class DatasetUserAccess extends TableImpl<DatasetUserAccessRecord> {
     }
 
     @Override
-    public List<UniqueKey<DatasetUserAccessRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetUserAccessRecord>>asList(Keys.DATASET_USER_ACCESS_PKEY);
-    }
-
-    @Override
     public List<ForeignKey<DatasetUserAccessRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetUserAccessRecord, ?>>asList(Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY);
+        return Arrays.asList(Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY);
     }
 
+    private transient Dataset _dataset;
+    private transient User _user;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.dataset</code> table.
+     */
     public Dataset dataset() {
-        return new Dataset(this, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY);
+        if (_dataset == null)
+            _dataset = new Dataset(this, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_DID_FKEY);
+
+        return _dataset;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY);
+        if (_user == null)
+            _user = new User(this, Keys.DATASET_USER_ACCESS__DATASET_USER_ACCESS_UID_FKEY);
+
+        return _user;
     }
 
     @Override

@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorExecutio
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions implements IOperatorExecutions {
 
-    private static final long serialVersionUID = -216049396;
+    private static final long serialVersionUID = 1L;
 
     private Long    operatorExecutionId;
     private Integer workflowExecutionId;
@@ -37,31 +37,53 @@ public class OperatorExecutions implements IOperatorExecutions {
         this.operatorId = operatorId;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
+     */
     @Override
     public Long getOperatorExecutionId() {
         return this.operatorExecutionId;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
+     */
     @Override
     public void setOperatorExecutionId(Long operatorExecutionId) {
         this.operatorExecutionId = operatorExecutionId;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
+     */
     @Override
     public Integer getWorkflowExecutionId() {
         return this.workflowExecutionId;
     }
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
+     */
     @Override
     public void setWorkflowExecutionId(Integer workflowExecutionId) {
         this.workflowExecutionId = workflowExecutionId;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_executions.operator_id</code>.
+     */
     @Override
     public String getOperatorId() {
         return this.operatorId;
     }
 
+    /**
+     * Setter for <code>texera_db.operator_executions.operator_id</code>.
+     */
     @Override
     public void setOperatorId(String operatorId) {
         this.operatorId = operatorId;

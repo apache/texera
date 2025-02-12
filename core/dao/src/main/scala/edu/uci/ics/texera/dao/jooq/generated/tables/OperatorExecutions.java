@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorExecutionsRecord;
@@ -15,15 +14,16 @@ import java.util.List;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -33,7 +33,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
 
-    private static final long serialVersionUID = -182123064;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.operator_executions</code>
@@ -49,19 +49,45 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     /**
-     * The column <code>texera_db.operator_executions.operator_execution_id</code>.
+     * The column
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
      */
-    public final TableField<OperatorExecutionsRecord, Long> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.operator_executions_operator_execution_id_seq'::regclass)", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorExecutionsRecord, Long> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), SQLDataType.BIGINT.nullable(false).identity(true), this, "");
 
     /**
-     * The column <code>texera_db.operator_executions.workflow_execution_id</code>.
+     * The column
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
-    public final TableField<OperatorExecutionsRecord, Integer> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<OperatorExecutionsRecord, Integer> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_executions.operator_id</code>.
      */
-    public final TableField<OperatorExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
+    public final TableField<OperatorExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
+
+    private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_executions</code> table
+     * reference
+     */
+    public OperatorExecutions(String alias) {
+        this(DSL.name(alias), OPERATOR_EXECUTIONS);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_executions</code> table
+     * reference
+     */
+    public OperatorExecutions(Name alias) {
+        this(alias, OPERATOR_EXECUTIONS);
+    }
 
     /**
      * Create a <code>texera_db.operator_executions</code> table reference
@@ -70,45 +96,18 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
         this(DSL.name("operator_executions"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.operator_executions</code> table reference
-     */
-    public OperatorExecutions(String alias) {
-        this(DSL.name(alias), OPERATOR_EXECUTIONS);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.operator_executions</code> table reference
-     */
-    public OperatorExecutions(Name alias) {
-        this(alias, OPERATOR_EXECUTIONS);
-    }
-
-    private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> OperatorExecutions(Table<O> child, ForeignKey<O, OperatorExecutionsRecord> key) {
         super(child, key, OPERATOR_EXECUTIONS);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.OPERATOR_EXECUTIONS_PKEY, Indexes.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<OperatorExecutionsRecord, Long> getIdentity() {
-        return Keys.IDENTITY_OPERATOR_EXECUTIONS;
+        return (Identity<OperatorExecutionsRecord, Long>) super.getIdentity();
     }
 
     @Override
@@ -117,17 +116,26 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     @Override
-    public List<UniqueKey<OperatorExecutionsRecord>> getKeys() {
-        return Arrays.<UniqueKey<OperatorExecutionsRecord>>asList(Keys.OPERATOR_EXECUTIONS_PKEY, Keys.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY);
+    public List<UniqueKey<OperatorExecutionsRecord>> getUniqueKeys() {
+        return Arrays.asList(Keys.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY);
     }
 
     @Override
     public List<ForeignKey<OperatorExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<OperatorExecutionsRecord, ?>>asList(Keys.OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+        return Arrays.asList(Keys.OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
     }
 
+    private transient WorkflowExecutions _workflowExecutions;
+
+    /**
+     * Get the implicit join path to the
+     * <code>texera_db.workflow_executions</code> table.
+     */
     public WorkflowExecutions workflowExecutions() {
-        return new WorkflowExecutions(this, Keys.OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+        if (_workflowExecutions == null)
+            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_EXECUTIONS__OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+
+        return _workflowExecutions;
     }
 
     @Override

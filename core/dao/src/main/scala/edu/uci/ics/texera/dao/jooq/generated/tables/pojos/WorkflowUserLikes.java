@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowUserLike
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserLikes implements IWorkflowUserLikes {
 
-    private static final long serialVersionUID = -273807986;
+    private static final long serialVersionUID = 1L;
 
     private Integer uid;
     private Integer wid;
@@ -33,21 +33,33 @@ public class WorkflowUserLikes implements IWorkflowUserLikes {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_likes.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_likes.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_likes.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_likes.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;

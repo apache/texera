@@ -38,12 +38,14 @@ public interface IWorkflowOfProject extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IWorkflowOfProject
+     * Load data from another generated Record/POJO implementing the common
+     * interface IWorkflowOfProject
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowOfProject from);
+    public void from(IWorkflowOfProject from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IWorkflowOfProject
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IWorkflowOfProject
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowOfProject> E into(E into);
+    public <E extends IWorkflowOfProject> E into(E into);
 }

@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -67,24 +67,26 @@ public interface IDataset extends Serializable {
     /**
      * Setter for <code>texera_db.dataset.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.dataset.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IDataset
+     * Load data from another generated Record/POJO implementing the common
+     * interface IDataset
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDataset from);
+    public void from(IDataset from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IDataset
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IDataset
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDataset> E into(E into);
+    public <E extends IDataset> E into(E into);
 }

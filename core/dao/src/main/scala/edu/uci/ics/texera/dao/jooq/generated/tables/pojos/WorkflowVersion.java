@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowVersion;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,12 +15,12 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowVersion implements IWorkflowVersion {
 
-    private static final long serialVersionUID = -120441290;
+    private static final long serialVersionUID = 1L;
 
-    private Integer   vid;
-    private Integer   wid;
-    private String    content;
-    private Timestamp creationTime;
+    private Integer       vid;
+    private Integer       wid;
+    private String        content;
+    private LocalDateTime creationTime;
 
     public WorkflowVersion() {}
 
@@ -32,10 +32,10 @@ public class WorkflowVersion implements IWorkflowVersion {
     }
 
     public WorkflowVersion(
-        Integer   vid,
-        Integer   wid,
-        String    content,
-        Timestamp creationTime
+        Integer       vid,
+        Integer       wid,
+        String        content,
+        LocalDateTime creationTime
     ) {
         this.vid = vid;
         this.wid = wid;
@@ -43,43 +43,67 @@ public class WorkflowVersion implements IWorkflowVersion {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_version.vid</code>.
+     */
     @Override
     public Integer getVid() {
         return this.vid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_version.vid</code>.
+     */
     @Override
     public void setVid(Integer vid) {
         this.vid = vid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_version.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_version.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_version.content</code>.
+     */
     @Override
     public String getContent() {
         return this.content;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_version.content</code>.
+     */
     @Override
     public void setContent(String content) {
         this.content = content;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_version.creation_time</code>.
+     */
     @Override
-    public Timestamp getCreationTime() {
+    public LocalDateTime getCreationTime() {
         return this.creationTime;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_version.creation_time</code>.
+     */
     @Override
-    public void setCreationTime(Timestamp creationTime) {
+    public void setCreationTime(LocalDateTime creationTime) {
         this.creationTime = creationTime;
     }
 

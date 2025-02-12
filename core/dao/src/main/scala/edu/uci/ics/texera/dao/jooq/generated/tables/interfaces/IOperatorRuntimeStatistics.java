@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,42 +15,48 @@ import java.sql.Timestamp;
 public interface IOperatorRuntimeStatistics extends Serializable {
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
      */
     public void setOperatorExecutionId(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
      */
     public Long getOperatorExecutionId();
 
     /**
      * Setter for <code>texera_db.operator_runtime_statistics.time</code>.
      */
-    public void setTime(Timestamp value);
+    public void setTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.operator_runtime_statistics.time</code>.
      */
-    public Timestamp getTime();
+    public LocalDateTime getTime();
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
      */
     public void setInputTupleCnt(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
      */
     public Long getInputTupleCnt();
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
      */
     public void setOutputTupleCnt(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
      */
     public Long getOutputTupleCnt();
 
@@ -65,22 +71,26 @@ public interface IOperatorRuntimeStatistics extends Serializable {
     public Short getStatus();
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
      */
     public void setDataProcessingTime(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
      */
     public Long getDataProcessingTime();
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
      */
     public void setControlProcessingTime(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
      */
     public Long getControlProcessingTime();
 
@@ -95,12 +105,14 @@ public interface IOperatorRuntimeStatistics extends Serializable {
     public Long getIdleTime();
 
     /**
-     * Setter for <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     * Setter for
+     * <code>texera_db.operator_runtime_statistics.num_workers</code>.
      */
     public void setNumWorkers(Integer value);
 
     /**
-     * Getter for <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     * Getter for
+     * <code>texera_db.operator_runtime_statistics.num_workers</code>.
      */
     public Integer getNumWorkers();
 
@@ -109,12 +121,14 @@ public interface IOperatorRuntimeStatistics extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IOperatorRuntimeStatistics
+     * Load data from another generated Record/POJO implementing the common
+     * interface IOperatorRuntimeStatistics
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorRuntimeStatistics from);
+    public void from(IOperatorRuntimeStatistics from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IOperatorRuntimeStatistics
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IOperatorRuntimeStatistics
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorRuntimeStatistics> E into(E into);
+    public <E extends IOperatorRuntimeStatistics> E into(E into);
 }

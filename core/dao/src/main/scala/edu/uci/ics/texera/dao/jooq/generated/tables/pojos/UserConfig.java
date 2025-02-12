@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUserConfig;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserConfig implements IUserConfig {
 
-    private static final long serialVersionUID = 1430065156;
+    private static final long serialVersionUID = 1L;
 
     private Integer uid;
     private String  key;
@@ -37,31 +37,49 @@ public class UserConfig implements IUserConfig {
         this.value = value;
     }
 
+    /**
+     * Getter for <code>texera_db.user_config.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.user_config.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.user_config.key</code>.
+     */
     @Override
     public String getKey() {
         return this.key;
     }
 
+    /**
+     * Setter for <code>texera_db.user_config.key</code>.
+     */
     @Override
     public void setKey(String key) {
         this.key = key;
     }
 
+    /**
+     * Getter for <code>texera_db.user_config.value</code>.
+     */
     @Override
     public String getValue() {
         return this.value;
     }
 
+    /**
+     * Setter for <code>texera_db.user_config.value</code>.
+     */
     @Override
     public void setValue(String value) {
         this.value = value;

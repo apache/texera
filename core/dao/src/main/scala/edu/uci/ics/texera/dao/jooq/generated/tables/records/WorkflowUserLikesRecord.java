@@ -19,7 +19,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserLikesRecord extends UpdatableRecordImpl<WorkflowUserLikesRecord> implements Record2<Integer, Integer>, IWorkflowUserLikes {
 
-    private static final long serialVersionUID = 1217413239;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_user_likes.uid</code>.
@@ -158,7 +158,19 @@ public class WorkflowUserLikesRecord extends UpdatableRecordImpl<WorkflowUserLik
     public WorkflowUserLikesRecord(Integer uid, Integer wid) {
         super(WorkflowUserLikes.WORKFLOW_USER_LIKES);
 
-        set(0, uid);
-        set(1, wid);
+        setUid(uid);
+        setWid(wid);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowUserLikesRecord
+     */
+    public WorkflowUserLikesRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserLikes value) {
+        super(WorkflowUserLikes.WORKFLOW_USER_LIKES);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setWid(value.getWid());
+        }
     }
 }

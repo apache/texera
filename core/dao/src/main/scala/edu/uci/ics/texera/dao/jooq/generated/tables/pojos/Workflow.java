@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflow;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,15 +15,15 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = -835911825;
+    private static final long serialVersionUID = 1L;
 
-    private Integer   wid;
-    private String    name;
-    private String    description;
-    private String    content;
-    private Timestamp creationTime;
-    private Timestamp lastModifiedTime;
-    private Boolean   isPublic;
+    private Integer       wid;
+    private String        name;
+    private String        description;
+    private String        content;
+    private LocalDateTime creationTime;
+    private LocalDateTime lastModifiedTime;
+    private Boolean       isPublic;
 
     public Workflow() {}
 
@@ -38,13 +38,13 @@ public class Workflow implements IWorkflow {
     }
 
     public Workflow(
-        Integer   wid,
-        String    name,
-        String    description,
-        String    content,
-        Timestamp creationTime,
-        Timestamp lastModifiedTime,
-        Boolean   isPublic
+        Integer       wid,
+        String        name,
+        String        description,
+        String        content,
+        LocalDateTime creationTime,
+        LocalDateTime lastModifiedTime,
+        Boolean       isPublic
     ) {
         this.wid = wid;
         this.name = name;
@@ -55,71 +55,113 @@ public class Workflow implements IWorkflow {
         this.isPublic = isPublic;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.name</code>.
+     */
     @Override
     public String getName() {
         return this.name;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.name</code>.
+     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.description</code>.
+     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.description</code>.
+     */
     @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.content</code>.
+     */
     @Override
     public String getContent() {
         return this.content;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.content</code>.
+     */
     @Override
     public void setContent(String content) {
         this.content = content;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.creation_time</code>.
+     */
     @Override
-    public Timestamp getCreationTime() {
+    public LocalDateTime getCreationTime() {
         return this.creationTime;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.creation_time</code>.
+     */
     @Override
-    public void setCreationTime(Timestamp creationTime) {
+    public void setCreationTime(LocalDateTime creationTime) {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.last_modified_time</code>.
+     */
     @Override
-    public Timestamp getLastModifiedTime() {
+    public LocalDateTime getLastModifiedTime() {
         return this.lastModifiedTime;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.last_modified_time</code>.
+     */
     @Override
-    public void setLastModifiedTime(Timestamp lastModifiedTime) {
+    public void setLastModifiedTime(LocalDateTime lastModifiedTime) {
         this.lastModifiedTime = lastModifiedTime;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow.is_public</code>.
+     */
     @Override
     public Boolean getIsPublic() {
         return this.isPublic;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow.is_public</code>.
+     */
     @Override
     public void setIsPublic(Boolean isPublic) {
         this.isPublic = isPublic;

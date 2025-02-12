@@ -21,7 +21,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccessRecord extends UpdatableRecordImpl<ProjectUserAccessRecord> implements Record3<Integer, Integer, PrivilegeEnum>, IProjectUserAccess {
 
-    private static final long serialVersionUID = -522038796;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.project_user_access.uid</code>.
@@ -199,8 +199,21 @@ public class ProjectUserAccessRecord extends UpdatableRecordImpl<ProjectUserAcce
     public ProjectUserAccessRecord(Integer uid, Integer pid, PrivilegeEnum privilege) {
         super(ProjectUserAccess.PROJECT_USER_ACCESS);
 
-        set(0, uid);
-        set(1, pid);
-        set(2, privilege);
+        setUid(uid);
+        setPid(pid);
+        setPrivilege(privilege);
+    }
+
+    /**
+     * Create a detached, initialised ProjectUserAccessRecord
+     */
+    public ProjectUserAccessRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess value) {
+        super(ProjectUserAccess.PROJECT_USER_ACCESS);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setPid(value.getPid());
+            setPrivilege(value.getPrivilege());
+        }
     }
 }

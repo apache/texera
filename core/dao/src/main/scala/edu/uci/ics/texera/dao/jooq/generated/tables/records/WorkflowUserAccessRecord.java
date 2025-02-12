@@ -21,7 +21,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccessRecord extends UpdatableRecordImpl<WorkflowUserAccessRecord> implements Record3<Integer, Integer, PrivilegeEnum>, IWorkflowUserAccess {
 
-    private static final long serialVersionUID = 1478898780;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_user_access.uid</code>.
@@ -199,8 +199,21 @@ public class WorkflowUserAccessRecord extends UpdatableRecordImpl<WorkflowUserAc
     public WorkflowUserAccessRecord(Integer uid, Integer wid, PrivilegeEnum privilege) {
         super(WorkflowUserAccess.WORKFLOW_USER_ACCESS);
 
-        set(0, uid);
-        set(1, wid);
-        set(2, privilege);
+        setUid(uid);
+        setWid(wid);
+        setPrivilege(privilege);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowUserAccessRecord
+     */
+    public WorkflowUserAccessRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess value) {
+        super(WorkflowUserAccess.WORKFLOW_USER_ACCESS);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setWid(value.getWid());
+            setPrivilege(value.getPrivilege());
+        }
     }
 }

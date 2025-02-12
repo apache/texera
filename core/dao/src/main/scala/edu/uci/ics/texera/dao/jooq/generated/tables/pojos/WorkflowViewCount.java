@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowViewCoun
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowViewCount implements IWorkflowViewCount {
 
-    private static final long serialVersionUID = 1483149706;
+    private static final long serialVersionUID = 1L;
 
     private Integer wid;
     private Integer viewCount;
@@ -33,21 +33,33 @@ public class WorkflowViewCount implements IWorkflowViewCount {
         this.viewCount = viewCount;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_view_count.wid</code>.
+     */
     @Override
     public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_view_count.wid</code>.
+     */
     @Override
     public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_view_count.view_count</code>.
+     */
     @Override
     public Integer getViewCount() {
         return this.viewCount;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_view_count.view_count</code>.
+     */
     @Override
     public void setViewCount(Integer viewCount) {
         this.viewCount = viewCount;

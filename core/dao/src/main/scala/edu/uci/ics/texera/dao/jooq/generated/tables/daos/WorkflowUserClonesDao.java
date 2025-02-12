@@ -40,7 +40,8 @@ public class WorkflowUserClonesDao extends DAOImpl<WorkflowUserClonesRecord, edu
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserClones> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserClones.WORKFLOW_USER_CLONES.UID, lowerInclusive, upperInclusive);
@@ -54,7 +55,8 @@ public class WorkflowUserClonesDao extends DAOImpl<WorkflowUserClonesRecord, edu
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserClones> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserClones.WORKFLOW_USER_CLONES.WID, lowerInclusive, upperInclusive);

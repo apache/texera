@@ -29,7 +29,7 @@ object DatasetAccessResource {
     val datasetDao = new DatasetDao(ctx.configuration())
     Option(datasetDao.fetchOneByDid(did))
       .flatMap(dataset => Option(dataset.getIsPublic))
-      .contains(1.toByte)
+      .contains(true)
   }
 
   def userHasReadAccess(ctx: DSLContext, did: Integer, uid: Integer): Boolean = {

@@ -11,6 +11,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import io.dropwizard.auth.Auth
 import org.bson.Document
 
+import java.sql.Timestamp
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -111,8 +112,8 @@ object UserQuotaResource {
           workflowRecord.get(WORKFLOW_OF_USER.UID),
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME),
-          workflowRecord.get(WORKFLOW.CREATION_TIME).getTime,
-          workflowRecord.get(WORKFLOW.LAST_MODIFIED_TIME).getTime
+          Timestamp.valueOf(workflowRecord.get(WORKFLOW.CREATION_TIME)).getTime,
+          Timestamp.valueOf(workflowRecord.get(WORKFLOW.LAST_MODIFIED_TIME)).getTime
         )
       })
       .asScala

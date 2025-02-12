@@ -41,7 +41,8 @@ public class DatasetUserAccessDao extends DAOImpl<DatasetUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>did BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>did BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetUserAccess> fetchRangeOfDid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(DatasetUserAccess.DATASET_USER_ACCESS.DID, lowerInclusive, upperInclusive);
@@ -55,7 +56,8 @@ public class DatasetUserAccessDao extends DAOImpl<DatasetUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetUserAccess> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(DatasetUserAccess.DATASET_USER_ACCESS.UID, lowerInclusive, upperInclusive);
@@ -69,7 +71,8 @@ public class DatasetUserAccessDao extends DAOImpl<DatasetUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetUserAccess> fetchRangeOfPrivilege(PrivilegeEnum lowerInclusive, PrivilegeEnum upperInclusive) {
         return fetchRange(DatasetUserAccess.DATASET_USER_ACCESS.PRIVILEGE, lowerInclusive, upperInclusive);

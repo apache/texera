@@ -20,7 +20,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowViewCountRecord extends UpdatableRecordImpl<WorkflowViewCountRecord> implements Record2<Integer, Integer>, IWorkflowViewCount {
 
-    private static final long serialVersionUID = 1879040375;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_view_count.wid</code>.
@@ -159,7 +159,19 @@ public class WorkflowViewCountRecord extends UpdatableRecordImpl<WorkflowViewCou
     public WorkflowViewCountRecord(Integer wid, Integer viewCount) {
         super(WorkflowViewCount.WORKFLOW_VIEW_COUNT);
 
-        set(0, wid);
-        set(1, viewCount);
+        setWid(wid);
+        setViewCount(viewCount);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowViewCountRecord
+     */
+    public WorkflowViewCountRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowViewCount value) {
+        super(WorkflowViewCount.WORKFLOW_VIEW_COUNT);
+
+        if (value != null) {
+            setWid(value.getWid());
+            setViewCount(value.getViewCount());
+        }
     }
 }

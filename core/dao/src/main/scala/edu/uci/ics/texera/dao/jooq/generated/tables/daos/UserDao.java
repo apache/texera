@@ -9,6 +9,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(User.USER.UID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>uid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchOptionalByUid(Integer value) {
+        return fetchOptional(User.USER.UID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
         return fetchRange(User.USER.NAME, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>email BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>email BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfEmail(String lowerInclusive, String upperInclusive) {
         return fetchRange(User.USER.EMAIL, lowerInclusive, upperInclusive);
@@ -96,7 +107,15 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>password BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>email = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchOptionalByEmail(String value) {
+        return fetchOptional(User.USER.EMAIL, value);
+    }
+
+    /**
+     * Fetch records that have <code>password BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfPassword(String lowerInclusive, String upperInclusive) {
         return fetchRange(User.USER.PASSWORD, lowerInclusive, upperInclusive);
@@ -110,7 +129,8 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>google_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>google_id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfGoogleId(String lowerInclusive, String upperInclusive) {
         return fetchRange(User.USER.GOOGLE_ID, lowerInclusive, upperInclusive);
@@ -131,7 +151,15 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>role BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>google_id = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchOptionalByGoogleId(String value) {
+        return fetchOptional(User.USER.GOOGLE_ID, value);
+    }
+
+    /**
+     * Fetch records that have <code>role BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfRole(UserRoleEnum lowerInclusive, UserRoleEnum upperInclusive) {
         return fetchRange(User.USER.ROLE, lowerInclusive, upperInclusive);
@@ -145,7 +173,8 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     }
 
     /**
-     * Fetch records that have <code>google_avatar BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>google_avatar BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfGoogleAvatar(String lowerInclusive, String upperInclusive) {
         return fetchRange(User.USER.GOOGLE_AVATAR, lowerInclusive, upperInclusive);

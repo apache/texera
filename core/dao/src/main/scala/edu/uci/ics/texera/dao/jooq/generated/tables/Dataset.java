@@ -4,27 +4,27 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +34,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset extends TableImpl<DatasetRecord> {
 
-    private static final long serialVersionUID = -1835472774;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.dataset</code>
@@ -52,38 +52,39 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.did</code>.
      */
-    public final TableField<DatasetRecord, Integer> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.dataset_did_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<DatasetRecord, Integer> DID = createField(DSL.name("did"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.dataset.owner_uid</code>.
      */
-    public final TableField<DatasetRecord, Integer> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<DatasetRecord, Integer> OWNER_UID = createField(DSL.name("owner_uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset.name</code>.
      */
-    public final TableField<DatasetRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<DatasetRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset.is_public</code>.
      */
-    public final TableField<DatasetRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.BOOLEAN.nullable(false).defaultValue(org.jooq.impl.DSL.field("true", org.jooq.impl.SQLDataType.BOOLEAN)), this, "");
+    public final TableField<DatasetRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), SQLDataType.BOOLEAN.nullable(false).defaultValue(DSL.field("true", SQLDataType.BOOLEAN)), this, "");
 
     /**
      * The column <code>texera_db.dataset.description</code>.
      */
-    public final TableField<DatasetRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<DatasetRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset.creation_time</code>.
      */
-    public final TableField<DatasetRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<DatasetRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
-    /**
-     * Create a <code>texera_db.dataset</code> table reference
-     */
-    public Dataset() {
-        this(DSL.name("dataset"), null);
+    private Dataset(Name alias, Table<DatasetRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private Dataset(Name alias, Table<DatasetRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -100,12 +101,11 @@ public class Dataset extends TableImpl<DatasetRecord> {
         this(alias, DATASET);
     }
 
-    private Dataset(Name alias, Table<DatasetRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private Dataset(Name alias, Table<DatasetRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.dataset</code> table reference
+     */
+    public Dataset() {
+        this(DSL.name("dataset"), null);
     }
 
     public <O extends Record> Dataset(Table<O> child, ForeignKey<O, DatasetRecord> key) {
@@ -114,17 +114,12 @@ public class Dataset extends TableImpl<DatasetRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<DatasetRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_DATASET;
+        return (Identity<DatasetRecord, Integer>) super.getIdentity();
     }
 
     @Override
@@ -133,17 +128,20 @@ public class Dataset extends TableImpl<DatasetRecord> {
     }
 
     @Override
-    public List<UniqueKey<DatasetRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetRecord>>asList(Keys.DATASET_PKEY);
-    }
-
-    @Override
     public List<ForeignKey<DatasetRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetRecord, ?>>asList(Keys.DATASET__DATASET_OWNER_UID_FKEY);
+        return Arrays.asList(Keys.DATASET__DATASET_OWNER_UID_FKEY);
     }
 
+    private transient User _user;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.DATASET__DATASET_OWNER_UID_FKEY);
+        if (_user == null)
+            _user = new User(this, Keys.DATASET__DATASET_OWNER_UID_FKEY);
+
+        return _user;
     }
 
     @Override
@@ -177,7 +175,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, Integer, String, Boolean, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, String, Boolean, String, LocalDateTime> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

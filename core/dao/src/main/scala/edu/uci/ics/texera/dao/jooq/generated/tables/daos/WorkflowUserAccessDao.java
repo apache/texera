@@ -41,7 +41,8 @@ public class WorkflowUserAccessDao extends DAOImpl<WorkflowUserAccessRecord, edu
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, lowerInclusive, upperInclusive);
@@ -55,7 +56,8 @@ public class WorkflowUserAccessDao extends DAOImpl<WorkflowUserAccessRecord, edu
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID, lowerInclusive, upperInclusive);
@@ -69,7 +71,8 @@ public class WorkflowUserAccessDao extends DAOImpl<WorkflowUserAccessRecord, edu
     }
 
     /**
-     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess> fetchRangeOfPrivilege(PrivilegeEnum lowerInclusive, PrivilegeEnum upperInclusive) {
         return fetchRange(WorkflowUserAccess.WORKFLOW_USER_ACCESS.PRIVILEGE, lowerInclusive, upperInclusive);

@@ -20,7 +20,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProjectRecord extends UpdatableRecordImpl<PublicProjectRecord> implements Record2<Integer, Integer>, IPublicProject {
 
-    private static final long serialVersionUID = -2103383350;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.public_project.pid</code>.
@@ -159,7 +159,19 @@ public class PublicProjectRecord extends UpdatableRecordImpl<PublicProjectRecord
     public PublicProjectRecord(Integer pid, Integer uid) {
         super(PublicProject.PUBLIC_PROJECT);
 
-        set(0, pid);
-        set(1, uid);
+        setPid(pid);
+        setUid(uid);
+    }
+
+    /**
+     * Create a detached, initialised PublicProjectRecord
+     */
+    public PublicProjectRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.PublicProject value) {
+        super(PublicProject.PUBLIC_PROJECT);
+
+        if (value != null) {
+            setPid(value.getPid());
+            setUid(value.getUid());
+        }
     }
 }

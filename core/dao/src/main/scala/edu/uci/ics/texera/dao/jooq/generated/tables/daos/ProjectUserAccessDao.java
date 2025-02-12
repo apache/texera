@@ -41,7 +41,8 @@ public class ProjectUserAccessDao extends DAOImpl<ProjectUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(ProjectUserAccess.PROJECT_USER_ACCESS.UID, lowerInclusive, upperInclusive);
@@ -55,7 +56,8 @@ public class ProjectUserAccessDao extends DAOImpl<ProjectUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>pid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>pid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess> fetchRangeOfPid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(ProjectUserAccess.PROJECT_USER_ACCESS.PID, lowerInclusive, upperInclusive);
@@ -69,7 +71,8 @@ public class ProjectUserAccessDao extends DAOImpl<ProjectUserAccessRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess> fetchRangeOfPrivilege(PrivilegeEnum lowerInclusive, PrivilegeEnum upperInclusive) {
         return fetchRange(ProjectUserAccess.PROJECT_USER_ACCESS.PRIVILEGE, lowerInclusive, upperInclusive);

@@ -4,27 +4,27 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetVersionRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +34,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
 
-    private static final long serialVersionUID = 1554874669;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.dataset_version</code>
@@ -52,38 +52,39 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     /**
      * The column <code>texera_db.dataset_version.dvid</code>.
      */
-    public final TableField<DatasetVersionRecord, Integer> DVID = createField(DSL.name("dvid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.dataset_version_dvid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<DatasetVersionRecord, Integer> DVID = createField(DSL.name("dvid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.did</code>.
      */
-    public final TableField<DatasetVersionRecord, Integer> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, Integer> DID = createField(DSL.name("did"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.creator_uid</code>.
      */
-    public final TableField<DatasetVersionRecord, Integer> CREATOR_UID = createField(DSL.name("creator_uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, Integer> CREATOR_UID = createField(DSL.name("creator_uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.name</code>.
      */
-    public final TableField<DatasetVersionRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.version_hash</code>.
      */
-    public final TableField<DatasetVersionRecord, String> VERSION_HASH = createField(DSL.name("version_hash"), org.jooq.impl.SQLDataType.VARCHAR(64).nullable(false), this, "");
+    public final TableField<DatasetVersionRecord, String> VERSION_HASH = createField(DSL.name("version_hash"), SQLDataType.VARCHAR(64).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_version.creation_time</code>.
      */
-    public final TableField<DatasetVersionRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<DatasetVersionRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
-    /**
-     * Create a <code>texera_db.dataset_version</code> table reference
-     */
-    public DatasetVersion() {
-        this(DSL.name("dataset_version"), null);
+    private DatasetVersion(Name alias, Table<DatasetVersionRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private DatasetVersion(Name alias, Table<DatasetVersionRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -100,12 +101,11 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
         this(alias, DATASET_VERSION);
     }
 
-    private DatasetVersion(Name alias, Table<DatasetVersionRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private DatasetVersion(Name alias, Table<DatasetVersionRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.dataset_version</code> table reference
+     */
+    public DatasetVersion() {
+        this(DSL.name("dataset_version"), null);
     }
 
     public <O extends Record> DatasetVersion(Table<O> child, ForeignKey<O, DatasetVersionRecord> key) {
@@ -114,17 +114,12 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_VERSION_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<DatasetVersionRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_DATASET_VERSION;
+        return (Identity<DatasetVersionRecord, Integer>) super.getIdentity();
     }
 
     @Override
@@ -133,17 +128,20 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     }
 
     @Override
-    public List<UniqueKey<DatasetVersionRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetVersionRecord>>asList(Keys.DATASET_VERSION_PKEY);
-    }
-
-    @Override
     public List<ForeignKey<DatasetVersionRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetVersionRecord, ?>>asList(Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
+        return Arrays.asList(Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
     }
 
+    private transient Dataset _dataset;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.dataset</code> table.
+     */
     public Dataset dataset() {
-        return new Dataset(this, Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
+        if (_dataset == null)
+            _dataset = new Dataset(this, Keys.DATASET_VERSION__DATASET_VERSION_DID_FKEY);
+
+        return _dataset;
     }
 
     @Override
@@ -177,7 +175,7 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, Integer, Integer, String, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, Integer, String, String, LocalDateTime> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

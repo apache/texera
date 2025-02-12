@@ -13,7 +13,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IPublicProject;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProject implements IPublicProject {
 
-    private static final long serialVersionUID = 52156527;
+    private static final long serialVersionUID = 1L;
 
     private Integer pid;
     private Integer uid;
@@ -33,21 +33,33 @@ public class PublicProject implements IPublicProject {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.public_project.pid</code>.
+     */
     @Override
     public Integer getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.public_project.pid</code>.
+     */
     @Override
     public void setPid(Integer pid) {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.public_project.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.public_project.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;

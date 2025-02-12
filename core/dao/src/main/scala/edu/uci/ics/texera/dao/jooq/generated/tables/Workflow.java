@@ -4,27 +4,25 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowRecord;
 
-import java.sql.Timestamp;
-import java.util.Arrays;
-import java.util.List;
+import java.time.LocalDateTime;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +32,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = 563652100;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -52,43 +50,44 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     /**
      * The column <code>texera_db.workflow.wid</code>.
      */
-    public final TableField<WorkflowRecord, Integer> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.workflow_wid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<WorkflowRecord, Integer> WID = createField(DSL.name("wid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.workflow.name</code>.
      */
-    public final TableField<WorkflowRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<WorkflowRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow.description</code>.
      */
-    public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
+    public final TableField<WorkflowRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(500), this, "");
 
     /**
      * The column <code>texera_db.workflow.content</code>.
      */
-    public final TableField<WorkflowRecord, String> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
+    public final TableField<WorkflowRecord, String> CONTENT = createField(DSL.name("content"), SQLDataType.CLOB.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow.creation_time</code>.
      */
-    public final TableField<WorkflowRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
     /**
      * The column <code>texera_db.workflow.last_modified_time</code>.
      */
-    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowRecord, LocalDateTime> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
     /**
      * The column <code>texera_db.workflow.is_public</code>.
      */
-    public final TableField<WorkflowRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.BOOLEAN.nullable(false).defaultValue(org.jooq.impl.DSL.field("false", org.jooq.impl.SQLDataType.BOOLEAN)), this, "");
+    public final TableField<WorkflowRecord, Boolean> IS_PUBLIC = createField(DSL.name("is_public"), SQLDataType.BOOLEAN.nullable(false).defaultValue(DSL.field("false", SQLDataType.BOOLEAN)), this, "");
 
-    /**
-     * Create a <code>texera_db.workflow</code> table reference
-     */
-    public Workflow() {
-        this(DSL.name("workflow"), null);
+    private Workflow(Name alias, Table<WorkflowRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private Workflow(Name alias, Table<WorkflowRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -105,12 +104,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
         this(alias, WORKFLOW);
     }
 
-    private Workflow(Name alias, Table<WorkflowRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private Workflow(Name alias, Table<WorkflowRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.workflow</code> table reference
+     */
+    public Workflow() {
+        this(DSL.name("workflow"), null);
     }
 
     public <O extends Record> Workflow(Table<O> child, ForeignKey<O, WorkflowRecord> key) {
@@ -119,27 +117,17 @@ public class Workflow extends TableImpl<WorkflowRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<WorkflowRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_WORKFLOW;
+        return (Identity<WorkflowRecord, Integer>) super.getIdentity();
     }
 
     @Override
     public UniqueKey<WorkflowRecord> getPrimaryKey() {
         return Keys.WORKFLOW_PKEY;
-    }
-
-    @Override
-    public List<UniqueKey<WorkflowRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowRecord>>asList(Keys.WORKFLOW_PKEY);
     }
 
     @Override
@@ -173,7 +161,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<Integer, String, String, String, Timestamp, Timestamp, Boolean> fieldsRow() {
+    public Row7<Integer, String, String, String, LocalDateTime, LocalDateTime, Boolean> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

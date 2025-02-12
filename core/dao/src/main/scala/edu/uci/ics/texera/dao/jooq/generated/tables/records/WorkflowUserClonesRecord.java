@@ -19,7 +19,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserClonesRecord extends UpdatableRecordImpl<WorkflowUserClonesRecord> implements Record2<Integer, Integer>, IWorkflowUserClones {
 
-    private static final long serialVersionUID = 2063256809;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_user_clones.uid</code>.
@@ -158,7 +158,19 @@ public class WorkflowUserClonesRecord extends UpdatableRecordImpl<WorkflowUserCl
     public WorkflowUserClonesRecord(Integer uid, Integer wid) {
         super(WorkflowUserClones.WORKFLOW_USER_CLONES);
 
-        set(0, uid);
-        set(1, wid);
+        setUid(uid);
+        setWid(wid);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowUserClonesRecord
+     */
+    public WorkflowUserClonesRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserClones value) {
+        super(WorkflowUserClones.WORKFLOW_USER_CLONES);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setWid(value.getWid());
+        }
     }
 }

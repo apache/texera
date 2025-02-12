@@ -14,22 +14,26 @@ import java.io.Serializable;
 public interface IOperatorExecutions extends Serializable {
 
     /**
-     * Setter for <code>texera_db.operator_executions.operator_execution_id</code>.
+     * Setter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
      */
     public void setOperatorExecutionId(Long value);
 
     /**
-     * Getter for <code>texera_db.operator_executions.operator_execution_id</code>.
+     * Getter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
      */
     public Long getOperatorExecutionId();
 
     /**
-     * Setter for <code>texera_db.operator_executions.workflow_execution_id</code>.
+     * Setter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     public void setWorkflowExecutionId(Integer value);
 
     /**
-     * Getter for <code>texera_db.operator_executions.workflow_execution_id</code>.
+     * Getter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     public Integer getWorkflowExecutionId();
 
@@ -48,12 +52,14 @@ public interface IOperatorExecutions extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IOperatorExecutions
+     * Load data from another generated Record/POJO implementing the common
+     * interface IOperatorExecutions
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorExecutions from);
+    public void from(IOperatorExecutions from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IOperatorExecutions
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IOperatorExecutions
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorExecutions> E into(E into);
+    public <E extends IOperatorExecutions> E into(E into);
 }

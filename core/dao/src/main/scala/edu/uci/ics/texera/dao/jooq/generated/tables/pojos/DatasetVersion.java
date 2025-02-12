@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetVersion;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,14 +15,14 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetVersion implements IDatasetVersion {
 
-    private static final long serialVersionUID = -1130559939;
+    private static final long serialVersionUID = 1L;
 
-    private Integer   dvid;
-    private Integer   did;
-    private Integer   creatorUid;
-    private String    name;
-    private String    versionHash;
-    private Timestamp creationTime;
+    private Integer       dvid;
+    private Integer       did;
+    private Integer       creatorUid;
+    private String        name;
+    private String        versionHash;
+    private LocalDateTime creationTime;
 
     public DatasetVersion() {}
 
@@ -36,12 +36,12 @@ public class DatasetVersion implements IDatasetVersion {
     }
 
     public DatasetVersion(
-        Integer   dvid,
-        Integer   did,
-        Integer   creatorUid,
-        String    name,
-        String    versionHash,
-        Timestamp creationTime
+        Integer       dvid,
+        Integer       did,
+        Integer       creatorUid,
+        String        name,
+        String        versionHash,
+        LocalDateTime creationTime
     ) {
         this.dvid = dvid;
         this.did = did;
@@ -51,63 +51,99 @@ public class DatasetVersion implements IDatasetVersion {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.dvid</code>.
+     */
     @Override
     public Integer getDvid() {
         return this.dvid;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.dvid</code>.
+     */
     @Override
     public void setDvid(Integer dvid) {
         this.dvid = dvid;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.did</code>.
+     */
     @Override
     public Integer getDid() {
         return this.did;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.did</code>.
+     */
     @Override
     public void setDid(Integer did) {
         this.did = did;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.creator_uid</code>.
+     */
     @Override
     public Integer getCreatorUid() {
         return this.creatorUid;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.creator_uid</code>.
+     */
     @Override
     public void setCreatorUid(Integer creatorUid) {
         this.creatorUid = creatorUid;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.name</code>.
+     */
     @Override
     public String getName() {
         return this.name;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.name</code>.
+     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.version_hash</code>.
+     */
     @Override
     public String getVersionHash() {
         return this.versionHash;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.version_hash</code>.
+     */
     @Override
     public void setVersionHash(String versionHash) {
         this.versionHash = versionHash;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_version.creation_time</code>.
+     */
     @Override
-    public Timestamp getCreationTime() {
+    public LocalDateTime getCreationTime() {
         return this.creationTime;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_version.creation_time</code>.
+     */
     @Override
-    public void setCreationTime(Timestamp creationTime) {
+    public void setCreationTime(LocalDateTime creationTime) {
         this.creationTime = creationTime;
     }
 

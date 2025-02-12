@@ -4,27 +4,27 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +34,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Project extends TableImpl<ProjectRecord> {
 
-    private static final long serialVersionUID = -1098497844;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.project</code>
@@ -52,38 +52,39 @@ public class Project extends TableImpl<ProjectRecord> {
     /**
      * The column <code>texera_db.project.pid</code>.
      */
-    public final TableField<ProjectRecord, Integer> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.project_pid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<ProjectRecord, Integer> PID = createField(DSL.name("pid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.project.name</code>.
      */
-    public final TableField<ProjectRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<ProjectRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project.description</code>.
      */
-    public final TableField<ProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(10000), this, "");
+    public final TableField<ProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(10000), this, "");
 
     /**
      * The column <code>texera_db.project.owner_id</code>.
      */
-    public final TableField<ProjectRecord, Integer> OWNER_ID = createField(DSL.name("owner_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<ProjectRecord, Integer> OWNER_ID = createField(DSL.name("owner_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project.creation_time</code>.
      */
-    public final TableField<ProjectRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<ProjectRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
     /**
      * The column <code>texera_db.project.color</code>.
      */
-    public final TableField<ProjectRecord, String> COLOR = createField(DSL.name("color"), org.jooq.impl.SQLDataType.VARCHAR(6), this, "");
+    public final TableField<ProjectRecord, String> COLOR = createField(DSL.name("color"), SQLDataType.VARCHAR(6), this, "");
 
-    /**
-     * Create a <code>texera_db.project</code> table reference
-     */
-    public Project() {
-        this(DSL.name("project"), null);
+    private Project(Name alias, Table<ProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private Project(Name alias, Table<ProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -100,12 +101,11 @@ public class Project extends TableImpl<ProjectRecord> {
         this(alias, PROJECT);
     }
 
-    private Project(Name alias, Table<ProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private Project(Name alias, Table<ProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.project</code> table reference
+     */
+    public Project() {
+        this(DSL.name("project"), null);
     }
 
     public <O extends Record> Project(Table<O> child, ForeignKey<O, ProjectRecord> key) {
@@ -114,17 +114,12 @@ public class Project extends TableImpl<ProjectRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_OWNER_ID_NAME_KEY, Indexes.PROJECT_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<ProjectRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_PROJECT;
+        return (Identity<ProjectRecord, Integer>) super.getIdentity();
     }
 
     @Override
@@ -133,17 +128,25 @@ public class Project extends TableImpl<ProjectRecord> {
     }
 
     @Override
-    public List<UniqueKey<ProjectRecord>> getKeys() {
-        return Arrays.<UniqueKey<ProjectRecord>>asList(Keys.PROJECT_PKEY, Keys.PROJECT_OWNER_ID_NAME_KEY);
+    public List<UniqueKey<ProjectRecord>> getUniqueKeys() {
+        return Arrays.asList(Keys.PROJECT_OWNER_ID_NAME_KEY);
     }
 
     @Override
     public List<ForeignKey<ProjectRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<ProjectRecord, ?>>asList(Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
+        return Arrays.asList(Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
     }
 
+    private transient User _user;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
+        if (_user == null)
+            _user = new User(this, Keys.PROJECT__PROJECT_OWNER_ID_FKEY);
+
+        return _user;
     }
 
     @Override
@@ -177,7 +180,7 @@ public class Project extends TableImpl<ProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, String, String, Integer, Timestamp, String> fieldsRow() {
+    public Row6<Integer, String, String, Integer, LocalDateTime, String> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

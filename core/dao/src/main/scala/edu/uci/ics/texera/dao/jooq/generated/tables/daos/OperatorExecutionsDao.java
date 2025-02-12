@@ -8,6 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorExecutionsRecord;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -39,7 +40,8 @@ public class OperatorExecutionsDao extends DAOImpl<OperatorExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>operator_execution_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>operator_execution_id BETWEEN
+     * lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchRangeOfOperatorExecutionId(Long lowerInclusive, Long upperInclusive) {
         return fetchRange(OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID, lowerInclusive, upperInclusive);
@@ -60,7 +62,15 @@ public class OperatorExecutionsDao extends DAOImpl<OperatorExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>workflow_execution_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>operator_execution_id = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchOptionalByOperatorExecutionId(Long value) {
+        return fetchOptional(OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID, value);
+    }
+
+    /**
+     * Fetch records that have <code>workflow_execution_id BETWEEN
+     * lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchRangeOfWorkflowExecutionId(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, lowerInclusive, upperInclusive);
@@ -74,7 +84,8 @@ public class OperatorExecutionsDao extends DAOImpl<OperatorExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>operator_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>operator_id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchRangeOfOperatorId(String lowerInclusive, String upperInclusive) {
         return fetchRange(OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID, lowerInclusive, upperInclusive);

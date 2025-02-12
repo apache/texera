@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorRuntimeStatisticsRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,8 +20,10 @@ import org.jooq.Row9;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -31,10 +33,11 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = 1626867448;
+    private static final long serialVersionUID = 1L;
 
     /**
-     * The reference instance of <code>texera_db.operator_runtime_statistics</code>
+     * The reference instance of
+     * <code>texera_db.operator_runtime_statistics</code>
      */
     public static final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = new OperatorRuntimeStatistics();
 
@@ -47,77 +50,86 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
     }
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.operator_execution_id</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), org.jooq.impl.SQLDataType.BIGINT.nullable(false), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), SQLDataType.BIGINT.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_runtime_statistics.time</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Timestamp> TIME = createField(DSL.name("time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP(6)", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, LocalDateTime> TIME = createField(DSL.name("time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP(6)", SQLDataType.LOCALDATETIME)), this, "");
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.input_tuple_cnt</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> INPUT_TUPLE_CNT = createField(DSL.name("input_tuple_cnt"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> INPUT_TUPLE_CNT = createField(DSL.name("input_tuple_cnt"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.field("0", SQLDataType.BIGINT)), this, "");
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.output_tuple_cnt</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> OUTPUT_TUPLE_CNT = createField(DSL.name("output_tuple_cnt"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> OUTPUT_TUPLE_CNT = createField(DSL.name("output_tuple_cnt"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.field("0", SQLDataType.BIGINT)), this, "");
 
     /**
      * The column <code>texera_db.operator_runtime_statistics.status</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Short> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.SMALLINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("1", org.jooq.impl.SQLDataType.SMALLINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Short> STATUS = createField(DSL.name("status"), SQLDataType.SMALLINT.nullable(false).defaultValue(DSL.field("1", SQLDataType.SMALLINT)), this, "");
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.data_processing_time</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> DATA_PROCESSING_TIME = createField(DSL.name("data_processing_time"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> DATA_PROCESSING_TIME = createField(DSL.name("data_processing_time"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.field("0", SQLDataType.BIGINT)), this, "");
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.control_processing_time</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> CONTROL_PROCESSING_TIME = createField(DSL.name("control_processing_time"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> CONTROL_PROCESSING_TIME = createField(DSL.name("control_processing_time"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.field("0", SQLDataType.BIGINT)), this, "");
 
     /**
      * The column <code>texera_db.operator_runtime_statistics.idle_time</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Long> IDLE_TIME = createField(DSL.name("idle_time"), org.jooq.impl.SQLDataType.BIGINT.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.BIGINT)), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, Long> IDLE_TIME = createField(DSL.name("idle_time"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.field("0", SQLDataType.BIGINT)), this, "");
 
     /**
-     * The column <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     * The column
+     * <code>texera_db.operator_runtime_statistics.num_workers</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, Integer> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.field("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
-
-    /**
-     * Create a <code>texera_db.operator_runtime_statistics</code> table reference
-     */
-    public OperatorRuntimeStatistics() {
-        this(DSL.name("operator_runtime_statistics"), null);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.operator_runtime_statistics</code> table reference
-     */
-    public OperatorRuntimeStatistics(String alias) {
-        this(DSL.name(alias), OPERATOR_RUNTIME_STATISTICS);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.operator_runtime_statistics</code> table reference
-     */
-    public OperatorRuntimeStatistics(Name alias) {
-        this(alias, OPERATOR_RUNTIME_STATISTICS);
-    }
+    public final TableField<OperatorRuntimeStatisticsRecord, Integer> NUM_WORKERS = createField(DSL.name("num_workers"), SQLDataType.INTEGER.nullable(false).defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
 
     private OperatorRuntimeStatistics(Name alias, Table<OperatorRuntimeStatisticsRecord> aliased) {
         this(alias, aliased, null);
     }
 
     private OperatorRuntimeStatistics(Name alias, Table<OperatorRuntimeStatisticsRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_runtime_statistics</code>
+     * table reference
+     */
+    public OperatorRuntimeStatistics(String alias) {
+        this(DSL.name(alias), OPERATOR_RUNTIME_STATISTICS);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_runtime_statistics</code>
+     * table reference
+     */
+    public OperatorRuntimeStatistics(Name alias) {
+        this(alias, OPERATOR_RUNTIME_STATISTICS);
+    }
+
+    /**
+     * Create a <code>texera_db.operator_runtime_statistics</code> table
+     * reference
+     */
+    public OperatorRuntimeStatistics() {
+        this(DSL.name("operator_runtime_statistics"), null);
     }
 
     public <O extends Record> OperatorRuntimeStatistics(Table<O> child, ForeignKey<O, OperatorRuntimeStatisticsRecord> key) {
@@ -126,7 +138,7 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
@@ -135,17 +147,21 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
     }
 
     @Override
-    public List<UniqueKey<OperatorRuntimeStatisticsRecord>> getKeys() {
-        return Arrays.<UniqueKey<OperatorRuntimeStatisticsRecord>>asList(Keys.OPERATOR_RUNTIME_STATISTICS_PKEY);
-    }
-
-    @Override
     public List<ForeignKey<OperatorRuntimeStatisticsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<OperatorRuntimeStatisticsRecord, ?>>asList(Keys.OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY);
+        return Arrays.asList(Keys.OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY);
     }
 
+    private transient OperatorExecutions _operatorExecutions;
+
+    /**
+     * Get the implicit join path to the
+     * <code>texera_db.operator_executions</code> table.
+     */
     public OperatorExecutions operatorExecutions() {
-        return new OperatorExecutions(this, Keys.OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY);
+        if (_operatorExecutions == null)
+            _operatorExecutions = new OperatorExecutions(this, Keys.OPERATOR_RUNTIME_STATISTICS__OPERATOR_RUNTIME_STATISTICS_OPERATOR_EXECUTION_ID_FKEY);
+
+        return _operatorExecutions;
     }
 
     @Override
@@ -179,7 +195,7 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
     // -------------------------------------------------------------------------
 
     @Override
-    public Row9<Long, Timestamp, Long, Long, Short, Long, Long, Long, Integer> fieldsRow() {
+    public Row9<Long, LocalDateTime, Long, Long, Short, Long, Long, Long, Integer> fieldsRow() {
         return (Row9) super.fieldsRow();
     }
 }

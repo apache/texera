@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
 import org.jooq.{Field, Record}
 
-import java.sql.Timestamp
+import java.time.LocalDateTime
 import scala.collection.mutable
 
 object UnifiedResourceSchema {
@@ -36,22 +36,22 @@ object UnifiedResourceSchema {
       resourceType: Field[String] = DSL.inline(""),
       name: Field[String] = DSL.inline(""),
       description: Field[String] = DSL.inline(""),
-      creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      lastModifiedTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      ownerId: Field[Integer] = DSL.inline(null, classOf[Integer]),
-      wid: Field[Integer] = DSL.inline(null, classOf[Integer]),
-      workflowUserAccess: Field[PrivilegeEnum] = DSL.inline(null, classOf[PrivilegeEnum]),
+      creationTime: Field[LocalDateTime] = DSL.cast(null, classOf[LocalDateTime]),
+      lastModifiedTime: Field[LocalDateTime] = DSL.cast(null, classOf[LocalDateTime]),
+      ownerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      wid: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      workflowUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
       projectsOfWorkflow: Field[String] = DSL.inline(""),
-      uid: Field[Integer] = DSL.inline(null, classOf[Integer]),
+      uid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       userName: Field[String] = DSL.inline(""),
       userEmail: Field[String] = DSL.inline(""),
-      pid: Field[Integer] = DSL.inline(null, classOf[Integer]),
-      projectOwnerId: Field[Integer] = DSL.inline(null, classOf[Integer]),
+      pid: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      projectOwnerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       projectColor: Field[String] = DSL.inline(""),
-      did: Field[Integer] = DSL.inline(null, classOf[Integer]),
-      datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
-      isDatasetPublic: Field[java.lang.Boolean] = DSL.inline(null, classOf[java.lang.Boolean]),
-      datasetUserAccess: Field[PrivilegeEnum] = DSL.inline(null, classOf[PrivilegeEnum])
+      did: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      datasetStoragePath: Field[String] = DSL.cast(null, classOf[String]),
+      isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
+      datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(

@@ -7,8 +7,9 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>pid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>pid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfPid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(Project.PROJECT.PID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>pid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchOptionalByPid(Integer value) {
+        return fetchOptional(Project.PROJECT.PID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
         return fetchRange(Project.PROJECT.NAME, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>description BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>description BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfDescription(String lowerInclusive, String upperInclusive) {
         return fetchRange(Project.PROJECT.DESCRIPTION, lowerInclusive, upperInclusive);
@@ -89,7 +100,8 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>owner_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>owner_id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfOwnerId(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(Project.PROJECT.OWNER_ID, lowerInclusive, upperInclusive);
@@ -103,21 +115,23 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(Project.PROJECT.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchByCreationTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchByCreationTime(LocalDateTime... values) {
         return fetch(Project.PROJECT.CREATION_TIME, values);
     }
 
     /**
-     * Fetch records that have <code>color BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>color BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfColor(String lowerInclusive, String upperInclusive) {
         return fetchRange(Project.PROJECT.COLOR, lowerInclusive, upperInclusive);

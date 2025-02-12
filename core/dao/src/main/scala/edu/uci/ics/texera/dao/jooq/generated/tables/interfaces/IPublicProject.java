@@ -38,12 +38,14 @@ public interface IPublicProject extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IPublicProject
+     * Load data from another generated Record/POJO implementing the common
+     * interface IPublicProject
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IPublicProject from);
+    public void from(IPublicProject from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IPublicProject
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IPublicProject
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IPublicProject> E into(E into);
+    public <E extends IPublicProject> E into(E into);
 }

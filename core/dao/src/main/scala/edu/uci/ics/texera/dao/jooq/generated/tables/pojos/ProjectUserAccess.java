@@ -14,7 +14,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProjectUserAcces
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess implements IProjectUserAccess {
 
-    private static final long serialVersionUID = 190987603;
+    private static final long serialVersionUID = 1L;
 
     private Integer       uid;
     private Integer       pid;
@@ -38,31 +38,49 @@ public class ProjectUserAccess implements IProjectUserAccess {
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
     public Integer getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
     public void setPid(Integer pid) {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
     public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
     public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;

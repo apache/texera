@@ -40,7 +40,8 @@ public class UserConfigDao extends DAOImpl<UserConfigRecord, edu.uci.ics.texera.
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.UserConfig> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(UserConfig.USER_CONFIG.UID, lowerInclusive, upperInclusive);
@@ -54,7 +55,8 @@ public class UserConfigDao extends DAOImpl<UserConfigRecord, edu.uci.ics.texera.
     }
 
     /**
-     * Fetch records that have <code>key BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>key BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.UserConfig> fetchRangeOfKey(String lowerInclusive, String upperInclusive) {
         return fetchRange(UserConfig.USER_CONFIG.KEY, lowerInclusive, upperInclusive);
@@ -68,7 +70,8 @@ public class UserConfigDao extends DAOImpl<UserConfigRecord, edu.uci.ics.texera.
     }
 
     /**
-     * Fetch records that have <code>value BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>value BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.UserConfig> fetchRangeOfValue(String lowerInclusive, String upperInclusive) {
         return fetchRange(UserConfig.USER_CONFIG.VALUE, lowerInclusive, upperInclusive);

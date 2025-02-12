@@ -7,8 +7,9 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowExecutionsRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>eid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>eid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfEid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.EID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>vid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>eid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchOptionalByEid(Integer value) {
+        return fetchOptional(WorkflowExecutions.WORKFLOW_EXECUTIONS.EID, value);
+    }
+
+    /**
+     * Fetch records that have <code>vid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfVid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.VID, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.UID, lowerInclusive, upperInclusive);
@@ -89,7 +100,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>status BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStatus(Short lowerInclusive, Short upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.STATUS, lowerInclusive, upperInclusive);
@@ -103,7 +115,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>result BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>result BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfResult(String lowerInclusive, String upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.RESULT, lowerInclusive, upperInclusive);
@@ -117,35 +130,38 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>starting_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>starting_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStartingTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStartingTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.STARTING_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>starting_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStartingTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStartingTime(LocalDateTime... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.STARTING_TIME, values);
     }
 
     /**
-     * Fetch records that have <code>last_update_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>last_update_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLastUpdateTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLastUpdateTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>last_update_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLastUpdateTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLastUpdateTime(LocalDateTime... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, values);
     }
 
     /**
-     * Fetch records that have <code>bookmarked BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>bookmarked BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfBookmarked(Boolean lowerInclusive, Boolean upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.BOOKMARKED, lowerInclusive, upperInclusive);
@@ -159,7 +175,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.NAME, lowerInclusive, upperInclusive);
@@ -173,7 +190,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>environment_version BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>environment_version BETWEEN lowerInclusive
+     * AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfEnvironmentVersion(String lowerInclusive, String upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, lowerInclusive, upperInclusive);
@@ -187,7 +205,8 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>log_location BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>log_location BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLogLocation(String lowerInclusive, String upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.LOG_LOCATION, lowerInclusive, upperInclusive);

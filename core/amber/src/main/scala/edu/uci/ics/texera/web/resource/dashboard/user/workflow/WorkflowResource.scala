@@ -342,8 +342,8 @@ class WorkflowResource extends LazyLogging {
         workflow.getDescription,
         workflow.getWid,
         workflow.getContent,
-        workflow.getCreationTime,
-        workflow.getLastModifiedTime,
+        Timestamp.valueOf(workflow.getCreationTime),
+        Timestamp.valueOf(workflow.getLastModifiedTime),
         workflow.getIsPublic,
         !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
       )
@@ -646,8 +646,8 @@ class WorkflowResource extends LazyLogging {
       workflow.getDescription,
       workflow.getWid,
       workflow.getContent,
-      workflow.getCreationTime,
-      workflow.getLastModifiedTime,
+      Timestamp.valueOf(workflow.getCreationTime),
+      Timestamp.valueOf(workflow.getLastModifiedTime),
       workflow.getIsPublic,
       readonly = true
     )

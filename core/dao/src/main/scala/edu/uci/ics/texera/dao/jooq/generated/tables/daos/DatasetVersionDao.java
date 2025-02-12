@@ -7,8 +7,9 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetVersionRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>dvid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>dvid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfDvid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.DVID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>did BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>dvid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchOptionalByDvid(Integer value) {
+        return fetchOptional(DatasetVersion.DATASET_VERSION.DVID, value);
+    }
+
+    /**
+     * Fetch records that have <code>did BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfDid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.DID, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>creator_uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>creator_uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreatorUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.CREATOR_UID, lowerInclusive, upperInclusive);
@@ -89,7 +100,8 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.NAME, lowerInclusive, upperInclusive);
@@ -103,7 +115,8 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>version_hash BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>version_hash BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfVersionHash(String lowerInclusive, String upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.VERSION_HASH, lowerInclusive, upperInclusive);
@@ -117,16 +130,17 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchByCreationTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchByCreationTime(LocalDateTime... values) {
         return fetch(DatasetVersion.DATASET_VERSION.CREATION_TIME, values);
     }
 }

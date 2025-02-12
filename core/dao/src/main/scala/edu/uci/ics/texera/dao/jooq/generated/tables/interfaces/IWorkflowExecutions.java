@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -67,22 +67,22 @@ public interface IWorkflowExecutions extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public void setStartingTime(Timestamp value);
+    public void setStartingTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public Timestamp getStartingTime();
+    public LocalDateTime getStartingTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public void setLastUpdateTime(Timestamp value);
+    public void setLastUpdateTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public Timestamp getLastUpdateTime();
+    public LocalDateTime getLastUpdateTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.bookmarked</code>.
@@ -105,12 +105,14 @@ public interface IWorkflowExecutions extends Serializable {
     public String getName();
 
     /**
-     * Setter for <code>texera_db.workflow_executions.environment_version</code>.
+     * Setter for
+     * <code>texera_db.workflow_executions.environment_version</code>.
      */
     public void setEnvironmentVersion(String value);
 
     /**
-     * Getter for <code>texera_db.workflow_executions.environment_version</code>.
+     * Getter for
+     * <code>texera_db.workflow_executions.environment_version</code>.
      */
     public String getEnvironmentVersion();
 
@@ -129,12 +131,14 @@ public interface IWorkflowExecutions extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IWorkflowExecutions
+     * Load data from another generated Record/POJO implementing the common
+     * interface IWorkflowExecutions
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowExecutions from);
+    public void from(IWorkflowExecutions from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IWorkflowExecutions
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IWorkflowExecutions
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowExecutions> E into(E into);
+    public <E extends IWorkflowExecutions> E into(E into);
 }

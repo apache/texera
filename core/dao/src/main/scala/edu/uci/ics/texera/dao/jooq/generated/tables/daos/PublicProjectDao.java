@@ -8,6 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.PublicProjectRecord;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -39,7 +40,8 @@ public class PublicProjectDao extends DAOImpl<PublicProjectRecord, edu.uci.ics.t
     }
 
     /**
-     * Fetch records that have <code>pid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>pid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.PublicProject> fetchRangeOfPid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(PublicProject.PUBLIC_PROJECT.PID, lowerInclusive, upperInclusive);
@@ -60,7 +62,15 @@ public class PublicProjectDao extends DAOImpl<PublicProjectRecord, edu.uci.ics.t
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>pid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.PublicProject> fetchOptionalByPid(Integer value) {
+        return fetchOptional(PublicProject.PUBLIC_PROJECT.PID, value);
+    }
+
+    /**
+     * Fetch records that have <code>uid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.PublicProject> fetchRangeOfUid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(PublicProject.PUBLIC_PROJECT.UID, lowerInclusive, upperInclusive);

@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum;
@@ -13,18 +12,21 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jooq.Check;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.Internal;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +36,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -544130431;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -52,43 +54,44 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.uid</code>.
      */
-    public final TableField<UserRecord, Integer> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true).defaultValue(org.jooq.impl.DSL.field("nextval('texera_db.user_uid_seq'::regclass)", org.jooq.impl.SQLDataType.INTEGER)), this, "");
+    public final TableField<UserRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.user.name</code>.
      */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user.email</code>.
      */
-    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
      */
-    public final TableField<UserRecord, String> PASSWORD = createField(DSL.name("password"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> PASSWORD = createField(DSL.name("password"), SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.google_id</code>.
      */
-    public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, UserRoleEnum> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR.nullable(false).defaultValue(org.jooq.impl.DSL.field("'INACTIVE'::texera_db.user_role_enum", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum.class), this, "");
+    public final TableField<UserRecord, UserRoleEnum> ROLE = createField(DSL.name("role"), SQLDataType.VARCHAR.nullable(false).defaultValue(DSL.field("'INACTIVE'::texera_db.user_role_enum", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum.class), this, "");
 
     /**
      * The column <code>texera_db.user.google_avatar</code>.
      */
-    public final TableField<UserRecord, String> GOOGLE_AVATAR = createField(DSL.name("google_avatar"), org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
+    public final TableField<UserRecord, String> GOOGLE_AVATAR = createField(DSL.name("google_avatar"), SQLDataType.VARCHAR(100), this, "");
 
-    /**
-     * Create a <code>texera_db.user</code> table reference
-     */
-    public User() {
-        this(DSL.name("user"), null);
+    private User(Name alias, Table<UserRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private User(Name alias, Table<UserRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -105,12 +108,11 @@ public class User extends TableImpl<UserRecord> {
         this(alias, USER);
     }
 
-    private User(Name alias, Table<UserRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private User(Name alias, Table<UserRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.user</code> table reference
+     */
+    public User() {
+        this(DSL.name("user"), null);
     }
 
     public <O extends Record> User(Table<O> child, ForeignKey<O, UserRecord> key) {
@@ -119,17 +121,12 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_EMAIL_KEY, Indexes.USER_GOOGLE_ID_KEY, Indexes.USER_PKEY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<UserRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_USER;
+        return (Identity<UserRecord, Integer>) super.getIdentity();
     }
 
     @Override
@@ -138,8 +135,15 @@ public class User extends TableImpl<UserRecord> {
     }
 
     @Override
-    public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.USER_PKEY, Keys.USER_EMAIL_KEY, Keys.USER_GOOGLE_ID_KEY);
+    public List<UniqueKey<UserRecord>> getUniqueKeys() {
+        return Arrays.asList(Keys.USER_EMAIL_KEY, Keys.USER_GOOGLE_ID_KEY);
+    }
+
+    @Override
+    public List<Check<UserRecord>> getChecks() {
+        return Arrays.asList(
+            Internal.createCheck(this, DSL.name("ck_nulltest"), "(((password IS NOT NULL) OR (google_id IS NOT NULL)))", true)
+        );
     }
 
     @Override

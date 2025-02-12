@@ -19,7 +19,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProjectRecord extends UpdatableRecordImpl<WorkflowOfProjectRecord> implements Record2<Integer, Integer>, IWorkflowOfProject {
 
-    private static final long serialVersionUID = -1446029983;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_of_project.wid</code>.
@@ -158,7 +158,19 @@ public class WorkflowOfProjectRecord extends UpdatableRecordImpl<WorkflowOfProje
     public WorkflowOfProjectRecord(Integer wid, Integer pid) {
         super(WorkflowOfProject.WORKFLOW_OF_PROJECT);
 
-        set(0, wid);
-        set(1, pid);
+        setWid(wid);
+        setPid(pid);
+    }
+
+    /**
+     * Create a detached, initialised WorkflowOfProjectRecord
+     */
+    public WorkflowOfProjectRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowOfProject value) {
+        super(WorkflowOfProject.WORKFLOW_OF_PROJECT);
+
+        if (value != null) {
+            setWid(value.getWid());
+            setPid(value.getPid());
+        }
     }
 }

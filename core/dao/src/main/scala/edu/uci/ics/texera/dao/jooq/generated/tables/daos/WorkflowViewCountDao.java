@@ -8,6 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowViewCountRecord;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -39,7 +40,8 @@ public class WorkflowViewCountDao extends DAOImpl<WorkflowViewCountRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowViewCount> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID, lowerInclusive, upperInclusive);
@@ -60,7 +62,15 @@ public class WorkflowViewCountDao extends DAOImpl<WorkflowViewCountRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>view_count BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>wid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowViewCount> fetchOptionalByWid(Integer value) {
+        return fetchOptional(WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID, value);
+    }
+
+    /**
+     * Fetch records that have <code>view_count BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowViewCount> fetchRangeOfViewCount(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowViewCount.WORKFLOW_VIEW_COUNT.VIEW_COUNT, lowerInclusive, upperInclusive);

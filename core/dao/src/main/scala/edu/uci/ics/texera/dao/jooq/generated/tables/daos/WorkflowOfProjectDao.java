@@ -40,7 +40,8 @@ public class WorkflowOfProjectDao extends DAOImpl<WorkflowOfProjectRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowOfProject> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, lowerInclusive, upperInclusive);
@@ -54,7 +55,8 @@ public class WorkflowOfProjectDao extends DAOImpl<WorkflowOfProjectRecord, edu.u
     }
 
     /**
-     * Fetch records that have <code>pid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>pid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowOfProject> fetchRangeOfPid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowOfProject.WORKFLOW_OF_PROJECT.PID, lowerInclusive, upperInclusive);

@@ -90,12 +90,14 @@ public interface IUser extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IUser
+     * Load data from another generated Record/POJO implementing the common
+     * interface IUser
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUser from);
+    public void from(IUser from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IUser
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IUser
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUser> E into(E into);
+    public <E extends IUser> E into(E into);
 }

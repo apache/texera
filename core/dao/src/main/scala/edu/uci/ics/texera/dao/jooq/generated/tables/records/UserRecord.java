@@ -21,7 +21,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserRecord extends UpdatableRecordImpl<UserRecord> implements Record7<Integer, String, String, String, String, UserRoleEnum, String>, IUser {
 
-    private static final long serialVersionUID = 870175244;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.user.uid</code>.
@@ -355,12 +355,29 @@ public class UserRecord extends UpdatableRecordImpl<UserRecord> implements Recor
     public UserRecord(Integer uid, String name, String email, String password, String googleId, UserRoleEnum role, String googleAvatar) {
         super(User.USER);
 
-        set(0, uid);
-        set(1, name);
-        set(2, email);
-        set(3, password);
-        set(4, googleId);
-        set(5, role);
-        set(6, googleAvatar);
+        setUid(uid);
+        setName(name);
+        setEmail(email);
+        setPassword(password);
+        setGoogleId(googleId);
+        setRole(role);
+        setGoogleAvatar(googleAvatar);
+    }
+
+    /**
+     * Create a detached, initialised UserRecord
+     */
+    public UserRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User value) {
+        super(User.USER);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setName(value.getName());
+            setEmail(value.getEmail());
+            setPassword(value.getPassword());
+            setGoogleId(value.getGoogleId());
+            setRole(value.getRole());
+            setGoogleAvatar(value.getGoogleAvatar());
+        }
     }
 }

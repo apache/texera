@@ -20,10 +20,11 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutionsRecord extends UpdatableRecordImpl<OperatorExecutionsRecord> implements Record3<Long, Integer, String>, IOperatorExecutions {
 
-    private static final long serialVersionUID = 652280981;
+    private static final long serialVersionUID = 1L;
 
     /**
-     * Setter for <code>texera_db.operator_executions.operator_execution_id</code>.
+     * Setter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
      */
     @Override
     public void setOperatorExecutionId(Long value) {
@@ -31,7 +32,8 @@ public class OperatorExecutionsRecord extends UpdatableRecordImpl<OperatorExecut
     }
 
     /**
-     * Getter for <code>texera_db.operator_executions.operator_execution_id</code>.
+     * Getter for
+     * <code>texera_db.operator_executions.operator_execution_id</code>.
      */
     @Override
     public Long getOperatorExecutionId() {
@@ -39,7 +41,8 @@ public class OperatorExecutionsRecord extends UpdatableRecordImpl<OperatorExecut
     }
 
     /**
-     * Setter for <code>texera_db.operator_executions.workflow_execution_id</code>.
+     * Setter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     @Override
     public void setWorkflowExecutionId(Integer value) {
@@ -47,7 +50,8 @@ public class OperatorExecutionsRecord extends UpdatableRecordImpl<OperatorExecut
     }
 
     /**
-     * Getter for <code>texera_db.operator_executions.workflow_execution_id</code>.
+     * Getter for
+     * <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     @Override
     public Integer getWorkflowExecutionId() {
@@ -198,8 +202,21 @@ public class OperatorExecutionsRecord extends UpdatableRecordImpl<OperatorExecut
     public OperatorExecutionsRecord(Long operatorExecutionId, Integer workflowExecutionId, String operatorId) {
         super(OperatorExecutions.OPERATOR_EXECUTIONS);
 
-        set(0, operatorExecutionId);
-        set(1, workflowExecutionId);
-        set(2, operatorId);
+        setOperatorExecutionId(operatorExecutionId);
+        setWorkflowExecutionId(workflowExecutionId);
+        setOperatorId(operatorId);
+    }
+
+    /**
+     * Create a detached, initialised OperatorExecutionsRecord
+     */
+    public OperatorExecutionsRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions value) {
+        super(OperatorExecutions.OPERATOR_EXECUTIONS);
+
+        if (value != null) {
+            setOperatorExecutionId(value.getOperatorExecutionId());
+            setWorkflowExecutionId(value.getWorkflowExecutionId());
+            setOperatorId(value.getOperatorId());
+        }
     }
 }

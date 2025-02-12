@@ -20,7 +20,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserConfigRecord extends UpdatableRecordImpl<UserConfigRecord> implements Record3<Integer, String, String>, IUserConfig {
 
-    private static final long serialVersionUID = -405707042;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.user_config.uid</code>.
@@ -198,8 +198,21 @@ public class UserConfigRecord extends UpdatableRecordImpl<UserConfigRecord> impl
     public UserConfigRecord(Integer uid, String key, String value) {
         super(UserConfig.USER_CONFIG);
 
-        set(0, uid);
-        set(1, key);
-        set(2, value);
+        setUid(uid);
+        setKey(key);
+        setValue(value);
+    }
+
+    /**
+     * Create a detached, initialised UserConfigRecord
+     */
+    public UserConfigRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.UserConfig value) {
+        super(UserConfig.USER_CONFIG);
+
+        if (value != null) {
+            setUid(value.getUid());
+            setKey(value.getKey());
+            setValue(value.getValue());
+        }
     }
 }

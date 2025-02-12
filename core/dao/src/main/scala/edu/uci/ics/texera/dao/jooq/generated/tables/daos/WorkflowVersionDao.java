@@ -7,8 +7,9 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowVersionRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class WorkflowVersionDao extends DAOImpl<WorkflowVersionRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>vid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>vid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfVid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowVersion.WORKFLOW_VERSION.VID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class WorkflowVersionDao extends DAOImpl<WorkflowVersionRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>vid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchOptionalByVid(Integer value) {
+        return fetchOptional(WorkflowVersion.WORKFLOW_VERSION.VID, value);
+    }
+
+    /**
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfWid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(WorkflowVersion.WORKFLOW_VERSION.WID, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class WorkflowVersionDao extends DAOImpl<WorkflowVersionRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>content BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>content BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfContent(String lowerInclusive, String upperInclusive) {
         return fetchRange(WorkflowVersion.WORKFLOW_VERSION.CONTENT, lowerInclusive, upperInclusive);
@@ -89,16 +100,17 @@ public class WorkflowVersionDao extends DAOImpl<WorkflowVersionRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(WorkflowVersion.WORKFLOW_VERSION.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchByCreationTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowVersion> fetchByCreationTime(LocalDateTime... values) {
         return fetch(WorkflowVersion.WORKFLOW_VERSION.CREATION_TIME, values);
     }
 }

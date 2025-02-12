@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUserActivity;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -15,14 +15,14 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserActivity implements IUserActivity {
 
-    private static final long serialVersionUID = -2119184409;
+    private static final long serialVersionUID = 1L;
 
-    private Integer   uid;
-    private Integer   id;
-    private String    type;
-    private String    ip;
-    private String    activate;
-    private Timestamp activityTime;
+    private Integer       uid;
+    private Integer       id;
+    private String        type;
+    private String        ip;
+    private String        activate;
+    private LocalDateTime activityTime;
 
     public UserActivity() {}
 
@@ -36,12 +36,12 @@ public class UserActivity implements IUserActivity {
     }
 
     public UserActivity(
-        Integer   uid,
-        Integer   id,
-        String    type,
-        String    ip,
-        String    activate,
-        Timestamp activityTime
+        Integer       uid,
+        Integer       id,
+        String        type,
+        String        ip,
+        String        activate,
+        LocalDateTime activityTime
     ) {
         this.uid = uid;
         this.id = id;
@@ -51,63 +51,99 @@ public class UserActivity implements IUserActivity {
         this.activityTime = activityTime;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.id</code>.
+     */
     @Override
     public Integer getId() {
         return this.id;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.id</code>.
+     */
     @Override
     public void setId(Integer id) {
         this.id = id;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.type</code>.
+     */
     @Override
     public String getType() {
         return this.type;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.type</code>.
+     */
     @Override
     public void setType(String type) {
         this.type = type;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.ip</code>.
+     */
     @Override
     public String getIp() {
         return this.ip;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.ip</code>.
+     */
     @Override
     public void setIp(String ip) {
         this.ip = ip;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.activate</code>.
+     */
     @Override
     public String getActivate() {
         return this.activate;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.activate</code>.
+     */
     @Override
     public void setActivate(String activate) {
         this.activate = activate;
     }
 
+    /**
+     * Getter for <code>texera_db.user_activity.activity_time</code>.
+     */
     @Override
-    public Timestamp getActivityTime() {
+    public LocalDateTime getActivityTime() {
         return this.activityTime;
     }
 
+    /**
+     * Setter for <code>texera_db.user_activity.activity_time</code>.
+     */
     @Override
-    public void setActivityTime(Timestamp activityTime) {
+    public void setActivityTime(LocalDateTime activityTime) {
         this.activityTime = activityTime;
     }
 

@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 
 /**
@@ -47,24 +47,26 @@ public interface IWorkflowVersion extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_version.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.workflow_version.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IWorkflowVersion
+     * Load data from another generated Record/POJO implementing the common
+     * interface IWorkflowVersion
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowVersion from);
+    public void from(IWorkflowVersion from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IWorkflowVersion
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IWorkflowVersion
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowVersion> E into(E into);
+    public <E extends IWorkflowVersion> E into(E into);
 }

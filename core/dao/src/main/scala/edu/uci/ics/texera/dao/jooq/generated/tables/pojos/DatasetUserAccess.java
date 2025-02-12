@@ -14,7 +14,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAcces
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetUserAccess implements IDatasetUserAccess {
 
-    private static final long serialVersionUID = 1259817283;
+    private static final long serialVersionUID = 1L;
 
     private Integer       did;
     private Integer       uid;
@@ -38,31 +38,49 @@ public class DatasetUserAccess implements IDatasetUserAccess {
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.did</code>.
+     */
     @Override
     public Integer getDid() {
         return this.did;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.did</code>.
+     */
     @Override
     public void setDid(Integer did) {
         this.did = did;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.uid</code>.
+     */
     @Override
     public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.uid</code>.
+     */
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.privilege</code>.
+     */
     @Override
     public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.privilege</code>.
+     */
     @Override
     public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
