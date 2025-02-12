@@ -250,7 +250,13 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == ICEBERG) {
+
+              val outputPortsMap = physicalPlan.getPhysicalOpsOfLogicalOp(opId).headOption.map(_.outputPorts).getOrElse(Map.empty)
+              val hasSingleSnapshot = outputPortsMap.values.exists { case (outputPort, _, _) =>
+                outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+              }
+
+              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
                 // using the first port for now. TODO: support multiple ports
                 val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
