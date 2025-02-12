@@ -250,14 +250,19 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-
-              val outputPortsMap = physicalPlan.getPhysicalOpsOfLogicalOp(opId).headOption.map(_.outputPorts).getOrElse(Map.empty)
-              val hasSingleSnapshot = outputPortsMap.values.exists { case (outputPort, _, _) =>
-                outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+              // using the first port for now. TODO: support multiple ports
+              val outputPortsMap = physicalPlan
+                .getPhysicalOpsOfLogicalOp(opId)
+                .headOption
+                .map(_.outputPorts)
+                .getOrElse(Map.empty)
+              val hasSingleSnapshot = outputPortsMap.values.exists {
+                case (outputPort, _, _) =>
+                  // SINGLE_SNAPSHOT is used for HTML content
+                  outputPort.mode == OutputMode.SINGLE_SNAPSHOT
               }
 
               if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
-                // using the first port for now. TODO: support multiple ports
                 val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
                   executionId,
