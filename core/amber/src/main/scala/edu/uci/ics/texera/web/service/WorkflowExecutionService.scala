@@ -145,6 +145,9 @@ class WorkflowExecutionService(
     )
     client.controllerInterface
       .startWorkflow(EmptyRequest(), ())
+      .onFailure(err => {
+        errorHandler(err)
+      })
       .onSuccess(resp =>
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
