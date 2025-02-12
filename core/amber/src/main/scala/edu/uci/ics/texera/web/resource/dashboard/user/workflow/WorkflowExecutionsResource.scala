@@ -3,7 +3,12 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
