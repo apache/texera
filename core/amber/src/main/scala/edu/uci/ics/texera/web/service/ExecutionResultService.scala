@@ -250,8 +250,19 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == ICEBERG) {
-                // using the first port for now. TODO: support multiple ports
+              // using the first port for now. TODO: support multiple ports
+              val outputPortsMap = physicalPlan
+                .getPhysicalOpsOfLogicalOp(opId)
+                .headOption
+                .map(_.outputPorts)
+                .getOrElse(Map.empty)
+              val hasSingleSnapshot = outputPortsMap.values.exists {
+                case (outputPort, _, _) =>
+                  // SINGLE_SNAPSHOT is used for HTML content
+                  outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+              }
+
+              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByExecutionAndPort(
                     workflowIdentity,
