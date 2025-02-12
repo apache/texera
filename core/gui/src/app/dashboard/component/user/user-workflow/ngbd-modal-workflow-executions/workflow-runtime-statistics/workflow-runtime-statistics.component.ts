@@ -41,31 +41,37 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   }
 
   /**
-   * Convert an array into a record by combining stats to the same metric and accumulate tuple counts
+   * Groups statistics by operator ID, converting times from nanoseconds to seconds,
+   * and adjusts timestamps relative to the initial timestamp.
    */
   private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
-    if (!this.workflowRuntimeStatistics) {
+    if (!this.workflowRuntimeStatistics || this.workflowRuntimeStatistics.length === 0) {
+      console.warn("No workflow runtime statistics available.");
       return {};
     }
 
     const beginTimestamp = this.workflowRuntimeStatistics[0].timestamp;
-    return this.workflowRuntimeStatistics.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
-      const statsArray = acc[stat.operatorId] || [];
-      const lastStat = statsArray[statsArray.length - 1];
 
-      if (lastStat) {
-        stat.inputTupleCount += lastStat.inputTupleCount;
-        stat.outputTupleCount += lastStat.outputTupleCount;
-        stat.dataProcessingTime = stat.dataProcessingTime / 1000000000 + lastStat.dataProcessingTime;
-        stat.controlProcessingTime = stat.controlProcessingTime / 1000000000 + lastStat.controlProcessingTime;
-        stat.idleTime = stat.idleTime / 1000000000 + lastStat.idleTime;
+    return this.workflowRuntimeStatistics.reduce((accumulator, stat) => {
+      if (!stat.operatorId) {
+        console.warn("Missing operatorId in statistic:", stat);
+        return accumulator;
       }
 
-      stat.timestamp -= beginTimestamp;
+      const statsArray = accumulator[stat.operatorId] ?? [];
 
-      acc[stat.operatorId] = [...statsArray, stat];
-      return acc;
-    }, {});
+      // Create a new object to avoid mutating the original data
+      const processedStat = {
+        ...stat,
+        dataProcessingTime: stat.dataProcessingTime / 1_000_000_000,
+        controlProcessingTime: stat.controlProcessingTime / 1_000_000_000,
+        idleTime: stat.idleTime / 1_000_000_000,
+        timestamp: stat.timestamp - beginTimestamp,
+      };
+
+      accumulator[stat.operatorId] = [...statsArray, processedStat];
+      return accumulator;
+    }, {} as Record<string, WorkflowRuntimeStatistics[]>);
   }
 
   /**
