@@ -14,7 +14,9 @@ storage:
         username: "texera_iceberg_admin" # replace with actual username
         password: "password" # replace with actual password
     table:
-      namespace: "operator-port-result"
+      result-namespace: "operator-port-result"
+      console-messages-namespace: "operator-console-messages"
+      runtime-statistics-namespace: "workflow-runtime-statistics"
       commit:
         batch-size: 4096 # decide the buffer size of our IcebergTableWriter
         retry:

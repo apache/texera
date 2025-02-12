@@ -142,9 +142,10 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
   it should "allow a reader to read data while a writer is writing items incrementally" in {
     val allItems = generateSampleItems()
-    val batchSize = allItems.length / 5 // Divide items into 5 incremental batches
+    val numBatches = 5
+    val batchSize = Math.max(1, allItems.length / numBatches) // Ensure batchSize is at least 1
 
-    // Split items into 5 batches
+    // Split items into batches
     val itemBatches = allItems.grouped(batchSize).toList
 
     // Flag to indicate when writing is done

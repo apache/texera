@@ -15,9 +15,11 @@ CREATE SCHEMA IF NOT EXISTS texera_db;
 SET search_path TO texera_db, public;
 
 -- ============================================
--- 3. Drop all tables if they exist 
+-- 3. Drop all tables if they exist
 --    (CASCADE handles FK dependencies)
 -- ============================================
+DROP TABLE IF EXISTS operator_executions CASCADE;
+DROP TABLE IF EXISTS operator_port_executions CASCADE;
 DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
@@ -30,19 +32,17 @@ DROP TABLE IF EXISTS workflow_executions CASCADE;
 DROP TABLE IF EXISTS dataset CASCADE;
 DROP TABLE IF EXISTS dataset_user_access CASCADE;
 DROP TABLE IF EXISTS dataset_version CASCADE;
-DROP TABLE IF EXISTS operator_runtime_statistics CASCADE;
-DROP TABLE IF EXISTS operator_executions CASCADE;
-DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS public_project CASCADE;
 DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
 DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
+DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS user_activity CASCADE;
 
 -- ============================================
--- 4. Create PostgreSQL enum types to mimic MySQL ENUM
---    for user.role and privilege fields
+-- 4. Create PostgreSQL enum types
+--    to mimic MySQL ENUM fields
 -- ============================================
 
 DROP TYPE IF EXISTS user_role_enum CASCADE;
@@ -55,7 +55,7 @@ CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 -- 5. Create tables
 -- ============================================
 
--- "user" table (MySQL "user")
+-- "user" table
 CREATE TABLE IF NOT EXISTS "user"
 (
     uid             SERIAL PRIMARY KEY,
@@ -159,17 +159,18 @@ CREATE TABLE IF NOT EXISTS project_user_access
 -- workflow_executions
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
-    eid                SERIAL PRIMARY KEY,
-    vid                INT NOT NULL,
-    uid                INT NOT NULL,
-    status             SMALLINT NOT NULL DEFAULT 1,
-    result             TEXT,
-    starting_time      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_update_time   TIMESTAMP,
-    bookmarked         BOOLEAN DEFAULT FALSE,
-    name               VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
+    eid                 SERIAL PRIMARY KEY,
+    vid                 INT NOT NULL,
+    uid                 INT NOT NULL,
+    status              SMALLINT NOT NULL DEFAULT 1,
+    result              TEXT,
+    starting_time       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_update_time    TIMESTAMP,
+    bookmarked          BOOLEAN DEFAULT FALSE,
+    name                VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
     environment_version VARCHAR(128) NOT NULL,
-    log_location       TEXT,
+    log_location        TEXT,
+    runtime_stats_uri   TEXT,
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
@@ -180,6 +181,7 @@ CREATE TABLE IF NOT EXISTS public_project
     pid INT PRIMARY KEY,
     uid INT,
     FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
+    -- Note: MySQL schema doesn't define a foreign key for uid
     );
 
 -- dataset
@@ -208,39 +210,34 @@ CREATE TABLE IF NOT EXISTS dataset_user_access
 -- dataset_version
 CREATE TABLE IF NOT EXISTS dataset_version
 (
-    dvid           SERIAL PRIMARY KEY,
-    did            INT NOT NULL,
-    creator_uid    INT NOT NULL,
-    name           VARCHAR(128) NOT NULL,
-    version_hash   VARCHAR(64) NOT NULL,
-    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dvid          SERIAL PRIMARY KEY,
+    did           INT NOT NULL,
+    creator_uid   INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    version_hash  VARCHAR(64) NOT NULL,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 
--- operator_executions
+-- operator_executions (modified to match MySQL: no separate primary key; added console_messages_uri)
 CREATE TABLE IF NOT EXISTS operator_executions
 (
-    operator_execution_id BIGSERIAL PRIMARY KEY,
     workflow_execution_id INT NOT NULL,
     operator_id           VARCHAR(100) NOT NULL,
+    console_messages_uri  TEXT,
     UNIQUE (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
--- operator_runtime_statistics
-CREATE TABLE IF NOT EXISTS operator_runtime_statistics
+-- operator_port_executions (replaces the old operator_runtime_statistics)
+CREATE TABLE IF NOT EXISTS operator_port_executions
 (
-    operator_execution_id BIGINT NOT NULL,
-    time                  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    input_tuple_cnt       BIGINT NOT NULL DEFAULT 0,
-    output_tuple_cnt      BIGINT NOT NULL DEFAULT 0,
-    status                SMALLINT NOT NULL DEFAULT 1,
-    data_processing_time  BIGINT NOT NULL DEFAULT 0,
-    control_processing_time BIGINT NOT NULL DEFAULT 0,
-    idle_time             BIGINT NOT NULL DEFAULT 0,
-    num_workers           INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (operator_execution_id, time),
-    FOREIGN KEY (operator_execution_id) REFERENCES operator_executions(operator_execution_id) ON DELETE CASCADE
+    workflow_execution_id INT NOT NULL,
+    operator_id           VARCHAR(100) NOT NULL,
+    port_id               INT NOT NULL,
+    result_uri            TEXT,
+    UNIQUE (workflow_execution_id, operator_id, port_id),
+    FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
 -- workflow_user_likes
@@ -271,6 +268,8 @@ CREATE TABLE IF NOT EXISTS workflow_view_count
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
+-- Drop old workflow_user_activity (if any), replace with user_activity
+-- user_activity
 CREATE TABLE IF NOT EXISTS user_activity
 (
     uid           INT NOT NULL DEFAULT 0,
@@ -278,36 +277,58 @@ CREATE TABLE IF NOT EXISTS user_activity
     type          VARCHAR(15) NOT NULL,
     ip            VARCHAR(15),
     activate      VARCHAR(10) NOT NULL,
-    activity_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    activity_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
 -- ============================================
 -- 6. Approximate FULLTEXT indexes with GIN
---    (In MySQL: CREATE FULLTEXT INDEX)
+--    to mirror MySQL FULLTEXT
 -- ============================================
-
--- You might need "CREATE EXTENSION IF NOT EXISTS pg_trgm;" or
--- "CREATE EXTENSION IF NOT EXISTS unaccent;" for advanced usage.
+-- (Requires "pg_trgm" extension for more advanced usage.)
 
 CREATE INDEX idx_workflow_name_description_content
     ON workflow
-    USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '') || ' ' || COALESCE(content, '')));
+    USING GIN (
+    to_tsvector('english',
+    COALESCE(name, '') || ' ' ||
+    COALESCE(description, '') || ' ' ||
+    COALESCE(content, '')
+    )
+    );
 
 CREATE INDEX idx_user_name
     ON "user"
-    USING GIN (to_tsvector('english', COALESCE(name, '')));
+    USING GIN (
+    to_tsvector('english',
+    COALESCE(name, '')
+    )
+    );
 
 CREATE INDEX idx_user_project_name_description
     ON project
-    USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
+    USING GIN (
+    to_tsvector('english',
+    COALESCE(name, '') || ' ' ||
+    COALESCE(description, '')
+    )
+    );
 
 CREATE INDEX idx_dataset_name_description
     ON dataset
-    USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
+    USING GIN (
+    to_tsvector('english',
+    COALESCE(name, '') || ' ' ||
+    COALESCE(description, '')
+    )
+    );
 
 CREATE INDEX idx_dataset_version_name
     ON dataset_version
-    USING GIN (to_tsvector('english', COALESCE(name, '')));
+    USING GIN (
+    to_tsvector('english',
+    COALESCE(name, '')
+    )
+    );
 
--- Done! 
--- You now have a "texera_db" database with all tables & enums in the default "public" schema.
+-- Done!
+-- You now have a "texera_db" database schema matching the MySQL version as closely as possible.

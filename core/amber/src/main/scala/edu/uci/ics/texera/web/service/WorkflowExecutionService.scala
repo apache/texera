@@ -24,7 +24,6 @@ import edu.uci.ics.texera.web.{ComputingUnitMaster, SubscriptionManager, Websock
 import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
 
 import java.net.URI
-import java.util
 import scala.collection.mutable
 
 object WorkflowExecutionService {
@@ -119,14 +118,7 @@ class WorkflowExecutionService(
     )
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
-    // Create the operatorId to executionId map
-    val operatorIdToExecutionId: Map[String, Long] =
-      if (AmberConfig.isUserSystemEnabled)
-        createOperatorIdToExecutionIdMap(workflow)
-      else
-        Map.empty
-    executionStatsService =
-      new ExecutionStatsService(client, executionStateStore, operatorIdToExecutionId)
+    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
     executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,
@@ -134,7 +126,8 @@ class WorkflowExecutionService(
       executionReconfigurationService,
       controllerConfig.faultToleranceConfOpt
     )
-    executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
+    executionConsoleService =
+      new ExecutionConsoleService(client, executionStateStore, wsInput, workflowContext)
 
     logger.info("Starting the workflow execution.")
     resultService.attachToExecution(
@@ -152,6 +145,9 @@ class WorkflowExecutionService(
     )
     client.controllerInterface
       .startWorkflow(EmptyRequest(), ())
+      .onFailure(err => {
+        errorHandler(err)
+      })
       .onSuccess(resp =>
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
@@ -161,27 +157,6 @@ class WorkflowExecutionService(
           }
         )
       )
-  }
-
-  private def createOperatorIdToExecutionIdMap(workflow: Workflow): Map[String, Long] = {
-    val executionList: util.ArrayList[OperatorExecutions] = new util.ArrayList[OperatorExecutions]()
-    val operatorIdToExecutionId = scala.collection.mutable.Map[String, Long]()
-
-    workflow.logicalPlan.operators.foreach { operator =>
-      val operatorId = operator.operatorIdentifier.id
-      val execution = new OperatorExecutions()
-      execution.setWorkflowExecutionId(workflowContext.executionId.id.toInt)
-      execution.setOperatorId(operatorId)
-      executionList.add(execution)
-    }
-
-    val insertedExecutionIds = WorkflowExecutionsResource.insertOperatorExecutions(executionList)
-    insertedExecutionIds.forEach {
-      case (operatorId, executionId) =>
-        operatorIdToExecutionId += (operatorId -> executionId)
-    }
-
-    operatorIdToExecutionId.toMap
   }
 
   override def unsubscribeAll(): Unit = {
