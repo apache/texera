@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.dao
 
-import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import com.mysql.cj.jdbc.MysqlDataSource
+import com.opentable.db.postgres.embedded.EmbeddedPostgres
+import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -12,7 +13,7 @@ import java.util.Scanner
 
 trait MockTexeraDB {
 
-  private var dbInstance: Option[DB] = None
+  private var dbInstance: Option[EmbeddedPostgres] = None
   private var dslContext: Option[DSLContext] = None
   private val database: String = "texera_db"
   private val username: String = "root"
@@ -24,7 +25,7 @@ trait MockTexeraDB {
     val in = new FileInputStream(sqlFile)
     val conn =
       DriverManager.getConnection(
-        dbInstance.get.getConfiguration.getURL(""),
+        dbInstance.get.getJdbcUrl("texera_db"),
         username,
         password
       )
@@ -93,22 +94,9 @@ trait MockTexeraDB {
     val driver = new org.postgresql.Driver()
     DriverManager.registerDriver(driver)
 
-    val config = DBConfigurationBuilder.newBuilder
-      .setPort(0) // 0 => automatically detect free port
-      .setSecurityDisabled(true)
-      .setDeletingTemporaryBaseAndDataDirsOnShutdown(true)
-      .build()
+    val embedded = EmbeddedPostgresRules.singleInstance().getEmbeddedPostgres
 
-    val db = DB.newEmbeddedDB(config)
-    db.start()
-
-    val dataSource = new MysqlDataSource
-    dataSource.setUrl(config.getURL(database))
-    dataSource.setUser(username)
-    dataSource.setPassword(password)
-
-    val sqlServerInstance = SqlServer.getInstance(database, username, password)
-    dbInstance = Some(db)
+    dbInstance = Some(embedded)
     dslContext = Some(DSL.using(dataSource, sqlServerInstance.SQL_DIALECT))
 
     val ddlPath = {
