@@ -23,10 +23,10 @@ spec:
             - containerPort: {{ .Values.workflowCompilingService.service.port }}
           env:
             - name: JDBC_URL
-              value: "jdbc:mysql://{{ .Release.Name }}-mysql.{{ .Values.namespace }}.svc.cluster.local:3306/{{ .Values.mysql.auth.database }}"
+              value: "jdbc:postgresql://{{ .Release.Name }}-postgresql-headless.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.global.postgresql.postgresqlDatabase }}"
             - name: JDBC_USERNAME
-              value: {{ .Values.mysql.auth.username }}
+              value: {{ .Values.postgresql.global.postgresql.postgresqlUsername }}
             - name: JDBC_PASSWORD
-              value: {{ .Values.mysql.auth.password }}
+              value: {{ .Values.postgresql.global.postgresql.postgresqlPassword }}
 {{/*            - name: MONGODB_URL*/}}
 {{/*              value: "mongodb://{{ .Release.Name }}-mongodb.{{ .Release.Namespace }}.svc.cluster.local:27017/{{ index .Values.mongodb.auth.databases 0 }}"*/}}
