@@ -27,8 +27,8 @@ image:
 primary:
   initdb:
     scripts:
-      init.sql: |
-        {{ .Files.Get "files/texera_ddl.sql" | indent 4 }}
+      00_init_extensions.sh: |
+        echo "Hi, I'm a testing script added by @carrodher"
 
 webserver:
   name: webserver
