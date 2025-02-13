@@ -26,9 +26,9 @@ image:
   debug: true
 primary:
   initdb:
-    scripts:
-      00_init_extensions.sh: |
-        echo "Hi, I'm a testing script added by @carrodher"
+    scripts: # currently not working, need manual initialization.
+      init.sql: |
+        {{ .Files.Get "files/texera_ddl.sql" | indent 4 }}
 
 webserver:
   name: webserver
