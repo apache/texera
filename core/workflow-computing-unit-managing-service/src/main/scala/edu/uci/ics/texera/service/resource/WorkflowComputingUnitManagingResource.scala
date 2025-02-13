@@ -3,20 +3,14 @@ package edu.uci.ics.texera.service.resource
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitCreationParams,
-  WorkflowComputingUnitTerminationParams,
-  context
-}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{DashboardWorkflowComputingUnit, WorkflowComputingUnitCreationParams, WorkflowComputingUnitTerminationParams, context}
 import edu.uci.ics.texera.service.util.KubernetesClientService
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 
