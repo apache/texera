@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
@@ -37,7 +36,7 @@ object HubResource {
   }
 
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   final private val ipv4Pattern: Pattern = Pattern.compile(
@@ -280,7 +279,7 @@ object HubResource {
 @Path("/hub")
 class HubResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   @GET

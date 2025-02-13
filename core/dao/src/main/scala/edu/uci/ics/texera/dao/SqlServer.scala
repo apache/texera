@@ -14,13 +14,12 @@ import org.postgresql.ds.PGSimpleDataSource
 class SqlServer private (url: String, user: String, password: String) {
   val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
   private val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
-  var context: DSLContext = _
-
-  {
+  var context: DSLContext = {
     dataSource.setUrl(url)
     dataSource.setUser(user)
     dataSource.setPassword(password)
-    context = DSL.using(dataSource, SQL_DIALECT)
+    dataSource.setConnectTimeout(5)
+    DSL.using(dataSource, SQL_DIALECT)
   }
 
   def createDSLContext(): DSLContext = context
@@ -31,22 +30,17 @@ class SqlServer private (url: String, user: String, password: String) {
 }
 
 object SqlServer {
-  @volatile private var instance: Option[SqlServer] = None
+  private var instance: Option[SqlServer] = None
 
-  def getInstance(url: String, user: String, password: String): SqlServer = {
-    instance match {
-      case Some(server) => server
-      case None =>
-        synchronized {
-          instance match {
-            case Some(server) => server
-            case None =>
-              val server = new SqlServer(url, user, password)
-              instance = Some(server)
-              server
-          }
-        }
+  def initConnection(url: String, user: String, password: String): Unit = {
+    if (instance.isEmpty) {
+      val server = new SqlServer(url, user, password)
+      instance = Some(server)
     }
+  }
+
+  def getInstance(): SqlServer = {
+    instance.get
   }
 
   /**

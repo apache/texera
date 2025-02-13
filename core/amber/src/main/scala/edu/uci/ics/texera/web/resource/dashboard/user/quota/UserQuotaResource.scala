@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
 import edu.uci.ics.texera.dao.SqlServer
@@ -18,7 +17,7 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   case class Workflow(

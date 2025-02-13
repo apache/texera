@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
@@ -19,7 +18,7 @@ import javax.ws.rs.core.MediaType
 @Path("/access/project")
 class ProjectAccessResource() {
   final private val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private val userDao = new UserDao(context.configuration())
   final private val projectDao = new ProjectDao(context.configuration)

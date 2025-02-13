@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver}
 import edu.uci.ics.amber.core.storage.util.dataset.{
   GitVersionControlLocalFileStorage,
   PhysicalFileNode
@@ -62,7 +62,7 @@ object DatasetResource {
     new scala.collection.concurrent.TrieMap[Integer, ReentrantLock]()
 
   private val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   /**

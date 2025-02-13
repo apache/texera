@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.admin.user
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
@@ -16,7 +15,7 @@ import javax.ws.rs.core.{MediaType, Response}
 
 object AdminUserResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private lazy val userDao = new UserDao(context.configuration)
 }

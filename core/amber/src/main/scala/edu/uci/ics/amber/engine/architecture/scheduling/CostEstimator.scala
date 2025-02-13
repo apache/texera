@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.WorkflowContext
@@ -84,11 +84,7 @@ class DefaultCostEstimator(
 
     val uriString: String = withTransaction(
       SqlServer
-        .getInstance(
-          StorageConfig.jdbcUrl,
-          StorageConfig.jdbcUsername,
-          StorageConfig.jdbcPassword
-        )
+        .getInstance()
         .createDSLContext()
     ) { context =>
       context

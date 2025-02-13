@@ -78,7 +78,7 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.jooq" % "jooq" % "3.16.6",
+  "org.jooq" % "jooq" % "3.16.10",
   "org.jooq" % "jooq-codegen" % "3.16.10"
 )
 

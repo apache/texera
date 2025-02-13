@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
@@ -22,7 +21,7 @@ import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
   private lazy val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   def isDatasetPublic(ctx: DSLContext, did: Integer): Boolean = {
