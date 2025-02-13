@@ -60,16 +60,16 @@ class WorkflowComputingUnitManagingResource {
 
         val computingUnit = new WorkflowComputingUnit()
 
-        computingUnit.setUid(UInteger.valueOf(0))
+        computingUnit.setUid(0)
         computingUnit.setName(param.name)
-        computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
+        computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()).toLocalDateTime)
 
         // Insert using the DAO
         wcDao.insert(computingUnit)
 
         // Retrieve the generated CUID
         val cuid = ctx.lastID().intValue()
-        val insertedUnit = wcDao.fetchOneByCuid(UInteger.valueOf(cuid))
+        val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
         // Create the pod with the generated CUID
         val pod = KubernetesClientService.createPod(cuid)
@@ -136,9 +136,9 @@ class WorkflowComputingUnitManagingResource {
     withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
       val cuid = KubernetesClientService.parseCUIDFromURI(podURI)
-      val units = cuDao.fetchByCuid(UInteger.valueOf(cuid))
+      val units = cuDao.fetchByCuid(cuid)
 
-      units.forEach(unit => unit.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      units.forEach(unit => unit.setTerminateTime(new Timestamp(System.currentTimeMillis()).toLocalDateTime))
       cuDao.update(units)
     }
 

@@ -330,5 +330,13 @@ CREATE INDEX idx_dataset_version_name
     )
     );
 
+CREATE TABLE IF NOT EXISTS workflow_computing_unit (
+                                                       uid BIGINT NOT NULL,
+                                                       name VARCHAR(128) NOT NULL,
+    cuid INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    creation_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    terminate_time TIMESTAMP DEFAULT NULL
+    );
+
 -- Done!
 -- You now have a "texera_db" database schema matching the MySQL version as closely as possible.

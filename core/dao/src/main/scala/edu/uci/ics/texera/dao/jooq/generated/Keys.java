@@ -15,6 +15,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
@@ -33,6 +34,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectUserAccessRec
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.PublicProjectRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserConfigRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
+import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowExecutionsRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowOfProjectRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowOfUserRecord;
@@ -75,6 +77,7 @@ public class Keys {
     public static final UniqueKey<UserRecord> USER_PKEY = Internal.createUniqueKey(User.USER, DSL.name("user_pkey"), new TableField[] { User.USER.UID }, true);
     public static final UniqueKey<UserConfigRecord> USER_CONFIG_PKEY = Internal.createUniqueKey(UserConfig.USER_CONFIG, DSL.name("user_config_pkey"), new TableField[] { UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY }, true);
     public static final UniqueKey<WorkflowRecord> WORKFLOW_PKEY = Internal.createUniqueKey(Workflow.WORKFLOW, DSL.name("workflow_pkey"), new TableField[] { Workflow.WORKFLOW.WID }, true);
+    public static final UniqueKey<WorkflowComputingUnitRecord> WORKFLOW_COMPUTING_UNIT_PKEY = Internal.createUniqueKey(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT, DSL.name("workflow_computing_unit_pkey"), new TableField[] { WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.CUID }, true);
     public static final UniqueKey<WorkflowExecutionsRecord> WORKFLOW_EXECUTIONS_PKEY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, DSL.name("workflow_executions_pkey"), new TableField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.EID }, true);
     public static final UniqueKey<WorkflowOfProjectRecord> WORKFLOW_OF_PROJECT_PKEY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, DSL.name("workflow_of_project_pkey"), new TableField[] { WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID }, true);
     public static final UniqueKey<WorkflowOfUserRecord> WORKFLOW_OF_USER_PKEY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, DSL.name("workflow_of_user_pkey"), new TableField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID }, true);
