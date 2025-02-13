@@ -20,7 +20,7 @@ global:
   postgresql:
     auth:
       database: "texera_db"
-      user: "texera"
+      username: "texera"
       password: "texera"
 
 primary:
