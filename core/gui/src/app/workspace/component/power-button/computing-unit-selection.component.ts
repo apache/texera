@@ -8,6 +8,7 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {ActivatedRoute} from "@angular/router";
 
 @UntilDestroy()
 @Component({
@@ -27,7 +28,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowActionService: WorkflowActionService
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit(): void {
@@ -126,7 +127,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   onComputingUnitChange(newSelection: DashboardWorkflowComputingUnit | null): void {
     console.log("Selected computing unit changed to:", newSelection);
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    const wid = this.route.snapshot.params.id;
     if (newSelection && isDefined(wid)) {
       console.log(`Selected Unit URI: ${newSelection.uri}`);
       this.workflowWebsocketService.closeWebsocket()
