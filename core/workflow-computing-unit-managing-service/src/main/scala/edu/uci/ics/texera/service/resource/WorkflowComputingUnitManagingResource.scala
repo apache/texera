@@ -17,7 +17,7 @@ import java.sql.Timestamp
 object WorkflowComputingUnitManagingResource {
 
   private lazy val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   case class WorkflowComputingUnitCreationParams(name: String, unitType: String)
