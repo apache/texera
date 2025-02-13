@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
@@ -26,7 +25,7 @@ case class DashboardPublicProject(
 class PublicProjectResource {
 
   final private val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private lazy val publicProjectDao = new PublicProjectDao(context.configuration)
   final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)

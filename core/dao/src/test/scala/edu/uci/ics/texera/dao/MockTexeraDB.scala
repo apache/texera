@@ -82,8 +82,8 @@ trait MockTexeraDB {
     val texeraDB = embedded.getDatabase(username, database)
     executeScriptInJDBC(texeraDB.getConnection, removeCCommands(parts(1)))
 
-    val sqlServerInstance =
-      SqlServer.getInstance(embedded.getJdbcUrl(username, database), username, password)
+    SqlServer.initConnection(embedded.getJdbcUrl(username, database), username, password)
+    val sqlServerInstance = SqlServer.getInstance()
     dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))
 
     sqlServerInstance.replaceDSLContext(dslContext.get)

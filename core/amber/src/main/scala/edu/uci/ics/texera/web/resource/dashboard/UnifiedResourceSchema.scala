@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
@@ -29,7 +28,7 @@ object UnifiedResourceSchema {
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
 
   final lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   def apply(

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
@@ -24,7 +23,7 @@ object AuthResource {
 
   final private lazy val userDao = new UserDao(
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .configuration
   )
@@ -40,7 +39,7 @@ object AuthResource {
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
     Option(
       SqlServer
-        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .getInstance()
         .createDSLContext()
         .select()
         .from(USER)

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
@@ -12,7 +11,7 @@ import org.jooq._
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"

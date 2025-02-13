@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.admin.execution
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -19,7 +18,7 @@ import scala.jdk.CollectionConverters._
 
 object AdminExecutionResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   case class dashboardExecution(
