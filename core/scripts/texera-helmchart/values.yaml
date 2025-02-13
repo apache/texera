@@ -12,30 +12,20 @@ createNamespaces: false
 #  size: 10Gi
 #  path: /mnt/data/mysql # the path on the node that contains the pv
 #  node: minikube # the node that contains the pv
-
-postgresql:
+global:
   namespaceOverride: texera-dev
   enabled: true
+  storageClass: "nfs-client"
+  defaultStorageClass: "nfs-client"
+  postgresql:
+    auth:
+      database: "texera_db"
+      user: "texera"
+      password: "texera"
 
-  initdbScriptsConfigMap: postgres-init-script
-
-  global:
-    postgresql:
-      postgresqlDatabase: "texera_db"
-      postgresqlPassword: "texera"
-      postgresqlUsername: "texera"
-      servicePort: "5432"
-    storageClass: "nfs-client"
-    defaultStorageClass: "nfs-client"
-#  primary:
-#    startupProbe:
-#      initialDelaySeconds: 60
-#
-#    persistence:
-#      enabled: true
-#      existingClaim: mysql-pvc
-#
-#  architecture: standalone
+primary:
+  initdb:
+    scriptsConfigMap: postgres-init-script
 
 webserver:
   name: webserver

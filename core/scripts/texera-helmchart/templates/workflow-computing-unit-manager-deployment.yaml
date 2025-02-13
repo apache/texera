@@ -24,10 +24,10 @@ spec:
             - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
           env:
             - name: JDBC_URL
-              value: "jdbc:postgresql://{{ .Release.Name }}-postgresql.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.global.postgresql.postgresqlDatabase }}"
+              value: "jdbc:postgresql://{{ .Release.Name }}-postgresql.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.global.postgresql.auth.database }}"
             - name: JDBC_USERNAME
-              value: {{ .Values.postgresql.global.postgresql.postgresqlUsername }}
+              value: {{ .Values.global.postgresql.auth.user }}
             - name: JDBC_PASSWORD
-              value: {{ .Values.postgresql.global.postgresql.postgresqlPassword }}
+              value: {{ .Values.global.postgresql.auth.password }}
 {{/*            - name: MONGODB_URL*/}}
 {{/*              value: "mongodb://{{ .Release.Name }}-mongodb.{{ .Release.Namespace }}.svc.cluster.local:27017/{{ index .Values.mongodb.auth.databases 0 }}"*/}}
