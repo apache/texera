@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProject;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,12 +17,12 @@ public class Project implements IProject {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       pid;
-    private String        name;
-    private String        description;
-    private Integer       ownerId;
-    private LocalDateTime creationTime;
-    private String        color;
+    private Integer   pid;
+    private String    name;
+    private String    description;
+    private Integer   ownerId;
+    private Timestamp creationTime;
+    private String    color;
 
     public Project() {}
 
@@ -36,12 +36,12 @@ public class Project implements IProject {
     }
 
     public Project(
-        Integer       pid,
-        String        name,
-        String        description,
-        Integer       ownerId,
-        LocalDateTime creationTime,
-        String        color
+        Integer   pid,
+        String    name,
+        String    description,
+        Integer   ownerId,
+        Timestamp creationTime,
+        String    color
     ) {
         this.pid = pid;
         this.name = name;
@@ -119,7 +119,7 @@ public class Project implements IProject {
      * Getter for <code>texera_db.project.creation_time</code>.
      */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
@@ -127,7 +127,7 @@ public class Project implements IProject {
      * Setter for <code>texera_db.project.creation_time</code>.
      */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 

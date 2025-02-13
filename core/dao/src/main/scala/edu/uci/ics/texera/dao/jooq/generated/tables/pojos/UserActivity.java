@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUserActivity;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,12 +17,12 @@ public class UserActivity implements IUserActivity {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       uid;
-    private Integer       id;
-    private String        type;
-    private String        ip;
-    private String        activate;
-    private LocalDateTime activityTime;
+    private Integer   uid;
+    private Integer   id;
+    private String    type;
+    private String    ip;
+    private String    activate;
+    private Timestamp activityTime;
 
     public UserActivity() {}
 
@@ -36,12 +36,12 @@ public class UserActivity implements IUserActivity {
     }
 
     public UserActivity(
-        Integer       uid,
-        Integer       id,
-        String        type,
-        String        ip,
-        String        activate,
-        LocalDateTime activityTime
+        Integer   uid,
+        Integer   id,
+        String    type,
+        String    ip,
+        String    activate,
+        Timestamp activityTime
     ) {
         this.uid = uid;
         this.id = id;
@@ -135,7 +135,7 @@ public class UserActivity implements IUserActivity {
      * Getter for <code>texera_db.user_activity.activity_time</code>.
      */
     @Override
-    public LocalDateTime getActivityTime() {
+    public Timestamp getActivityTime() {
         return this.activityTime;
     }
 
@@ -143,7 +143,7 @@ public class UserActivity implements IUserActivity {
      * Setter for <code>texera_db.user_activity.activity_time</code>.
      */
     @Override
-    public void setActivityTime(LocalDateTime activityTime) {
+    public void setActivityTime(Timestamp activityTime) {
         this.activityTime = activityTime;
     }
 

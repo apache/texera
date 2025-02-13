@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
@@ -103,14 +103,14 @@ public class WorkflowComputingUnitDao extends DAOImpl<WorkflowComputingUnitRecor
      * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
      * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByCreationTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByCreationTime(Timestamp... values) {
         return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.CREATION_TIME, values);
     }
 
@@ -118,14 +118,14 @@ public class WorkflowComputingUnitDao extends DAOImpl<WorkflowComputingUnitRecor
      * Fetch records that have <code>terminate_time BETWEEN lowerInclusive AND
      * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfTerminateTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfTerminateTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>terminate_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByTerminateTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByTerminateTime(Timestamp... values) {
         return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME, values);
     }
 }

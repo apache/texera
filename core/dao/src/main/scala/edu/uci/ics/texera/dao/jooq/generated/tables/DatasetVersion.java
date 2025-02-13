@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetVersionRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -77,7 +77,7 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     /**
      * The column <code>texera_db.dataset_version.creation_time</code>.
      */
-    public final TableField<DatasetVersionRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<DatasetVersionRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     private DatasetVersion(Name alias, Table<DatasetVersionRecord> aliased) {
         this(alias, aliased, null);
@@ -175,7 +175,7 @@ public class DatasetVersion extends TableImpl<DatasetVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, Integer, Integer, String, String, LocalDateTime> fieldsRow() {
+    public Row6<Integer, Integer, Integer, String, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

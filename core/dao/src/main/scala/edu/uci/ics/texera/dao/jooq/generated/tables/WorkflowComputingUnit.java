@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
@@ -65,12 +65,12 @@ public class WorkflowComputingUnit extends TableImpl<WorkflowComputingUnitRecord
     /**
      * The column <code>texera_db.workflow_computing_unit.creation_time</code>.
      */
-    public final TableField<WorkflowComputingUnitRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<WorkflowComputingUnitRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.workflow_computing_unit.terminate_time</code>.
      */
-    public final TableField<WorkflowComputingUnitRecord, LocalDateTime> TERMINATE_TIME = createField(DSL.name("terminate_time"), SQLDataType.LOCALDATETIME(6), this, "");
+    public final TableField<WorkflowComputingUnitRecord, Timestamp> TERMINATE_TIME = createField(DSL.name("terminate_time"), SQLDataType.TIMESTAMP(0), this, "");
 
     private WorkflowComputingUnit(Name alias, Table<WorkflowComputingUnitRecord> aliased) {
         this(alias, aliased, null);
@@ -153,7 +153,7 @@ public class WorkflowComputingUnit extends TableImpl<WorkflowComputingUnitRecord
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<Long, String, Integer, LocalDateTime, LocalDateTime> fieldsRow() {
+    public Row5<Long, String, Integer, Timestamp, Timestamp> fieldsRow() {
         return (Row5) super.fieldsRow();
     }
 }

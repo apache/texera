@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -72,7 +72,7 @@ public class Project extends TableImpl<ProjectRecord> {
     /**
      * The column <code>texera_db.project.creation_time</code>.
      */
-    public final TableField<ProjectRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<ProjectRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.project.color</code>.
@@ -180,7 +180,7 @@ public class Project extends TableImpl<ProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, String, String, Integer, LocalDateTime, String> fieldsRow() {
+    public Row6<Integer, String, String, Integer, Timestamp, String> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowExecutions;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,18 +17,18 @@ public class WorkflowExecutions implements IWorkflowExecutions {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       eid;
-    private Integer       vid;
-    private Integer       uid;
-    private Short         status;
-    private String        result;
-    private LocalDateTime startingTime;
-    private LocalDateTime lastUpdateTime;
-    private Boolean       bookmarked;
-    private String        name;
-    private String        environmentVersion;
-    private String        logLocation;
-    private String        runtimeStatsUri;
+    private Integer   eid;
+    private Integer   vid;
+    private Integer   uid;
+    private Short     status;
+    private String    result;
+    private Timestamp startingTime;
+    private Timestamp lastUpdateTime;
+    private Boolean   bookmarked;
+    private String    name;
+    private String    environmentVersion;
+    private String    logLocation;
+    private String    runtimeStatsUri;
 
     public WorkflowExecutions() {}
 
@@ -48,18 +48,18 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     public WorkflowExecutions(
-        Integer       eid,
-        Integer       vid,
-        Integer       uid,
-        Short         status,
-        String        result,
-        LocalDateTime startingTime,
-        LocalDateTime lastUpdateTime,
-        Boolean       bookmarked,
-        String        name,
-        String        environmentVersion,
-        String        logLocation,
-        String        runtimeStatsUri
+        Integer   eid,
+        Integer   vid,
+        Integer   uid,
+        Short     status,
+        String    result,
+        Timestamp startingTime,
+        Timestamp lastUpdateTime,
+        Boolean   bookmarked,
+        String    name,
+        String    environmentVersion,
+        String    logLocation,
+        String    runtimeStatsUri
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -159,7 +159,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
      * Getter for <code>texera_db.workflow_executions.starting_time</code>.
      */
     @Override
-    public LocalDateTime getStartingTime() {
+    public Timestamp getStartingTime() {
         return this.startingTime;
     }
 
@@ -167,7 +167,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
      * Setter for <code>texera_db.workflow_executions.starting_time</code>.
      */
     @Override
-    public void setStartingTime(LocalDateTime startingTime) {
+    public void setStartingTime(Timestamp startingTime) {
         this.startingTime = startingTime;
     }
 
@@ -175,7 +175,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
      * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
     @Override
-    public LocalDateTime getLastUpdateTime() {
+    public Timestamp getLastUpdateTime() {
         return this.lastUpdateTime;
     }
 
@@ -183,7 +183,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
      * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
     @Override
-    public void setLastUpdateTime(LocalDateTime lastUpdateTime) {
+    public void setLastUpdateTime(Timestamp lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
     }
 

@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -67,12 +67,12 @@ public interface IUserActivity extends Serializable {
     /**
      * Setter for <code>texera_db.user_activity.activity_time</code>.
      */
-    public void setActivityTime(LocalDateTime value);
+    public void setActivityTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.user_activity.activity_time</code>.
      */
-    public LocalDateTime getActivityTime();
+    public Timestamp getActivityTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

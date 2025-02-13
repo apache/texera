@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
 import org.jooq.{Field, Record}
 
-import java.time.LocalDateTime
+import java.sql.Timestamp
 import scala.collection.mutable
 
 object UnifiedResourceSchema {
@@ -36,8 +36,8 @@ object UnifiedResourceSchema {
       resourceType: Field[String] = DSL.inline(""),
       name: Field[String] = DSL.inline(""),
       description: Field[String] = DSL.inline(""),
-      creationTime: Field[LocalDateTime] = DSL.cast(null, classOf[LocalDateTime]),
-      lastModifiedTime: Field[LocalDateTime] = DSL.cast(null, classOf[LocalDateTime]),
+      creationTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
+      lastModifiedTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
       ownerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       wid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       workflowUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),

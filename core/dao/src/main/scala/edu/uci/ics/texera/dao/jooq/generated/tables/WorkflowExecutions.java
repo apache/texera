@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowExecutionsRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -77,12 +77,12 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     /**
      * The column <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, LocalDateTime> STARTING_TIME = createField(DSL.name("starting_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> STARTING_TIME = createField(DSL.name("starting_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, LocalDateTime> LAST_UPDATE_TIME = createField(DSL.name("last_update_time"), SQLDataType.LOCALDATETIME(6), this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> LAST_UPDATE_TIME = createField(DSL.name("last_update_time"), SQLDataType.TIMESTAMP(0), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.bookmarked</code>.
@@ -220,7 +220,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row12<Integer, Integer, Integer, Short, String, LocalDateTime, LocalDateTime, Boolean, String, String, String, String> fieldsRow() {
+    public Row12<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String> fieldsRow() {
         return (Row12) super.fieldsRow();
     }
 }

@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowComputingUnit;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,11 +17,11 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
 
     private static final long serialVersionUID = 1L;
 
-    private Long          uid;
-    private String        name;
-    private Integer       cuid;
-    private LocalDateTime creationTime;
-    private LocalDateTime terminateTime;
+    private Long      uid;
+    private String    name;
+    private Integer   cuid;
+    private Timestamp creationTime;
+    private Timestamp terminateTime;
 
     public WorkflowComputingUnit() {}
 
@@ -34,11 +34,11 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
     }
 
     public WorkflowComputingUnit(
-        Long          uid,
-        String        name,
-        Integer       cuid,
-        LocalDateTime creationTime,
-        LocalDateTime terminateTime
+        Long      uid,
+        String    name,
+        Integer   cuid,
+        Timestamp creationTime,
+        Timestamp terminateTime
     ) {
         this.uid = uid;
         this.name = name;
@@ -99,7 +99,7 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
      * Getter for <code>texera_db.workflow_computing_unit.creation_time</code>.
      */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
@@ -107,7 +107,7 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
      * Setter for <code>texera_db.workflow_computing_unit.creation_time</code>.
      */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 
@@ -115,7 +115,7 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
      * Getter for <code>texera_db.workflow_computing_unit.terminate_time</code>.
      */
     @Override
-    public LocalDateTime getTerminateTime() {
+    public Timestamp getTerminateTime() {
         return this.terminateTime;
     }
 
@@ -123,7 +123,7 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
      * Setter for <code>texera_db.workflow_computing_unit.terminate_time</code>.
      */
     @Override
-    public void setTerminateTime(LocalDateTime terminateTime) {
+    public void setTerminateTime(Timestamp terminateTime) {
         this.terminateTime = terminateTime;
     }
 

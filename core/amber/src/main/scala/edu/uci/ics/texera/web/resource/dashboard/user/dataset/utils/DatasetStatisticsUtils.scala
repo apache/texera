@@ -6,7 +6,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
 
-import java.sql.Timestamp
 import scala.jdk.CollectionConverters._
 
 object DatasetStatisticsUtils {
@@ -42,7 +41,7 @@ object DatasetStatisticsUtils {
         DatasetQuota(
           did = record.getValue(DATASET.DID),
           name = record.getValue(DATASET.NAME),
-          creationTime = Timestamp.valueOf(record.getValue(DATASET.CREATION_TIME)).getTime,
+          creationTime = record.getValue(DATASET.CREATION_TIME).getTime,
           size = 0
         )
       )

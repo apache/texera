@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -67,22 +67,22 @@ public interface IWorkflowExecutions extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public void setStartingTime(LocalDateTime value);
+    public void setStartingTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public LocalDateTime getStartingTime();
+    public Timestamp getStartingTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public void setLastUpdateTime(LocalDateTime value);
+    public void setLastUpdateTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public LocalDateTime getLastUpdateTime();
+    public Timestamp getLastUpdateTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.bookmarked</code>.

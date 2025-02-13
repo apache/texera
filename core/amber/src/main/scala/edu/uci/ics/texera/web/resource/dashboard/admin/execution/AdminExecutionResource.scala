@@ -2,13 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard.admin.execution
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
 
-import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -175,14 +174,13 @@ class AdminExecutionResource {
     executions
       .map(workflowRecord => {
         val startingTime =
-          Timestamp.valueOf(workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME)).getTime
+          workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
 
         var lastUpdateTime: Long = 0
         if (workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME) == null) {
           lastUpdateTime = 0
         } else {
-          lastUpdateTime =
-            Timestamp.valueOf(workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)).getTime
+          lastUpdateTime = workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME).getTime
         }
 
         val timeDifferenceSeconds = (lastUpdateTime - startingTime) / 1000.0

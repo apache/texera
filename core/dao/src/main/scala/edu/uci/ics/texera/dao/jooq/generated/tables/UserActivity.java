@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserActivityRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
@@ -72,7 +72,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.activity_time</code>.
      */
-    public final TableField<UserActivityRecord, LocalDateTime> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<UserActivityRecord, Timestamp> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     private UserActivity(Name alias, Table<UserActivityRecord> aliased) {
         this(alias, aliased, null);
@@ -143,7 +143,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, Integer, String, String, String, LocalDateTime> fieldsRow() {
+    public Row6<Integer, Integer, String, String, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

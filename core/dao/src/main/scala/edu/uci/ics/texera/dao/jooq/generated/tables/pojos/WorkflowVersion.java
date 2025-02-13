@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowVersion;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,10 +17,10 @@ public class WorkflowVersion implements IWorkflowVersion {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       vid;
-    private Integer       wid;
-    private String        content;
-    private LocalDateTime creationTime;
+    private Integer   vid;
+    private Integer   wid;
+    private String    content;
+    private Timestamp creationTime;
 
     public WorkflowVersion() {}
 
@@ -32,10 +32,10 @@ public class WorkflowVersion implements IWorkflowVersion {
     }
 
     public WorkflowVersion(
-        Integer       vid,
-        Integer       wid,
-        String        content,
-        LocalDateTime creationTime
+        Integer   vid,
+        Integer   wid,
+        String    content,
+        Timestamp creationTime
     ) {
         this.vid = vid;
         this.wid = wid;
@@ -95,7 +95,7 @@ public class WorkflowVersion implements IWorkflowVersion {
      * Getter for <code>texera_db.workflow_version.creation_time</code>.
      */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
@@ -103,7 +103,7 @@ public class WorkflowVersion implements IWorkflowVersion {
      * Setter for <code>texera_db.workflow_version.creation_time</code>.
      */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 

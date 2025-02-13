@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetVersion;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,12 +17,12 @@ public class DatasetVersion implements IDatasetVersion {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       dvid;
-    private Integer       did;
-    private Integer       creatorUid;
-    private String        name;
-    private String        versionHash;
-    private LocalDateTime creationTime;
+    private Integer   dvid;
+    private Integer   did;
+    private Integer   creatorUid;
+    private String    name;
+    private String    versionHash;
+    private Timestamp creationTime;
 
     public DatasetVersion() {}
 
@@ -36,12 +36,12 @@ public class DatasetVersion implements IDatasetVersion {
     }
 
     public DatasetVersion(
-        Integer       dvid,
-        Integer       did,
-        Integer       creatorUid,
-        String        name,
-        String        versionHash,
-        LocalDateTime creationTime
+        Integer   dvid,
+        Integer   did,
+        Integer   creatorUid,
+        String    name,
+        String    versionHash,
+        Timestamp creationTime
     ) {
         this.dvid = dvid;
         this.did = did;
@@ -135,7 +135,7 @@ public class DatasetVersion implements IDatasetVersion {
      * Getter for <code>texera_db.dataset_version.creation_time</code>.
      */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
@@ -143,7 +143,7 @@ public class DatasetVersion implements IDatasetVersion {
      * Setter for <code>texera_db.dataset_version.creation_time</code>.
      */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 
