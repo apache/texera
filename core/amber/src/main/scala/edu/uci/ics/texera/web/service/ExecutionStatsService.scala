@@ -14,7 +14,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
-import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.{
@@ -85,8 +84,10 @@ class ExecutionStatsService(
               val metrics = x._2
               val res = OperatorAggregatedMetrics(
                 Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputCount.map(_.tupleCount).sum,
-                metrics.operatorStatistics.outputCount.map(_.tupleCount).sum,
+                metrics.operatorStatistics.inputCount.map(_.value).sum,
+                metrics.operatorStatistics.inputSize.map(_.value).sum,
+                metrics.operatorStatistics.outputCount.map(_.value).sum,
+                metrics.operatorStatistics.outputSize.map(_.value).sum,
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
                 metrics.operatorStatistics.controlProcessingTime,
@@ -170,7 +171,7 @@ class ExecutionStatsService(
     // Default metrics for new operators
     val defaultMetrics = OperatorMetrics(
       WorkflowAggregatedState.UNINITIALIZED,
-      OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
+      OperatorStatistics(Seq.empty, Seq.empty, Seq.empty, Seq.empty, 0, 0, 0, 0)
     )
 
     // Retrieve the last persisted metrics or default to an empty map
@@ -187,18 +188,21 @@ class ExecutionStatsService(
     val completeMetricsMap = newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
 
     // Transform the complete metrics map to ensure consistent structure
-    completeMetricsMap.map { case (key, metrics) =>
-      key -> OperatorMetrics(
-        metrics.operatorState,
-        OperatorStatistics(
-          metrics.operatorStatistics.inputCount,
-          metrics.operatorStatistics.outputCount,
-          metrics.operatorStatistics.numWorkers,
-          metrics.operatorStatistics.dataProcessingTime,
-          metrics.operatorStatistics.controlProcessingTime,
-          metrics.operatorStatistics.idleTime
+    completeMetricsMap.map {
+      case (key, metrics) =>
+        key -> OperatorMetrics(
+          metrics.operatorState,
+          OperatorStatistics(
+            metrics.operatorStatistics.inputCount,
+            metrics.operatorStatistics.inputSize,
+            metrics.operatorStatistics.outputCount,
+            metrics.operatorStatistics.outputSize,
+            metrics.operatorStatistics.numWorkers,
+            metrics.operatorStatistics.dataProcessingTime,
+            metrics.operatorStatistics.controlProcessingTime,
+            metrics.operatorStatistics.idleTime
+          )
         )
-      )
     }
   }
 
@@ -215,8 +219,10 @@ class ExecutionStatsService(
                 Array(
                   operatorId,
                   new java.sql.Timestamp(System.currentTimeMillis()),
-                  stat.operatorStatistics.inputCount.map(_.tupleCount).sum,
-                  stat.operatorStatistics.outputCount.map(_.tupleCount).sum,
+                  stat.operatorStatistics.inputCount.map(_.value).sum,
+                  stat.operatorStatistics.inputSize.map(_.value).sum,
+                  stat.operatorStatistics.outputCount.map(_.value).sum,
+                  stat.operatorStatistics.outputSize.map(_.value).sum,
                   stat.operatorStatistics.dataProcessingTime,
                   stat.operatorStatistics.controlProcessingTime,
                   stat.operatorStatistics.idleTime,

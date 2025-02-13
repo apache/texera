@@ -1,40 +1,40 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.core.executor.{OperatorExecutor, SinkOperatorExecutor}
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{
-  PortTupleCountMapping,
-  WorkerStatistics
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleMetrics, WorkerStatistics}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 
 class StatisticsManager {
   // DataProcessor
-  private var inputTupleCount: mutable.Map[PortIdentity, Long] = mutable.Map()
-  private var outputTupleCount: mutable.Map[PortIdentity, Long] = mutable.Map()
-  private var dataProcessingTime: Long = 0
-  private var totalExecutionTime: Long = 0
-  private var workerStartTime: Long = 0
+  private val inputTupleCount = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
+  private val inputTupleSize = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
+  private val outputTupleCount = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
+  private val outputTupleSize = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
+  private var dataProcessingTime: Long = 0L
+  private var totalExecutionTime: Long = 0L
+  private var workerStartTime: Long = 0L
 
   // AmberProcessor
-  private var controlProcessingTime: Long = 0
+  private var controlProcessingTime: Long = 0L
 
   def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
-    // sink operator doesn't output to downstream so internal count is 0
-    // but for user-friendliness we show its input count as output count
-    val displayOut = operator match {
-      case sink: SinkOperatorExecutor =>
-        inputTupleCount
-      case _ =>
-        outputTupleCount
+    val (userFriendlyOutputTupleCount, userFriendlyOutputTupleSize) = operator match {
+      case _: SinkOperatorExecutor => (inputTupleCount, inputTupleSize)
+      case _                       => (outputTupleCount, outputTupleSize)
     }
+
     WorkerStatistics(
       inputTupleCount.map {
-        case (portId, tupleCount) => new PortTupleCountMapping(portId, tupleCount)
+        case (portId, tupleCount) => PortTupleMetrics(portId, tupleCount)
       }.toSeq,
-      displayOut.map {
-        case (portId, tupleCount) => new PortTupleCountMapping(portId, tupleCount)
+      inputTupleSize.map { case (portId, tupleSize) => PortTupleMetrics(portId, tupleSize) }.toSeq,
+      userFriendlyOutputTupleCount.map {
+        case (portId, tupleCount) => PortTupleMetrics(portId, tupleCount)
+      }.toSeq,
+      userFriendlyOutputTupleSize.map {
+        case (portId, tupleSize) => PortTupleMetrics(portId, tupleSize)
       }.toSeq,
       dataProcessingTime,
       controlProcessingTime,
@@ -47,13 +47,19 @@ class StatisticsManager {
   def getOutputTupleCount: Long = outputTupleCount.values.sum
 
   def increaseInputTupleCount(portId: PortIdentity): Unit = {
-    inputTupleCount.getOrElseUpdate(portId, 0)
     inputTupleCount(portId) += 1
   }
 
+  def increaseInputTupleSize(portId: PortIdentity, size: Long): Unit = {
+    inputTupleSize(portId) += size
+  }
+
   def increaseOutputTupleCount(portId: PortIdentity): Unit = {
-    outputTupleCount.getOrElseUpdate(portId, 0)
     outputTupleCount(portId) += 1
+  }
+
+  def increaseOutputTupleSize(portId: PortIdentity, size: Long): Unit = {
+    outputTupleSize(portId) += size
   }
 
   def increaseDataProcessingTime(time: Long): Unit = {

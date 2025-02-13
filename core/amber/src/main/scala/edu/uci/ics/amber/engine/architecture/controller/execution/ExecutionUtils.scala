@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
+import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleMetrics
 import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 
 object ExecutionUtils {
@@ -10,6 +10,14 @@ object ExecutionUtils {
     * Handle the case when a logical operator has two physical operators within a same region (e.g., Aggregate operator)
     */
   def aggregateMetrics(metrics: Iterable[OperatorMetrics]): OperatorMetrics = {
+    if (metrics.isEmpty) {
+      // Return a default OperatorMetrics if metrics are empty
+      return OperatorMetrics(
+        WorkflowAggregatedState.UNINITIALIZED,
+        OperatorStatistics(Seq.empty, Seq.empty, Seq.empty, Seq.empty, 0, 0, 0, 0)
+      )
+    }
+
     val aggregatedState = aggregateStates(
       metrics.map(_.operatorState),
       WorkflowAggregatedState.COMPLETED,
@@ -19,26 +27,24 @@ object ExecutionUtils {
       WorkflowAggregatedState.READY
     )
 
-    val inputCountSum = metrics
-      .flatMap(_.operatorStatistics.inputCount)
-      .filter(!_.portId.internal)
-      .groupBy(_.portId)
-      .map {
-        case (k, v) =>
-          k -> v.map(_.tupleCount).sum
-      }
-      .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
-      .toSeq
-    val outputCountSum = metrics
-      .flatMap(_.operatorStatistics.outputCount)
-      .filter(!_.portId.internal)
-      .groupBy(_.portId)
-      .map {
-        case (k, v) =>
-          k -> v.map(_.tupleCount).sum
-      }
-      .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
-      .toSeq
+    def sumMetrics(
+        extractor: OperatorMetrics => Iterable[PortTupleMetrics]
+    ): Seq[PortTupleMetrics] = {
+      metrics
+        .flatMap(extractor)
+        .filterNot(_.portId.internal)
+        .groupBy(_.portId)
+        .view
+        .mapValues(_.map(_.value).sum)
+        .map { case (portId, sum) => PortTupleMetrics(portId, sum) }
+        .toSeq
+    }
+
+    val inputCountSum = sumMetrics(_.operatorStatistics.inputCount)
+    val inputSizeSum = sumMetrics(_.operatorStatistics.inputSize)
+    val outputCountSum = sumMetrics(_.operatorStatistics.outputCount)
+    val outputSizeSum = sumMetrics(_.operatorStatistics.outputSize)
+
     val numWorkersSum = metrics.map(_.operatorStatistics.numWorkers).sum
     val dataProcessingTimeSum = metrics.map(_.operatorStatistics.dataProcessingTime).sum
     val controlProcessingTimeSum = metrics.map(_.operatorStatistics.controlProcessingTime).sum
@@ -48,7 +54,9 @@ object ExecutionUtils {
       aggregatedState,
       OperatorStatistics(
         inputCountSum,
+        inputSizeSum,
         outputCountSum,
+        outputSizeSum,
         numWorkersSum,
         dataProcessingTimeSum,
         controlProcessingTimeSum,
@@ -65,23 +73,21 @@ object ExecutionUtils {
       pausedState: T,
       readyState: T
   ): WorkflowAggregatedState = {
-    if (states.isEmpty) {
-      WorkflowAggregatedState.UNINITIALIZED
-    } else if (states.forall(_ == completedState)) {
-      WorkflowAggregatedState.COMPLETED
-    } else if (states.exists(_ == runningState)) {
-      WorkflowAggregatedState.RUNNING
-    } else {
-      val unCompletedStates = states.filter(_ != completedState)
-      if (unCompletedStates.forall(_ == uninitializedState)) {
-        WorkflowAggregatedState.UNINITIALIZED
-      } else if (unCompletedStates.forall(_ == pausedState)) {
-        WorkflowAggregatedState.PAUSED
-      } else if (unCompletedStates.forall(_ == readyState)) {
-        WorkflowAggregatedState.RUNNING
-      } else {
-        WorkflowAggregatedState.UNKNOWN
-      }
+    states match {
+      case _ if states.isEmpty                     => WorkflowAggregatedState.UNINITIALIZED
+      case _ if states.forall(_ == completedState) => WorkflowAggregatedState.COMPLETED
+      case _ if states.exists(_ == runningState)   => WorkflowAggregatedState.RUNNING
+      case _ =>
+        val unCompletedStates = states.filter(_ != completedState)
+        if (unCompletedStates.forall(_ == uninitializedState)) {
+          WorkflowAggregatedState.UNINITIALIZED
+        } else if (unCompletedStates.forall(_ == pausedState)) {
+          WorkflowAggregatedState.PAUSED
+        } else if (unCompletedStates.forall(_ == readyState)) {
+          WorkflowAggregatedState.RUNNING
+        } else {
+          WorkflowAggregatedState.UNKNOWN
+        }
     }
   }
 }
