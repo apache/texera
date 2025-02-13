@@ -22,7 +22,8 @@ global:
       database: "texera_db"
       username: "texera"
       password: "texera"
-
+image:
+  debug: true
 primary:
   initdb:
     scriptsConfigMap: postgres-init-script
