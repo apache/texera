@@ -115,13 +115,4 @@ export class WorkflowWebsocketService {
       if (isDefined(cuId)) this.connectedCuid = cuId;
     });
   }
-
-  public reopenWebsocket(wId: number, cuId?: number) {
-    if (this.isConnected && this.connectedWid === wId && isDefined(cuId) && this.connectedCuid == cuId) {
-      // prevent reconnections
-      return;
-    }
-    this.closeWebsocket();
-    this.openWebsocket(wId, undefined, cuId);
-  }
 }

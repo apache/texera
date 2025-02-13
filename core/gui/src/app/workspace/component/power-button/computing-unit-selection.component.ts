@@ -31,7 +31,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.refreshComputingUnits();
+    this.computingUnitService.listComputingUnits().subscribe({
+      next: (units: DashboardWorkflowComputingUnit[]) => {
+        let firstRunningUnit = units.find(unit => unit.status === "Running")
+        if(firstRunningUnit){
+          this.onComputingUnitChange(firstRunningUnit);
+        }
+        this.updateComputingUnits(units);
+        this.refreshComputingUnits();
+      },
+      error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+    })
   }
 
   /**
@@ -119,10 +129,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
     if (newSelection && isDefined(wid)) {
       console.log(`Selected Unit URI: ${newSelection.uri}`);
-      this.workflowWebsocketService.reopenWebsocket(wid, newSelection.computingUnit.cuid);
+      this.workflowWebsocketService.closeWebsocket()
+      this.workflowWebsocketService.openWebsocket(wid, newSelection.computingUnit.cuid);
     } else {
-      console.log("Selection cleared.");
-      this.workflowWebsocketService.closeWebsocket();
+      console.log("No valid selection, keep the current websocket.");
     }
   }
 
