@@ -5,10 +5,11 @@ metadata:
   name: {{ .Release.Name }}-ingress
   namespace: {{ .Values.namespace }}
   annotations:
+    cert-manager.io/issuer: {{ .Values.certManager.issuer }}
     # nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: rke2-ingress-nginx
   rules:
     - host: {{ .Values.ingressPaths.hostname }}
       http:
@@ -22,4 +23,8 @@ spec:
                 port:
                   number: {{ .servicePort }}
           {{- end }}
+  tls:
+    - hosts:
+        - {{ .Values.ingressPaths.hostname }}
+      secretName: {{ .Values.tlsSecretName }}
 {{- end }}

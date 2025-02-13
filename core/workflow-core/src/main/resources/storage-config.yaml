@@ -27,6 +27,6 @@ storage:
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
   jdbc:
-    url: "jdbc:postgresql://localhost:5432/texera_db"
-    username: ""
-    password: ""
+    url: "jdbc:postgresql://texera-staging-chart-postgres:5432/texera_db"
+    username: "texera"
+    password: "texera"

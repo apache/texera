@@ -9,7 +9,6 @@ spec:
   capacity:
     storage: {{ .Values.webserver.volume.size }}
   accessModes: {{ toYaml .Values.webserver.volume.accessModes | nindent 2 }}
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
   storageClassName: {{ .Values.webserver.volume.storageClassName }}
-  hostPath:
-    path: {{ .Values.webserver.volume.hostPath }}
+  volumeMode: Filesystem

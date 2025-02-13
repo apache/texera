@@ -1,1 +1,1 @@
- docker build -t bobbai/texera-webserver:dev-usersys -f core/amber/webserver.dockerfile .
+ docker build -t shengqun/texera-webserver:dev-usersys --no-cache -f core/amber/webserver.dockerfile .

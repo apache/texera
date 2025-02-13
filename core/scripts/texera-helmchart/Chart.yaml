@@ -29,6 +29,6 @@ dependencies:
     version: 4.11.3
     repository: https://kubernetes.github.io/ingress-nginx
 
-  - name: mysql
-    version: 11.1.14
+  - name: postgresql
+    version: "16.4.7"
     repository: https://charts.bitnami.com/bitnami

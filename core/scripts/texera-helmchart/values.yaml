@@ -1,6 +1,6 @@
 namespace: texera-dev
 
-createNamespaces: true
+createNamespaces: false
 
 # Part 1: the configuration of mongodb and mysql
 # We use external charts from bitnami, and pass the values stated below to them.
@@ -13,18 +13,20 @@ createNamespaces: true
 #  path: /mnt/data/mysql # the path on the node that contains the pv
 #  node: minikube # the node that contains the pv
 
-mysql:
+postgresql:
   namespaceOverride: texera-dev
-  image:
-    debug: true
+  enabled: true
 
-  initdbScriptsConfigMap: mysql-init-script
-  auth:
-    rootPassword: texera
-    database: texera_db
-    username: texera
-    password: texera
+  initdbScriptsConfigMap: postgres-init-script
 
+  global:
+    postgresql:
+      postgresqlDatabase: "texera_db"
+      postgresqlPassword: "texera"
+      postgresqlUsername: "texera"
+      servicePort: "5432"
+    storageClass: "nfs-client"
+    defaultStorageClass: "nfs-client"
 #  primary:
 #    startupProbe:
 #      initialDelaySeconds: 60
@@ -37,8 +39,9 @@ mysql:
 
 webserver:
   name: webserver
-  numOfPods: 3  # Number of pods for the Texera deployment
-  imageName: bobbai/texera-webserver:dev-usersys # image name of the texera
+  numOfPods: 1  # Number of pods for the Texera deployment
+  imageName: shengqun/texera-webserver:dev-usersys # image name of the texera
+  imagePullPolicy: Always
   service:
     type: NodePort # for testing purpose, NodePort mode is fine
     port: 8080 # port of the pod
@@ -46,9 +49,8 @@ webserver:
   volume:
     enabled: true
     size: 10Gi
-    hostPath: /mnt/data/webserver # Path on the host machine
     mountPath: /core/amber/user-resources # Path inside the container
-    storageClassName: manual
+    storageClassName: nfs-client
     accessModes:
       - ReadWriteMany
 
@@ -56,7 +58,8 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: bobbai/texera-workflow-computing-unit-managing-service:dev
+  imageName: shengqun/texera-workflow-computing-unit-managing-service:dev
+  imagePullPolicy: Always
   service:
     type: NodePort # for testing purpose, NodePort mode is fine
     port: 8888 # port of the pod
@@ -65,7 +68,8 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: bobbai/texera-workflow-compiling-service:dev
+  imageName: shengqun/texera-workflow-compiling-service:dev
+  imagePullPolicy: Always
   service:
     type: NodePort
     port: 9090
@@ -74,8 +78,8 @@ workflowCompilingService:
 workflowComputingUnit:
   name: workflow-computing-unit
   numOfPods: 1
-  imageName: bobbai/texera-workflow-computing-unit:dev
-
+  imageName: shengqun/texera-workflow-computing-unit:dev
+  imagePullPolicy: Always
 
 # Config required for envoy and workflow pods
 envoy:
@@ -95,7 +99,6 @@ envoy:
 # each pod's url is: computing-unit-%cuid.workflow-computing-unit.workflow-computing-unit-pool.svc.cluster.local
 workflowComputingUnitPool:
   name: workflow-computing-unit
-  namespace: workflow-computing-unit-pool
   service:
     port: 8085
     targetPort: 8085
@@ -110,7 +113,7 @@ ingress-nginx:
       nodePorts:
         http: 30080
     ingressClassResource:
-      name: nginx
+      name: rke2-ingress-nginx
       enabled: true
     resources:
       limits:
@@ -126,7 +129,7 @@ ingress-nginx:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
-  hostname: "texera.example.com"
+  hostname: "staging.texera.io"
   paths:
     - path: /api/computing-unit
       serviceName: workflow-computing-unit-manager-svc
@@ -143,3 +146,7 @@ ingressPaths:
     - path: /
       serviceName: webserver-svc
       servicePort: 8080
+
+certManager:
+  issuer: letsencrypt-prod
+tlsSecretName: staging-tls-secret

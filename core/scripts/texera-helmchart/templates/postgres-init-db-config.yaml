@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mysql-init-script
+  name: postgres-init-script
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Release.Name }}

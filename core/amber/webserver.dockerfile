@@ -27,8 +27,8 @@ RUN rm -rf amber/user-resources/*
 
 RUN apt-get update
 RUN apt-get install -y netcat unzip python3-pip
-RUN pip3 install python-lsp-server python-lsp-server[websockets]
-RUN pip3 install -r amber/requirements.txt
+#RUN pip3 install python-lsp-server python-lsp-server[websockets]
+#RUN pip3 install -r amber/requirements.txt
 
 WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion

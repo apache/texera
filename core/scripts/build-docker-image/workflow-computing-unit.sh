@@ -1,1 +1,1 @@
- docker build -t bobbai/texera-workflow-computing-unit:dev -f core/amber/computing-unit.dockerfile .
+ docker build -t shengqun/texera-workflow-computing-unit:dev --no-cache -f core/amber/computing-unit.dockerfile .

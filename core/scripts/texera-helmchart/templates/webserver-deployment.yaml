@@ -22,15 +22,16 @@ spec:
       containers:
         - name: {{ .Values.webserver.name }}
           image: {{ .Values.webserver.imageName }}
+          imagePullPolicy: {{ .Values.webserver.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.webserver.service.port }}
           env:
             - name: JDBC_URL
-              value: "jdbc:mysql://{{ .Release.Name }}-mysql.{{ .Values.namespace }}.svc.cluster.local:3306/{{ .Values.mysql.auth.database }}"
+              value: "jdbc:postgresql://{{ .Release.Name }}-postgresql-headless.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.global.postgresql.postgresqlDatabase }}"
             - name: JDBC_USERNAME
-              value: {{ .Values.mysql.auth.username }}
+              value: {{ .Values.postgresql.global.postgresql.postgresqlUsername }}
             - name: JDBC_PASSWORD
-              value: {{ .Values.mysql.auth.password }}
+              value: {{ .Values.postgresql.global.postgresql.postgresqlPassword }}
           volumeMounts:
             - name: {{ .Values.webserver.name }}-pv
               mountPath: {{ .Values.webserver.volume.mountPath }} # Specify the mount path in the container

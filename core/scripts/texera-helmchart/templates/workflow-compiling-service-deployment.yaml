@@ -18,6 +18,7 @@ spec:
       containers:
         - name: {{ .Values.workflowCompilingService.name }}
           image: {{ .Values.workflowCompilingService.imageName }}
+          imagePullPolicy: {{ .Values.workflowCompilingService.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.workflowCompilingService.service.port }}
           env:
