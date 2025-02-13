@@ -118,8 +118,8 @@ class DefaultCostEstimator(
         .foldLeft(Map.empty[String, Double]) { (acc, tuple) =>
           val record = tuple.asInstanceOf[Tuple]
           val operatorId = record.getField(0).asInstanceOf[String]
-          val dataProcessingTime = record.getField(4).asInstanceOf[Long]
-          val controlProcessingTime = record.getField(5).asInstanceOf[Long]
+          val dataProcessingTime = record.getField(6).asInstanceOf[Long]
+          val controlProcessingTime = record.getField(7).asInstanceOf[Long]
           val opTotalExecutionTime = acc.getOrElse(operatorId, 0.0)
           acc + (operatorId -> (opTotalExecutionTime + (dataProcessingTime + controlProcessingTime) / 1e9))
         }
