@@ -309,8 +309,8 @@ class DefaultCostEstimatorSpec
 
     val groupByRegionCost = costEstimator.estimate(groupByRegion, 1)
 
-    val groupByOperatorCost = (groupByOpRuntimeStatistics.getField(4).asInstanceOf[Long] +
-      groupByOpRuntimeStatistics.getField(5).asInstanceOf[Long]) / 1e9
+    val groupByOperatorCost = (groupByOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
+      groupByOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
     // The cost of the first region should be the cost of the GroupBy operator (note the two physical operators for
     // the GroupBy logical operator have the same cost because we use logical operator in the statistics.
@@ -319,8 +319,8 @@ class DefaultCostEstimatorSpec
 
     val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
 
-    val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(4).asInstanceOf[Long] +
-      keywordOpRuntimeStatistics.getField(5).asInstanceOf[Long]) / 1e9
+    val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
+      keywordOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
     // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
     // logical operator as the keyword operator.

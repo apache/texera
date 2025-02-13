@@ -546,9 +546,7 @@ class TestMainLoop:
                         PortIdentity(0),
                         TupleMetrics(
                             1,
-                            elem.payload.return_invocation.return_value.worker_metrics_response.metrics.worker_statistics.input_tuple_metrics[
-                                0
-                            ].tuple_metrics.size,
+                            stats.input_tuple_metrics[0].tuple_metrics.size,
                         ),
                     )
                 ],
@@ -557,9 +555,7 @@ class TestMainLoop:
                         PortIdentity(0),
                         TupleMetrics(
                             1,
-                            elem.payload.return_invocation.return_value.worker_metrics_response.metrics.worker_statistics.output_tuple_metrics[
-                                0
-                            ].tuple_metrics.size,
+                            stats.output_tuple_metrics[0].tuple_metrics.size,
                         ),
                     )
                 ],
