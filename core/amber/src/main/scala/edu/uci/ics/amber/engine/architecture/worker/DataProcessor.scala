@@ -82,8 +82,7 @@ class DataProcessor(
         )
       )
 
-      statisticsManager.increaseInputTupleCount(portIdentity)
-      statisticsManager.increaseInputTupleSize(portIdentity, tuple.inMemSize)
+      statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
 
     } catch safely {
       case e =>
@@ -188,8 +187,7 @@ class DataProcessor(
       case schemaEnforceable: SchemaEnforceable =>
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
         val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
-        statisticsManager.increaseOutputTupleCount(portIdentity)
-        statisticsManager.increaseOutputTupleSize(portIdentity, tuple.inMemSize)
+        statisticsManager.increaseOutputStatistics(portIdentity, tuple.inMemSize)
         outputManager.passTupleToDownstream(tuple, outputPortOpt)
 
       case other => // skip for now

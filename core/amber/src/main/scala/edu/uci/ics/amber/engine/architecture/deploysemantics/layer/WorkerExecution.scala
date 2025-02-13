@@ -16,7 +16,7 @@ case class WorkerExecution() extends Serializable {
 
   private var state: WorkerState = UNINITIALIZED
   private var stats: WorkerStatistics =
-    WorkerStatistics(Seq.empty, Seq.empty, Seq.empty, Seq.empty, 0, 0, 0)
+    WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
 
   def getState: WorkerState = state
 

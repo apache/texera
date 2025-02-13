@@ -1,7 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleMetrics
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  TupleMetrics
+}
 import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 
 object ExecutionUtils {
@@ -14,7 +17,7 @@ object ExecutionUtils {
       // Return a default OperatorMetrics if metrics are empty
       return OperatorMetrics(
         WorkflowAggregatedState.UNINITIALIZED,
-        OperatorStatistics(Seq.empty, Seq.empty, Seq.empty, Seq.empty, 0, 0, 0, 0)
+        OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
       )
     }
 
@@ -28,22 +31,14 @@ object ExecutionUtils {
     )
 
     def sumMetrics(
-        extractor: OperatorMetrics => Iterable[PortTupleMetrics]
-    ): Seq[PortTupleMetrics] = {
-      metrics
-        .flatMap(extractor)
-        .filterNot(_.portId.internal)
-        .groupBy(_.portId)
-        .view
-        .mapValues(_.map(_.value).sum)
-        .map { case (portId, sum) => PortTupleMetrics(portId, sum) }
-        .toSeq
+        extractor: OperatorMetrics => Iterable[PortTupleMetricsMapping]
+    ): Seq[PortTupleMetricsMapping] = {
+      val filteredMetrics = metrics.flatMap(extractor).filterNot(_.portId.internal)
+      aggregatePortMetrics(filteredMetrics)
     }
 
-    val inputCountSum = sumMetrics(_.operatorStatistics.inputCount)
-    val inputSizeSum = sumMetrics(_.operatorStatistics.inputSize)
-    val outputCountSum = sumMetrics(_.operatorStatistics.outputCount)
-    val outputSizeSum = sumMetrics(_.operatorStatistics.outputSize)
+    val inputMetricsSum = sumMetrics(_.operatorStatistics.inputMetrics)
+    val outputMetricsSum = sumMetrics(_.operatorStatistics.outputMetrics)
 
     val numWorkersSum = metrics.map(_.operatorStatistics.numWorkers).sum
     val dataProcessingTimeSum = metrics.map(_.operatorStatistics.dataProcessingTime).sum
@@ -53,10 +48,8 @@ object ExecutionUtils {
     OperatorMetrics(
       aggregatedState,
       OperatorStatistics(
-        inputCountSum,
-        inputSizeSum,
-        outputCountSum,
-        outputSizeSum,
+        inputMetricsSum,
+        outputMetricsSum,
         numWorkersSum,
         dataProcessingTimeSum,
         controlProcessingTimeSum,
@@ -89,5 +82,20 @@ object ExecutionUtils {
           WorkflowAggregatedState.UNKNOWN
         }
     }
+  }
+
+  def aggregatePortMetrics(
+      metrics: Iterable[PortTupleMetricsMapping]
+  ): Seq[PortTupleMetricsMapping] = {
+    metrics
+      .groupBy(_.portId)
+      .view
+      .map {
+        case (portId, mappings) =>
+          val totalCount = mappings.map(_.tupleMetrics.count).sum
+          val totalSize = mappings.map(_.tupleMetrics.size).sum
+          PortTupleMetricsMapping(portId, TupleMetrics(totalCount, totalSize))
+      }
+      .toSeq
   }
 }

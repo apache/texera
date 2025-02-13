@@ -54,14 +54,12 @@ message OperatorWorkerMapping{
 }
 
 message OperatorStatistics{
-  repeated architecture.worker.PortTupleMetrics input_count = 1;
-  repeated architecture.worker.PortTupleMetrics input_size = 2;
-  repeated architecture.worker.PortTupleMetrics output_count = 3;
-  repeated architecture.worker.PortTupleMetrics output_size = 4;
-  int32 num_workers = 5;
-  int64 data_processing_time = 6;
-  int64 control_processing_time = 7;
-  int64 idle_time = 8;
+  repeated architecture.worker.PortTupleMetricsMapping input_metrics = 1;
+  repeated architecture.worker.PortTupleMetricsMapping output_metrics = 2;
+  int32 num_workers = 3;
+  int64 data_processing_time = 4;
+  int64 control_processing_time = 5;
+  int64 idle_time = 6;
 }
 
 message OperatorMetrics{

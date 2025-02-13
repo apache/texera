@@ -1,17 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.core.executor.{OperatorExecutor, SinkOperatorExecutor}
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleMetrics, WorkerStatistics}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  TupleMetrics,
+  WorkerStatistics
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 
 class StatisticsManager {
   // DataProcessor
-  private val inputTupleCount = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
-  private val inputTupleSize = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
-  private val outputTupleCount = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
-  private val outputTupleSize = mutable.Map.empty[PortIdentity, Long].withDefaultValue(0L)
+  private val inputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
+    mutable.Map.empty.withDefaultValue((0L, 0L))
+  private val outputStatistics: mutable.Map[PortIdentity, (Long, Long)] =
+    mutable.Map.empty.withDefaultValue((0L, 0L))
   private var dataProcessingTime: Long = 0L
   private var totalExecutionTime: Long = 0L
   private var workerStartTime: Long = 0L
@@ -19,22 +23,25 @@ class StatisticsManager {
   // AmberProcessor
   private var controlProcessingTime: Long = 0L
 
+  /**
+    * Retrieves the current statistics for the operator.
+    * @param operator the operator executor
+    * @return a WorkerStatistics object containing the statistics
+    */
   def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
-    val (userFriendlyOutputTupleCount, userFriendlyOutputTupleSize) = operator match {
-      case _: SinkOperatorExecutor => (inputTupleCount, inputTupleSize)
-      case _                       => (outputTupleCount, outputTupleSize)
+    val userFriendlyOutputStatistics = operator match {
+      case _: SinkOperatorExecutor => inputStatistics
+      case _                       => outputStatistics
     }
 
     WorkerStatistics(
-      inputTupleCount.map {
-        case (portId, tupleCount) => PortTupleMetrics(portId, tupleCount)
+      inputStatistics.map {
+        case (portId, (tupleCount, tupleSize)) =>
+          PortTupleMetricsMapping(portId, TupleMetrics(tupleCount, tupleSize))
       }.toSeq,
-      inputTupleSize.map { case (portId, tupleSize) => PortTupleMetrics(portId, tupleSize) }.toSeq,
-      userFriendlyOutputTupleCount.map {
-        case (portId, tupleCount) => PortTupleMetrics(portId, tupleCount)
-      }.toSeq,
-      userFriendlyOutputTupleSize.map {
-        case (portId, tupleSize) => PortTupleMetrics(portId, tupleSize)
+      userFriendlyOutputStatistics.map {
+        case (portId, (tupleCount, tupleSize)) =>
+          PortTupleMetricsMapping(portId, TupleMetrics(tupleCount, tupleSize))
       }.toSeq,
       dataProcessingTime,
       controlProcessingTime,
@@ -42,38 +49,74 @@ class StatisticsManager {
     )
   }
 
-  def getInputTupleCount: Long = inputTupleCount.values.sum
+  /**
+    * Calculates the total number of input tuples.
+    * @return the total input tuple count
+    */
+  def getInputTupleCount: Long = inputStatistics.values.map(_._1).sum
 
-  def getOutputTupleCount: Long = outputTupleCount.values.sum
+  /**
+    * Calculates the total number of output tuples.
+    * @return the total output tuple count
+    */
+  def getOutputTupleCount: Long = outputStatistics.values.map(_._1).sum
 
-  def increaseInputTupleCount(portId: PortIdentity): Unit = {
-    inputTupleCount(portId) += 1
+  /**
+    * Increases the input statistics for a given port.
+    * @param portId the port identity
+    * @param size the size of the tuple
+    */
+  def increaseInputStatistics(portId: PortIdentity, size: Long): Unit = {
+    require(size >= 0, "Tuple size must be non-negative")
+    val (count, totalSize) = inputStatistics(portId)
+    inputStatistics.update(portId, (count + 1, totalSize + size))
   }
 
-  def increaseInputTupleSize(portId: PortIdentity, size: Long): Unit = {
-    inputTupleSize(portId) += size
+  /**
+    * Increases the output statistics for a given port.
+    * @param portId the port identity
+    * @param size the size of the tuple
+    */
+  def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit = {
+    require(size >= 0, "Tuple size must be non-negative")
+    val (count, totalSize) = outputStatistics(portId)
+    outputStatistics.update(portId, (count + 1, totalSize + size))
   }
 
-  def increaseOutputTupleCount(portId: PortIdentity): Unit = {
-    outputTupleCount(portId) += 1
-  }
-
-  def increaseOutputTupleSize(portId: PortIdentity, size: Long): Unit = {
-    outputTupleSize(portId) += size
-  }
-
+  /**
+    * Increases the data processing time.
+    * @param time the time to add
+    */
   def increaseDataProcessingTime(time: Long): Unit = {
+    require(time >= 0, "Time must be non-negative")
     dataProcessingTime += time
   }
 
+  /**
+    * Increases the control processing time.
+    * @param time the time to add
+    */
   def increaseControlProcessingTime(time: Long): Unit = {
+    require(time >= 0, "Time must be non-negative")
     controlProcessingTime += time
   }
 
+  /**
+    * Updates the total execution time.
+    * @param time the current time
+    */
   def updateTotalExecutionTime(time: Long): Unit = {
+    require(
+      time >= workerStartTime,
+      "Current time must be greater than or equal to worker start time"
+    )
     totalExecutionTime = time - workerStartTime
   }
 
+  /**
+    * Initializes the worker start time.
+    * @param time the start time
+    */
   def initializeWorkerStartTime(time: Long): Unit = {
     workerStartTime = time
   }

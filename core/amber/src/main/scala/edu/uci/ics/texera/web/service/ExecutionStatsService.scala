@@ -84,10 +84,10 @@ class ExecutionStatsService(
               val metrics = x._2
               val res = OperatorAggregatedMetrics(
                 Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputCount.map(_.value).sum,
-                metrics.operatorStatistics.inputSize.map(_.value).sum,
-                metrics.operatorStatistics.outputCount.map(_.value).sum,
-                metrics.operatorStatistics.outputSize.map(_.value).sum,
+                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
                 metrics.operatorStatistics.controlProcessingTime,
@@ -171,7 +171,7 @@ class ExecutionStatsService(
     // Default metrics for new operators
     val defaultMetrics = OperatorMetrics(
       WorkflowAggregatedState.UNINITIALIZED,
-      OperatorStatistics(Seq.empty, Seq.empty, Seq.empty, Seq.empty, 0, 0, 0, 0)
+      OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
     )
 
     // Retrieve the last persisted metrics or default to an empty map
@@ -193,10 +193,8 @@ class ExecutionStatsService(
         key -> OperatorMetrics(
           metrics.operatorState,
           OperatorStatistics(
-            metrics.operatorStatistics.inputCount,
-            metrics.operatorStatistics.inputSize,
-            metrics.operatorStatistics.outputCount,
-            metrics.operatorStatistics.outputSize,
+            metrics.operatorStatistics.inputMetrics,
+            metrics.operatorStatistics.outputMetrics,
             metrics.operatorStatistics.numWorkers,
             metrics.operatorStatistics.dataProcessingTime,
             metrics.operatorStatistics.controlProcessingTime,
@@ -219,10 +217,10 @@ class ExecutionStatsService(
                 Array(
                   operatorId,
                   new java.sql.Timestamp(System.currentTimeMillis()),
-                  stat.operatorStatistics.inputCount.map(_.value).sum,
-                  stat.operatorStatistics.inputSize.map(_.value).sum,
-                  stat.operatorStatistics.outputCount.map(_.value).sum,
-                  stat.operatorStatistics.outputSize.map(_.value).sum,
+                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
                   stat.operatorStatistics.dataProcessingTime,
                   stat.operatorStatistics.controlProcessingTime,
                   stat.operatorStatistics.idleTime,
