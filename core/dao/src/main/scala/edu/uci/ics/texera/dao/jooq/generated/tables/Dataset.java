@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -77,7 +77,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.creation_time</code>.
      */
-    public final TableField<DatasetRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<DatasetRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     private Dataset(Name alias, Table<DatasetRecord> aliased) {
         this(alias, aliased, null);
@@ -175,7 +175,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<Integer, Integer, String, Boolean, String, LocalDateTime> fieldsRow() {
+    public Row6<Integer, Integer, String, Boolean, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

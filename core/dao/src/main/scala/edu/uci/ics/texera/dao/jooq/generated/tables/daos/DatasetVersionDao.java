@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetVersionRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
@@ -133,14 +133,14 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
      * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
      * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(DatasetVersion.DATASET_VERSION.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchByCreationTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.DatasetVersion> fetchByCreationTime(Timestamp... values) {
         return fetch(DatasetVersion.DATASET_VERSION.CREATION_TIME, values);
     }
 }

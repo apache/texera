@@ -5,7 +5,6 @@ import org.jooq.{Condition, Field}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
-import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -116,21 +115,21 @@ object FulltextSearchQueryUtils {
   def getDateFilter(
       startDate: String,
       endDate: String,
-      fieldToFilterOn: Field[LocalDateTime]
+      fieldToFilterOn: Field[Timestamp]
   ): Condition = {
     if (startDate.nonEmpty || endDate.nonEmpty) {
       val start = if (startDate.nonEmpty) startDate else "1970-01-01"
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime).toLocalDateTime
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
       val endTimestamp =
         if (end == "9999-12-31") {
-          new Timestamp(dateFormat.parse(end).getTime).toLocalDateTime
+          new Timestamp(dateFormat.parse(end).getTime)
         } else {
           new Timestamp(
             dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-          ).toLocalDateTime
+          )
         }
       fieldToFilterOn.between(startTimestamp, endTimestamp)
     } else {

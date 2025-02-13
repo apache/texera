@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflow;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 
 /**
@@ -17,13 +17,13 @@ public class Workflow implements IWorkflow {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer       wid;
-    private String        name;
-    private String        description;
-    private String        content;
-    private LocalDateTime creationTime;
-    private LocalDateTime lastModifiedTime;
-    private Boolean       isPublic;
+    private Integer   wid;
+    private String    name;
+    private String    description;
+    private String    content;
+    private Timestamp creationTime;
+    private Timestamp lastModifiedTime;
+    private Boolean   isPublic;
 
     public Workflow() {}
 
@@ -38,13 +38,13 @@ public class Workflow implements IWorkflow {
     }
 
     public Workflow(
-        Integer       wid,
-        String        name,
-        String        description,
-        String        content,
-        LocalDateTime creationTime,
-        LocalDateTime lastModifiedTime,
-        Boolean       isPublic
+        Integer   wid,
+        String    name,
+        String    description,
+        String    content,
+        Timestamp creationTime,
+        Timestamp lastModifiedTime,
+        Boolean   isPublic
     ) {
         this.wid = wid;
         this.name = name;
@@ -123,7 +123,7 @@ public class Workflow implements IWorkflow {
      * Getter for <code>texera_db.workflow.creation_time</code>.
      */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
@@ -131,7 +131,7 @@ public class Workflow implements IWorkflow {
      * Setter for <code>texera_db.workflow.creation_time</code>.
      */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 
@@ -139,7 +139,7 @@ public class Workflow implements IWorkflow {
      * Getter for <code>texera_db.workflow.last_modified_time</code>.
      */
     @Override
-    public LocalDateTime getLastModifiedTime() {
+    public Timestamp getLastModifiedTime() {
         return this.lastModifiedTime;
     }
 
@@ -147,7 +147,7 @@ public class Workflow implements IWorkflow {
      * Setter for <code>texera_db.workflow.last_modified_time</code>.
      */
     @Override
-    public void setLastModifiedTime(LocalDateTime lastModifiedTime) {
+    public void setLastModifiedTime(Timestamp lastModifiedTime) {
         this.lastModifiedTime = lastModifiedTime;
     }
 

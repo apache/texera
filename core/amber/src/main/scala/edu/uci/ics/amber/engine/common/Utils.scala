@@ -1,9 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.{ObjectMapper, SerializerProvider}
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
@@ -12,9 +10,7 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 import java.nio.file.{Files, Path, Paths}
-import java.sql.Timestamp
 import java.text.SimpleDateFormat
-import java.time.LocalDateTime
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
 
@@ -23,14 +19,6 @@ object Utils extends LazyLogging {
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
     .registerModule(new NoCtorDeserModule())
-    .registerModule(
-      new JavaTimeModule().addSerializer(
-        classOf[LocalDateTime],
-        (value: LocalDateTime, gen: JsonGenerator, provider: SerializerProvider) => {
-          gen.writeNumber(Timestamp.valueOf(value).getTime)
-        }
-      )
-    )
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))

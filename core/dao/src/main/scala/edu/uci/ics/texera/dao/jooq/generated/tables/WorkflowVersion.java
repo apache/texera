@@ -8,7 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowVersionRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -67,7 +67,7 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     /**
      * The column <code>texera_db.workflow_version.creation_time</code>.
      */
-    public final TableField<WorkflowVersionRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<WorkflowVersionRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     private WorkflowVersion(Name alias, Table<WorkflowVersionRecord> aliased) {
         this(alias, aliased, null);
@@ -165,7 +165,7 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<Integer, Integer, String, LocalDateTime> fieldsRow() {
+    public Row4<Integer, Integer, String, Timestamp> fieldsRow() {
         return (Row4) super.fieldsRow();
     }
 }

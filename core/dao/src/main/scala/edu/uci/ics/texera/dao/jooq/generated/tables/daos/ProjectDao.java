@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
@@ -118,14 +118,14 @@ public class ProjectDao extends DAOImpl<ProjectRecord, edu.uci.ics.texera.dao.jo
      * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
      * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(Project.PROJECT.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchByCreationTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project> fetchByCreationTime(Timestamp... values) {
         return fetch(Project.PROJECT.CREATION_TIME, values);
     }
 
