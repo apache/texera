@@ -1,4 +1,4 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
@@ -8,6 +8,7 @@ import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.in
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
+import { User } from "../../type/user";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -20,10 +21,14 @@ export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
+export const WORKFLOW_OWNER_USER = WORKFLOW_BASE_URL + "/owner_user";
+export const WORKFLOW_NAME = WORKFLOW_BASE_URL + "/workflow_name";
+export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/public";
+export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
+export const WORKFLOW_USER_ACCESS = WORKFLOW_BASE_URL + "/workflow_user_access";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
-export const WORKFLOW_PUBLIC_URL = WORKFLOW_BASE_URL + "/public";
-export const WORKFLOW_ENVIRONMENT = "environment";
+
 @Injectable({
   providedIn: "root",
 })
@@ -203,5 +208,56 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
+  }
+
+  /**
+   * retrieve the complete information of the owner corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public getOwnerUser(wid: number): Observable<User> {
+    const params = new HttpParams().set("wid", wid);
+    return this.http.get<User>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_USER}`, { params });
+  }
+
+  /**
+   * retrieve the name of the workflow corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public getWorkflowName(wid: number): Observable<string> {
+    const params = new HttpParams().set("wid", wid);
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_NAME}`, { params, responseType: "text" });
+  }
+
+  /**
+   * retrieve the complete information of the workflow corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public retrievePublicWorkflow(wid: number): Observable<Workflow> {
+    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PUBLIC_WORKFLOW}/${wid}`).pipe(
+      filter((workflow: Workflow) => workflow != null),
+      map(WorkflowUtilService.parseWorkflowInfo)
+    );
+  }
+
+  /**
+   * retrieve the description of the workflow corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public getWorkflowDescription(wid: number): Observable<string> {
+    const params = new HttpParams().set("wid", wid);
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DESCRIPTION}`, { params, responseType: "text" });
+  }
+
+  /**
+   * retrieve the user IDs of all users with direct access (read or write) to the workflow corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public getWorkflowOwners(wid: number): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_USER_ACCESS}?wid=${wid}`);
   }
 }
