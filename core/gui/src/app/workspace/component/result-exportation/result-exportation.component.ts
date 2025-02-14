@@ -53,9 +53,20 @@ export class ResultExportationComponent implements OnInit {
   }
 
   updateOutputType(): void {
-    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    // Determine if the caller of this component is menu or context menu
+    // if its menu then we need to export all operators else we need to export only highlighted operators
+    // TODO: currently, user need to set `view result` to true in order to export result but
+    //  we should allow user to export result without setting `view result` to true
+    let operatorIds: readonly string[];
+    if (this.sourceTriggered === "menu") {
+      operatorIds = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+      console.log("operatorIds in menu ", operatorIds);
+    } else {
+      operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+      console.log("operatorIds in context menu ", operatorIds);
+    }
 
-    if (highlightedOperatorIds.length === 0) {
+    if (operatorIds.length === 0) {
       // No operators highlighted
       this.isTableOutput = false;
       this.isVisualizationOutput = false;
@@ -69,7 +80,7 @@ export class ResultExportationComponent implements OnInit {
     let allVisualization = true;
     let anyBinaryData = false;
 
-    for (const operatorId of highlightedOperatorIds) {
+    for (const operatorId of operatorIds) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
       if (!outputTypes.isTableOutput) {
         allTable = false;
