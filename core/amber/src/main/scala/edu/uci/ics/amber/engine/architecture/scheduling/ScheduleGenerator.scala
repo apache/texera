@@ -219,8 +219,7 @@ abstract class ScheduleGenerator(
         toPortId
       )
     // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(existingOperator.map(_.id).getOrElse(matWriterPhysicalOp.id)) =
-      matReaderPhysicalOp.id
+    writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
