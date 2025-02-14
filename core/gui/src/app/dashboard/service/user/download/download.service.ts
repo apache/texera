@@ -101,7 +101,7 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: string // "local" or "dataset"
+    destination: "local" | "dataset" = "dataset" // "local" or "dataset" => default to "dataset"
   ): Observable<any> {
     const requestBody = {
       exportType,

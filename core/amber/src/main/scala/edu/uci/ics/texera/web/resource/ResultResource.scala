@@ -24,61 +24,61 @@ class ResultResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     try {
-      if (request.destination == "local") {
-        // CASE A: multiple operators => produce ZIP
-        if (request.operatorIds.size > 1) {
-          val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
-          val (zipStream, zipFileNameOpt) =
-            resultExportService.exportOperatorsAsZip(user.user, request)
+      request.destination match {
+        case "local" =>
+          // CASE A: multiple operators => produce ZIP
+          if (request.operatorIds.size > 1) {
+            val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
+            val (zipStream, zipFileNameOpt) =
+              resultExportService.exportOperatorsAsZip(user.user, request)
 
-          if (zipStream == null) {
+            if (zipStream == null) {
+              return Response
+                .status(Response.Status.INTERNAL_SERVER_ERROR)
+                .`type`(MediaType.APPLICATION_JSON)
+                .entity(Map("error" -> "Failed to export multiple operators as zip").asJava)
+                .build()
+            }
+
+            val finalFileName = zipFileNameOpt.getOrElse("operators.zip")
             return Response
-              .status(Response.Status.INTERNAL_SERVER_ERROR)
-              .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Failed to export multiple operators as zip").asJava)
+              .ok(zipStream, "application/zip")
+              .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
               .build()
           }
 
-          val finalFileName = zipFileNameOpt.getOrElse("operators.zip")
-          return Response
-            .ok(zipStream, "application/zip")
+          // CASE B: exactly one operator => single file
+          if (request.operatorIds.size != 1) {
+            return Response
+              .status(Response.Status.BAD_REQUEST)
+              .`type`(MediaType.APPLICATION_JSON)
+              .entity(Map("error" -> "Local download supports no operator or many.").asJava)
+              .build()
+          }
+          val singleOpId = request.operatorIds.head
+
+          val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
+          val (streamingOutput, fileNameOpt) =
+            resultExportService.exportOperatorResultAsStream(request, singleOpId)
+
+          if (streamingOutput == null) {
+            return Response
+              .status(Response.Status.INTERNAL_SERVER_ERROR)
+              .`type`(MediaType.APPLICATION_JSON)
+              .entity(Map("error" -> "Failed to export operator").asJava)
+              .build()
+          }
+
+          val finalFileName = fileNameOpt.getOrElse("download.dat")
+          Response
+            .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
             .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
             .build()
-        }
-
-        // CASE B: exactly one operator => single file
-        if (request.operatorIds.size != 1) {
-          return Response
-            .status(Response.Status.BAD_REQUEST)
-            .`type`(MediaType.APPLICATION_JSON)
-            .entity(Map("error" -> "Local download supports no operator or many.").asJava)
-            .build()
-        }
-        val singleOpId = request.operatorIds.head
-
-        val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
-        val (streamingOutput, fileNameOpt) =
-          resultExportService.exportOperatorResultAsStream(request, singleOpId)
-
-        if (streamingOutput == null) {
-          return Response
-            .status(Response.Status.INTERNAL_SERVER_ERROR)
-            .`type`(MediaType.APPLICATION_JSON)
-            .entity(Map("error" -> "Failed to export operator").asJava)
-            .build()
-        }
-
-        val finalFileName = fileNameOpt.getOrElse("download.dat")
-        Response
-          .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-          .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
-          .build()
-
-      } else {
-        // destination == "dataset" etc. => old logic
-        val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
-        val exportResponse = resultExportService.exportResult(user.user, request)
-        Response.ok(exportResponse).build()
+        case _ =>
+          // destination = "dataset" by default
+          val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
+          val exportResponse = resultExportService.exportResult(user.user, request)
+          Response.ok(exportResponse).build()
       }
     } catch {
       case ex: Exception =>

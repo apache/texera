@@ -134,8 +134,10 @@ export class WorkflowResultExportService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    exportAll: boolean = false,
-    destination: string = "dataset" // default to dataset
+    exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
+    // we should export all operators, otherwise, only highlighted ones
+    // which means export button is selected from context-menu
+    destination: "dataset" | "local" = "dataset" // default to dataset
   ): void {
     if (!environment.exportExecutionResultEnabled) {
       return;
@@ -187,7 +189,7 @@ export class WorkflowResultExportService {
             this.notificationService.info("File downloaded successfully");
           } else {
             // "dataset" => response is JSON
-            // The server might return a JSON with {status, message}
+            // The server should return a JSON with {status, message}
             const responseBody = response.body;
             if (responseBody && responseBody.status === "success") {
               this.notificationService.success(responseBody.message);
