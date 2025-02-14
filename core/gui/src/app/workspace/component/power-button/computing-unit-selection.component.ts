@@ -36,6 +36,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       next: (units: DashboardWorkflowComputingUnit[]) => {
         let firstRunningUnit = units.find(unit => unit.status === "Running")
         if(firstRunningUnit){
+          this.selectedComputingUnit = firstRunningUnit;
           this.onComputingUnitChange(firstRunningUnit);
         }
         this.updateComputingUnits(units);
@@ -131,7 +132,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (newSelection && isDefined(wid)) {
       console.log(`Selected Unit URI: ${newSelection.uri}`);
       this.workflowWebsocketService.closeWebsocket()
-      this.workflowWebsocketService.openWebsocket(wid, newSelection.computingUnit.cuid);
+      this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
     } else {
       console.log("No valid selection, keep the current websocket.");
     }
