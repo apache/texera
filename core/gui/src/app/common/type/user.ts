@@ -24,8 +24,7 @@ export interface User
     color?: string;
     googleAvatar?: string;
     comment: string;
-  }> {
-}
+  }> {}
 
 export interface File
   extends Readonly<{

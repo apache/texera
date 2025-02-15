@@ -54,7 +54,7 @@ export class AdminUserComponent implements OnInit {
     this.saveEdit();
   }
 
-  public updateComment(user: User, comment: string){
+  public updateComment(user: User, comment: string) {
     this.startEdit(user);
     this.editComment = comment;
     this.saveEdit();
@@ -120,7 +120,7 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
-  searchByComment(): void{
+  searchByComment(): void {
     this.commentSearchVisible = false;
     this.listOfDisplayUser = this.userList.filter(user => (user.comment || "").indexOf(this.commentSearchValue) !== -1);
   }

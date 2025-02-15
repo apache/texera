@@ -123,7 +123,7 @@ export class AuthService {
       googleId: this.jwtHelperService.decodeToken(token).googleId,
       googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
-      comment: this.jwtHelperService.decodeToken(token).comment
+      comment: this.jwtHelperService.decodeToken(token).comment,
     };
   }
 
