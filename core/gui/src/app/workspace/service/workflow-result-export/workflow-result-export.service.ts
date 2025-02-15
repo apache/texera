@@ -12,6 +12,8 @@ import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
+import { HttpResponse } from "@angular/common/http";
+import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.interface";
 
 @Injectable({
   providedIn: "root",
@@ -127,7 +129,7 @@ export class WorkflowResultExportService {
   /**
    * export the workflow execution result according the export type
    */
-  exportWorkflowExecutionResult(
+  exportWorkflowExecutionResultToLocal(
     exportType: string,
     workflowName: string,
     datasetIds: ReadonlyArray<number> = [],
@@ -190,7 +192,8 @@ export class WorkflowResultExportService {
           } else {
             // "dataset" => response is JSON
             // The server should return a JSON with {status, message}
-            const responseBody = response.body;
+            const jsonResponse = response as HttpResponse<ExportWorkflowJsonResponse>;
+            const responseBody = jsonResponse.body;
             if (responseBody && responseBody.status === "success") {
               this.notificationService.success(responseBody.message);
             } else {

@@ -110,7 +110,7 @@ export class ResultExportationComponent implements OnInit {
 
   onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
     if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResult(
+      this.workflowResultExportService.exportWorkflowExecutionResultToLocal(
         this.exportType,
         this.workflowName,
         [dataset.dataset.did],
@@ -125,7 +125,7 @@ export class ResultExportationComponent implements OnInit {
   }
 
   onClickSaveResultFileToLocal() {
-    this.workflowResultExportService.exportWorkflowExecutionResult(
+    this.workflowResultExportService.exportWorkflowExecutionResultToLocal(
       this.exportType,
       this.workflowName,
       [],

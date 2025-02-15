@@ -9,6 +9,7 @@ import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
+import { ExportWorkflowJsonResponse } from "./download.interface";
 
 export const EXPORT_BASE_URL = "result/export";
 
@@ -16,7 +17,7 @@ interface DownloadableItem {
   blob: Blob;
   fileName: string;
 }
-/* TODO: refactor download service to export */
+
 @Injectable({
   providedIn: "root",
 })
@@ -102,7 +103,7 @@ export class DownloadService {
     columnIndex: number,
     filename: string,
     destination: "local" | "dataset" = "dataset" // "local" or "dataset" => default to "dataset"
-  ): Observable<any> {
+  ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const requestBody = {
       exportType,
       workflowId,
@@ -115,8 +116,8 @@ export class DownloadService {
       destination,
     };
     if (destination === "local") {
-      return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
-        responseType: "blob" as const,
+       return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+        responseType: "blob",
         observe: "response",
         headers: {
           "Content-Type": "application/json",
@@ -125,8 +126,8 @@ export class DownloadService {
       });
     } else {
       // dataset => return JSON
-      return this.http.post<any>(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
-        responseType: "json" as const,
+      return this.http.post<ExportWorkflowJsonResponse>(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+        responseType: "json",
         observe: "response",
         headers: {
           "Content-Type": "application/json",
@@ -134,6 +135,7 @@ export class DownloadService {
         },
       });
     }
+
   }
 
   /**
