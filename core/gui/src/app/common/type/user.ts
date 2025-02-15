@@ -23,7 +23,9 @@ export interface User
     role: Role;
     color?: string;
     googleAvatar?: string;
-  }> {}
+    comment: string;
+  }> {
+}
 
 export interface File
   extends Readonly<{

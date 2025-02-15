@@ -19,6 +19,7 @@ export class AdminUserComponent implements OnInit {
   editName: string = "";
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
+  editComment: string = "";
   nameSearchValue: string = "";
   emailSearchValue: string = "";
   nameSearchVisible = false;
@@ -51,6 +52,12 @@ export class AdminUserComponent implements OnInit {
     this.saveEdit();
   }
 
+  public updateComment(user: User, comment: string){
+    this.startEdit(user);
+    this.editComment = comment;
+    this.saveEdit();
+  }
+
   addUser(): void {
     this.adminUserService
       .addUser()
@@ -63,13 +70,14 @@ export class AdminUserComponent implements OnInit {
     this.editName = user.name;
     this.editEmail = user.email;
     this.editRole = user.role;
+    this.editComment = user.comment;
   }
 
   saveEdit(): void {
     const currentUid = this.editUid;
     this.stopEdit();
     this.adminUserService
-      .updateUser(currentUid, this.editName, this.editEmail, this.editRole)
+      .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.ngOnInit(),

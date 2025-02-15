@@ -46,6 +46,10 @@
             nzType="search"></span>
         </nz-filter-trigger>
       </th>
+      <th
+        nzCustomFilter>
+        Comment
+      </th>
       <th>Action</th>
       <th
         [nzFilterFn]="filterByRole"
@@ -137,6 +141,15 @@
             [email]="true"
             nz-input
             type="email" />
+        </ng-template>
+      </td>
+      <td>
+        <ng-container *ngIf="editUid !== user.uid; else editCommentTemplate"> {{user.comment}} </ng-container>
+        <ng-template #editCommentTemplate>
+          <input
+            [(ngModel)]="editComment"
+            nz-input
+            type="text" />
         </ng-template>
       </td>
       <td style="color: #1890ff">
