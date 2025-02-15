@@ -47,8 +47,18 @@
         </nz-filter-trigger>
       </th>
       <th
+        [nzSortFn]="sortByComment"
+        [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
         Comment
+        <nz-filter-trigger
+          [(nzVisible)]="commentSearchVisible"
+          [nzActive]="commentSearchValue.length > 0"
+          [nzDropdownMenu]="commentMenu">
+          <span
+            nz-icon
+            nzType="search"></span>
+        </nz-filter-trigger>
       </th>
       <th>Action</th>
       <th
@@ -100,6 +110,31 @@
           type="text" />
         <button
           (click)="searchByEmail()"
+          class="search-button"
+          nz-button
+          nzSize="small"
+          nzType="primary">
+          Search
+        </button>
+        <button
+          (click)="reset()"
+          nz-button
+          nzSize="small">
+          Reset
+        </button>
+      </div>
+    </div>
+  </nz-dropdown-menu>
+  <nz-dropdown-menu #commentMenu="nzDropdownMenu">
+    <div class="ant-table-filter-dropdown">
+      <div class="search-box">
+        <input
+          [(ngModel)]="commentSearchValue"
+          nz-input
+          placeholder="Search comment"
+          type="text" />
+        <button
+          (click)="searchByComment()"
           class="search-button"
           nz-button
           nzSize="small"

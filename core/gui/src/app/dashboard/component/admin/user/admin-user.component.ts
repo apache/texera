@@ -22,8 +22,10 @@ export class AdminUserComponent implements OnInit {
   editComment: string = "";
   nameSearchValue: string = "";
   emailSearchValue: string = "";
+  commentSearchValue: string = "";
   nameSearchVisible = false;
   emailSearchVisible = false;
+  commentSearchVisible = false;
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
 
@@ -95,13 +97,16 @@ export class AdminUserComponent implements OnInit {
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
   public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
   public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
+  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
 
   reset(): void {
     this.nameSearchValue = "";
     this.emailSearchValue = "";
+    this.commentSearchValue = "";
     this.nameSearchVisible = false;
     this.emailSearchVisible = false;
+    this.commentSearchVisible = false;
     this.listOfDisplayUser = [...this.userList];
   }
 
@@ -113,6 +118,11 @@ export class AdminUserComponent implements OnInit {
   searchByEmail(): void {
     this.emailSearchVisible = false;
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
+  }
+
+  searchByComment(): void{
+    this.commentSearchVisible = false;
+    this.listOfDisplayUser = this.userList.filter(user => (user.comment || "").indexOf(this.commentSearchValue) !== -1);
   }
 
   clickToViewQuota(uid: number) {
