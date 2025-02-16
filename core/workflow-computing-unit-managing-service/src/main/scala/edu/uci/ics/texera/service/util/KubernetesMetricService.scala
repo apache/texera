@@ -2,7 +2,9 @@ package edu.uci.ics.texera.service.util
 
 import config.WorkflowComputingUnitManagingServiceConf
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
+import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientBuilder}
+
 import scala.jdk.CollectionConverters._
 
 object KubernetesMetricService {
@@ -10,17 +12,15 @@ object KubernetesMetricService {
   // Initialize the Kubernetes client
   val client: KubernetesClient = new KubernetesClientBuilder().build()
 
-  private val MEGABYTES_PER_GIGABYTE = 1024
-  private val NANOCORES_PER_CPU_CORE = 1_000_000_000
   private val namespace = WorkflowComputingUnitManagingServiceConf.computeUnitPoolNamespace
 
   /**
-   * Retrieves the pod metric for a given name in the specified namespace.
+   * Retrieves the pod metric for a given ID in the specified namespace.
    *
    * @param cuid  The computing unit id of the pod
    * @return The Pod metrics for a given name in a specified namespace.
    */
-  def getPodMetrics(cuid: Int): Map[String, Any] = {
+  def getPodMetrics(cuid: Int): Map[String, Map[String, String]] = {
     val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
     val targetPodName = KubernetesClientService.generatePodName(cuid)
 
@@ -29,33 +29,32 @@ object KubernetesMetricService {
         podMetrics.getContainers.asScala.collectFirst {
           case container =>
             container.getUsage.asScala.collect {
-              case ("cpu", value) =>
-                val cpuInCores = convertCPUToCores(value.getAmount)
-                println(s"CPU Usage: $cpuInCores cores")
-                "cpu" -> cpuInCores
-              case ("memory", value) =>
-                val memoryInMB = convertMemoryToMB(value.getAmount)
-                println(s"Memory Usage: $memoryInMB MB")
-                "memory" -> memoryInMB
-              case (key, value) =>
-                println(s"Other Metric - $key: ${value.getAmount}")
-                // Other metrics may not all be Double
-                key -> value.getAmount
+              case (metric, value) =>
+                println(s"Metric - $metric: ${value}")
+                // CPU is in nanocores and Memory is in Kibibyte
+                metric -> mapMetricWithUnit(metric, value)
             }.toMap
-        }.getOrElse(Map.empty[String, Double])
+        }.getOrElse(Map.empty[String, Map[String, String]])
     }.getOrElse {
       println(s"No metrics found for pod: $targetPodName in namespace: $namespace")
-      Map.empty[String, Double]
+      Map.empty[String, Map[String, String]]
     }
   }
 
-  private def convertMemoryToMB(memoryUsage: String): Double = {
-    val memoryUsageInKi = memoryUsage.toDoubleOption.getOrElse(0.0)
-    memoryUsageInKi / MEGABYTES_PER_GIGABYTE
-  }
+  /**
+   * Maps metric value with its associated unit, converting the unit to a more readable format.
+   *
+   * @param metric The name of the metric (e.g., "cpu", "memory").
+   * @param quantity The value of the metric, represented as a Quantity object.
+   * @return A map containing the metric value in a readable format and the corresponding unit.
+   */
+  private def mapMetricWithUnit(metric: String, quantity: Quantity): Map[String, String] = {
+    val (value, unit) = metric match {
+      case "cpu"    => (CpuUnit.convert(quantity.getAmount.toDouble, CpuUnit.Nanocores, CpuUnit.Cores), "Cores")
+      case "memory" => (MemoryUnit.convert(quantity.getAmount.toDouble, MemoryUnit.Kibibyte, MemoryUnit.Mebibyte), "MiB")
+      case _        => (quantity.getAmount, "unknown")
+    }
 
-  private def convertCPUToCores(cpuUsage: String): Double = {
-    val cpuUsageInNano = cpuUsage.toDoubleOption.getOrElse(0.0)
-    cpuUsageInNano / NANOCORES_PER_CPU_CORE
+    Map("value" -> value.toString, "unit" -> unit)
   }
 }

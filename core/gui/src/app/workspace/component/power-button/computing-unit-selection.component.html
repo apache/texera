@@ -1,7 +1,7 @@
 <div class="computing-units-selection">
   <button nz-button
           nz-popover
-          [nzPopoverContent]="metricsTemplate"
+          [nzPopoverContent]="selectedComputingUnit ? metricsTemplate : undefined"
           nzPopoverTrigger="click"
           nzPopoverPlacement="bottom"
           id="metrics-container-id"
@@ -10,9 +10,9 @@
       <span class="metric-label">CPU</span>
       <nz-progress
         id="cpu-progress-bar"
-        [nzPercent]="((selectedComputingUnit?.metrics?.cpuUsage || 0) * 100).toFixed(0)"
+        [nzPercent]="(getCpuPercentage() | number:'1.0-0')"
         [nzStrokeColor]="'#52c41a'"
-        [nzStatus]="(selectedComputingUnit?.metrics?.cpuUsage || 0) > 1 ? 'exception' : 'active'"
+        [nzStatus]=getCpuStatus()
         nzType="line"
         [nzStrokeWidth]="8"
         [nzShowInfo]="false"
@@ -23,9 +23,9 @@
       <span class="metric-label">Memory</span>
       <nz-progress
         id="memory-progress-bar"
-        [nzPercent]="((selectedComputingUnit?.metrics?.memoryUsage || 0) / 10).toFixed(0)"
+        [nzPercent]="(getMemoryPercentage() | number:'1.0-0')"
         [nzStrokeColor]="'#1890ff'"
-        [nzStatus]="(selectedComputingUnit?.metrics?.memoryUsage || 0) > 1000 ? 'exception' : 'active'"
+        [nzStatus]=getMemoryStatus()
         nzType="line"
         [nzStrokeWidth]="8"
         [nzShowInfo]="false"
@@ -45,29 +45,31 @@
     <nz-option
       *ngFor="let unit of computingUnits"
       nzCustomContent
-      [nzLabel]="unit.uri"
+      [nzLabel]="getComputingUnitName(unit.uri).toString()"
       [nzValue]="unit">
-      <div class="computing-unit-option">
+      <div class="computing-unit-option" id="computing-unit-option-id">
         <!-- Badge with state -->
         <nz-badge
           [nzColor]="getBadgeColor(unit.status)"
           [nzText]="''">
           <span
             nz-icon
-            nzType="desktop"></span>
+            nzType="deployment-unit"></span>
         </nz-badge>
 
         <!-- Name and tooltip -->
         <span class="unit-details">
           <span
             nz-tooltip
-            [nzTooltipTitle]="unit.uri"
-            >{{ unit.computingUnit.name }}</span
+            [nzTooltipTitle]="unit.computingUnit.name"
+            >{{ getComputingUnitName(unit.uri) }}</span
           >
           <div
-            class="terminate-box"
+            class="terminate-icon"
+            nz-icon
+            nzType="close"
             nz-tooltip
-            [nzTooltipTitle]="'Terminate'"
+            [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
             (click)="terminateComputingUnit(unit.computingUnit.cuid)"></div>
         </span>
       </div>
@@ -76,9 +78,9 @@
 </div>
 
 <ng-template #renderTemplate>
-  <nz-divider></nz-divider>
   <div class="dropdown-footer">
     <button
+      class="create-unit"
       nz-button
       nzType="primary"
       nzBlock
@@ -93,15 +95,15 @@
     <div class="cpu-metric general-metric">
       <p class="metric-name">CPU</p>
       <p class="metric-value">
-        {{(selectedComputingUnit?.metrics?.cpuUsage || 0).toFixed(2)}}
-        <span class="metric-unit">Cores</span>
+        {{getCpuValue() | number:'1.2-2' || '0.00'}}
+        <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
       </p>
     </div>
     <div class="memory-metric general-metric">
       <p class="metric-name">Memory</p>
       <p class="metric-value">
-        {{(selectedComputingUnit?.metrics?.memoryUsage || 0).toFixed(2)}}
-        <span class="metric-unit">MB</span>
+        {{getMemoryValue() | number:'1.2-2' || '0.00'}}
+        <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
       </p>
     </div>
   </div>

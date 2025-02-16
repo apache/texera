@@ -6,7 +6,7 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitTerminationParams, context}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{DashboardWorkflowComputingUnit, ResourceValue, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, WorkflowComputingUnitTerminationParams, context}
 import edu.uci.ics.texera.service.util.KubernetesClientService
 import edu.uci.ics.texera.service.util.KubernetesMetricService.getPodMetrics
 import jakarta.ws.rs._
@@ -26,13 +26,24 @@ object WorkflowComputingUnitManagingResource {
 
   case class WorkflowComputingUnitTerminationParams(uri: String, name: String)
 
-  case class WorkflowComputingUnitMetrics(cpuUsage: Double, memoryUsage: Double)
+  case class ResourceValue(metric: String, value: String, unit: String)
+
+  case class WorkflowComputingUnitResourceLimit(
+     cpuLimit: Option[ResourceValue],
+     memoryLimit: Option[ResourceValue]
+ )
+
+  case class WorkflowComputingUnitMetrics(
+     cpuUsage: Option[ResourceValue],
+     memoryUsage: Option[ResourceValue]
+  )
 
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       uri: String,
       status: String,
-      metrics: WorkflowComputingUnitMetrics
+      metrics: WorkflowComputingUnitMetrics,
+      resourceLimits: WorkflowComputingUnitResourceLimit
   )
 
   case class TerminationResponse(message: String, uri: String)
@@ -80,7 +91,8 @@ class WorkflowComputingUnitManagingResource {
           insertedUnit,
           KubernetesClientService.generatePodURI(cuid).toString,
           pod.getStatus.getPhase,
-          getComputingUnitMetric(cuid.toString)
+          getComputingUnitMetric(cuid.toString),
+          getComputingUnitLimits
         )
       }
     }
@@ -112,7 +124,8 @@ class WorkflowComputingUnitManagingResource {
             computingUnit = unit,
             uri = KubernetesClientService.generatePodURI(cuid).toString,
             status = if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
-            getComputingUnitMetric(cuid.toString)
+            getComputingUnitMetric(cuid.toString),
+            getComputingUnitLimits
           )
         })
 
@@ -148,15 +161,39 @@ class WorkflowComputingUnitManagingResource {
     TerminationResponse(s"Successfully terminated compute unit with URI $podURI", podURI)
   }
 
+  /**
+   * Retrieves the CPU and memory metrics for a computing unit identified by its `cuid`.
+   *
+   * @param cuid The computing unit ID.
+   * @return A `WorkflowComputingUnitMetrics` object with CPU and memory usage data.
+   */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
   def getComputingUnitMetric(@PathParam("cuid") cuid: String): WorkflowComputingUnitMetrics = {
-    val metrics: Map[String, Any] = getPodMetrics(cuid.toInt)
+    val metrics: Map[String, Map[String, String]] = getPodMetrics(cuid.toInt)
 
     WorkflowComputingUnitMetrics(
-      cpuUsage = metrics.get("cpu").collect { case value: Double => value }.getOrElse(0.0),
-      memoryUsage = metrics.get("memory").collect { case value: Double => value }.getOrElse(0.0)
+      cpuUsage = Option(ResourceValue(
+        "cpu",
+        metrics.getOrElse("cpu", Map("value" -> "0", "unit" -> "Cores"))("value"),
+        metrics.getOrElse("cpu", Map("value" -> "0", "unit" -> "Cores"))("unit")
+      )),
+      memoryUsage = Option(ResourceValue(
+        "memory",
+        metrics.getOrElse("memory", Map("value" -> "0", "unit" -> "MiB"))("value"),
+        metrics.getOrElse("memory", Map("value" -> "0", "unit" -> "MiB"))("unit")
+      ))
+    )
+  }
+
+  private def getComputingUnitLimits: WorkflowComputingUnitResourceLimit = {
+    val cpuValue: Map[String, String] = KubernetesClientService.getPodCPULimit
+    val memoryValue: Map[String, String] = KubernetesClientService.getPodMemoryLimit
+
+    WorkflowComputingUnitResourceLimit(
+      cpuLimit = Option(ResourceValue("cpu", cpuValue("value"), cpuValue("unit"))),
+      memoryLimit = Option(ResourceValue("memory", memoryValue("value"), memoryValue("unit")))
     )
   }
 }

@@ -1,12 +1,9 @@
 package edu.uci.ics.texera.service.util
 
 import config.WorkflowComputingUnitManagingServiceConf
-import config.WorkflowComputingUnitManagingServiceConf.{
-  computeUnitImageName,
-  computeUnitPortNumber,
-  computeUnitServiceName
-}
+import config.WorkflowComputingUnitManagingServiceConf.{computeUnitImageName, computeUnitPortNumber, computeUnitServiceName}
 import edu.uci.ics.amber.core.storage.StorageConfig
+import io.kubernetes.client.custom.Quantity
 import io.kubernetes.client.openapi.apis.CoreV1Api
 import io.kubernetes.client.openapi.models._
 import io.kubernetes.client.openapi.{ApiClient, Configuration}
@@ -27,6 +24,12 @@ object KubernetesClientService {
 
   private val poolNamespace: String =
     WorkflowComputingUnitManagingServiceConf.computeUnitPoolNamespace
+
+  private val cpuLimit: Quantity = new Quantity("1")      // in Cores
+  private val memoryLimit: Quantity = new Quantity("1Gi") // in Gibibytes
+
+  private val cpuRequest: Quantity = new Quantity("0.5")      // in Cores
+  private val memoryRequest: Quantity = new Quantity("0.5Gi") // in Gibibytes
 
   /**
     * Generates a URI for the pod based on the computing unit ID (cuid).
@@ -160,6 +163,21 @@ object KubernetesClientService {
                     new V1EnvVar().name("JDBC_PASSWORD").value(StorageConfig.jdbcPassword)
                   )
                 )
+                .resources(
+                  new V1ResourceRequirements()
+                    .limits(
+                      util.Map.of(
+                        "cpu", cpuLimit,
+                        "memory", memoryLimit
+                      )
+                    )
+                    .requests(
+                      util.Map.of(
+                        "cpu", cpuRequest,
+                        "memory", memoryRequest
+                      )
+                    )
+                )
             )
           )
           .hostname(podName)
@@ -177,6 +195,23 @@ object KubernetesClientService {
   def deletePod(podURI: String): Unit = {
     val cuid = parseCUIDFromURI(podURI)
     coreApi.deleteNamespacedPod(generatePodName(cuid), poolNamespace).execute()
+  }
+
+  /**
+   * Gets a Pods CPU limit
+   *
+   * @return A map representing the pod CPU limit value and unit.
+   */
+  def getPodCPULimit: Map[String, String] = Map("value" -> cpuLimit.getNumber.toString, "unit" -> "Cores") // Default is Cores
+
+  /**
+   * Gets a Pods memory limit
+   *
+   * @return A map representing the pod memory limit value and unit.
+   */
+  def getPodMemoryLimit: Map[String, String] = {
+    // Quantity returns the byte representation of memory no matter what
+    Map("value" -> MemoryUnit.convert(memoryLimit.getNumber.doubleValue(), MemoryUnit.Byte, MemoryUnit.Mebibyte).toString, "unit" -> "MiB")
   }
 
   /**

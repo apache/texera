@@ -1,13 +1,15 @@
-import { Component, Input, OnInit } from "@angular/core";
-import { interval } from "rxjs";
+import {Component, Input, OnInit} from "@angular/core";
+import {interval} from "rxjs";
 import {switchMap} from "rxjs/operators";
-import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
+import {
+  WorkflowComputingUnitManagingService
+} from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import {DashboardWorkflowComputingUnit} from "../../types/workflow-computing-unit";
-import { NotificationService } from "../../../common/service/notification/notification.service";
-import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { isDefined } from "../../../common/util/predicate";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {NotificationService} from "../../../common/service/notification/notification.service";
+import {WorkflowWebsocketService} from "../../service/workflow-websocket/workflow-websocket.service";
+import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
+import {isDefined} from "../../../common/util/predicate";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
@@ -104,7 +106,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (res: Response) => {
-          this.notificationService.success(`Terminated computing unit with URI: ${uri}`);
+          this.notificationService.success(`Terminated ${this.getComputingUnitName(uri)}`);
           this.refreshComputingUnits();
         },
         error: (err: unknown) => this.notificationService.error("Failed to terminate computing unit"),
@@ -126,10 +128,74 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  getComputingUnitName(unitURI: String) : String {
+    // computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local
+    const computingUnit = unitURI.split('.')[0]           // "computing-unit-85"
+    return computingUnit
+      .split('-')
+      .map((word, index) =>
+        index < 2 ? word.charAt(0).toUpperCase() + word.slice(1) : word
+      )
+      .join(' ')
+  }
+
   /**
    * Get badge color based on the unit's status.
    */
   getBadgeColor(status: string): string {
     return status === "Running" ? "green" : "yellow";
+  }
+
+  getCpuLimit(): number {
+    // return 1 by default to avoid division by zero error
+    return +(this.selectedComputingUnit?.resourceLimits?.cpuLimit?.value || 1);
+  }
+
+  getCpuLimitUnit(): String {
+    return this.selectedComputingUnit?.resourceLimits?.cpuLimit?.unit || "Cores";
+  }
+
+  getMemoryLimit(): number {
+    return +(this.selectedComputingUnit?.resourceLimits?.memoryLimit?.value || 1);
+  }
+
+  getMemoryLimitUnit(): String {
+    return this.selectedComputingUnit?.resourceLimits?.memoryLimit?.unit || "MiB";
+  }
+
+  getCpuValue(): number {
+    return +(this.selectedComputingUnit?.metrics?.cpuUsage?.value || 0);
+  }
+
+  getMemoryValue(): number {
+    return +(this.selectedComputingUnit?.metrics?.memoryUsage?.value || 0);
+  }
+
+  getCpuPercentage(): number {
+    return this.getCpuValue() / this.getCpuLimit() * 100;
+  }
+
+  getCpuStatus(): "success" | "exception" | "active" | "normal" {
+    const usage = this.getCpuValue();
+    const limit = this.getCpuLimit();
+    return usage >= limit ? "exception" : "active";
+  }
+
+  getMemoryPercentage(): number {
+    return this.getMemoryValue() / this.getMemoryLimit() * 100;
+  }
+
+  getMemoryStatus(): "success" | "exception" | "active" | "normal" {
+    const usage = this.getMemoryValue();
+    const limit = this.getMemoryLimit();
+    return usage >= limit ? "exception" : "active";
+  }
+
+  getCpuUnit(): String {
+    return this.selectedComputingUnit?.metrics?.cpuUsage?.unit || "";
+  }
+
+  getMemoryUnit(): String {
+    return this.selectedComputingUnit?.metrics?.memoryUsage?.unit || "";
   }
 }
