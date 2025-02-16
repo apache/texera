@@ -20,7 +20,7 @@ class FileService extends Application[FileServiceConfiguration] {
     environment.jersey.setUrlPattern("/api/*")
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
-    environment.jersey.register(classOf[MultiPartFeature])
+//    environment.jersey.register(classOf[MultiPartFeature])
     // Register JWT authentication
     JwtAuth.setupJwtAuth(environment)
 
