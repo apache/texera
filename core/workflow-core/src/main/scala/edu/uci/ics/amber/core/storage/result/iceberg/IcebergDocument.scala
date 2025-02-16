@@ -12,7 +12,6 @@ import org.apache.iceberg.types.{Conversions, Types}
 
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
-import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import java.nio.ByteBuffer
 import java.time.{Instant, LocalDate, ZoneOffset}
