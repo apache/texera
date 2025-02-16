@@ -10,7 +10,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
-import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
@@ -80,9 +80,9 @@ public class TexeraDb extends SchemaImpl {
     public final OperatorExecutions OPERATOR_EXECUTIONS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions.OPERATOR_EXECUTIONS;
 
     /**
-     * The table <code>texera_db.operator_runtime_statistics</code>.
+     * The table <code>texera_db.operator_port_executions</code>.
      */
-    public final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS;
+    public final OperatorPortExecutions OPERATOR_PORT_EXECUTIONS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -187,7 +187,7 @@ public class TexeraDb extends SchemaImpl {
             DatasetVersion.DATASET_VERSION,
             DatasetViewCount.DATASET_VIEW_COUNT,
             OperatorExecutions.OPERATOR_EXECUTIONS,
-            OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS,
+            OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS,
             Project.PROJECT,
             ProjectUserAccess.PROJECT_USER_ACCESS,
             PublicProject.PUBLIC_PROJECT,

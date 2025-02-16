@@ -393,6 +393,7 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.isLiked = false;
             this.hubService
               .getLikeCount(entryId, this.entry.type)
+
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
