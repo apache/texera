@@ -151,15 +151,14 @@ export class WorkflowResultExportService {
     }
 
     // gather operator IDs
-    let operatorIds: string[] = [];
-    if (!exportAll) {
-      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
-    } else {
-      operatorIds = this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(operator => operator.operatorID);
-    }
+    const operatorIds = exportAll ? this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .map(operator => operator.operatorID) :
+      [...this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()];
+
 
     if (operatorIds.length === 0) {
       console.log("No operators selected to export");
