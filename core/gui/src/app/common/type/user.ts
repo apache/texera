@@ -39,7 +39,6 @@ export interface Workflow
   extends Readonly<{
     userId: number;
     workflowId: number;
-    size: number;
     workflowName: string;
     creationTime: number;
     lastModifiedTime: number;

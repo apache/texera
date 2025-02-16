@@ -6,5 +6,4 @@ export interface WorkflowMetadata {
   lastModifiedTime: number | undefined;
   isPublished: number;
   readonly: boolean;
-  size?: number | undefined;
 }

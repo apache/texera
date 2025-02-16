@@ -37,7 +37,7 @@ export class DashboardEntry {
       this.ownerEmail = "";
       this.ownerGoogleAvatar = "";
       this.ownerId = value.ownerId;
-      this.size = value.workflow.size;
+      this.size = 0;
     } else if (isDashboardProject(value)) {
       this.type = "project";
       this.id = value.pid;

@@ -7,5 +7,4 @@ export interface DashboardWorkflow {
   projectIDs: number[];
   accessLevel: string;
   ownerId: number;
-  size?: number;
 }
