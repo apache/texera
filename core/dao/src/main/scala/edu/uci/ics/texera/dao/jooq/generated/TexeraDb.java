@@ -6,7 +6,9 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
@@ -40,7 +42,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -745081464;
+    private static final long serialVersionUID = -590590918;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -58,9 +60,19 @@ public class TexeraDb extends SchemaImpl {
     public final DatasetUserAccess DATASET_USER_ACCESS = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS;
 
     /**
+     * The table <code>texera_db.dataset_user_likes</code>.
+     */
+    public final DatasetUserLikes DATASET_USER_LIKES = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes.DATASET_USER_LIKES;
+
+    /**
      * The table <code>texera_db.dataset_version</code>.
      */
     public final DatasetVersion DATASET_VERSION = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION;
+
+    /**
+     * The table <code>texera_db.dataset_view_count</code>.
+     */
+    public final DatasetViewCount DATASET_VIEW_COUNT = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount.DATASET_VIEW_COUNT;
 
     /**
      * The table <code>texera_db.operator_executions</code>.
@@ -171,7 +183,9 @@ public class TexeraDb extends SchemaImpl {
         return Arrays.<Table<?>>asList(
             Dataset.DATASET,
             DatasetUserAccess.DATASET_USER_ACCESS,
+            DatasetUserLikes.DATASET_USER_LIKES,
             DatasetVersion.DATASET_VERSION,
+            DatasetViewCount.DATASET_VIEW_COUNT,
             OperatorExecutions.OPERATOR_EXECUTIONS,
             OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS,
             Project.PROJECT,
