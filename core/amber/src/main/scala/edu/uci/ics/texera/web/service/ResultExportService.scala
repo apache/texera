@@ -83,9 +83,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       OperatorIdentity(operatorId),
       PortIdentity()
     )
-    val operatorResult: VirtualDocument[Tuple] =
-      DocumentFactory.openDocument(storageUri.get)._1.asInstanceOf[VirtualDocument[Tuple]]
-    return operatorResult
+    /* Fix the error, I want to return an empty VirtualDocument so caller of this function can check its empty by .getCount() */
+    storageUri.map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]).orNull
   }
 
   def exportResult(user: User, request: ResultExportRequest): ResultExportResponse = {
@@ -110,12 +109,16 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     } else if (successMessages.isEmpty) {
       ResultExportResponse("error", errorMessages.mkString("\n"))
     } else {
+      ResultExportResponse("success", successMessages.mkString("\n"))
       // partial success
-      ResultExportResponse(
-        "partial",
-        s"Some operators succeeded:\n${successMessages.mkString("\n")}\n\n" +
-          s"Some operators failed:\n${errorMessages.mkString("\n")}"
-      )
+      // TODO: user should be informed that some of the operators are not exported due to errors,
+      //       currently, we assume the errors are due to no result so we just inform the user
+      //       that request was successful since at least one operator was exported successfully
+//      ResultExportResponse(
+//        "partial",
+//        s"Some operators succeeded:\n${successMessages.mkString("\n")}\n\n" +
+//          s"Some operators failed:\n${errorMessages.mkString("\n")}"
+//      )
     }
   }
 
@@ -144,7 +147,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     val operatorResult = generateOneOperatorResult(operatorId)
-    if (operatorResult.getCount == 0) {
+    if (operatorResult == null || operatorResult.getCount == 0) {
       return (Option("error"), Option("The workflow contains no results"))
     }
 
@@ -510,7 +513,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     val operatorResult = generateOneOperatorResult(operatorId)
-    if (operatorResult.getCount == 0) {
+    if (operatorResult == null || operatorResult.getCount == 0) {
       return (null, None)
     }
 
@@ -612,7 +615,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
             val operatorResult = generateOneOperatorResult(opId)
 
-            if (operatorResult.getCount == 0) {
+            if (operatorResult == null || operatorResult.getCount == 0) {
               // create empty record
               zipOut.putNextEntry(new ZipEntry(s"$opId-empty.txt"))
               val msg = s"Operator $opId has no results"

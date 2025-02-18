@@ -89,7 +89,7 @@
           nz-button
           nzType="primary"
           class="dataset-option-link-btn"
-          (click)="onClickSaveResultFileToDatasets(dataset)">
+          (click)="onClickExportResult('dataset', dataset)">
           Save
         </button>
       </div>
@@ -99,7 +99,7 @@
     nz-button
     nzType="default"
     *ngIf="destination === 'local'"
-    (click)="onClickSaveResultFileToLocal()">
+    (click)="onClickExportResult( 'local')">
     Export
   </button>
 </div>

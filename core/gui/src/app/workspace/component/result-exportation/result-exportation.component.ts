@@ -60,10 +60,8 @@ export class ResultExportationComponent implements OnInit {
     let operatorIds: readonly string[];
     if (this.sourceTriggered === "menu") {
       operatorIds = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
-      console.log("operatorIds in menu ", operatorIds);
     } else {
       operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      console.log("operatorIds in context menu ", operatorIds);
     }
 
     if (operatorIds.length === 0) {
@@ -82,6 +80,9 @@ export class ResultExportationComponent implements OnInit {
 
     for (const operatorId of operatorIds) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
+      if (!outputTypes.hasAnyResult) {
+        continue;
+      }
       if (!outputTypes.isTableOutput) {
         allTable = false;
       }
@@ -110,7 +111,7 @@ export class ResultExportationComponent implements OnInit {
 
   onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
     if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResultToLocal(
+      this.workflowResultExportService.exportWorkflowExecutionResult(
         this.exportType,
         this.workflowName,
         [dataset.dataset.did],
@@ -125,7 +126,7 @@ export class ResultExportationComponent implements OnInit {
   }
 
   onClickSaveResultFileToLocal() {
-    this.workflowResultExportService.exportWorkflowExecutionResultToLocal(
+    this.workflowResultExportService.exportWorkflowExecutionResult(
       this.exportType,
       this.workflowName,
       [],
@@ -134,6 +135,23 @@ export class ResultExportationComponent implements OnInit {
       this.inputFileName,
       this.sourceTriggered === "menu",
       "local"
+    );
+    this.modalRef.close();
+  }
+
+  onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
+    const datasetIds = destination === "dataset" ?
+      [dataset.dataset.did].filter((id): id is number => id !== undefined) :
+      [];
+    this.workflowResultExportService.exportWorkflowExecutionResult(
+      this.exportType,
+      this.workflowName,
+      datasetIds,
+      this.rowIndex,
+      this.columnIndex,
+      this.inputFileName,
+      this.sourceTriggered === "menu",
+      destination
     );
     this.modalRef.close();
   }

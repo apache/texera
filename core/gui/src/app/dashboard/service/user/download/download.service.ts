@@ -9,13 +9,18 @@ import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
-import { ExportWorkflowJsonResponse } from "./download.interface";
+var contentDisposition = require("content-disposition")
 
 export const EXPORT_BASE_URL = "result/export";
 
 interface DownloadableItem {
   blob: Blob;
   fileName: string;
+}
+
+export interface ExportWorkflowJsonResponse {
+  status: string;
+  message: string;
 }
 
 @Injectable({
@@ -144,14 +149,13 @@ export class DownloadService {
   public saveBlobFile(response: any, defaultFileName: string): void {
     // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
     // we can parse that out. Otherwise just use defaultFileName.
-    const contentDisposition = response.headers.get("Content-Disposition");
+    const dispositionHeader = response.headers.get("Content-Disposition");
     let fileName = defaultFileName;
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename="(.+)"/);
-      if (match && match[1]) {
-        fileName = match[1];
-      }
+    if (dispositionHeader) {
+      const parsed = contentDisposition.parse(dispositionHeader);
+      fileName = parsed.parameters.filename || defaultFileName;
     }
+
     const blob = response.body; // the actual file data
     this.fileSaverService.saveAs(blob, fileName);
   }
