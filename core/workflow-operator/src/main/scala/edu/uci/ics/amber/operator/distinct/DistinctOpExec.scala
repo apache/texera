@@ -10,7 +10,15 @@ import scala.collection.mutable
   * It uses a `LinkedHashSet` to preserve the input order while removing duplicates.
   */
 class DistinctOpExec extends OperatorExecutor {
-  private val seenTuples: mutable.LinkedHashSet[Tuple] = mutable.LinkedHashSet()
+  private var seenTuples: mutable.LinkedHashSet[Tuple] = _
+
+  override def open(): Unit = {
+    seenTuples = mutable.LinkedHashSet()
+  }
+
+  override def close(): Unit = {
+    seenTuples.clear()
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     seenTuples.add(tuple)

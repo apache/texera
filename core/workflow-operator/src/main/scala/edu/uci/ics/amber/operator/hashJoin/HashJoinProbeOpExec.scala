@@ -49,6 +49,14 @@ class HashJoinProbeOpExec[K](
     objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
+  override def open(): Unit = {
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
+  }
+
+  override def close(): Unit = {
+    buildTableHashMap.clear()
+  }
+
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
     if (port == 0) {
       // Load build hash map
@@ -122,13 +130,4 @@ class HashJoinProbeOpExec[K](
           .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
       )
     )
-
-  override def open(): Unit = {
-    buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
-  }
-
-  override def close(): Unit = {
-    buildTableHashMap.clear()
-  }
-
 }

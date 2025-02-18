@@ -11,8 +11,18 @@ import scala.collection.mutable
   */
 class AggregateOpExec(descString: String) extends OperatorExecutor {
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
-  private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
+  private var keyedPartialAggregates: mutable.HashMap[List[Object], List[Object]] = _
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
+
+  override def open(): Unit = {
+    keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
+    distributedAggregations = null
+  }
+
+  override def close(): Unit = {
+    keyedPartialAggregates.clear()
+    distributedAggregations = null
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
