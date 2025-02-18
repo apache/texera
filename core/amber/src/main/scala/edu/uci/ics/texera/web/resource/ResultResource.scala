@@ -33,11 +33,7 @@ class ResultResource extends LazyLogging {
               resultExportService.exportOperatorsAsZip(user.user, request)
 
             if (zipStream == null) {
-              return Response
-                .status(Response.Status.INTERNAL_SERVER_ERROR)
-                .`type`(MediaType.APPLICATION_JSON)
-                .entity(Map("error" -> "Failed to export multiple operators as zip").asJava)
-                .build()
+              throw new RuntimeException("Zip stream is null")
             }
 
             val finalFileName = zipFileNameOpt.getOrElse("operators.zip")
