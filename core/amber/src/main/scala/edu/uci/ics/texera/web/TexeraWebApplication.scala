@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource
+import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
   DatasetFileNode,
   DatasetFileNodeSerializer
@@ -136,7 +136,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[ResultResource])
-    environment.jersey.register(classOf[HubWorkflowResource])
+    environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])

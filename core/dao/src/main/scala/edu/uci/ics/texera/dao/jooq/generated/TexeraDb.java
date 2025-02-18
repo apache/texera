@@ -8,18 +8,18 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
-import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess;
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
@@ -40,7 +40,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -2031114180;
+    private static final long serialVersionUID = -745081464;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -68,9 +68,9 @@ public class TexeraDb extends SchemaImpl {
     public final OperatorExecutions OPERATOR_EXECUTIONS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions.OPERATOR_EXECUTIONS;
 
     /**
-     * The table <code>texera_db.operator_runtime_statistics</code>.
+     * The table <code>texera_db.operator_port_executions</code>.
      */
-    public final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS;
+    public final OperatorPortExecutions OPERATOR_PORT_EXECUTIONS = edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -91,6 +91,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.user</code>.
      */
     public final User USER = edu.uci.ics.texera.dao.jooq.generated.tables.User.USER;
+
+    /**
+     * The table <code>texera_db.user_activity</code>.
+     */
+    public final UserActivity USER_ACTIVITY = edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity.USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.user_config</code>.
@@ -121,11 +126,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public final WorkflowUserAccess WORKFLOW_USER_ACCESS = edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS;
-
-    /**
-     * The table <code>texera_db.workflow_user_activity</code>.
-     */
-    public final WorkflowUserActivity WORKFLOW_USER_ACTIVITY = edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity.WORKFLOW_USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.workflow_user_clones</code>.
@@ -173,18 +173,18 @@ public class TexeraDb extends SchemaImpl {
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetVersion.DATASET_VERSION,
             OperatorExecutions.OPERATOR_EXECUTIONS,
-            OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS,
+            OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS,
             Project.PROJECT,
             ProjectUserAccess.PROJECT_USER_ACCESS,
             PublicProject.PUBLIC_PROJECT,
             User.USER,
+            UserActivity.USER_ACTIVITY,
             UserConfig.USER_CONFIG,
             Workflow.WORKFLOW,
             WorkflowExecutions.WORKFLOW_EXECUTIONS,
             WorkflowOfProject.WORKFLOW_OF_PROJECT,
             WorkflowOfUser.WORKFLOW_OF_USER,
             WorkflowUserAccess.WORKFLOW_USER_ACCESS,
-            WorkflowUserActivity.WORKFLOW_USER_ACTIVITY,
             WorkflowUserClones.WORKFLOW_USER_CLONES,
             WorkflowUserLikes.WORKFLOW_USER_LIKES,
             WorkflowVersion.WORKFLOW_VERSION,
