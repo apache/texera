@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
-
+import { AppSettings } from "../../../../common/app-setting";
 import { Observable, throwError } from "rxjs";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { RepositoriesService, 
@@ -19,9 +19,11 @@ import { S3Client,
   AbortMultipartUploadCommand} from "@aws-sdk/client-s3"
 import { defaultEnvironment } from "src/environments/environment.default";
 import { DatasetFileNode } from "src/app/common/type/datasetVersionFileTree";
+import { HttpClient } from "@angular/common/http";
 
 const LAKEFS_ACCESS_KEY = "AKIAIOSFOLKFSSAMPLES"
 const LAKEFS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+const PRESIGNED_URL = "dataset/s3-presigned-upload"
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB per part (AWS & LakeFS minimum)
 
@@ -34,7 +36,8 @@ export class LakefsDatasetService {
   constructor(private repositoriesService: RepositoriesService, 
     private commitsService: CommitsService,
     private refsService: RefsService,
-    private objectsService: ObjectsService
+    private objectsService: ObjectsService,
+    private http: HttpClient
   ) {
     this.repositoriesService.configuration.username = LAKEFS_ACCESS_KEY;
     this.repositoriesService.configuration.password = LAKEFS_SECRET_KEY;
@@ -58,6 +61,13 @@ export class LakefsDatasetService {
     });
   }
 
+  private getPresignedUrl(bucketName: string, objectKey: string): Observable<{ presignedUrl: string }> {
+    return this.http
+    .get<{ 
+      presignedUrl: string 
+    }>(`${AppSettings.getApiEndpoint()}/${PRESIGNED_URL}?objectKey=${objectKey}&bucketName=${bucketName}`);
+  }
+
   public createDataset(
     dataset: Dataset,
     initialVersionName: string,
@@ -79,6 +89,7 @@ export class LakefsDatasetService {
           Promise.all(uploadPromises)
             .then(() => {
               let did = dataset.name ? dataset.name : "";
+              console.log("should after upload");
               this.createCommit(did, dataset.description).subscribe({
                 next: (commit) => {
                   let createDataset: Dataset = {
@@ -137,26 +148,65 @@ export class LakefsDatasetService {
   ): Promise<void> {
     if (file.size > CHUNK_SIZE) {
       // Use multipart upload for large files
-      await this.uploadFileMultipartS3(repo, branch, key, file);
+      return new Promise((resolve, reject) => {
+        this.uploadFileMultipartS3(repo, branch, key, file).then(() => {
+          resolve();
+        }).catch(error => {
+          reject(error);
+        });
+      });
     } else {
       // Use simple put object for smaller files
-      const commandParams = {
-        Bucket: repo,
-        Key: `${branch}/${key}`,
-        Body: file,
-        ContentType: file.type,
-      };
+      // const commandParams = {
+      //   Bucket: repo,
+      //   Key: `${branch}/${key}`,
+      //   Body: file,
+      //   ContentType: file.type,
+      // };
   
-      const command = new PutObjectCommand(commandParams);
+      // const command = new PutObjectCommand(commandParams);
   
-      return this.s3Client.send(command)
-        .then((data) => {
-          console.log(`File ${key} uploaded successfully:`, data);
-        })
-        .catch((error) => {
-          console.error(`Error uploading ${key} to LakeFS:`, error);
-          throw error;
+      // return this.s3Client.send(command)
+      //   .then((data) => {
+      //     console.log(`File ${key} uploaded successfully:`, data);
+      //   })
+      //   .catch((error) => {
+      //     console.error(`Error uploading ${key} to LakeFS:`, error);
+      //     throw error;
+      //   });
+      return new Promise((resolve, reject) => {
+        this.getPresignedUrl(repo, `${branch}/${key}`).subscribe({
+          next: (data) => {
+            let presignedUrl = data.presignedUrl;
+            const url = new URL(presignedUrl);
+    
+            let repoName = url.hostname.split('.')[0];
+            let newUrl = `/s3/${repoName}${url.pathname}${url.search}`;
+    
+            fetch(newUrl, {
+              method: 'PUT',
+              body: file,
+              headers: {
+                'Content-Type': file.type
+              }
+            })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+              }
+              console.log("Finished upload for:", key);
+              resolve();
+            })
+            .catch(error => {
+              console.error("Error uploading file:", error);
+              reject(error);
+            });
+          },
+          error: (error) => {
+            reject(error);
+          }
         });
+      });
     }
   }
 
@@ -275,8 +325,9 @@ export class LakefsDatasetService {
   }
 
   public retrieveDatasetVersionSingleFile(path: string, did: string, dvid: string): Observable<Blob> {
+    path = path[0] === "/" ? path.substring(1) : path;
     return new Observable<Blob>(subscriber => {
-      this.objectsService.getObject(did, dvid, path.substring(1)).subscribe({
+      this.objectsService.getObject(did, dvid, path).subscribe({
         next: (data) => {
           subscriber.next(data);
           subscriber.complete();
@@ -334,12 +385,13 @@ export class LakefsDatasetService {
     removedFilePaths: string[],
     filesToBeUploaded: FileUploadItem[]
   ): Observable<DatasetVersion> {
+    console.log(removedFilePaths);
     return new Observable<DatasetVersion>(subscriber => {
       if (filesToBeUploaded.length === 0) {
         if (removedFilePaths.length > 0) {
           let deletePaths: PathList = {
             "paths": removedFilePaths.map(
-              path => path.substring(1)
+              path => path[0] === "/" ? path.substring(1) : path
             )
           };
           this.objectsService.deleteObjects(deletePaths, did, "main").subscribe({
@@ -397,7 +449,7 @@ export class LakefsDatasetService {
             if (removedFilePaths.length > 0) {
               let deletePaths: PathList = {
                 "paths": removedFilePaths.map(
-                  path => path.substring(1)
+                  path => path[0] === "/" ? path.substring(1) : path
                 )
               };
     
@@ -519,39 +571,75 @@ export class LakefsDatasetService {
     })
   }
 
-  /**
-   * retrieve a list of nodes that represent the files in the version
-   * @param did
-   * @param dvid
-   * @param isLogin
-   */
   public retrieveDatasetVersionFileTree(
     did: string,
     dvid: string,
     isLogin: boolean = true
   ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
     return new Observable<{ fileNodes: DatasetFileNode[]; size: number }>(subscriber => {
+      let totalSize = 0;
+      let rootNodes = new Map<string, DatasetFileNode>();
+      let directoryMap = new Map<string, DatasetFileNode>();
+  
       this.objectsService.listObjects(did, dvid).subscribe({
         next: (objects) => {
-          let totalSize = 0;
-          let fileNodes: DatasetFileNode[] = objects.results.map(object => {
+          objects.results.forEach(object => {
             totalSize += object.size_bytes ?? 0;
-            return {
-              name: object.path,
-              size: object.size_bytes ?? 0,
-              type: "file",
-              parentDir: ""
-            }
+            const pathParts = object.path.split("/");
+            let currentPath = "";
+            let parentNode: DatasetFileNode | undefined = undefined;
+  
+            pathParts.forEach((part, index) => {
+              currentPath = currentPath ? `${currentPath}/${part}` : part;
+  
+              if (index < pathParts.length - 1) {
+                if (!directoryMap.has(currentPath)) {
+                  const dirNode: DatasetFileNode = {
+                    name: part,
+                    type: "directory",
+                    children: [],
+                    parentDir: parentNode ? parentNode.name : ""
+                  };
+                  directoryMap.set(currentPath, dirNode);
+                  if (parentNode) {
+                    parentNode.children!.push(dirNode);
+                  } else {
+                    rootNodes.set(currentPath, dirNode);
+                  }
+                }
+                parentNode = directoryMap.get(currentPath);
+              } else {
+                const fileNode: DatasetFileNode = {
+                  name: part,
+                  size: object.size_bytes ?? 0,
+                  type: "file",
+                  parentDir: this.getParentDirectory(currentPath)
+                };
+                if (parentNode) {
+                  parentNode.children!.push(fileNode);
+                } else {
+                  rootNodes.set(currentPath, fileNode);
+                }
+              }
+            });
           });
-          subscriber.next({ fileNodes: fileNodes, size: totalSize });
+          subscriber.next({ fileNodes: Array.from(rootNodes.values()), size: totalSize });
           subscriber.complete();
         },
         error: (error) => {
-          return throwError(() => error);
+          subscriber.error(error);
         }
-      })
-    })
+      });
+    });
   }
+
+  private getParentDirectory(filePath: string): string {
+    const parts = filePath.split("/");
+    if (parts.length > 1) {
+        return parts.slice(0, -1).join("/");
+    }
+    return "";
+}
   
   public deleteDataset(repo: string,): Observable<Response> {
     return this.repositoriesService.deleteRepository(repo);
