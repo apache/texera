@@ -20,12 +20,21 @@
       alt="hub icon" />
   </div>
 
+  <div>
   <texera-browse-section
-    [workflows]="topLovedWorkflows"
-    sectionTitle="Top Loved Workflows">
+    [entities]="topLovedWorkflows"
+    sectionTitle="Top Loved Workflows"
+  [currentUid]="currentUid">
   </texera-browse-section>
   <texera-browse-section
-    [workflows]="topClonedWorkflows"
-    sectionTitle="Top Cloned Workflows">
+    [entities]="topClonedWorkflows"
+    sectionTitle="Top Cloned Workflows"
+    [currentUid]="currentUid">
   </texera-browse-section>
+  <texera-browse-section
+    [entities]="topLovedDatasets"
+    sectionTitle="Top Loved Datasets"
+    [currentUid]="currentUid">
+  </texera-browse-section>
+  </div>
 </div>

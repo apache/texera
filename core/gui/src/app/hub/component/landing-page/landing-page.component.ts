@@ -20,6 +20,7 @@ export class LandingPageComponent implements OnInit {
   public workflowCount: number = 0;
   public topLovedWorkflows: DashboardEntry[] = [];
   public topClonedWorkflows: DashboardEntry[] = [];
+  public topLovedDatasets: DashboardEntry[] = [];
 
   constructor(
     private hubService: HubService,
@@ -45,6 +46,7 @@ export class LandingPageComponent implements OnInit {
     try {
       this.topLovedWorkflows = await this.getTopLovedEntries("workflow", "like");
       this.topClonedWorkflows = await this.getTopLovedEntries("workflow", "clone");
+      this.topLovedDatasets = await this.getTopLovedEntries("dataset", "like");
     } catch (error) {
       console.error("Failed to load top loved workflows:", error);
     }

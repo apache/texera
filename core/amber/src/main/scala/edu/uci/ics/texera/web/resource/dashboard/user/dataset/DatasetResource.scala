@@ -1,10 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{
-  GitVersionControlLocalFileStorage,
-  PhysicalFileNode
-}
+import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
@@ -14,17 +11,8 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
@@ -32,7 +20,7 @@ import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
 import org.jooq.types.UInteger
-import org.jooq.{DSLContext, EnumType}
+import org.jooq.{DSLContext, EnumType, Record, Result, SelectJoinStep}
 import play.api.libs.json.Json
 
 import java.io.{IOException, InputStream, OutputStream}
@@ -342,6 +330,34 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode],
       size: Long
   )
+
+  def baseDatasetSelect(): SelectJoinStep[Record] = {
+    context
+      .select()
+      .from(
+        DATASET
+          .leftJoin(DATASET_USER_ACCESS)
+          .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+          .leftJoin(USER)
+          .on(USER.UID.eq(DATASET.OWNER_UID))
+      )
+  }
+
+  def mapDashboardDataset(records: Result[Record], uid: UInteger): List[DashboardDataset] = {
+    records.asScala.map { record =>
+      val dataset = record.into(DATASET).into(classOf[Dataset])
+      val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
+      val ownerEmail = record.into(USER).getEmail
+      DashboardDataset(
+        isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
+        dataset = dataset,
+        accessPrivilege = datasetAccess.getPrivilege,
+        versions = List(),
+        ownerEmail = ownerEmail,
+        size = calculateDatasetVersionSize(dataset.getDid)
+      )
+    }.toList
+  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -626,35 +642,14 @@ class DatasetResource {
   ): List[DashboardDataset] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
       // first fetch all datasets user have explicit access to
-      accessibleDatasets = ListBuffer.from(
-        ctx
-          .select()
-          .from(
-            DATASET
-              .leftJoin(DATASET_USER_ACCESS)
-              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-              .leftJoin(USER)
-              .on(USER.UID.eq(DATASET.OWNER_UID))
-          )
-          .where(DATASET_USER_ACCESS.UID.eq(uid))
-          .fetch()
-          .map(record => {
-            val dataset = record.into(DATASET).into(classOf[Dataset])
-            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-            val ownerEmail = record.into(USER).getEmail
-            DashboardDataset(
-              isOwner = dataset.getOwnerUid == uid,
-              dataset = dataset,
-              accessPrivilege = datasetAccess.getPrivilege,
-              versions = List(),
-              ownerEmail = ownerEmail,
-              size = calculateDatasetVersionSize(dataset.getDid)
-            )
-          })
-          .asScala
-      )
+
+      val userDatasetRecords = baseDatasetSelect()
+        .where(DATASET_USER_ACCESS.UID.eq(uid))
+        .fetch()
+
+      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer.from(mapDashboardDataset(userDatasetRecords, uid))
+
 
       // then we fetch the public datasets and merge it as a part of the result if not exist
       val publicDatasets = ctx
