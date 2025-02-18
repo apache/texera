@@ -188,7 +188,7 @@ class DataProcessor(
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
         val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
         statisticsManager.increaseOutputStatistics(portIdentity, tuple.inMemSize)
-        outputManager.passTupleToDownstream(tuple, outputPortOpt)
+        outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now
     }
