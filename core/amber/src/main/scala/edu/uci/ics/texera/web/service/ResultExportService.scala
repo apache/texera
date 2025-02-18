@@ -18,7 +18,10 @@ import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
@@ -47,9 +50,9 @@ import scala.util.Using
 import java.io.{FilterOutputStream, IOException, OutputStream}
 
 /**
- * A simple wrapper that ignores 'close()' calls on the underlying stream.
- * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
- */
+  * A simple wrapper that ignores 'close()' calls on the underlying stream.
+  * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
+  */
 private class NonClosingOutputStream(os: OutputStream) extends FilterOutputStream(os) {
   @throws[IOException]
   override def close(): Unit = {
@@ -84,7 +87,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       PortIdentity()
     )
     /* Fix the error, I want to return an empty VirtualDocument so caller of this function can check its empty by .getCount() */
-    storageUri.map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]).orNull
+    storageUri
+      .map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]])
+      .orNull
   }
 
   def exportResult(user: User, request: ResultExportRequest): ResultExportResponse = {
@@ -123,14 +128,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Export the result for ONE operator.
-   * Return (SomeSuccessMessage, SomeErrorMessage) or (None, None) if handled differently
-   */
+    * Export the result for ONE operator.
+    * Return (SomeSuccessMessage, SomeErrorMessage) or (None, None) if handled differently
+    */
   private def exportSingleOperator(
-                                    user: User,
-                                    request: ResultExportRequest,
-                                    operatorId: String
-                                  ): (Option[String], Option[String]) = {
+      user: User,
+      request: ResultExportRequest,
+      operatorId: String
+  ): (Option[String], Option[String]) = {
 
     // Possibly use some caching key
     val cacheKey = s"${request.exportType}-$operatorId"
@@ -177,12 +182,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def handleCSVRequest(
-                                operatorId: String,
-                                user: User,
-                                request: ResultExportRequest,
-                                results: Iterable[Tuple],
-                                headers: List[String]
-                              ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple],
+      headers: List[String]
+  ): (Option[String], Option[String]) = {
     try {
       val pipedOutputStream = new PipedOutputStream()
       val pipedInputStream = new PipedInputStream(pipedOutputStream)
@@ -208,11 +213,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def handleGoogleSheetRequest(
-                                        operatorId: String,
-                                        results: Iterable[Tuple],
-                                        header: List[String],
-                                        request: ResultExportRequest
-                                      ): (Option[String], Option[String]) = {
+      operatorId: String,
+      results: Iterable[Tuple],
+      header: List[String],
+      request: ResultExportRequest
+  ): (Option[String], Option[String]) = {
     try {
       val sheetService: Sheets = GoogleResource.getSheetService
       val sheetId: String = createGoogleSheet(sheetService, s"${request.workflowName}-$operatorId")
@@ -257,10 +262,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   @tailrec
   private def moveToResultFolder(
-                                  driveService: Drive,
-                                  sheetId: String,
-                                  retryOnce: Boolean = true
-                                ): Unit = {
+      driveService: Drive,
+      sheetId: String,
+      retryOnce: Boolean = true
+  ): Unit = {
     val folderId = retrieveResultFolderId(driveService)
     try {
       driveService.files().update(sheetId, null).setAddParents(folderId).execute()
@@ -320,10 +325,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def uploadContent(
-                             sheetService: Sheets,
-                             sheetId: String,
-                             content: util.List[util.List[AnyRef]]
-                           ): Unit = {
+      sheetService: Sheets,
+      sheetId: String,
+      content: util.List[util.List[AnyRef]]
+  ): Unit = {
     val body = new ValueRange().setValues(content)
     val range = "A1"
     val options = "RAW"
@@ -346,11 +351,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def handleDataRequest(
-                                 operatorId: String,
-                                 user: User,
-                                 request: ResultExportRequest,
-                                 results: Iterable[Tuple]
-                               ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): (Option[String], Option[String]) = {
     try {
       val rowIndex = request.rowIndex
       val columnIndex = request.columnIndex
@@ -391,11 +396,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def handleArrowRequest(
-                                  operatorId: String,
-                                  user: User,
-                                  request: ResultExportRequest,
-                                  results: Iterable[Tuple]
-                                ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): (Option[String], Option[String]) = {
     if (results.isEmpty) {
       return (None, Some(s"No results to export for operator $operatorId"))
     }
@@ -428,10 +433,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def createArrowWriter(
-                                 results: Iterable[Tuple],
-                                 allocator: RootAllocator,
-                                 outputStream: OutputStream
-                               ): (ArrowFileWriter, VectorSchemaRoot) = {
+      results: Iterable[Tuple],
+      allocator: RootAllocator,
+      outputStream: OutputStream
+  ): (ArrowFileWriter, VectorSchemaRoot) = {
     val schema = results.head.getSchema
     val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
     val root = VectorSchemaRoot.create(arrowSchema, allocator)
@@ -441,10 +446,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def writeArrowData(
-                              writer: ArrowFileWriter,
-                              root: VectorSchemaRoot,
-                              results: Iterable[Tuple]
-                            ): Unit = {
+      writer: ArrowFileWriter,
+      root: VectorSchemaRoot,
+      results: Iterable[Tuple]
+  ): Unit = {
     writer.start()
     val batchSize = 1000
     val resultList = results.toList
@@ -466,10 +471,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def generateFileName(
-                                request: ResultExportRequest,
-                                operatorId: String,
-                                extension: String
-                              ): String = {
+      request: ResultExportRequest,
+      operatorId: String,
+      extension: String
+  ): String = {
     val latestVersion =
       WorkflowVersionResource.getLatestVersion(org.jooq.types.UInteger.valueOf(request.workflowId))
     val timestamp = LocalDateTime
@@ -483,11 +488,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   private def saveToDatasets(
-                              request: ResultExportRequest,
-                              user: User,
-                              pipedInputStream: PipedInputStream,
-                              fileName: String
-                            ): Unit = {
+      request: ResultExportRequest,
+      user: User,
+      pipedInputStream: PipedInputStream,
+      fileName: String
+  ): Unit = {
     request.datasetIds.foreach { did =>
       val datasetPath = PathUtils.getDatasetPath(org.jooq.types.UInteger.valueOf(did))
       val filePath = datasetPath.resolve(fileName)
@@ -500,13 +505,13 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * For local download of a single operator. Streams the data directly.
-   * We return (StreamingOutput, Some(filename)) on success, or (null, None) on error.
-   */
+    * For local download of a single operator. Streams the data directly.
+    * We return (StreamingOutput, Some(filename)) on success, or (null, None) on error.
+    */
   def exportOperatorResultAsStream(
-                                    request: ResultExportRequest,
-                                    operatorId: String
-                                  ): (StreamingOutput, Option[String]) = {
+      request: ResultExportRequest,
+      operatorId: String
+  ): (StreamingOutput, Option[String]) = {
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
       return (null, None)
@@ -541,8 +546,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Writes CSV to output stream
-   */
+    * Writes CSV to output stream
+    */
   private def writeCsv(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
     // for large data, you might want a buffered approach
     val csvWriter = CSVWriter.open(outputStream) // Tototoshi CSVWriter can open an OutputStream
@@ -555,8 +560,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Writes Arrow to output stream
-   */
+    * Writes Arrow to output stream
+    */
   private def writeArrow(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
     if (results.isEmpty) return
 
@@ -589,9 +594,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   def exportOperatorsAsZip(
-                            user: User,
-                            request: ResultExportRequest
-                          ): (StreamingOutput, Option[String]) = {
+      user: User,
+      request: ResultExportRequest
+  ): (StreamingOutput, Option[String]) = {
     if (request.operatorIds.isEmpty) {
       return (null, None)
     }

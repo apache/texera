@@ -59,7 +59,10 @@ export class ResultExportationComponent implements OnInit {
     //  we should allow user to export result without setting `view result` to true
     let operatorIds: readonly string[];
     if (this.sourceTriggered === "menu") {
-      operatorIds = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID);
     } else {
       operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     }
@@ -140,9 +143,8 @@ export class ResultExportationComponent implements OnInit {
   }
 
   onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
-    const datasetIds = destination === "dataset" ?
-      [dataset.dataset.did].filter((id): id is number => id !== undefined) :
-      [];
+    const datasetIds =
+      destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
     this.workflowResultExportService.exportWorkflowExecutionResult(
       this.exportType,
       this.workflowName,
