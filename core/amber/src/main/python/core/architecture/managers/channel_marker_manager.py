@@ -16,7 +16,7 @@ class ChannelMarkerManager:
 
     def is_marker_aligned(
         self, from_channel: ChannelIdentity, marker: ChannelMarkerPayload
-    ):
+    ) -> bool:
         """
         Checks whether a channel marker has been received from all expected
         input channels, determining whether further processing can proceed.
@@ -58,8 +58,4 @@ class ChannelMarkerManager:
             for channel_id in marker.scope
             if channel_id.to_worker_id == self.actor_id
         }
-        return {
-            channel_id
-            for channel_id in self.input_gateway.get_all_channel_ids()
-            if channel_id in upstreams
-        }
+        return self.input_gateway.get_all_channel_ids() & upstreams
