@@ -54,7 +54,9 @@ class ChannelMarkerManager:
 
         return epoch_marker_completed
 
-    def get_channels_within_scope(self, marker: ChannelMarkerPayload) -> dict_keys[ChannelIdentity, Channel]:
+    def get_channels_within_scope(
+        self, marker: ChannelMarkerPayload
+    ) -> dict_keys[ChannelIdentity, Channel]:
         upstreams = {
             channel_id
             for channel_id in marker.scope
