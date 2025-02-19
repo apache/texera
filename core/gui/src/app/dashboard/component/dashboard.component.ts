@@ -8,7 +8,6 @@ import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
 
 import {
-  DASHBOARD_ABOUT,
   DASHBOARD_ADMIN_EXECUTION,
   DASHBOARD_ADMIN_GMAIL,
   DASHBOARD_ADMIN_USER,
@@ -143,6 +142,4 @@ export class DashboardComponent implements OnInit {
       }, 175);
     }
   }
-
-  protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
 }
