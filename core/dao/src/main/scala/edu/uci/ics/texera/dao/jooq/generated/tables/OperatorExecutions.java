@@ -14,7 +14,6 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
@@ -26,7 +25,6 @@ import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
-import org.jooq.types.ULong;
 
 
 /**
@@ -35,7 +33,7 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
 
-    private static final long serialVersionUID = 1254946167;
+    private static final long serialVersionUID = -1617835207;
 
     /**
      * The reference instance of <code>texera_db.operator_executions</code>
@@ -51,11 +49,6 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     /**
-     * The column <code>texera_db.operator_executions.operator_execution_id</code>.
-     */
-    public final TableField<OperatorExecutionsRecord, ULong> OPERATOR_EXECUTION_ID = createField(DSL.name("operator_execution_id"), org.jooq.impl.SQLDataType.BIGINTUNSIGNED.nullable(false).identity(true), this, "");
-
-    /**
      * The column <code>texera_db.operator_executions.workflow_execution_id</code>.
      */
     public final TableField<OperatorExecutionsRecord, UInteger> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
@@ -64,6 +57,11 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
      * The column <code>texera_db.operator_executions.operator_id</code>.
      */
     public final TableField<OperatorExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.operator_executions.console_messages_uri</code>.
+     */
+    public final TableField<OperatorExecutionsRecord, String> CONSOLE_MESSAGES_URI = createField(DSL.name("console_messages_uri"), org.jooq.impl.SQLDataType.CLOB, this, "");
 
     /**
      * Create a <code>texera_db.operator_executions</code> table reference
@@ -105,22 +103,12 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.OPERATOR_EXECUTIONS_PRIMARY, Indexes.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID);
-    }
-
-    @Override
-    public Identity<OperatorExecutionsRecord, ULong> getIdentity() {
-        return Keys.IDENTITY_OPERATOR_EXECUTIONS;
-    }
-
-    @Override
-    public UniqueKey<OperatorExecutionsRecord> getPrimaryKey() {
-        return Keys.KEY_OPERATOR_EXECUTIONS_PRIMARY;
+        return Arrays.<Index>asList(Indexes.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID);
     }
 
     @Override
     public List<UniqueKey<OperatorExecutionsRecord>> getKeys() {
-        return Arrays.<UniqueKey<OperatorExecutionsRecord>>asList(Keys.KEY_OPERATOR_EXECUTIONS_PRIMARY, Keys.KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID);
+        return Arrays.<UniqueKey<OperatorExecutionsRecord>>asList(Keys.KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID);
     }
 
     @Override
@@ -163,7 +151,7 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<ULong, UInteger, String> fieldsRow() {
+    public Row3<UInteger, String, String> fieldsRow() {
         return (Row3) super.fieldsRow();
     }
 }

@@ -54,8 +54,8 @@ message OperatorWorkerMapping{
 }
 
 message OperatorStatistics{
-  repeated architecture.worker.PortTupleCountMapping input_count = 1;
-  repeated architecture.worker.PortTupleCountMapping output_count = 2;
+  repeated architecture.worker.PortTupleMetricsMapping input_metrics = 1;
+  repeated architecture.worker.PortTupleMetricsMapping output_metrics = 2;
   int32 num_workers = 3;
   int64 data_processing_time = 4;
   int64 control_processing_time = 5;

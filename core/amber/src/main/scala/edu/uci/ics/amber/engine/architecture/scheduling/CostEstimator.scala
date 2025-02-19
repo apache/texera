@@ -1,23 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  OPERATOR_EXECUTIONS,
-  OPERATOR_RUNTIME_STATISTICS,
-  WORKFLOW_EXECUTIONS,
-  WORKFLOW_VERSION
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
 import org.jooq.types.UInteger
 
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.{Failure, Success, Try}
+import java.net.URI
 
 /**
   * A cost estimator should estimate a cost of running a region under the given resource constraints as units.
@@ -88,7 +83,7 @@ class DefaultCostEstimator(
       wid: Long
   ): Option[Map[String, Double]] = {
 
-    val operatorEstimatedTimeOption = withTransaction(
+    val uriString: String = withTransaction(
       SqlServer
         .getInstance(
           StorageConfig.jdbcUrl,
@@ -97,55 +92,40 @@ class DefaultCostEstimator(
         )
         .createDSLContext()
     ) { context =>
-      val widAsUInteger = UInteger.valueOf(wid)
-      val rawStats = context
-        .select(
-          OPERATOR_EXECUTIONS.OPERATOR_ID,
-          OPERATOR_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
-          OPERATOR_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
-          OPERATOR_RUNTIME_STATISTICS.TIME,
-          OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-          OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
-          OPERATOR_RUNTIME_STATISTICS.IDLE_TIME,
-          OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS
-        )
-        .from(OPERATOR_EXECUTIONS)
-        .join(OPERATOR_RUNTIME_STATISTICS)
-        .on(
-          OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID.eq(
-            OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID
-          )
-        )
+      context
+        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(
-          OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(
-            context
-              .select(WORKFLOW_EXECUTIONS.EID)
-              .from(WORKFLOW_EXECUTIONS)
-              .join(WORKFLOW_VERSION)
-              .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-              .where(
-                WORKFLOW_VERSION.WID
-                  .eq(widAsUInteger)
-                  .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
-              )
-              .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
-              .limit(1)
-          )
+          WORKFLOW_VERSION.WID
+            .eq(UInteger.valueOf(wid))
+            .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
         )
-        .fetchInto(classOf[WorkflowRuntimeStatistics])
-        .asScala
-        .toList
-      if (rawStats.isEmpty) {
-        None
-      } else {
-        val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
-          val opTotalExecutionTime = acc.getOrElse(stat.operatorId, 0.0)
-          acc + (stat.operatorId -> (opTotalExecutionTime + (stat.dataProcessingTime
-            .doubleValue() + stat.controlProcessingTime.doubleValue()) / 1e9))
-        }
-        Some(cumulatedStats)
-      }
+        .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
+        .limit(1)
+        .fetchOneInto(classOf[String])
     }
-    operatorEstimatedTimeOption
+
+    if (uriString == null || uriString.isEmpty) {
+      None
+    } else {
+      val uri: URI = new URI(uriString)
+      val document = DocumentFactory.openDocument(uri)
+
+      val maxStats = document._1
+        .get()
+        .foldLeft(Map.empty[String, Double]) { (acc, tuple) =>
+          val record = tuple.asInstanceOf[Tuple]
+          val operatorId = record.getField(0).asInstanceOf[String]
+          val dataProcessingTime = record.getField(6).asInstanceOf[Long]
+          val controlProcessingTime = record.getField(7).asInstanceOf[Long]
+          val currentMaxTime = acc.getOrElse(operatorId, 0.0)
+          val newTime = (dataProcessingTime + controlProcessingTime) / 1e9
+          acc + (operatorId -> Math.max(currentMaxTime, newTime))
+        }
+
+      if (maxStats.isEmpty) None else Some(maxStats)
+    }
   }
 }

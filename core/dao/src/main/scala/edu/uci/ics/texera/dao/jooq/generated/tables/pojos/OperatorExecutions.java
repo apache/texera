@@ -7,7 +7,6 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IOperatorExecutions;
 
 import org.jooq.types.UInteger;
-import org.jooq.types.ULong;
 
 
 /**
@@ -16,38 +15,28 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions implements IOperatorExecutions {
 
-    private static final long serialVersionUID = -1568831818;
+    private static final long serialVersionUID = -85872319;
 
-    private ULong    operatorExecutionId;
     private UInteger workflowExecutionId;
     private String   operatorId;
+    private String   consoleMessagesUri;
 
     public OperatorExecutions() {}
 
     public OperatorExecutions(IOperatorExecutions value) {
-        this.operatorExecutionId = value.getOperatorExecutionId();
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.operatorId = value.getOperatorId();
+        this.consoleMessagesUri = value.getConsoleMessagesUri();
     }
 
     public OperatorExecutions(
-        ULong    operatorExecutionId,
         UInteger workflowExecutionId,
-        String   operatorId
+        String   operatorId,
+        String   consoleMessagesUri
     ) {
-        this.operatorExecutionId = operatorExecutionId;
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
-    }
-
-    @Override
-    public ULong getOperatorExecutionId() {
-        return this.operatorExecutionId;
-    }
-
-    @Override
-    public void setOperatorExecutionId(ULong operatorExecutionId) {
-        this.operatorExecutionId = operatorExecutionId;
+        this.consoleMessagesUri = consoleMessagesUri;
     }
 
     @Override
@@ -71,12 +60,22 @@ public class OperatorExecutions implements IOperatorExecutions {
     }
 
     @Override
+    public String getConsoleMessagesUri() {
+        return this.consoleMessagesUri;
+    }
+
+    @Override
+    public void setConsoleMessagesUri(String consoleMessagesUri) {
+        this.consoleMessagesUri = consoleMessagesUri;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorExecutions (");
 
-        sb.append(operatorExecutionId);
-        sb.append(", ").append(workflowExecutionId);
+        sb.append(workflowExecutionId);
         sb.append(", ").append(operatorId);
+        sb.append(", ").append(consoleMessagesUri);
 
         sb.append(")");
         return sb.toString();
@@ -88,9 +87,9 @@ public class OperatorExecutions implements IOperatorExecutions {
 
     @Override
     public void from(IOperatorExecutions from) {
-        setOperatorExecutionId(from.getOperatorExecutionId());
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setOperatorId(from.getOperatorId());
+        setConsoleMessagesUri(from.getConsoleMessagesUri());
     }
 
     @Override
