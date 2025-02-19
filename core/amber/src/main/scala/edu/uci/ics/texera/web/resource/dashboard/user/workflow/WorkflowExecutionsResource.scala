@@ -3,7 +3,12 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -16,7 +21,6 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.types.ULong
 
 import java.net.URI
 import java.sql.Timestamp
@@ -352,8 +356,8 @@ class WorkflowExecutionsResource {
           outputTupleCount = record.getField(4).asInstanceOf[Long],
           outputTupleSize = record.getField(5).asInstanceOf[Long],
           dataProcessingTime = record.getField(6).asInstanceOf[Long],
-          controlProcessingTime = ULong.valueOf(record.getField(7).asInstanceOf[Long]),
-          idleTime = ULong.valueOf(record.getField(8).asInstanceOf[Long]),
+          controlProcessingTime = record.getField(7).asInstanceOf[Long],
+          idleTime = record.getField(8).asInstanceOf[Long],
           numWorkers = record.getField(9).asInstanceOf[Int],
           status = record.getField(10).asInstanceOf[Int]
         )
