@@ -3,15 +3,21 @@ package edu.uci.ics.amber.operator.cartesianProduct
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.hashJoin.JoinUtils
-
 import scala.collection.mutable.ArrayBuffer
 
 /**
   * Executes a Cartesian Product operation between tuples from two input streams.
   */
 class CartesianProductOpExec extends OperatorExecutor {
-
   private var leftTuples: ArrayBuffer[Tuple] = _
+
+  override def open(): Unit = {
+    leftTuples = ArrayBuffer[Tuple]()
+  }
+
+  override def close(): Unit = {
+    leftTuples.clear()
+  }
 
   /**
     * Processes incoming tuples from either the left or right input stream.
@@ -30,12 +36,5 @@ class CartesianProductOpExec extends OperatorExecutor {
     } else {
       leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
     }
-
   }
-
-  override def open(): Unit = {
-    leftTuples = ArrayBuffer[Tuple]()
-  }
-
-  override def close(): Unit = leftTuples.clear()
 }
