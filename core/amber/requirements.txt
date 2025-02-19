@@ -32,3 +32,4 @@ readerwriterlock==1.0.9
 tenacity==8.5.0
 SQLAlchemy==2.0.37
 psycopg2==2.9.10
+pympler==1.1
