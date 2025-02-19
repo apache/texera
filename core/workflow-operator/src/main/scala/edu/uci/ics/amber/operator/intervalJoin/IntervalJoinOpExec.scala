@@ -5,7 +5,6 @@ import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.hashJoin.JoinUtils
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
 
@@ -13,16 +12,23 @@ import scala.collection.mutable.ListBuffer
   * 1. The tuples in both inputs come in ascending order
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
-class IntervalJoinOpExec(
-    descString: String
-) extends OperatorExecutor {
+class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
   private val desc: IntervalJoinOpDesc =
     objectMapper.readValue(descString, classOf[IntervalJoinOpDesc])
-  var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
-  var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
+  private var leftTable: ListBuffer[Tuple] = _
+  private var rightTable: ListBuffer[Tuple] = _
+
+  override def open(): Unit = {
+    leftTable = new ListBuffer[Tuple]()
+    rightTable = new ListBuffer[Tuple]()
+  }
+
+  override def close(): Unit = {
+    leftTable.clear()
+    rightTable.clear()
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-
     if (port == 0) {
       leftTable += tuple
       if (rightTable.nonEmpty) {
