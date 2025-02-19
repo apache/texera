@@ -284,7 +284,7 @@ trait StateTransferFunc
     ),
     new Type(
       value = classOf[CloudMapperSourceOpDesc],
-      name = "CloudMapper"
+      name = "CloudBioMapper"
     )
   )
 )

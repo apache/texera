@@ -197,7 +197,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   }
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "CloudMapper",
+      "CloudBioMapper",
       "Running sequence alignment using public cluster services",
       OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
