@@ -1,6 +1,8 @@
 from collections import defaultdict
+from collections.abc import dict_keys
 from typing import Set, Dict
 
+from core.architecture.packaging.input_manager import Channel
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ChannelMarkerPayload,
@@ -52,7 +54,7 @@ class ChannelMarkerManager:
 
         return epoch_marker_completed
 
-    def get_channels_within_scope(self, marker: ChannelMarkerPayload):
+    def get_channels_within_scope(self, marker: ChannelMarkerPayload) -> dict_keys[ChannelIdentity, Channel]:
         upstreams = {
             channel_id
             for channel_id in marker.scope

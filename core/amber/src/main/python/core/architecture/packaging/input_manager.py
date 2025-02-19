@@ -1,3 +1,4 @@
+from collections.abc import dict_keys
 from typing import Iterator, Optional, Union, Dict, List
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema
@@ -58,7 +59,7 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
 
-    def get_all_channel_ids(self):
+    def get_all_channel_ids(self) -> dict_keys[ChannelIdentity, Channel]:
         return self._channels.keys()
 
     def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
