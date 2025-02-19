@@ -1,5 +1,4 @@
 from collections import defaultdict
-from collections.abc import dict_keys
 from typing import Set, Dict
 
 from core.architecture.packaging.input_manager import Channel
@@ -56,7 +55,7 @@ class ChannelMarkerManager:
 
     def get_channels_within_scope(
         self, marker: ChannelMarkerPayload
-    ) -> dict_keys[ChannelIdentity, Channel]:
+    ) -> Dict["ChannelIdentity", "Channel"].keys:
         upstreams = {
             channel_id
             for channel_id in marker.scope
