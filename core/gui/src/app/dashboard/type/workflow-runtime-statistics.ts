@@ -3,7 +3,9 @@ export interface WorkflowRuntimeStatistics {
   operatorId: string;
   timestamp: number;
   inputTupleCount: number;
+  inputTupleSize: number;
   outputTupleCount: number;
+  outputTupleSize: number;
   totalDataProcessingTime: number;
   totalControlProcessingTime: number;
   totalIdleTime: number;

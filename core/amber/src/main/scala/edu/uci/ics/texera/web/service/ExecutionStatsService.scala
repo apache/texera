@@ -14,7 +14,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
-import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.{
@@ -85,8 +84,10 @@ class ExecutionStatsService(
               val metrics = x._2
               val res = OperatorAggregatedMetrics(
                 Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputCount.map(_.tupleCount).sum,
-                metrics.operatorStatistics.outputCount.map(_.tupleCount).sum,
+                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
                 metrics.operatorStatistics.controlProcessingTime,
@@ -167,60 +168,40 @@ class ExecutionStatsService(
   private def computeStatsDiff(
       newMetrics: Map[String, OperatorMetrics]
   ): Map[String, OperatorMetrics] = {
-    val defaultMetrics =
-      OperatorMetrics(
-        WorkflowAggregatedState.UNINITIALIZED,
-        OperatorStatistics(Seq(), Seq(), 0, 0, 0, 0)
-      )
+    // Default metrics for new operators
+    val defaultMetrics = OperatorMetrics(
+      WorkflowAggregatedState.UNINITIALIZED,
+      OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
+    )
 
-    var metricsMap = newMetrics
+    // Retrieve the last persisted metrics or default to an empty map
+    val lastMetrics = lastPersistedMetrics.getOrElse(Map.empty)
 
-    // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
-    val newKeys = newMetrics.keys.toSet diff lastPersistedMetrics.getOrElse(Map()).keys.toSet
-    for (key <- newKeys) {
-      lastPersistedMetrics = Some(lastPersistedMetrics.getOrElse(Map()) + (key -> defaultMetrics))
-    }
+    // Determine new and old keys
+    val newKeys = newMetrics.keySet.diff(lastMetrics.keySet)
+    val oldKeys = lastMetrics.keySet.diff(newMetrics.keySet)
 
-    // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
-    val oldKeys = lastPersistedMetrics.getOrElse(Map()).keys.toSet diff newMetrics.keys.toSet
-    for (key <- oldKeys) {
-      metricsMap = metricsMap + (key -> lastPersistedMetrics.getOrElse(Map())(key))
-    }
+    // Update last metrics with default metrics for new keys
+    val updatedLastMetrics = lastMetrics ++ newKeys.map(_ -> defaultMetrics)
 
-    metricsMap.keys.map { key =>
-      val newMetrics = metricsMap(key)
-      val oldMetrics = lastPersistedMetrics.getOrElse(Map())(key)
-      val res = OperatorMetrics(
-        newMetrics.operatorState,
-        OperatorStatistics(
-          newMetrics.operatorStatistics.inputCount.map {
-            case PortTupleCountMapping(k, v) =>
-              PortTupleCountMapping(
-                k,
-                v - oldMetrics.operatorStatistics.inputCount
-                  .find(_.portId == k)
-                  .map(_.tupleCount)
-                  .getOrElse(0L)
-              )
-          },
-          newMetrics.operatorStatistics.outputCount.map {
-            case PortTupleCountMapping(k, v) =>
-              PortTupleCountMapping(
-                k,
-                v - oldMetrics.operatorStatistics.outputCount
-                  .find(_.portId == k)
-                  .map(_.tupleCount)
-                  .getOrElse(0L)
-              )
-          },
-          newMetrics.operatorStatistics.numWorkers,
-          newMetrics.operatorStatistics.dataProcessingTime - oldMetrics.operatorStatistics.dataProcessingTime,
-          newMetrics.operatorStatistics.controlProcessingTime - oldMetrics.operatorStatistics.controlProcessingTime,
-          newMetrics.operatorStatistics.idleTime - oldMetrics.operatorStatistics.idleTime
+    // Combine new metrics with old metrics for keys that are no longer present
+    val completeMetricsMap = newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
+
+    // Transform the complete metrics map to ensure consistent structure
+    completeMetricsMap.map {
+      case (key, metrics) =>
+        key -> OperatorMetrics(
+          metrics.operatorState,
+          OperatorStatistics(
+            metrics.operatorStatistics.inputMetrics,
+            metrics.operatorStatistics.outputMetrics,
+            metrics.operatorStatistics.numWorkers,
+            metrics.operatorStatistics.dataProcessingTime,
+            metrics.operatorStatistics.controlProcessingTime,
+            metrics.operatorStatistics.idleTime
+          )
         )
-      )
-      (key, res)
-    }.toMap
+    }
   }
 
   private def storeRuntimeStatistics(
@@ -236,8 +217,10 @@ class ExecutionStatsService(
                 Array(
                   operatorId,
                   new java.sql.Timestamp(System.currentTimeMillis()),
-                  stat.operatorStatistics.inputCount.map(_.tupleCount).sum,
-                  stat.operatorStatistics.outputCount.map(_.tupleCount).sum,
+                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
                   stat.operatorStatistics.dataProcessingTime,
                   stat.operatorStatistics.controlProcessingTime,
                   stat.operatorStatistics.idleTime,

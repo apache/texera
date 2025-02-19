@@ -50,7 +50,8 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerMetrics,
     WorkerState,
     WorkerStatistics,
-    PortTupleCountMapping,
+    PortTupleMetricsMapping,
+    TupleMetrics,
 )
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
@@ -540,8 +541,24 @@ class TestMainLoop:
         metrics = WorkerMetrics(
             worker_state=WorkerState.RUNNING,
             worker_statistics=WorkerStatistics(
-                input_tuple_count=[PortTupleCountMapping(PortIdentity(0), 1)],
-                output_tuple_count=[PortTupleCountMapping(PortIdentity(0), 1)],
+                input_tuple_metrics=[
+                    PortTupleMetricsMapping(
+                        PortIdentity(0),
+                        TupleMetrics(
+                            1,
+                            stats.input_tuple_metrics[0].tuple_metrics.size,
+                        ),
+                    )
+                ],
+                output_tuple_metrics=[
+                    PortTupleMetricsMapping(
+                        PortIdentity(0),
+                        TupleMetrics(
+                            1,
+                            stats.output_tuple_metrics[0].tuple_metrics.size,
+                        ),
+                    )
+                ],
                 data_processing_time=stats.data_processing_time,
                 control_processing_time=stats.control_processing_time,
                 idle_time=stats.idle_time,

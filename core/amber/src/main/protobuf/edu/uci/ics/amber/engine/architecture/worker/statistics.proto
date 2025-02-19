@@ -21,14 +21,19 @@ enum WorkerState {
 
 }
 
-message PortTupleCountMapping {
+message PortTupleMetricsMapping {
   core.PortIdentity port_id = 1 [(scalapb.field).no_box = true];
-  int64 tuple_count = 2;
+  TupleMetrics tuple_metrics = 2 [(scalapb.field).no_box = true];
+}
+
+message TupleMetrics {
+  int64 count = 1;
+  int64 size = 2;
 }
 
 message WorkerStatistics {
-  repeated PortTupleCountMapping input_tuple_count = 1;
-  repeated PortTupleCountMapping output_tuple_count = 2;
+  repeated PortTupleMetricsMapping input_tuple_metrics = 1;
+  repeated PortTupleMetricsMapping output_tuple_metrics = 2;
   int64 data_processing_time = 3;
   int64 control_processing_time = 4;
   int64 idle_time = 5;

@@ -211,7 +211,9 @@ object WorkflowExecutionsResource {
       operatorId: String,
       timestamp: Timestamp,
       inputTupleCount: ULong,
+      inputTupleSize: ULong,
       outputTupleCount: ULong,
+      outputTupleSize: ULong,
       dataProcessingTime: ULong,
       controlProcessingTime: ULong,
       idleTime: ULong,
@@ -357,12 +359,14 @@ class WorkflowExecutionsResource {
           operatorId = record.getField(0).asInstanceOf[String],
           timestamp = record.getField(1).asInstanceOf[Timestamp],
           inputTupleCount = ULong.valueOf(record.getField(2).asInstanceOf[Long]),
-          outputTupleCount = ULong.valueOf(record.getField(3).asInstanceOf[Long]),
-          dataProcessingTime = ULong.valueOf(record.getField(4).asInstanceOf[Long]),
-          controlProcessingTime = ULong.valueOf(record.getField(5).asInstanceOf[Long]),
-          idleTime = ULong.valueOf(record.getField(6).asInstanceOf[Long]),
-          numWorkers = UInteger.valueOf(record.getField(7).asInstanceOf[Int]),
-          status = record.getField(8).asInstanceOf[Int]
+          inputTupleSize = ULong.valueOf(record.getField(3).asInstanceOf[Long]),
+          outputTupleCount = ULong.valueOf(record.getField(4).asInstanceOf[Long]),
+          outputTupleSize = ULong.valueOf(record.getField(5).asInstanceOf[Long]),
+          dataProcessingTime = ULong.valueOf(record.getField(6).asInstanceOf[Long]),
+          controlProcessingTime = ULong.valueOf(record.getField(7).asInstanceOf[Long]),
+          idleTime = ULong.valueOf(record.getField(8).asInstanceOf[Long]),
+          numWorkers = UInteger.valueOf(record.getField(9).asInstanceOf[Int]),
+          status = record.getField(10).asInstanceOf[Int]
         )
       })
       .toList
