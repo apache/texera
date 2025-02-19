@@ -207,7 +207,7 @@ class AsyncRPCClient:
         """
         command_id = return_invocation.command_id
         self._fulfill_promise(
-            from_.from_worker_id, command_id, return_invocation.return_value
+            from_, command_id, return_invocation.return_value
         )
 
     def _fulfill_promise(
