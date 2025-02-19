@@ -1,7 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
+import edu.uci.ics.amber.core.storage.util.dataset.{
+  GitVersionControlLocalFileStorage,
+  PhysicalFileNode
+}
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
@@ -11,8 +14,17 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
@@ -648,8 +660,8 @@ class DatasetResource {
         .where(DATASET_USER_ACCESS.UID.eq(uid))
         .fetch()
 
-      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer.from(mapDashboardDataset(userDatasetRecords, uid))
-
+      var accessibleDatasets: ListBuffer[DashboardDataset] =
+        ListBuffer.from(mapDashboardDataset(userDatasetRecords, uid))
 
       // then we fetch the public datasets and merge it as a part of the result if not exist
       val publicDatasets = ctx

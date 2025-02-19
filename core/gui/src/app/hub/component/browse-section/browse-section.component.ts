@@ -65,7 +65,6 @@ export class BrowseSectionComponent implements OnInit {
           }
           this.cdr.detectChanges();
         });
-
     } else if (entity.type === "dataset") {
       this.datasetService
         .getDatasetOwners(entityId)
@@ -78,10 +77,8 @@ export class BrowseSectionComponent implements OnInit {
           }
           this.cdr.detectChanges();
         });
-
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
   }
-
 }

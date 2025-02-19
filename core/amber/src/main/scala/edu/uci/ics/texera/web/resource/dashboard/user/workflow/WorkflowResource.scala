@@ -8,7 +8,12 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfProjectDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -157,7 +162,17 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record9[UInteger, String, String, Timestamp, Timestamp, WorkflowUserAccessPrivilege, UInteger, String, String]] = {
+  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+    UInteger,
+    String,
+    String,
+    Timestamp,
+    Timestamp,
+    WorkflowUserAccessPrivilege,
+    UInteger,
+    String,
+    String
+  ]] = {
     context
       .select(
         WORKFLOW.WID,
@@ -171,13 +186,30 @@ object WorkflowResource {
         groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
       )
       .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS).on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .leftJoin(USER).on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT).on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
   }
 
-  def mapWorkflowEntries(workflowEntries: Result[Record9[UInteger, String, String, Timestamp, Timestamp, WorkflowUserAccessPrivilege, UInteger, String, String]], uid: UInteger ): List[DashboardWorkflow] = {
+  def mapWorkflowEntries(
+      workflowEntries: Result[Record9[
+        UInteger,
+        String,
+        String,
+        Timestamp,
+        Timestamp,
+        WorkflowUserAccessPrivilege,
+        UInteger,
+        String,
+        String
+      ]],
+      uid: UInteger
+  ): List[DashboardWorkflow] = {
     workflowEntries
       .map(workflowRecord =>
         DashboardWorkflow(

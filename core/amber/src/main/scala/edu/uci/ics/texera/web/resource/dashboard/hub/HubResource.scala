@@ -3,8 +3,21 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, getUserLCCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import HubResource.{
+  fetchDashboardDatasetsByDids,
+  fetchDashboardWorkflowsByWids,
+  getUserLCCount,
+  isLikedHelper,
+  recordLikeActivity,
+  recordUserActivity,
+  userRequest,
+  validateEntityType
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
@@ -16,7 +29,11 @@ import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DashboardDataset, baseDatasetSelect, mapDashboardDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  DashboardDataset,
+  baseDatasetSelect,
+  mapDashboardDataset
+}
 
 object HubResource {
   case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
@@ -225,12 +242,12 @@ object HubResource {
       return List.empty[DashboardWorkflow]
     }
 
-  val records = baseWorkflowSelect()
-    .where(WORKFLOW.WID.in(wids: _*))
-    .groupBy(WORKFLOW.WID)
-    .fetch()
+    val records = baseWorkflowSelect()
+      .where(WORKFLOW.WID.in(wids: _*))
+      .groupBy(WORKFLOW.WID)
+      .fetch()
 
-    mapWorkflowEntries( records, uid)
+    mapWorkflowEntries(records, uid)
   }
 
   def fetchDashboardDatasetsByDids(dids: Seq[UInteger], uid: UInteger): List[DashboardDataset] = {
@@ -384,7 +401,11 @@ class HubResource {
   @GET
   @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getTops(@QueryParam("entityType") entityType: String, @QueryParam("actionType") actionType: String, @QueryParam("uid") uid: Integer): util.List[DashboardClickableFileEntry] = {
+  def getTops(
+      @QueryParam("entityType") entityType: String,
+      @QueryParam("actionType") actionType: String,
+      @QueryParam("uid") uid: Integer
+  ): util.List[DashboardClickableFileEntry] = {
     validateEntityType(entityType)
 
     val baseTable = BaseEntityTable(entityType)
@@ -423,16 +444,17 @@ class HubResource {
             dataset = None
           )
         }
-      }
-      else if (entityType == "dataset"){
+      } else if (entityType == "dataset") {
         val datasets = fetchDashboardDatasetsByDids(topEntityIds, currentUid)
         datasets.map { d =>
           DashboardClickableFileEntry(
-            resourceType = "dataset", workflow = None, project = None, dataset = Some(d)
+            resourceType = "dataset",
+            workflow = None,
+            project = None,
+            dataset = Some(d)
           )
         }
-      }
-    else {
+      } else {
         Seq.empty[DashboardClickableFileEntry]
       }
 
