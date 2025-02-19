@@ -8,6 +8,7 @@ from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
 from core.util.thread.atomic import AtomicInteger
 
+K = TypeVar("K")
 T = TypeVar("T")
 
 
@@ -21,8 +22,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
     @inner
     class SubQueue(Generic[T]):
-        def __init__(self, key: str):
-            self.key: str = key
+        def __init__(self, key: K):
+            self.key: K = key
             self.priority_group: Optional[LinkedBlockingMultiQueue.PriorityGroup] = None
             self.put_lock: RLock = RLock()
             self.count: AtomicInteger = AtomicInteger()
@@ -252,7 +253,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         self.not_empty: Condition = Condition(self.take_lock)
 
         # thread-safe in CPython
-        self.sub_queues: MutableMapping[str, LinkedBlockingMultiQueue.SubQueue] = dict()
+        self.sub_queues: MutableMapping[K, LinkedBlockingMultiQueue.SubQueue] = dict()
 
         # the count of the queue, describing how many element are getable;
         # disabled subqueues will not be included in this count
@@ -264,10 +265,10 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.priority_groups
         )
 
-    def in_mem_size(self, key: str) -> int:
+    def in_mem_size(self, key: K) -> int:
         return self.sub_queues[key].in_mem_size.value
 
-    def put(self, key: str, item: T) -> None:
+    def put(self, key: K, item: T) -> None:
         """
         Put one item into the SubQueue specified by the key.
 
@@ -322,7 +323,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         finally:
             self.take_lock.release()
 
-    def enable(self, key: str) -> None:
+    def enable(self, key: K) -> None:
         """
         Enables a SubQueue, specified by key. This action acquires all locks.
 
@@ -332,7 +333,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         """
         self.get_sub_queue(key).enable()
 
-    def disable(self, key: str) -> None:
+    def disable(self, key: K) -> None:
         """
         Disables a SubQueue, specified by key. This action acquires all locks.
 
@@ -342,7 +343,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         """
         self.get_sub_queue(key).disable()
 
-    def size(self, key: Optional[str] = None) -> int:
+    def size(self, key: Optional[K] = None) -> int:
         """
         Get the total number of elements of all the SubQueues, or of a specific
         SubQueue if a key is provided. This action acquires NO locks.
@@ -361,7 +362,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
     def __len__(self) -> int:
         return self.size()
 
-    def is_empty(self, key: Optional[str] = None) -> bool:
+    def is_empty(self, key: Optional[K] = None) -> bool:
         """
         Check if the queue is empty, or check a specific SubQueue if
         key is provided. This action acquires NO locks.
@@ -372,10 +373,10 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         """
         return self.size(key) == 0
 
-    def is_enabled(self, key: str) -> bool:
+    def is_enabled(self, key: K) -> bool:
         return self.get_sub_queue(key).is_enabled()
 
-    def add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
+    def add_sub_queue(self, key: K, priority: int) -> Optional[SubQueue]:
         """
         Create a new SubQueue if absent, with the key and priority.
 
@@ -416,7 +417,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         finally:
             self.take_lock.release()
 
-    def remove_sub_queue(self, key: str) -> SubQueue:
+    def remove_sub_queue(self, key: K) -> SubQueue:
         self.take_lock.acquire()
         try:
             removed: Optional[LinkedBlockingMultiQueue.SubQueue] = self.sub_queues.get(
@@ -431,7 +432,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         finally:
             self.take_lock.release()
 
-    def get_sub_queue(self, key: str) -> SubQueue:
+    def get_sub_queue(self, key: K) -> SubQueue:
         """
         Get the SubQueue specified by the key.
 

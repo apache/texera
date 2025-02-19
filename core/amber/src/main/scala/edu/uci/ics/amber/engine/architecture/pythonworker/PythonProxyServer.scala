@@ -4,7 +4,9 @@ import com.google.common.primitives.Longs
 import com.twitter.util.Promise
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
 import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
@@ -12,7 +14,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
@@ -44,13 +45,13 @@ private class AmberProducer(
         pythonControlMessage.payload.value match {
           case r: ReturnInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
+              to = pythonControlMessage.tag.toWorkerId,
               payload = r.value
             )
 
           case c: ControlInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
+              to = pythonControlMessage.tag.toWorkerId,
               payload = c.value
             )
           case payload =>
@@ -84,7 +85,7 @@ private class AmberProducer(
   ): Runnable = { () =>
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
-    val to: ActorVirtualIdentity = dataHeader.tag
+    val to: ChannelIdentity = dataHeader.tag
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream
@@ -114,6 +115,14 @@ private class AmberProducer(
       case "State" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case "ChannelMarker" =>
+        assert(root.getRowCount == 1)
+        outputPort.sendTo(
+          to,
+          ChannelMarkerPayload.parseFrom(
+            ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")
+          )
+        )
       case _ => // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)

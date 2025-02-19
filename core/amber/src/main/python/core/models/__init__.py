@@ -2,7 +2,7 @@ from inspect import Traceback
 from typing import NamedTuple
 
 from .internal_queue import InternalQueue
-from .internal_marker import InternalMarker, SenderChange
+from .internal_marker import InternalMarker
 from .tuple import Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike

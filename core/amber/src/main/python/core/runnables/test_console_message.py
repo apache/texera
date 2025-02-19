@@ -13,7 +13,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     PythonControlMessage,
 )
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 
 class TestConsoleMessage:
@@ -37,14 +37,18 @@ class TestConsoleMessage:
         )
 
     @pytest.fixture
-    def mock_controller(self):
-        return ActorVirtualIdentity("CONTROLLER")
+    def mock_controller_channel(self):
+        return ChannelIdentity(
+            ActorVirtualIdentity("CONTROLLER"), ActorVirtualIdentity("test"), True
+        )
 
     @pytest.mark.timeout(2)
-    def test_console_message_serialization(self, mock_controller, console_message):
+    def test_console_message_serialization(
+        self, mock_controller_channel, console_message
+    ):
         """
         Test the serialization of the console message
-        :param mock_controller: the mock actor id
+        :param mock_controller_channel: the mock control channel id
         :param console_message: the test message
         """
         # below statements wrap the console message as the python control message
@@ -56,7 +60,7 @@ class TestConsoleMessage:
             ),
         )
         python_control_message = PythonControlMessage(
-            tag=mock_controller, payload=payload
+            tag=mock_controller_channel, payload=payload
         )
         # serialize the python control message to bytes
         python_control_message_bytes = bytes(python_control_message)

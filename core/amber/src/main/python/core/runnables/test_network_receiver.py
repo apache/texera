@@ -3,16 +3,32 @@ import threading
 import pytest
 from pyarrow import Table
 
-from core.models.internal_queue import InternalQueue, ControlElement, DataElement
+from core.models.internal_queue import (
+    InternalQueue,
+    ControlElement,
+    DataElement,
+    ChannelMarkerElement,
+)
 from core.models.marker import EndOfInputChannel
 from core.models.payload import MarkerFrame, DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ControlInvocation
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    ControlInvocation,
+    ChannelMarkerPayload,
+    ChannelMarkerType,
+    EmptyRequest,
+    AsyncRpcContext,
+    ControlRequest,
+)
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+    ChannelMarkerIdentity,
+)
 
 
 class TestNetworkReceiver:
@@ -102,10 +118,11 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=data_payload))
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(DataElement(tag=channel_id, payload=data_payload))
         element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
-        assert element.tag == worker_id
+        assert element.tag == channel_id
 
     @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_data_messages_end_of_upstream(
@@ -118,13 +135,14 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
         input_queue.put(
-            DataElement(tag=worker_id, payload=MarkerFrame(EndOfInputChannel()))
+            DataElement(tag=channel_id, payload=MarkerFrame(EndOfInputChannel()))
         )
         element: DataElement = output_queue.get()
         assert isinstance(element.payload, MarkerFrame)
         assert element.payload.frame == EndOfInputChannel()
-        assert element.tag == worker_id
+        assert element.tag == channel_id
 
     @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_control_messages(
@@ -137,8 +155,50 @@ class TestNetworkReceiver:
     ):
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocation())
-        input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(ControlElement(tag=channel_id, payload=control_payload))
         network_sender_thread.start()
         element: ControlElement = output_queue.get()
         assert element.payload == control_payload
-        assert element.tag == worker_id
+        assert element.tag == channel_id
+
+    @pytest.mark.timeout(10)
+    def test_network_receiver_can_receive_channel_marker(
+        self,
+        output_queue,
+        input_queue,
+        network_receiver,
+        network_sender_thread,
+    ):
+        network_sender_thread.start()
+        worker_id = ActorVirtualIdentity(name="test")
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        marker_id = ChannelMarkerIdentity("test_marker")
+        scope = [channel_id]
+        rpc_context = AsyncRpcContext(worker_id, worker_id)
+        command_mapping = {
+            str(worker_id): ControlInvocation(
+                "NoOperation",
+                ControlRequest(empty_request=EmptyRequest()),
+                rpc_context,
+                12,
+            )
+        }
+        input_queue.put(
+            ChannelMarkerElement(
+                tag=channel_id,
+                payload=ChannelMarkerPayload(
+                    marker_id,
+                    ChannelMarkerType.REQUIRE_ALIGNMENT,
+                    scope,
+                    command_mapping,
+                ),
+            )
+        )
+        element: DataElement = output_queue.get()
+        assert isinstance(element.payload, ChannelMarkerPayload)
+        assert element.payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT
+        assert element.payload.id == marker_id
+        assert element.payload.command_mapping == command_mapping
+        assert element.payload.scope == scope
+        assert element.tag == channel_id

@@ -16,7 +16,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ErrorLanguage,
 )
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 class AsyncRPCServer:
@@ -50,13 +50,11 @@ class AsyncRPCServer:
 
         return ControlRequestStream()
 
-    def receive(
-        self, from_: ActorVirtualIdentity, control_invocation: ControlInvocation
-    ):
+    def receive(self, from_: ChannelIdentity, control_invocation: ControlInvocation):
         """
         Handles incoming ControlInvocation messages by invoking the appropriate handler.
 
-        :param from_: The sender's ActorVirtualIdentity.
+        :param from_: The sender's ChannelIdentity.
         :param control_invocation: The incoming ControlInvocation message.
 
         This method performs the following steps:
@@ -106,13 +104,15 @@ class AsyncRPCServer:
             return
 
         # Reply to the sender.
-        to = from_
+        target_channel_id = ChannelIdentity(
+            from_.to_worker_id, from_.from_worker_id, True
+        )
         logger.debug(
             f"PYTHON returns a ReturnInvocation {payload}, replying the command"
             f" {command}"
         )
         # Put the control element in the output queue.
-        self._output_queue.put(ControlElement(tag=to, payload=payload))
+        self._output_queue.put(ControlElement(tag=target_channel_id, payload=payload))
 
     def look_up(self, method_name: str) -> grpclib.const.Handler:
         logger.debug(method_name)

@@ -19,7 +19,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlRequest,
 )
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 R = TypeVar("R")
 
@@ -72,7 +72,14 @@ class AsyncRPCClient:
                 command_id=self._send_sequences[to],
             )
             payload = set_one_of(ControlPayloadV2, control_command)
-            self._output_queue.put(ControlElement(tag=to, payload=payload))
+            self._output_queue.put(
+                ControlElement(
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity(self._context.worker_id), to, True
+                    ),
+                    payload=payload,
+                )
+            )
             return self._create_future(to)
 
         return wrapper
@@ -147,7 +154,14 @@ class AsyncRPCClient:
                     ControlPayloadV2,
                     control_command,
                 )
-                rpc_client._output_queue.put(ControlElement(tag=to, payload=payload))
+                rpc_client._output_queue.put(
+                    ControlElement(
+                        tag=ChannelIdentity(
+                            rpc_context.sender, rpc_context.receiver, True
+                        ),
+                        payload=payload,
+                    )
+                )
                 return rpc_client._create_future(to)
 
             def _stream_unary(self, *args, **kwargs):
@@ -184,11 +198,11 @@ class AsyncRPCClient:
         return future
 
     def receive(
-        self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocation
+        self, from_: ChannelIdentity, return_invocation: ReturnInvocation
     ) -> None:
         """
         Receive the ReturnInvocation from the given actor.
-        :param from_: ActorVirtualIdentity, the sender.
+        :param from_: ChannelIdentity, the sender.
         :param return_invocation: ReturnInvocationV2, the return to be processed.
         """
         command_id = return_invocation.command_id
@@ -196,7 +210,7 @@ class AsyncRPCClient:
 
     def _fulfill_promise(
         self,
-        from_: ActorVirtualIdentity,
+        from_: ChannelIdentity,
         command_id: int,
         control_return: ControlReturn,
     ) -> None:
@@ -204,16 +218,18 @@ class AsyncRPCClient:
         Fulfill the promise with the CommandInvocation, referenced by the sequence id
         with this sender of ReturnInvocation.
 
-        :param from_: ActorVirtualIdentity, the sender.
+        :param from_: ChannelIdentity, the sender.
         :param command_id: int, paired with from_ to uniquely identify an unfulfilled
             future.
         :param control_return: ControlReturnV2m, to be used to fulfill the promise.
         """
 
-        future: Future = self._unfulfilled_promises.get((from_, command_id))
+        future: Future = self._unfulfilled_promises.get(
+            (from_.from_worker_id, command_id)
+        )
         if future is not None:
             future.set_result(control_return)
-            del self._unfulfilled_promises[(from_, command_id)]
+            del self._unfulfilled_promises[(from_.from_worker_id, command_id)]
         else:
             logger.warning(
                 f"received unknown ControlReturn {control_return}, no corresponding"

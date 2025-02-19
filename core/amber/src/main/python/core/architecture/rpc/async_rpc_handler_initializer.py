@@ -14,6 +14,7 @@ from core.architecture.handlers.control.evaluate_expression_handler import (
 from core.architecture.handlers.control.initialize_executor_handler import (
     InitializeExecutorHandler,
 )
+from core.architecture.handlers.control.no_operation_handler import NoOperationHandler
 from core.architecture.handlers.control.open_executor_handler import OpenExecutorHandler
 from core.architecture.handlers.control.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.control.query_statistics_handler import (
@@ -39,5 +40,6 @@ class AsyncRPCHandlerInitializer(
     RetryCurrentTupleHandler,
     ResumeWorkerHandler,
     StartWorkerHandler,
+    NoOperationHandler,
 ):
     pass

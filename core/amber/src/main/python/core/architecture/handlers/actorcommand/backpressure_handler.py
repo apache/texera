@@ -15,7 +15,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     Backpressure,
     ControlPayloadV2,
 )
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 
 class BackpressureHandler(ActorCommandHandler):
@@ -30,7 +30,9 @@ class BackpressureHandler(ActorCommandHandler):
             input_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
             input_queue.put(
                 ControlElement(
-                    tag=ActorVirtualIdentity(""),
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity("self"), ActorVirtualIdentity("self"), True
+                    ),
                     payload=set_one_of(
                         ControlPayloadV2,
                         ControlInvocation(

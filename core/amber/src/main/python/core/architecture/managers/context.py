@@ -1,5 +1,8 @@
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
+from typing import Optional
 from .console_message_manager import ConsoleMessageManager
+from .channel_marker_manager import ChannelMarkerManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
 from .marker_processing_manager import MarkerProcessingManager
@@ -26,6 +29,7 @@ class Context:
         self.worker_id = worker_id
         self.input_queue: InternalQueue = input_queue
         self.executor_manager = ExecutorManager()
+        self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.tuple_processing_manager = TupleProcessingManager()
         self.marker_processing_manager = MarkerProcessingManager()
         self.exception_manager = ExceptionManager()
@@ -46,6 +50,9 @@ class Context:
         )
         self.output_manager = OutputManager(worker_id)
         self.input_manager = InputManager()
+        self.channel_marker_manager = ChannelMarkerManager(
+            ActorVirtualIdentity(worker_id), self.input_manager
+        )
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
