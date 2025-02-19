@@ -16,12 +16,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { Version } from "../../../environments/version";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
-import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
+import { HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 
@@ -39,7 +38,6 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
-  public gitCommitHash: string = Version.raw;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
@@ -63,7 +61,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
-    private hubWorkflowService: HubWorkflowService,
+    private hubService: HubService,
     private codeEditorService: CodeEditorService
   ) {}
 
@@ -287,8 +285,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
-    this.hubWorkflowService
-      .postViewWorkflow(wid, uid ? uid : 0)
+    this.hubService
+      .postView(wid, uid ? uid : 0, "workflow")
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe();
