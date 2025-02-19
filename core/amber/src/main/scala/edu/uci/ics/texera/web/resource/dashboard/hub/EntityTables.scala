@@ -122,13 +122,13 @@ object EntityTables {
         WORKFLOW_VIEW_COUNT.VIEW_COUNT
     }
 
-  case object DatasetViewCountTable extends ViewCountTable {
-    override type R = DatasetViewCountRecord
-    override val table: Table[DatasetViewCountRecord] = DATASET_VIEW_COUNT
-    override val idColumn: TableField[DatasetViewCountRecord, UInteger] = DATASET_VIEW_COUNT.DID
-    override val viewCountColumn: TableField[DatasetViewCountRecord, UInteger] =
-      DATASET_VIEW_COUNT.VIEW_COUNT
-  }
+    case object DatasetViewCountTable extends ViewCountTable {
+      override type R = DatasetViewCountRecord
+      override val table: Table[DatasetViewCountRecord] = DATASET_VIEW_COUNT
+      override val idColumn: TableField[DatasetViewCountRecord, UInteger] = DATASET_VIEW_COUNT.DID
+      override val viewCountColumn: TableField[DatasetViewCountRecord, UInteger] =
+        DATASET_VIEW_COUNT.VIEW_COUNT
+    }
 
     def apply(entityType: String): ViewCountTable =
       entityType match {
