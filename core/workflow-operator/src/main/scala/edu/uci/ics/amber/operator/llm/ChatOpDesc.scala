@@ -28,10 +28,8 @@ class ChatOpDesc extends PythonOperatorDescriptor {
        |        # Concatenate all values in 'answer' with '. ' as a separator
        |        context = '. '.join(table['answer'])
        |        # TODO: call local LLM to process this context and question
-       |        answer = context + '\n. ${question}'
-       |
-       |        table['answer'] = answer
-       |        yield table""".stripMargin
+       |        answer = context + '. ${question}'
+       |        yield {'answer': answer}""".stripMargin
   }
 
   override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
