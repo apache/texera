@@ -30,13 +30,13 @@ class ControlPayloadV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
-    tag: "__core__.ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "__core__.ChannelIdentity" = betterproto.message_field(1)
     payload_type: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PythonControlMessage(betterproto.Message):
-    tag: "__core__.ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "__core__.ChannelIdentity" = betterproto.message_field(1)
     payload: "ControlPayloadV2" = betterproto.message_field(2)
 
 
