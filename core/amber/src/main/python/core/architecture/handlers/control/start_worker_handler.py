@@ -1,4 +1,9 @@
-from proto.edu.uci.ics.amber.core import ChannelIdentity, ActorVirtualIdentity
+from core.models import Schema
+from proto.edu.uci.ics.amber.core import (
+    ChannelIdentity,
+    ActorVirtualIdentity,
+    PortIdentity,
+)
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     WorkerStateResponse,
     EmptyRequest,
@@ -19,13 +24,17 @@ class StartWorkerHandler(ControlHandler):
         logger.info("Starting the worker.")
         if self.context.executor_manager.executor.is_source:
             self.context.state_manager.transit_to(WorkerState.RUNNING)
+            input_channel_id = ChannelIdentity(
+                InputManager.SOURCE_STARTER,
+                ActorVirtualIdentity(self.context.worker_id),
+                False,
+            )
+            port_id = PortIdentity(0, False)
+            self.context.input_manager.add_input_port(port_id, Schema())
+            self.context.input_manager.register_input(input_channel_id, port_id)
             self.context.input_queue.put(
                 DataElement(
-                    tag=ChannelIdentity(
-                        InputManager.SOURCE_STARTER,
-                        ActorVirtualIdentity(self.context.worker_id),
-                        False,
-                    ),
+                    tag=input_channel_id,
                     payload=None,
                 )
             )
