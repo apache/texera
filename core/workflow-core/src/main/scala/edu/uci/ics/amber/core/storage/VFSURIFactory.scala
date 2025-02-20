@@ -1,10 +1,6 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.net.URI
@@ -29,7 +25,7 @@ object VFSURIFactory {
   def decodeURI(uri: URI): (
       WorkflowIdentity,
       ExecutionIdentity,
-      Option[OperatorIdentity],
+      Option[PhysicalOpIdentity],
       Option[PortIdentity],
       VFSResourceType.Value
   ) = {
@@ -52,7 +48,7 @@ object VFSURIFactory {
 
     val operatorId = segments.indexOf("opid") match {
       case -1  => None
-      case idx => Some(OperatorIdentity(extractValue("opid")))
+      case idx => Some(PhysicalOpIdentity.fromAscii(extractValue("opid")))
     }
 
     val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
@@ -84,7 +80,7 @@ object VFSURIFactory {
   def createResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
+      operatorId: PhysicalOpIdentity,
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -102,7 +98,7 @@ object VFSURIFactory {
   def createMaterializedResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
+      operatorId: PhysicalOpIdentity,
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -140,7 +136,7 @@ object VFSURIFactory {
       VFSResourceType.CONSOLE_MESSAGES,
       workflowId,
       executionId,
-      Some(operatorId)
+      Some(PhysicalOpIdentity(logicalOpId = operatorId, layerName = "main"))
     )
   }
 
@@ -159,7 +155,7 @@ object VFSURIFactory {
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[OperatorIdentity] = None,
+      operatorId: Option[PhysicalOpIdentity] = None,
       portIdentity: Option[PortIdentity] = None
   ): URI = {
 
@@ -189,7 +185,7 @@ object VFSURIFactory {
 
     val baseUri = operatorId match {
       case Some(opId) =>
-        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
+        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.toProtoString}"
       case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
     }
 

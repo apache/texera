@@ -84,7 +84,7 @@ class WorkflowCompiler(
                     WorkflowExecutionsResource.getResultUriByExecutionAndPort(
                       context.workflowId,
                       context.executionId,
-                      physicalOp.id.logicalOpId,
+                      physicalOp.id,
                       outputPortId
                     )
                   if (
@@ -99,7 +99,7 @@ class WorkflowCompiler(
                       VFSURIFactory.createResultURI(
                         context.workflowId,
                         context.executionId,
-                        physicalOp.id.logicalOpId,
+                        physicalOp.id,
                         outputPortId
                       )
                     )

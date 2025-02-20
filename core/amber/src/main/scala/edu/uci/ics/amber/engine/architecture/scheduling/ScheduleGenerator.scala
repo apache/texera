@@ -152,11 +152,12 @@ abstract class ScheduleGenerator(
     var newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
+    // TODO: merge this with port result
     // create the uri of the materialization storage
-    val storageUri = VFSURIFactory.createMaterializedResultURI(
+    val storageUri = VFSURIFactory.createResultURI(
       workflowContext.workflowId,
       workflowContext.executionId,
-      physicalLink.fromOpId.logicalOpId,
+      physicalLink.fromOpId,
       physicalLink.fromPortId
     )
 
@@ -187,6 +188,8 @@ abstract class ScheduleGenerator(
       newPhysicalPlan = newPhysicalPlan
         .addOperator(matWriterPhysicalOp)
         .addLink(sourceToWriterLink)
+        .setOperator(fromOp.withOutputPortStorage(portId = fromPortId, storageUri = storageUri))
+      // TODO: do not replace the existing port storage
 
       // sink has exactly one input port and one output port
       val schema = newPhysicalPlan
@@ -206,10 +209,13 @@ abstract class ScheduleGenerator(
     }
 
     // create cache reader and link
+    // TODO: two downstream operators sharing a storage should not have the same cache reader.
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
-      storageUri
+      storageUri,
+      toOp.id,
+      toPortId
     )
     val readerToDestLink =
       PhysicalLink(
@@ -219,6 +225,7 @@ abstract class ScheduleGenerator(
         toPortId
       )
     // add the pair to the map for later adding edges between 2 regions.
+    // TODO: remove this as it is not used
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)

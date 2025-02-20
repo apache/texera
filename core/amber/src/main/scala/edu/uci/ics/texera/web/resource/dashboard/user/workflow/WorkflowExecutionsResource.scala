@@ -5,23 +5,12 @@ import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFac
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.core.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  OPERATOR_EXECUTIONS,
-  OPERATOR_PORT_EXECUTIONS,
-  USER,
-  WORKFLOW_EXECUTIONS,
-  WORKFLOW_VERSION
-}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{OPERATOR_EXECUTIONS, OPERATOR_PORT_EXECUTIONS, USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -163,10 +152,10 @@ object WorkflowExecutionsResource {
   }
 
   def getResultUriByExecutionAndPort(
-      wid: WorkflowIdentity,
-      eid: ExecutionIdentity,
-      opId: OperatorIdentity,
-      portId: PortIdentity
+                                      wid: WorkflowIdentity,
+                                      eid: ExecutionIdentity,
+                                      opId: PhysicalOpIdentity,
+                                      portId: PortIdentity
   ): Option[URI] = {
     if (AmberConfig.isUserSystemEnabled) {
       Option(
@@ -176,7 +165,7 @@ object WorkflowExecutionsResource {
           .where(
             OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
               .eq(UInteger.valueOf(eid.id))
-              .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+              .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.toProtoString))
               .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
           )
           .fetchOneInto(classOf[String])

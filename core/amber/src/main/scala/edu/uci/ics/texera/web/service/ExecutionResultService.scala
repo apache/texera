@@ -12,27 +12,14 @@ import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
@@ -96,7 +83,7 @@ object ExecutionResultService {
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       executionId,
-      physicalOps.head.id.logicalOpId,
+      physicalOps.head.id,
       PortIdentity()
     )
     val storage: VirtualDocument[Tuple] =
@@ -267,7 +254,7 @@ class ExecutionResultService(
                   .getResultUriByExecutionAndPort(
                     workflowIdentity,
                     executionId,
-                    opId,
+                    PhysicalOpIdentity(logicalOpId = opId, layerName = "main"),
                     PortIdentity()
                   )
                 val opStorage = DocumentFactory.openDocument(storageUri.get)._1
@@ -300,7 +287,7 @@ class ExecutionResultService(
     val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       latestExecutionId,
-      OperatorIdentity(request.operatorID),
+      PhysicalOpIdentity(logicalOpId = OperatorIdentity(request.operatorID), layerName = "main"),
       PortIdentity()
     )
 
@@ -344,7 +331,7 @@ class ExecutionResultService(
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(opId.get)
+              .getPhysicalOpsOfLogicalOp(opId.get.logicalOpId)
               .flatMap(_.outputPorts.get(storagePortId.get))
               .map(_._1.mode)
               .head
@@ -353,7 +340,7 @@ class ExecutionResultService(
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (opId.get, OperatorResultMetadata(count, changeDetector))
+            (opId.get.logicalOpId, OperatorResultMetadata(count, changeDetector))
           })
           .toMap
       }
