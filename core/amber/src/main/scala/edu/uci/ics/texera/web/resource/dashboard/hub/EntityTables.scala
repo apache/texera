@@ -2,6 +2,8 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.{
   DatasetRecord,
+  DatasetUserLikesRecord,
+  DatasetViewCountRecord,
   WorkflowRecord,
   WorkflowUserClonesRecord,
   WorkflowUserLikesRecord,
@@ -65,9 +67,18 @@ object EntityTables {
       override val idColumn: TableField[WorkflowUserLikesRecord, UInteger] = WORKFLOW_USER_LIKES.WID
     }
 
+    case object DatasetLikeTable extends LikeTable {
+      override type R = DatasetUserLikesRecord
+      override val table: Table[DatasetUserLikesRecord] = DATASET_USER_LIKES
+      override val uidColumn: TableField[DatasetUserLikesRecord, UInteger] =
+        DATASET_USER_LIKES.UID
+      override val idColumn: TableField[DatasetUserLikesRecord, UInteger] = DATASET_USER_LIKES.DID
+    }
+
     def apply(entityType: String): LikeTable =
       entityType match {
         case "workflow" => WorkflowLikeTable
+        case "dataset"  => DatasetLikeTable
         case _ =>
           throw new IllegalArgumentException(s"Unsupported entity type: $entityType for like")
       }
@@ -111,9 +122,18 @@ object EntityTables {
         WORKFLOW_VIEW_COUNT.VIEW_COUNT
     }
 
+    case object DatasetViewCountTable extends ViewCountTable {
+      override type R = DatasetViewCountRecord
+      override val table: Table[DatasetViewCountRecord] = DATASET_VIEW_COUNT
+      override val idColumn: TableField[DatasetViewCountRecord, UInteger] = DATASET_VIEW_COUNT.DID
+      override val viewCountColumn: TableField[DatasetViewCountRecord, UInteger] =
+        DATASET_VIEW_COUNT.VIEW_COUNT
+    }
+
     def apply(entityType: String): ViewCountTable =
       entityType match {
         case "workflow" => WorkflowViewCountTable
+        case "dataset"  => DatasetViewCountTable
         case _ =>
           throw new IllegalArgumentException(s"Unsupported entity type: $entityType for view count")
       }
