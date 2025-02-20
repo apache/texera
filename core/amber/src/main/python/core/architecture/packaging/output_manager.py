@@ -36,6 +36,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
     ChannelIdentity,
 )
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
@@ -90,6 +91,9 @@ class OutputManager:
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
 
+    def get_output_channel_ids(self):
+        return self._channels.keys()
+
     def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
         if self._port_result_writer is not None:
             if port_id in self._ports:
@@ -111,6 +115,8 @@ class OutputManager:
         """
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
+        for channel_id in the_partitioning.channels:
+            self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
         self._partitioners[tag] = (
             partitioner(the_partitioning)
@@ -126,6 +132,27 @@ class OutputManager:
                 (
                     (receiver, self.tuple_to_frame(tuples))
                     for receiver, tuples in partitioner.add_tuple_to_batch(tuple_)
+                )
+                for partitioner in self._partitioners.values()
+            )
+        )
+
+    def emit_marker_to_channel(
+        self, channel_id: ChannelIdentity, marker: ChannelMarkerPayload
+    ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
+        return chain(
+            *(
+                (
+                    (
+                        receiver,
+                        (
+                            payload
+                            if isinstance(payload, ChannelMarkerPayload)
+                            else self.tuple_to_frame(payload)
+                        ),
+                    )
+                    for receiver, payload in partitioner.flush(marker)
+                    if receiver == channel_id.to_worker_id
                 )
                 for partitioner in self._partitioners.values()
             )

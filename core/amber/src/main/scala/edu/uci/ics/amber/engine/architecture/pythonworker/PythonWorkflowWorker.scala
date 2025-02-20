@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import akka.actor.Props
 import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -10,13 +11,16 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
 }
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ChannelMarkerElement,
+  DataElement
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
-import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
@@ -69,6 +73,8 @@ class PythonWorkflowWorker(
           pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
           pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))
+        case marker: ChannelMarkerPayload =>
+          pythonProxyClient.enqueueData(ChannelMarkerElement(marker, workflowMsg.channelId))
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
