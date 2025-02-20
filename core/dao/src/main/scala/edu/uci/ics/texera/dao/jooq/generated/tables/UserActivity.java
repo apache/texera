@@ -62,7 +62,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.ip</code>.
      */
-    public final TableField<UserActivityRecord, String> IP = createField(DSL.name("ip"), SQLDataType.VARCHAR(15), this, "");
+    public final TableField<UserActivityRecord, String> IP = createField(DSL.name("ip"), SQLDataType.VARCHAR(15).defaultValue(DSL.field("NULL::character varying", SQLDataType.VARCHAR)), this, "");
 
     /**
      * The column <code>texera_db.user_activity.activate</code>.
@@ -72,7 +72,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.activity_time</code>.
      */
-    public final TableField<UserActivityRecord, Timestamp> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<UserActivityRecord, Timestamp> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.TIMESTAMP(0).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     private UserActivity(Name alias, Table<UserActivityRecord> aliased) {
         this(alias, aliased, null);

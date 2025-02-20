@@ -1,17 +1,8 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
-import edu.uci.ics.texera.dao.jooq.generated.tables.records.{
-  DatasetRecord,
-  DatasetUserLikesRecord,
-  DatasetViewCountRecord,
-  WorkflowRecord,
-  WorkflowUserClonesRecord,
-  WorkflowUserLikesRecord,
-  WorkflowViewCountRecord
-}
-import org.jooq._
-
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.records._
+import org.jooq._
 
 object EntityTables {
   // ==================== BASE TABLE ====================
@@ -19,7 +10,7 @@ object EntityTables {
     type R <: Record
     val table: Table[R]
     val isPublicColumn: TableField[R, java.lang.Boolean]
-    val idColumn: TableField[R, UInteger]
+    val idColumn: TableField[R, Integer]
   }
 
   object BaseEntityTable {
@@ -28,14 +19,14 @@ object EntityTables {
       override val table: Table[WorkflowRecord] = WORKFLOW
       override val isPublicColumn: TableField[WorkflowRecord, java.lang.Boolean] =
         WORKFLOW.IS_PUBLIC
-      override val idColumn: TableField[WorkflowRecord, UInteger] = WORKFLOW.WID
+      override val idColumn: TableField[WorkflowRecord, Integer] = WORKFLOW.WID
     }
 
     case object DatasetTable extends BaseEntityTable {
       override type R = DatasetRecord
       override val table: Table[DatasetRecord] = DATASET
       override val isPublicColumn: TableField[DatasetRecord, java.lang.Boolean] = DATASET.IS_PUBLIC
-      override val idColumn: TableField[DatasetRecord, UInteger] = DATASET.DID
+      override val idColumn: TableField[DatasetRecord, Integer] = DATASET.DID
     }
 
     def apply(entityType: String): BaseEntityTable = {
@@ -74,9 +65,9 @@ object EntityTables {
     case object DatasetLikeTable extends LikeTable {
       override type R = DatasetUserLikesRecord
       override val table: Table[DatasetUserLikesRecord] = DATASET_USER_LIKES
-      override val uidColumn: TableField[DatasetUserLikesRecord, UInteger] =
+      override val uidColumn: TableField[DatasetUserLikesRecord, Integer] =
         DATASET_USER_LIKES.UID
-      override val idColumn: TableField[DatasetUserLikesRecord, UInteger] = DATASET_USER_LIKES.DID
+      override val idColumn: TableField[DatasetUserLikesRecord, Integer] = DATASET_USER_LIKES.DID
     }
 
     def apply(entityType: String): LikeTable =
@@ -129,8 +120,8 @@ object EntityTables {
     case object DatasetViewCountTable extends ViewCountTable {
       override type R = DatasetViewCountRecord
       override val table: Table[DatasetViewCountRecord] = DATASET_VIEW_COUNT
-      override val idColumn: TableField[DatasetViewCountRecord, UInteger] = DATASET_VIEW_COUNT.DID
-      override val viewCountColumn: TableField[DatasetViewCountRecord, UInteger] =
+      override val idColumn: TableField[DatasetViewCountRecord, Integer] = DATASET_VIEW_COUNT.DID
+      override val viewCountColumn: TableField[DatasetViewCountRecord, Integer] =
         DATASET_VIEW_COUNT.VIEW_COUNT
     }
 

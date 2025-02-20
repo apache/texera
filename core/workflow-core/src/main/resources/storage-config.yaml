@@ -28,5 +28,5 @@ storage:
           max-wait-ms: 10000 # 10s
   jdbc:
     url: "jdbc:postgresql://localhost:5432/texera_db"
-    username: ""
+    username: "postgres"
     password: ""

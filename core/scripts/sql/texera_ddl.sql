@@ -39,12 +39,13 @@ DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
 DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS user_activity CASCADE;
+DROP TABLE IF EXISTS dataset_user_likes CASCADE;
+DROP TABLE IF EXISTS dataset_view_count CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
 --    to mimic MySQL ENUM fields
 -- ============================================
-
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
 
@@ -58,13 +59,13 @@ CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 -- "user" table
 CREATE TABLE IF NOT EXISTS "user"
 (
-    uid             SERIAL PRIMARY KEY,
-    name            VARCHAR(256) NOT NULL,
-    email           VARCHAR(256) UNIQUE,
-    password        VARCHAR(256),
-    google_id       VARCHAR(256) UNIQUE,
-    role            user_role_enum NOT NULL DEFAULT 'INACTIVE',
-    google_avatar   VARCHAR(100),
+    uid           SERIAL PRIMARY KEY,
+    name          VARCHAR(256) NOT NULL,
+    email         VARCHAR(256) UNIQUE,
+    password      VARCHAR(256),
+    google_id     VARCHAR(256) UNIQUE,
+    role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
+    google_avatar VARCHAR(100),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
@@ -72,9 +73,9 @@ CREATE TABLE IF NOT EXISTS "user"
 -- user_config
 CREATE TABLE IF NOT EXISTS user_config
 (
-    uid     INT NOT NULL,
-    key     VARCHAR(256) NOT NULL,
-    value   TEXT NOT NULL,
+    uid   INT NOT NULL,
+    key   VARCHAR(256) NOT NULL,
+    value TEXT NOT NULL,
     PRIMARY KEY (uid, key),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
@@ -104,9 +105,9 @@ CREATE TABLE IF NOT EXISTS workflow_of_user
 -- workflow_user_access
 CREATE TABLE IF NOT EXISTS workflow_user_access
 (
-    uid        INT NOT NULL,
-    wid        INT NOT NULL,
-    privilege  privilege_enum NOT NULL DEFAULT 'NONE',
+    uid       INT NOT NULL,
+    wid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
     PRIMARY KEY (uid, wid),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
@@ -115,22 +116,22 @@ CREATE TABLE IF NOT EXISTS workflow_user_access
 -- workflow_version
 CREATE TABLE IF NOT EXISTS workflow_version
 (
-    vid             SERIAL PRIMARY KEY,
-    wid             INT NOT NULL,
-    content         TEXT NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    vid            SERIAL PRIMARY KEY,
+    wid            INT NOT NULL,
+    content        TEXT NOT NULL,
+    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
 -- project
 CREATE TABLE IF NOT EXISTS project
 (
-    pid             SERIAL PRIMARY KEY,
-    name            VARCHAR(128) NOT NULL,
-    description     VARCHAR(10000),
-    owner_id        INT NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    color           VARCHAR(6),
+    pid            SERIAL PRIMARY KEY,
+    name           VARCHAR(128) NOT NULL,
+    description    VARCHAR(10000),
+    owner_id       INT NOT NULL,
+    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    color          VARCHAR(6),
     UNIQUE (owner_id, name),
     FOREIGN KEY (owner_id) REFERENCES "user"(uid) ON DELETE CASCADE
     );
@@ -148,9 +149,9 @@ CREATE TABLE IF NOT EXISTS workflow_of_project
 -- project_user_access
 CREATE TABLE IF NOT EXISTS project_user_access
 (
-    uid        INT NOT NULL,
-    pid        INT NOT NULL,
-    privilege  privilege_enum NOT NULL DEFAULT 'NONE',
+    uid       INT NOT NULL,
+    pid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
     PRIMARY KEY (uid, pid),
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
     FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
@@ -187,12 +188,12 @@ CREATE TABLE IF NOT EXISTS public_project
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
 (
-    did             SERIAL PRIMARY KEY,
-    owner_uid       INT NOT NULL,
-    name            VARCHAR(128) NOT NULL,
-    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
-    description     VARCHAR(512) NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    did            SERIAL PRIMARY KEY,
+    owner_uid      INT NOT NULL,
+    name           VARCHAR(128) NOT NULL,
+    is_public      BOOLEAN NOT NULL DEFAULT TRUE,
+    description    VARCHAR(512) NOT NULL,
+    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
@@ -269,15 +270,34 @@ CREATE TABLE IF NOT EXISTS workflow_view_count
     );
 
 -- Drop old workflow_user_activity (if any), replace with user_activity
--- user_activity
+-- user_activity table
 CREATE TABLE IF NOT EXISTS user_activity
 (
-    uid           INT NOT NULL DEFAULT 0,
-    id            INT NOT NULL,
+    uid           INTEGER NOT NULL DEFAULT 0,
+    id            INTEGER NOT NULL,
     type          VARCHAR(15) NOT NULL,
-    ip            VARCHAR(15),
+    ip            VARCHAR(15) DEFAULT NULL,
     activate      VARCHAR(10) NOT NULL,
-    activity_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    activity_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+-- dataset_user_likes table
+CREATE TABLE IF NOT EXISTS dataset_user_likes
+(
+    uid INTEGER NOT NULL,
+    did INTEGER NOT NULL,
+    PRIMARY KEY (uid, did),
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
+    );
+
+-- dataset_view_count table
+CREATE TABLE IF NOT EXISTS dataset_view_count
+(
+    did        INTEGER NOT NULL,
+    view_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (did),
+    FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 
 -- ============================================
@@ -329,6 +349,3 @@ CREATE INDEX idx_dataset_version_name
     COALESCE(name, '')
     )
     );
-
--- Done!
--- You now have a "texera_db" database schema matching the MySQL version as closely as possible.

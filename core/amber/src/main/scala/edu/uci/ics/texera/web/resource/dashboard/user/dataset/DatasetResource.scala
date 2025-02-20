@@ -355,7 +355,7 @@ object DatasetResource {
       )
   }
 
-  def mapDashboardDataset(records: Result[Record], uid: UInteger): List[DashboardDataset] = {
+  def mapDashboardDataset(records: Result[Record], uid: Integer): List[DashboardDataset] = {
     records.asScala.map { record =>
       val dataset = record.into(DATASET).into(classOf[Dataset])
       val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])

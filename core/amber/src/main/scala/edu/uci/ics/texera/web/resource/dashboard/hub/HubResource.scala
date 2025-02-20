@@ -2,8 +2,21 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, getUserLCCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import HubResource.{
+  fetchDashboardDatasetsByDids,
+  fetchDashboardWorkflowsByWids,
+  getUserLCCount,
+  isLikedHelper,
+  recordLikeActivity,
+  recordUserActivity,
+  userRequest,
+  validateEntityType
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 
 import java.util
@@ -14,8 +27,11 @@ import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DashboardDataset, baseDatasetSelect, mapDashboardDataset}
-import org.jooq.types.UInteger
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  DashboardDataset,
+  baseDatasetSelect,
+  mapDashboardDataset
+}
 
 object HubResource {
   case class userRequest(entityId: Integer, userId: Integer, entityType: String)
@@ -219,7 +235,7 @@ object HubResource {
       .fetchOne(0, classOf[Int])
   }
 
-  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger], uid: UInteger): List[DashboardWorkflow] = {
+  def fetchDashboardWorkflowsByWids(wids: Seq[Integer], uid: Integer): List[DashboardWorkflow] = {
     if (wids.isEmpty) {
       return List.empty[DashboardWorkflow]
     }
@@ -232,7 +248,7 @@ object HubResource {
     mapWorkflowEntries(records, uid)
   }
 
-  def fetchDashboardDatasetsByDids(dids: Seq[Integer], uid: UInteger): List[DashboardDataset] = {
+  def fetchDashboardDatasetsByDids(dids: Seq[Integer], uid: Integer): List[DashboardDataset] = {
     if (dids.isEmpty) {
       return List.empty[DashboardDataset]
     }
@@ -413,7 +429,7 @@ class HubResource {
       .asScala
       .toSeq
 
-    val currentUid: UInteger = if (uid == null || uid == -1) null else UInteger.valueOf(uid)
+    val currentUid: Integer = if (uid == null || uid == -1) null else Integer.valueOf(uid)
 
     val clickableFileEntries =
       if (entityType == "workflow") {

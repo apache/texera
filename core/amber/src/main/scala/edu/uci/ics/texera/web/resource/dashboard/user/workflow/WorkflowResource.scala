@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
@@ -14,13 +13,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.{Condition, Record9, SelectOnConditionStep}
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
-import org.jooq.{Record, Result}
+import org.jooq.{Condition, Record9, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -161,13 +160,13 @@ object WorkflowResource {
   }
 
   def baseWorkflowSelect(): SelectOnConditionStep[Record9[
-    Int,
+    Integer,
     String,
     String,
     Timestamp,
     Timestamp,
-    WorkflowUserAccessPrivilege,
-    Int,
+    PrivilegeEnum,
+    Integer,
     String,
     String
   ]] = {
@@ -196,13 +195,13 @@ object WorkflowResource {
 
   def mapWorkflowEntries(
       workflowEntries: Result[Record9[
-        Int,
+        Integer,
         String,
         String,
         Timestamp,
         Timestamp,
-        WorkflowUserAccessPrivilege,
-        Int,
+        PrivilegeEnum,
+        Integer,
         String,
         String
       ]],
@@ -223,7 +222,7 @@ object WorkflowResource {
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           if (workflowRecord.component9() == null) List[Integer]()
           else
-            workflowRecord.component9().split(',').toList,
+            workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
           workflowRecord.into(WORKFLOW_OF_USER).getUid
         )
       )
