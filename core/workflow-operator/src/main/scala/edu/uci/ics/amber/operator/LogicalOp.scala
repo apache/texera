@@ -5,11 +5,7 @@ import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
@@ -20,22 +16,15 @@ import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
-import edu.uci.ics.amber.operator.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceTextSummarizationOpDesc
-}
+import edu.uci.ics.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
 import edu.uci.ics.amber.operator.ifStatement.IfOpDesc
 import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
+import edu.uci.ics.amber.operator.llm.{ChatOpDesc, ChatSourceOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
-  SklearnAdvancedKNNClassifierTrainerOpDesc,
-  SklearnAdvancedKNNRegressorTrainerOpDesc
-}
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
@@ -48,10 +37,7 @@ import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.amber.operator.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
@@ -118,6 +104,8 @@ trait StateTransferFunc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[ChatSourceOpDesc], name = "ChatSource"),
+    new Type(value = classOf[ChatOpDesc], name = "Chat"),
     new Type(value = classOf[IfOpDesc], name = "If"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),

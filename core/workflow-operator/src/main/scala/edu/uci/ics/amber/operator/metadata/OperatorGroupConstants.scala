@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.metadata
 
 object OperatorGroupConstants {
+  final val LLM_GROUP = "LLM"
   final val INPUT_GROUP = "Data Input"
   final val DATABASE_GROUP = "Database Connector"
   final val SEARCH_GROUP = "Search"
@@ -28,6 +29,7 @@ object OperatorGroupConstants {
     * The order numbers are relative.
     */
   final val OperatorGroupOrderList: List[GroupInfo] = List(
+    GroupInfo(LLM_GROUP),
     GroupInfo(INPUT_GROUP),
     GroupInfo(DATABASE_GROUP),
     GroupInfo(SEARCH_GROUP),
