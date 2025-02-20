@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../common/app-setting";
-import { DashboardWorkflow } from "../../dashboard/type/dashboard-workflow.interface";
+import { SearchResultItem } from "../../dashboard/type/search-result";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 
@@ -69,11 +69,14 @@ export class HubService {
     return this.http.get<number>(`${this.BASE_URL}/viewCount`, { params });
   }
 
-  public getTopLovedWorkflows(): Observable<DashboardWorkflow[]> {
-    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topLovedWorkflows`);
-  }
+  public getTops(entityType: string, actionType: string, currentUid?: number): Observable<SearchResultItem[]> {
+    const params: any = {
+      entityType,
+      actionType,
+    };
 
-  public getTopClonedWorkflows(): Observable<DashboardWorkflow[]> {
-    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topClonedWorkflows`);
+    params.uid = currentUid !== undefined ? currentUid : -1;
+
+    return this.http.get<SearchResultItem[]>(`${this.BASE_URL}/getTops`, { params });
   }
 }

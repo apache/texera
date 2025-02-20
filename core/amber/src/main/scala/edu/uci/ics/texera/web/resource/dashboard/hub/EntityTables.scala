@@ -19,6 +19,7 @@ object EntityTables {
     type R <: Record
     val table: Table[R]
     val isPublicColumn: TableField[R, java.lang.Byte]
+    val idColumn: TableField[R, UInteger]
   }
 
   object BaseEntityTable {
@@ -26,12 +27,14 @@ object EntityTables {
       override type R = WorkflowRecord
       override val table: Table[WorkflowRecord] = WORKFLOW
       override val isPublicColumn: TableField[WorkflowRecord, java.lang.Byte] = WORKFLOW.IS_PUBLIC
+      override val idColumn: TableField[WorkflowRecord, UInteger] = WORKFLOW.WID
     }
 
     case object DatasetTable extends BaseEntityTable {
       override type R = DatasetRecord
       override val table: Table[DatasetRecord] = DATASET
       override val isPublicColumn: TableField[DatasetRecord, java.lang.Byte] = DATASET.IS_PUBLIC
+      override val idColumn: TableField[DatasetRecord, UInteger] = DATASET.DID
     }
 
     def apply(entityType: String): BaseEntityTable = {
