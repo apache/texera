@@ -6,7 +6,9 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
@@ -25,7 +27,9 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetUserAccessRecord;
+import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetUserLikesRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetVersionRecord;
+import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetViewCountRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorExecutionsRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorPortExecutionsRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
@@ -75,7 +79,9 @@ public class Keys {
 
     public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = UniqueKeys0.KEY_DATASET_PRIMARY;
     public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_DATASET_USER_ACCESS_PRIMARY;
+    public static final UniqueKey<DatasetUserLikesRecord> KEY_DATASET_USER_LIKES_PRIMARY = UniqueKeys0.KEY_DATASET_USER_LIKES_PRIMARY;
     public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = UniqueKeys0.KEY_DATASET_VERSION_PRIMARY;
+    public static final UniqueKey<DatasetViewCountRecord> KEY_DATASET_VIEW_COUNT_PRIMARY = UniqueKeys0.KEY_DATASET_VIEW_COUNT_PRIMARY;
     public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = UniqueKeys0.KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID;
     public static final UniqueKey<OperatorPortExecutionsRecord> KEY_OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID = UniqueKeys0.KEY_OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID;
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = UniqueKeys0.KEY_PROJECT_PRIMARY;
@@ -103,7 +109,10 @@ public class Keys {
     public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = ForeignKeys0.DATASET_IBFK_1;
     public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_1;
     public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_2;
+    public static final ForeignKey<DatasetUserLikesRecord, UserRecord> DATASET_USER_LIKES_IBFK_1 = ForeignKeys0.DATASET_USER_LIKES_IBFK_1;
+    public static final ForeignKey<DatasetUserLikesRecord, DatasetRecord> DATASET_USER_LIKES_IBFK_2 = ForeignKeys0.DATASET_USER_LIKES_IBFK_2;
     public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = ForeignKeys0.DATASET_VERSION_IBFK_1;
+    public static final ForeignKey<DatasetViewCountRecord, DatasetRecord> DATASET_VIEW_COUNT_IBFK_1 = ForeignKeys0.DATASET_VIEW_COUNT_IBFK_1;
     public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS_IBFK_1 = ForeignKeys0.OPERATOR_EXECUTIONS_IBFK_1;
     public static final ForeignKey<OperatorPortExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_PORT_EXECUTIONS_IBFK_1 = ForeignKeys0.OPERATOR_PORT_EXECUTIONS_IBFK_1;
     public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = ForeignKeys0.PROJECT_IBFK_1;
@@ -143,7 +152,9 @@ public class Keys {
     private static class UniqueKeys0 {
         public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = Internal.createUniqueKey(Dataset.DATASET, "KEY_dataset_PRIMARY", Dataset.DATASET.DID);
         public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "KEY_dataset_user_access_PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);
+        public static final UniqueKey<DatasetUserLikesRecord> KEY_DATASET_USER_LIKES_PRIMARY = Internal.createUniqueKey(DatasetUserLikes.DATASET_USER_LIKES, "KEY_dataset_user_likes_PRIMARY", DatasetUserLikes.DATASET_USER_LIKES.UID, DatasetUserLikes.DATASET_USER_LIKES.DID);
         public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = Internal.createUniqueKey(DatasetVersion.DATASET_VERSION, "KEY_dataset_version_PRIMARY", DatasetVersion.DATASET_VERSION.DVID);
+        public static final UniqueKey<DatasetViewCountRecord> KEY_DATASET_VIEW_COUNT_PRIMARY = Internal.createUniqueKey(DatasetViewCount.DATASET_VIEW_COUNT, "KEY_dataset_view_count_PRIMARY", DatasetViewCount.DATASET_VIEW_COUNT.DID);
         public static final UniqueKey<OperatorExecutionsRecord> KEY_OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = Internal.createUniqueKey(OperatorExecutions.OPERATOR_EXECUTIONS, "KEY_operator_executions_workflow_execution_id", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID);
         public static final UniqueKey<OperatorPortExecutionsRecord> KEY_OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID = Internal.createUniqueKey(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS, "KEY_operator_port_executions_workflow_execution_id", OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID, OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.OPERATOR_ID, OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.PORT_ID);
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = Internal.createUniqueKey(Project.PROJECT, "KEY_project_PRIMARY", Project.PROJECT.PID);
@@ -169,7 +180,10 @@ public class Keys {
         public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, Dataset.DATASET, "dataset_ibfk_1", Dataset.DATASET.OWNER_UID);
         public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_1", DatasetUserAccess.DATASET_USER_ACCESS.DID);
         public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_2", DatasetUserAccess.DATASET_USER_ACCESS.UID);
+        public static final ForeignKey<DatasetUserLikesRecord, UserRecord> DATASET_USER_LIKES_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, DatasetUserLikes.DATASET_USER_LIKES, "dataset_user_likes_ibfk_1", DatasetUserLikes.DATASET_USER_LIKES.UID);
+        public static final ForeignKey<DatasetUserLikesRecord, DatasetRecord> DATASET_USER_LIKES_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetUserLikes.DATASET_USER_LIKES, "dataset_user_likes_ibfk_2", DatasetUserLikes.DATASET_USER_LIKES.DID);
         public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetVersion.DATASET_VERSION, "dataset_version_ibfk_1", DatasetVersion.DATASET_VERSION.DID);
+        public static final ForeignKey<DatasetViewCountRecord, DatasetRecord> DATASET_VIEW_COUNT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetViewCount.DATASET_VIEW_COUNT, "dataset_view_count_ibfk_1", DatasetViewCount.DATASET_VIEW_COUNT.DID);
         public static final ForeignKey<OperatorExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_EXECUTIONS_PRIMARY, OperatorExecutions.OPERATOR_EXECUTIONS, "operator_executions_ibfk_1", OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID);
         public static final ForeignKey<OperatorPortExecutionsRecord, WorkflowExecutionsRecord> OPERATOR_PORT_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_WORKFLOW_EXECUTIONS_PRIMARY, OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS, "operator_port_executions_ibfk_1", OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID);
         public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dao.jooq.generated.Keys.KEY_USER_PRIMARY, Project.PROJECT, "project_ibfk_1", Project.PROJECT.OWNER_ID);

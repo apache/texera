@@ -19,9 +19,10 @@ import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActi
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
+import org.jooq.{Condition, Record9, SelectOnConditionStep}
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
+import org.jooq.{Record, Result}
 
 import java.sql.Timestamp
 import java.util
@@ -160,6 +161,77 @@ object WorkflowResource {
         updatedContent.replace(oldId, newId)
     }
   }
+
+  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+    UInteger,
+    String,
+    String,
+    Timestamp,
+    Timestamp,
+    WorkflowUserAccessPrivilege,
+    UInteger,
+    String,
+    String
+  ]] = {
+    context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME,
+        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+  }
+
+  def mapWorkflowEntries(
+      workflowEntries: Result[Record9[
+        UInteger,
+        String,
+        String,
+        Timestamp,
+        Timestamp,
+        WorkflowUserAccessPrivilege,
+        UInteger,
+        String,
+        String
+      ]],
+      uid: UInteger
+  ): List[DashboardWorkflow] = {
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflow(
+          if (uid != null)
+            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
+          else false,
+          workflowRecord
+            .into(WORKFLOW_USER_ACCESS)
+            .into(classOf[WorkflowUserAccess])
+            .getPrivilege
+            .toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          if (workflowRecord.component9() == null) List[UInteger]()
+          else
+            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList,
+          workflowRecord.into(WORKFLOW_OF_USER).getUid
+        )
+      )
+      .asScala
+      .toList
+  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -267,49 +339,11 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.DESCRIPTION,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
-      )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+    val workflowEntries = baseWorkflowSelect()
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]()
-          else
-            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList,
-          workflowRecord.into(WORKFLOW_OF_USER).getUid
-        )
-      )
-      .asScala
-      .toList
+    mapWorkflowEntries(workflowEntries, user.getUid)
   }
 
   /**

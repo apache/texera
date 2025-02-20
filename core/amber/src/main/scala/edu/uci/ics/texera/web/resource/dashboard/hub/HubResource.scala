@@ -3,8 +3,8 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
 import HubResource.{
+  fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   getUserLCCount,
   isLikedHelper,
@@ -13,18 +13,27 @@ import HubResource.{
   userRequest,
   validateEntityType
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
 import java.util
-import java.util.Collections
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  DashboardDataset,
+  baseDatasetSelect,
+  mapDashboardDataset
+}
 
 object HubResource {
   case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
@@ -228,52 +237,31 @@ object HubResource {
       .fetchOne(0, classOf[Int])
   }
 
-  // todo: refactor api related to landing page
-  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger]): util.List[DashboardWorkflow] = {
-    if (wids.nonEmpty) {
-      context
-        .select(
-          WORKFLOW.NAME,
-          WORKFLOW.DESCRIPTION,
-          WORKFLOW.WID,
-          WORKFLOW.CREATION_TIME,
-          WORKFLOW.LAST_MODIFIED_TIME,
-          USER.NAME.as("ownerName"),
-          WORKFLOW_OF_USER.UID.as("ownerId")
-        )
-        .from(WORKFLOW)
-        .join(WORKFLOW_OF_USER)
-        .on(WORKFLOW.WID.eq(WORKFLOW_OF_USER.WID))
-        .join(USER)
-        .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-        .where(WORKFLOW.WID.in(wids: _*))
-        .fetch()
-        .asScala
-        .map(record => {
-          val workflow = new Workflow(
-            record.get(WORKFLOW.NAME),
-            record.get(WORKFLOW.DESCRIPTION),
-            record.get(WORKFLOW.WID),
-            null,
-            record.get(WORKFLOW.CREATION_TIME),
-            record.get(WORKFLOW.LAST_MODIFIED_TIME),
-            null
-          )
-
-          DashboardWorkflow(
-            isOwner = false,
-            accessLevel = "",
-            ownerName = record.get("ownerName", classOf[String]),
-            workflow = workflow,
-            projectIDs = List(),
-            ownerId = record.get("ownerId", classOf[UInteger])
-          )
-        })
-        .toList
-        .asJava
-    } else {
-      Collections.emptyList[DashboardWorkflow]()
+  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger], uid: UInteger): List[DashboardWorkflow] = {
+    if (wids.isEmpty) {
+      return List.empty[DashboardWorkflow]
     }
+
+    val records = baseWorkflowSelect()
+      .where(WORKFLOW.WID.in(wids: _*))
+      .groupBy(WORKFLOW.WID)
+      .fetch()
+
+    mapWorkflowEntries(records, uid)
+  }
+
+  def fetchDashboardDatasetsByDids(dids: Seq[UInteger], uid: UInteger): List[DashboardDataset] = {
+    if (dids.isEmpty) {
+      return List.empty[DashboardDataset]
+    }
+
+    val records = baseDatasetSelect()
+      .where(DATASET.DID.in(dids: _*))
+      .groupBy(DATASET.DID)
+      .fetch()
+
+    println(mapDashboardDataset(records, uid))
+    mapDashboardDataset(records, uid)
   }
 }
 
@@ -411,42 +399,65 @@ class HubResource {
   }
 
   @GET
-  @Path("/topLovedWorkflows")
+  @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getTopLovedWorkflows: util.List[DashboardWorkflow] = {
-    val topLovedWorkflowsWids = context
-      .select(WORKFLOW_USER_LIKES.WID)
-      .from(WORKFLOW_USER_LIKES)
-      .join(WORKFLOW)
-      .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
-      .groupBy(WORKFLOW_USER_LIKES.WID)
-      .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
+  def getTops(
+      @QueryParam("entityType") entityType: String,
+      @QueryParam("actionType") actionType: String,
+      @QueryParam("uid") uid: Integer
+  ): util.List[DashboardClickableFileEntry] = {
+    validateEntityType(entityType)
+
+    val baseTable = BaseEntityTable(entityType)
+    val entityTables = actionType match {
+      case "like"  => LikeTable(entityType)
+      case "clone" => CloneTable(entityType)
+      case _       => throw new IllegalArgumentException(s"Invalid action type: $actionType")
+    }
+
+    val (table, idColumn) = (entityTables.table, entityTables.idColumn)
+    val (isPublicColumn, baseIdColumn) = (baseTable.isPublicColumn, baseTable.idColumn)
+
+    val topEntityIds = context
+      .select(idColumn)
+      .from(table)
+      .join(baseTable.table)
+      .on(idColumn.eq(baseIdColumn))
+      .where(isPublicColumn.eq(1.toByte))
+      .groupBy(idColumn)
+      .orderBy(DSL.count(idColumn).desc())
       .limit(8)
       .fetchInto(classOf[UInteger])
       .asScala
       .toSeq
 
-    fetchDashboardWorkflowsByWids(topLovedWorkflowsWids)
-  }
+    val currentUid: UInteger = if (uid == null || uid == -1) null else UInteger.valueOf(uid)
 
-  @GET
-  @Path("/topClonedWorkflows")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getTopClonedWorkflows: util.List[DashboardWorkflow] = {
-    val topClonedWorkflowsWids = context
-      .select(WORKFLOW_USER_CLONES.WID)
-      .from(WORKFLOW_USER_CLONES)
-      .join(WORKFLOW)
-      .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
-      .groupBy(WORKFLOW_USER_CLONES.WID)
-      .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
-      .limit(8)
-      .fetchInto(classOf[UInteger])
-      .asScala
-      .toSeq
+    val clickableFileEntries =
+      if (entityType == "workflow") {
+        val workflows = fetchDashboardWorkflowsByWids(topEntityIds, currentUid)
+        workflows.map { w =>
+          DashboardClickableFileEntry(
+            resourceType = "workflow",
+            workflow = Some(w),
+            project = None,
+            dataset = None
+          )
+        }
+      } else if (entityType == "dataset") {
+        val datasets = fetchDashboardDatasetsByDids(topEntityIds, currentUid)
+        datasets.map { d =>
+          DashboardClickableFileEntry(
+            resourceType = "dataset",
+            workflow = None,
+            project = None,
+            dataset = Some(d)
+          )
+        }
+      } else {
+        Seq.empty[DashboardClickableFileEntry]
+      }
 
-    fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
+    clickableFileEntries.toList.asJava
   }
 }
