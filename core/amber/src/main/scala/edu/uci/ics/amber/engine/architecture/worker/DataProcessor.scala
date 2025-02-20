@@ -82,7 +82,7 @@ class DataProcessor(
         )
       )
 
-      statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
+      statisticsManager.increaseInputTupleCount(portIdentity)
 
     } catch safely {
       case e =>
@@ -185,9 +185,11 @@ class DataProcessor(
           asyncRPCClient.mkContext(CONTROLLER)
         )
       case schemaEnforceable: SchemaEnforceable =>
-        val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
-        val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
-        statisticsManager.increaseOutputStatistics(portIdentity, tuple.inMemSize)
+        if (outputPortOpt.isEmpty) {
+          statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)
+        } else {
+          statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
+        }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now

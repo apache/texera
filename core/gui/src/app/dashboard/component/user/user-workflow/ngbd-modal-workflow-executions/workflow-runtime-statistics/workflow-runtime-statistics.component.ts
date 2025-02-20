@@ -5,15 +5,6 @@ import * as Plotly from "plotly.js-basic-dist-min";
 import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
-const NANOSECONDS_TO_SECONDS = 1_000_000_000;
-
-interface ChartData {
-  x: number[];
-  y: number[];
-  mode: string;
-  name: string;
-}
-
 @UntilDestroy()
 @Component({
   selector: "texera-workflow-runtime-statistics",
@@ -23,12 +14,10 @@ interface ChartData {
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
   readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
 
-  private groupedStatistics?: Record<string, WorkflowRuntimeStatistics[]>;
+  private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
   public metrics: string[] = [
     "Input Tuple Count",
-    "Input Tuple Size (bytes)",
     "Output Tuple Count",
-    "Output Tuple Size (bytes)",
     "Total Data Processing Time (s)",
     "Total Control Processing Time (s)",
     "Total Idle Time (s)",
@@ -37,11 +26,10 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   ngOnInit(): void {
     if (!this.workflowRuntimeStatistics) {
-      console.warn("No workflow runtime statistics available.");
       return;
     }
 
-    this.groupedStatistics = this.groupStatisticsByOperatorId();
+    this.groupedStats = this.groupStatsByOperatorId();
     this.createChart(0);
   }
 
@@ -53,40 +41,31 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   }
 
   /**
-   * Groups statistics by operator ID, converting times from nanoseconds to seconds,
-   * and adjusts timestamps relative to the initial timestamp.
+   * Convert an array into a record by combining stats to the same metric and accumulate tuple counts
    */
-  private groupStatisticsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
-    if (!this.workflowRuntimeStatistics || this.workflowRuntimeStatistics.length === 0) {
-      console.warn("No workflow runtime statistics available.");
+  private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
+    if (!this.workflowRuntimeStatistics) {
       return {};
     }
 
-    const initialTimestamp = this.workflowRuntimeStatistics[0].timestamp;
+    const beginTimestamp = this.workflowRuntimeStatistics[0].timestamp;
+    return this.workflowRuntimeStatistics.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
+      const statsArray = acc[stat.operatorId] || [];
+      const lastStat = statsArray[statsArray.length - 1];
 
-    return this.workflowRuntimeStatistics.reduce(
-      (accumulator, stat) => {
-        if (!stat.operatorId) {
-          console.warn("Missing operatorId in statistic:", stat);
-          return accumulator;
-        }
+      if (lastStat) {
+        stat.inputTupleCount += lastStat.inputTupleCount;
+        stat.outputTupleCount += lastStat.outputTupleCount;
+        stat.dataProcessingTime = stat.dataProcessingTime / 1000000000 + lastStat.dataProcessingTime;
+        stat.controlProcessingTime = stat.controlProcessingTime / 1000000000 + lastStat.controlProcessingTime;
+        stat.idleTime = stat.idleTime / 1000000000 + lastStat.idleTime;
+      }
 
-        const statsArray = accumulator[stat.operatorId] ?? [];
+      stat.timestamp -= beginTimestamp;
 
-        const processedStat = {
-          ...stat,
-          dataProcessingTime: stat.dataProcessingTime / NANOSECONDS_TO_SECONDS,
-          controlProcessingTime: stat.controlProcessingTime / NANOSECONDS_TO_SECONDS,
-          idleTime: stat.idleTime / NANOSECONDS_TO_SECONDS,
-          timestamp: stat.timestamp - initialTimestamp,
-        };
-
-        statsArray.push(processedStat);
-        accumulator[stat.operatorId] = statsArray;
-        return accumulator;
-      },
-      {} as Record<string, WorkflowRuntimeStatistics[]>
-    );
+      acc[stat.operatorId] = [...statsArray, stat];
+      return acc;
+    }, {});
   }
 
   /**
@@ -94,61 +73,67 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
    * 1. Shorten the operator ID
    * 2. Remove sink operator
    * 3. Contain only a certain metric given a metric idx
-   * @param metricIndex
+   * @param metric_idx
    */
-  private createDataset(metricIndex: number): ChartData[] {
-    if (!this.groupedStatistics) {
+  private createDataset(metric_idx: number): any[] {
+    if (!this.groupedStats) {
       return [];
     }
 
-    const metricKeys = [
-      "inputTupleCount",
-      "inputTupleSize",
-      "outputTupleCount",
-      "outputTupleSize",
-      "dataProcessingTime",
-      "controlProcessingTime",
-      "idleTime",
-      "numWorkers",
-    ];
-
-    const yValuesKey = metricKeys[metricIndex] || "numWorkers";
-
-    return Object.entries(this.groupedStatistics)
-      .map(([operatorId, stats]) => {
-        const [operatorName] = operatorId.split("-");
+    return Object.keys(this.groupedStats)
+      .map(operatorId => {
+        const operatorName = operatorId.split("-")[0];
         const uuidLast6Digits = operatorId.slice(-6);
 
         if (operatorName.startsWith("sink")) {
           return null;
         }
 
+        let yValues = "";
+        if (metric_idx === 0) {
+          yValues = "inputTupleCount";
+        } else if (metric_idx === 1) {
+          yValues = "outputTupleCount";
+        } else if (metric_idx === 2) {
+          yValues = "dataProcessingTime";
+        } else if (metric_idx === 3) {
+          yValues = "controlProcessingTime";
+        } else if (metric_idx === 4) {
+          yValues = "idleTime";
+        } else {
+          yValues = "numWorkers";
+        }
+
+        if (!this.groupedStats) {
+          return null;
+        }
+        const stats = this.groupedStats[operatorId];
+
         return {
-          x: stats.map(stat => stat.timestamp / 1000),
-          y: stats.map(stat => stat[yValuesKey]),
+          x: stats.map(stat => stat["timestamp"] / 1000),
+          y: stats.map(stat => stat[yValues]),
           mode: "lines",
           name: `${operatorName}-${uuidLast6Digits}`,
         };
       })
-      .filter((data): data is ChartData => data !== null);
+      .filter(Boolean);
   }
 
   /**
    * Create a line chart using plotly
-   * @param metricIndex
+   * @param metric_idx
    */
-  private createChart(metricIndex: number): void {
-    const dataset = this.createDataset(metricIndex);
+  private createChart(metric_idx: number): void {
+    const dataset = this.createDataset(metric_idx);
 
     if (!dataset || dataset.length === 0) {
-      console.warn("No data available for the chart.");
       return;
     }
 
     const layout = {
-      title: this.metrics[metricIndex],
+      title: this.metrics[metric_idx],
       xaxis: { title: "Time (s)" },
-      yaxis: { title: this.metrics[metricIndex] },
+      yaxis: { title: this.metrics[metric_idx] },
     };
 
     Plotly.newPlot("chart", dataset, layout);

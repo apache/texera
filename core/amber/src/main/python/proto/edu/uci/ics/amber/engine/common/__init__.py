@@ -95,10 +95,10 @@ class OperatorWorkerMapping(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OperatorStatistics(betterproto.Message):
-    input_metrics: List["_architecture_worker__.PortTupleMetricsMapping"] = (
+    input_count: List["_architecture_worker__.PortTupleCountMapping"] = (
         betterproto.message_field(1)
     )
-    output_metrics: List["_architecture_worker__.PortTupleMetricsMapping"] = (
+    output_count: List["_architecture_worker__.PortTupleCountMapping"] = (
         betterproto.message_field(2)
     )
     num_workers: int = betterproto.int32_field(3)

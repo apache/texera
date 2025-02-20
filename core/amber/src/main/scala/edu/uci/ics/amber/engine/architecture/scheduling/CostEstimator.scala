@@ -108,19 +108,18 @@ class DefaultCostEstimator(
       val uri: URI = new URI(uriString)
       val document = DocumentFactory.openDocument(uri)
 
-      val maxStats = document._1
+      val cumulatedStats = document._1
         .get()
         .foldLeft(Map.empty[String, Double]) { (acc, tuple) =>
           val record = tuple.asInstanceOf[Tuple]
           val operatorId = record.getField(0).asInstanceOf[String]
-          val dataProcessingTime = record.getField(6).asInstanceOf[Long]
-          val controlProcessingTime = record.getField(7).asInstanceOf[Long]
-          val currentMaxTime = acc.getOrElse(operatorId, 0.0)
-          val newTime = (dataProcessingTime + controlProcessingTime) / 1e9
-          acc + (operatorId -> Math.max(currentMaxTime, newTime))
+          val dataProcessingTime = record.getField(4).asInstanceOf[Long]
+          val controlProcessingTime = record.getField(5).asInstanceOf[Long]
+          val opTotalExecutionTime = acc.getOrElse(operatorId, 0.0)
+          acc + (operatorId -> (opTotalExecutionTime + (dataProcessingTime + controlProcessingTime) / 1e9))
         }
 
-      if (maxStats.isEmpty) None else Some(maxStats)
+      if (cumulatedStats.isEmpty) None else Some(cumulatedStats)
     }
   }
 }

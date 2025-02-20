@@ -11,7 +11,6 @@ import pickle
 import pyarrow
 from loguru import logger
 from pandas._libs.missing import checknull
-from pympler import asizeof
 
 from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
@@ -389,10 +388,3 @@ class Tuple:
             result = result * salt + hash_value
 
         return int_32(result)
-
-    def in_mem_size(self) -> int:
-        """
-        Calculate the in-memory size of the Tuple instance.
-        :return: The size in bytes.
-        """
-        return asizeof.asizeof(self)

@@ -84,7 +84,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
-        self.context.statistics_manager.update_total_execution_time(time.time_ns())
+        self.context.statistics_manager.update_total_execution_time(
+            time.time_ns() - self.context.statistics_manager.worker_start_time
+        )
         controller_interface = self._async_rpc_client.controller_stub()
         controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
@@ -110,7 +112,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
-        self.context.statistics_manager.initialize_worker_start_time(time.time_ns())
+        self.context.statistics_manager.worker_start_time = time.time_ns()
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -156,7 +158,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.increase_control_processing_time(
             end_time - start_time
         )
-        self.context.statistics_manager.update_total_execution_time(end_time)
+        self.context.statistics_manager.update_total_execution_time(
+            end_time - self.context.statistics_manager.worker_start_time
+        )
 
     def process_input_tuple(self) -> None:
         """
@@ -167,16 +171,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         DataElement.
         """
         if isinstance(self.context.tuple_processing_manager.current_input_tuple, Tuple):
-            self.context.statistics_manager.increase_input_statistics(
-                self.context.tuple_processing_manager.current_input_port_id,
-                self.context.tuple_processing_manager.current_input_tuple.in_mem_size(),
+            self.context.statistics_manager.increase_input_tuple_count(
+                self.context.tuple_processing_manager.current_input_port_id
             )
 
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
-                self.context.statistics_manager.increase_output_statistics(
-                    PortIdentity(0), output_tuple.in_mem_size()
+                self.context.statistics_manager.increase_output_tuple_count(
+                    PortIdentity(0)
                 )
                 for to, batch in self.context.output_manager.tuple_to_batch(
                     output_tuple
@@ -461,7 +464,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.increase_data_processing_time(
             end_time - start_time
         )
-        self.context.statistics_manager.update_total_execution_time(end_time)
+        self.context.statistics_manager.update_total_execution_time(
+            end_time - self.context.statistics_manager.worker_start_time
+        )
 
     def _check_and_report_debug_event(self) -> None:
         if self.context.debug_manager.has_debug_event():
