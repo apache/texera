@@ -123,3 +123,19 @@ nz-select {
 .nz-tag {
   font-size: 12px;
 }
+
+.workflow-panel {
+  align-items: center;
+  gap: 10px;
+}
+
+.like-button {
+  margin-left: 15px;
+  width: 70px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.liked {
+  color: red;
+}
