@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowViewCountRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
 
-    private static final long serialVersionUID = -1514441832;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_view_count</code>
@@ -51,12 +50,36 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
     /**
      * The column <code>texera_db.workflow_view_count.wid</code>.
      */
-    public final TableField<WorkflowViewCountRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowViewCountRecord, Integer> WID = createField(DSL.name("wid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_view_count.view_count</code>.
      */
-    public final TableField<WorkflowViewCountRecord, UInteger> VIEW_COUNT = createField(DSL.name("view_count"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<WorkflowViewCountRecord, Integer> VIEW_COUNT = createField(DSL.name("view_count"), SQLDataType.INTEGER.nullable(false).defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
+
+    private WorkflowViewCount(Name alias, Table<WorkflowViewCountRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowViewCount(Name alias, Table<WorkflowViewCountRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_view_count</code> table
+     * reference
+     */
+    public WorkflowViewCount(String alias) {
+        this(DSL.name(alias), WORKFLOW_VIEW_COUNT);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_view_count</code> table
+     * reference
+     */
+    public WorkflowViewCount(Name alias) {
+        this(alias, WORKFLOW_VIEW_COUNT);
+    }
 
     /**
      * Create a <code>texera_db.workflow_view_count</code> table reference
@@ -65,59 +88,35 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
         this(DSL.name("workflow_view_count"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.workflow_view_count</code> table reference
-     */
-    public WorkflowViewCount(String alias) {
-        this(DSL.name(alias), WORKFLOW_VIEW_COUNT);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.workflow_view_count</code> table reference
-     */
-    public WorkflowViewCount(Name alias) {
-        this(alias, WORKFLOW_VIEW_COUNT);
-    }
-
-    private WorkflowViewCount(Name alias, Table<WorkflowViewCountRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowViewCount(Name alias, Table<WorkflowViewCountRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> WorkflowViewCount(Table<O> child, ForeignKey<O, WorkflowViewCountRecord> key) {
         super(child, key, WORKFLOW_VIEW_COUNT);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_VIEW_COUNT_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<WorkflowViewCountRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_VIEW_COUNT_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<WorkflowViewCountRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowViewCountRecord>>asList(Keys.KEY_WORKFLOW_VIEW_COUNT_PRIMARY);
+        return Keys.WORKFLOW_VIEW_COUNT_PKEY;
     }
 
     @Override
     public List<ForeignKey<WorkflowViewCountRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowViewCountRecord, ?>>asList(Keys.WORKFLOW_VIEW_COUNT_IBFK_1);
+        return Arrays.asList(Keys.WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY);
     }
 
+    private transient Workflow _workflow;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.workflow</code> table.
+     */
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_VIEW_COUNT_IBFK_1);
+        if (_workflow == null)
+            _workflow = new Workflow(this, Keys.WORKFLOW_VIEW_COUNT__WORKFLOW_VIEW_COUNT_WID_FKEY);
+
+        return _workflow;
     }
 
     @Override
@@ -151,7 +150,7 @@ public class WorkflowViewCount extends TableImpl<WorkflowViewCountRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getSubstringSearchFilter
 }
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
+
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -29,7 +29,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   )
 
   override protected def constructFromClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
@@ -40,7 +40,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -68,7 +68,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
   override def toEntryImpl(
-      uid: UInteger,
+      uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dp = record.into(PROJECT).into(classOf[Project])

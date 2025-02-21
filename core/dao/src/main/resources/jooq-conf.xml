@@ -3,7 +3,7 @@
         <!-- The generator for dao -->
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
-
+            <javaTimeTypes>false</javaTimeTypes>
             <daos>true</daos>
             <interfaces>true</interfaces>
         </generate>
@@ -17,7 +17,7 @@
         <database>
             <!-- The database type. The format here is:
                  org.jooq.meta.[database].[database]Database -->
-            <name>org.jooq.meta.mysql.MySQLDatabase</name>
+            <name>org.jooq.meta.postgres.PostgresDatabase</name>
 
             <!-- The database schema (or in the absence of schema support, in your RDBMS this
                  can be the owner, user, database name) to be generated -->
@@ -32,7 +32,12 @@
                  (A Java regular expression. Use the pipe to separate several expressions).
                  Excludes match before includes, i.e. excludes have a higher priority -->
             <excludes>(test_.*)|(ignore_.*)</excludes>
-
+            <forcedTypes>
+                <forcedType>
+                    <name>TIMESTAMP</name>
+                    <includeTypes>(?i)TIMESTAMP</includeTypes>
+                </forcedType>
+            </forcedTypes>
         </database>
 
         <target>

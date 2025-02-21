@@ -2,11 +2,10 @@ package edu.uci.ics.amber.storage
 
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.apache.commons.vfs2.FileNotFoundException
-import org.jooq.types.UInteger
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -20,9 +19,9 @@ class FileResolverSpec
 
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
@@ -30,30 +29,30 @@ class FileResolverSpec
 
   private val testDataset: Dataset = {
     val dataset = new Dataset
-    dataset.setDid(UInteger.valueOf(1))
+    dataset.setDid(Integer.valueOf(1))
     dataset.setName("test_dataset")
     dataset.setDescription("dataset for test")
-    dataset.setIsPublic(1.toByte)
-    dataset.setOwnerUid(UInteger.valueOf(1))
+    dataset.setIsPublic(true)
+    dataset.setOwnerUid(Integer.valueOf(1))
     dataset
   }
 
   private val testDatasetVersion1: DatasetVersion = {
     val datasetVersion = new DatasetVersion
-    datasetVersion.setDid(UInteger.valueOf(1))
+    datasetVersion.setDid(Integer.valueOf(1))
     datasetVersion.setName("v1")
-    datasetVersion.setDvid(UInteger.valueOf(1))
-    datasetVersion.setCreatorUid(UInteger.valueOf(1))
+    datasetVersion.setDvid(Integer.valueOf(1))
+    datasetVersion.setCreatorUid(Integer.valueOf(1))
     datasetVersion.setVersionHash("97fd4c2a755b69b7c66d322eab40b7e5c2ad5d10")
     datasetVersion
   }
 
   private val testDatasetVersion2: DatasetVersion = {
     val datasetVersion = new DatasetVersion
-    datasetVersion.setDid(UInteger.valueOf(1))
+    datasetVersion.setDid(Integer.valueOf(1))
     datasetVersion.setName("v2")
-    datasetVersion.setDvid(UInteger.valueOf(2))
-    datasetVersion.setCreatorUid(UInteger.valueOf(1))
+    datasetVersion.setDvid(Integer.valueOf(2))
+    datasetVersion.setCreatorUid(Integer.valueOf(1))
     datasetVersion.setVersionHash("37966c92cb3a8bee1f9d8e21937aa8faa5e48513")
     datasetVersion
   }

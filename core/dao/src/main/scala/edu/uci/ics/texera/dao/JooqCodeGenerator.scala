@@ -38,7 +38,7 @@ object JooqCodeGenerator {
 
     // Set JDBC configuration for jOOQ
     val jooqJdbcConfig = new Jdbc
-    jooqJdbcConfig.setDriver("com.mysql.cj.jdbc.Driver")
+    jooqJdbcConfig.setDriver("org.postgresql.Driver")
     jooqJdbcConfig.setUrl(jdbcConfig("url").toString)
     jooqJdbcConfig.setUsername(jdbcConfig("username").toString)
     jooqJdbcConfig.setPassword(jdbcConfig("password").toString)

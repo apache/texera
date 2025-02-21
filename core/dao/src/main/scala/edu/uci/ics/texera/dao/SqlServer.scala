@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.dao
 
-import com.mysql.cj.jdbc.MysqlDataSource
-import org.jooq.{DSLContext, SQLDialect}
 import org.jooq.impl.DSL
+import org.jooq.{DSLContext, SQLDialect}
+import org.postgresql.ds.PGSimpleDataSource
 
 /**
   * SqlServer class that manages a connection to a MySQL database using jOOQ.
@@ -12,15 +12,14 @@ import org.jooq.impl.DSL
   * @param password The password for authenticating with the MySQL database.
   */
 class SqlServer private (url: String, user: String, password: String) {
-  val SQL_DIALECT: SQLDialect = SQLDialect.MYSQL
-  private val dataSource: MysqlDataSource = new MysqlDataSource()
-  var context: DSLContext = _
-
-  {
+  val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
+  private val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
+  var context: DSLContext = {
     dataSource.setUrl(url)
     dataSource.setUser(user)
     dataSource.setPassword(password)
-    context = DSL.using(dataSource, SQL_DIALECT)
+    dataSource.setConnectTimeout(5)
+    DSL.using(dataSource, SQL_DIALECT)
   }
 
   def createDSLContext(): DSLContext = context
@@ -31,22 +30,17 @@ class SqlServer private (url: String, user: String, password: String) {
 }
 
 object SqlServer {
-  @volatile private var instance: Option[SqlServer] = None
+  private var instance: Option[SqlServer] = None
 
-  def getInstance(url: String, user: String, password: String): SqlServer = {
-    instance match {
-      case Some(server) => server
-      case None =>
-        synchronized {
-          instance match {
-            case Some(server) => server
-            case None =>
-              val server = new SqlServer(url, user, password)
-              instance = Some(server)
-              server
-          }
-        }
+  def initConnection(url: String, user: String, password: String): Unit = {
+    if (instance.isEmpty) {
+      val server = new SqlServer(url, user, password)
+      instance = Some(server)
     }
+  }
+
+  def getInstance(): SqlServer = {
+    instance.get
   }
 
   /**

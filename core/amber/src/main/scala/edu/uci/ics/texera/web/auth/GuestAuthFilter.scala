@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.auth
 
 import edu.uci.ics.texera.web.auth.GuestAuthFilter.GUEST
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthFilter
 
@@ -18,7 +18,7 @@ import javax.ws.rs.core.SecurityContext
     override protected def newInstance = new GuestAuthFilter
   }
 
-  val GUEST: User = new User(null, "guest", null, null, null, UserRole.REGULAR, null)
+  val GUEST: User = new User(null, "guest", null, null, null, null, UserRoleEnum.REGULAR)
 }
 
 @PreMatching

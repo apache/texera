@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
@@ -16,7 +16,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import org.jooq.types.UInteger
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -34,18 +34,18 @@ class WorkflowResourceSpec
 
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user
   }
 
   private val testUser2: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(2))
+    user.setUid(Integer.valueOf(2))
     user.setName("test_user2")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user
   }
@@ -364,43 +364,43 @@ class WorkflowResourceSpec
   }
 
   it should "return a proper condition for a single projectId" in {
-    val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val projectIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
+    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple projectIds" in {
-    val projectIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val projectIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(2)))
         .toString
     )
   }
 
   it should "return a proper condition for a single workflowID" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val workflowIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
-    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
+    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple workflowIDs" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val workflowIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW.WID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW.WID.eq(Integer.valueOf(2)))
         .toString
     )
   }

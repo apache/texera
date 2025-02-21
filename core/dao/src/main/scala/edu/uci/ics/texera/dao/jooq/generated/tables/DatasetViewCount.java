@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetViewCountRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetViewCount extends TableImpl<DatasetViewCountRecord> {
 
-    private static final long serialVersionUID = 2087672115;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.dataset_view_count</code>
@@ -51,12 +50,36 @@ public class DatasetViewCount extends TableImpl<DatasetViewCountRecord> {
     /**
      * The column <code>texera_db.dataset_view_count.did</code>.
      */
-    public final TableField<DatasetViewCountRecord, UInteger> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetViewCountRecord, Integer> DID = createField(DSL.name("did"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_view_count.view_count</code>.
      */
-    public final TableField<DatasetViewCountRecord, UInteger> VIEW_COUNT = createField(DSL.name("view_count"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<DatasetViewCountRecord, Integer> VIEW_COUNT = createField(DSL.name("view_count"), SQLDataType.INTEGER.nullable(false).defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
+
+    private DatasetViewCount(Name alias, Table<DatasetViewCountRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private DatasetViewCount(Name alias, Table<DatasetViewCountRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_view_count</code> table
+     * reference
+     */
+    public DatasetViewCount(String alias) {
+        this(DSL.name(alias), DATASET_VIEW_COUNT);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_view_count</code> table
+     * reference
+     */
+    public DatasetViewCount(Name alias) {
+        this(alias, DATASET_VIEW_COUNT);
+    }
 
     /**
      * Create a <code>texera_db.dataset_view_count</code> table reference
@@ -65,59 +88,35 @@ public class DatasetViewCount extends TableImpl<DatasetViewCountRecord> {
         this(DSL.name("dataset_view_count"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.dataset_view_count</code> table reference
-     */
-    public DatasetViewCount(String alias) {
-        this(DSL.name(alias), DATASET_VIEW_COUNT);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.dataset_view_count</code> table reference
-     */
-    public DatasetViewCount(Name alias) {
-        this(alias, DATASET_VIEW_COUNT);
-    }
-
-    private DatasetViewCount(Name alias, Table<DatasetViewCountRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private DatasetViewCount(Name alias, Table<DatasetViewCountRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> DatasetViewCount(Table<O> child, ForeignKey<O, DatasetViewCountRecord> key) {
         super(child, key, DATASET_VIEW_COUNT);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_VIEW_COUNT_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<DatasetViewCountRecord> getPrimaryKey() {
-        return Keys.KEY_DATASET_VIEW_COUNT_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<DatasetViewCountRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetViewCountRecord>>asList(Keys.KEY_DATASET_VIEW_COUNT_PRIMARY);
+        return Keys.DATASET_VIEW_COUNT_PKEY;
     }
 
     @Override
     public List<ForeignKey<DatasetViewCountRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetViewCountRecord, ?>>asList(Keys.DATASET_VIEW_COUNT_IBFK_1);
+        return Arrays.asList(Keys.DATASET_VIEW_COUNT__DATASET_VIEW_COUNT_DID_FKEY);
     }
 
+    private transient Dataset _dataset;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.dataset</code> table.
+     */
     public Dataset dataset() {
-        return new Dataset(this, Keys.DATASET_VIEW_COUNT_IBFK_1);
+        if (_dataset == null)
+            _dataset = new Dataset(this, Keys.DATASET_VIEW_COUNT__DATASET_VIEW_COUNT_DID_FKEY);
+
+        return _dataset;
     }
 
     @Override
@@ -151,7 +150,7 @@ public class DatasetViewCount extends TableImpl<DatasetViewCountRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

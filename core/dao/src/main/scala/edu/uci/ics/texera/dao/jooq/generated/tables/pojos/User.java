@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole;
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IUser;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,15 +14,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = -51594379;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger uid;
-    private String   name;
-    private String   email;
-    private String   password;
-    private String   googleId;
-    private UserRole role;
-    private String   googleAvatar;
+    private Integer      uid;
+    private String       name;
+    private String       email;
+    private String       password;
+    private String       googleId;
+    private String       googleAvatar;
+    private UserRoleEnum role;
 
     public User() {}
 
@@ -34,96 +32,138 @@ public class User implements IUser {
         this.email = value.getEmail();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
-        this.role = value.getRole();
         this.googleAvatar = value.getGoogleAvatar();
+        this.role = value.getRole();
     }
 
     public User(
-        UInteger uid,
-        String   name,
-        String   email,
-        String   password,
-        String   googleId,
-        UserRole role,
-        String   googleAvatar
+        Integer      uid,
+        String       name,
+        String       email,
+        String       password,
+        String       googleId,
+        String       googleAvatar,
+        UserRoleEnum role
     ) {
         this.uid = uid;
         this.name = name;
         this.email = email;
         this.password = password;
         this.googleId = googleId;
-        this.role = role;
         this.googleAvatar = googleAvatar;
+        this.role = role;
     }
 
+    /**
+     * Getter for <code>texera_db.user.uid</code>.
+     */
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.user.uid</code>.
+     */
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.user.name</code>.
+     */
     @Override
     public String getName() {
         return this.name;
     }
 
+    /**
+     * Setter for <code>texera_db.user.name</code>.
+     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Getter for <code>texera_db.user.email</code>.
+     */
     @Override
     public String getEmail() {
         return this.email;
     }
 
+    /**
+     * Setter for <code>texera_db.user.email</code>.
+     */
     @Override
     public void setEmail(String email) {
         this.email = email;
     }
 
+    /**
+     * Getter for <code>texera_db.user.password</code>.
+     */
     @Override
     public String getPassword() {
         return this.password;
     }
 
+    /**
+     * Setter for <code>texera_db.user.password</code>.
+     */
     @Override
     public void setPassword(String password) {
         this.password = password;
     }
 
+    /**
+     * Getter for <code>texera_db.user.google_id</code>.
+     */
     @Override
     public String getGoogleId() {
         return this.googleId;
     }
 
+    /**
+     * Setter for <code>texera_db.user.google_id</code>.
+     */
     @Override
     public void setGoogleId(String googleId) {
         this.googleId = googleId;
     }
 
-    @Override
-    public UserRole getRole() {
-        return this.role;
-    }
-
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
-
+    /**
+     * Getter for <code>texera_db.user.google_avatar</code>.
+     */
     @Override
     public String getGoogleAvatar() {
         return this.googleAvatar;
     }
 
+    /**
+     * Setter for <code>texera_db.user.google_avatar</code>.
+     */
     @Override
     public void setGoogleAvatar(String googleAvatar) {
         this.googleAvatar = googleAvatar;
+    }
+
+    /**
+     * Getter for <code>texera_db.user.role</code>.
+     */
+    @Override
+    public UserRoleEnum getRole() {
+        return this.role;
+    }
+
+    /**
+     * Setter for <code>texera_db.user.role</code>.
+     */
+    @Override
+    public void setRole(UserRoleEnum role) {
+        this.role = role;
     }
 
     @Override
@@ -135,8 +175,8 @@ public class User implements IUser {
         sb.append(", ").append(email);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
-        sb.append(", ").append(role);
         sb.append(", ").append(googleAvatar);
+        sb.append(", ").append(role);
 
         sb.append(")");
         return sb.toString();
@@ -153,8 +193,8 @@ public class User implements IUser {
         setEmail(from.getEmail());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
-        setRole(from.getRole());
         setGoogleAvatar(from.getGoogleAvatar());
+        setRole(from.getRole());
     }
 
     @Override

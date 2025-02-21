@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IProjectUserAccess;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,11 +14,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess implements IProjectUserAccess {
 
-    private static final long serialVersionUID = 1449179369;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger                   uid;
-    private UInteger                   pid;
-    private ProjectUserAccessPrivilege privilege;
+    private Integer       uid;
+    private Integer       pid;
+    private PrivilegeEnum privilege;
 
     public ProjectUserAccess() {}
 
@@ -31,42 +29,60 @@ public class ProjectUserAccess implements IProjectUserAccess {
     }
 
     public ProjectUserAccess(
-        UInteger                   uid,
-        UInteger                   pid,
-        ProjectUserAccessPrivilege privilege
+        Integer       uid,
+        Integer       pid,
+        PrivilegeEnum privilege
     ) {
         this.uid = uid;
         this.pid = pid;
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
-    public UInteger getPid() {
+    public Integer getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
-    public void setPid(UInteger pid) {
+    public void setPid(Integer pid) {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
-    public ProjectUserAccessPrivilege getPrivilege() {
+    public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
-    public void setPrivilege(ProjectUserAccessPrivilege privilege) {
+    public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
     }
 

@@ -17,9 +17,10 @@ import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -28,7 +29,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserActivity extends TableImpl<UserActivityRecord> {
 
-    private static final long serialVersionUID = -891466166;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.user_activity</code>
@@ -46,38 +47,39 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     /**
      * The column <code>texera_db.user_activity.uid</code>.
      */
-    public final TableField<UserActivityRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<UserActivityRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false).defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
 
     /**
      * The column <code>texera_db.user_activity.id</code>.
      */
-    public final TableField<UserActivityRecord, UInteger> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserActivityRecord, Integer> ID = createField(DSL.name("id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_activity.type</code>.
      */
-    public final TableField<UserActivityRecord, String> TYPE = createField(DSL.name("type"), org.jooq.impl.SQLDataType.VARCHAR(15).nullable(false), this, "");
+    public final TableField<UserActivityRecord, String> TYPE = createField(DSL.name("type"), SQLDataType.VARCHAR(15).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_activity.ip</code>.
      */
-    public final TableField<UserActivityRecord, String> IP = createField(DSL.name("ip"), org.jooq.impl.SQLDataType.VARCHAR(15), this, "");
+    public final TableField<UserActivityRecord, String> IP = createField(DSL.name("ip"), SQLDataType.VARCHAR(15).defaultValue(DSL.field("NULL::character varying", SQLDataType.VARCHAR)), this, "");
 
     /**
      * The column <code>texera_db.user_activity.activate</code>.
      */
-    public final TableField<UserActivityRecord, String> ACTIVATE = createField(DSL.name("activate"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false), this, "");
+    public final TableField<UserActivityRecord, String> ACTIVATE = createField(DSL.name("activate"), SQLDataType.VARCHAR(10).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_activity.activity_time</code>.
      */
-    public final TableField<UserActivityRecord, Timestamp> ACTIVITY_TIME = createField(DSL.name("activity_time"), org.jooq.impl.SQLDataType.TIMESTAMP.defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<UserActivityRecord, Timestamp> ACTIVITY_TIME = createField(DSL.name("activity_time"), SQLDataType.TIMESTAMP(0).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
-    /**
-     * Create a <code>texera_db.user_activity</code> table reference
-     */
-    public UserActivity() {
-        this(DSL.name("user_activity"), null);
+    private UserActivity(Name alias, Table<UserActivityRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private UserActivity(Name alias, Table<UserActivityRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -94,12 +96,11 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
         this(alias, USER_ACTIVITY);
     }
 
-    private UserActivity(Name alias, Table<UserActivityRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private UserActivity(Name alias, Table<UserActivityRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.user_activity</code> table reference
+     */
+    public UserActivity() {
+        this(DSL.name("user_activity"), null);
     }
 
     public <O extends Record> UserActivity(Table<O> child, ForeignKey<O, UserActivityRecord> key) {
@@ -108,7 +109,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
@@ -142,7 +143,7 @@ public class UserActivity extends TableImpl<UserActivityRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, UInteger, String, String, String, Timestamp> fieldsRow() {
+    public Row6<Integer, Integer, String, String, String, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

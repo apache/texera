@@ -22,7 +22,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowExecutionsResource,
   WorkflowVersionResource
 }
-import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
@@ -445,7 +444,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   private def generateFileName(request: ResultExportRequest, extension: String): String = {
     val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+      WorkflowVersionResource.getLatestVersion(Integer.valueOf(request.workflowId))
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -464,10 +463,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val datasetPath = PathUtils.getDatasetPath(Integer.valueOf(did))
       val filePath = datasetPath.resolve(fileName)
       createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
+        Integer.valueOf(did),
         user,
         Map(filePath -> pipedInputStream)
       )

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import HubResource.{
@@ -19,7 +18,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
   mapWorkflowEntries
 }
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
 
 import java.util
 import java.util.regex.Pattern
@@ -36,7 +34,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
 }
 
 object HubResource {
-  case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
+  case class userRequest(entityId: Integer, userId: Integer, entityType: String)
 
   /**
     * Defines the currently accepted resource types.
@@ -47,7 +45,7 @@ object HubResource {
   }
 
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   final private val ipv4Pattern: Pattern = Pattern.compile(
@@ -76,7 +74,7 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: UInteger, workflowId: UInteger, entityType: String): Boolean = {
+  def isLikedHelper(userId: Integer, workflowId: Integer, entityType: String): Boolean = {
     validateEntityType(entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
@@ -103,8 +101,8 @@ object HubResource {
     */
   def recordUserActivity(
       request: HttpServletRequest,
-      userId: UInteger = UInteger.valueOf(0),
-      entityId: UInteger,
+      userId: Integer = Integer.valueOf(0),
+      entityId: Integer,
       entityType: String,
       action: String
   ): Unit = {
@@ -180,8 +178,8 @@ object HubResource {
     */
   def recordCloneActivity(
       request: HttpServletRequest,
-      userId: UInteger,
-      entityId: UInteger,
+      userId: Integer,
+      entityId: Integer,
       entityType: String
   ): Unit = {
 
@@ -216,7 +214,7 @@ object HubResource {
     * @return The number of times the entity has been liked or cloned.
     */
   def getUserLCCount(
-      entityId: UInteger,
+      entityId: Integer,
       entityType: String,
       actionType: String
   ): Int = {
@@ -237,7 +235,7 @@ object HubResource {
       .fetchOne(0, classOf[Int])
   }
 
-  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger], uid: UInteger): List[DashboardWorkflow] = {
+  def fetchDashboardWorkflowsByWids(wids: Seq[Integer], uid: Integer): List[DashboardWorkflow] = {
     if (wids.isEmpty) {
       return List.empty[DashboardWorkflow]
     }
@@ -250,7 +248,7 @@ object HubResource {
     mapWorkflowEntries(records, uid)
   }
 
-  def fetchDashboardDatasetsByDids(dids: Seq[UInteger], uid: UInteger): List[DashboardDataset] = {
+  def fetchDashboardDatasetsByDids(dids: Seq[Integer], uid: Integer): List[DashboardDataset] = {
     if (dids.isEmpty) {
       return List.empty[DashboardDataset]
     }
@@ -269,7 +267,7 @@ object HubResource {
 @Path("/hub")
 class HubResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   @GET
@@ -283,7 +281,7 @@ class HubResource {
     context
       .selectCount()
       .from(table)
-      .where(isPublicColumn.eq(1.toByte))
+      .where(isPublicColumn.eq(true))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -291,8 +289,8 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") workflowId: UInteger,
-      @QueryParam("userId") userId: UInteger,
+      @QueryParam("workflowId") workflowId: Integer,
+      @QueryParam("userId") userId: Integer,
       @QueryParam("entityType") entityType: String
   ): Boolean = {
     isLikedHelper(userId, workflowId, entityType)
@@ -322,7 +320,7 @@ class HubResource {
   @Path("/likeCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getLikeCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "like")
@@ -332,7 +330,7 @@ class HubResource {
   @Path("/cloneCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getCloneCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "clone")
@@ -357,7 +355,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityID)
-      .set(viewCountColumn, UInteger.valueOf(1))
+      .set(viewCountColumn, Integer.valueOf(1))
       .onDuplicateKeyUpdate()
       .set(viewCountColumn, viewCountColumn.add(1))
       .execute()
@@ -375,7 +373,7 @@ class HubResource {
   @Path("/viewCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getViewCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
 
@@ -387,7 +385,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityId)
-      .set(viewCountColumn, UInteger.valueOf(0))
+      .set(viewCountColumn, Integer.valueOf(0))
       .onDuplicateKeyIgnore()
       .execute()
 
@@ -423,15 +421,15 @@ class HubResource {
       .from(table)
       .join(baseTable.table)
       .on(idColumn.eq(baseIdColumn))
-      .where(isPublicColumn.eq(1.toByte))
+      .where(isPublicColumn.eq(true))
       .groupBy(idColumn)
       .orderBy(DSL.count(idColumn).desc())
       .limit(8)
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toSeq
 
-    val currentUid: UInteger = if (uid == null || uid == -1) null else UInteger.valueOf(uid)
+    val currentUid: Integer = if (uid == null || uid == -1) null else Integer.valueOf(uid)
 
     val clickableFileEntries =
       if (entityType == "workflow") {

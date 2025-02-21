@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.DatasetUserLikesRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetUserLikes extends TableImpl<DatasetUserLikesRecord> {
 
-    private static final long serialVersionUID = 566607224;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.dataset_user_likes</code>
@@ -51,12 +50,36 @@ public class DatasetUserLikes extends TableImpl<DatasetUserLikesRecord> {
     /**
      * The column <code>texera_db.dataset_user_likes.uid</code>.
      */
-    public final TableField<DatasetUserLikesRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetUserLikesRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset_user_likes.did</code>.
      */
-    public final TableField<DatasetUserLikesRecord, UInteger> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<DatasetUserLikesRecord, Integer> DID = createField(DSL.name("did"), SQLDataType.INTEGER.nullable(false), this, "");
+
+    private DatasetUserLikes(Name alias, Table<DatasetUserLikesRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private DatasetUserLikes(Name alias, Table<DatasetUserLikesRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_user_likes</code> table
+     * reference
+     */
+    public DatasetUserLikes(String alias) {
+        this(DSL.name(alias), DATASET_USER_LIKES);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.dataset_user_likes</code> table
+     * reference
+     */
+    public DatasetUserLikes(Name alias) {
+        this(alias, DATASET_USER_LIKES);
+    }
 
     /**
      * Create a <code>texera_db.dataset_user_likes</code> table reference
@@ -65,63 +88,46 @@ public class DatasetUserLikes extends TableImpl<DatasetUserLikesRecord> {
         this(DSL.name("dataset_user_likes"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.dataset_user_likes</code> table reference
-     */
-    public DatasetUserLikes(String alias) {
-        this(DSL.name(alias), DATASET_USER_LIKES);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.dataset_user_likes</code> table reference
-     */
-    public DatasetUserLikes(Name alias) {
-        this(alias, DATASET_USER_LIKES);
-    }
-
-    private DatasetUserLikes(Name alias, Table<DatasetUserLikesRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private DatasetUserLikes(Name alias, Table<DatasetUserLikesRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> DatasetUserLikes(Table<O> child, ForeignKey<O, DatasetUserLikesRecord> key) {
         super(child, key, DATASET_USER_LIKES);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_USER_LIKES_DID, Indexes.DATASET_USER_LIKES_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<DatasetUserLikesRecord> getPrimaryKey() {
-        return Keys.KEY_DATASET_USER_LIKES_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<DatasetUserLikesRecord>> getKeys() {
-        return Arrays.<UniqueKey<DatasetUserLikesRecord>>asList(Keys.KEY_DATASET_USER_LIKES_PRIMARY);
+        return Keys.DATASET_USER_LIKES_PKEY;
     }
 
     @Override
     public List<ForeignKey<DatasetUserLikesRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetUserLikesRecord, ?>>asList(Keys.DATASET_USER_LIKES_IBFK_1, Keys.DATASET_USER_LIKES_IBFK_2);
+        return Arrays.asList(Keys.DATASET_USER_LIKES__DATASET_USER_LIKES_UID_FKEY, Keys.DATASET_USER_LIKES__DATASET_USER_LIKES_DID_FKEY);
     }
 
+    private transient User _user;
+    private transient Dataset _dataset;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.DATASET_USER_LIKES_IBFK_1);
+        if (_user == null)
+            _user = new User(this, Keys.DATASET_USER_LIKES__DATASET_USER_LIKES_UID_FKEY);
+
+        return _user;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.dataset</code> table.
+     */
     public Dataset dataset() {
-        return new Dataset(this, Keys.DATASET_USER_LIKES_IBFK_2);
+        if (_dataset == null)
+            _dataset = new Dataset(this, Keys.DATASET_USER_LIKES__DATASET_USER_LIKES_DID_FKEY);
+
+        return _dataset;
     }
 
     @Override
@@ -155,7 +161,7 @@ public class DatasetUserLikes extends TableImpl<DatasetUserLikesRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

@@ -8,7 +8,7 @@ import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURC
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
-import org.jooq.types.UInteger
+
 import org.jooq.{Field, OrderField}
 
 import java.util
@@ -24,7 +24,7 @@ object DashboardResource {
       dataset: Option[DashboardDataset] = None
   )
 
-  case class UserInfo(userId: UInteger, userName: String, googleAvatar: Option[String])
+  case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
 
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
 
@@ -53,10 +53,10 @@ object DashboardResource {
       @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
       @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
       @QueryParam("owner") owners: java.util.List[String] = new util.ArrayList(),
-      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("id") workflowIDs: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
-      @QueryParam("projectId") projectIds: java.util.List[UInteger] = new util.ArrayList(),
-      @QueryParam("datasetId") datasetIds: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("projectId") projectIds: java.util.List[Integer] = new util.ArrayList(),
+      @QueryParam("datasetId") datasetIds: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("start") @DefaultValue("0") offset: Int = 0,
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
@@ -180,9 +180,9 @@ class DashboardResource {
   @GET
   @Path("/resultsOwnersInfo")
   def resultsOwnersInfo(
-      @QueryParam("userIds") userIds: util.List[UInteger]
-  ): util.Map[UInteger, UserInfo] = {
-    val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
+      @QueryParam("userIds") userIds: util.List[Integer]
+  ): util.Map[Integer, UserInfo] = {
+    val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
       .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)

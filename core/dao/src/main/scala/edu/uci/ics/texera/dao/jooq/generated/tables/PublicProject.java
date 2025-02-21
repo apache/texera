@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.PublicProjectRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProject extends TableImpl<PublicProjectRecord> {
 
-    private static final long serialVersionUID = -1376825429;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.public_project</code>
@@ -51,18 +50,19 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
     /**
      * The column <code>texera_db.public_project.pid</code>.
      */
-    public final TableField<PublicProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<PublicProjectRecord, Integer> PID = createField(DSL.name("pid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.public_project.uid</code>.
      */
-    public final TableField<PublicProjectRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED, this, "");
+    public final TableField<PublicProjectRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER, this, "");
 
-    /**
-     * Create a <code>texera_db.public_project</code> table reference
-     */
-    public PublicProject() {
-        this(DSL.name("public_project"), null);
+    private PublicProject(Name alias, Table<PublicProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private PublicProject(Name alias, Table<PublicProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -79,12 +79,11 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
         this(alias, PUBLIC_PROJECT);
     }
 
-    private PublicProject(Name alias, Table<PublicProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private PublicProject(Name alias, Table<PublicProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.public_project</code> table reference
+     */
+    public PublicProject() {
+        this(DSL.name("public_project"), null);
     }
 
     public <O extends Record> PublicProject(Table<O> child, ForeignKey<O, PublicProjectRecord> key) {
@@ -93,31 +92,29 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PUBLIC_PROJECT_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<PublicProjectRecord> getPrimaryKey() {
-        return Keys.KEY_PUBLIC_PROJECT_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<PublicProjectRecord>> getKeys() {
-        return Arrays.<UniqueKey<PublicProjectRecord>>asList(Keys.KEY_PUBLIC_PROJECT_PRIMARY);
+        return Keys.PUBLIC_PROJECT_PKEY;
     }
 
     @Override
     public List<ForeignKey<PublicProjectRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<PublicProjectRecord, ?>>asList(Keys.PUBLIC_PROJECT_IBFK_1);
+        return Arrays.asList(Keys.PUBLIC_PROJECT__PUBLIC_PROJECT_PID_FKEY);
     }
 
+    private transient Project _project;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.project</code> table.
+     */
     public Project project() {
-        return new Project(this, Keys.PUBLIC_PROJECT_IBFK_1);
+        if (_project == null)
+            _project = new Project(this, Keys.PUBLIC_PROJECT__PUBLIC_PROJECT_PID_FKEY);
+
+        return _project;
     }
 
     @Override
@@ -151,7 +148,7 @@ public class PublicProject extends TableImpl<PublicProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

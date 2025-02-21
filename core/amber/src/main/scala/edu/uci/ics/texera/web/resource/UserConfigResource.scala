@@ -1,11 +1,10 @@
 package edu.uci.ics.texera.web.resource
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER_CONFIG
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserConfigDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, UserConfig}
+import edu.uci.ics.texera.web.auth.SessionUser
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.RolesAllowed
@@ -25,7 +24,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class UserConfigResource {
   final private lazy val userDictionaryDao = new UserConfigDao(
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .configuration
   )
@@ -43,7 +42,7 @@ class UserConfigResource {
     */
   private def getDict(user: User): Map[String, String] = {
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .select()
       .from(USER_CONFIG)
@@ -79,7 +78,7 @@ class UserConfigResource {
     */
   private def getValueByKey(user: User, key: String): String = {
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .fetchOne(
         USER_CONFIG,
@@ -118,7 +117,7 @@ class UserConfigResource {
   private def dictEntryExists(user: User, key: String): Boolean = {
     userDictionaryDao.existsById(
       SqlServer
-        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .getInstance()
         .createDSLContext()
         .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)
@@ -154,7 +153,7 @@ class UserConfigResource {
   private def deleteDictEntry(user: User, key: String): Unit = {
     userDictionaryDao.deleteById(
       SqlServer
-        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .getInstance()
         .createDSLContext()
         .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)

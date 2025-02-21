@@ -70,7 +70,7 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
   "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
-  "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test           // for mocking DB
+  "io.zonky.test" % "embedded-postgres" % "2.1.0" % Test            // For mock postgres DB
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -78,8 +78,8 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.jooq" % "jooq" % "3.14.16",
-  "org.jooq" % "jooq-codegen" % "3.12.4"
+  "org.jooq" % "jooq" % "3.16.10",
+  "org.jooq" % "jooq-codegen" % "3.16.10"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -88,5 +88,6 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "mysql" % "mysql-connector-java" % "8.0.33",          // MySQL connector
+  "org.postgresql" % "postgresql" % "42.7.4",
   "org.yaml" % "snakeyaml" % "1.30",                    // for reading storage config yaml file
 )

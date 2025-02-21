@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
-import org.jooq.types.UInteger
 
 import java.net.URI
 import java.time.format.DateTimeFormatter
@@ -16,7 +15,7 @@ class WorkflowEmailNotifier(
     userEmail: String,
     sessionUri: URI
 ) extends EmailNotifier {
-  private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
+  private val workflowName = WorkflowResource.getWorkflowName(workflowId.toInt)
   private val emailValidator = new EmailValidator()
   private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
     COMPLETED,

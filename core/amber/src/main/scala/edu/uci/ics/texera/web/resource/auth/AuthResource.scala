@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
@@ -11,7 +10,7 @@ import edu.uci.ics.texera.web.model.http.request.auth.{
 }
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
@@ -24,7 +23,7 @@ object AuthResource {
 
   final private lazy val userDao = new UserDao(
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .configuration
   )
@@ -40,7 +39,7 @@ object AuthResource {
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
     Option(
       SqlServer
-        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .getInstance()
         .createDSLContext()
         .select()
         .from(USER)
@@ -88,7 +87,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(username)
-        user.setRole(UserRole.ADMIN)
+        user.setRole(UserRoleEnum.ADMIN)
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)

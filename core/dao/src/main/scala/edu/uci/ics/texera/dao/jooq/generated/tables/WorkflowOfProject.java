@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowOfProjectRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
-    private static final long serialVersionUID = 264282867;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_of_project</code>
@@ -51,12 +50,36 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
     /**
      * The column <code>texera_db.workflow_of_project.wid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, Integer> WID = createField(DSL.name("wid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_of_project.pid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, Integer> PID = createField(DSL.name("pid"), SQLDataType.INTEGER.nullable(false), this, "");
+
+    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_of_project</code> table
+     * reference
+     */
+    public WorkflowOfProject(String alias) {
+        this(DSL.name(alias), WORKFLOW_OF_PROJECT);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_of_project</code> table
+     * reference
+     */
+    public WorkflowOfProject(Name alias) {
+        this(alias, WORKFLOW_OF_PROJECT);
+    }
 
     /**
      * Create a <code>texera_db.workflow_of_project</code> table reference
@@ -65,63 +88,46 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
         this(DSL.name("workflow_of_project"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.workflow_of_project</code> table reference
-     */
-    public WorkflowOfProject(String alias) {
-        this(DSL.name(alias), WORKFLOW_OF_PROJECT);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.workflow_of_project</code> table reference
-     */
-    public WorkflowOfProject(Name alias) {
-        this(alias, WORKFLOW_OF_PROJECT);
-    }
-
-    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> WorkflowOfProject(Table<O> child, ForeignKey<O, WorkflowOfProjectRecord> key) {
         super(child, key, WORKFLOW_OF_PROJECT);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_PROJECT_PID, Indexes.WORKFLOW_OF_PROJECT_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public UniqueKey<WorkflowOfProjectRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<WorkflowOfProjectRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowOfProjectRecord>>asList(Keys.KEY_WORKFLOW_OF_PROJECT_PRIMARY);
+        return Keys.WORKFLOW_OF_PROJECT_PKEY;
     }
 
     @Override
     public List<ForeignKey<WorkflowOfProjectRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowOfProjectRecord, ?>>asList(Keys.WORKFLOW_OF_PROJECT_IBFK_1, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
+        return Arrays.asList(Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY);
     }
 
+    private transient Workflow _workflow;
+    private transient Project _project;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.workflow</code> table.
+     */
     public Workflow workflow() {
-        return new Workflow(this, Keys.WORKFLOW_OF_PROJECT_IBFK_1);
+        if (_workflow == null)
+            _workflow = new Workflow(this, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_WID_FKEY);
+
+        return _workflow;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.project</code> table.
+     */
     public Project project() {
-        return new Project(this, Keys.WORKFLOW_OF_PROJECT_IBFK_2);
+        if (_project == null)
+            _project = new Project(this, Keys.WORKFLOW_OF_PROJECT__WORKFLOW_OF_PROJECT_PID_FKEY);
+
+        return _project;
     }
 
     @Override
@@ -155,7 +161,7 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
+    public Row2<Integer, Integer> fieldsRow() {
         return (Row2) super.fieldsRow();
     }
 }

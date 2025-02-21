@@ -29,7 +29,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 
 
 /**
- * Convenience access to all tables in texera_db
+ * Convenience access to all tables in texera_db.
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {

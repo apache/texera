@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
@@ -98,6 +99,12 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
 
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
     val webSocketUpgradeFilter =
       WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
@@ -149,7 +156,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     */
   private def cleanExecutions(
       executions: List[WorkflowExecutions],
-      statusChangeFunc: Byte => Byte
+      statusChangeFunc: Short => Short
   ): Unit = {
     // drop the collection and update the status to ABORTED
     executions.foreach(execEntry => {

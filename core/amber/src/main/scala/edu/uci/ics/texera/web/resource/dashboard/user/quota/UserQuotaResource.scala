@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
 import edu.uci.ics.texera.dao.SqlServer
@@ -10,7 +9,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStati
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import io.dropwizard.auth.Auth
 import org.bson.Document
-import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
@@ -19,19 +17,19 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   case class Workflow(
-      userId: UInteger,
-      workflowId: UInteger,
+      userId: Integer,
+      workflowId: Integer,
       workflowName: String,
       creationTime: Long,
       lastModifiedTime: Long
   )
 
   case class DatasetQuota(
-      did: UInteger,
+      did: Integer,
       name: String,
       creationTime: Long,
       size: Long
@@ -41,7 +39,7 @@ object UserQuotaResource {
       workflowName: String,
       size: Double,
       pointer: String,
-      eid: UInteger
+      eid: Integer
   )
 
   def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
@@ -83,7 +81,7 @@ object UserQuotaResource {
     name
   }
 
-  def getUserCreatedWorkflow(uid: UInteger): List[Workflow] = {
+  def getUserCreatedWorkflow(uid: Integer): List[Workflow] = {
     val userWorkflowEntries = context
       .select(
         WORKFLOW_OF_USER.UID,
@@ -120,7 +118,7 @@ object UserQuotaResource {
       .toList
   }
 
-  def getUserAccessedWorkflow(uid: UInteger): util.List[UInteger] = {
+  def getUserAccessedWorkflow(uid: Integer): util.List[Integer] = {
     val availableWorkflowIds = context
       .select(
         WORKFLOW_USER_ACCESS.WID
@@ -131,12 +129,12 @@ object UserQuotaResource {
       .where(
         WORKFLOW_USER_ACCESS.UID.eq(uid)
       )
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
 
     availableWorkflowIds
   }
 
-  def getUserMongoDBSize(uid: UInteger): Array[MongoStorage] = {
+  def getUserMongoDBSize(uid: Integer): Array[MongoStorage] = {
     val collectionNames = context
       .select(
         WORKFLOW_EXECUTIONS.RESULT,
@@ -210,7 +208,7 @@ class UserQuotaResource {
   @GET
   @Path("/access_workflows")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getAccessedWorkflow(@Auth current_user: SessionUser): util.List[UInteger] = {
+  def getAccessedWorkflow(@Auth current_user: SessionUser): util.List[Integer] = {
     getUserAccessedWorkflow(current_user.getUid)
   }
 

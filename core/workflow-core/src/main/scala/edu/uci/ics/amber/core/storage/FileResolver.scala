@@ -82,11 +82,7 @@ object FileResolver {
     val (dataset, datasetVersion) =
       withTransaction(
         SqlServer
-          .getInstance(
-            StorageConfig.jdbcUrl,
-            StorageConfig.jdbcUsername,
-            StorageConfig.jdbcPassword
-          )
+          .getInstance()
           .createDSLContext()
       ) { ctx =>
         // fetch the dataset from DB
