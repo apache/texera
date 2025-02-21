@@ -4,10 +4,10 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
-import edu.uci.ics.texera.service.auth.JwtAuth
+import edu.uci.ics.texera.service.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.service.resource.{DatasetAccessResource, DatasetResource}
+import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
-import org.glassfish.jersey.media.multipart.MultiPartFeature
 
 class FileService extends Application[FileServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
@@ -20,9 +20,14 @@ class FileService extends Application[FileServiceConfiguration] {
     environment.jersey.setUrlPattern("/api/*")
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
-//    environment.jersey.register(classOf[MultiPartFeature])
-    // Register JWT authentication
-    JwtAuth.setupJwtAuth(environment)
+
+    // Register JWT authentication filter
+    environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))
+
+    // Enable @Auth annotation for injecting SessionUser
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
+    )
 
     // Register multipart feature for file uploads
     environment.jersey.register(classOf[DatasetResource])

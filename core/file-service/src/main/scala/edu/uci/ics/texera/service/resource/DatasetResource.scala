@@ -9,18 +9,14 @@ import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
-  DatasetUserAccessDao,
   DatasetVersionDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
-  DatasetUserAccess,
   DatasetVersion,
   User
 }
@@ -31,22 +27,14 @@ import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
   getOwner,
   isDatasetPublic,
   userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
+  userHasWriteAccess
 }
 import edu.uci.ics.texera.service.resource.DatasetResource.{
   DATASET_IS_PRIVATE,
   DATASET_IS_PUBLIC,
   DashboardDataset,
   DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetOperation,
   DatasetVersionRootFileNodesResponse,
-  FILE_OPERATION_REMOVE_PREFIX,
-  FILE_OPERATION_UPLOAD_PREFIX,
-  applyDatasetOperationToCreateNewVersion,
   calculateDatasetVersionSize,
   context,
   getDatasetByID,
@@ -58,10 +46,9 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
 import org.apache.commons.lang3.StringUtils
-import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
+import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.types.UInteger
 import org.jooq.{DSLContext, EnumType}
-import play.api.libs.json.Json
 
 import java.io.{IOException, InputStream, OutputStream}
 import java.net.{URI, URLDecoder}
@@ -70,8 +57,6 @@ import java.nio.file.Files
 import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
@@ -552,7 +537,20 @@ class DatasetResource {
     val uid = user.getUid
   }
 
-//  /**
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/test")
+  def sessionTest(
+      @Auth user: SessionUser
+  ): Response = {
+    println(user.getName)
+    println(user.getEmail)
+    println(user.getGoogleId)
+
+    Response.ok().build()
+  }
+
+  //  /**
 //    * This method returns a list of DashboardDatasets objects that are accessible by current user.
 //    *
 //    * @param user the session user

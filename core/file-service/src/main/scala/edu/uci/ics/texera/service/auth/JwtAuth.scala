@@ -34,7 +34,6 @@ object JwtAuth {
           .setJwtConsumer(jwtConsumer)
           .setRealm("realm")
           .setPrefix("Bearer")
-          .setAuthenticator(UserAuthenticator)
           .setAuthorizer(UserRoleAuthorizer)
           .buildAuthFilter()
       )
