@@ -1,10 +1,8 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
+import edu.uci.ics.amber.core.storage.StorageConfig.getClass
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{
-  GitVersionControlLocalFileStorage,
-  PhysicalFileNode
-}
+import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
@@ -14,17 +12,8 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
@@ -39,7 +28,7 @@ import java.io.{IOException, InputStream, OutputStream}
 import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.Optional
+import java.util.{Optional, Map => JMap}
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import javax.annotation.security.RolesAllowed
@@ -51,6 +40,14 @@ import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try, Using}
+import java.time.Duration
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.presigner.model.{PresignedPutObjectRequest, PutObjectPresignRequest}
+import org.yaml.snakeyaml.Yaml
 
 object DatasetResource {
   private val DATASET_IS_PUBLIC: Byte = 1
@@ -351,6 +348,40 @@ class DatasetResource {
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val ERR_DATASET_CREATION_FAILED_MESSAGE =
     "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
+
+  private val lakefsEndpoint = "/s3"  // LakeFS server
+  private val region = Region.US_EAST_2
+  val yaml = new Yaml()
+  val inputStream = getClass.getClassLoader.getResourceAsStream("resource.yaml")
+  val javaConf = yaml.load(inputStream).asInstanceOf[JMap[String, Any]].asScala.toMap
+  val storageMap = javaConf("lakefs-key").asInstanceOf[JMap[String, String]].asScala.toMap
+
+  private val s3Presigner: S3Presigner = S3Presigner.builder()
+    .region(region)
+    .endpointOverride(new java.net.URI(lakefsEndpoint))
+    .credentialsProvider(StaticCredentialsProvider
+      .create(AwsBasicCredentials.create(storageMap.get("access-key").getOrElse(""), storageMap.get("secret-key").getOrElse(""))))
+    .build()
+
+  @GET
+  @Path("/s3-presigned-upload")
+  def getPresignedUploadUrl(
+     @QueryParam("objectKey") objectKey: String,
+     @QueryParam("bucketName") bucketName: String
+   ): Response = {
+    val putObjectRequest = PutObjectRequest.builder()
+      .bucket(bucketName)
+      .key(objectKey)
+      .build()
+
+    val presignRequest = PutObjectPresignRequest.builder()
+      .signatureDuration(Duration.ofMinutes(10)) // URL validity duration
+      .putObjectRequest(putObjectRequest)
+      .build()
+
+    val presignedRequest: PresignedPutObjectRequest = s3Presigner.presignPutObject(presignRequest)
+    Response.ok(Map("presignedUrl" -> presignedRequest.url.toString)).build()
+  }
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
