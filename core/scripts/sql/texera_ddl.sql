@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS operator_executions
     workflow_execution_id INT NOT NULL,
     operator_id           VARCHAR(100) NOT NULL,
     console_messages_uri  TEXT,
-    UNIQUE (workflow_execution_id, operator_id),
+    PRIMARY KEY (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS operator_port_executions
     operator_id           VARCHAR(100) NOT NULL,
     port_id               INT NOT NULL,
     result_uri            TEXT,
-    UNIQUE (workflow_execution_id, operator_id, port_id),
+    PRIMARY KEY (workflow_execution_id, operator_id, port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 

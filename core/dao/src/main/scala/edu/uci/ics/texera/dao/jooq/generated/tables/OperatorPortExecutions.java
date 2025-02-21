@@ -109,8 +109,8 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     }
 
     @Override
-    public List<UniqueKey<OperatorPortExecutionsRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID__KEY);
+    public UniqueKey<OperatorPortExecutionsRecord> getPrimaryKey() {
+        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY;
     }
 
     @Override
