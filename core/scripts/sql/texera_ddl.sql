@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS "user"
     email         VARCHAR(256) UNIQUE,
     password      VARCHAR(256),
     google_id     VARCHAR(256) UNIQUE,
-    role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
     google_avatar VARCHAR(100),
+    role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );

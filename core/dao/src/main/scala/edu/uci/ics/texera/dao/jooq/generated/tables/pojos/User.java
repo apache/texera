@@ -21,8 +21,8 @@ public class User implements IUser {
     private String       email;
     private String       password;
     private String       googleId;
-    private UserRoleEnum role;
     private String       googleAvatar;
+    private UserRoleEnum role;
 
     public User() {}
 
@@ -32,8 +32,8 @@ public class User implements IUser {
         this.email = value.getEmail();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
-        this.role = value.getRole();
         this.googleAvatar = value.getGoogleAvatar();
+        this.role = value.getRole();
     }
 
     public User(
@@ -42,16 +42,16 @@ public class User implements IUser {
         String       email,
         String       password,
         String       googleId,
-        UserRoleEnum role,
-        String       googleAvatar
+        String       googleAvatar,
+        UserRoleEnum role
     ) {
         this.uid = uid;
         this.name = name;
         this.email = email;
         this.password = password;
         this.googleId = googleId;
-        this.role = role;
         this.googleAvatar = googleAvatar;
+        this.role = role;
     }
 
     /**
@@ -135,22 +135,6 @@ public class User implements IUser {
     }
 
     /**
-     * Getter for <code>texera_db.user.role</code>.
-     */
-    @Override
-    public UserRoleEnum getRole() {
-        return this.role;
-    }
-
-    /**
-     * Setter for <code>texera_db.user.role</code>.
-     */
-    @Override
-    public void setRole(UserRoleEnum role) {
-        this.role = role;
-    }
-
-    /**
      * Getter for <code>texera_db.user.google_avatar</code>.
      */
     @Override
@@ -166,6 +150,22 @@ public class User implements IUser {
         this.googleAvatar = googleAvatar;
     }
 
+    /**
+     * Getter for <code>texera_db.user.role</code>.
+     */
+    @Override
+    public UserRoleEnum getRole() {
+        return this.role;
+    }
+
+    /**
+     * Setter for <code>texera_db.user.role</code>.
+     */
+    @Override
+    public void setRole(UserRoleEnum role) {
+        this.role = role;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
@@ -175,8 +175,8 @@ public class User implements IUser {
         sb.append(", ").append(email);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
-        sb.append(", ").append(role);
         sb.append(", ").append(googleAvatar);
+        sb.append(", ").append(role);
 
         sb.append(")");
         return sb.toString();
@@ -193,8 +193,8 @@ public class User implements IUser {
         setEmail(from.getEmail());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
-        setRole(from.getRole());
         setGoogleAvatar(from.getGoogleAvatar());
+        setRole(from.getRole());
     }
 
     @Override
