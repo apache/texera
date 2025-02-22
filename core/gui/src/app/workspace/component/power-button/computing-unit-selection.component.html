@@ -38,6 +38,7 @@
     nzSize="default"
     nzShowSearch
     nzAllowClear
+    nzDropdownClassName="ant-select-item-title-weight"
     [nzDropdownRender]="renderTemplate"
     nzPlaceHolder="Select a computing unit"
     [(ngModel)]="selectedComputingUnit"
@@ -52,9 +53,6 @@
         <nz-badge
           [nzColor]="getBadgeColor(unit.status)"
           [nzText]="''">
-          <span
-            nz-icon
-            nzType="deployment-unit"></span>
         </nz-badge>
 
         <!-- Name and tooltip -->
