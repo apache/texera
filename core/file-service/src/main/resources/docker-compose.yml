@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9500:9000"   # MinIO API (use this in LakeFS config)
+      - "9501:9001"   # MinIO Console UI
+    environment:
+      - MINIO_ROOT_USER=texera_minio
+      - MINIO_ROOT_PASSWORD=password
+    volumes:
+      - /Users/baijiadong/Desktop/chenlab/texera/core/file-service/src/main/user-resources/minio:/data
+    command: server --console-address ":9001" /data
+
+  lakefs:
+    image: treeverse/lakefs:latest
+    container_name: lakefs
+    depends_on:
+      - minio  # Ensure MinIO starts first
+    ports:
+      - "8000:8000"  # LakeFS API/UI
+    environment:
+      # PostgreSQL Connection (External DB)
+      - LAKEFS_DATABASE_TYPE=postgres
+      - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgresql://texera_lakefs_admin:password@host.docker.internal:5432/texera_lakefs
+
+      # Authentication
+      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs
+
+      # MinIO Storage Configuration for LakeFS
+      - LAKEFS_BLOCKSTORE_TYPE=s3
+      - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
+      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://minio:9000  # MinIO internal service URL
+      - LAKEFS_BLOCKSTORE_S3_DISCOVER_BUCKET_REGION=false
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password
+    command: run

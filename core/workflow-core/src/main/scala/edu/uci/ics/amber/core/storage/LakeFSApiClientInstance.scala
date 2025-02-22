@@ -24,8 +24,9 @@ object LakeFSApiClientInstance {
     )
   )
 
-  private val username: String = "AKIAIOSFOLQUICKSTART"
-  private val password: String = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  private val apiSecret: String = "random_string_for_lakefs"
+  private val accessKeyID: String = "AKIAJIWZ57BWHNDAGMPQ"
+  private val secretAccessKey: String = "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"
 
   /**
     * Retrieves the singleton LakeFS ApiClient instance.
@@ -37,8 +38,9 @@ object LakeFSApiClientInstance {
       case Some(client) => client
       case None =>
         val apiClient = new ApiClient()
-        apiClient.setUsername(username)
-        apiClient.setPassword(password)
+        apiClient.setApiKey(apiSecret)
+        apiClient.setUsername(accessKeyID)
+        apiClient.setPassword(secretAccessKey)
         apiClient.setServers(servers.asJava)
         instance = Some(apiClient)
         apiClient

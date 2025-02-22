@@ -20,18 +20,29 @@ object LakeFSFileStorage {
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
 
+  private val storageNamespaceURI: String = "s3://texera-dataset"
   /**
     * Initializes a new repository in LakeFS.
     *
     * @param repoName         Name of the repository.
-    * @param storageNamespace Storage path (e.g., "s3://bucket-name/").
     * @param defaultBranch    Default branch name, usually "main".
     */
   def initRepo(
       repoName: String,
-      storageNamespace: String,
       defaultBranch: String = "main"
   ): Repository = {
+    val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
+
+    // Validate repoName
+    if (!repoNamePattern.matches(repoName)) {
+      throw new IllegalArgumentException(
+        s"Invalid dataset name: '$repoName'. " +
+          "Dataset names must be 3-63 characters long, " +
+          "contain only lowercase letters, numbers, and hyphens, " +
+          "and cannot start or end with a hyphen."
+      )
+    }
+    val storageNamespace = s"$storageNamespaceURI/$repoName"
     val repo = new RepositoryCreation()
       .name(repoName)
       .storageNamespace(storageNamespace)

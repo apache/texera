@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.service.auth
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.jooq.types.UInteger
 
@@ -11,11 +11,11 @@ class SessionUser(val user: User) extends Principal {
 
   override def getName: String = user.getName
 
-  def getUid: UInteger = user.getUid
+  def getUid: Integer = user.getUid
 
   def getEmail: String = user.getEmail
 
   def getGoogleId: String = user.getGoogleId
 
-  def isRoleOf(role: UserRole): Boolean = user.getRole == role
+  def isRoleOf(role: UserRoleEnum): Boolean = user.getRole == role
 }

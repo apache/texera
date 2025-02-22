@@ -1,53 +1,27 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{
-  GitVersionControlLocalFileStorage,
-  PhysicalFileNode
-}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, LakeFSFileStorage, StorageConfig}
+import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  isDatasetPublic,
-  userHasReadAccess,
-  userHasWriteAccess
-}
-import edu.uci.ics.texera.service.resource.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetVersionRootFileNodesResponse,
-  calculateDatasetVersionSize,
-  context,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getLatestDatasetVersion
-}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.service.resource.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodesResponse, calculateDatasetVersionSize, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
 import io.dropwizard.auth.Auth
+import io.lakefs.clients.sdk.ApiException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.FormDataParam
-import org.jooq.types.UInteger
 import org.jooq.{DSLContext, EnumType}
 
 import java.io.{IOException, InputStream, OutputStream}
@@ -68,11 +42,11 @@ object DatasetResource {
   private val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
   private val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
 
-  private val datasetLocks: scala.collection.concurrent.Map[UInteger, ReentrantLock] =
-    new scala.collection.concurrent.TrieMap[UInteger, ReentrantLock]()
+  private val datasetLocks: scala.collection.concurrent.Map[Integer, ReentrantLock] =
+    new scala.collection.concurrent.TrieMap[Integer, ReentrantLock]()
 
   private val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   /**
@@ -81,7 +55,7 @@ object DatasetResource {
     * @param versionHash the hash of the version. If None, fetch the latest version
     * @return
     */
-  def calculateDatasetVersionSize(did: UInteger, versionHash: Option[String] = None): Long = {
+  def calculateDatasetVersionSize(did: Integer, versionHash: Option[String] = None): Long = {
 
     /**
       * Internal util to calculate the size from the physical nodes
@@ -122,7 +96,7 @@ object DatasetResource {
   /**
     * Helper function to get the dataset from DB using did
     */
-  private def getDatasetByID(ctx: DSLContext, did: UInteger): Dataset = {
+  private def getDatasetByID(ctx: DSLContext, did: Integer): Dataset = {
     val datasetDao = new DatasetDao(ctx.configuration())
     val dataset = datasetDao.fetchOneByDid(did)
     if (dataset == null) {
@@ -136,7 +110,7 @@ object DatasetResource {
     */
   private def getDatasetVersionByID(
       ctx: DSLContext,
-      dvid: UInteger
+      dvid: Integer
   ): DatasetVersion = {
     val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
     val version = datasetVersionDao.fetchOneByDvid(dvid)
@@ -151,7 +125,7 @@ object DatasetResource {
     */
   private def getLatestDatasetVersion(
       ctx: DSLContext,
-      did: UInteger
+      did: Integer
   ): Option[DatasetVersion] = {
     ctx
       .selectFrom(DATASET_VERSION)
@@ -176,7 +150,7 @@ object DatasetResource {
     * @return the created dataset version
     */
   def createNewDatasetVersionByAddingFiles(
-      did: UInteger,
+      did: Integer,
       user: User,
       filesToAdd: Map[java.nio.file.Path, InputStream]
   ): Option[DashboardDatasetVersion] = {
@@ -195,8 +169,8 @@ object DatasetResource {
   // concurrency control is performed here: the thread has to have the lock in order to create the new version
   private def applyDatasetOperationToCreateNewVersion(
       ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger,
+      did: Integer,
+      uid: Integer,
       ownerEmail: String,
       userProvidedVersionName: String,
       datasetOperation: DatasetOperation
@@ -205,7 +179,7 @@ object DatasetResource {
     // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
     def generateDatasetVersionName(
         ctx: DSLContext,
-        did: UInteger,
+        did: Integer,
         userProvidedVersionName: String
     ): String = {
       val numberOfExistingVersions = ctx
@@ -300,11 +274,11 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode]
   )
 
-  case class DatasetIDs(dids: List[UInteger])
+  case class DatasetIDs(dids: List[Integer])
 
-  case class DatasetNameModification(did: UInteger, name: String)
+  case class DatasetNameModification(did: Integer, name: String)
 
-  case class DatasetDescriptionModification(did: UInteger, description: String)
+  case class DatasetDescriptionModification(did: Integer, description: String)
 
   case class DatasetVersionRootFileNodesResponse(
       fileNodes: List[DatasetFileNode],
@@ -325,8 +299,8 @@ class DatasetResource {
     */
   private def getDashboardDataset(
       ctx: DSLContext,
-      did: UInteger,
-      uid: Option[UInteger],
+      did: Integer,
+      uid: Option[Integer],
       isPublic: Boolean = false
   ): DashboardDataset = {
     if (
@@ -338,7 +312,7 @@ class DatasetResource {
 
     val targetDataset = getDatasetByID(ctx, did)
     val userAccessPrivilege =
-      if (isPublic) DatasetUserAccessPrivilege.NONE
+      if (isPublic) PrivilegeEnum.NONE
       else getDatasetUserAccessPrivilege(ctx, did, uid.get)
     val isOwner = !isPublic && (targetDataset.getOwnerUid == uid.get)
 
@@ -352,157 +326,130 @@ class DatasetResource {
     )
   }
 
-//  @POST
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  @Path("/create")
-//  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
-//  def createDataset(
-//      @Auth user: SessionUser,
-//      @FormDataParam("datasetName") datasetName: String,
-//      @FormDataParam("datasetDescription") datasetDescription: String,
-//      @FormDataParam("isDatasetPublic") isDatasetPublic: String,
-//      @FormDataParam("initialVersionName") initialVersionName: String,
-//      files: FormDataMultiPart
-//  ): DashboardDataset = {
-//
-//    withTransaction(context) { ctx =>
-//      val uid = user.getUid
-//      val datasetDao: DatasetDao = new DatasetDao(ctx.configuration())
-//      val datasetOfUserDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
-//
-//      // do the name duplication check
-//      val userExistingDatasetNames = datasetDao.fetchByOwnerUid(uid).asScala.map(_.getName)
-//      if (userExistingDatasetNames.contains(datasetName)) {
-//        throw new BadRequestException("Dataset with the same name already exists")
-//      }
-//
-//      val dataset: Dataset = new Dataset()
-//      dataset.setName(datasetName)
-//      dataset.setDescription(datasetDescription)
-//      dataset.setIsPublic(isDatasetPublic.toByte)
-//      dataset.setOwnerUid(uid)
-//
-//      val createdDataset = ctx
-//        .insertInto(DATASET)
-//        .set(ctx.newRecord(DATASET, dataset))
-//        .returning()
-//        .fetchOne()
-//
-//      val did = createdDataset.getDid
-//      val datasetPath = PathUtils.getDatasetPath(did)
-//
-//      val datasetUserAccess = new DatasetUserAccess()
-//      datasetUserAccess.setDid(createdDataset.getDid)
-//      datasetUserAccess.setUid(uid)
-//      datasetUserAccess.setPrivilege(DatasetUserAccessPrivilege.WRITE)
-//      datasetOfUserDao.insert(datasetUserAccess)
-//
-//      // initialize the dataset directory
-//      GitVersionControlLocalFileStorage.initRepo(datasetPath)
-////      createdVersion match {
-////        case Some(_) =>
-////        case None    =>
-////          // none means creation failed, user does not submit any files when creating the dataset
-////          throw new BadRequestException(ERR_DATASET_CREATION_FAILED_MESSAGE)
-////      }
-//
-//      DashboardDataset(
-//        new Dataset(
-//          createdDataset.getDid,
-//          createdDataset.getOwnerUid,
-//          createdDataset.getName,
-//          createdDataset.getIsPublic,
-//          createdDataset.getDescription,
-//          createdDataset.getCreationTime
-//        ),
-//        user.getEmail,
-//        DatasetUserAccessPrivilege.WRITE,
-//        isOwner = true,
-//        versions = List(),
-//        size = calculateDatasetVersionSize(did)
-//      )
-//    }
-//  }
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/create")
+  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  def createDataset(
+      @Auth user: SessionUser,
+      @FormDataParam("datasetName") datasetName: String,
+      @FormDataParam("datasetDescription") datasetDescription: String,
+      @FormDataParam("isDatasetPublic") isDatasetPublic: String,
+  ): DashboardDataset = {
 
-//  @POST
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  @Path("/delete")
-//  def deleteDataset(datasetIDs: DatasetIDs, @Auth user: SessionUser): Response = {
-//    val uid = user.getUid
-//    withTransaction(context) { ctx =>
-//      val datasetDao = new DatasetDao(ctx.configuration())
-//      for (did <- datasetIDs.dids) {
-//        if (!userOwnDataset(ctx, did, uid)) {
-//          // throw the exception that user has no access to certain dataset
-//          throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-//        }
-//        // delete the dataset repo from the filesystem
-//        GitVersionControlLocalFileStorage.deleteRepo(PathUtils.getDatasetPath(did))
-//
-//        // delete the dataset from the DB
-//        datasetDao.deleteById(did)
-//      }
-//
-//      Response.ok().build()
-//    }
-//  }
+    withTransaction(context) { ctx =>
+      val uid = user.getUid
+      val datasetDao: DatasetDao = new DatasetDao(ctx.configuration())
+      val datasetOfUserDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
 
-//  @POST
-//  @Consumes(Array(MediaType.APPLICATION_JSON))
-//  @Produces(Array(MediaType.APPLICATION_JSON))
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  @Path("/update/name")
-//  def updateDatasetName(
-//      modificator: DatasetNameModification,
-//      @Auth sessionUser: SessionUser
-//  ): Response = {
-//    withTransaction(context) { ctx =>
-//      val datasetDao = new DatasetDao(ctx.configuration())
-//      val uid = sessionUser.getUid
-//      val did = modificator.did
-//      val name = modificator.name
-//      if (!userHasWriteAccess(ctx, did, uid)) {
-//        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-//      }
-//
-//      val existedDataset = getDatasetByID(ctx, did)
-//      existedDataset.setName(name)
-//      datasetDao.update(existedDataset)
-//      Response.ok().build()
-//    }
-//  }
+      // do the name duplication check
+      if (!datasetDao.fetchByName(datasetName).isEmpty) {
+        throw new BadRequestException("Dataset with the same name already exists")
+      }
 
-//  @POST
-//  @Consumes(Array(MediaType.APPLICATION_JSON))
-//  @Produces(Array(MediaType.APPLICATION_JSON))
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  @Path("/update/description")
-//  def updateDatasetDescription(
-//      modificator: DatasetDescriptionModification,
-//      @Auth sessionUser: SessionUser
-//  ): Response = {
-//    withTransaction(context) { ctx =>
-//      val datasetDao = new DatasetDao(ctx.configuration())
-//      val uid = sessionUser.getUid
-//      val did = modificator.did
-//      val description = modificator.description
-//
-//      if (!userHasWriteAccess(ctx, did, uid)) {
-//        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-//      }
-//
-//      val existedDataset = getDatasetByID(ctx, did)
-//      existedDataset.setDescription(description)
-//      datasetDao.update(existedDataset)
-//      Response.ok().build()
-//    }
-//  }
+      // Try to initialize the repository in LakeFS
+      try {
+        LakeFSFileStorage.initRepo(datasetName)
+      } catch {
+        case e: Exception =>
+          throw new WebApplicationException(s"Failed to initialize repository in LakeFS: ${e.getMessage}")
+      }
+
+      // insert the dataset into database
+      val dataset: Dataset = new Dataset()
+      dataset.setName(datasetName)
+      dataset.setDescription(datasetDescription)
+      dataset.setIsPublic(isDatasetPublic.toBoolean)
+      dataset.setOwnerUid(uid)
+
+      val createdDataset = ctx
+        .insertInto(DATASET)
+        .set(ctx.newRecord(DATASET, dataset))
+        .returning()
+        .fetchOne()
+
+      // insert requester as the write access of the dataset
+      val datasetUserAccess = new DatasetUserAccess()
+      datasetUserAccess.setDid(createdDataset.getDid)
+      datasetUserAccess.setUid(uid)
+      datasetUserAccess.setPrivilege(PrivilegeEnum.WRITE)
+      datasetOfUserDao.insert(datasetUserAccess)
+
+      DashboardDataset(
+        new Dataset(
+          createdDataset.getDid,
+          createdDataset.getOwnerUid,
+          createdDataset.getName,
+          createdDataset.getIsPublic,
+          createdDataset.getDescription,
+          createdDataset.getCreationTime
+        ),
+        user.getEmail,
+        PrivilegeEnum.WRITE,
+        isOwner = true,
+        versions = List(),
+        size = 0
+      )
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/delete")
+  def deleteDataset(datasetName: String, @Auth user: SessionUser): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val dataset = datasetDao.fetchByName(datasetName).asScala.toList
+      if (dataset.isEmpty || !userOwnDataset(ctx, dataset.head.getDid, uid)) {
+        // throw the exception that user has no access to certain dataset
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+      try {
+        LakeFSFileStorage.deleteRepo(datasetName)
+      } catch {
+        case e: Exception =>
+          throw new WebApplicationException(s"Failed to delete a repository in LakeFS: ${e.getMessage}", e)
+      }
+
+      // delete the dataset from the DB
+      datasetDao.deleteById(dataset.head.getDid)
+
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/update/description")
+  def updateDatasetDescription(
+      modificator: DatasetDescriptionModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val uid = sessionUser.getUid
+      val did = modificator.did
+      val description = modificator.description
+
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val existedDataset = getDatasetByID(ctx, did)
+      existedDataset.setDescription(description)
+      datasetDao.update(existedDataset)
+      Response.ok().build()
+    }
+  }
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/update/publicity")
   def toggleDatasetPublicity(
-      @PathParam("did") did: UInteger,
+      @PathParam("did") did: Integer,
       @Auth sessionUser: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
@@ -514,11 +461,7 @@ class DatasetResource {
       }
 
       val existedDataset = getDatasetByID(ctx, did)
-      if (existedDataset.getIsPublic == DATASET_IS_PUBLIC) {
-        existedDataset.setIsPublic(DATASET_IS_PRIVATE)
-      } else {
-        existedDataset.setIsPublic(DATASET_IS_PUBLIC)
-      }
+      existedDataset.setIsPublic(!existedDataset.getIsPublic)
 
       datasetDao.update(existedDataset)
       Response.ok().build()
@@ -527,10 +470,10 @@ class DatasetResource {
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{did}/version/create")
+  @Path("/{name}/version/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDatasetVersion(
-      @PathParam("did") did: UInteger,
+      @PathParam("name") name: String,
       @FormDataParam("versionName") versionName: String,
       @Auth user: SessionUser
   ): Unit = {
@@ -543,10 +486,6 @@ class DatasetResource {
   def sessionTest(
       @Auth user: SessionUser
   ): Response = {
-    println(user.getName)
-    println(user.getEmail)
-    println(user.getGoogleId)
-
     Response.ok().build()
   }
 
@@ -610,7 +549,7 @@ class DatasetResource {
 //          DashboardDataset(
 //            isOwner = false,
 //            dataset = dataset,
-//            accessPrivilege = DatasetUserAccessPrivilege.READ,
+//            accessPrivilege = PrivilegeEnum.READ,
 //            versions = List(),
 //            ownerEmail = ownerEmail,
 //            size = calculateDatasetVersionSize(dataset.getDid)
@@ -622,7 +561,7 @@ class DatasetResource {
 //            isOwner = false,
 //            dataset = publicDataset.dataset,
 //            ownerEmail = publicDataset.ownerEmail,
-//            accessPrivilege = DatasetUserAccessPrivilege.READ,
+//            accessPrivilege = PrivilegeEnum.READ,
 //            versions = List(),
 //            size = calculateDatasetVersionSize(publicDataset.dataset.getDid)
 //          )
@@ -636,24 +575,27 @@ class DatasetResource {
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{did}/version/list")
+  @Path("/{name}/version/list")
   def getDatasetVersionList(
-      @PathParam("did") did: UInteger,
+      @PathParam("name") name: String,
       @Auth user: SessionUser
   ): List[DatasetVersion] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      if (!userHasReadAccess(ctx, did, uid)) {
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val datasets = datasetDao.fetchByName(name).asScala
+      if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
-      fetchDatasetVersions(ctx, did)
+      fetchDatasetVersions(ctx, datasets.head.getDid)
     })
   }
 
+  // TODO: change did to name
   @GET
-  @Path("/{did}/publicVersion/list")
+  @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
-      @PathParam("did") did: UInteger
+      @PathParam("name") did: Integer
   ): List[DatasetVersion] = {
     withTransaction(context)(ctx => {
       if (!isDatasetPublic(ctx, did)) {
@@ -667,7 +609,7 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/latest")
   def retrieveLatestDatasetVersion(
-      @PathParam("did") did: UInteger,
+      @PathParam("did") did: Integer,
       @Auth user: SessionUser
   ): DashboardDatasetVersion = {
     val uid = user.getUid
@@ -715,8 +657,8 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/{dvid}/rootFileNodes")
   def retrieveDatasetVersionRootFileNodes(
-      @PathParam("did") did: UInteger,
-      @PathParam("dvid") dvid: UInteger,
+      @PathParam("did") did: Integer,
+      @PathParam("dvid") dvid: Integer,
       @Auth user: SessionUser
   ): DatasetVersionRootFileNodesResponse = {
     val uid = user.getUid
@@ -728,8 +670,8 @@ class DatasetResource {
   @GET
   @Path("/{did}/publicVersion/{dvid}/rootFileNodes")
   def retrievePublicDatasetVersionRootFileNodes(
-      @PathParam("did") did: UInteger,
-      @PathParam("dvid") dvid: UInteger
+      @PathParam("did") did: Integer,
+      @PathParam("dvid") dvid: Integer
   ): DatasetVersionRootFileNodesResponse = {
     withTransaction(context)(ctx =>
       fetchDatasetVersionRootFileNodes(ctx, did, dvid, None, isPublic = true)
@@ -740,7 +682,7 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}")
   def getDataset(
-      @PathParam("did") did: UInteger,
+      @PathParam("did") did: Integer,
       @Auth user: SessionUser
   ): DashboardDataset = {
     val uid = user.getUid
@@ -750,7 +692,7 @@ class DatasetResource {
   @GET
   @Path("/public/{did}")
   def getPublicDataset(
-      @PathParam("did") did: UInteger
+      @PathParam("did") did: Integer
   ): DashboardDataset = {
     withTransaction(context)(ctx => fetchDataset(ctx, did, None, isPublic = true))
   }
@@ -813,7 +755,7 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
-      @QueryParam("did") did: UInteger,
+      @QueryParam("did") did: Integer,
       @QueryParam("dvid") dvid: Optional[Integer],
       @Auth user: SessionUser
   ): Response = {
@@ -826,7 +768,7 @@ class DatasetResource {
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
     } else {
-      getDatasetVersionByID(context, UInteger.valueOf(dvid.get))
+      getDatasetVersionByID(context, Integer.valueOf(dvid.get))
     }
     val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
     val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
@@ -887,8 +829,8 @@ class DatasetResource {
   @GET
   @Path("/datasetUserAccess")
   def datasetUserAccess(
-      @QueryParam("did") did: UInteger
-  ): java.util.List[UInteger] = {
+      @QueryParam("did") did: Integer
+  ): java.util.List[Integer] = {
     val records = context
       .select(DATASET_USER_ACCESS.UID)
       .from(DATASET_USER_ACCESS)
@@ -898,7 +840,7 @@ class DatasetResource {
     records.getValues(DATASET_USER_ACCESS.UID)
   }
 
-  private def fetchDatasetVersions(ctx: DSLContext, did: UInteger): List[DatasetVersion] = {
+  private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
     ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))
@@ -910,9 +852,9 @@ class DatasetResource {
 
   private def fetchDatasetVersionRootFileNodes(
       ctx: DSLContext,
-      did: UInteger,
-      dvid: UInteger,
-      uid: Option[UInteger],
+      did: Integer,
+      dvid: Integer,
+      uid: Option[Integer],
       isPublic: Boolean
   ): DatasetVersionRootFileNodesResponse = {
     val dataset = getDashboardDataset(ctx, did, uid, isPublic)
@@ -948,8 +890,8 @@ class DatasetResource {
 
   private def fetchDataset(
       ctx: DSLContext,
-      did: UInteger,
-      uid: Option[UInteger],
+      did: Integer,
+      uid: Option[Integer],
       isPublic: Boolean
   ): DashboardDataset = {
     val dashboardDataset = getDashboardDataset(ctx, did, uid, isPublic)

@@ -3,7 +3,9 @@ package edu.uci.ics.texera.service
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.service.resource.{DatasetAccessResource, DatasetResource}
 import io.dropwizard.auth.AuthDynamicFeature
@@ -18,6 +20,12 @@ class FileService extends Application[FileServiceConfiguration] {
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 

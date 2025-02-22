@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.Context
 
 import java.security.Principal
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 
 @Provider
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
@@ -28,7 +28,7 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
         requestContext.setSecurityContext(new SecurityContext {
           override def getUserPrincipal: Principal = user
           override def isUserInRole(role: String): Boolean =
-            user.isRoleOf(UserRole.valueOf(role))
+            user.isRoleOf(UserRoleEnum.valueOf(role))
           override def isSecure: Boolean = false
           override def getAuthenticationScheme: String = "Bearer"
         })

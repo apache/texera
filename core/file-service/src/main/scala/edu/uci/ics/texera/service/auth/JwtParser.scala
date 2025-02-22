@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.service.auth
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.jooq.types.UInteger
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 import org.jose4j.lang.UnresolvableKeyException
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.jose4j.jwt.JwtClaims
 
 import java.nio.charset.StandardCharsets
@@ -32,11 +32,11 @@ object JwtParser extends LazyLogging {
       val jwtClaims: JwtClaims = jwtConsumer.processToClaims(token)
       val userName = jwtClaims.getSubject
       val email = jwtClaims.getClaimValue("email", classOf[String])
-      val userId = UInteger.valueOf(jwtClaims.getClaimValue("userId").asInstanceOf[Long])
-      val role = UserRole.valueOf(jwtClaims.getClaimValue("role").asInstanceOf[String])
+      val userId = jwtClaims.getClaimValue("userId").asInstanceOf[Long].toInt
+      val role = UserRoleEnum.valueOf(jwtClaims.getClaimValue("role").asInstanceOf[String])
       val googleId = jwtClaims.getClaimValue("googleId", classOf[String])
 
-      val user = new User(userId, userName, email, null, googleId, role, null)
+      val user = new User(userId, userName, email, null, googleId, null, role)
       Optional.of(new SessionUser(user))
     } catch {
       case _: UnresolvableKeyException =>
