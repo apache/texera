@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
-import org.jooq.types.UInteger
 
 import java.net.URI
 import java.nio.charset.Charset
@@ -39,7 +38,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           config.getUserProperties.put(
             classOf[User].getName,
             new User(
-              UInteger.valueOf(claims.getClaimValue("userId").asInstanceOf[Long]),
+              claims.getClaimValue("userId").asInstanceOf[Long].toInt,
               claims.getSubject,
               String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
               null,

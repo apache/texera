@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAccess;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,11 +14,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetUserAccess implements IDatasetUserAccess {
 
-    private static final long serialVersionUID = -529435584;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger                   did;
-    private UInteger                   uid;
-    private DatasetUserAccessPrivilege privilege;
+    private Integer       did;
+    private Integer       uid;
+    private PrivilegeEnum privilege;
 
     public DatasetUserAccess() {}
 
@@ -31,42 +29,60 @@ public class DatasetUserAccess implements IDatasetUserAccess {
     }
 
     public DatasetUserAccess(
-        UInteger                   did,
-        UInteger                   uid,
-        DatasetUserAccessPrivilege privilege
+        Integer       did,
+        Integer       uid,
+        PrivilegeEnum privilege
     ) {
         this.did = did;
         this.uid = uid;
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.did</code>.
+     */
     @Override
-    public UInteger getDid() {
+    public Integer getDid() {
         return this.did;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.did</code>.
+     */
     @Override
-    public void setDid(UInteger did) {
+    public void setDid(Integer did) {
         this.did = did;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.uid</code>.
+     */
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.uid</code>.
+     */
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset_user_access.privilege</code>.
+     */
     @Override
-    public DatasetUserAccessPrivilege getPrivilege() {
+    public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.dataset_user_access.privilege</code>.
+     */
     @Override
-    public void setPrivilege(DatasetUserAccessPrivilege privilege) {
+    public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
     }
 

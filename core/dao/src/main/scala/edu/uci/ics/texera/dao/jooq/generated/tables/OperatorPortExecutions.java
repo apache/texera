@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorPortExecutionsRecord;
@@ -14,17 +13,17 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -33,7 +32,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsRecord> {
 
-    private static final long serialVersionUID = -1510415698;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.operator_port_executions</code>
@@ -49,24 +48,49 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     }
 
     /**
-     * The column <code>texera_db.operator_port_executions.workflow_execution_id</code>.
+     * The column
+     * <code>texera_db.operator_port_executions.workflow_execution_id</code>.
      */
-    public final TableField<OperatorPortExecutionsRecord, UInteger> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<OperatorPortExecutionsRecord, Integer> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_port_executions.operator_id</code>.
      */
-    public final TableField<OperatorPortExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
+    public final TableField<OperatorPortExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_port_executions.port_id</code>.
      */
-    public final TableField<OperatorPortExecutionsRecord, Integer> PORT_ID = createField(DSL.name("port_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<OperatorPortExecutionsRecord, Integer> PORT_ID = createField(DSL.name("port_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_port_executions.result_uri</code>.
      */
-    public final TableField<OperatorPortExecutionsRecord, String> RESULT_URI = createField(DSL.name("result_uri"), org.jooq.impl.SQLDataType.CLOB, this, "");
+    public final TableField<OperatorPortExecutionsRecord, String> RESULT_URI = createField(DSL.name("result_uri"), SQLDataType.CLOB, this, "");
+
+    private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_port_executions</code> table
+     * reference
+     */
+    public OperatorPortExecutions(String alias) {
+        this(DSL.name(alias), OPERATOR_PORT_EXECUTIONS);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.operator_port_executions</code> table
+     * reference
+     */
+    public OperatorPortExecutions(Name alias) {
+        this(alias, OPERATOR_PORT_EXECUTIONS);
+    }
 
     /**
      * Create a <code>texera_db.operator_port_executions</code> table reference
@@ -75,54 +99,36 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
         this(DSL.name("operator_port_executions"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.operator_port_executions</code> table reference
-     */
-    public OperatorPortExecutions(String alias) {
-        this(DSL.name(alias), OPERATOR_PORT_EXECUTIONS);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.operator_port_executions</code> table reference
-     */
-    public OperatorPortExecutions(Name alias) {
-        this(alias, OPERATOR_PORT_EXECUTIONS);
-    }
-
-    private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> OperatorPortExecutions(Table<O> child, ForeignKey<O, OperatorPortExecutionsRecord> key) {
         super(child, key, OPERATOR_PORT_EXECUTIONS);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID);
-    }
-
-    @Override
-    public List<UniqueKey<OperatorPortExecutionsRecord>> getKeys() {
-        return Arrays.<UniqueKey<OperatorPortExecutionsRecord>>asList(Keys.KEY_OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID);
+    public UniqueKey<OperatorPortExecutionsRecord> getPrimaryKey() {
+        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY;
     }
 
     @Override
     public List<ForeignKey<OperatorPortExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<OperatorPortExecutionsRecord, ?>>asList(Keys.OPERATOR_PORT_EXECUTIONS_IBFK_1);
+        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
     }
 
+    private transient WorkflowExecutions _workflowExecutions;
+
+    /**
+     * Get the implicit join path to the
+     * <code>texera_db.workflow_executions</code> table.
+     */
     public WorkflowExecutions workflowExecutions() {
-        return new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS_IBFK_1);
+        if (_workflowExecutions == null)
+            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+
+        return _workflowExecutions;
     }
 
     @Override
@@ -156,7 +162,7 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<UInteger, String, Integer, String> fieldsRow() {
+    public Row4<Integer, String, Integer, String> fieldsRow() {
         return (Row4) super.fieldsRow();
     }
 }

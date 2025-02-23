@@ -1,10 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
 import HubResource.{
+  fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   getUserLCCount,
   isLikedHelper,
@@ -13,21 +12,29 @@ import HubResource.{
   userRequest,
   validateEntityType
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
 
 import java.util
-import java.util.Collections
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  DashboardDataset,
+  baseDatasetSelect,
+  mapDashboardDataset
+}
 
 object HubResource {
-  case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
+  case class userRequest(entityId: Integer, userId: Integer, entityType: String)
 
   /**
     * Defines the currently accepted resource types.
@@ -38,7 +45,7 @@ object HubResource {
   }
 
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   final private val ipv4Pattern: Pattern = Pattern.compile(
@@ -67,7 +74,7 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: UInteger, workflowId: UInteger, entityType: String): Boolean = {
+  def isLikedHelper(userId: Integer, workflowId: Integer, entityType: String): Boolean = {
     validateEntityType(entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
@@ -94,8 +101,8 @@ object HubResource {
     */
   def recordUserActivity(
       request: HttpServletRequest,
-      userId: UInteger = UInteger.valueOf(0),
-      entityId: UInteger,
+      userId: Integer = Integer.valueOf(0),
+      entityId: Integer,
       entityType: String,
       action: String
   ): Unit = {
@@ -171,8 +178,8 @@ object HubResource {
     */
   def recordCloneActivity(
       request: HttpServletRequest,
-      userId: UInteger,
-      entityId: UInteger,
+      userId: Integer,
+      entityId: Integer,
       entityType: String
   ): Unit = {
 
@@ -207,7 +214,7 @@ object HubResource {
     * @return The number of times the entity has been liked or cloned.
     */
   def getUserLCCount(
-      entityId: UInteger,
+      entityId: Integer,
       entityType: String,
       actionType: String
   ): Int = {
@@ -228,52 +235,31 @@ object HubResource {
       .fetchOne(0, classOf[Int])
   }
 
-  // todo: refactor api related to landing page
-  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger]): util.List[DashboardWorkflow] = {
-    if (wids.nonEmpty) {
-      context
-        .select(
-          WORKFLOW.NAME,
-          WORKFLOW.DESCRIPTION,
-          WORKFLOW.WID,
-          WORKFLOW.CREATION_TIME,
-          WORKFLOW.LAST_MODIFIED_TIME,
-          USER.NAME.as("ownerName"),
-          WORKFLOW_OF_USER.UID.as("ownerId")
-        )
-        .from(WORKFLOW)
-        .join(WORKFLOW_OF_USER)
-        .on(WORKFLOW.WID.eq(WORKFLOW_OF_USER.WID))
-        .join(USER)
-        .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-        .where(WORKFLOW.WID.in(wids: _*))
-        .fetch()
-        .asScala
-        .map(record => {
-          val workflow = new Workflow(
-            record.get(WORKFLOW.NAME),
-            record.get(WORKFLOW.DESCRIPTION),
-            record.get(WORKFLOW.WID),
-            null,
-            record.get(WORKFLOW.CREATION_TIME),
-            record.get(WORKFLOW.LAST_MODIFIED_TIME),
-            null
-          )
-
-          DashboardWorkflow(
-            isOwner = false,
-            accessLevel = "",
-            ownerName = record.get("ownerName", classOf[String]),
-            workflow = workflow,
-            projectIDs = List(),
-            ownerId = record.get("ownerId", classOf[UInteger])
-          )
-        })
-        .toList
-        .asJava
-    } else {
-      Collections.emptyList[DashboardWorkflow]()
+  def fetchDashboardWorkflowsByWids(wids: Seq[Integer], uid: Integer): List[DashboardWorkflow] = {
+    if (wids.isEmpty) {
+      return List.empty[DashboardWorkflow]
     }
+
+    val records = baseWorkflowSelect()
+      .where(WORKFLOW.WID.in(wids: _*))
+      .groupBy(WORKFLOW.WID)
+      .fetch()
+
+    mapWorkflowEntries(records, uid)
+  }
+
+  def fetchDashboardDatasetsByDids(dids: Seq[Integer], uid: Integer): List[DashboardDataset] = {
+    if (dids.isEmpty) {
+      return List.empty[DashboardDataset]
+    }
+
+    val records = baseDatasetSelect()
+      .where(DATASET.DID.in(dids: _*))
+      .groupBy(DATASET.DID)
+      .fetch()
+
+    println(mapDashboardDataset(records, uid))
+    mapDashboardDataset(records, uid)
   }
 }
 
@@ -281,7 +267,7 @@ object HubResource {
 @Path("/hub")
 class HubResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   @GET
@@ -295,7 +281,7 @@ class HubResource {
     context
       .selectCount()
       .from(table)
-      .where(isPublicColumn.eq(1.toByte))
+      .where(isPublicColumn.eq(true))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -303,8 +289,8 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") workflowId: UInteger,
-      @QueryParam("userId") userId: UInteger,
+      @QueryParam("workflowId") workflowId: Integer,
+      @QueryParam("userId") userId: Integer,
       @QueryParam("entityType") entityType: String
   ): Boolean = {
     isLikedHelper(userId, workflowId, entityType)
@@ -334,7 +320,7 @@ class HubResource {
   @Path("/likeCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getLikeCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "like")
@@ -344,7 +330,7 @@ class HubResource {
   @Path("/cloneCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getCloneCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
     getUserLCCount(entityId, entityType, "clone")
@@ -369,7 +355,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityID)
-      .set(viewCountColumn, UInteger.valueOf(1))
+      .set(viewCountColumn, Integer.valueOf(1))
       .onDuplicateKeyUpdate()
       .set(viewCountColumn, viewCountColumn.add(1))
       .execute()
@@ -387,7 +373,7 @@ class HubResource {
   @Path("/viewCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getViewCount(
-      @QueryParam("entityId") entityId: UInteger,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("entityType") entityType: String
   ): Int = {
 
@@ -399,7 +385,7 @@ class HubResource {
     context
       .insertInto(table)
       .set(idColumn, entityId)
-      .set(viewCountColumn, UInteger.valueOf(0))
+      .set(viewCountColumn, Integer.valueOf(0))
       .onDuplicateKeyIgnore()
       .execute()
 
@@ -411,42 +397,65 @@ class HubResource {
   }
 
   @GET
-  @Path("/topLovedWorkflows")
+  @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getTopLovedWorkflows: util.List[DashboardWorkflow] = {
-    val topLovedWorkflowsWids = context
-      .select(WORKFLOW_USER_LIKES.WID)
-      .from(WORKFLOW_USER_LIKES)
-      .join(WORKFLOW)
-      .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
-      .groupBy(WORKFLOW_USER_LIKES.WID)
-      .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
+  def getTops(
+      @QueryParam("entityType") entityType: String,
+      @QueryParam("actionType") actionType: String,
+      @QueryParam("uid") uid: Integer
+  ): util.List[DashboardClickableFileEntry] = {
+    validateEntityType(entityType)
+
+    val baseTable = BaseEntityTable(entityType)
+    val entityTables = actionType match {
+      case "like"  => LikeTable(entityType)
+      case "clone" => CloneTable(entityType)
+      case _       => throw new IllegalArgumentException(s"Invalid action type: $actionType")
+    }
+
+    val (table, idColumn) = (entityTables.table, entityTables.idColumn)
+    val (isPublicColumn, baseIdColumn) = (baseTable.isPublicColumn, baseTable.idColumn)
+
+    val topEntityIds = context
+      .select(idColumn)
+      .from(table)
+      .join(baseTable.table)
+      .on(idColumn.eq(baseIdColumn))
+      .where(isPublicColumn.eq(true))
+      .groupBy(idColumn)
+      .orderBy(DSL.count(idColumn).desc())
       .limit(8)
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
       .asScala
       .toSeq
 
-    fetchDashboardWorkflowsByWids(topLovedWorkflowsWids)
-  }
+    val currentUid: Integer = if (uid == null || uid == -1) null else Integer.valueOf(uid)
 
-  @GET
-  @Path("/topClonedWorkflows")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getTopClonedWorkflows: util.List[DashboardWorkflow] = {
-    val topClonedWorkflowsWids = context
-      .select(WORKFLOW_USER_CLONES.WID)
-      .from(WORKFLOW_USER_CLONES)
-      .join(WORKFLOW)
-      .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
-      .groupBy(WORKFLOW_USER_CLONES.WID)
-      .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
-      .limit(8)
-      .fetchInto(classOf[UInteger])
-      .asScala
-      .toSeq
+    val clickableFileEntries =
+      if (entityType == "workflow") {
+        val workflows = fetchDashboardWorkflowsByWids(topEntityIds, currentUid)
+        workflows.map { w =>
+          DashboardClickableFileEntry(
+            resourceType = "workflow",
+            workflow = Some(w),
+            project = None,
+            dataset = None
+          )
+        }
+      } else if (entityType == "dataset") {
+        val datasets = fetchDashboardDatasetsByDids(topEntityIds, currentUid)
+        datasets.map { d =>
+          DashboardClickableFileEntry(
+            resourceType = "dataset",
+            workflow = None,
+            project = None,
+            dataset = Some(d)
+          )
+        }
+      } else {
+        Seq.empty[DashboardClickableFileEntry]
+      }
 
-    fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
+    clickableFileEntries.toList.asJava
   }
 }

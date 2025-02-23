@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from core.models.marker import Marker
-from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 @dataclass
@@ -11,11 +10,6 @@ class InternalMarker(Marker):
     """
 
     pass
-
-
-@dataclass
-class SenderChange(InternalMarker):
-    channel_id: ChannelIdentity
 
 
 @dataclass
