@@ -21,6 +21,7 @@ object LakeFSFileStorage {
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
 
   private val storageNamespaceURI: String = "s3://texera-dataset"
+
   /**
     * Initializes a new repository in LakeFS.
     *
@@ -133,8 +134,14 @@ object LakeFSFileStorage {
     repoApi.deleteRepository(repoName).execute()
   }
 
-  def retrieveVersionsOfRepository(repoName: String, branchName: String): List[Commit] = {
-    refsApi.logCommits(repoName, branchName).execute().getResults.asScala.toList
+  def retrieveVersionsOfRepository(repoName: String, branchName: String = "main"): List[Commit] = {
+    refsApi
+      .logCommits(repoName, branchName)
+      .execute()
+      .getResults
+      .asScala
+      .toList
+      .sortBy(_.getCreationDate)(Ordering[java.lang.Long].reverse) // Sort in descending order
   }
 
   def retrieveObjectsOfVersion(repoName: String, commitHash: String): List[ObjectStats] = {

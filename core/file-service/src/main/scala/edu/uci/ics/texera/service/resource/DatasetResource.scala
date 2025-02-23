@@ -1,22 +1,56 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, LakeFSFileStorage, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  LakeFSFileStorage,
+  StorageConfig
+}
+import edu.uci.ics.amber.core.storage.util.dataset.{
+  GitVersionControlLocalFileStorage,
+  PhysicalFileNode
+}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
-import edu.uci.ics.texera.service.resource.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodesResponse, calculateDatasetVersionSize, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
+  getDatasetUserAccessPrivilege,
+  getOwner,
+  isDatasetPublic,
+  userHasReadAccess,
+  userHasWriteAccess,
+  userOwnDataset
+}
+import edu.uci.ics.texera.service.resource.DatasetResource.{
+  DashboardDataset,
+  DashboardDatasetVersion,
+  DatasetDescriptionModification,
+  DatasetVersionRootFileNodesResponse,
+  calculateDatasetVersionSize,
+  context,
+  getDatasetByID,
+  getDatasetVersionByID,
+  getLatestDatasetVersion
+}
 import io.dropwizard.auth.Auth
-import io.lakefs.clients.sdk.ApiException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
@@ -31,66 +65,49 @@ import java.nio.file.Files
 import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try, Using}
 
 object DatasetResource {
-  private val DATASET_IS_PUBLIC: Byte = 1
-  private val DATASET_IS_PRIVATE: Byte = 0
-  private val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
-  private val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
-
-  private val datasetLocks: scala.collection.concurrent.Map[Integer, ReentrantLock] =
-    new scala.collection.concurrent.TrieMap[Integer, ReentrantLock]()
-
   private val context = SqlServer
     .getInstance()
     .createDSLContext()
 
   /**
-    * fetch the size of a certain dataset version.
-    * @param did the target dataset id
-    * @param versionHash the hash of the version. If None, fetch the latest version
-    * @return
+    * Fetch the size of a certain dataset version.
+    *
+    * @param name         The target dataset's name (LakeFS repository name).
+    * @param versionHash  The hash of the version. If None, fetch the latest version.
+    * @return The total size of all objects in the dataset version.
+    * @throws NoSuchElementException If the version hash is not found in the repository.
     */
-  def calculateDatasetVersionSize(did: Integer, versionHash: Option[String] = None): Long = {
+  def calculateDatasetVersionSize(name: String, versionHash: Option[String] = None): Long = {
+    // Retrieve all commits (versions) of the dataset repository
+    val commits = LakeFSFileStorage.retrieveVersionsOfRepository(name)
 
-    /**
-      * Internal util to calculate the size from the physical nodes
-      */
-    def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
-      nodes.asScala.foldLeft(0L) { (totalSize, node) =>
-        totalSize + (if (node.isDirectory) {
-                       calculateSizeFromPhysicalNodes(node.getChildren)
-                     } else {
-                       node.getSize
-                     })
-      }
+    // Determine the target commit
+    val targetCommit = versionHash match {
+      case Some(hash) =>
+        commits
+          .find(_.getId == hash)
+          .getOrElse(
+            throw new NoSuchElementException(
+              s"Version hash '$hash' not found in repository '$name'"
+            )
+          )
+      case None =>
+        commits.headOption // The latest commit (commits are sorted from latest to earliest)
+          .getOrElse(throw new NoSuchElementException(s"No versions found for dataset '$name'"))
     }
 
-    Try {
-      val datasetPath = PathUtils.getDatasetPath(did)
-      val hash = versionHash.getOrElse {
-        getLatestDatasetVersion(context, did)
-          .map(_.getVersionHash)
-          .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
-      }
+    // Retrieve objects of the target version and sum up their sizes
+    val objects = LakeFSFileStorage.retrieveObjectsOfVersion(name, targetCommit.getId)
 
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        datasetPath,
-        hash
-      )
-
-      calculateSizeFromPhysicalNodes(fileNodes)
-    } match {
-      case Success(size) => size
-      case Failure(exception) =>
-        val errorMessage = versionHash.map(_ => "dataset version").getOrElse("dataset")
-        println(s"Error calculating $errorMessage size: ${exception.getMessage}")
-        0L
-    }
+    // Sum the sizes of all objects in the dataset version
+    objects.map(_.getSizeBytes.longValue()).sum
   }
 
   /**
@@ -199,75 +216,61 @@ object DatasetResource {
       res
     }
 
-    // Acquire or Create the lock for dataset of {did}
-    val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
-
-    if (lock.isLocked) {
+    val dataset = getDatasetByID(ctx, did)
+    val datasetPath = PathUtils.getDatasetPath(did)
+    if (datasetOperation.filesToAdd.isEmpty && datasetOperation.filesToRemove.isEmpty) {
       return None
     }
-    lock.lock()
-    try {
-      val dataset = getDatasetByID(ctx, did)
-      val datasetPath = PathUtils.getDatasetPath(did)
-      if (datasetOperation.filesToAdd.isEmpty && datasetOperation.filesToRemove.isEmpty) {
-        return None
-      }
-      val datasetName = dataset.getName
-      val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
-      val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
-        datasetPath,
-        versionName,
-        () => {
-          datasetOperation.filesToAdd.foreach {
-            case (filePath, fileStream) =>
-              GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
-          }
-
-          datasetOperation.filesToRemove.foreach { fileUri =>
-            DocumentFactory.openDocument(fileUri)._1.clear()
-          }
+    val datasetName = dataset.getName
+    val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
+    val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
+      datasetPath,
+      versionName,
+      () => {
+        datasetOperation.filesToAdd.foreach {
+          case (filePath, fileStream) =>
+            GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
         }
-      )
 
-      // create the DatasetVersion that persists in the DB
-      val datasetVersion = new DatasetVersion()
+        datasetOperation.filesToRemove.foreach { fileUri =>
+          DocumentFactory.openDocument(fileUri)._1.clear()
+        }
+      }
+    )
 
-      datasetVersion.setName(versionName)
-      datasetVersion.setDid(did)
-      datasetVersion.setCreatorUid(uid)
-      datasetVersion.setVersionHash(commitHash)
+    // create the DatasetVersion that persists in the DB
+    val datasetVersion = new DatasetVersion()
 
-      val physicalFileNodes =
-        GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(datasetPath, commitHash)
-      Some(
-        DashboardDatasetVersion(
-          // insert the dataset version into DB, and fetch the newly-inserted one.
-          ctx
-            .insertInto(DATASET_VERSION) // Assuming DATASET is the table reference
-            .set(ctx.newRecord(DATASET_VERSION, datasetVersion))
-            .returning() // Assuming ID is the primary key column
-            .fetchOne()
-            .into(classOf[DatasetVersion]),
-          DatasetFileNode.fromPhysicalFileNodes(
-            Map(
-              (ownerEmail, datasetName, versionName) -> physicalFileNodes.asScala.toList
-            )
+    datasetVersion.setName(versionName)
+    datasetVersion.setDid(did)
+    datasetVersion.setCreatorUid(uid)
+    datasetVersion.setVersionHash(commitHash)
+
+    val physicalFileNodes =
+      GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(datasetPath, commitHash)
+    Some(
+      DashboardDatasetVersion(
+        // insert the dataset version into DB, and fetch the newly-inserted one.
+        ctx
+          .insertInto(DATASET_VERSION) // Assuming DATASET is the table reference
+          .set(ctx.newRecord(DATASET_VERSION, datasetVersion))
+          .returning() // Assuming ID is the primary key column
+          .fetchOne()
+          .into(classOf[DatasetVersion]),
+        DatasetFileNode.fromPhysicalFileNodes(
+          Map(
+            (ownerEmail, datasetName, versionName) -> physicalFileNodes.asScala.toList
           )
         )
       )
-    } finally {
-      // Release the lock
-      lock.unlock()
-    }
+    )
   }
 
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
-      isOwner: Boolean,
-      versions: List[DashboardDatasetVersion],
-      size: Long
+      isOwner: Boolean
   )
   case class DashboardDatasetVersion(
       datasetVersion: DatasetVersion,
@@ -276,9 +279,7 @@ object DatasetResource {
 
   case class DatasetIDs(dids: List[Integer])
 
-  case class DatasetNameModification(did: Integer, name: String)
-
-  case class DatasetDescriptionModification(did: Integer, description: String)
+  case class DatasetDescriptionModification(name: String, description: String)
 
   case class DatasetVersionRootFileNodesResponse(
       fileNodes: List[DatasetFileNode],
@@ -289,7 +290,7 @@ object DatasetResource {
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
 class DatasetResource {
-  private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
+  private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val ERR_DATASET_CREATION_FAILED_MESSAGE =
     "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
@@ -320,9 +321,7 @@ class DatasetResource {
       targetDataset,
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
-      isOwner,
-      List(),
-      calculateDatasetVersionSize(did)
+      isOwner
     )
   }
 
@@ -334,7 +333,7 @@ class DatasetResource {
       @Auth user: SessionUser,
       @FormDataParam("datasetName") datasetName: String,
       @FormDataParam("datasetDescription") datasetDescription: String,
-      @FormDataParam("isDatasetPublic") isDatasetPublic: String,
+      @FormDataParam("isDatasetPublic") isDatasetPublic: String
   ): DashboardDataset = {
 
     withTransaction(context) { ctx =>
@@ -352,7 +351,9 @@ class DatasetResource {
         LakeFSFileStorage.initRepo(datasetName)
       } catch {
         case e: Exception =>
-          throw new WebApplicationException(s"Failed to initialize repository in LakeFS: ${e.getMessage}")
+          throw new WebApplicationException(
+            s"Failed to initialize repository in LakeFS: ${e.getMessage}"
+          )
       }
 
       // insert the dataset into database
@@ -386,9 +387,7 @@ class DatasetResource {
         ),
         user.getEmail,
         PrivilegeEnum.WRITE,
-        isOwner = true,
-        versions = List(),
-        size = 0
+        isOwner = true
       )
     }
   }
@@ -409,7 +408,10 @@ class DatasetResource {
         LakeFSFileStorage.deleteRepo(datasetName)
       } catch {
         case e: Exception =>
-          throw new WebApplicationException(s"Failed to delete a repository in LakeFS: ${e.getMessage}", e)
+          throw new WebApplicationException(
+            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
+            e
+          )
       }
 
       // delete the dataset from the DB
@@ -429,18 +431,17 @@ class DatasetResource {
       @Auth sessionUser: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
-      val datasetDao = new DatasetDao(ctx.configuration())
       val uid = sessionUser.getUid
-      val did = modificator.did
-      val description = modificator.description
 
-      if (!userHasWriteAccess(ctx, did, uid)) {
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val datasets = datasetDao.fetchByName(modificator.name).asScala.toList
+      if (datasets.isEmpty || !userHasWriteAccess(ctx, datasets.head.getDid, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val existedDataset = getDatasetByID(ctx, did)
-      existedDataset.setDescription(description)
-      datasetDao.update(existedDataset)
+      val datasetToChange = datasets.head
+      datasetToChange.setDescription(modificator.description)
+      datasetDao.update(datasetToChange)
       Response.ok().build()
     }
   }
@@ -478,100 +479,86 @@ class DatasetResource {
       @Auth user: SessionUser
   ): Unit = {
     val uid = user.getUid
+    // TODO: finish it
   }
 
+  /**
+    * This method returns a list of DashboardDatasets objects that are accessible by current user.
+    *
+    * @param user the session user
+    * @return list of user accessible DashboardDataset objects
+    */
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/test")
-  def sessionTest(
+  @Path("/list")
+  def listDatasets(
       @Auth user: SessionUser
-  ): Response = {
-    Response.ok().build()
-  }
+  ): List[DashboardDataset] = {
+    val uid = user.getUid
+    withTransaction(context)(ctx => {
+      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
+      // first fetch all datasets user have explicit access to
+      accessibleDatasets = ListBuffer.from(
+        ctx
+          .select()
+          .from(
+            DATASET
+              .leftJoin(DATASET_USER_ACCESS)
+              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+              .leftJoin(USER)
+              .on(USER.UID.eq(DATASET.OWNER_UID))
+          )
+          .where(DATASET_USER_ACCESS.UID.eq(uid))
+          .fetch()
+          .map(record => {
+            val dataset = record.into(DATASET).into(classOf[Dataset])
+            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
+            val ownerEmail = record.into(USER).getEmail
+            DashboardDataset(
+              isOwner = dataset.getOwnerUid == uid,
+              dataset = dataset,
+              accessPrivilege = datasetAccess.getPrivilege,
+              ownerEmail = ownerEmail
+            )
+          })
+          .asScala
+      )
 
-  //  /**
-//    * This method returns a list of DashboardDatasets objects that are accessible by current user.
-//    *
-//    * @param user the session user
-//    * @return list of user accessible DashboardDataset objects
-//    */
-//  @GET
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  @Path("/list")
-//  def listDatasets(
-//      @Auth user: SessionUser
-//  ): List[DashboardDataset] = {
-//    val uid = user.getUid
-//    withTransaction(context)(ctx => {
-//      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
-//      // first fetch all datasets user have explicit access to
-//      accessibleDatasets = ListBuffer.from(
-//        ctx
-//          .select()
-//          .from(
-//            DATASET
-//              .leftJoin(DATASET_USER_ACCESS)
-//              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-//              .leftJoin(USER)
-//              .on(USER.UID.eq(DATASET.OWNER_UID))
-//          )
-//          .where(DATASET_USER_ACCESS.UID.eq(uid))
-//          .fetch()
-//          .map(record => {
-//            val dataset = record.into(DATASET).into(classOf[Dataset])
-//            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-//            val ownerEmail = record.into(USER).getEmail
-//            DashboardDataset(
-//              isOwner = dataset.getOwnerUid == uid,
-//              dataset = dataset,
-//              accessPrivilege = datasetAccess.getPrivilege,
-//              versions = List(),
-//              ownerEmail = ownerEmail,
-//              size = calculateDatasetVersionSize(dataset.getDid)
-//            )
-//          })
-//          .asScala
-//      )
-//
-//      // then we fetch the public datasets and merge it as a part of the result if not exist
-//      val publicDatasets = ctx
-//        .select()
-//        .from(
-//          DATASET
-//            .leftJoin(USER)
-//            .on(USER.UID.eq(DATASET.OWNER_UID))
-//        )
-//        .where(DATASET.IS_PUBLIC.eq(DATASET_IS_PUBLIC))
-//        .fetch()
-//        .map(record => {
-//          val dataset = record.into(DATASET).into(classOf[Dataset])
-//          val ownerEmail = record.into(USER).getEmail
-//          DashboardDataset(
-//            isOwner = false,
-//            dataset = dataset,
-//            accessPrivilege = PrivilegeEnum.READ,
-//            versions = List(),
-//            ownerEmail = ownerEmail,
-//            size = calculateDatasetVersionSize(dataset.getDid)
-//          )
-//        })
-//      publicDatasets.forEach { publicDataset =>
-//        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-//          val dashboardDataset = DashboardDataset(
-//            isOwner = false,
-//            dataset = publicDataset.dataset,
-//            ownerEmail = publicDataset.ownerEmail,
-//            accessPrivilege = PrivilegeEnum.READ,
-//            versions = List(),
-//            size = calculateDatasetVersionSize(publicDataset.dataset.getDid)
-//          )
-//          accessibleDatasets = accessibleDatasets :+ dashboardDataset
-//        }
-//      }
-//
-//      accessibleDatasets.toList
-//    })
-//  }
+      // then we fetch the public datasets and merge it as a part of the result if not exist
+      val publicDatasets = ctx
+        .select()
+        .from(
+          DATASET
+            .leftJoin(USER)
+            .on(USER.UID.eq(DATASET.OWNER_UID))
+        )
+        .where(DATASET.IS_PUBLIC.eq(true))
+        .fetch()
+        .map(record => {
+          val dataset = record.into(DATASET).into(classOf[Dataset])
+          val ownerEmail = record.into(USER).getEmail
+          DashboardDataset(
+            isOwner = false,
+            dataset = dataset,
+            accessPrivilege = PrivilegeEnum.READ,
+            ownerEmail = ownerEmail
+          )
+        })
+      publicDatasets.forEach { publicDataset =>
+        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
+          val dashboardDataset = DashboardDataset(
+            isOwner = false,
+            dataset = publicDataset.dataset,
+            ownerEmail = publicDataset.ownerEmail,
+            accessPrivilege = PrivilegeEnum.READ
+          )
+          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+        }
+      }
+
+      accessibleDatasets.toList
+    })
+  }
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -621,19 +608,13 @@ class DatasetResource {
       val latestVersion = getLatestDatasetVersion(ctx, did).getOrElse(
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
-      val datasetPath = PathUtils.getDatasetPath(did)
 
       val ownerNode = DatasetFileNode
-        .fromPhysicalFileNodes(
+        .fromLakeFSRepositoryCommittedObjects(
           Map(
             (user.getEmail, dataset.getName, latestVersion.getName) ->
-              GitVersionControlLocalFileStorage
-                .retrieveRootFileNodesOfVersion(
-                  datasetPath,
-                  latestVersion.getVersionHash
-                )
-                .asScala
-                .toList
+              LakeFSFileStorage
+                .retrieveObjectsOfVersion(dataset.getName, latestVersion.getVersionHash)
           )
         )
         .head
@@ -866,7 +847,7 @@ class DatasetResource {
       datasetVersion.getVersionHash
     )
     val versionHash = datasetVersion.getVersionHash
-    val size = calculateDatasetVersionSize(did, Some(versionHash))
+    val size = calculateDatasetVersionSize(datasetName, Some(versionHash))
 
     val ownerFileNode = DatasetFileNode
       .fromPhysicalFileNodes(
@@ -895,7 +876,6 @@ class DatasetResource {
       isPublic: Boolean
   ): DashboardDataset = {
     val dashboardDataset = getDashboardDataset(ctx, did, uid, isPublic)
-    val size = calculateDatasetVersionSize(did)
-    dashboardDataset.copy(size = size)
+    dashboardDataset
   }
 }
