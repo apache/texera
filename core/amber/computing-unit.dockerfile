@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     netcat \
     unzip \
     python3-pip \
+    libpq-dev \
+    python3-dev \
     && apt-get clean
 
 # Install Python dependencies

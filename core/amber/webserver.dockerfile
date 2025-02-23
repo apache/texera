@@ -26,7 +26,7 @@ COPY core/ .
 RUN rm -rf amber/user-resources/*
 
 RUN apt-get update
-RUN apt-get install -y netcat unzip python3-pip
+RUN apt-get install -y netcat unzip python3-pip libpq-dev python3-dev
 RUN pip3 install python-lsp-server python-lsp-server[websockets]
 RUN pip3 install -r amber/requirements.txt
 
