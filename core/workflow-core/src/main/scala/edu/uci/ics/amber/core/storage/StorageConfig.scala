@@ -23,6 +23,10 @@ object StorageConfig {
     val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap
     val jdbcMap = storageMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val lakefsMap = storageMap("lakefs").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val lakefsAuthMap = lakefsMap("auth").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val s3Map = storageMap("s3").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val s3AuthMap = s3Map("auth").asInstanceOf[JMap[String, Any]].asScala.toMap
 
     javaConf.updated(
       "storage",
@@ -44,6 +48,8 @@ object StorageConfig {
             )
         )
         .updated("jdbc", jdbcMap)
+        .updated("lakefs", lakefsMap.updated("auth", lakefsAuthMap))
+        .updated("s3", s3Map.updated("auth", s3AuthMap))
     )
   }
 
@@ -67,6 +73,7 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("commit-batch-size")
     .asInstanceOf[Int]
 
+  // Iceberg table configurations
   val icebergTableResultNamespace: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("iceberg")
     .asInstanceOf[Map[String, Any]]("table")
@@ -169,4 +176,22 @@ object StorageConfig {
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
+
+  // LakeFS configurations
+  val lakefsEndpoint: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("endpoint")
+    .asInstanceOf[String]
+
+  val lakefsUsername: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("auth")
+    .asInstanceOf[Map[String, Any]]("username")
+    .asInstanceOf[String]
+
+  val lakefsPassword: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("auth")
+    .asInstanceOf[Map[String, Any]]("password")
+    .asInstanceOf[String]
 }

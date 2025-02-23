@@ -26,6 +26,19 @@ storage:
           num-retries: 10
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
+
+  lakefs:
+    endpoint: "http://127.0.0.1:8000/api/v1"
+    auth:
+      api-secret: "random_string_for_lakefs"
+      username: "AKIAJIWZ57BWHNDAGMPQ"
+      password: "Y5e/aFeE+ZM1AahSCCEvH+GXkFZq4Y3qihExq2fw"
+  s3:
+    endpoint: "http://localhost:9500"
+    auth:
+      username: "texera_minio"
+      password: "password"
+
   jdbc:
     url: "jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public"
     username: "postgres"

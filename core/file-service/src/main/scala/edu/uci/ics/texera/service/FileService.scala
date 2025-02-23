@@ -50,7 +50,7 @@ object FileService {
       .resolve("src")
       .resolve("main")
       .resolve("resources")
-      .resolve("file-service-config.yaml")
+      .resolve("file-service-web-config.yaml")
       .toAbsolutePath
       .toString
 

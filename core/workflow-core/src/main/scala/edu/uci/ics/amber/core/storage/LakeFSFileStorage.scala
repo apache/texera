@@ -6,6 +6,7 @@ import io.lakefs.clients.sdk.model._
 import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.Files
 import scala.jdk.CollectionConverters._
+import edu.uci.ics.amber.core.storage.StorageConfig
 
 /**
   * LakeFSFileStorage provides high-level file storage operations using LakeFS,
@@ -13,8 +14,22 @@ import scala.jdk.CollectionConverters._
   */
 object LakeFSFileStorage {
 
-  // Lazy initialization of LakeFS API clients
-  private lazy val apiClient: ApiClient = LakeFSApiClientInstance.getInstance()
+  private lazy val apiClient: ApiClient = {
+    val client = new ApiClient()
+    client.setApiKey(StorageConfig.lakefsPassword)
+    client.setUsername(StorageConfig.lakefsUsername)
+    client.setPassword(StorageConfig.lakefsPassword)
+    client.setServers(
+      List(
+        new ServerConfiguration(
+          StorageConfig.lakefsEndpoint,
+          "LakeFS API server endpoint",
+          new java.util.HashMap[String, ServerVariable]()
+        )
+      ).asJava
+    )
+    client
+  }
   private lazy val repoApi: RepositoriesApi = new RepositoriesApi(apiClient)
   private lazy val objectsApi: ObjectsApi = new ObjectsApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
