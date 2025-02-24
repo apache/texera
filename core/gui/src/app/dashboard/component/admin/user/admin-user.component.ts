@@ -7,6 +7,8 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
+import { Subject } from "rxjs";
+import { debounceTime } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -16,6 +18,7 @@ import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 export class AdminUserComponent implements OnInit {
   userList: ReadonlyArray<User> = [];
   editUid: number = 0;
+  editAttribute: string = "";
   editName: string = "";
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
@@ -43,10 +46,11 @@ export class AdminUserComponent implements OnInit {
         this.userList = userList;
         this.reset();
       });
+
   }
 
   public updateRole(user: User, role: Role): void {
-    this.startEdit(user);
+    this.startEdit(user, "role");
     this.editRole = role;
     this.saveEdit();
   }
@@ -58,12 +62,14 @@ export class AdminUserComponent implements OnInit {
       .subscribe(() => this.ngOnInit());
   }
 
-  startEdit(user: User): void {
+  startEdit(user: User, attribute: string): void {
     this.editUid = user.uid;
+    this.editAttribute = attribute;
     this.editName = user.name;
     this.editEmail = user.email;
     this.editRole = user.role;
   }
+
 
   saveEdit(): void {
     const currentUid = this.editUid;
@@ -82,6 +88,7 @@ export class AdminUserComponent implements OnInit {
 
   stopEdit(): void {
     this.editUid = 0;
+    this.editAttribute = "";
   }
 
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
@@ -107,6 +114,7 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
+
   clickToViewQuota(uid: number) {
     this.modalService.create({
       nzContent: UserQuotaComponent,
@@ -118,6 +126,9 @@ export class AdminUserComponent implements OnInit {
     });
   }
 
+
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
+
+
 }

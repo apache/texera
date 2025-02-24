@@ -26,7 +26,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: false,
+  userSystemEnabled: true,
 
   /**
    * whether local login is enabled
@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether google login is enabled
    */
-  googleLogin: true,
+  googleLogin: false,
   /**
    * whether invite only is enabled
    */
