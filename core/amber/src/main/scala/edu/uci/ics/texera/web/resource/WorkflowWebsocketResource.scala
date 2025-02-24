@@ -76,7 +76,14 @@ class WorkflowWebsocketResource extends LazyLogging {
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
             case Some(workflow) =>
-              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+              sessionState.send(WorkflowStateEvent("Initializing"))
+              synchronized {
+                workflow.initExecutionService(
+                  workflowExecuteRequest,
+                  userOpt,
+                  session.getRequestURI
+                )
+              }
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
