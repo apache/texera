@@ -47,6 +47,9 @@ class AdminUserResource {
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)
     updatedUser.setRole(user.getRole)
+    if(user.getComment != null){
+      updatedUser.setComment(user.getComment)
+    }
     userDao.update(updatedUser)
   }
 

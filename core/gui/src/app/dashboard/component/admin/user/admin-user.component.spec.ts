@@ -6,6 +6,7 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { By } from "@angular/platform-browser";
 
 describe("AdminUserComponent", () => {
   let component: AdminUserComponent;

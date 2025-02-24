@@ -38,6 +38,7 @@ class WorkflowResourceSpec
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment")
     user
   }
 
@@ -47,6 +48,7 @@ class WorkflowResourceSpec
     user.setName("test_user2")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment2")
     user
   }
 
