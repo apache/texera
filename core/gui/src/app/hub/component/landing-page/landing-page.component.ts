@@ -8,7 +8,7 @@ import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entr
 import {
   DASHBOARD_HOME,
   DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT
+  DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
 
@@ -68,8 +68,8 @@ export class LandingPageComponent implements OnInit {
       .getCount("dataset")
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
-        this.datasetCount = count
-      })
+        this.datasetCount = count;
+      });
   }
 
   // todo: same as the function in search. refactor together
@@ -127,10 +127,10 @@ export class LandingPageComponent implements OnInit {
     let path: string;
 
     switch (type) {
-      case 'workflow':
+      case "workflow":
         path = DASHBOARD_HUB_WORKFLOW_RESULT;
         break;
-      case 'dataset':
+      case "dataset":
         path = DASHBOARD_HUB_DATASET_RESULT;
         break;
       default:
@@ -139,5 +139,4 @@ export class LandingPageComponent implements OnInit {
 
     this.router.navigate([path]);
   }
-
 }
