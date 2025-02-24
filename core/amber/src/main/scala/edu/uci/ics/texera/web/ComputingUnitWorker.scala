@@ -26,6 +26,7 @@ object ComputingUnitWorker {
 
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
+
     // start actor system worker node
     AmberRuntime.startActorWorker(argMap.get(Symbol("serverAddr")).asInstanceOf[Option[String]])
   }

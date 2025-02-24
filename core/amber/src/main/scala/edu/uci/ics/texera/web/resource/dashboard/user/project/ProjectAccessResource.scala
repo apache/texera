@@ -1,14 +1,12 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
-import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -20,7 +18,7 @@ import javax.ws.rs.core.MediaType
 @Path("/access/project")
 class ProjectAccessResource() {
   final private val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private val userDao = new UserDao(context.configuration())
   final private val projectDao = new ProjectDao(context.configuration)
@@ -34,7 +32,7 @@ class ProjectAccessResource() {
     */
   @GET
   @Path("/owner/{pid}")
-  def getOwner(@PathParam("pid") pid: UInteger): String = {
+  def getOwner(@PathParam("pid") pid: Integer): String = {
     userDao.fetchOneByUid(projectDao.fetchOneByPid(pid).getOwnerId).getEmail
   }
 
@@ -47,7 +45,7 @@ class ProjectAccessResource() {
   @GET
   @Path("/list/{pid}")
   def getAccessList(
-      @PathParam("pid") pid: UInteger
+      @PathParam("pid") pid: Integer
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -77,7 +75,7 @@ class ProjectAccessResource() {
   @PUT
   @Path("/grant/{pid}/{email}/{privilege}")
   def grantAccess(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String
   ): Unit = {
@@ -85,7 +83,7 @@ class ProjectAccessResource() {
       new ProjectUserAccess(
         userDao.fetchOneByEmail(email).getUid,
         pid,
-        ProjectUserAccessPrivilege.valueOf(privilege)
+        PrivilegeEnum.valueOf(privilege)
       )
     )
   }
@@ -100,7 +98,7 @@ class ProjectAccessResource() {
   @DELETE
   @Path("/revoke/{pid}/{email}")
   def revokeAccess(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("email") email: String
   ): Unit = {
     context

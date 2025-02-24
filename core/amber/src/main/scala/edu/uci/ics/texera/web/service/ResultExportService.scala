@@ -10,20 +10,27 @@ import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperti
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.engine.common.Utils.retry
-import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.common.Utils.retry
+import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
-import org.jooq.types.UInteger
-import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.commons.lang3.StringUtils
 
-import java.io.{PipedInputStream, PipedOutputStream}
+import java.io.{OutputStream, PipedInputStream, PipedOutputStream}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -33,15 +40,7 @@ import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector._
-import org.apache.arrow.vector.ipc.ArrowFileWriter
-import org.apache.commons.lang3.StringUtils
-
-import java.io.OutputStream
-import java.nio.channels.Channels
 import scala.util.Using
-import edu.uci.ics.amber.core.workflow.PortIdentity
 
 object ResultExportService {
   final private val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -442,7 +441,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   private def generateFileName(request: ResultExportRequest, extension: String): String = {
     val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+      WorkflowVersionResource.getLatestVersion(Integer.valueOf(request.workflowId))
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -461,10 +460,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val datasetPath = PathUtils.getDatasetPath(Integer.valueOf(did))
       val filePath = datasetPath.resolve(fileName)
       createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
+        Integer.valueOf(did),
         user,
         Map(filePath -> pipedInputStream)
       )

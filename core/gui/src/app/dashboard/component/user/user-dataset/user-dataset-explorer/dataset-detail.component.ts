@@ -5,12 +5,16 @@ import { DatasetService } from "../../../../service/user/dataset/dataset.service
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap } from "rxjs/operators";
+import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 import { UserService } from "../../../../../common/service/user/user.service";
+import { isDefined } from "../../../../../common/util/predicate";
+import { HubService } from "../../../../../hub/service/hub.service";
+
+export const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -41,18 +45,26 @@ export class DatasetDetailComponent implements OnInit {
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
 
+  public isLiked: boolean = false;
+  public likeCount: number = 0;
+  public currentUid: number | undefined;
+  public viewCount: number = 0;
+  public displayPreciseViewCount = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
     private downloadService: DownloadService,
-    private userService: UserService
+    private userService: UserService,
+    private hubService: HubService
   ) {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        this.currentUid = this.userService.getCurrentUser()?.uid;
         this.isLogin = this.userService.isLogin();
       });
   }
@@ -87,6 +99,36 @@ export class DatasetDetailComponent implements OnInit {
         untilDestroyed(this)
       )
       .subscribe();
+
+    if (!isDefined(this.did)) {
+      return;
+    }
+
+    this.hubService
+      .getLikeCount(this.did, "dataset")
+      .pipe(untilDestroyed(this))
+      .subscribe(count => {
+        this.likeCount = count;
+      });
+
+    this.hubService
+      .postView(this.did, this.currentUid ? this.currentUid : 0, "dataset")
+      .pipe(throttleTime(THROTTLE_TIME_MS))
+      .pipe(untilDestroyed(this))
+      .subscribe(count => {
+        this.viewCount = count;
+      });
+
+    if (!isDefined(this.currentUid)) {
+      return;
+    }
+
+    this.hubService
+      .isLiked(this.did, this.currentUid, "dataset")
+      .pipe(untilDestroyed(this))
+      .subscribe((isLiked: boolean) => {
+        this.isLiked = isLiked;
+      });
   }
 
   renderDatasetViewSider() {
@@ -252,4 +294,54 @@ export class DatasetDetailComponent implements OnInit {
 
   // alias for formatSize
   formatSize = formatSize;
+
+  formatCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  toggleLike(): void {
+    const userId = this.currentUid;
+    if (!isDefined(userId) || !isDefined(this.did)) {
+      return;
+    }
+
+    if (this.isLiked) {
+      this.hubService
+        .postUnlike(this.did, userId, "dataset")
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            this.hubService
+              .getLikeCount(this.did!, "dataset")
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+          }
+        });
+    } else {
+      this.hubService
+        .postLike(this.did, userId, "dataset")
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            this.hubService
+              .getLikeCount(this.did!, "dataset")
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+          }
+        });
+    }
+  }
+
+  changeViewDisplayStyle() {
+    this.displayPreciseViewCount = !this.displayPreciseViewCount;
+  }
 }

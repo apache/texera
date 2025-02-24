@@ -1,59 +1,25 @@
 package edu.uci.ics.texera.dao
 
-import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-import com.mysql.cj.jdbc.MysqlDataSource
-import org.jooq.DSLContext
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import org.jooq.{DSLContext, SQLDialect}
 import org.jooq.impl.DSL
 
-import java.io.{File, FileInputStream, InputStream}
-import java.nio.file.{Path, Paths}
-import java.sql.{Connection, DriverManager, SQLException, Statement}
-import java.util.Scanner
+import java.nio.file.Paths
+import java.sql.{Connection, DriverManager}
+import scala.io.Source
 
 trait MockTexeraDB {
 
-  private var dbInstance: Option[DB] = None
+  private var dbInstance: Option[EmbeddedPostgres] = None
   private var dslContext: Option[DSLContext] = None
   private val database: String = "texera_db"
-  private val username: String = "root"
+  private val username: String = "postgres"
   private val password: String = ""
 
-  def executeScriptInJDBC(path: Path): Unit = {
+  def executeScriptInJDBC(conn: Connection, script: String): Unit = {
     assert(dbInstance.nonEmpty)
-    val sqlFile = new File(path.toString)
-    val in = new FileInputStream(sqlFile)
-    val conn =
-      DriverManager.getConnection(
-        dbInstance.get.getConfiguration.getURL(""),
-        username,
-        password
-      )
-    importSQL(conn, in)
+    conn.prepareStatement(script).execute()
     conn.close()
-  }
-
-  @throws[SQLException]
-  private def importSQL(conn: Connection, in: InputStream): Unit = {
-    val s = new Scanner(in)
-    s.useDelimiter(";")
-    var st: Statement = null
-    try {
-      st = conn.createStatement()
-      while ({
-        s.hasNext
-      }) {
-        var line = s.next
-        if (line.startsWith("/*!") && line.endsWith("*/")) {
-          val i = line.indexOf(' ')
-          line = line.substring(i + 1, line.length - " */".length)
-        }
-        if (line.trim.nonEmpty) {
-          // mock DB cannot use SET PERSIST keyword
-          line = line.replaceAll("(?i)SET PERSIST", "SET GLOBAL")
-          st.execute(line)
-        }
-      }
-    } finally if (st != null) st.close()
   }
 
   def getDSLContext: DSLContext = {
@@ -66,7 +32,7 @@ trait MockTexeraDB {
     }
   }
 
-  def getDBInstance: DB = {
+  def getDBInstance: EmbeddedPostgres = {
     dbInstance match {
       case Some(value) => value
       case None =>
@@ -79,7 +45,7 @@ trait MockTexeraDB {
   def shutdownDB(): Unit = {
     dbInstance match {
       case Some(value) =>
-        value.stop()
+        value.close()
         dbInstance = None
         dslContext = None
       case None =>
@@ -90,32 +56,35 @@ trait MockTexeraDB {
   def initializeDBAndReplaceDSLContext(): Unit = {
     assert(dbInstance.isEmpty && dslContext.isEmpty)
 
-    val driver = new com.mysql.cj.jdbc.Driver()
+    val driver = new org.postgresql.Driver()
     DriverManager.registerDriver(driver)
 
-    val config = DBConfigurationBuilder.newBuilder
-      .setPort(0) // 0 => automatically detect free port
-      .addArg("--default-time-zone=-8:00")
-      .setSecurityDisabled(true)
-      .setDeletingTemporaryBaseAndDataDirsOnShutdown(true)
-      .build()
+    val embedded = EmbeddedPostgres.builder().start()
 
-    val db = DB.newEmbeddedDB(config)
-    db.start()
-
-    val dataSource = new MysqlDataSource
-    dataSource.setUrl(config.getURL(database))
-    dataSource.setUser(username)
-    dataSource.setPassword(password)
-
-    val sqlServerInstance = SqlServer.getInstance(database, username, password)
-    dbInstance = Some(db)
-    dslContext = Some(DSL.using(dataSource, sqlServerInstance.SQL_DIALECT))
+    dbInstance = Some(embedded)
 
     val ddlPath = {
       Paths.get("./scripts/sql/texera_ddl.sql").toRealPath()
     }
-    executeScriptInJDBC(ddlPath)
+    val source = Source.fromFile(ddlPath.toString)
+    val content =
+      try {
+        source.mkString
+      } finally {
+        source.close()
+      }
+    val parts: Array[String] = content.split("(?m)^\\\\c texera_db")
+    def removeCCommands(sql: String): String =
+      sql.linesIterator
+        .filterNot(_.trim.startsWith("\\c"))
+        .mkString("\n")
+    executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, removeCCommands(parts(0)))
+    val texeraDB = embedded.getDatabase(username, database)
+    executeScriptInJDBC(texeraDB.getConnection, removeCCommands(parts(1)))
+
+    SqlServer.initConnection(embedded.getJdbcUrl(username, database), username, password)
+    val sqlServerInstance = SqlServer.getInstance()
+    dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))
 
     sqlServerInstance.replaceDSLContext(dslContext.get)
   }
