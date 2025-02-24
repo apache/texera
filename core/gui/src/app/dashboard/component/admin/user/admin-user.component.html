@@ -181,10 +181,10 @@
       <td>
         <ng-container *ngIf="editUid !== user.uid; else editCommentTemplate"> {{user.comment}} </ng-container>
         <ng-template #editCommentTemplate>
-          <input
+          <textarea
             [(ngModel)]="editComment"
             nz-input
-            type="text" />
+            type="text"></textarea>
         </ng-template>
       </td>
       <td style="color: #1890ff">
