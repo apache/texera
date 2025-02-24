@@ -166,6 +166,11 @@ class WorkflowService(
       userOpt: Option[User],
       sessionUri: URI
   ): Unit = {
+
+    if (executionService.hasValue) {
+      executionService.getValue.unsubscribeAll()
+    }
+
     val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
 
     val workflowContext: WorkflowContext = createWorkflowContext()
