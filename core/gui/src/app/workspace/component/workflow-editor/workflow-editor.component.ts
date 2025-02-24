@@ -352,8 +352,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .subscribe(() => this.paper.setDimensions(this.editorWrapper.offsetWidth, this.editorWrapper.offsetHeight));
   }
 
-
-
   private handleCellHighlight(): void {
     this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
@@ -760,7 +758,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "element:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (this.currentOpenedOperatorID !== null){
+        if (this.currentOpenedOperatorID !== null) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
         }
 
@@ -771,8 +769,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "element:contextmenu")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-
-        if (this.currentOpenedOperatorID !== null){
+        if (this.currentOpenedOperatorID !== null) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
         }
 
@@ -780,11 +777,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         this.jointUIService.unfoldOperatorDetails(this.paper, event[0].model.id.toString());
       });
 
-
     fromJointPaperEvent(this.paper, "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.currentOpenedOperatorID !== null){
+        if (this.currentOpenedOperatorID !== null) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
         }
       });
