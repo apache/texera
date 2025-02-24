@@ -55,6 +55,16 @@ public interface IOperatorPortExecutions extends Serializable {
      */
     public String getResultUri();
 
+    /**
+     * Setter for <code>texera_db.operator_port_executions.layer_id</code>.
+     */
+    public void setLayerId(String value);
+
+    /**
+     * Getter for <code>texera_db.operator_port_executions.layer_id</code>.
+     */
+    public String getLayerId();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

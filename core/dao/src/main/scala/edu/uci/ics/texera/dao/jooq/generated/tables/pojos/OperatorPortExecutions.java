@@ -19,6 +19,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     private String  operatorId;
     private Integer portId;
     private String  resultUri;
+    private String  layerId;
 
     public OperatorPortExecutions() {}
 
@@ -27,18 +28,21 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         this.operatorId = value.getOperatorId();
         this.portId = value.getPortId();
         this.resultUri = value.getResultUri();
+        this.layerId = value.getLayerId();
     }
 
     public OperatorPortExecutions(
         Integer workflowExecutionId,
         String  operatorId,
         Integer portId,
-        String  resultUri
+        String  resultUri,
+        String  layerId
     ) {
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
         this.portId = portId;
         this.resultUri = resultUri;
+        this.layerId = layerId;
     }
 
     /**
@@ -107,6 +111,22 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         this.resultUri = resultUri;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_port_executions.layer_id</code>.
+     */
+    @Override
+    public String getLayerId() {
+        return this.layerId;
+    }
+
+    /**
+     * Setter for <code>texera_db.operator_port_executions.layer_id</code>.
+     */
+    @Override
+    public void setLayerId(String layerId) {
+        this.layerId = layerId;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorPortExecutions (");
@@ -115,6 +135,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         sb.append(", ").append(operatorId);
         sb.append(", ").append(portId);
         sb.append(", ").append(resultUri);
+        sb.append(", ").append(layerId);
 
         sb.append(")");
         return sb.toString();
@@ -130,6 +151,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         setOperatorId(from.getOperatorId());
         setPortId(from.getPortId());
         setResultUri(from.getResultUri());
+        setLayerId(from.getLayerId());
     }
 
     @Override
