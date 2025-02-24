@@ -18,6 +18,7 @@ spec:
       containers:
         - name: {{ .Values.workflowComputingUnit.name }}
           image: {{ .Values.workflowComputingUnit.imageName }}
+          imagePullPolicy: Never
           ports:
             - containerPort: {{ .Values.workflowComputingUnitPool.service.port }}
           env:
