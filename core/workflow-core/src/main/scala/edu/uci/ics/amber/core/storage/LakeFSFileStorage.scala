@@ -32,6 +32,7 @@ object LakeFSFileStorage {
   }
   private lazy val repoApi: RepositoriesApi = new RepositoriesApi(apiClient)
   private lazy val objectsApi: ObjectsApi = new ObjectsApi(apiClient)
+  private lazy val branchesApi: BranchesApi = new BranchesApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
 
@@ -162,4 +163,27 @@ object LakeFSFileStorage {
   def retrieveObjectsOfVersion(repoName: String, commitHash: String): List[ObjectStats] = {
     objectsApi.listObjects(repoName, commitHash).execute().getResults.asScala.toList
   }
+
+  /**
+    * Retrieves a list of uncommitted (staged) objects in a repository branch.
+    *
+    * @param repoName Repository name.
+    * @param branchName Branch name (defaults to "main").
+    * @return List of uncommitted object stats.
+    */
+  def retrieveUncommittedObjects(repoName: String, branchName: String = "main"): List[Diff] = {
+    branchesApi
+      .diffBranch(repoName, branchName)
+      .execute()
+      .getResults
+      .asScala
+      .toList
+  }
+
+  def createCommit(repoName: String, branch: String, commitMessage: String): Commit = {
+    val commit = new CommitCreation()
+      .message(commitMessage)
+    commitsApi.commit(repoName, branch, commit).execute()
+  }
+
 }

@@ -139,3 +139,8 @@ nz-select {
 .liked {
   color: red;
 }
+
+nz-tabset {
+  width: 95%;   // Take up 90% of the container width
+  margin: 0 auto;  // Center it horizontally
+}

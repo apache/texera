@@ -127,14 +127,24 @@
         </div>
       </div>
     </nz-card>
-    <texera-user-dataset-file-renderer
-      *ngIf="isDisplayingDataset()"
-      [isMaximized]="isMaximized"
-      [did]="did"
-      [dvid]="selectedVersion?.dvid"
-      [filePath]="currentDisplayedFileName"
-      class="file-renderer">
-    </texera-user-dataset-file-renderer>
+    <nz-tabset>
+      <nz-tab nzTitle="Created Versions">
+        <texera-user-dataset-file-renderer
+          *ngIf="isDisplayingDataset()"
+          [isMaximized]="isMaximized"
+          [did]="did"
+          [dvid]="selectedVersion?.dvid"
+          [filePath]="currentDisplayedFileName"
+          class="file-renderer">
+        </texera-user-dataset-file-renderer>
+      </nz-tab>
+      <nz-tab nzTitle="Pending Changes">
+        <texera-dataset-staged-objects-list
+          [did]="did"
+        >
+        </texera-dataset-staged-objects-list>
+      </nz-tab>
+    </nz-tabset>
   </nz-content>
   <nz-sider
     *ngIf="!isRightBarCollapsed"

@@ -33,6 +33,10 @@ storage:
       api-secret: "random_string_for_lakefs"
       username: "AKIAJIWZ57BWHNDAGMPQ"
       password: "Y5e/aFeE+ZM1AahSCCEvH+GXkFZq4Y3qihExq2fw"
+    block-storage:
+      type: "s3"
+      bucket-name: "texera-dataset"
+
   s3:
     endpoint: "http://localhost:9500"
     auth:

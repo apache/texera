@@ -25,6 +25,8 @@ object StorageConfig {
     val jdbcMap = storageMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
     val lakefsMap = storageMap("lakefs").asInstanceOf[JMap[String, Any]].asScala.toMap
     val lakefsAuthMap = lakefsMap("auth").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val lakefsBlockStorageMap =
+      lakefsMap("block-storage").asInstanceOf[JMap[String, Any]].asScala.toMap
     val s3Map = storageMap("s3").asInstanceOf[JMap[String, Any]].asScala.toMap
     val s3AuthMap = s3Map("auth").asInstanceOf[JMap[String, Any]].asScala.toMap
 
@@ -48,7 +50,10 @@ object StorageConfig {
             )
         )
         .updated("jdbc", jdbcMap)
-        .updated("lakefs", lakefsMap.updated("auth", lakefsAuthMap))
+        .updated(
+          "lakefs",
+          lakefsMap.updated("auth", lakefsAuthMap).updated("block-storage", lakefsBlockStorageMap)
+        )
         .updated("s3", s3Map.updated("auth", s3AuthMap))
     )
   }
@@ -191,6 +196,36 @@ object StorageConfig {
 
   val lakefsPassword: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("auth")
+    .asInstanceOf[Map[String, Any]]("password")
+    .asInstanceOf[String]
+
+  // LakeFS Block Storage configurations
+  val lakefsBlockStorageType: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("block-storage")
+    .asInstanceOf[Map[String, Any]]("type")
+    .asInstanceOf[String]
+
+  val lakefsBlockStorageBucketName: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("lakefs")
+    .asInstanceOf[Map[String, Any]]("block-storage")
+    .asInstanceOf[Map[String, Any]]("bucket-name")
+    .asInstanceOf[String]
+
+  val s3Endpoint: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
+    .asInstanceOf[Map[String, Any]]("endpoint")
+    .asInstanceOf[String]
+
+  val s3Username: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
+    .asInstanceOf[Map[String, Any]]("auth")
+    .asInstanceOf[Map[String, Any]]("username")
+    .asInstanceOf[String]
+
+  val s3Password: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
     .asInstanceOf[Map[String, Any]]("auth")
     .asInstanceOf[Map[String, Any]]("password")
     .asInstanceOf[String]

@@ -7,6 +7,7 @@ import { Observable } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
+import {DatasetStagedObject} from "../../../../common/type/dataset-staged-object";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -116,6 +117,16 @@ export class DatasetService {
           return response.datasetVersion;
         })
       );
+  }
+
+  /**
+   * Retrieves the list of uncommitted dataset changes (diffs).
+   * @param did Dataset ID
+   */
+  public getDatasetDiff(did: number): Observable<DatasetStagedObject[]> {
+    return this.http.get<DatasetStagedObject[]>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`
+    );
   }
 
   /**

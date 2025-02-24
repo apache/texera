@@ -1,11 +1,14 @@
 package edu.uci.ics.texera.service
 
+import com.fasterxml.jackson.databind.module.SimpleModule
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
 import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.service.`type`.DatasetFileNode
+import edu.uci.ics.texera.service.`type`.serde.DatasetFileNodeSerializer
 import edu.uci.ics.texera.service.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.service.resource.{DatasetAccessResource, DatasetResource}
 import io.dropwizard.auth.AuthDynamicFeature
@@ -15,6 +18,11 @@ class FileService extends Application[FileServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+
+    // register a new custom module and add the custom serializer into it
+    val customSerializerModule = new SimpleModule("CustomSerializers")
+    customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
+    bootstrap.getObjectMapper.registerModule(customSerializerModule)
   }
 
   override def run(configuration: FileServiceConfiguration, environment: Environment): Unit = {

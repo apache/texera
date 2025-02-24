@@ -4,6 +4,7 @@ import edu.uci.ics.amber.core.storage.{
   DocumentFactory,
   FileResolver,
   LakeFSFileStorage,
+  S3Storage,
   StorageConfig
 }
 import edu.uci.ics.amber.core.storage.util.dataset.{
@@ -44,6 +45,7 @@ import edu.uci.ics.texera.service.resource.DatasetResource.{
   DashboardDatasetVersion,
   DatasetDescriptionModification,
   DatasetVersionRootFileNodesResponse,
+  Diff,
   calculateDatasetVersionSize,
   context,
   getDatasetByID,
@@ -159,113 +161,6 @@ object DatasetResource {
       filesToRemove: List[URI]
   )
 
-  /**
-    * Create a new dataset version by adding new files
-    * @param did the target dataset id
-    * @param user the user submitting the request
-    * @param filesToAdd the map containing the files to add
-    * @return the created dataset version
-    */
-  def createNewDatasetVersionByAddingFiles(
-      did: Integer,
-      user: User,
-      filesToAdd: Map[java.nio.file.Path, InputStream]
-  ): Option[DashboardDatasetVersion] = {
-    applyDatasetOperationToCreateNewVersion(
-      context,
-      did,
-      user.getUid,
-      user.getEmail,
-      "",
-      DatasetOperation(filesToAdd, List())
-    )
-  }
-
-  // apply the dataset operation to create a new dataset version
-  // it returns the created dataset version if creation succeed, else return None
-  // concurrency control is performed here: the thread has to have the lock in order to create the new version
-  private def applyDatasetOperationToCreateNewVersion(
-      ctx: DSLContext,
-      did: Integer,
-      uid: Integer,
-      ownerEmail: String,
-      userProvidedVersionName: String,
-      datasetOperation: DatasetOperation
-  ): Option[DashboardDatasetVersion] = {
-    // Helper function to generate the dataset version name
-    // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
-    def generateDatasetVersionName(
-        ctx: DSLContext,
-        did: Integer,
-        userProvidedVersionName: String
-    ): String = {
-      val numberOfExistingVersions = ctx
-        .selectFrom(DATASET_VERSION)
-        .where(DATASET_VERSION.DID.eq(did))
-        .fetch()
-        .size()
-
-      val sanitizedUserProvidedVersionName =
-        StringUtils.replaceEach(userProvidedVersionName, Array("/", "\\"), Array("", ""))
-      val res = if (sanitizedUserProvidedVersionName == "") {
-        "v" + (numberOfExistingVersions + 1).toString
-      } else {
-        "v" + (numberOfExistingVersions + 1).toString + " - " + sanitizedUserProvidedVersionName
-      }
-
-      res
-    }
-
-    val dataset = getDatasetByID(ctx, did)
-    val datasetPath = PathUtils.getDatasetPath(did)
-    if (datasetOperation.filesToAdd.isEmpty && datasetOperation.filesToRemove.isEmpty) {
-      return None
-    }
-    val datasetName = dataset.getName
-    val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
-    val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
-      datasetPath,
-      versionName,
-      () => {
-        datasetOperation.filesToAdd.foreach {
-          case (filePath, fileStream) =>
-            GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
-        }
-
-        datasetOperation.filesToRemove.foreach { fileUri =>
-          DocumentFactory.openDocument(fileUri)._1.clear()
-        }
-      }
-    )
-
-    // create the DatasetVersion that persists in the DB
-    val datasetVersion = new DatasetVersion()
-
-    datasetVersion.setName(versionName)
-    datasetVersion.setDid(did)
-    datasetVersion.setCreatorUid(uid)
-    datasetVersion.setVersionHash(commitHash)
-
-    val physicalFileNodes =
-      GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(datasetPath, commitHash)
-    Some(
-      DashboardDatasetVersion(
-        // insert the dataset version into DB, and fetch the newly-inserted one.
-        ctx
-          .insertInto(DATASET_VERSION) // Assuming DATASET is the table reference
-          .set(ctx.newRecord(DATASET_VERSION, datasetVersion))
-          .returning() // Assuming ID is the primary key column
-          .fetchOne()
-          .into(classOf[DatasetVersion]),
-        DatasetFileNode.fromPhysicalFileNodes(
-          Map(
-            (ownerEmail, datasetName, versionName) -> physicalFileNodes.asScala.toList
-          )
-        )
-      )
-    )
-  }
-
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
@@ -277,7 +172,12 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode]
   )
 
-  case class DatasetIDs(dids: List[Integer])
+  case class Diff(
+      path: String,
+      pathType: String,
+      diffType: String, // "added", "removed", "changed", etc.
+      sizeBytes: Option[Long] // Size of the changed file (None for directories)
+  )
 
   case class DatasetDescriptionModification(name: String, description: String)
 
@@ -301,27 +201,20 @@ class DatasetResource {
   private def getDashboardDataset(
       ctx: DSLContext,
       did: Integer,
-      uid: Option[Integer],
-      isPublic: Boolean = false
+      requesterUid: Option[Integer]
   ): DashboardDataset = {
-    if (
-      (isPublic && !isDatasetPublic(ctx, did)) ||
-      (!isPublic && (!userHasReadAccess(ctx, did, uid.get)))
-    ) {
+    val targetDataset = getDatasetByID(ctx, did)
+    if (requesterUid.isDefined && !userHasReadAccess(ctx, did, requesterUid.get)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
 
-    val targetDataset = getDatasetByID(ctx, did)
-    val userAccessPrivilege =
-      if (isPublic) PrivilegeEnum.NONE
-      else getDatasetUserAccessPrivilege(ctx, did, uid.get)
-    val isOwner = !isPublic && (targetDataset.getOwnerUid == uid.get)
+    val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, requesterUid.get)
 
     DashboardDataset(
       targetDataset,
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
-      isOwner
+      targetDataset.getOwnerUid == requesterUid.get
     )
   }
 
@@ -394,6 +287,89 @@ class DatasetResource {
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/version/create")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def createDatasetVersion(
+      versionName: String,
+      @PathParam("did") did: Integer,
+      @Auth user: SessionUser
+  ): DashboardDatasetVersion = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val dataset = getDatasetByID(ctx, did)
+      val datasetName = dataset.getName
+
+      // Check if there are any changes in LakeFS before creating a new version
+      val diffs = LakeFSFileStorage.retrieveUncommittedObjects(repoName = datasetName)
+
+      if (diffs.isEmpty) {
+        throw new WebApplicationException(
+          "No changes detected in dataset. Version creation aborted.",
+          Response.Status.BAD_REQUEST
+        )
+      }
+
+      // Generate a new version name
+      val versionCount = ctx
+        .selectCount()
+        .from(DATASET_VERSION)
+        .where(DATASET_VERSION.DID.eq(did))
+        .fetchOne(0, classOf[Int])
+
+      val sanitizedVersionName = Option(versionName).filter(_.nonEmpty).getOrElse("")
+      val newVersionName = if (sanitizedVersionName.isEmpty) {
+        s"v${versionCount + 1}"
+      } else {
+        s"v${versionCount + 1} - $sanitizedVersionName"
+      }
+
+      // Create a commit in LakeFS
+      val commit = LakeFSFileStorage.createCommit(
+        repoName = datasetName,
+        branch = "main",
+        commitMessage = s"Created dataset version: $newVersionName"
+      )
+
+      if (commit == null || commit.getId == null) {
+        throw new WebApplicationException(
+          "Failed to create commit in LakeFS. Version creation aborted.",
+          Response.Status.INTERNAL_SERVER_ERROR
+        )
+      }
+
+      // Create a new dataset version entry in the database
+      val datasetVersion = new DatasetVersion()
+      datasetVersion.setDid(did)
+      datasetVersion.setCreatorUid(uid)
+      datasetVersion.setName(newVersionName)
+      datasetVersion.setVersionHash(commit.getId) // Store LakeFS version hash
+
+      val insertedVersion = ctx
+        .insertInto(DATASET_VERSION)
+        .set(ctx.newRecord(DATASET_VERSION, datasetVersion))
+        .returning()
+        .fetchOne()
+        .into(classOf[DatasetVersion])
+
+      // Retrieve committed file structure
+      val fileNodes = LakeFSFileStorage.retrieveObjectsOfVersion(datasetName, commit.getId)
+
+      DashboardDatasetVersion(
+        insertedVersion,
+        DatasetFileNode
+          .fromLakeFSRepositoryCommittedObjects(
+            Map((user.getEmail, datasetName, newVersionName) -> fileNodes)
+          )
+      )
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteDataset(datasetName: String, @Auth user: SessionUser): Response = {
     val uid = user.getUid
@@ -408,11 +384,14 @@ class DatasetResource {
         LakeFSFileStorage.deleteRepo(datasetName)
       } catch {
         case e: Exception =>
-          throw new WebApplicationException(
-            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
-            e
-          )
+//          throw new WebApplicationException(
+//            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
+//            e
+//          )
       }
+
+      // delete the directory on S3
+      S3Storage.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, datasetName)
 
       // delete the dataset from the DB
       datasetDao.deleteById(dataset.head.getDid)
@@ -469,17 +448,66 @@ class DatasetResource {
     }
   }
 
-  @POST
+  @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{name}/version/create")
-  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
-  def createDatasetVersion(
-      @PathParam("name") name: String,
-      @FormDataParam("versionName") versionName: String,
+  @Path("/{did}/diff")
+  def getDatasetDiff(
+      @PathParam("did") did: Integer,
       @Auth user: SessionUser
-  ): Unit = {
+  ): List[Diff] = {
     val uid = user.getUid
-    // TODO: finish it
+    withTransaction(context) { ctx =>
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      // Retrieve staged (uncommitted) changes from LakeFS
+      val dataset = getDatasetByID(ctx, did)
+      val lakefsDiffs = LakeFSFileStorage.retrieveUncommittedObjects(dataset.getName)
+
+      // Convert LakeFS Diff objects to our custom Diff case class
+      lakefsDiffs.map(d =>
+        new Diff(
+          d.getPath,
+          d.getPathType.getValue,
+          d.getType.getValue,
+          Option(d.getSizeBytes).map(_.longValue())
+        )
+      )
+    }
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/presign")
+  def getPresignedUrl(
+      @PathParam("did") did: Integer,
+      @QueryParam("type") operationType: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val dataset = getDatasetByID(ctx, did)
+      val datasetName = dataset.getName
+      val bucketName = StorageConfig.lakefsBlockStorageBucketName
+
+      val key = s"$datasetName/${java.util.UUID.randomUUID().toString}" // Generate unique key
+
+      val presignedUrl = operationType match {
+        case "download" =>
+          S3Storage.generatePresignedDownloadUrl(bucketName, key).toString
+        case "upload" =>
+          S3Storage.generatePresignedUploadUrl(bucketName, key).toString
+        case _ =>
+          throw new BadRequestException("Invalid type parameter. Use 'download' or 'upload'.")
+      }
+
+      Response.ok(Map("presignedUrl" -> presignedUrl)).build()
+    }
   }
 
   /**
@@ -562,19 +590,18 @@ class DatasetResource {
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{name}/version/list")
+  @Path("/{did}/version/list")
   def getDatasetVersionList(
-      @PathParam("name") name: String,
+      @PathParam("did") did: Integer,
       @Auth user: SessionUser
   ): List[DatasetVersion] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      val datasetDao = new DatasetDao(ctx.configuration())
-      val datasets = datasetDao.fetchByName(name).asScala
-      if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
+      val dataset = getDatasetByID(ctx, did)
+      if (!userHasReadAccess(ctx, dataset.getDid, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
-      fetchDatasetVersions(ctx, datasets.head.getDid)
+      fetchDatasetVersions(ctx, dataset.getDid)
     })
   }
 
@@ -643,9 +670,7 @@ class DatasetResource {
       @Auth user: SessionUser
   ): DatasetVersionRootFileNodesResponse = {
     val uid = user.getUid
-    withTransaction(context)(ctx =>
-      fetchDatasetVersionRootFileNodes(ctx, did, dvid, Some(uid), isPublic = false)
-    )
+    withTransaction(context)(ctx => fetchDatasetVersionRootFileNodes(ctx, did, dvid, Some(uid)))
   }
 
   @GET
@@ -654,9 +679,7 @@ class DatasetResource {
       @PathParam("did") did: Integer,
       @PathParam("dvid") dvid: Integer
   ): DatasetVersionRootFileNodesResponse = {
-    withTransaction(context)(ctx =>
-      fetchDatasetVersionRootFileNodes(ctx, did, dvid, None, isPublic = true)
-    )
+    withTransaction(context)(ctx => fetchDatasetVersionRootFileNodes(ctx, did, dvid, None))
   }
 
   @GET
@@ -667,7 +690,7 @@ class DatasetResource {
       @Auth user: SessionUser
   ): DashboardDataset = {
     val uid = user.getUid
-    withTransaction(context)(ctx => fetchDataset(ctx, did, Some(uid), isPublic = false))
+    withTransaction(context)(ctx => getDashboardDataset(ctx, did, Some(uid)))
   }
 
   @GET
@@ -675,7 +698,7 @@ class DatasetResource {
   def getPublicDataset(
       @PathParam("did") did: Integer
   ): DashboardDataset = {
-    withTransaction(context)(ctx => fetchDataset(ctx, did, None, isPublic = true))
+    withTransaction(context)(ctx => getDashboardDataset(ctx, did, None))
   }
 
   @GET
@@ -835,23 +858,18 @@ class DatasetResource {
       ctx: DSLContext,
       did: Integer,
       dvid: Integer,
-      uid: Option[Integer],
-      isPublic: Boolean
+      uid: Option[Integer]
   ): DatasetVersionRootFileNodesResponse = {
-    val dataset = getDashboardDataset(ctx, did, uid, isPublic)
-    val targetDatasetPath = PathUtils.getDatasetPath(did)
+    val dataset = getDashboardDataset(ctx, did, uid)
     val datasetVersion = getDatasetVersionByID(ctx, dvid)
     val datasetName = dataset.dataset.getName
-    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-      targetDatasetPath,
-      datasetVersion.getVersionHash
-    )
-    val versionHash = datasetVersion.getVersionHash
-    val size = calculateDatasetVersionSize(datasetName, Some(versionHash))
 
     val ownerFileNode = DatasetFileNode
-      .fromPhysicalFileNodes(
-        Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.asScala.toList)
+      .fromLakeFSRepositoryCommittedObjects(
+        Map(
+          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSFileStorage
+            .retrieveObjectsOfVersion(datasetName, datasetVersion.getVersionHash)
+        )
       )
       .head
 
@@ -865,17 +883,7 @@ class DatasetResource {
         .head
         .children
         .get,
-      size
+      DatasetFileNode.calculateTotalSize(List(ownerFileNode))
     )
-  }
-
-  private def fetchDataset(
-      ctx: DSLContext,
-      did: Integer,
-      uid: Option[Integer],
-      isPublic: Boolean
-  ): DashboardDataset = {
-    val dashboardDataset = getDashboardDataset(ctx, did, uid, isPublic)
-    dashboardDataset
   }
 }

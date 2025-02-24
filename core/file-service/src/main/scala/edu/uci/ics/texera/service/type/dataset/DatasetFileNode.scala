@@ -209,4 +209,20 @@ object DatasetFileNode {
       currentPhysicalNode.getChildren.forEach(child => queue.add((fileNode, child)))
     }
   }
+
+  /**
+    * Traverses a given list of DatasetFileNode and returns the total size of all files.
+    *
+    * @param nodes List of root-level DatasetFileNode.
+    * @return Total size in bytes.
+    */
+  def calculateTotalSize(nodes: List[DatasetFileNode]): Long = {
+    def traverse(node: DatasetFileNode): Long = {
+      val fileSize = node.getSize.getOrElse(0L)
+      val childrenSize = node.getChildren.map(traverse).sum
+      fileSize + childrenSize
+    }
+
+    nodes.map(traverse).sum
+  }
 }
