@@ -7,8 +7,14 @@
         capabilities. Access
         <a
           href="javascript:void(0)"
-          (click)="navigateToSearch()">
+          (click)="navigateToSearch('workflow')">
           {{workflowCount}} workflows
+        </a>
+        and
+        <a
+          href="javascript:void(0)"
+          (click)="navigateToSearch('dataset')">
+          {{datasetCount}} datasets
         </a>
         provided by Texera and our community.
       </p>

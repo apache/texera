@@ -5,7 +5,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
-import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
+import {
+  DASHBOARD_HOME,
+  DASHBOARD_HUB_DATASET_RESULT,
+  DASHBOARD_HUB_WORKFLOW_RESULT,
+} from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
 
 @UntilDestroy()
@@ -18,6 +22,7 @@ export class LandingPageComponent implements OnInit {
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
   public workflowCount: number = 0;
+  public datasetCount: number = 0;
   public topLovedWorkflows: DashboardEntry[] = [];
   public topClonedWorkflows: DashboardEntry[] = [];
   public topLovedDatasets: DashboardEntry[] = [];
@@ -58,6 +63,12 @@ export class LandingPageComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;
+      });
+    this.hubService
+      .getCount("dataset")
+      .pipe(untilDestroyed(this))
+      .subscribe((count: number) => {
+        this.datasetCount = count;
       });
   }
 
@@ -112,7 +123,20 @@ export class LandingPageComponent implements OnInit {
     });
   }
 
-  navigateToSearch(): void {
-    this.router.navigate([DASHBOARD_HUB_WORKFLOW_RESULT]);
+  navigateToSearch(type: string): void {
+    let path: string;
+
+    switch (type) {
+      case "workflow":
+        path = DASHBOARD_HUB_WORKFLOW_RESULT;
+        break;
+      case "dataset":
+        path = DASHBOARD_HUB_DATASET_RESULT;
+        break;
+      default:
+        path = DASHBOARD_HOME;
+    }
+
+    this.router.navigate([path]);
   }
 }
