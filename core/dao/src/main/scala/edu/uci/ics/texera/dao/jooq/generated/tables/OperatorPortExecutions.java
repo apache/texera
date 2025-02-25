@@ -59,6 +59,11 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     public final TableField<OperatorPortExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
 
     /**
+     * The column <code>texera_db.operator_port_executions.layer_name</code>.
+     */
+    public final TableField<OperatorPortExecutionsRecord, String> LAYER_NAME = createField(DSL.name("layer_name"), SQLDataType.VARCHAR(100).nullable(false).defaultValue(DSL.field("'main'::character varying", SQLDataType.VARCHAR)), this, "");
+
+    /**
      * The column <code>texera_db.operator_port_executions.port_id</code>.
      */
     public final TableField<OperatorPortExecutionsRecord, Integer> PORT_ID = createField(DSL.name("port_id"), SQLDataType.INTEGER.nullable(false), this, "");
@@ -67,11 +72,6 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
      * The column <code>texera_db.operator_port_executions.result_uri</code>.
      */
     public final TableField<OperatorPortExecutionsRecord, String> RESULT_URI = createField(DSL.name("result_uri"), SQLDataType.CLOB, this, "");
-
-    /**
-     * The column <code>texera_db.operator_port_executions.layer_id</code>.
-     */
-    public final TableField<OperatorPortExecutionsRecord, String> LAYER_ID = createField(DSL.name("layer_id"), SQLDataType.VARCHAR(100).nullable(false).defaultValue(DSL.field("'main'::character varying", SQLDataType.VARCHAR)), this, "");
 
     private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -115,12 +115,12 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
 
     @Override
     public UniqueKey<OperatorPortExecutionsRecord> getPrimaryKey() {
-        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY;
+        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY1;
     }
 
     @Override
     public List<ForeignKey<OperatorPortExecutionsRecord, ?>> getReferences() {
-        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY1);
     }
 
     private transient WorkflowExecutions _workflowExecutions;
@@ -131,7 +131,7 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
      */
     public WorkflowExecutions workflowExecutions() {
         if (_workflowExecutions == null)
-            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
+            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY1);
 
         return _workflowExecutions;
     }
@@ -167,7 +167,7 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<Integer, String, Integer, String, String> fieldsRow() {
+    public Row5<Integer, String, String, Integer, String> fieldsRow() {
         return (Row5) super.fieldsRow();
     }
 }

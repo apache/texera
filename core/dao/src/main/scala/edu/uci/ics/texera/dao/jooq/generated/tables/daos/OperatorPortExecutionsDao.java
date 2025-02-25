@@ -36,7 +36,7 @@ public class OperatorPortExecutionsDao extends DAOImpl<OperatorPortExecutionsRec
 
     @Override
     public Record4<Integer, String, String, Integer> getId(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions object) {
-        return compositeKeyRecord(object.getWorkflowExecutionId(), object.getOperatorId(), object.getLayerId(), object.getPortId());
+        return compositeKeyRecord(object.getWorkflowExecutionId(), object.getOperatorId(), object.getLayerName(), object.getPortId());
     }
 
     /**
@@ -70,6 +70,21 @@ public class OperatorPortExecutionsDao extends DAOImpl<OperatorPortExecutionsRec
     }
 
     /**
+     * Fetch records that have <code>layer_name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchRangeOfLayerName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.LAYER_NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>layer_name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchByLayerName(String... values) {
+        return fetch(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.LAYER_NAME, values);
+    }
+
+    /**
      * Fetch records that have <code>port_id BETWEEN lowerInclusive AND
      * upperInclusive</code>
      */
@@ -97,20 +112,5 @@ public class OperatorPortExecutionsDao extends DAOImpl<OperatorPortExecutionsRec
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchByResultUri(String... values) {
         return fetch(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.RESULT_URI, values);
-    }
-
-    /**
-     * Fetch records that have <code>layer_id BETWEEN lowerInclusive AND
-     * upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchRangeOfLayerId(String lowerInclusive, String upperInclusive) {
-        return fetchRange(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.LAYER_ID, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>layer_id IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchByLayerId(String... values) {
-        return fetch(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.LAYER_ID, values);
     }
 }
