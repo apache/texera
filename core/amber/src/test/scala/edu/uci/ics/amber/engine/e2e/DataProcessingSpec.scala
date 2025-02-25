@@ -82,6 +82,8 @@ class DataProcessingSpec
                 .contains(uri)
             })
             .map(terminalOpId => {
+              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
+              Thread.sleep(1000)
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
@@ -113,7 +115,7 @@ class DataProcessingSpec
     val table: String = "test"
     val username: String = "root"
     val password: String = ""
-    val driver = new org.postgresql.Driver()
+    val driver = new com.mysql.cj.jdbc.Driver()
     DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
