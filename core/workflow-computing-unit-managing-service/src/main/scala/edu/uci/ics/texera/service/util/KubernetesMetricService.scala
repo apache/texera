@@ -2,7 +2,7 @@ package edu.uci.ics.texera.service.util
 
 import config.WorkflowComputingUnitManagingServiceConf
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
-import io.fabric8.kubernetes.api.model.Quantity
+import io.fabric8.kubernetes.api.model.{PodList, Quantity}
 import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientBuilder}
 
 import scala.jdk.CollectionConverters._
@@ -20,7 +20,7 @@ object KubernetesMetricService {
    * @param cuid  The computing unit id of the pod
    * @return The Pod metrics for a given name in a specified namespace.
    */
-  def getPodMetrics(cuid: Int): Map[String, Map[String, String]] = {
+  def getPodMetrics(cuid: Int): Map[String, String] = {
     val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
     val targetPodName = KubernetesClientService.generatePodName(cuid)
 
@@ -32,29 +32,38 @@ object KubernetesMetricService {
               case (metric, value) =>
                 println(s"Metric - $metric: ${value}")
                 // CPU is in nanocores and Memory is in Kibibyte
-                metric -> mapMetricWithUnit(metric, value)
+                metric -> value.toString
             }.toMap
-        }.getOrElse(Map.empty[String, Map[String, String]])
+        }.getOrElse(Map.empty[String, String])
     }.getOrElse {
       println(s"No metrics found for pod: $targetPodName in namespace: $namespace")
-      Map.empty[String, Map[String, String]]
+      Map.empty[String, String]
     }
   }
 
   /**
-   * Maps metric value with its associated unit, converting the unit to a more readable format.
+   * Retrieves the pod limits for a given ID in the specified namespace.
    *
-   * @param metric The name of the metric (e.g., "cpu", "memory").
-   * @param quantity The value of the metric, represented as a Quantity object.
-   * @return A map containing the metric value in a readable format and the corresponding unit.
+   * @param cuid  The computing unit id of the pod
+   * @return The Pod limits for a given name in a specified namespace.
    */
-  private def mapMetricWithUnit(metric: String, quantity: Quantity): Map[String, String] = {
-    val (value, unit) = metric match {
-      case "cpu"    => (CpuUnit.convert(quantity.getAmount.toDouble, CpuUnit.Nanocores, CpuUnit.Cores), "Cores")
-      case "memory" => (MemoryUnit.convert(quantity.getAmount.toDouble, MemoryUnit.Kibibyte, MemoryUnit.Mebibyte), "MiB")
-      case _        => (quantity.getAmount, "unknown")
-    }
+  def getPodLimits(cuid: Int): Map[String, String] = {
+    val podList: PodList = client.pods().inNamespace(namespace).list()
+    val targetPodName = KubernetesClientService.generatePodName(cuid)
 
-    Map("value" -> value.toString, "unit" -> unit)
+    val pod = podList.getItems.asScala.find(
+      pod => { pod.getMetadata.getName.equals(targetPodName) }
+    )
+
+    val limits: Map[String, String] = pod.flatMap {
+      pod => pod.getSpec.getContainers.asScala.headOption.map {
+        container => container.getResources.getLimits.asScala.map {
+          case (key, value) =>
+            key -> value.toString
+        }.toMap
+      }
+    }.getOrElse(Map.empty[String, String])
+    println(limits.toString())
+    limits
   }
 }
