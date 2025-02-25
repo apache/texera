@@ -1,16 +1,8 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.{
-  DocumentFactory,
-  FileResolver,
-  LakeFSFileStorage,
-  S3Storage,
-  StorageConfig
-}
-import edu.uci.ics.amber.core.storage.util.dataset.{
-  GitVersionControlLocalFileStorage,
-  PhysicalFileNode
-}
+import edu.uci.ics.amber.core.storage.model.S3Compatible
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, LakeFSFileStorage, S3Storage, StorageConfig}
+import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
@@ -19,39 +11,12 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  isDatasetPublic,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.service.resource.DatasetResource.{
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetVersionRootFileNodesResponse,
-  Diff,
-  calculateDatasetVersionSize,
-  context,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getLatestDatasetVersion
-}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.service.resource.DatasetResource.{DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetVersionRootFileNodesResponse, Diff, calculateDatasetVersionSize, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -288,7 +253,7 @@ class DatasetResource {
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/create")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
   def createDatasetVersion(
       versionName: String,
       @PathParam("did") did: Integer,
@@ -384,10 +349,10 @@ class DatasetResource {
         LakeFSFileStorage.deleteRepo(datasetName)
       } catch {
         case e: Exception =>
-//          throw new WebApplicationException(
-//            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
-//            e
-//          )
+          throw new WebApplicationException(
+            s"Failed to delete a repository in LakeFS: ${e.getMessage}",
+            e
+          )
       }
 
       // delete the directory on S3
@@ -424,6 +389,49 @@ class DatasetResource {
       Response.ok().build()
     }
   }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("presign")
+  def getPresignedUrl(
+                       @QueryParam("type") operationType: String,
+                       @QueryParam("key") encodedUrl: String,
+                       @QueryParam("multipart") multipart: Optional[Boolean],
+                       @QueryParam("contentType") contentType: Optional[String],
+                       @Auth user: SessionUser
+                     ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      // TODO: bring the access control back
+      val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+      val fileUri = FileResolver.resolve(decodedPathStr)
+      val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[S3Compatible]
+
+      val objectKey = s"${document.getVersionHash()}/${document.getObjectRelativePath()}"
+
+      val presignedUrl = operationType match {
+        case "download" =>
+//          LakeFSFileStorage.retrieveFilePresignedUrl(document.getRepoName(), document.getVersionHash(), document.getObjectRelativePath())
+          S3Storage.generatePresignedDownloadUrl(document.getBucketName(), objectKey).toString
+
+        case "upload" =>
+          if (multipart.toScala.contains(true)) {
+            // Generate presigned URLs for multipart upload (initiate the multipart upload)
+            val uploadId = S3Storage.initiateMultipartUpload(document.getBucketName(), document.getObjectRelativePath(), contentType.toScala)
+            Response.ok(Map("uploadId" -> uploadId, "key" -> document.getObjectRelativePath())).build()
+          } else {
+            // Generate presigned URL for a single-part upload
+            S3Storage.generatePresignedUploadUrl(document.getBucketName(), document.getObjectRelativePath(), multipart = false, contentType.toScala).toString
+          }
+
+        case _ =>
+          throw new BadRequestException("Invalid type parameter. Use 'download' or 'upload'.")
+      }
+
+      Response.ok(Map("presignedUrl" -> presignedUrl)).build()
+    }
+  }
+
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -474,39 +482,6 @@ class DatasetResource {
           Option(d.getSizeBytes).map(_.longValue())
         )
       )
-    }
-  }
-
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{did}/presign")
-  def getPresignedUrl(
-      @PathParam("did") did: Integer,
-      @QueryParam("type") operationType: String,
-      @Auth user: SessionUser
-  ): Response = {
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val dataset = getDatasetByID(ctx, did)
-      val datasetName = dataset.getName
-      val bucketName = StorageConfig.lakefsBlockStorageBucketName
-
-      val key = s"$datasetName/${java.util.UUID.randomUUID().toString}" // Generate unique key
-
-      val presignedUrl = operationType match {
-        case "download" =>
-          S3Storage.generatePresignedDownloadUrl(bucketName, key).toString
-        case "upload" =>
-          S3Storage.generatePresignedUploadUrl(bucketName, key).toString
-        case _ =>
-          throw new BadRequestException("Invalid type parameter. Use 'download' or 'upload'.")
-      }
-
-      Response.ok(Map("presignedUrl" -> presignedUrl)).build()
     }
   }
 

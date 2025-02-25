@@ -25,5 +25,13 @@
     "ws": true,
     "secure": false,
     "changeOrigin": false
+  },
+  "/lakefs": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/lakefs": ""
+    }
   }
 }

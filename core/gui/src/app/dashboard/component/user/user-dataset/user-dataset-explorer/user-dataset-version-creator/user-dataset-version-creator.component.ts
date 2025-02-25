@@ -20,7 +20,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   isCreatingVersion: boolean = false;
 
   @Input()
-  baseVersion: DatasetVersion | undefined;
+  did: number | undefined;
 
   // this emits the ID of the newly created version/dataset, will emit 0 if creation is failed.
   @Output()
@@ -128,18 +128,18 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       return; // Stop further execution if the form is not valid
     }
 
-    if (this.newUploadFiles.length == 0 && this.removedFilePaths.length == 0) {
-      this.notificationService.error(
-        `Please either upload new file(s) or remove old file(s) when creating a new ${this.isCreatingVersion ? "Version" : "Dataset"}`
-      );
-      return;
-    }
+    // if (this.newUploadFiles.length == 0 && this.removedFilePaths.length == 0) {
+    //   this.notificationService.error(
+    //     `Please either upload new file(s) or remove old file(s) when creating a new ${this.isCreatingVersion ? "Version" : "Dataset"}`
+    //   );
+    //   return;
+    // }
 
     this.isUploading = true;
-    if (this.isCreatingVersion && this.baseVersion) {
+    if (this.isCreatingVersion && this.did) {
       const versionName = this.form.get("versionDescription")?.value;
       this.datasetService
-        .createDatasetVersion(this.baseVersion?.did, versionName, this.removedFilePaths, this.newUploadFiles)
+        .createDatasetVersion(this.did, versionName)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
@@ -169,7 +169,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       // do the name sanitization
 
       this.datasetService
-        .createDataset(ds, initialVersionName, this.newUploadFiles)
+        .createDataset(ds)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {

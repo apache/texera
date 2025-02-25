@@ -38,6 +38,8 @@ storage:
       bucket-name: "texera-dataset"
 
   s3:
+    presigned-url-upload-expiration-minutes: 15
+    presigned-url-download-expiration-minutes: 15
     endpoint: "http://localhost:9500"
     auth:
       username: "texera_minio"

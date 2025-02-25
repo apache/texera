@@ -113,50 +113,80 @@ object S3Storage {
   }
 
   /**
-    * Generates a pre-signed URL for uploading a file.
-    *
-    * @param bucketName Target MinIO bucket.
-    * @param key        Object key (path in MinIO).
-    * @param expiration Expiration duration (default: 15 minutes).
-    * @return URL string that can be used for upload.
-    */
+   * Generates a pre-signed URL for uploading a file.
+   * Supports both single and multipart uploads.
+   *
+   * @param bucketName  Target S3 bucket.
+   * @param key         Object key (file path).
+   * @param expiration  Expiration duration.
+   * @param multipart   Whether the upload is multipart.
+   * @param contentType Optional content type.
+   * @return Either a pre-signed URL for single-part uploads or an upload ID for multipart uploads.
+   */
   def generatePresignedUploadUrl(
-      bucketName: String,
-      key: String,
-      expiration: Duration = Duration.ofMinutes(15)
-  ): URL = {
-    val request = PutObjectPresignRequest
-      .builder()
-      .signatureDuration(expiration)
-      .putObjectRequest(
-        PutObjectRequest
-          .builder()
-          .bucket(bucketName)
-          .key(key)
-          .build()
-      )
-      .build()
+                                  bucketName: String,
+                                  key: String,
+                                  multipart: Boolean,
+                                  contentType: Option[String] = None
+                                ): Either[URL, String] = {
+    if (multipart) {
+      // Initialize multipart upload
+      val uploadId = initiateMultipartUpload(bucketName, key, contentType)
+      Right(uploadId)
+    } else {
+      // Generate pre-signed URL for single-part upload
+      val requestBuilder = PutObjectRequest
+        .builder()
+        .bucket(bucketName)
+        .key(key)
 
-    val presignedRequest: PresignedPutObjectRequest = s3Presigner.presignPutObject(request)
-    presignedRequest.url()
+      contentType.foreach(requestBuilder.contentType)
+
+      val request = PutObjectPresignRequest
+        .builder()
+        .signatureDuration(Duration.ofMinutes(StorageConfig.s3PresignedUrlUploadExpirationMinutes))
+        .putObjectRequest(requestBuilder.build())
+        .build()
+
+      val presignedRequest: PresignedPutObjectRequest = s3Presigner.presignPutObject(request)
+      Left(presignedRequest.url())
+    }
   }
 
   /**
-    * Generates a pre-signed URL for downloading a file.
-    *
-    * @param bucketName Target MinIO bucket.
-    * @param key        Object key (path in MinIO).
-    * @param expiration Expiration duration (default: 15 minutes).
-    * @return URL string that can be used for download.
-    */
+   * Initiates a multipart upload and returns the upload ID.
+   *
+   * @param bucket      S3 bucket name.
+   * @param key         Object key (file path).
+   * @param contentType Optional content type.
+   * @return Upload ID for multipart upload.
+   */
+  def initiateMultipartUpload(bucket: String, key: String, contentType: Option[String] = None): String = {
+    val requestBuilder = CreateMultipartUploadRequest.builder()
+      .bucket(bucket)
+      .key(key)
+
+    contentType.foreach(requestBuilder.contentType)
+
+    val response = s3Client.createMultipartUpload(requestBuilder.build())
+    response.uploadId()
+  }
+
+  /**
+   * Generates a pre-signed URL for downloading a file.
+   *
+   * @param bucketName Target S3 bucket.
+   * @param key        Object key (file path).
+   * @param expiration Expiration duration.
+   * @return URL string for download.
+   */
   def generatePresignedDownloadUrl(
-      bucketName: String,
-      key: String,
-      expiration: Duration = Duration.ofMinutes(15)
-  ): URL = {
+                                    bucketName: String,
+                                    key: String,
+                                  ): URL = {
     val request = GetObjectPresignRequest
       .builder()
-      .signatureDuration(expiration)
+      .signatureDuration(Duration.ofMinutes(StorageConfig.s3PresignedUrlDownloadExpirationMinutes))
       .getObjectRequest(
         GetObjectRequest
           .builder()

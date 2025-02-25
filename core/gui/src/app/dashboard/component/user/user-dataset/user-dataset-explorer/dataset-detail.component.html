@@ -129,8 +129,12 @@
     </nz-card>
     <nz-tabset>
       <nz-tab nzTitle="Created Versions">
+        <nz-empty
+          *ngIf="!selectedVersion"
+          nzNotFoundContent="No version is selected"></nz-empty>
+
         <texera-user-dataset-file-renderer
-          *ngIf="isDisplayingDataset()"
+          *ngIf="isDisplayingDataset() && selectedVersion"
           [isMaximized]="isMaximized"
           [did]="did"
           [dvid]="selectedVersion?.dvid"
@@ -139,10 +143,7 @@
         </texera-user-dataset-file-renderer>
       </nz-tab>
       <nz-tab nzTitle="Pending Changes">
-        <texera-dataset-staged-objects-list
-          [did]="did"
-        >
-        </texera-dataset-staged-objects-list>
+        <texera-dataset-staged-objects-list [did]="did"> </texera-dataset-staged-objects-list>
       </nz-tab>
     </nz-tabset>
   </nz-content>
@@ -171,7 +172,7 @@
       </div>
       <div class="dataset-version-creator">
         <texera-user-dataset-version-creator
-          [baseVersion]="versionCreatorBaseVersion"
+          [did]="did"
           [isCreatingVersion]="isCreatingVersion"
           (datasetOrVersionCreationID)="onCreationFinished($event)">
         </texera-user-dataset-version-creator>

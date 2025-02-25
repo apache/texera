@@ -218,6 +218,16 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("endpoint")
     .asInstanceOf[String]
 
+  val s3PresignedUrlUploadExpirationMinutes: Int = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
+    .asInstanceOf[Map[String, Any]]("presigned-url-upload-expiration-minutes")
+    .asInstanceOf[Int]
+
+  val s3PresignedUrlDownloadExpirationMinutes: Int = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
+    .asInstanceOf[Map[String, Any]]("presigned-url-download-expiration-minutes")
+    .asInstanceOf[Int]
+
   val s3Username: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("s3")
     .asInstanceOf[Map[String, Any]]("auth")

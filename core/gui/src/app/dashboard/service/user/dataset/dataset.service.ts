@@ -1,13 +1,13 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
-import { map } from "rxjs/operators";
+import { map, switchMap } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { Observable } from "rxjs";
+import { from, Observable } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
-import {DatasetStagedObject} from "../../../../common/type/dataset-staged-object";
+import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -33,20 +33,11 @@ export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
 export class DatasetService {
   constructor(private http: HttpClient) {}
 
-  public createDataset(
-    dataset: Dataset,
-    initialVersionName: string,
-    filesToBeUploaded: FileUploadItem[]
-  ): Observable<DashboardDataset> {
+  public createDataset(dataset: Dataset): Observable<DashboardDataset> {
     const formData = new FormData();
     formData.append("datasetName", dataset.name);
     formData.append("datasetDescription", dataset.description);
-    formData.append("isDatasetPublic", dataset.isPublic.toString());
-    formData.append("initialVersionName", initialVersionName);
-
-    filesToBeUploaded.forEach(file => {
-      formData.append(`file:upload:${file.name}`, file.file);
-    });
+    formData.append("isDatasetPublic", dataset.isPublic ? "true" : "false");
 
     return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
   }
@@ -58,11 +49,25 @@ export class DatasetService {
     return this.http.get<DashboardDataset>(apiUrl);
   }
 
-  public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
-    const encodedPath = encodeURIComponent(path);
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`, {
-      responseType: "blob",
-    });
+  /**
+   * Retrieves a single file from a dataset version using a pre-signed URL.
+   * @param filePath Relative file path within the dataset.
+   * @returns Observable<Blob>
+   */
+  public retrieveDatasetVersionSingleFile(filePath: string): Observable<Blob> {
+    return this.http
+      .get<{
+        presignedUrl: string;
+      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?type=download&key=${encodeURIComponent(filePath)}`)
+      .pipe(
+        switchMap(({ presignedUrl }) => {
+          const url = new URL(presignedUrl);
+
+          let repoName = url.hostname.split(".")[0];
+          let newUrl = `lakefs/${repoName}${url.pathname}${url.search}`;
+          return this.http.get(newUrl, { responseType: "blob" });
+        })
+      );
   }
 
   /**
@@ -88,29 +93,14 @@ export class DatasetService {
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
     return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
-  public createDatasetVersion(
-    did: number,
-    newVersion: string,
-    removedFilePaths: string[],
-    filesToBeUploaded: FileUploadItem[]
-  ): Observable<DatasetVersion> {
-    const formData = new FormData();
-    formData.append("versionName", newVersion);
-
-    if (removedFilePaths.length > 0) {
-      const removedFilesString = JSON.stringify(removedFilePaths);
-      formData.append("file:remove", removedFilesString);
-    }
-
-    filesToBeUploaded.forEach(file => {
-      formData.append(`file:upload:${file.name}`, file.file);
-    });
-
+  public createDatasetVersion(did: number, newVersion: string): Observable<DatasetVersion> {
     return this.http
       .post<{
         datasetVersion: DatasetVersion;
         fileNodes: DatasetFileNode[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, newVersion, {
+        headers: { "Content-Type": "text/plain" },
+      })
       .pipe(
         map(response => {
           response.datasetVersion.fileNodes = response.fileNodes;
@@ -124,9 +114,7 @@ export class DatasetService {
    * @param did Dataset ID
    */
   public getDatasetDiff(did: number): Observable<DatasetStagedObject[]> {
-    return this.http.get<DatasetStagedObject[]>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`
-    );
+    return this.http.get<DatasetStagedObject[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`);
   }
 
   /**

@@ -142,6 +142,17 @@ object LakeFSFileStorage {
   }
 
   /**
+   * Retrieves file content from a specific commit and path.
+   *
+   * @param repoName     Repository name.
+   * @param commitHash   Commit hash of the version.
+   * @param filePath     Path to the file in the repository.
+   */
+  def retrieveFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
+    objectsApi.getObject(repoName, commitHash, filePath).presign(true).execute().getPath
+  }
+
+  /**
     * Deletes an entire repository.
     *
     * @param repoName Name of the repository to delete.

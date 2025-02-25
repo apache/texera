@@ -143,15 +143,9 @@ export class DatasetDetailComponent implements OnInit {
 
   renderVersionCreatorSider() {
     if (this.did) {
-      this.datasetService
-        .retrieveDatasetLatestVersion(this.did)
-        .pipe(untilDestroyed(this))
-        .subscribe(latestVersion => {
-          this.versionCreatorBaseVersion = latestVersion;
-          this.isCreatingDataset = false;
-          this.isCreatingVersion = true;
-          this.siderWidth = this.MAX_SIDER_WIDTH;
-        });
+      this.isCreatingDataset = false;
+      this.isCreatingVersion = true;
+      this.siderWidth = this.MAX_SIDER_WIDTH;
     }
   }
 
@@ -229,8 +223,10 @@ export class DatasetDetailComponent implements OnInit {
           this.versions = versionNames;
           // by default, the selected version is the 1st element in the retrieved list
           // which is guaranteed(by the backend) to be the latest created version.
-          this.selectedVersion = this.versions[0];
-          this.onVersionSelected(this.selectedVersion);
+          if (this.versions.length > 0) {
+            this.selectedVersion = this.versions[0];
+            this.onVersionSelected(this.selectedVersion);
+          }
         });
     }
   }
