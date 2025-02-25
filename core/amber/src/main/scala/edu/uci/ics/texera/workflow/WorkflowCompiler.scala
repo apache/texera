@@ -84,7 +84,8 @@ class WorkflowCompiler(
                     WorkflowExecutionsResource.getResultUriByExecutionAndPort(
                       context.workflowId,
                       context.executionId,
-                      physicalOp.id,
+                      physicalOp.id.logicalOpId,
+                      Some(physicalOp.id.layerName),
                       outputPortId
                     )
                   if (
@@ -100,6 +101,7 @@ class WorkflowCompiler(
                         context.workflowId,
                         context.executionId,
                         physicalOp.id,
+                        Some(physicalOp.id.layerName),
                         outputPortId
                       )
                     )
@@ -117,6 +119,7 @@ class WorkflowCompiler(
                     WorkflowExecutionsResource.insertOperatorPortResultUri(
                       context.executionId,
                       physicalOp.id.logicalOpId,
+                      physicalOp.id.layerName,
                       outputPortId,
                       storageUri.get
                     )

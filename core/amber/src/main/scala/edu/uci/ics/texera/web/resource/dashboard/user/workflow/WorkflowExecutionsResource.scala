@@ -1,25 +1,16 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSResourceType, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{OPERATOR_EXECUTIONS, OPERATOR_PORT_EXECUTIONS, USER, WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -91,13 +82,14 @@ object WorkflowExecutionsResource {
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
+      layerName: String,
       portId: PortIdentity,
       uri: URI
   ): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, opId.id, portId.id, uri.toString)
+        .values(eid.id, opId.id, layerName, portId.id, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -160,31 +152,72 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+    * @param layerName optional, if not specified, the method will return only the first layer (physicalop) stored with
+    *                external ports
+    * @return
+    */
   def getResultUriByExecutionAndPort(
-                                      wid: WorkflowIdentity,
-                                      eid: ExecutionIdentity,
-                                      opId: PhysicalOpIdentity,
-                                      portId: PortIdentity
+      wid: WorkflowIdentity,
+      eid: ExecutionIdentity,
+      opId: OperatorIdentity,
+      layerName: Option[String] = None,
+      portId: PortIdentity
   ): Option[URI] = {
     if (AmberConfig.isUserSystemEnabled) {
-      Option(
-        context
-          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-          .from(OPERATOR_PORT_EXECUTIONS)
-          .where(
-            OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-              .eq(eid.id.toInt)
-              .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.toProtoString)))
-              .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
+      layerName match {
+        case Some(layerName) =>
+          Option(
+            context
+              .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+              .from(OPERATOR_PORT_EXECUTIONS)
+              .where(
+                OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
+                  .eq(eid.id.toInt)
+                  .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+                  .and(OPERATOR_PORT_EXECUTIONS.LAYER_NAME.eq(layerName))
+                  .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
+              )
+              .fetchOneInto(classOf[String])
+          ).map(URI.create)
+        case None =>
+          // Assuming each logical operator will contain one physical operator that contains external ports.
+          // Example: Hash Join (layerName: Probe), Aggregate (layerName: globalAgg)
+          // If only logical op id is provided, use only the URIs created for external ports.
+          // TODO: Add support for multiple output ports in one logical operator
+          val urisOption = Option(
+            context
+              .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+              .from(OPERATOR_PORT_EXECUTIONS)
+              .where(
+                OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
+                  .eq(eid.id.toInt)
+                  .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+                  .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
+              )
+              .fetchInto(classOf[String])
           )
-          .fetchOneInto(classOf[String])
-      ).map(URI.create)
+          urisOption match {
+            case Some(uris) =>
+              uris.asScala
+                .find(uri => {
+                  val (_, _, _, _, portIdentity, resourceType) = decodeURI(URI.create(uri))
+                  portIdentity match {
+                    case Some(portId) => !portId.internal && resourceType == VFSResourceType.RESULT
+                    case None         => false
+                  }
+                })
+                .map(URI.create)
+            case None => None
+          }
+      }
     } else {
       Option(
         VFSURIFactory.createResultURI(
           wid,
           eid,
           opId,
+          layerName,
           portId
         )
       )

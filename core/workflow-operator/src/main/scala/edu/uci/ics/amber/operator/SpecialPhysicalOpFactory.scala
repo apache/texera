@@ -25,10 +25,11 @@ object SpecialPhysicalOpFactory {
       uri: URI,
       outputMode: OutputMode
   ): PhysicalOp = {
-    val (workflowIdentity, executionIdentity, opId, portId, _) = VFSURIFactory.decodeURI(uri)
+    val (workflowIdentity, executionIdentity, opId, layerName, portId, _) =
+      VFSURIFactory.decodeURI(uri)
     PhysicalOp
       .localPhysicalOp(
-        PhysicalOpIdentity(opId.get.logicalOpId, s"${opId.get.layerName}_sink${portId.get.id}"),
+        PhysicalOpIdentity(opId.get, s"${layerName.get}_sink_${portId.get.id}"),
         workflowIdentity,
         executionIdentity,
         OpExecSink(uri.toString, workflowIdentity, outputMode)
@@ -72,11 +73,15 @@ object SpecialPhysicalOpFactory {
       downstreamPort: PortIdentity
   ): PhysicalOp = {
 
-    val (_, _, opId, portId, _) = VFSURIFactory.decodeURI(uri)
+    val (_, _, opId, layerName, portId, _) = VFSURIFactory.decodeURI(uri)
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(
-        PhysicalOpIdentity(opId.get.logicalOpId, s"${opId.get.layerName}_source${portId.get.id}_${downstreamOperator}_${downstreamPort.id}"),
+        PhysicalOpIdentity(
+          opId.get,
+          s"${layerName.get}_source_${portId.get.id}_${downstreamOperator.logicalOpId.id
+            .replace('-', '_')}_${downstreamPort.id}"
+        ),
         workflowIdentity,
         executionIdentity,
         OpExecSource(uri.toString, workflowIdentity)

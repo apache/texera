@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.net.URI
@@ -25,7 +29,8 @@ object VFSURIFactory {
   def decodeURI(uri: URI): (
       WorkflowIdentity,
       ExecutionIdentity,
-      Option[PhysicalOpIdentity],
+      Option[OperatorIdentity],
+      Option[String],
       Option[PortIdentity],
       VFSResourceType.Value
   ) = {
@@ -48,7 +53,12 @@ object VFSURIFactory {
 
     val operatorId = segments.indexOf("opid") match {
       case -1  => None
-      case idx => Some(PhysicalOpIdentity.fromAscii(extractValue("opid")))
+      case idx => Some(OperatorIdentity(extractValue("opid")))
+    }
+
+    val layerName = segments.indexOf("layername") match {
+      case -1  => None
+      case idx => Some(extractValue("layername"))
     }
 
     val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
@@ -71,7 +81,7 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    (workflowId, executionId, operatorId, portIdentity, resourceType)
+    (workflowId, executionId, operatorId, layerName, portIdentity, resourceType)
   }
 
   /**
@@ -80,7 +90,8 @@ object VFSURIFactory {
   def createResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: PhysicalOpIdentity,
+      operatorId: OperatorIdentity,
+      layerName: Option[String],
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -88,6 +99,7 @@ object VFSURIFactory {
       workflowId,
       executionId,
       Some(operatorId),
+      layerName,
       Some(portIdentity)
     )
   }
@@ -98,7 +110,8 @@ object VFSURIFactory {
   def createMaterializedResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: PhysicalOpIdentity,
+      operatorId: OperatorIdentity,
+      layerName: String,
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -106,6 +119,7 @@ object VFSURIFactory {
       workflowId,
       executionId,
       Some(operatorId),
+      Some(layerName),
       Some(portIdentity)
     )
   }
@@ -136,7 +150,7 @@ object VFSURIFactory {
       VFSResourceType.CONSOLE_MESSAGES,
       workflowId,
       executionId,
-      Some(PhysicalOpIdentity(logicalOpId = operatorId, layerName = "main"))
+      Some(operatorId)
     )
   }
 
@@ -155,7 +169,8 @@ object VFSURIFactory {
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[PhysicalOpIdentity] = None,
+      operatorId: Option[OperatorIdentity] = None,
+      layerName: Option[String] = None,
       portIdentity: Option[PortIdentity] = None
   ): URI = {
 
@@ -185,16 +200,22 @@ object VFSURIFactory {
 
     val baseUri = operatorId match {
       case Some(opId) =>
-        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.toProtoString}"
+        s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
       case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
+    }
+
+    val uriWithLayer = layerName match {
+      case Some(layer) =>
+        s"$baseUri/layername/$layer"
+      case None => baseUri
     }
 
     val uriWithPort = portIdentity match {
       case Some(port) =>
         val portType = if (port.internal) "I" else "E"
-        s"$baseUri/pid/${port.id}_$portType"
+        s"$uriWithLayer/pid/${port.id}_$portType"
       case None =>
-        baseUri
+        uriWithLayer
     }
 
     new URI(s"$uriWithPort/${resourceType.toString.toLowerCase}")

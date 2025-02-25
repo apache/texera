@@ -12,14 +12,27 @@ import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
@@ -83,7 +96,8 @@ object ExecutionResultService {
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       executionId,
-      physicalOps.head.id,
+      physicalOps.head.id.logicalOpId,
+      None,
       PortIdentity()
     )
     val storage: VirtualDocument[Tuple] =
@@ -254,7 +268,8 @@ class ExecutionResultService(
                   .getResultUriByExecutionAndPort(
                     workflowIdentity,
                     executionId,
-                    PhysicalOpIdentity(logicalOpId = opId, layerName = "main"),
+                    opId,
+                    None,
                     PortIdentity()
                   )
                 val opStorage = DocumentFactory.openDocument(storageUri.get)._1
@@ -287,7 +302,8 @@ class ExecutionResultService(
     val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       latestExecutionId,
-      PhysicalOpIdentity(logicalOpId = OperatorIdentity(request.operatorID), layerName = "main"),
+      OperatorIdentity(request.operatorID),
+      None,
       PortIdentity()
     )
 
@@ -321,17 +337,17 @@ class ExecutionResultService(
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
           .filter(uri => {
-            val (_, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
+            val (_, _, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
             resourceType != MATERIALIZED_RESULT
           })
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, storagePortId, _) = VFSURIFactory.decodeURI(uri)
+            val (_, _, opId, _, storagePortId, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(opId.get.logicalOpId)
+              .getPhysicalOpsOfLogicalOp(opId.get)
               .flatMap(_.outputPorts.get(storagePortId.get))
               .map(_._1.mode)
               .head
@@ -340,7 +356,7 @@ class ExecutionResultService(
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (opId.get.logicalOpId, OperatorResultMetadata(count, changeDetector))
+            (opId.get, OperatorResultMetadata(count, changeDetector))
           })
           .toMap
       }

@@ -157,7 +157,8 @@ abstract class ScheduleGenerator(
     val storageUri = VFSURIFactory.createResultURI(
       workflowContext.workflowId,
       workflowContext.executionId,
-      physicalLink.fromOpId,
+      physicalLink.fromOpId.logicalOpId,
+      s"${physicalLink.fromOpId.layerName}_materialization",
       physicalLink.fromPortId
     )
 
@@ -203,6 +204,7 @@ abstract class ScheduleGenerator(
       WorkflowExecutionsResource.insertOperatorPortResultUri(
         workflowContext.executionId,
         physicalLink.fromOpId.logicalOpId,
+        s"${physicalLink.fromOpId.layerName}_materialization",
         physicalLink.fromPortId,
         storageUri
       )
