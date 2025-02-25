@@ -411,8 +411,8 @@ class DatasetResource {
 
       val presignedUrl = operationType match {
         case "download" =>
-//          LakeFSFileStorage.retrieveFilePresignedUrl(document.getRepoName(), document.getVersionHash(), document.getObjectRelativePath())
-          S3Storage.generatePresignedDownloadUrl(document.getBucketName(), objectKey).toString
+          LakeFSFileStorage.retrieveFilePresignedUrl(document.getRepoName(), document.getVersionHash(), document.getObjectRelativePath())
+//          S3Storage.generatePresignedDownloadUrl(document.getBucketName(), objectKey).toString
 
         case "upload" =>
           if (multipart.toScala.contains(true)) {

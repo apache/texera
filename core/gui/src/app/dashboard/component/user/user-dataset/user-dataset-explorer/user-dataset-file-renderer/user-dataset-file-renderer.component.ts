@@ -24,6 +24,13 @@ export const MIME_TYPES = {
   OCTET_STREAM: "application/octet-stream", // Default binary format
 };
 
+export function getMimeType(filename: string): string {
+  const extension = filename.split(".").pop()?.toUpperCase();
+  return extension && MIME_TYPES[extension as keyof typeof MIME_TYPES]
+    ? MIME_TYPES[extension as keyof typeof MIME_TYPES]
+    : MIME_TYPES.OCTET_STREAM;
+}
+
 // the size limits for all preview-supported types
 export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.JPEG]: 5 * 1024 * 1024, // 5 MB
@@ -136,7 +143,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
         .subscribe({
           next: blob => {
             this.isLoading = false;
-            const blobMimeType = blob.type;
+            const blobMimeType = getMimeType(this.filePath);
             if (!this.isPreviewSupported(blobMimeType)) {
               this.onFileTypePreviewUnsupported();
               return;

@@ -149,7 +149,7 @@ object LakeFSFileStorage {
    * @param filePath     Path to the file in the repository.
    */
   def retrieveFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
-    objectsApi.getObject(repoName, commitHash, filePath).presign(true).execute().getPath
+    objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
   }
 
   /**

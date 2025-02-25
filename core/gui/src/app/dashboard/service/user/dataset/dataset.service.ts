@@ -61,11 +61,7 @@ export class DatasetService {
       }>(`${AppSettings.getApiEndpoint()}/dataset/presign?type=download&key=${encodeURIComponent(filePath)}`)
       .pipe(
         switchMap(({ presignedUrl }) => {
-          const url = new URL(presignedUrl);
-
-          let repoName = url.hostname.split(".")[0];
-          let newUrl = `lakefs/${repoName}${url.pathname}${url.search}`;
-          return this.http.get(newUrl, { responseType: "blob" });
+          return this.http.get(presignedUrl, { responseType: "blob" });
         })
       );
   }
