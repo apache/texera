@@ -33,3 +33,4 @@ tenacity==8.5.0
 SQLAlchemy==2.0.37
 psycopg2==2.9.10
 pympler==1.1
+accelerate==1.4.0

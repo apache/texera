@@ -17,6 +17,7 @@ class ChatOpDesc extends PythonOperatorDescriptor {
 
   override def generatePythonCode(): String = {
     s"""from pytexera import *
+       |from core.util.llm import *
        |import pandas as pd
        |from datetime import datetime
        |
@@ -26,9 +27,8 @@ class ChatOpDesc extends PythonOperatorDescriptor {
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |
        |        # Concatenate all values in 'answer' with '. ' as a separator
-       |        context = '. '.join(table['answer'])
-       |        # TODO: call local LLM to process this context and question
-       |        answer = context + '. ${question}'
+       |        context = table['answer']
+       |        answer = ask_model(context, '${question}')
        |        yield {'answer': answer}""".stripMargin
   }
 

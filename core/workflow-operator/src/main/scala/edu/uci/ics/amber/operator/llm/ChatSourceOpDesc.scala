@@ -19,6 +19,7 @@ class ChatSourceOpDesc extends SourceOperatorDescriptor {
 
   private def generatePythonCode(): String = {
     s"""from pytexera import *
+       |from core.util.llm import *
        |import pandas as pd
        |from datetime import datetime
        |
@@ -27,8 +28,7 @@ class ChatSourceOpDesc extends SourceOperatorDescriptor {
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
        |
-       |        # TODO: ask LLM to generate the answer
-       |        answer = '${question}'
+       |        answer = ask_model('', '${question}')
        |
        |        result = {'answer': answer}
        |        yield result""".stripMargin
