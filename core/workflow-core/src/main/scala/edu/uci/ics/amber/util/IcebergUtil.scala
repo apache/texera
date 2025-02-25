@@ -131,11 +131,24 @@ object IcebergUtil {
       tableSchema: IcebergSchema,
       overrideIfExists: Boolean
   ): Table = {
-    val tableProperties = Map(
+    val MetadataDeleteAfterCommitEnabled = "true"
+    val MetadataPreviousVersionsMax = "1"
+
+    val baseProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
+
+    val tableProperties =
+      if (tableNamespace == StorageConfig.icebergTableRuntimeStatisticsNamespace) {
+        baseProperties ++ Map(
+          TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> MetadataDeleteAfterCommitEnabled,
+          TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> MetadataPreviousVersionsMax
+        )
+      } else {
+        baseProperties
+      }
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
       catalog.dropTable(identifier)
