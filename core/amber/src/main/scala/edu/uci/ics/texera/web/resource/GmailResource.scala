@@ -2,8 +2,8 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail}
 import io.dropwizard.auth.Auth
-
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
@@ -12,14 +12,8 @@ import scala.util.{Failure, Success, Try}
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 
-trait EmailService {
-  def sendEmail(emailMessage: EmailMessage, recipientEmail: String): Either[String, Unit]
-}
-
-class GmailService extends EmailService {
-  private lazy val gmail: String = AmberConfig.gmail
-  private lazy val password: String = AmberConfig.smtpPassword
-
+object GmailResource {
+  private lazy val senderGmail: String = AmberConfig.gmail
   private val smtpProperties = Map(
     "mail.smtp.host" -> "smtp.gmail.com",
     "mail.smtp.port" -> "465",
@@ -37,7 +31,7 @@ class GmailService extends EmailService {
       },
       new javax.mail.Authenticator() {
         override def getPasswordAuthentication: PasswordAuthentication =
-          new PasswordAuthentication(gmail, password)
+          new PasswordAuthentication(senderGmail, AmberConfig.smtpPassword)
       }
     )
   }
@@ -48,14 +42,14 @@ class GmailService extends EmailService {
       recipientEmail: String
   ): MimeMessage = {
     val email = new MimeMessage(session)
-    email.setFrom(new InternetAddress(gmail))
+    email.setFrom(new InternetAddress(senderGmail))
     email.addRecipient(Message.RecipientType.TO, new InternetAddress(recipientEmail))
     email.setSubject(emailMessage.subject)
     email.setText(emailMessage.content)
     email
   }
 
-  override def sendEmail(
+  def sendEmail(
       emailMessage: EmailMessage,
       recipientEmail: String
   ): Either[String, Unit] = {
@@ -71,28 +65,17 @@ class GmailService extends EmailService {
 }
 
 @Path("/gmail")
-class GmailResource(emailService: EmailService) {
-  @GET
-  @RolesAllowed(Array("ADMIN"))
-  @Path("/sender/email")
-  def getSenderEmail: String = AmberConfig.gmail
-
-  /**
-    * Send an email to the user.
-    */
+class GmailResource {
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")
-  def sendEmail(emailMessage: EmailMessage, @Auth user: SessionUser): Either[String, Unit] = {
+  def sendEmailRequest(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
     val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
-    emailService.sendEmail(emailMessage, recipientEmail)
+    sendEmail(emailMessage, recipientEmail)
   }
-}
 
-object GmailResource {
-  private val emailService: EmailService = new GmailService()
-
-  def sendEmail(emailMessage: EmailMessage, recipientEmail: String): Either[String, Unit] = {
-    emailService.sendEmail(emailMessage, recipientEmail)
-  }
+  @GET
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/sender/email")
+  def getSenderEmail: String = senderGmail
 }
