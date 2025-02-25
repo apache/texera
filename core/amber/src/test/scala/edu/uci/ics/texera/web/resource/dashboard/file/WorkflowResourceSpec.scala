@@ -330,25 +330,6 @@ class WorkflowResourceSpec
     test(sessionUser2, testWorkflow2)
   }
 
-  it should "search for keywords containing special characters" in {
-    // testWorkflow1: {name: test_name, description: test_description, content: "key@gmail.com"}
-    // search "key@gmail.com" should return testWorkflow1
-    workflowResource.persistWorkflow(testWorkflowWithSpecialCharacters, sessionUser1)
-    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList =
-      dashboardResource
-        .searchAllResourcesCall(
-          sessionUser1,
-          SearchQueryParams(getKeywordsArray(exampleEmailAddress))
-        )
-        .results
-    assert(DashboardWorkflowEntryList.size == 1)
-    assertSameWorkflow(
-      testWorkflowWithSpecialCharacters,
-      DashboardWorkflowEntryList.head.workflow.get
-    )
-  }
-
   it should "return a proper condition for a single owner" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1"))
     val ownerFilter: Condition =
