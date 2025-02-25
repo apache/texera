@@ -38,30 +38,6 @@ object S3Storage {
       .build()
   }
 
-  private lazy val s3Presigner: S3Presigner = {
-    val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
-    S3Presigner
-      .builder()
-      .region(Region.US_WEST_2)
-      .credentialsProvider(StaticCredentialsProvider.create(credentials))
-      .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint))
-      .build()
-  }
-
-  /**
-    * Deletes a bucket from MinIO.
-    *
-    * @param bucketName Target MinIO bucket to delete.
-    */
-  def deleteBucket(bucketName: String): Unit = {
-    val request = DeleteBucketRequest
-      .builder()
-      .bucket(bucketName)
-      .build()
-
-    s3Client.deleteBucket(request)
-  }
-
   /**
     * Deletes a directory (all objects under a given prefix) from a bucket.
     *
@@ -110,93 +86,5 @@ object S3Storage {
       // Perform batch deletion
       s3Client.deleteObjects(deleteObjectsRequest)
     }
-  }
-
-  /**
-   * Generates a pre-signed URL for uploading a file.
-   * Supports both single and multipart uploads.
-   *
-   * @param bucketName  Target S3 bucket.
-   * @param key         Object key (file path).
-   * @param expiration  Expiration duration.
-   * @param multipart   Whether the upload is multipart.
-   * @param contentType Optional content type.
-   * @return Either a pre-signed URL for single-part uploads or an upload ID for multipart uploads.
-   */
-  def generatePresignedUploadUrl(
-                                  bucketName: String,
-                                  key: String,
-                                  multipart: Boolean,
-                                  contentType: Option[String] = None
-                                ): Either[URL, String] = {
-    if (multipart) {
-      // Initialize multipart upload
-      val uploadId = initiateMultipartUpload(bucketName, key, contentType)
-      Right(uploadId)
-    } else {
-      // Generate pre-signed URL for single-part upload
-      val requestBuilder = PutObjectRequest
-        .builder()
-        .bucket(bucketName)
-        .key(key)
-
-      contentType.foreach(requestBuilder.contentType)
-
-      val request = PutObjectPresignRequest
-        .builder()
-        .signatureDuration(Duration.ofMinutes(StorageConfig.s3PresignedUrlUploadExpirationMinutes))
-        .putObjectRequest(requestBuilder.build())
-        .build()
-
-      val presignedRequest: PresignedPutObjectRequest = s3Presigner.presignPutObject(request)
-      Left(presignedRequest.url())
-    }
-  }
-
-  /**
-   * Initiates a multipart upload and returns the upload ID.
-   *
-   * @param bucket      S3 bucket name.
-   * @param key         Object key (file path).
-   * @param contentType Optional content type.
-   * @return Upload ID for multipart upload.
-   */
-  def initiateMultipartUpload(bucket: String, key: String, contentType: Option[String] = None): String = {
-    val requestBuilder = CreateMultipartUploadRequest.builder()
-      .bucket(bucket)
-      .key(key)
-
-    contentType.foreach(requestBuilder.contentType)
-
-    val response = s3Client.createMultipartUpload(requestBuilder.build())
-    response.uploadId()
-  }
-
-  /**
-   * Generates a pre-signed URL for downloading a file.
-   *
-   * @param bucketName Target S3 bucket.
-   * @param key        Object key (file path).
-   * @param expiration Expiration duration.
-   * @return URL string for download.
-   */
-  def generatePresignedDownloadUrl(
-                                    bucketName: String,
-                                    key: String,
-                                  ): URL = {
-    val request = GetObjectPresignRequest
-      .builder()
-      .signatureDuration(Duration.ofMinutes(StorageConfig.s3PresignedUrlDownloadExpirationMinutes))
-      .getObjectRequest(
-        GetObjectRequest
-          .builder()
-          .bucket(bucketName)
-          .key(key)
-          .build()
-      )
-      .build()
-
-    val presignedRequest: PresignedGetObjectRequest = s3Presigner.presignGetObject(request)
-    presignedRequest.url()
   }
 }

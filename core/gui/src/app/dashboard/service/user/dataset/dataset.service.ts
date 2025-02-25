@@ -1,13 +1,14 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
-import { map, switchMap } from "rxjs/operators";
+import {catchError, map, switchMap, tap} from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { from, Observable } from "rxjs";
+import {forkJoin, from, Observable, throwError} from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
+import {S3Client} from "@aws-sdk/client-s3";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -27,11 +28,13 @@ export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
 
+const MULTIPART_UPLOAD_PART_SIZE_MB = 50 * 1024 * 1024; // 50MB per part
+
 @Injectable({
   providedIn: "root",
 })
 export class DatasetService {
-  constructor(private http: HttpClient) {}
+  constructor(private s3Client: S3Client, private http: HttpClient) {}
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
     const formData = new FormData();
@@ -58,7 +61,7 @@ export class DatasetService {
     return this.http
       .get<{
         presignedUrl: string;
-      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?type=download&key=${encodeURIComponent(filePath)}`)
+      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?key=${encodeURIComponent(filePath)}`)
       .pipe(
         switchMap(({ presignedUrl }) => {
           return this.http.get(presignedUrl, { responseType: "blob" });
@@ -103,6 +106,94 @@ export class DatasetService {
           return response.datasetVersion;
         })
       );
+  }
+
+  /**
+   * Handles multipart upload for large files using RxJS.
+   * @param did Dataset ID
+   * @param filePath Path of the file within the dataset
+   * @param file File object to be uploaded
+   */
+  public multipartUpload(did: number, filePath: string, file: File): Observable<Response> {
+    const partCount = Math.ceil(file.size / MULTIPART_UPLOAD_PART_SIZE_MB);
+
+    return this.initiateMultipartUpload(did, filePath, partCount).pipe(
+      switchMap(initiateResponse => {
+        const uploadId = initiateResponse.uploadId;
+        if (!uploadId) {
+          return throwError(() => new Error("Failed to initiate multipart upload"));
+        }
+
+        console.log(`Started multipart upload for ${filePath} with UploadId: ${uploadId}`);
+
+        const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
+          const start = index * MULTIPART_UPLOAD_PART_SIZE_MB;
+          const end = Math.min(start + MULTIPART_UPLOAD_PART_SIZE_MB, file.size);
+          const chunk = file.slice(start, end);
+
+          return from(fetch(url, { method: "PUT", body: chunk })).pipe(
+            switchMap(response => {
+              if (!response.ok) {
+                return throwError(() => new Error(`Failed to upload part ${index + 1}`));
+              }
+              console.log(`Uploaded part ${index + 1} of ${partCount}`);
+              return from(Promise.resolve());
+            })
+          );
+        });
+
+        return forkJoin(uploadObservables).pipe(
+          switchMap(() => this.finalizeMultipartUpload(did, filePath, uploadId, false)),
+          tap(() => console.log(`Multipart upload for ${filePath} completed successfully!`)),
+          catchError(error => {
+            console.error(`Multipart upload failed for ${filePath}`, error);
+            return this.finalizeMultipartUpload(did, filePath, uploadId, true).pipe(
+              tap(() => console.error(`Upload aborted for ${filePath}`)),
+              switchMap(() => throwError(() => error))
+            );
+          })
+        );
+      })
+    );
+  }
+
+  /**
+   * Initiates a multipart upload and retrieves presigned URLs for each part.
+   * @param did Dataset ID
+   * @param filePath File path within the dataset
+   * @param numParts Number of parts for the multipart upload
+   */
+  private initiateMultipartUpload(did: number, filePath: string, numParts: number): Observable<{ uploadId: string; presignedUrls: string[] }> {
+    const params = new HttpParams()
+      .set("type", "init")
+      .set("key", encodeURIComponent(filePath))
+      .set("numParts", numParts.toString());
+
+    return this.http.post<{ uploadId: string; presignedUrls: string[] }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/multipart-upload`,
+      {},
+      { params }
+    );
+  }
+
+  /**
+   * Completes or aborts a multipart upload.
+   * @param did Dataset ID
+   * @param filePath File path within the dataset
+   * @param uploadId Upload ID returned from the initiation step
+   * @param isAbort Whether to abort (true) or complete (false) the upload
+   */
+  private finalizeMultipartUpload(did: number, filePath: string, uploadId: string, isAbort: boolean = false): Observable<Response> {
+    const params = new HttpParams()
+      .set("type", isAbort ? "abort" : "finish")
+      .set("key", encodeURIComponent(filePath))
+      .set("uploadId", uploadId);
+
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/multipart-upload`,
+      {},
+      { params }
+    );
   }
 
   /**

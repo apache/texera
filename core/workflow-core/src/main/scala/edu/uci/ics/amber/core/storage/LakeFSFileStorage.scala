@@ -35,9 +35,11 @@ object LakeFSFileStorage {
   private lazy val branchesApi: BranchesApi = new BranchesApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
+  private lazy val experimentalApi: ExperimentalApi = new ExperimentalApi(apiClient)
 
-  private val storageNamespaceURI: String = "s3://texera-dataset"
+  private val storageNamespaceURI: String = s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
 
+  private val branchName: String = "main"
   /**
     * Initializes a new repository in LakeFS.
     *
@@ -46,7 +48,6 @@ object LakeFSFileStorage {
     */
   def initRepo(
       repoName: String,
-      defaultBranch: String = "main"
   ): Repository = {
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
 
@@ -63,7 +64,7 @@ object LakeFSFileStorage {
     val repo = new RepositoryCreation()
       .name(repoName)
       .storageNamespace(storageNamespace)
-      .defaultBranch(defaultBranch)
+      .defaultBranch(branchName)
       .sampleData(false)
 
     repoApi.createRepository(repo).execute()
@@ -148,9 +149,27 @@ object LakeFSFileStorage {
    * @param commitHash   Commit hash of the version.
    * @param filePath     Path to the file in the repository.
    */
-  def retrieveFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
+  def getFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
   }
+
+  /**
+   *
+   */
+  def initiatePresignedMultipartUploads(repoName: String, filePath: String, numberOfParts: Int): PresignMultipartUpload = {
+    experimentalApi.createPresignMultipartUpload(repoName, branchName, filePath).parts(numberOfParts).execute()
+
+  }
+
+  def completePresignedMultipartUploads(repoName: String, filePath: String, uploadId: String): ObjectStats = {
+    val completePresignMultipartUpload: CompletePresignMultipartUpload = new CompletePresignMultipartUpload()
+    experimentalApi.completePresignMultipartUpload(repoName, branchName, uploadId, filePath).execute()
+  }
+
+  def abortPresignedMultipartUploads(repoName: String, filePath: String, uploadId: String): Unit  = {
+    experimentalApi.abortPresignMultipartUpload(repoName, branchName, uploadId, filePath).execute()
+  }
+
 
   /**
     * Deletes an entire repository.
@@ -161,7 +180,7 @@ object LakeFSFileStorage {
     repoApi.deleteRepository(repoName).execute()
   }
 
-  def retrieveVersionsOfRepository(repoName: String, branchName: String = "main"): List[Commit] = {
+  def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
     refsApi
       .logCommits(repoName, branchName)
       .execute()
@@ -179,10 +198,9 @@ object LakeFSFileStorage {
     * Retrieves a list of uncommitted (staged) objects in a repository branch.
     *
     * @param repoName Repository name.
-    * @param branchName Branch name (defaults to "main").
     * @return List of uncommitted object stats.
     */
-  def retrieveUncommittedObjects(repoName: String, branchName: String = "main"): List[Diff] = {
+  def retrieveUncommittedObjects(repoName: String): List[Diff] = {
     branchesApi
       .diffBranch(repoName, branchName)
       .execute()

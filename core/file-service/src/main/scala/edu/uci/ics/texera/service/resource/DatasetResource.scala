@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.model.S3Compatible
+import edu.uci.ics.amber.core.storage.model.OnDataset
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, LakeFSFileStorage, S3Storage, StorageConfig}
 import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
 import edu.uci.ics.amber.util.PathUtils
@@ -392,43 +392,81 @@ class DatasetResource {
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("presign")
+  @Path("/presign")
   def getPresignedUrl(
-                       @QueryParam("type") operationType: String,
                        @QueryParam("key") encodedUrl: String,
-                       @QueryParam("multipart") multipart: Optional[Boolean],
-                       @QueryParam("contentType") contentType: Optional[String],
                        @Auth user: SessionUser
                      ): Response = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
-      // TODO: bring the access control back
       val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
       val fileUri = FileResolver.resolve(decodedPathStr)
-      val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[S3Compatible]
+      val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
 
-      val objectKey = s"${document.getVersionHash()}/${document.getObjectRelativePath()}"
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val datasets = datasetDao.fetchByName(document.getDatasetName()).asScala.toList
 
-      val presignedUrl = operationType match {
-        case "download" =>
-          LakeFSFileStorage.retrieveFilePresignedUrl(document.getRepoName(), document.getVersionHash(), document.getObjectRelativePath())
-//          S3Storage.generatePresignedDownloadUrl(document.getBucketName(), objectKey).toString
-
-        case "upload" =>
-          if (multipart.toScala.contains(true)) {
-            // Generate presigned URLs for multipart upload (initiate the multipart upload)
-            val uploadId = S3Storage.initiateMultipartUpload(document.getBucketName(), document.getObjectRelativePath(), contentType.toScala)
-            Response.ok(Map("uploadId" -> uploadId, "key" -> document.getObjectRelativePath())).build()
-          } else {
-            // Generate presigned URL for a single-part upload
-            S3Storage.generatePresignedUploadUrl(document.getBucketName(), document.getObjectRelativePath(), multipart = false, contentType.toScala).toString
-          }
-
-        case _ =>
-          throw new BadRequestException("Invalid type parameter. Use 'download' or 'upload'.")
+      if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      Response.ok(Map("presignedUrl" -> presignedUrl)).build()
+      Response.ok(Map("presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(document.getDatasetName(), document.getVersionHash(), document.getFileRelativePath()))).build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/multipart-upload")
+  def multipartUpload(
+                       @PathParam("did") did: Integer,
+                       @QueryParam("type") operationType: String,
+                       @QueryParam("key") encodedUrl: String,
+                       @QueryParam("uploadId") uploadId: Optional[String],
+                       @QueryParam("numParts") numParts: Optional[Integer],
+                       @Auth user: SessionUser
+                     ): Response = {
+    val uid = user.getUid
+
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+      val datasetName = getDatasetByID(ctx, did).getName
+
+      // Decode the file path
+      val filePath = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+
+      operationType.toLowerCase match {
+        case "init" =>
+          // Ensure numParts is provided for initiation
+          val numPartsValue = numParts.toScala.getOrElse(throw new BadRequestException("numParts is required for initialization"))
+
+          // Initiate multipart upload and retrieve presigned URLs
+          val presignedResponse = LakeFSFileStorage.initiatePresignedMultipartUploads(datasetName, filePath, numPartsValue)
+
+          Response.ok(Map("uploadId" -> presignedResponse.getUploadId, "presignedUrls" -> presignedResponse.getPresignedUrls)).build()
+
+        case "finish" =>
+          // Ensure uploadId is provided for completion
+          val uploadIdValue = uploadId.toScala.getOrElse(throw new BadRequestException("uploadId is required for completion"))
+
+          // Complete the multipart upload
+          val objectStats = LakeFSFileStorage.completePresignedMultipartUploads(datasetName, filePath, uploadIdValue)
+
+          Response.ok(Map("message" -> "Multipart upload completed successfully", "filePath" -> objectStats.getPath())).build()
+
+        case "abort" =>
+          // Ensure uploadId is provided for abortion
+          val uploadIdValue = uploadId.toScala.getOrElse(throw new BadRequestException("uploadId is required for abortion"))
+
+          // Abort the multipart upload
+          LakeFSFileStorage.abortPresignedMultipartUploads(datasetName, filePath, uploadIdValue)
+
+          Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
+
+        case _ =>
+          throw new BadRequestException("Invalid type parameter. Use 'init', 'finish', or 'abort'.")
+      }
     }
   }
 

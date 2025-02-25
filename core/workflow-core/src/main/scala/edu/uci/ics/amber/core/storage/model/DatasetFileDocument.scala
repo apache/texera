@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] with S3Compatible {
+private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] with OnDataset {
   // Utility function to parse and decode URI segments into individual components
   private def parseUri(uri: URI): (String, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
@@ -84,9 +84,7 @@ private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Not
 
   override def getVersionHash(): String = datasetVersionHash
 
-  override def getRepoName(): String = datasetName
+  override def getDatasetName(): String = datasetName
 
-  override def getBucketName(): String = StorageConfig.lakefsBlockStorageBucketName
-
-  override def getObjectRelativePath(): String = fileRelativePath.toString
+  override def getFileRelativePath(): String = fileRelativePath.toString
 }
