@@ -242,7 +242,16 @@ object HubResource {
 
     val records = baseWorkflowSelect()
       .where(WORKFLOW.WID.in(wids: _*))
-      .groupBy(WORKFLOW.WID)
+      .groupBy(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME
+      )
       .fetch()
 
     mapWorkflowEntries(records, uid)
@@ -255,10 +264,18 @@ object HubResource {
 
     val records = baseDatasetSelect()
       .where(DATASET.DID.in(dids: _*))
-      .groupBy(DATASET.DID)
+      .groupBy(
+        DATASET.DID,
+        DATASET.NAME,
+        DATASET.DESCRIPTION,
+        DATASET.OWNER_UID,
+        USER.NAME,
+        DATASET_USER_ACCESS.DID,
+        DATASET_USER_ACCESS.UID,
+        USER.UID
+      )
       .fetch()
 
-    println(mapDashboardDataset(records, uid))
     mapDashboardDataset(records, uid)
   }
 }
