@@ -12,7 +12,10 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -77,6 +80,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       workflowIdentity,
       getLatestExecutionId(workflowIdentity).get,
       OperatorIdentity(request.operatorId),
+      None,
       PortIdentity()
     )
     val operatorResult: VirtualDocument[Tuple] =

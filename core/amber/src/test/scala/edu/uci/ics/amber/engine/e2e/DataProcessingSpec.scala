@@ -74,6 +74,7 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               // expecting the first output port only.
@@ -86,6 +87,7 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               terminalOpId -> DocumentFactory
