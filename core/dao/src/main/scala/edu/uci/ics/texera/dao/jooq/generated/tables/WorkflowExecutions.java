@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowExecutionsRecord;
@@ -16,17 +15,17 @@ import java.util.List;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row11;
+import org.jooq.Row12;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -35,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 218864612;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -53,57 +52,87 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     /**
      * The column <code>texera_db.workflow_executions.eid</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, UInteger> EID = createField(DSL.name("eid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<WorkflowExecutionsRecord, Integer> EID = createField(DSL.name("eid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.vid</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, UInteger> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowExecutionsRecord, Integer> VID = createField(DSL.name("vid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.uid</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowExecutionsRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Byte> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("1", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+    public final TableField<WorkflowExecutionsRecord, Short> STATUS = createField(DSL.name("status"), SQLDataType.SMALLINT.nullable(false).defaultValue(DSL.field("1", SQLDataType.SMALLINT)), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.result</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, String> RESULT = createField(DSL.name("result"), org.jooq.impl.SQLDataType.CLOB, this, "");
+    public final TableField<WorkflowExecutionsRecord, String> RESULT = createField(DSL.name("result"), SQLDataType.CLOB, this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Timestamp> STARTING_TIME = createField(DSL.name("starting_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> STARTING_TIME = createField(DSL.name("starting_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Timestamp> LAST_UPDATE_TIME = createField(DSL.name("last_update_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> LAST_UPDATE_TIME = createField(DSL.name("last_update_time"), SQLDataType.TIMESTAMP(0), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.bookmarked</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Byte> BOOKMARKED = createField(DSL.name("bookmarked"), org.jooq.impl.SQLDataType.TINYINT.defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+    public final TableField<WorkflowExecutionsRecord, Boolean> BOOKMARKED = createField(DSL.name("bookmarked"), SQLDataType.BOOLEAN.defaultValue(DSL.field("false", SQLDataType.BOOLEAN)), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.name</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false).defaultValue(org.jooq.impl.DSL.inline("Untitled Execution", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
+    public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false).defaultValue(DSL.field("'Untitled Execution'::character varying", SQLDataType.VARCHAR)), this, "");
 
     /**
-     * The column <code>texera_db.workflow_executions.environment_version</code>.
+     * The column
+     * <code>texera_db.workflow_executions.environment_version</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, String> ENVIRONMENT_VERSION = createField(DSL.name("environment_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<WorkflowExecutionsRecord, String> ENVIRONMENT_VERSION = createField(DSL.name("environment_version"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.log_location</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, String> LOG_LOCATION = createField(DSL.name("log_location"), org.jooq.impl.SQLDataType.CLOB, this, "");
+    public final TableField<WorkflowExecutionsRecord, String> LOG_LOCATION = createField(DSL.name("log_location"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.runtime_stats_uri</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> RUNTIME_STATS_URI = createField(DSL.name("runtime_stats_uri"), SQLDataType.CLOB, this, "");
+
+    private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_executions</code> table
+     * reference
+     */
+    public WorkflowExecutions(String alias) {
+        this(DSL.name(alias), WORKFLOW_EXECUTIONS);
+    }
+
+    /**
+     * Create an aliased <code>texera_db.workflow_executions</code> table
+     * reference
+     */
+    public WorkflowExecutions(Name alias) {
+        this(alias, WORKFLOW_EXECUTIONS);
+    }
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -112,68 +141,52 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
         this(DSL.name("workflow_executions"), null);
     }
 
-    /**
-     * Create an aliased <code>texera_db.workflow_executions</code> table reference
-     */
-    public WorkflowExecutions(String alias) {
-        this(DSL.name(alias), WORKFLOW_EXECUTIONS);
-    }
-
-    /**
-     * Create an aliased <code>texera_db.workflow_executions</code> table reference
-     */
-    public WorkflowExecutions(Name alias) {
-        this(alias, WORKFLOW_EXECUTIONS);
-    }
-
-    private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
-    }
-
     public <O extends Record> WorkflowExecutions(Table<O> child, ForeignKey<O, WorkflowExecutionsRecord> key) {
         super(child, key, WORKFLOW_EXECUTIONS);
     }
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID);
-    }
-
-    @Override
-    public Identity<WorkflowExecutionsRecord, UInteger> getIdentity() {
-        return Keys.IDENTITY_WORKFLOW_EXECUTIONS;
+    public Identity<WorkflowExecutionsRecord, Integer> getIdentity() {
+        return (Identity<WorkflowExecutionsRecord, Integer>) super.getIdentity();
     }
 
     @Override
     public UniqueKey<WorkflowExecutionsRecord> getPrimaryKey() {
-        return Keys.KEY_WORKFLOW_EXECUTIONS_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<WorkflowExecutionsRecord>> getKeys() {
-        return Arrays.<UniqueKey<WorkflowExecutionsRecord>>asList(Keys.KEY_WORKFLOW_EXECUTIONS_PRIMARY);
+        return Keys.WORKFLOW_EXECUTIONS_PKEY;
     }
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return Arrays.asList(Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY);
     }
 
+    private transient WorkflowVersion _workflowVersion;
+    private transient User _user;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.workflow_version</code>
+     * table.
+     */
     public WorkflowVersion workflowVersion() {
-        return new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS_IBFK_1);
+        if (_workflowVersion == null)
+            _workflowVersion = new WorkflowVersion(this, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY);
+
+        return _workflowVersion;
     }
 
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        if (_user == null)
+            _user = new User(this, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY);
+
+        return _user;
     }
 
     @Override
@@ -203,11 +216,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row11 type methods
+    // Row12 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row11<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String, String> fieldsRow() {
-        return (Row11) super.fieldsRow();
+    public Row12<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String> fieldsRow() {
+        return (Row12) super.fieldsRow();
     }
 }

@@ -6,7 +6,8 @@
     nzTheme="light">
     <ul
       nz-menu
-      nzMode="inline">
+      nzMode="inline"
+      nzSelectable="false">
       <li class="logo-section">
         <img
           *ngIf="isCollpased"
@@ -135,7 +136,19 @@
           </li>
         </ul>
       </li>
+
+      <li
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT">
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
+      </li>
     </ul>
+    <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
   </nz-sider>
 
   <div class="page-container">

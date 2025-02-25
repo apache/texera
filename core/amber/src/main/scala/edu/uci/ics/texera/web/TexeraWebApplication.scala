@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource._
@@ -14,7 +16,7 @@ import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource
+import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
   DatasetFileNode,
   DatasetFileNodeSerializer
@@ -98,6 +100,12 @@ class TexeraWebApplication
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
     // redirect all 404 to index page, according to Angular routing requirements
     val eph = new ErrorPageErrorHandler
     eph.addErrorPage(404, "/")
@@ -136,7 +144,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[ResultResource])
-    environment.jersey.register(classOf[HubWorkflowResource])
+    environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
@@ -148,5 +156,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AIAssistantResource])
+
   }
 }

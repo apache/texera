@@ -113,12 +113,11 @@ class DataProcessingSpec
     val table: String = "test"
     val username: String = "root"
     val password: String = ""
-    val driver = new com.mysql.cj.jdbc.Driver()
+    val driver = new org.postgresql.Driver()
     DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
-      .addArg("--default-time-zone=+0:00")
       .build()
 
     inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))

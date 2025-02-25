@@ -1,13 +1,12 @@
 import { Component, OnInit } from "@angular/core";
-import { Observable } from "rxjs";
-import { HubWorkflowService } from "../../service/workflow/hub-workflow.service";
+import { firstValueFrom } from "rxjs";
+import { HubService } from "../../service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
-import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
-import { map, switchMap } from "rxjs/operators";
 import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
+import { UserService } from "../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -16,81 +15,101 @@ import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
   styleUrls: ["./landing-page.component.scss"],
 })
 export class LandingPageComponent implements OnInit {
+  public isLogin = this.userService.isLogin();
+  public currentUid = this.userService.getCurrentUser()?.uid;
   public workflowCount: number = 0;
   public topLovedWorkflows: DashboardEntry[] = [];
   public topClonedWorkflows: DashboardEntry[] = [];
+  public topLovedDatasets: DashboardEntry[] = [];
 
   constructor(
-    private hubWorkflowService: HubWorkflowService,
+    private hubService: HubService,
     private router: Router,
-    private searchService: SearchService
-  ) {}
+    private searchService: SearchService,
+    private userService: UserService
+  ) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+        this.currentUid = this.userService.getCurrentUser()?.uid;
+      });
+  }
 
   ngOnInit(): void {
     this.getWorkflowCount();
-    this.fetchTopWorkflows(
-      this.hubWorkflowService.getTopLovedWorkflows(),
-      workflows => (this.topLovedWorkflows = workflows),
-      "Top Loved Workflows"
-    );
-    this.fetchTopWorkflows(
-      this.hubWorkflowService.getTopClonedWorkflows(),
-      workflows => (this.topClonedWorkflows = workflows),
-      "Top Cloned Workflows"
-    );
+    this.loadTops();
+  }
+
+  async loadTops() {
+    try {
+      this.topLovedWorkflows = await this.getTopLovedEntries("workflow", "like");
+      this.topClonedWorkflows = await this.getTopLovedEntries("workflow", "clone");
+      this.topLovedDatasets = await this.getTopLovedEntries("dataset", "like");
+    } catch (error) {
+      console.error("Failed to load top loved workflows:", error);
+    }
   }
 
   getWorkflowCount(): void {
-    this.hubWorkflowService
-      .getWorkflowCount()
+    this.hubService
+      .getCount("workflow")
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;
       });
   }
 
-  /**
-   * Helper function to fetch top workflows and associate user info with them.
-   * @param workflowsObservable Observable that returns workflows (Top Loved or Top Cloned)
-   * @param updateWorkflowsFn Function to update the component's workflow state
-   * @param workflowType Label for logging
-   */
-  fetchTopWorkflows(
-    workflowsObservable: Observable<DashboardWorkflow[]>,
-    updateWorkflowsFn: (entries: DashboardEntry[]) => void,
-    workflowType: string
-  ): void {
-    workflowsObservable
-      .pipe(
-        // eslint-disable-next-line rxjs/no-unsafe-takeuntil
-        untilDestroyed(this),
-        map((workflows: DashboardWorkflow[]) => {
-          const userIds = new Set<number>();
-          workflows.forEach(workflow => {
-            userIds.add(workflow.ownerId);
-          });
-          return { workflows, userIds: Array.from(userIds) };
-        }),
-        switchMap(({ workflows, userIds }) =>
-          this.searchService.getUserInfo(userIds).pipe(
-            map((userIdToInfoMap: { [key: number]: UserInfo }) => {
-              const dashboardEntries = workflows.map(workflow => {
-                const userInfo = userIdToInfoMap[workflow.ownerId];
-                const entry = new DashboardEntry(workflow);
-                if (userInfo) {
-                  entry.setOwnerName(userInfo.userName);
-                  entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-                }
-                return entry;
-              });
-              return dashboardEntries;
-            })
-          )
-        )
-      )
-      .subscribe((dashboardEntries: DashboardEntry[]) => {
-        updateWorkflowsFn(dashboardEntries);
-      });
+  // todo: same as the function in search. refactor together
+  public async getTopLovedEntries(entityType: string, actionType: string): Promise<DashboardEntry[]> {
+    const searchResultItems = await firstValueFrom(this.hubService.getTops(entityType, actionType, this.currentUid));
+
+    const userIds = new Set<number>();
+    searchResultItems.forEach(i => {
+      if (i.workflow) {
+        userIds.add(i.workflow.ownerId);
+      } else if (i.project) {
+        userIds.add(i.project.ownerId);
+      } else if (i.dataset) {
+        const ownerUid = i.dataset.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          userIds.add(ownerUid);
+        }
+      }
+    });
+
+    let userIdToInfoMap: { [key: number]: UserInfo } = {};
+    if (userIds.size > 0) {
+      userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+    }
+
+    return searchResultItems.map(i => {
+      let entry: DashboardEntry;
+
+      if (i.workflow) {
+        entry = new DashboardEntry(i.workflow);
+        const userInfo = userIdToInfoMap[i.workflow.ownerId];
+        if (userInfo) {
+          entry.setOwnerName(userInfo.userName);
+          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+        }
+      } else if (i.dataset) {
+        entry = new DashboardEntry(i.dataset);
+        const ownerUid = i.dataset.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          const userInfo = userIdToInfoMap[ownerUid];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+        }
+      } else {
+        throw new Error("Unexpected type in SearchResultItem.");
+      }
+
+      return entry;
+    });
   }
 
   navigateToSearch(): void {

@@ -30,13 +30,13 @@ class ControlPayloadV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
-    tag: "__core__.ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "__core__.ChannelIdentity" = betterproto.message_field(1)
     payload_type: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PythonControlMessage(betterproto.Message):
-    tag: "__core__.ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "__core__.ChannelIdentity" = betterproto.message_field(1)
     payload: "ControlPayloadV2" = betterproto.message_field(2)
 
 
@@ -95,10 +95,10 @@ class OperatorWorkerMapping(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OperatorStatistics(betterproto.Message):
-    input_count: List["_architecture_worker__.PortTupleCountMapping"] = (
+    input_metrics: List["_architecture_worker__.PortTupleMetricsMapping"] = (
         betterproto.message_field(1)
     )
-    output_count: List["_architecture_worker__.PortTupleCountMapping"] = (
+    output_metrics: List["_architecture_worker__.PortTupleMetricsMapping"] = (
         betterproto.message_field(2)
     )
     num_workers: int = betterproto.int32_field(3)

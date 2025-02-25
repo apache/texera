@@ -120,8 +120,6 @@ val hadoopDependencies = Seq(
 val googleServiceDependencies = Seq(
   "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude("com.google.guava", "guava"),
   "com.google.api-client" % "google-api-client" % "2.2.0" exclude("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 

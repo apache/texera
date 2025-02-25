@@ -1,13 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard.admin.execution
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -20,15 +18,15 @@ import scala.jdk.CollectionConverters._
 
 object AdminExecutionResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   case class dashboardExecution(
       workflowName: String,
-      workflowId: UInteger,
+      workflowId: Integer,
       userName: String,
-      userId: UInteger,
-      executionId: UInteger,
+      userId: Integer,
+      executionId: Integer,
       executionStatus: String,
       executionTime: Double,
       executionName: String,
@@ -37,7 +35,7 @@ object AdminExecutionResource {
       access: Boolean
   )
 
-  def mapToName(code: Byte): String = {
+  def mapToName(code: Short): String = {
     code match {
       case 0 => "READY"
       case 1 => "RUNNING"
@@ -169,7 +167,7 @@ class AdminExecutionResource {
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.UID.eq(current_user.getUid))
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[Integer])
 
     // Calculate the statistics needed for each execution.
     executions

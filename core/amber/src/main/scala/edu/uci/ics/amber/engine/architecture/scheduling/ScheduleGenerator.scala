@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.executor.OpExecSink
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -151,7 +152,6 @@ abstract class ScheduleGenerator(
     var newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
-    // create cache writer and link
     // create the uri of the materialization storage
     val storageUri = VFSURIFactory.createMaterializedResultURI(
       workflowContext.workflowId,
@@ -166,27 +166,44 @@ abstract class ScheduleGenerator(
       storageUri,
       fromPortOutputMode
     )
-    val sourceToWriterLink =
-      PhysicalLink(
-        fromOp.id,
-        fromPortId,
-        matWriterPhysicalOp.id,
-        matWriterPhysicalOp.inputPorts.keys.head
-      )
-    newPhysicalPlan = newPhysicalPlan
-      .addOperator(matWriterPhysicalOp)
-      .addLink(sourceToWriterLink)
 
-    // sink has exactly one input port and one output port
-    val schema = newPhysicalPlan
-      .getOperator(matWriterPhysicalOp.id)
-      .outputPorts(matWriterPhysicalOp.outputPorts.keys.head)
-      ._3
-      .toOption
-      .get
-    // create the document
-    DocumentFactory.createDocument(storageUri, schema)
-    ExecutionResourcesMapping.addResourceUri(workflowContext.executionId, storageUri)
+    // Check if an operator with the same storageUri already exists
+    val existingOperator = newPhysicalPlan.operators.find {
+      case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
+        val OpExecSink(uri, _, _) = op.opExecInitInfo
+        uri == storageUri.toString
+      case _ => false
+    }
+
+    if (existingOperator.isEmpty) {
+      // create cache writer and link
+      val sourceToWriterLink =
+        PhysicalLink(
+          fromOp.id,
+          fromPortId,
+          matWriterPhysicalOp.id,
+          matWriterPhysicalOp.inputPorts.keys.head
+        )
+      newPhysicalPlan = newPhysicalPlan
+        .addOperator(matWriterPhysicalOp)
+        .addLink(sourceToWriterLink)
+
+      // sink has exactly one input port and one output port
+      val schema = newPhysicalPlan
+        .getOperator(matWriterPhysicalOp.id)
+        .outputPorts(matWriterPhysicalOp.outputPorts.keys.head)
+        ._3
+        .toOption
+        .get
+      // create the document
+      DocumentFactory.createDocument(storageUri, schema)
+      WorkflowExecutionsResource.insertOperatorPortResultUri(
+        workflowContext.executionId,
+        physicalLink.fromOpId.logicalOpId,
+        physicalLink.fromPortId,
+        storageUri
+      )
+    }
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(

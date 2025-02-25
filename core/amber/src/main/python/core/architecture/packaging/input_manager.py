@@ -5,7 +5,6 @@ from core.models.internal_marker import (
     InternalMarker,
     StartOfOutputPorts,
     EndOfOutputPorts,
-    SenderChange,
     EndOfInputPort,
     StartOfInputPort,
 )
@@ -59,6 +58,9 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
 
+    def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
+        return self._channels.keys()
+
     def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
         if port_id.id is None:
             port_id.id = 0
@@ -85,29 +87,16 @@ class InputManager:
         self._ports[port_id].add_channel(channel)
 
     def process_data_payload(
-        self, from_: ActorVirtualIdentity, payload: DataPayload
+        self, from_: ChannelIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InternalMarker]]:
+
+        self._current_channel_id = from_
+
         # special case used to yield for source op
-        if from_ == InputManager.SOURCE_STARTER:
+        if from_.from_worker_id == InputManager.SOURCE_STARTER:
             yield EndOfInputPort()
             yield EndOfOutputPorts()
             return
-
-        current_channel_id = next(
-            (
-                channel_id
-                for channel_id, channel in self._channels.items()
-                if channel_id.from_worker_id == from_
-            ),
-            None,
-        )
-
-        if (
-            self._current_channel_id is None
-            or self._current_channel_id != current_channel_id
-        ):
-            self._current_channel_id = current_channel_id
-            yield SenderChange(current_channel_id)
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)

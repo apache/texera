@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.executionruntimestate.{
   OperatorConsole
 }
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
@@ -27,18 +27,52 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
+import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
+import edu.uci.ics.amber.core.storage.result.ResultSchema
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
+import java.util.concurrent.{ExecutorService, Executors}
 import java.time.Instant
 import scala.collection.mutable
 
 class ExecutionConsoleService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    wsInput: WebsocketInput
+    wsInput: WebsocketInput,
+    workflowContext: WorkflowContext
 ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
+
+  private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
+    mutable.Map()
+
+  private val consoleWriterThread: Option[ExecutorService] =
+    Option.when(AmberConfig.isUserSystemEnabled)(Executors.newSingleThreadExecutor())
+
+  private def getOrCreateWriter(opId: OperatorIdentity): BufferedItemWriter[Tuple] = {
+    consoleMessageOpIdToWriterMap.getOrElseUpdate(
+      opId.id, {
+        val uri = VFSURIFactory
+          .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)
+        val writer = DocumentFactory
+          .createDocument(uri, ResultSchema.consoleMessagesSchema)
+          .writer("console_messages")
+          .asInstanceOf[BufferedItemWriter[Tuple]]
+        WorkflowExecutionsResource.insertOperatorExecutions(
+          workflowContext.executionId.id,
+          opId.id,
+          uri
+        )
+        writer.open()
+        writer
+      }
+    )
+  }
 
   addSubscription(
     stateStore.consoleStore.registerDiffHandler((oldState, newState) => {
@@ -84,6 +118,21 @@ class ExecutionConsoleService(
       opId: String,
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
+    consoleWriterThread.foreach { thread =>
+      thread.execute(() => {
+        val writer = getOrCreateWriter(OperatorIdentity(opId))
+        try {
+          val tuple = new Tuple(
+            ResultSchema.consoleMessagesSchema,
+            Array(consoleMessage.toProtoString)
+          )
+          writer.putOne(tuple)
+        } finally {
+          writer.close()
+        }
+      })
+    }
+
     val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
 
     if (opInfo.consoleMessages.size < bufferSize) {
