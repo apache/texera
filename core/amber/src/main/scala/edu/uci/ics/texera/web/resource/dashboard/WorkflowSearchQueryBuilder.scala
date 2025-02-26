@@ -96,11 +96,6 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
         getFullTextSearchFilter(
           splitKeywords,
           List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
-        ).or(
-          getSubstringSearchFilter(
-            splitKeywords,
-            List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
-          )
         )
       )
   }

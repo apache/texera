@@ -46,38 +46,6 @@ object FulltextSearchQueryUtils {
     }
   }
 
-  def getSubstringSearchFilter(
-      keywords: Seq[String],
-      fields: List[Field[String]],
-      caseInsensitive: Boolean = false
-  ): Condition = {
-    // If no fields, return a "no-op" condition
-    if (fields.isEmpty) return noCondition()
-
-    // Trim and discard empty keywords
-    val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-
-    // For each field, create a condition that all keywords must match in that field
-    // e.g. field LIKE '%keyword1%' AND field LIKE '%keyword2%'
-    val fieldConditions: Seq[Condition] = fields.map { field =>
-      trimmedKeywords.foldLeft[Condition](noCondition()) { (acc, key) =>
-        val likeCondition =
-          if (caseInsensitive)
-            field.likeIgnoreCase(s"%$key%") // Postgres-specific case-insensitive match
-          else field.like(s"%$key%") // standard SQL LIKE
-        if (acc == noCondition()) likeCondition
-        else acc.and(likeCondition)
-      }
-    }
-
-    // Finally, OR across all fields
-    // (field1Condition) OR (field2Condition) OR ...
-    fieldConditions.foldLeft[Condition](noCondition()) { (acc, cond) =>
-      if (acc == noCondition()) cond
-      else acc.or(cond)
-    }
-  }
-
   /**
     * Generates a filter condition for querying based on whether a specified field contains any of the given values.
     *
