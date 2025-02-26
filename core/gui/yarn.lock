@@ -5,15 +5,15 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@abacritt/angularx-social-login@npm:2.1.0":
-  version: 2.1.0
-  resolution: "@abacritt/angularx-social-login@npm:2.1.0"
+"@abacritt/angularx-social-login@npm:2.3.0":
+  version: 2.3.0
+  resolution: "@abacritt/angularx-social-login@npm:2.3.0"
   dependencies:
-    tslib: "npm:>=2.5.0"
+    tslib: "npm:>=2.6.3"
   peerDependencies:
-    "@angular/common": ">=16.0.0"
-    "@angular/core": ">=16.0.0"
-  checksum: 10c0/b1759db0d79fdbc902180aa1974c5aa8db5372a7c4750127bbf5b1d94aadeb1f7bad27a0ac488e98cbe53a600a438a3900b4974009e4a648df5edf583cc5eb0d
+    "@angular/common": ">=18.0.1"
+    "@angular/core": ">=18.0.1"
+  checksum: 10c0/eb89f39d443f7f2ed1f8d8119db0315dcf2783ca570ced53db5486f88524feb36902e6480c219c22a43388221ef64bbc9b93fd318c0c3a322477841453271f9d
   languageName: node
   linkType: hard
 
@@ -11078,7 +11078,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "gui@workspace:."
   dependencies:
-    "@abacritt/angularx-social-login": "npm:2.1.0"
+    "@abacritt/angularx-social-login": "npm:2.3.0"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:16.0.1"
     "@angular-devkit/build-angular": "npm:16.2.12"
@@ -17984,7 +17984,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:>=2.5.0":
+"tslib@npm:>=2.6.3":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
