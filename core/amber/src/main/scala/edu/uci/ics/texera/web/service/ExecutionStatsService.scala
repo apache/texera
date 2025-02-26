@@ -230,7 +230,6 @@ class ExecutionStatsService(
               )
               writer.putOne(runtimeStats)
           }
-          writer.close()
         } catch {
           case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
         }
@@ -291,5 +290,17 @@ class ExecutionStatsService(
           }
         })
     )
+  }
+
+  override def unsubscribeAll(): Unit = {
+    runtimeStatsWriter.foreach { writer =>
+      try {
+        writer.close()
+      } catch {
+        case err: Throwable =>
+          logger.error("Error occurred when closing runtime statistics writer", err)
+      }
+    }
+    super.unsubscribeAll()
   }
 }

@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
@@ -43,7 +44,8 @@ class ExecutionConsoleService(
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
     workflowContext: WorkflowContext
-) extends SubscriptionManager {
+) extends SubscriptionManager
+    with LazyLogging {
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
@@ -119,7 +121,7 @@ class ExecutionConsoleService(
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
     consoleWriterThread.foreach { thread =>
-      thread.execute(() => {
+      thread.execute { () =>
         val writer = getOrCreateWriter(OperatorIdentity(opId))
         try {
           val tuple = new Tuple(
@@ -127,10 +129,11 @@ class ExecutionConsoleService(
             Array(consoleMessage.toProtoString)
           )
           writer.putOne(tuple)
-        } finally {
-          writer.close()
+        } catch {
+          case e: Exception =>
+            logger.error(s"Failed to write tuple for operator $opId", e)
         }
-      })
+      }
     }
 
     val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
@@ -203,4 +206,15 @@ class ExecutionConsoleService(
 
   }))
 
+  override def unsubscribeAll(): Unit = {
+    consoleMessageOpIdToWriterMap.values.foreach { writer =>
+      try {
+        writer.close()
+      } catch {
+        case err: Throwable =>
+          logger.error("Error occurred when closing console message writer", err)
+      }
+    }
+    super.unsubscribeAll()
+  }
 }
