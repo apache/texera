@@ -784,7 +784,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.currentOpenedOperatorID !== null) {
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
           this.currentOpenedOperatorID = null;
         }
