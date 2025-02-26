@@ -6,20 +6,14 @@ export interface WorkflowComputingUnit {
   terminateTime: number | undefined;
 }
 
-export interface ResourceValue {
-  metric: string;
-  value: string;
-  unit: string;
-}
-
 export interface WorkflowComputingUnitResourceLimit {
-  cpuLimit: ResourceValue;
-  memoryLimit: ResourceValue;
+  cpuLimit: string;
+  memoryLimit: string;
 }
 
 export interface WorkflowComputingUnitMetrics {
-  cpuUsage: ResourceValue;
-  memoryUsage: ResourceValue;
+  cpuUsage: string;
+  memoryUsage: string;
 }
 
 export interface DashboardWorkflowComputingUnit {

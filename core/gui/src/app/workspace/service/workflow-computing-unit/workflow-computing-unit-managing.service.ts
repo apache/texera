@@ -22,11 +22,13 @@ export class WorkflowComputingUnitManagingService {
   /**
    * Create a new workflow computing unit (pod).
    * @param name The name for the computing unit.
+   * @param cpuLimit The cpu resource limit for the computing unit.
+   * @param memoryLimit The memory resource limit for the computing unit.
    * @param unitType
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createComputingUnit(name: string, unitType: string = "k8s_pod"): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, unitType };
+  public createComputingUnit(name: string, cpuLimit: string, memoryLimit: string, unitType: string = "k8s_pod"): Observable<DashboardWorkflowComputingUnit> {
+    const body = { name, cpuLimit, memoryLimit, unitType };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
       `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,

@@ -78,7 +78,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   startComputingUnit(): void {
     const computeUnitName = `Compute for Workflow ${this.workflowId}`;
     this.computingUnitService
-      .createComputingUnit(computeUnitName)
+      .createComputingUnit(computeUnitName, "1", "2Gi")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit) => {
@@ -128,15 +128,105 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
-  getComputingUnitName(unitURI: String) : String {
-    // computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local
-    const computingUnit = unitURI.split('.')[0]           // "computing-unit-85"
+  /**
+   * Gets the computing unit name from the units URI
+   * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
+   * @return "Computing unit 85"
+   */
+  getComputingUnitName(unitURI: string) : string {
+    const computingUnit = unitURI.split(".")[0]
     return computingUnit
-      .split('-')
+      .split("-")
       .map((word, index) =>
         index < 2 ? word.charAt(0).toUpperCase() + word.slice(1) : word
       )
-      .join(' ')
+      .join(" ")
+  }
+
+  /**
+   * Parses computing units resource unit
+   * @param resource (i.e. "12412512n")
+   * @return associated unit with resource (i.e. "n", "Mi", "Gi", ...)
+   */
+  parseResourceUnit(resource: string) : string {
+    const match = resource.match(/[a-z].*/i);
+    return match ? match[0] : "";
+  }
+
+  /**
+   * Parses computing units numerical value
+   * @param resource (i.e. "12412512n")
+   * @return associated number with resource (i.e. 12412512)
+   */
+  parseResourceNumber(resource: string) : number {
+    const match = resource.match(/[0-9.]*/);
+    return match ? Number(match[0]) : 0;
+  }
+
+  /**
+   * Convert computing cpu unit resource number to a specific unit
+   * @param from (i.e. "12412512n")
+   * @param toUnit (i.e. cores)
+   * @return i.e. 1.2412512 Cores
+   */
+  cpuResourceConversion(from: string, toUnit: string) : string {
+    // CPU conversion constants (base unit: nanocores)
+    type CpuUnit = "n" | "u" | "m" | "";
+    const cpuUnits: Record<CpuUnit, number> = {
+      "n": 1,         // nanocores
+      "u": 10**3,     // microcores
+      "m": 10**6,     // millicores
+      "": 10**9       // cores
+    };
+
+    const fromNumber: number = this.parseResourceNumber(from);
+    const fromUnit: string = this.parseResourceUnit(from);
+
+    if (!(fromUnit in cpuUnits) || !(toUnit in cpuUnits)) {
+      return "";
+    }
+    return `${(fromNumber * (cpuUnits[fromUnit as CpuUnit] / cpuUnits[toUnit as CpuUnit]))} ${toUnit}`;
+  }
+
+  /**
+   * Convert computing unit memory resource number to a specific unit
+   * @param from (i.e. "523Mi")
+   * @param toUnit (i.e. "Gi")
+   * @return i.e. 0.524 Gi
+   */
+  memoryResourceConversion(from: string, toUnit: string) : string {
+    // Memory conversion constants (base unit: bytes)
+    type MemoryUnit = "Ki" | "Mi" | "Gi" | "";
+    const memoryUnits = {
+      "": 1,          // bytes
+      "Ki": 1024,     // KiB
+      "Mi": 1024**2,  // MiB
+      "Gi": 1024**3   // GiB
+    };
+
+    const fromNumber: number = this.parseResourceNumber(from);
+    const fromUnit: string = this.parseResourceUnit(from);
+
+    if (!(fromUnit in memoryUnits) || !(toUnit in memoryUnits)) {
+      return "";
+    }
+    return `${fromNumber * (memoryUnits[fromUnit as MemoryUnit] / memoryUnits[toUnit as MemoryUnit])} ${toUnit}`;
+  }
+
+  getCurrentComputingUnitCpuUsage(): string {
+    return this.selectedComputingUnit?.metrics.cpuUsage || "";
+  }
+
+  getCurrentComputingUnitMemoryUsage(): string {
+    return this.selectedComputingUnit?.metrics.memoryUsage || "";
+  }
+
+  getCurrentComputingUnitCpuLimit(): string {
+    return this.selectedComputingUnit?.resourceLimits.cpuLimit || "";
+  }
+
+  getCurrentComputingUnitMemoryLimit(): string {
+    return this.selectedComputingUnit?.resourceLimits.memoryLimit || "";
   }
 
   /**
@@ -147,32 +237,46 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   getCpuLimit(): number {
-    // return 1 by default to avoid division by zero error
-    return +(this.selectedComputingUnit?.resourceLimits?.cpuLimit?.value || 1);
+    return this.parseResourceNumber(this.getCurrentComputingUnitCpuLimit());
   }
 
-  getCpuLimitUnit(): String {
-    return this.selectedComputingUnit?.resourceLimits?.cpuLimit?.unit || "Cores";
+  getCpuLimitUnit(): string {
+    let unit = this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
+    if (!unit) {
+      return this.getCpuLimit() == 1 ? "Core" : "Cores";
+    }
+    return this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
   }
 
   getMemoryLimit(): number {
-    return +(this.selectedComputingUnit?.resourceLimits?.memoryLimit?.value || 1);
+    return this.parseResourceNumber(this.getCurrentComputingUnitMemoryLimit());
   }
 
-  getMemoryLimitUnit(): String {
-    return this.selectedComputingUnit?.resourceLimits?.memoryLimit?.unit || "MiB";
+  getMemoryLimitUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitMemoryLimit());
   }
 
   getCpuValue(): number {
-    return +(this.selectedComputingUnit?.metrics?.cpuUsage?.value || 0);
+    // convert to appropriate unit based on the limit unit
+    const cpuLimitUnit: string = this.getCpuLimitUnit();
+    const convertedValue: string = this.cpuResourceConversion(this.getCurrentComputingUnitCpuUsage(), cpuLimitUnit);
+    return this.parseResourceNumber(convertedValue);
   }
 
   getMemoryValue(): number {
-    return +(this.selectedComputingUnit?.metrics?.memoryUsage?.value || 0);
+    // convert to appropriate unit based on the limit
+    const memoryLimitUnit: string = this.getMemoryLimitUnit();
+    const convertedValue: string = this.memoryResourceConversion(this.getCurrentComputingUnitMemoryUsage(), memoryLimitUnit);
+    return this.parseResourceNumber(convertedValue);
   }
 
   getCpuPercentage(): number {
-    return this.getCpuValue() / this.getCpuLimit() * 100;
+    // handle divison by zero
+    const cpuLimit = this.getCpuLimit();
+    if (cpuLimit <= 0) {
+      return 0;
+    }
+    return this.getCpuValue() / cpuLimit * 100;
   }
 
   getCpuStatus(): "success" | "exception" | "active" | "normal" {
@@ -182,7 +286,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   getMemoryPercentage(): number {
-    return this.getMemoryValue() / this.getMemoryLimit() * 100;
+    // handle divison by zero
+    const memoryLimit = this.getMemoryLimit();
+    if (memoryLimit <= 0) {
+      return 0;
+    }
+    return this.getMemoryValue() / memoryLimit * 100;
   }
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
@@ -191,11 +300,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return usage >= limit ? "exception" : "active";
   }
 
-  getCpuUnit(): String {
-    return this.selectedComputingUnit?.metrics?.cpuUsage?.unit || "";
+  getCpuUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitCpuUsage());
   }
 
-  getMemoryUnit(): String {
-    return this.selectedComputingUnit?.metrics?.memoryUsage?.unit || "";
+  getMemoryUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitMemoryUsage());
   }
 }
