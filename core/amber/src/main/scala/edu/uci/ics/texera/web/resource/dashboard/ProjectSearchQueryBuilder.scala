@@ -6,8 +6,7 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClic
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
   getDateFilter,
-  getFullTextSearchFilter,
-  getSubstringSearchFilter
+  getFullTextSearchFilter
 }
 import org.jooq.impl.DSL
 
@@ -56,12 +55,6 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.projectIds, PROJECT.PID))
       .and(
         getFullTextSearchFilter(splitKeywords, List(PROJECT.NAME, PROJECT.DESCRIPTION))
-          .or(
-            getSubstringSearchFilter(
-              splitKeywords,
-              List(PROJECT.NAME, PROJECT.DESCRIPTION)
-            )
-          )
       )
   }
 

@@ -8,8 +8,7 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClic
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
   getDateFilter,
-  getFullTextSearchFilter,
-  getSubstringSearchFilter
+  getFullTextSearchFilter
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
@@ -89,12 +88,6 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.datasetIds, DATASET.DID))
       .and(
         getFullTextSearchFilter(splitKeywords, List(DATASET.NAME, DATASET.DESCRIPTION))
-          .or(
-            getSubstringSearchFilter(
-              splitKeywords,
-              List(DATASET.NAME, DATASET.DESCRIPTION)
-            )
-          )
       )
   }
 
