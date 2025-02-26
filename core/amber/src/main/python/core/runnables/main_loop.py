@@ -252,7 +252,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.marker_processing_manager.current_input_marker = end_of_input_port
         self.process_input_state()
         self.process_input_tuple()
-        self.context.output_manager.close_output_storage_writers()
         input_port_id = self.context.tuple_processing_manager.current_input_port_id
         if input_port_id is not None:
             self._async_rpc_client.controller_stub().port_completed(
@@ -290,6 +289,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
+        self.context.output_manager.close_output_storage_writers()
+
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(
                 DataElement(

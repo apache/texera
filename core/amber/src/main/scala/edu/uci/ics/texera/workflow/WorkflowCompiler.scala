@@ -100,7 +100,7 @@ class WorkflowCompiler(
                       VFSURIFactory.createResultURI(
                         context.workflowId,
                         context.executionId,
-                        physicalOp.id,
+                        physicalOp.id.logicalOpId,
                         Some(physicalOp.id.layerName),
                         outputPortId
                       )

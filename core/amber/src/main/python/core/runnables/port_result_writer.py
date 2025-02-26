@@ -1,4 +1,5 @@
 import queue
+import threading
 from typing import Dict
 
 from core.models import Tuple
@@ -13,6 +14,7 @@ class PortResultWriter(Runnable, Stoppable):
         self.writer_map: Dict[PortIdentity, BufferedItemWriter] = {}
         self.queue = queue.Queue()
         self.stopped = False
+        self.stop_event = threading.Event()
 
     def add_writer(self, location: PortIdentity, writer: BufferedItemWriter):
         self.writer_map[location] = writer
@@ -34,8 +36,10 @@ class PortResultWriter(Runnable, Stoppable):
 
         for writer in self.writer_map.values():
             writer.close()
+        self.stop_event.set()  # Signal that run() has fully stopped
 
 
     def stop(self) -> None:
         self.stopped = True
         self.queue.put(None)  # Signal termination
+        self.stop_event.wait()  # Block until run() completes

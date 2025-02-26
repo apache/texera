@@ -158,7 +158,7 @@ abstract class ScheduleGenerator(
       workflowContext.workflowId,
       workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
-      s"${physicalLink.fromOpId.layerName}_materialization",
+      Some(physicalLink.fromOpId.layerName),
       physicalLink.fromPortId
     )
 
@@ -170,6 +170,7 @@ abstract class ScheduleGenerator(
     )
 
     // Check if an operator with the same storageUri already exists
+    // TODO: replace using storage URI
     val existingOperator = newPhysicalPlan.operators.find {
       case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
         val OpExecSink(uri, _, _) = op.opExecInitInfo
@@ -204,7 +205,7 @@ abstract class ScheduleGenerator(
       WorkflowExecutionsResource.insertOperatorPortResultUri(
         workflowContext.executionId,
         physicalLink.fromOpId.logicalOpId,
-        s"${physicalLink.fromOpId.layerName}_materialization",
+        physicalLink.fromOpId.layerName,
         physicalLink.fromPortId,
         storageUri
       )

@@ -70,10 +70,10 @@ class OutputManager:
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri is not "":
+        if storage_uri != "":
             document: VirtualDocument[Tuple]
             document, _ = DocumentFactory.open_document(storage_uri)
-            optional_writer = document.writer(get_worker_index(self.worker_id))
+            optional_writer = document.writer(str(get_worker_index(self.worker_id)))
             self.enable_port_storage_writer_if_not_exists()
             self._port_result_writer.add_writer(port_id, optional_writer)
 
