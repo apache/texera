@@ -1,3 +1,9 @@
+.user-project-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 /* project info */
 .description-container {
   padding: 2.5%;
@@ -110,4 +116,8 @@ button {
     display: inline;
     white-space: nowrap;
   }
+}
+
+texera-saved-workflow-section {
+  flex: 1;
 }
