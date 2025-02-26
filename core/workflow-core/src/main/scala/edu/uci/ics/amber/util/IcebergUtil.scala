@@ -131,8 +131,6 @@ object IcebergUtil {
       tableSchema: IcebergSchema,
       overrideIfExists: Boolean
   ): Table = {
-    val MetadataDeleteAfterCommitEnabled = "true"
-    val MetadataPreviousVersionsMax = "1"
 
     val baseProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
@@ -143,8 +141,8 @@ object IcebergUtil {
     val tableProperties =
       if (tableNamespace == StorageConfig.icebergTableRuntimeStatisticsNamespace) {
         baseProperties ++ Map(
-          TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> MetadataDeleteAfterCommitEnabled,
-          TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> MetadataPreviousVersionsMax
+          TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> "true",
+          TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> "1"
         )
       } else {
         baseProperties
