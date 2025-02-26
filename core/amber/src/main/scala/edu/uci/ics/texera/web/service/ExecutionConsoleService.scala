@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
@@ -44,8 +43,7 @@ class ExecutionConsoleService(
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
     workflowContext: WorkflowContext
-) extends SubscriptionManager
-    with LazyLogging {
+) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
