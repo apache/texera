@@ -34,10 +34,7 @@ const MULTIPART_UPLOAD_PART_SIZE_MB = 50 * 1024 * 1024; // 50MB per part
   providedIn: "root",
 })
 export class DatasetService {
-  private s3Client: S3Client;
-
   constructor(private http: HttpClient) {
-    this.s3Client = new S3Client();
   }
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
@@ -130,6 +127,9 @@ export class DatasetService {
 
         console.log(`Started multipart upload for ${filePath} with UploadId: ${uploadId}`);
 
+        // Array to store part numbers and ETags
+        const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+
         const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
           const start = index * MULTIPART_UPLOAD_PART_SIZE_MB;
           const end = Math.min(start + MULTIPART_UPLOAD_PART_SIZE_MB, file.size);
@@ -140,18 +140,24 @@ export class DatasetService {
               if (!response.ok) {
                 return throwError(() => new Error(`Failed to upload part ${index + 1}`));
               }
-              console.log(`Uploaded part ${index + 1} of ${partCount}`);
+              const etag = response.headers.get("ETag")?.replace(/"/g, ""); // Extract and clean ETag
+              if (!etag) {
+                return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
+              }
+
+              uploadedParts.push({ PartNumber: index + 1, ETag: etag });
+              console.log(`Uploaded part ${index + 1} of ${partCount}, ETag: ${etag}`);
               return from(Promise.resolve());
             })
           );
         });
 
         return forkJoin(uploadObservables).pipe(
-          switchMap(() => this.finalizeMultipartUpload(did, filePath, uploadId, false)),
+          switchMap(() => this.finalizeMultipartUpload(did, filePath, uploadId, uploadedParts, initiateResponse.physicalAddress, false)),
           tap(() => console.log(`Multipart upload for ${filePath} completed successfully!`)),
           catchError(error => {
             console.error(`Multipart upload failed for ${filePath}`, error);
-            return this.finalizeMultipartUpload(did, filePath, uploadId, true).pipe(
+            return this.finalizeMultipartUpload(did, filePath, uploadId, uploadedParts, initiateResponse.physicalAddress, true).pipe(
               tap(() => console.error(`Upload aborted for ${filePath}`)),
               switchMap(() => throwError(() => error))
             );
@@ -167,13 +173,13 @@ export class DatasetService {
    * @param filePath File path within the dataset
    * @param numParts Number of parts for the multipart upload
    */
-  private initiateMultipartUpload(did: number, filePath: string, numParts: number): Observable<{ uploadId: string; presignedUrls: string[] }> {
+  private initiateMultipartUpload(did: number, filePath: string, numParts: number): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
     const params = new HttpParams()
       .set("type", "init")
       .set("key", encodeURIComponent(filePath))
       .set("numParts", numParts.toString());
 
-    return this.http.post<{ uploadId: string; presignedUrls: string[] }>(
+    return this.http.post<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/multipart-upload`,
       {},
       { params }
@@ -181,21 +187,24 @@ export class DatasetService {
   }
 
   /**
-   * Completes or aborts a multipart upload.
-   * @param did Dataset ID
-   * @param filePath File path within the dataset
-   * @param uploadId Upload ID returned from the initiation step
-   * @param isAbort Whether to abort (true) or complete (false) the upload
+   * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
    */
-  private finalizeMultipartUpload(did: number, filePath: string, uploadId: string, isAbort: boolean = false): Observable<Response> {
+  private finalizeMultipartUpload(
+    did: number,
+    filePath: string,
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+    physicalAddress: string,
+    isAbort: boolean
+  ): Observable<Response> {
     const params = new HttpParams()
       .set("type", isAbort ? "abort" : "finish")
       .set("key", encodeURIComponent(filePath))
       .set("uploadId", uploadId);
 
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/multipart-upload`,
-      {},
+      `${AppSettings.getApiEndpoint()}/dataset/${did}/multipart-upload`,
+      { parts, physicalAddress },
       { params }
     );
   }

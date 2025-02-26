@@ -13,8 +13,8 @@ import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
 import { HubService } from "../../../../../hub/service/hub.service";
-import {FileUploadItem} from "../../../../type/dashboard-file.interface";
-import {file} from "jszip";
+import { FileUploadItem } from "../../../../type/dashboard-file.interface";
+import { file } from "jszip";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -292,8 +292,15 @@ export class DatasetDetailComponent implements OnInit {
 
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
+      const did = this.did;
       files.map(file => {
-      })
+        this.datasetService
+          .multipartUpload(did, file.name, file.file)
+          .pipe(untilDestroyed(this))
+          .subscribe(res => {
+            console.log("Multipart upload: ", res);
+          });
+      });
     }
   }
 

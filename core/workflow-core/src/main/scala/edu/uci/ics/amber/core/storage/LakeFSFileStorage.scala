@@ -37,9 +37,11 @@ object LakeFSFileStorage {
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
   private lazy val experimentalApi: ExperimentalApi = new ExperimentalApi(apiClient)
 
-  private val storageNamespaceURI: String = s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
+  private val storageNamespaceURI: String =
+    s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
 
   private val branchName: String = "main"
+
   /**
     * Initializes a new repository in LakeFS.
     *
@@ -47,7 +49,7 @@ object LakeFSFileStorage {
     * @param defaultBranch    Default branch name, usually "main".
     */
   def initRepo(
-      repoName: String,
+      repoName: String
   ): Repository = {
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
 
@@ -143,33 +145,70 @@ object LakeFSFileStorage {
   }
 
   /**
-   * Retrieves file content from a specific commit and path.
-   *
-   * @param repoName     Repository name.
-   * @param commitHash   Commit hash of the version.
-   * @param filePath     Path to the file in the repository.
-   */
+    * Retrieves file content from a specific commit and path.
+    *
+    * @param repoName     Repository name.
+    * @param commitHash   Commit hash of the version.
+    * @param filePath     Path to the file in the repository.
+    */
   def getFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
   }
 
   /**
-   *
-   */
-  def initiatePresignedMultipartUploads(repoName: String, filePath: String, numberOfParts: Int): PresignMultipartUpload = {
-    experimentalApi.createPresignMultipartUpload(repoName, branchName, filePath).parts(numberOfParts).execute()
+    */
+  def initiatePresignedMultipartUploads(
+      repoName: String,
+      filePath: String,
+      numberOfParts: Int
+  ): PresignMultipartUpload = {
+    experimentalApi
+      .createPresignMultipartUpload(repoName, branchName, filePath)
+      .parts(numberOfParts)
+      .execute()
 
   }
 
-  def completePresignedMultipartUploads(repoName: String, filePath: String, uploadId: String): ObjectStats = {
-    val completePresignMultipartUpload: CompletePresignMultipartUpload = new CompletePresignMultipartUpload()
-    experimentalApi.completePresignMultipartUpload(repoName, branchName, uploadId, filePath).execute()
+  def completePresignedMultipartUploads(
+      repoName: String,
+      filePath: String,
+      uploadId: String,
+      partsList: List[(Int, String)],
+      physicalAddress: String
+  ): ObjectStats = {
+    val completePresignMultipartUpload: CompletePresignMultipartUpload =
+      new CompletePresignMultipartUpload()
+    completePresignMultipartUpload.setParts(
+      partsList
+        .map(part => {
+          val newUploadPart = new UploadPart
+          newUploadPart.setPartNumber(part._1)
+          newUploadPart.setEtag(part._2)
+          newUploadPart
+        })
+        .asJava
+    )
+    completePresignMultipartUpload.setPhysicalAddress(physicalAddress)
+    experimentalApi
+      .completePresignMultipartUpload(repoName, branchName, uploadId, filePath)
+      .completePresignMultipartUpload(completePresignMultipartUpload)
+      .execute()
   }
 
-  def abortPresignedMultipartUploads(repoName: String, filePath: String, uploadId: String): Unit  = {
-    experimentalApi.abortPresignMultipartUpload(repoName, branchName, uploadId, filePath).execute()
-  }
+  def abortPresignedMultipartUploads(
+      repoName: String,
+      filePath: String,
+      uploadId: String,
+      physicalAddress: String
+  ): Unit = {
+    val abortPresignMultipartUpload: AbortPresignMultipartUpload = new AbortPresignMultipartUpload
+    abortPresignMultipartUpload.setPhysicalAddress(physicalAddress)
 
+    experimentalApi
+      .abortPresignMultipartUpload(repoName, branchName, uploadId, filePath)
+      .abortPresignMultipartUpload(abortPresignMultipartUpload)
+      .execute()
+  }
 
   /**
     * Deletes an entire repository.

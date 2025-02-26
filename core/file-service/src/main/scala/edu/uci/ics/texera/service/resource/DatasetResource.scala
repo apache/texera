@@ -1,8 +1,17 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.core.storage.model.OnDataset
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, LakeFSFileStorage, S3Storage, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.dataset.{GitVersionControlLocalFileStorage, PhysicalFileNode}
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  LakeFSFileStorage,
+  S3Storage,
+  StorageConfig
+}
+import edu.uci.ics.amber.core.storage.util.dataset.{
+  GitVersionControlLocalFileStorage,
+  PhysicalFileNode
+}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
@@ -11,12 +20,39 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
-import edu.uci.ics.texera.service.resource.DatasetResource.{DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetVersionRootFileNodesResponse, Diff, calculateDatasetVersionSize, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
+  getDatasetUserAccessPrivilege,
+  getOwner,
+  isDatasetPublic,
+  userHasReadAccess,
+  userHasWriteAccess,
+  userOwnDataset
+}
+import edu.uci.ics.texera.service.resource.DatasetResource.{
+  DashboardDataset,
+  DashboardDatasetVersion,
+  DatasetDescriptionModification,
+  DatasetVersionRootFileNodesResponse,
+  Diff,
+  calculateDatasetVersionSize,
+  context,
+  getDatasetByID,
+  getDatasetVersionByID,
+  getLatestDatasetVersion
+}
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -394,9 +430,9 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/presign")
   def getPresignedUrl(
-                       @QueryParam("key") encodedUrl: String,
-                       @Auth user: SessionUser
-                     ): Response = {
+      @QueryParam("key") encodedUrl: String,
+      @Auth user: SessionUser
+  ): Response = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
       val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
@@ -410,21 +446,36 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      Response.ok(Map("presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(document.getDatasetName(), document.getVersionHash(), document.getFileRelativePath()))).build()
+      Response
+        .ok(
+          Map(
+            "presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(
+              document.getDatasetName(),
+              document.getVersionHash(),
+              document.getFileRelativePath()
+            )
+          )
+        )
+        .build()
     }
   }
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/multipart-upload")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
   def multipartUpload(
-                       @PathParam("did") did: Integer,
-                       @QueryParam("type") operationType: String,
-                       @QueryParam("key") encodedUrl: String,
-                       @QueryParam("uploadId") uploadId: Optional[String],
-                       @QueryParam("numParts") numParts: Optional[Integer],
-                       @Auth user: SessionUser
-                     ): Response = {
+      @PathParam("did") did: Integer,
+      @QueryParam("type") operationType: String,
+      @QueryParam("key") encodedUrl: String,
+      @QueryParam("uploadId") uploadId: Optional[String],
+      @QueryParam("numParts") numParts: Optional[Integer],
+      payload: Map[
+        String,
+        Any
+      ], // Expecting {"parts": [...], "physicalAddress": "s3://bucket/path"}
+      @Auth user: SessionUser
+  ): Response = {
     val uid = user.getUid
 
     withTransaction(context) { ctx =>
@@ -438,29 +489,90 @@ class DatasetResource {
 
       operationType.toLowerCase match {
         case "init" =>
-          // Ensure numParts is provided for initiation
-          val numPartsValue = numParts.toScala.getOrElse(throw new BadRequestException("numParts is required for initialization"))
+          val numPartsValue = numParts.toScala.getOrElse(
+            throw new BadRequestException("numParts is required for initialization")
+          )
 
-          // Initiate multipart upload and retrieve presigned URLs
-          val presignedResponse = LakeFSFileStorage.initiatePresignedMultipartUploads(datasetName, filePath, numPartsValue)
-
-          Response.ok(Map("uploadId" -> presignedResponse.getUploadId, "presignedUrls" -> presignedResponse.getPresignedUrls)).build()
+          val presignedResponse = LakeFSFileStorage.initiatePresignedMultipartUploads(
+            datasetName,
+            filePath,
+            numPartsValue
+          )
+          Response
+            .ok(
+              Map(
+                "uploadId" -> presignedResponse.getUploadId,
+                "presignedUrls" -> presignedResponse.getPresignedUrls,
+                "physicalAddress" -> presignedResponse.getPhysicalAddress
+              )
+            )
+            .build()
 
         case "finish" =>
-          // Ensure uploadId is provided for completion
-          val uploadIdValue = uploadId.toScala.getOrElse(throw new BadRequestException("uploadId is required for completion"))
+          val uploadIdValue = uploadId.toScala.getOrElse(
+            throw new BadRequestException("uploadId is required for completion")
+          )
 
-          // Complete the multipart upload
-          val objectStats = LakeFSFileStorage.completePresignedMultipartUploads(datasetName, filePath, uploadIdValue)
+          // Extract parts from payload
+          val partsList = payload.get("parts") match {
+            case Some(parts: List[Map[String, Any]]) => // Fix: Accept `Any` type for mixed values
+              parts.map { part =>
+                val partNumber = part("PartNumber") match {
+                  case i: Int    => i
+                  case s: String => s.toInt
+                  case _         => throw new BadRequestException("Invalid PartNumber format")
+                }
+                val eTag = part("ETag") match {
+                  case s: String => s
+                  case _         => throw new BadRequestException("Invalid ETag format")
+                }
+                (partNumber, eTag)
+              }
+            case _ => throw new BadRequestException("Missing or invalid parts data for completion")
+          }
 
-          Response.ok(Map("message" -> "Multipart upload completed successfully", "filePath" -> objectStats.getPath())).build()
+          // Extract physical address from payload
+          val physicalAddress = payload.get("physicalAddress") match {
+            case Some(address: String) => address
+            case _                     => throw new BadRequestException("Missing physicalAddress in payload")
+          }
+
+          // Complete the multipart upload with parts and physical address
+          val objectStats = LakeFSFileStorage.completePresignedMultipartUploads(
+            datasetName,
+            filePath,
+            uploadIdValue,
+            partsList,
+            physicalAddress
+          )
+
+          Response
+            .ok(
+              Map(
+                "message" -> "Multipart upload completed successfully",
+                "filePath" -> objectStats.getPath()
+              )
+            )
+            .build()
 
         case "abort" =>
-          // Ensure uploadId is provided for abortion
-          val uploadIdValue = uploadId.toScala.getOrElse(throw new BadRequestException("uploadId is required for abortion"))
+          val uploadIdValue = uploadId.toScala.getOrElse(
+            throw new BadRequestException("uploadId is required for abortion")
+          )
+
+          // Extract physical address from payload
+          val physicalAddress = payload.get("physicalAddress") match {
+            case Some(address: String) => address
+            case _                     => throw new BadRequestException("Missing physicalAddress in payload")
+          }
 
           // Abort the multipart upload
-          LakeFSFileStorage.abortPresignedMultipartUploads(datasetName, filePath, uploadIdValue)
+          LakeFSFileStorage.abortPresignedMultipartUploads(
+            datasetName,
+            filePath,
+            uploadIdValue,
+            physicalAddress
+          )
 
           Response.ok(Map("message" -> "Multipart upload aborted successfully")).build()
 
@@ -469,7 +581,6 @@ class DatasetResource {
       }
     }
   }
-
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
