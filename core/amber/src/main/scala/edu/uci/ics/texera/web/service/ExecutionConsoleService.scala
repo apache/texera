@@ -121,7 +121,7 @@ class ExecutionConsoleService(
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
     consoleWriterThread.foreach { thread =>
-      thread.execute { () =>
+      thread.execute(() => {
         val writer = getOrCreateWriter(OperatorIdentity(opId))
         try {
           val tuple = new Tuple(
@@ -129,11 +129,10 @@ class ExecutionConsoleService(
             Array(consoleMessage.toProtoString)
           )
           writer.putOne(tuple)
-        } catch {
-          case e: Exception =>
-            logger.error(s"Failed to write tuple for operator $opId", e)
+        } finally {
+          writer.close()
         }
-      }
+      })
     }
 
     val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
@@ -206,15 +205,4 @@ class ExecutionConsoleService(
 
   }))
 
-  override def unsubscribeAll(): Unit = {
-    consoleMessageOpIdToWriterMap.values.foreach { writer =>
-      try {
-        writer.close()
-      } catch {
-        case err: Throwable =>
-          logger.error("Error occurred when closing console message writer", err)
-      }
-    }
-    super.unsubscribeAll()
-  }
 }
