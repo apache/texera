@@ -182,16 +182,16 @@ abstract class ScheduleGenerator(
 
     if (existingOperator.isEmpty) {
       // create cache writer and link
-      val sourceToWriterLink =
-        PhysicalLink(
-          fromOp.id,
-          fromPortId,
-          matWriterPhysicalOp.id,
-          matWriterPhysicalOp.inputPorts.keys.head
-        )
-      newPhysicalPlan = newPhysicalPlan
-        .addOperator(matWriterPhysicalOp)
-        .addLink(sourceToWriterLink)
+//      val sourceToWriterLink =
+//        PhysicalLink(
+//          fromOp.id,
+//          fromPortId,
+//          matWriterPhysicalOp.id,
+//          matWriterPhysicalOp.inputPorts.keys.head
+//        )
+//      newPhysicalPlan = newPhysicalPlan
+//        .addOperator(matWriterPhysicalOp)
+//        .addLink(sourceToWriterLink)
       // TODO: do not replace the existing port storage
 
       // Only add the needStorage property

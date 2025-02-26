@@ -154,7 +154,7 @@ class WorkflowCompiler(
                     sinkPhysicalOp.outputPorts.head._1
                   )
 
-                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+//                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
 
                   // TODO: move to scheduler
                   if (storageUri.isDefined) {
