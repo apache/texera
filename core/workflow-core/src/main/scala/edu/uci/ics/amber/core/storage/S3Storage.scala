@@ -1,20 +1,11 @@
 package edu.uci.ics.amber.core.storage
 
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
-import software.amazon.awssdk.awscore.presigner.PresignedRequest
-import software.amazon.awssdk.core.SdkSystemSetting
-import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.services.s3.model._
-import software.amazon.awssdk.services.s3.presigner.S3Presigner
-import software.amazon.awssdk.services.s3.presigner.model._
 
-import java.io.{File, FileInputStream, InputStream}
-import java.net.URL
-import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
-import java.time.Duration
 import java.util.Base64
 import scala.jdk.CollectionConverters._
 

@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.service.auth
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
-import org.jooq.types.UInteger
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 import org.jose4j.lang.UnresolvableKeyException

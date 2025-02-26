@@ -174,66 +174,77 @@
     <div
       class="right-sider"
       *ngIf="isDisplayingDataset()">
-      <nz-divider nzText="Current Version Files"></nz-divider>
-      <div class="version-storage">
-        <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
-        <div class="select-and-button-container">
-          <nz-select
-            nzShowSearch
-            nzAllowClear
-            nzPlaceHolder="Select a version"
-            (ngModelChange)="onVersionSelected($event)"
-            [(ngModel)]="selectedVersion">
-            <nz-option
-              *ngFor="let version of versions"
-              [nzValue]="version"
-              [nzLabel]="version.name"></nz-option>
-          </nz-select>
+      <nz-collapse nzGhost>
+        <nz-collapse-panel
+          nzHeader="Current Versions"
+          nzActive="true">
+          <div class="version-storage">
+            <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
+            <div class="select-and-button-container">
+              <nz-select
+                nzShowSearch
+                nzAllowClear
+                nzPlaceHolder="Select a version"
+                (ngModelChange)="onVersionSelected($event)"
+                [(ngModel)]="selectedVersion">
+                <nz-option
+                  *ngFor="let version of versions"
+                  [nzValue]="version"
+                  [nzLabel]="version.name"></nz-option>
+              </nz-select>
+              <button
+                nz-button
+                nz-tooltip="Download Dataset"
+                (click)="onClickDownloadVersionAsZip()"
+                *ngIf="selectedVersion"
+                [disabled]="!isLogin"
+                class="spaced-button">
+                <i
+                  nz-icon
+                  nzType="download"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+            <div
+              *ngIf="selectedVersion"
+              class="version-size">
+              <i
+                nz-icon
+                nzType="database"
+                nzTheme="outline"
+                class="icon-database"></i>
+              Version Size: {{ formatSize(currentDatasetVersionSize) }}
+            </div>
+          </div>
+          <texera-user-dataset-version-filetree
+            [fileTreeNodes]="fileTreeNodeList"
+            [isTreeNodeDeletable]="true"
+            (selectedTreeNode)="onVersionFileTreeNodeSelected($event)"
+            (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)">
+          </texera-user-dataset-version-filetree>
+        </nz-collapse-panel>
+      </nz-collapse>
+
+      <nz-divider></nz-divider>
+      <nz-collapse nzGhost>
+        <nz-collapse-panel nzHeader="Create New Version">
+          <texera-user-files-uploader
+            (uploadedFiles)="onNewUploadFilesChanged($event)"
+            [previouslyUploadFiles]="[]">
+          </texera-user-files-uploader>
+          <texera-dataset-staged-objects-list
+            [did]="did"
+            [userMakeChangesEvent]="userMakeChanges"></texera-dataset-staged-objects-list>
           <button
             nz-button
-            nz-tooltip="Download Dataset"
-            (click)="onClickDownloadVersionAsZip()"
-            *ngIf="selectedVersion"
-            [disabled]="!isLogin"
-            class="spaced-button">
-            <i
-              nz-icon
-              nzType="download"
-              nzTheme="outline"></i>
+            nzType="primary"
+            *ngIf="userHasWriteAccess()"
+            class="create-dataset-version-button"
+            (click)="onClickOpenVersionCreator()">
+            + Version
           </button>
-        </div>
-        <div
-          *ngIf="selectedVersion"
-          class="version-size">
-          <i
-            nz-icon
-            nzType="database"
-            nzTheme="outline"
-            class="icon-database"></i>
-          Version Size: {{ formatSize(currentDatasetVersionSize) }}
-        </div>
-      </div>
-      <texera-user-dataset-version-filetree
-        [fileTreeNodes]="fileTreeNodeList"
-        (selectedTreeNode)="onVersionFileTreeNodeSelected($event)">
-        >
-      </texera-user-dataset-version-filetree>
-
-      <nz-divider nzText="Create New Version"></nz-divider>
-      <texera-user-files-uploader
-        (uploadedFiles)="onNewUploadFilesChanged($event)"
-        [previouslyUploadFiles]="[]">
-      </texera-user-files-uploader>
-      <nz-divider nzText="Pending Changes"></nz-divider>
-      <texera-dataset-staged-objects-list [did]="did"></texera-dataset-staged-objects-list>
-      <button
-        nz-button
-        nzType="primary"
-        *ngIf="userHasWriteAccess()"
-        class="rounded-button"
-        (click)="onClickOpenVersionCreator()">
-        + Version
-      </button>
+        </nz-collapse-panel>
+      </nz-collapse>
     </div>
   </nz-sider>
 </nz-layout>

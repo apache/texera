@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.core.storage.model
 
-import edu.uci.ics.amber.core.storage.{S3Storage, StorageConfig}
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 

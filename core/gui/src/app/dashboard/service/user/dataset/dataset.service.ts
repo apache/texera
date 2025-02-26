@@ -210,6 +210,42 @@ export class DatasetService {
   }
 
   /**
+   * Resets a dataset file difference in LakeFS.
+   * @param did Dataset ID
+   * @param filePath File path to reset
+   */
+  public resetDatasetFileDiff(did: number, filePath: string): Observable<Response> {
+    const apiUrl = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`;
+    const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
+
+    return this.http.put<Response>(apiUrl, {}, { params }).pipe(
+      tap(() => console.log(`Reset file diff for dataset ${did}, file: ${filePath}`)),
+      catchError(error => {
+        console.error(`Failed to reset file diff for ${filePath}:`, error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Deletes a dataset file from LakeFS.
+   * @param did Dataset ID
+   * @param filePath File path to delete
+   */
+  public deleteDatasetFile(did: number, filePath: string): Observable<Response> {
+    const apiUrl = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/file`;
+    const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
+
+    return this.http.delete<Response>(apiUrl, { params }).pipe(
+      tap(() => console.log(`Deleted file from dataset ${did}, file: ${filePath}`)),
+      catchError(error => {
+        console.error(`Failed to delete file ${filePath}:`, error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
    * Retrieves the list of uncommitted dataset changes (diffs).
    * @param did Dataset ID
    */

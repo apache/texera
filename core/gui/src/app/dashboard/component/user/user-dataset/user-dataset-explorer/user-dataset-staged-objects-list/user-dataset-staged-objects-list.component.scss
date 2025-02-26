@@ -4,3 +4,35 @@
   overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
   overflow-x: auto; /* Prevents horizontal scrolling */
 }
+
+.truncate-file-path {
+  display: inline-block;
+  max-width: 150px; /* Adjust width as needed */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl; /* Makes ellipsis appear at the beginning */
+  unicode-bidi: plaintext; /* Prevents text from flipping in RTL mode */
+}
+
+.truncate-file-path:hover::after {
+  content: attr(data-fullpath); /* Show full path as tooltip */
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 10;
+  transform: translateY(-25px);
+}
+
+.delete-button {
+  width: 24px; /* Minimum width for button */
+  height: 24px; /* Keep the button small */
+  padding: 0; /* Remove extra padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: unset; /* Prevents unnecessary expansion */
+}

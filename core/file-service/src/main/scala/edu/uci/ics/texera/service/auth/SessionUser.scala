@@ -2,7 +2,6 @@ package edu.uci.ics.texera.service.auth
 
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
-import org.jooq.types.UInteger
 
 import java.security.Principal
 

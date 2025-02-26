@@ -1,8 +1,7 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit } from "@angular/core";
 import { DatasetStagedObject } from "../../../../../../common/type/dataset-staged-object";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { untilDestroyed } from "@ngneat/until-destroy";
-import { pipe } from "rxjs";
+import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 
 @Component({
   selector: "texera-dataset-staged-objects-list",
@@ -10,17 +9,46 @@ import { pipe } from "rxjs";
   styleUrls: ["./user-dataset-staged-objects-list.component.scss"],
 })
 export class UserDatasetStagedObjectsListComponent implements OnInit {
-  @Input() did?: number; // Dataset ID, required input from parent component
+  @Input() did?: number; // Dataset ID
+  @Input() set userMakeChangesEvent(event: EventEmitter<void>) {
+    if (event) {
+      event.subscribe(() => {
+        console.log("Upload success event received, reloading staged objects...");
+        this.fetchDatasetStagedObjects();
+      });
+    }
+  }
+
   datasetStagedObjects: DatasetStagedObject[] = [];
 
-  constructor(private datasetService: DatasetService) {}
+  constructor(
+    private datasetService: DatasetService,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
-    console.log("did: ", this.did);
+    this.fetchDatasetStagedObjects();
+  }
+
+  private fetchDatasetStagedObjects(): void {
     if (this.did != undefined) {
       this.datasetService.getDatasetDiff(this.did).subscribe(diffs => {
         console.log("Received dataset diff:", diffs);
         this.datasetStagedObjects = diffs;
+      });
+    }
+  }
+
+  onObjectReverted(objDiff: DatasetStagedObject) {
+    if (this.did) {
+      this.datasetService.resetDatasetFileDiff(this.did, objDiff.path).subscribe({
+        next: (res: Response) => {
+          this.notificationService.success(`"${objDiff.diffType} ${objDiff.path}" is successfully reverted`);
+          this.fetchDatasetStagedObjects();
+        },
+        error: (err: unknown) => {
+          this.notificationService.error("Failed to delete the file");
+        },
       });
     }
   }

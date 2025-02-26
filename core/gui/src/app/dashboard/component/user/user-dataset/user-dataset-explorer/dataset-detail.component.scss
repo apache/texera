@@ -1,15 +1,17 @@
-.rounded-button {
-  display: inline-flex; /* Use flexbox for alignment */
+.create-dataset-version-button {
+  display: flex; /* Use flexbox for centering */
   align-items: center; /* Center vertically */
   justify-content: center; /* Center horizontally */
   color: white;
   border: none;
-  padding: 10px 20px; /* Adjust padding as needed */
+  padding: 12px 40px; /* Increase padding for a wider button */
   border-radius: 25px;
   cursor: pointer;
   transition: background-color 0.3s;
-  margin-top: 50px;
-  margin-left: 20px;
+  margin: 50px auto 0 auto; /* Auto margins for horizontal centering */
+  width: 200px; /* Adjust width as needed */
+  font-size: 1.1em; /* Make text slightly bigger */
+  font-weight: bold; /* Optional: Make text bold */
 }
 
 .version-storage {
@@ -140,7 +142,15 @@ nz-select {
   color: red;
 }
 
-nz-tabset {
-  width: 95%; // Take up 90% of the container width
-  margin: 0 auto; // Center it horizontally
+nz-collapse {
+  margin-bottom: 10px;
+}
+
+::ng-deep .ant-collapse-header {
+  font-weight: bold !important; // Make the text bolder
+  font-size: 1.2em !important; // Increase font size (adjust as needed)
+  text-align: center !important; // Center the text
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

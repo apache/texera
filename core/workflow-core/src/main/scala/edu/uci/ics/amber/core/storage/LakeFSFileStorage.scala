@@ -7,6 +7,7 @@ import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 import edu.uci.ics.amber.core.storage.StorageConfig
+import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 
 /**
   * LakeFSFileStorage provides high-level file storage operations using LakeFS,
@@ -254,4 +255,15 @@ object LakeFSFileStorage {
     commitsApi.commit(repoName, branch, commit).execute()
   }
 
+  def deleteObject(repoName: String, filePath: String): Unit = {
+    objectsApi.deleteObject(repoName, branchName, filePath).execute()
+  }
+
+  def resertObjectUploadOrDeletion(repoName: String, filePath: String): Unit = {
+    val resetCreation: ResetCreation = new ResetCreation
+    resetCreation.setType(TypeEnum.OBJECT)
+    resetCreation.setPath(filePath)
+
+    branchesApi.resetBranch(repoName, branchName, resetCreation).execute()
+  }
 }

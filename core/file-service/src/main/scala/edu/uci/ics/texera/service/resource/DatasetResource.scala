@@ -28,8 +28,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
@@ -47,7 +46,6 @@ import edu.uci.ics.texera.service.resource.DatasetResource.{
   DatasetDescriptionModification,
   DatasetVersionRootFileNodesResponse,
   Diff,
-  calculateDatasetVersionSize,
   context,
   getDatasetByID,
   getDatasetVersionByID,
@@ -57,7 +55,6 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
-import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.{DSLContext, EnumType}
 
@@ -66,13 +63,12 @@ import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Optional
-import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try, Using}
+import scala.util.Using
 
 object DatasetResource {
   private val context = SqlServer
@@ -460,6 +456,38 @@ class DatasetResource {
     }
   }
 
+  @DELETE
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/file")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def deleteDatasetFile(
+      @PathParam("did") did: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+      val datasetName = getDatasetByID(ctx, did).getName
+
+      // Decode the file path
+      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+      // Try to initialize the repository in LakeFS
+      try {
+        LakeFSFileStorage.deleteObject(datasetName, filePath)
+      } catch {
+        case e: Exception =>
+          throw new WebApplicationException(
+            s"Failed to delete the file from repo in LakeFS: ${e.getMessage}"
+          )
+      }
+
+      Response.ok().build()
+    }
+  }
+
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/multipart-upload")
@@ -631,6 +659,37 @@ class DatasetResource {
           Option(d.getSizeBytes).map(_.longValue())
         )
       )
+    }
+  }
+
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/diff")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def resetDatasetFileDiff(
+      @PathParam("did") did: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+      val datasetName = getDatasetByID(ctx, did).getName
+
+      // Decode the file path
+      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+      // Try to reset the file change in LakeFS
+      try {
+        LakeFSFileStorage.resertObjectUploadOrDeletion(datasetName, filePath)
+      } catch {
+        case e: Exception =>
+          throw new WebApplicationException(
+            s"Failed to reset the changes from repo in LakeFS: ${e.getMessage}"
+          )
+      }
+      Response.ok().build()
     }
   }
 

@@ -1,9 +1,14 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
+import {
+  DatasetFileNode,
+  getFullPathFromDatasetFileNode,
+  getPathsUnderOrEqualDatasetFileNode,
+  getRelativePathFromDatasetFileNode,
+} from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -52,6 +57,8 @@ export class DatasetDetailComponent implements OnInit {
   public currentUid: number | undefined;
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
+
+  @Output() userMakeChanges = new EventEmitter<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -298,9 +305,28 @@ export class DatasetDetailComponent implements OnInit {
           .multipartUpload(did, file.name, file.file)
           .pipe(untilDestroyed(this))
           .subscribe(res => {
-            console.log("Multipart upload: ", res);
+            this.userMakeChanges.emit();
           });
       });
+    }
+  }
+
+  onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
+    if (this.did) {
+      this.datasetService
+        .deleteDatasetFile(this.did, getRelativePathFromDatasetFileNode(node))
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.notificationService.success(
+              `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
+            );
+            this.userMakeChanges.emit();
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to delete the file");
+          },
+        });
     }
   }
 
