@@ -34,7 +34,11 @@ const MULTIPART_UPLOAD_PART_SIZE_MB = 50 * 1024 * 1024; // 50MB per part
   providedIn: "root",
 })
 export class DatasetService {
-  constructor(private s3Client: S3Client, private http: HttpClient) {}
+  private s3Client: S3Client;
+
+  constructor(private http: HttpClient) {
+    this.s3Client = new S3Client();
+  }
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
     const formData = new FormData();

@@ -1,14 +1,16 @@
-<nz-list
-  *ngIf="datasetStagedObjects.length > 0"
-  [nzBordered]="true">
-  <nz-list-item *ngFor="let obj of datasetStagedObjects">
-    <nz-list-item-meta
-      [nzTitle]="obj.fileRelativePath"
-      [nzDescription]="'Type: ' + obj.pathType + ' | Change: ' + obj.diffType + (obj.sizeBytes ? ' | Size: ' + obj.sizeBytes + ' bytes' : '')">
-    </nz-list-item-meta>
-  </nz-list-item>
-</nz-list>
+<div class="staged-object-list-container">
+  <nz-list
+    nzBordered
+    nzHeader="Type"
+    nzSize="small"
+    *ngIf="datasetStagedObjects.length > 0">
+    <nz-list-item *ngFor="let obj of datasetStagedObjects">
+      <span>{{ obj.diffType }}</span>
+      {{obj.path}}
+    </nz-list-item>
+  </nz-list>
 
-<nz-empty
-  *ngIf="datasetStagedObjects.length === 0"
-  nzNotFoundContent="No staged objects found"></nz-empty>
+  <nz-empty
+    *ngIf="datasetStagedObjects.length === 0"
+    nzNotFoundContent="No staged objects found"></nz-empty>
+</div>

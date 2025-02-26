@@ -87,9 +87,9 @@ export class FilesUploaderComponent {
           .filter((item): item is FileUploadItem => item !== null);
 
         if (successfulUploads.length > 0) {
-          successfulUploads.forEach(fileUploadItem => {
-            this.addFileToNewUploadsFileTree(fileUploadItem.name, fileUploadItem);
-          });
+          // successfulUploads.forEach(fileUploadItem => {
+          //   this.addFileToNewUploadsFileTree(fileUploadItem.name, fileUploadItem);
+          // });
           const successMessage = `${successfulUploads.length} file${successfulUploads.length > 1 ? "s" : ""} selected successfully!`;
           this.showFileUploadBanner("success", successMessage);
         }
@@ -100,7 +100,7 @@ export class FilesUploaderComponent {
           this.showFileUploadBanner("error", errorMessage);
         }
 
-        this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
+        this.uploadedFiles.emit(successfulUploads);
       })
       .catch(error => {
         this.showFileUploadBanner("error", `Unexpected error: ${error.message}`);

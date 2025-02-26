@@ -13,6 +13,8 @@ import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
 import { HubService } from "../../../../../hub/service/hub.service";
+import {FileUploadItem} from "../../../../type/dashboard-file.interface";
+import {file} from "jszip";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -72,7 +74,7 @@ export class DatasetDetailComponent implements OnInit {
   // item for control the resizeable sider
   MAX_SIDER_WIDTH = 600;
   MIN_SIDER_WIDTH = 150;
-  siderWidth = 200;
+  siderWidth = 400;
   id = -1;
   onSideResize({ width }: NzResizeEvent): void {
     cancelAnimationFrame(this.id);
@@ -286,6 +288,13 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
+  }
+
+  onNewUploadFilesChanged(files: FileUploadItem[]) {
+    if (this.did) {
+      files.map(file => {
+      })
+    }
   }
 
   // alias for formatSize

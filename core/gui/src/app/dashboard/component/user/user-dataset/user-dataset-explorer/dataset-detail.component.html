@@ -127,25 +127,18 @@
         </div>
       </div>
     </nz-card>
-    <nz-tabset>
-      <nz-tab nzTitle="Created Versions">
-        <nz-empty
-          *ngIf="!selectedVersion"
-          nzNotFoundContent="No version is selected"></nz-empty>
+    <nz-empty
+      *ngIf="!selectedVersion"
+      nzNotFoundContent="No version is selected"></nz-empty>
 
-        <texera-user-dataset-file-renderer
-          *ngIf="isDisplayingDataset() && selectedVersion"
-          [isMaximized]="isMaximized"
-          [did]="did"
-          [dvid]="selectedVersion?.dvid"
-          [filePath]="currentDisplayedFileName"
-          class="file-renderer">
-        </texera-user-dataset-file-renderer>
-      </nz-tab>
-      <nz-tab nzTitle="Pending Changes">
-        <texera-dataset-staged-objects-list [did]="did"> </texera-dataset-staged-objects-list>
-      </nz-tab>
-    </nz-tabset>
+    <texera-user-dataset-file-renderer
+      *ngIf="isDisplayingDataset() && selectedVersion"
+      [isMaximized]="isMaximized"
+      [did]="did"
+      [dvid]="selectedVersion?.dvid"
+      [filePath]="currentDisplayedFileName"
+      class="file-renderer">
+    </texera-user-dataset-file-renderer>
   </nz-content>
   <nz-sider
     *ngIf="!isRightBarCollapsed"
@@ -181,9 +174,7 @@
     <div
       class="right-sider"
       *ngIf="isDisplayingDataset()">
-      <div class="right-panel-title">
-        <h3>Dataset Explorer</h3>
-      </div>
+      <nz-divider nzText="Current Version Files"></nz-divider>
       <div class="version-storage">
         <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
         <div class="select-and-button-container">
@@ -227,6 +218,14 @@
         (selectedTreeNode)="onVersionFileTreeNodeSelected($event)">
         >
       </texera-user-dataset-version-filetree>
+
+      <nz-divider nzText="Create New Version"></nz-divider>
+      <texera-user-files-uploader
+        (uploadedFiles)="onNewUploadFilesChanged($event)"
+        [previouslyUploadFiles]="[]">
+      </texera-user-files-uploader>
+      <nz-divider nzText="Pending Changes"></nz-divider>
+      <texera-dataset-staged-objects-list [did]="did"></texera-dataset-staged-objects-list>
       <button
         nz-button
         nzType="primary"
