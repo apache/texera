@@ -3,19 +3,24 @@ package edu.uci.ics.texera.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  PhysicalLink,
+  PhysicalOpOutputPortIdentity,
+  PhysicalPlan,
+  WorkflowContext,
+  WorkflowSettings
+}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
-import edu.uci.ics.amber.core.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
@@ -28,13 +33,14 @@ class WorkflowCompiler(
       logicalPlan: LogicalPlan,
       logicalOpsToViewResult: List[String],
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): PhysicalPlan = {
+  ): (PhysicalPlan, List[PhysicalOpOutputPortIdentity]) = {
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
     val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()
+    val physicalOpOutputPortsNeedingStorage: ListBuffer[PhysicalOpOutputPortIdentity] = ListBuffer()
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
@@ -110,21 +116,23 @@ class WorkflowCompiler(
                       if (outputPort.mode == SINGLE_SNAPSHOT) DocumentFactory.ICEBERG
                       else StorageConfig.resultStorageMode
 
+                    // Instead of creating the storage object here, only add the needStorage flag.
                     // Create storage if it doesn't exist
                     val sinkStorageSchema =
                       schema.getOrElse(throw new IllegalStateException("Schema is missing"))
-
-                    // create the storage resource and record the URI
-                    DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
-                    WorkflowExecutionsResource.insertOperatorPortResultUri(
-                      context.executionId,
-                      physicalOp.id.logicalOpId,
-                      physicalOp.id.layerName,
-                      outputPortId,
-                      storageUri.get
-                    )
+//
+//                    // create the storage resource and record the URI
+//                    DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
+//                    WorkflowExecutionsResource.insertOperatorPortResultUri(
+//                      context.executionId,
+//                      physicalOp.id.logicalOpId,
+//                      physicalOp.id.layerName,
+//                      outputPortId,
+//                      storageUri.get
+//                    )
 
                     // Add sink collection name to the JSON array of sinks
+
                     sinksPointers.add(
                       objectMapper
                         .createObjectNode()
@@ -133,7 +141,7 @@ class WorkflowCompiler(
                     )
                   }
 
-                  // TODO: remove
+                  // TODO: remove sink operator in the next PR
                   // Create and link the sink operator
                   val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
                     storageUri.get,
@@ -147,13 +155,19 @@ class WorkflowCompiler(
                   )
 
                   physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+
+                  // TODO: move to scheduler
                   if (storageUri.isDefined) {
-                    // TODO: move to scheduler
                     physicalPlan = physicalPlan.setOperator(
                       physicalOp
                         .withOutputPortStorage(portId = outputPortId, storageUri = storageUri.get)
                     )
                   }
+
+                  physicalOpOutputPortsNeedingStorage += PhysicalOpOutputPortIdentity(
+                    physicalOpIdentity = physicalOp.id,
+                    outputPortId = outputPortId
+                  )
               }
           }
       } match {
@@ -172,7 +186,7 @@ class WorkflowCompiler(
     ExecutionsMetadataPersistService.tryUpdateExistingExecution(context.executionId) {
       _.setResult(resultsJSON.toString)
     }
-    physicalPlan
+    (physicalPlan, physicalOpOutputPortsNeedingStorage.toList)
   }
 
   /**
@@ -195,7 +209,11 @@ class WorkflowCompiler(
     logicalPlan.resolveScanSourceOpFileName(None)
 
     // 3. expand the logical plan to the physical plan, without assigning storage
-    val physicalPlan = expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
+    val (physicalPlan, outputPortsNeedingStorage) =
+      expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
+
+    context.workflowSettings =
+      WorkflowSettings(context.workflowSettings.dataTransferBatchSize, outputPortsNeedingStorage)
 
     Workflow(context, logicalPlan, physicalPlan)
   }

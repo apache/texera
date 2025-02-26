@@ -83,13 +83,13 @@ class CostBasedScheduleGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
-        val materializedPortIds: Set[GlobalPortIdentity] = matEdges.filter(
-          matLink=>operatorIds.contains(matLink.fromOpId)
-        ).flatMap(link =>
-          List(
-            GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
+        val materializedPortIds: Set[GlobalPortIdentity] = matEdges
+          .filter(matLink => operatorIds.contains(matLink.fromOpId))
+          .flatMap(link =>
+            List(
+              GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
+            )
           )
-        )
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
