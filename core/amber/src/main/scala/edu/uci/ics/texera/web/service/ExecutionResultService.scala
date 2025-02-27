@@ -97,6 +97,7 @@ object ExecutionResultService {
       workflowIdentity,
       executionId,
       physicalOps.head.id.logicalOpId,
+      None,
       PortIdentity()
     )
     val storage: VirtualDocument[Tuple] =
@@ -268,6 +269,7 @@ class ExecutionResultService(
                     workflowIdentity,
                     executionId,
                     opId,
+                    None,
                     PortIdentity()
                   )
                 val opStorage = DocumentFactory.openDocument(storageUri.get)._1
@@ -301,6 +303,7 @@ class ExecutionResultService(
       workflowIdentity,
       latestExecutionId,
       OperatorIdentity(request.operatorID),
+      None,
       PortIdentity()
     )
 
@@ -334,13 +337,13 @@ class ExecutionResultService(
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
           .filter(uri => {
-            val (_, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
+            val (_, _, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
             resourceType != MATERIALIZED_RESULT
           })
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, storagePortId, _) = VFSURIFactory.decodeURI(uri)
+            val (_, _, opId, _, storagePortId, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan

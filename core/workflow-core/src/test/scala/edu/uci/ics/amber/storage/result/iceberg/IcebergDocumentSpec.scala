@@ -59,6 +59,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+      None,
       PortIdentity()
     )
     DocumentFactory.createDocument(uri, amberSchema)

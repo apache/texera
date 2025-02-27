@@ -157,6 +157,7 @@ abstract class ScheduleGenerator(
       workflowContext.workflowId,
       workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
+      s"${physicalLink.fromOpId.layerName}_materialization",
       physicalLink.fromPortId
     )
 
@@ -200,6 +201,7 @@ abstract class ScheduleGenerator(
       WorkflowExecutionsResource.insertOperatorPortResultUri(
         workflowContext.executionId,
         physicalLink.fromOpId.logicalOpId,
+        s"${physicalLink.fromOpId.layerName}_materialization",
         physicalLink.fromPortId,
         storageUri
       )
@@ -209,7 +211,9 @@ abstract class ScheduleGenerator(
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
-      storageUri
+      storageUri,
+      toOp.id,
+      toPortId
     )
     val readerToDestLink =
       PhysicalLink(

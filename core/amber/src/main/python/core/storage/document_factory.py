@@ -32,7 +32,7 @@ class DocumentFactory:
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
             if resource_type in {
                 VFSResourceType.RESULT,
@@ -68,7 +68,7 @@ class DocumentFactory:
     def open_document(uri: str) -> (VirtualDocument, Optional[Schema]):
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == "vfs":
-            _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
             if resource_type in {
                 VFSResourceType.RESULT,

@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import java.net.URI
 
 class CacheSourceOpExec(storageUri: URI) extends SourceOperatorExecutor with LazyLogging {
-  val (_, _, _, _, resourceType) = VFSURIFactory.decodeURI(storageUri)
+  val (_, _, _, _, _, resourceType) = VFSURIFactory.decodeURI(storageUri)
   if (resourceType != MATERIALIZED_RESULT) {
     throw new RuntimeException("The storage URI must point to an materialized result storage")
   }

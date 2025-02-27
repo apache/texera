@@ -17,6 +17,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
 
     private Integer workflowExecutionId;
     private String  operatorId;
+    private String  layerName;
     private Integer portId;
     private String  resultUri;
 
@@ -25,6 +26,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     public OperatorPortExecutions(IOperatorPortExecutions value) {
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.operatorId = value.getOperatorId();
+        this.layerName = value.getLayerName();
         this.portId = value.getPortId();
         this.resultUri = value.getResultUri();
     }
@@ -32,11 +34,13 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     public OperatorPortExecutions(
         Integer workflowExecutionId,
         String  operatorId,
+        String  layerName,
         Integer portId,
         String  resultUri
     ) {
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
+        this.layerName = layerName;
         this.portId = portId;
         this.resultUri = resultUri;
     }
@@ -73,6 +77,22 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     @Override
     public void setOperatorId(String operatorId) {
         this.operatorId = operatorId;
+    }
+
+    /**
+     * Getter for <code>texera_db.operator_port_executions.layer_name</code>.
+     */
+    @Override
+    public String getLayerName() {
+        return this.layerName;
+    }
+
+    /**
+     * Setter for <code>texera_db.operator_port_executions.layer_name</code>.
+     */
+    @Override
+    public void setLayerName(String layerName) {
+        this.layerName = layerName;
     }
 
     /**
@@ -113,6 +133,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
 
         sb.append(workflowExecutionId);
         sb.append(", ").append(operatorId);
+        sb.append(", ").append(layerName);
         sb.append(", ").append(portId);
         sb.append(", ").append(resultUri);
 
@@ -128,6 +149,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     public void from(IOperatorPortExecutions from) {
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setOperatorId(from.getOperatorId());
+        setLayerName(from.getLayerName());
         setPortId(from.getPortId());
         setResultUri(from.getResultUri());
     }

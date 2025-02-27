@@ -25,6 +25,7 @@ class VFSURIFactory:
         WorkflowIdentity,
         ExecutionIdentity,
         OperatorIdentity,
+        Optional[str],
         Optional[PortIdentity],
         VFSResourceType,
     ):
@@ -49,6 +50,8 @@ class VFSURIFactory:
         execution_id = ExecutionIdentity(int(extract_value("eid")))
         operator_id = OperatorIdentity(extract_value("opid"))
 
+        layer_name = extract_value("layername") if "layername" in segments else None
+
         port_identity = VFSURIFactory._extract_optional_port_identity(segments, uri)
 
         resource_type_str = segments[-1].lower()
@@ -57,7 +60,14 @@ class VFSURIFactory:
         except ValueError:
             raise ValueError(f"Unknown resource type: {resource_type_str}")
 
-        return workflow_id, execution_id, operator_id, port_identity, resource_type
+        return (
+            workflow_id,
+            execution_id,
+            operator_id,
+            layer_name,
+            port_identity,
+            resource_type,
+        )
 
     @staticmethod
     def _extract_optional_port_identity(segments, uri):
@@ -76,19 +86,22 @@ class VFSURIFactory:
             return None
 
     @staticmethod
-    def create_result_uri(workflow_id, execution_id, operator_id, port_identity) -> str:
+    def create_result_uri(
+        workflow_id, execution_id, operator_id, layer_name, port_identity
+    ) -> str:
         """Creates a URI pointing to a result storage."""
         return VFSURIFactory._create_vfs_uri(
             VFSResourceType.RESULT,
             workflow_id,
             execution_id,
             operator_id,
+            layer_name,
             port_identity,
         )
 
     @staticmethod
     def create_materialized_result_uri(
-        workflow_id, execution_id, operator_id, port_identity
+        workflow_id, execution_id, operator_id, layer_name, port_identity
     ) -> str:
         """Creates a URI pointing to a materialized storage."""
         return VFSURIFactory._create_vfs_uri(
@@ -96,12 +109,18 @@ class VFSURIFactory:
             workflow_id,
             execution_id,
             operator_id,
+            layer_name,
             port_identity,
         )
 
     @staticmethod
     def _create_vfs_uri(
-        resource_type, workflow_id, execution_id, operator_id, port_identity=None
+        resource_type,
+        workflow_id,
+        execution_id,
+        operator_id,
+        layer_name=None,
+        port_identity=None,
     ) -> str:
         """Internal helper to create URI pointing to a VFS resource."""
         if (
@@ -118,6 +137,9 @@ class VFSURIFactory:
             f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}"
             f"/eid/{execution_id.id}/opid/{operator_id.id}"
         )
+
+        if layer_name is not None:
+            base_uri += f"/layername/{layer_name}"
 
         if port_identity is not None:
             port_type = "I" if port_identity.internal else "E"
