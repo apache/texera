@@ -235,9 +235,10 @@ CREATE TABLE IF NOT EXISTS operator_port_executions
 (
     workflow_execution_id INT NOT NULL,
     operator_id           VARCHAR(100) NOT NULL,
+    layer_name            VARCHAR(100) NOT NULL DEFAULT 'main',
     port_id               INT NOT NULL,
     result_uri            TEXT,
-    PRIMARY KEY (workflow_execution_id, operator_id, port_id),
+    PRIMARY KEY (workflow_execution_id, operator_id, layer_name, port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
