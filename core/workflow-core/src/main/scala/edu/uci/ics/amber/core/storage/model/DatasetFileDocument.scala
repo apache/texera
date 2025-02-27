@@ -1,13 +1,22 @@
 package edu.uci.ics.amber.core.storage.model
 
+import edu.uci.ics.amber.core.storage.LakeFSFileStorage
+import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{fileServiceEndpoint, userJwtToken}
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 
 import java.io.{File, FileOutputStream, InputStream}
-import java.net.{URI, URLDecoder}
+import java.net.{HttpURLConnection, URI, URL, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+
+object DatasetFileDocument {
+  lazy val userJwtToken: String = sys.env.getOrElse("USER_JWT_TOKEN", "").trim
+
+  lazy val fileServiceEndpoint: String =
+    sys.env.getOrElse("FILE_SERVICE_ENDPOINT", "http://localhost:9092/api/dataset/presign").trim
+}
 
 private[storage] class DatasetFileDocument(uri: URI)
     extends VirtualDocument[Nothing]
@@ -36,13 +45,51 @@ private[storage] class DatasetFileDocument(uri: URI)
   override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    val datasetAbsolutePath = PathUtils.getDatasetPath(0)
-    GitVersionControlLocalFileStorage
-      .retrieveFileContentOfVersionAsInputStream(
-        datasetAbsolutePath,
-        datasetVersionHash,
-        datasetAbsolutePath.resolve(fileRelativePath)
+    if (userJwtToken.isEmpty) {
+      val presignUrl = LakeFSFileStorage.getFilePresignedUrl(
+        getDatasetName(),
+        getVersionHash(),
+        getFileRelativePath()
       )
+      return new URL(presignUrl).openStream()
+    }
+
+    // Step 1: Get the presigned URL from the file service
+    val presignRequestUrl =
+      s"$fileServiceEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+        .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
+
+    val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
+    connection.setRequestMethod("GET")
+    connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
+
+    try {
+      if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
+        throw new RuntimeException(
+          s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+        )
+      }
+
+      // Read response body as a string
+      val responseBody =
+        new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+
+      // Extract presigned URL from JSON response
+      val presignedUrl = responseBody
+        .split("\"presignedUrl\"\\s*:\\s*\"")(1)
+        .split("\"")(0)
+
+      // Step 2: Fetch the file using the retrieved presigned URL
+      new URL(presignedUrl).openStream()
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Failed to retrieve presigned URL from $fileServiceEndpoint: ${e.getMessage}",
+          e
+        )
+    } finally {
+      connection.disconnect()
+    }
   }
 
   override def asFile(): File = {

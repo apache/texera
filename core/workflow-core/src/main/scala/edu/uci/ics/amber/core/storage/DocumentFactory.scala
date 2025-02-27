@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.storage.FileResolver.{DATASET_FILE_URI_SCHEME, LAKEFS_FILE_URI_SCHEME}
+import edu.uci.ics.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
 import edu.uci.ics.amber.core.storage.model._
 import edu.uci.ics.amber.core.storage.VFSResourceType._
 import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
@@ -29,8 +29,6 @@ object DocumentFactory {
     fileUri.getScheme match {
       case DATASET_FILE_URI_SCHEME => new DatasetFileDocument(fileUri)
       case "file"                  => new ReadonlyLocalFileDocument(fileUri)
-      case LAKEFS_FILE_URI_SCHEME =>
-        new LakeFSFileDocument(fileUri)
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
           s"Unsupported URI scheme: $unsupportedScheme for creating the ReadonlyDocument"

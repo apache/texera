@@ -61,7 +61,7 @@ export class DatasetService {
     return this.http
       .get<{
         presignedUrl: string;
-      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?key=${encodeURIComponent(filePath)}`)
+      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?filePath=${encodeURIComponent(filePath)}`)
       .pipe(
         switchMap(({ presignedUrl }) => {
           return this.http.get(presignedUrl, { responseType: "blob" });
@@ -77,6 +77,7 @@ export class DatasetService {
    * @returns An Observable that emits a Blob containing the zip file
    */
   public retrieveDatasetZip(options: { did: number; dvid?: number }): Observable<Blob> {
+    // TODO: finish this
     let params = new HttpParams();
     params = params.set("did", options.did.toString());
     if (options.dvid) {
@@ -90,7 +91,7 @@ export class DatasetService {
   }
 
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_LIST_URL}`);
   }
   public createDatasetVersion(did: number, newVersion: string): Observable<DatasetVersion> {
     return this.http

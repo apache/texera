@@ -20,7 +20,6 @@ import scala.util.{Success, Try}
 object FileResolver {
 
   val DATASET_FILE_URI_SCHEME = "dataset"
-  val LAKEFS_FILE_URI_SCHEME = "lakefs"
 
   /**
     * Resolves a given fileName to either a file on the local file system or a dataset file.
@@ -33,7 +32,7 @@ object FileResolver {
     if (isFileResolved(fileName)) {
       return new URI(fileName)
     }
-    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc, lakeFSResolveFunc)
+    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc)
 
     // Try each resolver function in sequence
     resolvers
@@ -133,43 +132,6 @@ object FileResolver {
     } catch {
       case e: Exception =>
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
-    }
-  }
-
-  /**
-    * Resolves a LakeFS file.
-    *
-    * Expected input: /repoName/commitHash/objectPath (objectPath can have nested directories)
-    * Resolved as: lakefs://repoName/commitHash/objectPath
-    */
-  private def lakeFSResolveFunc(fileName: String): URI = {
-    // Ensure the URI has the lakefs scheme
-    val fullUri = if (isFileResolved(fileName)) {
-      new URI(fileName)
-    } else {
-      new URI(s"$LAKEFS_FILE_URI_SCHEME://${fileName.stripPrefix("/")}")
-    }
-
-    // Validate the scheme
-    if (fullUri.getScheme != LAKEFS_FILE_URI_SCHEME) {
-      throw new FileNotFoundException(s"Invalid LakeFS scheme: ${fullUri.getScheme}")
-    }
-
-    // Split the path and extract repoName, commitHash, and objectPath
-    val filePath = Paths.get(fullUri.getPath.stripPrefix("/"))
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
-
-    val repoName = fullUri.getHost // repoName
-    val commitHash = pathSegments.head // commitHash
-    val objectPath = Paths.get(pathSegments.drop(1).head, pathSegments.drop(1).tail: _*).toString
-
-    try {
-      // Verify that the object exists in LakeFS
-      LakeFSFileStorage.retrieveFileContent(repoName, commitHash, objectPath)
-      fullUri // Return the constructed URI if the object exists
-    } catch {
-      case _: Exception =>
-        throw new FileNotFoundException(s"LakeFS file not found: $fileName")
     }
   }
 

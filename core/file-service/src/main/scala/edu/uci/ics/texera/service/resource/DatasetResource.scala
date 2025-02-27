@@ -426,33 +426,62 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/presign")
   def getPresignedUrl(
-      @QueryParam("key") encodedUrl: String,
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String,
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
-    withTransaction(context) { ctx =>
-      val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
-      val fileUri = FileResolver.resolve(decodedPathStr)
-      val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
+    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
-      val datasetDao = new DatasetDao(ctx.configuration())
-      val datasets = datasetDao.fetchByName(document.getDatasetName()).asScala.toList
-
-      if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      Response
-        .ok(
-          Map(
-            "presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(
-              document.getDatasetName(),
-              document.getVersionHash(),
-              document.getFileRelativePath()
-            )
+    (Option(datasetName), Option(commitHash)) match {
+      case (Some(_), None) | (None, Some(_)) =>
+        // Case 1: Only one parameter is provided (error case)
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .entity(
+            "Both datasetName and commitHash must be provided together, or neither should be provided."
           )
-        )
-        .build()
+          .build()
+
+      case (Some(dsName), Some(commit)) =>
+        // Case 2: datasetName and commitHash are provided, validate access
+        withTransaction(context) { ctx =>
+          val datasetDao = new DatasetDao(ctx.configuration())
+          val datasets = datasetDao.fetchByName(dsName).asScala.toList
+
+          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
+            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+          }
+
+          val url = LakeFSFileStorage.getFilePresignedUrl(dsName, commit, decodedPathStr)
+          Response.ok(Map("presignedUrl" -> url)).build()
+        }
+
+      case (None, None) =>
+        // Case 3: Neither datasetName nor commitHash are provided, resolve normally
+        withTransaction(context) { ctx =>
+          val fileUri = FileResolver.resolve(decodedPathStr)
+          val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
+          val datasetDao = new DatasetDao(ctx.configuration())
+          val datasets = datasetDao.fetchByName(document.getDatasetName()).asScala.toList
+
+          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
+            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+          }
+
+          Response
+            .ok(
+              Map(
+                "presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(
+                  document.getDatasetName(),
+                  document.getVersionHash(),
+                  document.getFileRelativePath()
+                )
+              )
+            )
+            .build()
+        }
     }
   }
 
