@@ -20,6 +20,7 @@ import { isDefined } from "../../../../../common/util/predicate";
 import { HubService } from "../../../../../hub/service/hub.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { file } from "jszip";
+import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -57,6 +58,8 @@ export class DatasetDetailComponent implements OnInit {
   public currentUid: number | undefined;
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
+
+  userHasPendingChanges: boolean = false;
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -266,6 +269,10 @@ export class DatasetDetailComponent implements OnInit {
 
   onClickHideRightBar() {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
+  }
+
+  onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
+    this.userHasPendingChanges = stagedObjects.length > 0;
   }
 
   onVersionSelected(version: DatasetVersion): void {

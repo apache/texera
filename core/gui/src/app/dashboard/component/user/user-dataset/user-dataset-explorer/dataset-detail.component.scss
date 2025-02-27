@@ -146,6 +146,10 @@ nz-collapse {
   margin-bottom: 10px;
 }
 
+.empty-version-indicator {
+  margin-top: 15%;
+}
+
 ::ng-deep .ant-collapse-header {
   font-weight: bold !important; // Make the text bolder
   font-size: 1.2em !important; // Increase font size (adjust as needed)

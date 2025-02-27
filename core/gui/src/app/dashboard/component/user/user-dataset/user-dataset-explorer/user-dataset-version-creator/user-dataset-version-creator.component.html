@@ -17,13 +17,6 @@
         nzCheckedChildren="public"
         nzUnCheckedChildren="private"></nz-switch>
     </div>
-    <div class="file-uploader">
-      <texera-user-files-uploader
-        (uploadedFiles)="onNewUploadFilesChanged($event)"
-        (removingFilePaths)="onRemovingFilePathsChanged($event)"
-        [previouslyUploadFiles]="[]">
-      </texera-user-files-uploader>
-    </div>
 
     <button
       nz-button

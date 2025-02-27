@@ -1,14 +1,14 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
-import {catchError, map, switchMap, tap} from "rxjs/operators";
+import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import {forkJoin, from, Observable, throwError} from "rxjs";
+import { forkJoin, from, Observable, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
-import {S3Client} from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -34,8 +34,7 @@ const MULTIPART_UPLOAD_PART_SIZE_MB = 50 * 1024 * 1024; // 50MB per part
   providedIn: "root",
 })
 export class DatasetService {
-  constructor(private http: HttpClient) {
-  }
+  constructor(private http: HttpClient) {}
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
     const formData = new FormData();
@@ -153,11 +152,27 @@ export class DatasetService {
         });
 
         return forkJoin(uploadObservables).pipe(
-          switchMap(() => this.finalizeMultipartUpload(did, filePath, uploadId, uploadedParts, initiateResponse.physicalAddress, false)),
+          switchMap(() =>
+            this.finalizeMultipartUpload(
+              did,
+              filePath,
+              uploadId,
+              uploadedParts,
+              initiateResponse.physicalAddress,
+              false
+            )
+          ),
           tap(() => console.log(`Multipart upload for ${filePath} completed successfully!`)),
-          catchError(error => {
+          catchError((error: unknown) => {
             console.error(`Multipart upload failed for ${filePath}`, error);
-            return this.finalizeMultipartUpload(did, filePath, uploadId, uploadedParts, initiateResponse.physicalAddress, true).pipe(
+            return this.finalizeMultipartUpload(
+              did,
+              filePath,
+              uploadId,
+              uploadedParts,
+              initiateResponse.physicalAddress,
+              true
+            ).pipe(
               tap(() => console.error(`Upload aborted for ${filePath}`)),
               switchMap(() => throwError(() => error))
             );
@@ -173,7 +188,11 @@ export class DatasetService {
    * @param filePath File path within the dataset
    * @param numParts Number of parts for the multipart upload
    */
-  private initiateMultipartUpload(did: number, filePath: string, numParts: number): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
+  private initiateMultipartUpload(
+    did: number,
+    filePath: string,
+    numParts: number
+  ): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
     const params = new HttpParams()
       .set("type", "init")
       .set("key", encodeURIComponent(filePath))
@@ -220,7 +239,7 @@ export class DatasetService {
 
     return this.http.put<Response>(apiUrl, {}, { params }).pipe(
       tap(() => console.log(`Reset file diff for dataset ${did}, file: ${filePath}`)),
-      catchError(error => {
+      catchError((error: unknown) => {
         console.error(`Failed to reset file diff for ${filePath}:`, error);
         return throwError(() => error);
       })
@@ -238,7 +257,7 @@ export class DatasetService {
 
     return this.http.delete<Response>(apiUrl, { params }).pipe(
       tap(() => console.log(`Deleted file from dataset ${did}, file: ${filePath}`)),
-      catchError(error => {
+      catchError((error: unknown) => {
         console.error(`Failed to delete file ${filePath}:`, error);
         return throwError(() => error);
       })

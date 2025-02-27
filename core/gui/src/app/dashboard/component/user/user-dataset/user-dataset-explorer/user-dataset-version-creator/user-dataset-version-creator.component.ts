@@ -86,15 +86,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
               label: "Description",
             },
           },
-          {
-            key: "versionDescription",
-            type: "input",
-            defaultValue: "",
-            templateOptions: {
-              label: "Version Description",
-              required: false,
-            },
-          },
         ];
   }
   get formControlNames(): string[] {

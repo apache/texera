@@ -179,8 +179,12 @@ object LakeFSFileStorage {
   ): ObjectStats = {
     val completePresignMultipartUpload: CompletePresignMultipartUpload =
       new CompletePresignMultipartUpload()
+
+    // Sort parts by part number in ascending order
+    val sortedParts = partsList.sortBy(_._1)
+
     completePresignMultipartUpload.setParts(
-      partsList
+      sortedParts
         .map(part => {
           val newUploadPart = new UploadPart
           newUploadPart.setPartNumber(part._1)
@@ -189,7 +193,9 @@ object LakeFSFileStorage {
         })
         .asJava
     )
+
     completePresignMultipartUpload.setPhysicalAddress(physicalAddress)
+
     experimentalApi
       .completePresignMultipartUpload(repoName, branchName, uploadId, filePath)
       .completePresignMultipartUpload(completePresignMultipartUpload)
