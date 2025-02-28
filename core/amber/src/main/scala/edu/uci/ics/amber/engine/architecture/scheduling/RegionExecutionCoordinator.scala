@@ -1,38 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{
-  OperatorExecution,
-  WorkflowExecution
-}
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AssignPortRequest,
-  EmptyRequest,
-  InitializeExecutorRequest,
-  LinkWorkersRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  EmptyReturn,
-  WorkflowAggregatedState
-}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest, PropagateChannelMarkerRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerStateResponse, WorkflowAggregatedState}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 class RegionExecutionCoordinator(
-    region: Region,
-    workflowExecution: WorkflowExecution,
-    asyncRPCClient: AsyncRPCClient,
-    controllerConfig: ControllerConfig
-) {
+                                  region: Region,
+                                  workflowExecution: WorkflowExecution,
+                                  asyncRPCClient: AsyncRPCClient,
+                                  controllerConfig: ControllerConfig
+                                ) {
   def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
@@ -103,11 +92,11 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      operatorExecution: OperatorExecution
-  ): Unit = {
+                             actorService: AkkaActorService,
+                             physicalOp: PhysicalOp,
+                             operatorConfig: OperatorConfig,
+                             operatorExecution: OperatorExecution
+                           ): Unit = {
     ExecutorDeployment.createWorkers(
       physicalOp,
       actorService,
@@ -119,9 +108,9 @@ class RegionExecutionCoordinator(
   }
 
   private def initExecutors(
-      operators: Set[PhysicalOp],
-      resourceConfig: ResourceConfig
-  ): Future[Seq[EmptyReturn]] = {
+                             operators: Set[PhysicalOp],
+                             resourceConfig: ResourceConfig
+                           ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -202,35 +191,34 @@ class RegionExecutionCoordinator(
       )
   }
 
-  private def sendStarts(region: Region): Future[Seq[Unit]] = {
+  private def sendStarts(region: Region): Future[Unit] = {
     asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
         workflowExecution.getAllRegionExecutionsStats
       )
     )
-    Future.collect(
-      region.getSourceOperators
-        .map(_.id)
-        .flatMap { opId =>
+    asyncRPCClient.controllerInterface
+      .propagateChannelMarker(
+        PropagateChannelMarkerRequest(
+          region.getSourceOperators.map(_.id).toSeq,
+          ChannelMarkerIdentity("start"),
+          REQUIRE_ALIGNMENT,
+          region.getOperators.map(_.id).toSeq,
+          region.getOperators.map(_.id).toSeq,
+          EmptyRequest(),
+          METHOD_START_WORKER.getBareMethodName
+        ),
+        asyncRPCClient.mkContext(CONTROLLER)
+      )
+      .map { resp =>
+        resp.returns.map { x =>
+          val workerId = ActorVirtualIdentity(x._1)
           workflowExecution
             .getRegionExecution(region.id)
-            .getOperatorExecution(opId)
-            .getWorkerIds
-            .map { workerId =>
-              asyncRPCClient.workerInterface
-                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
-                .map(resp =>
-                  // update worker state
-                  workflowExecution
-                    .getRegionExecution(region.id)
-                    .getOperatorExecution(opId)
-                    .getWorkerExecution(workerId)
-                    .setState(resp.state)
-                )
-            }
+            .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+            .getWorkerExecution(workerId)
+            .setState(x._2.asInstanceOf[WorkerStateResponse].state)
         }
-        .toSeq
-    )
+      }
   }
-
 }

@@ -3,29 +3,15 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
+import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  InputManager,
-  OutputManager,
-  WorkerTimerService
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -33,6 +19,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -248,6 +235,22 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
+  def endOfInputChannel(channelId: ChannelIdentity): Unit = {
+    val portId = this.inputGateway.getChannel(channelId).getPortId
+    this.inputManager.getPort(portId).channels(channelId) = true
+    if (inputManager.isPortCompleted(portId)) {
+      inputManager.initBatch(channelId, Array.empty)
+      processEndOfInputChannel(portId.id)
+      outputManager.outputIterator.appendSpecialTupleToEnd(
+        FinalizePort(portId, input = true)
+      )
+    }
+    if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
+      // assuming all the output ports finalize after all input ports are finalized.
+      outputManager.finalizeOutput()
+    }
+  }
+
   def processChannelMarker(
       channelId: ChannelIdentity,
       marker: ChannelMarkerPayload,
@@ -264,7 +267,11 @@ class DataProcessor(
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
       if (command.isDefined) {
-        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
+        var request = command.get
+        if (request.methodName == METHOD_START_WORKER.getBareMethodName) {
+          request = request.withCommand(StartInputChannelRequest(channelId))
+        }
+        asyncRPCServer.receive(request, channelId.fromWorkerId)
       }
       // if this worker is not the final destination of the marker, pass it downstream
       val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet

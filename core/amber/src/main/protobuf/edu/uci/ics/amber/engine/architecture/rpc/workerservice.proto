@@ -26,7 +26,7 @@ service WorkerService {
   rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc RetrieveState(EmptyRequest) returns (EmptyReturn);
   rpc RetryCurrentTuple(EmptyRequest) returns (EmptyReturn);
-  rpc StartWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc StartWorker(StartInputChannelRequest) returns (WorkerStateResponse);
   rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
   rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatedValue);
   rpc NoOperation(EmptyRequest) returns (EmptyReturn);
