@@ -22,7 +22,7 @@ StorageConfig.initialize(
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
     postgres_username="texera_iceberg_admin",
     postgres_password="password",
-    table_namespace="operator-port-result",
+    table_result_namespace="operator-port-result",
     directory_path="../../../../../../core/amber/user-resources/workflow-results",
     commit_batch_size=4096,
 )
@@ -56,6 +56,7 @@ class TestIcebergDocument:
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
             OperatorIdentity(id=f"test_table_{operator_uuid}"),
+            "main",
             PortIdentity(id=0),
         )
         DocumentFactory.create_document(uri, amber_schema)

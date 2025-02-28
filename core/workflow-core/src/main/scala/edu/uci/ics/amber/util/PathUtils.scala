@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.util
 
-import org.jooq.types.UInteger
-
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -42,7 +40,7 @@ object PathUtils {
   private lazy val datasetsRootPath =
     corePath.resolve("amber").resolve("user-resources").resolve("datasets")
 
-  def getDatasetPath(did: UInteger): Path = {
+  def getDatasetPath(did: Integer): Path = {
     datasetsRootPath.resolve(did.toString)
   }
 

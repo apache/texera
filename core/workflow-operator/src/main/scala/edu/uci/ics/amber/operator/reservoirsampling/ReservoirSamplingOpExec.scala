@@ -12,9 +12,18 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
   private val desc: ReservoirSamplingOpDesc =
     objectMapper.readValue(descString, classOf[ReservoirSamplingOpDesc])
   private val count: Int = equallyPartitionGoal(desc.k, workerCount)(idx)
-  private var n: Int = 0
-  private val reservoir: Array[Tuple] = Array.ofDim(count)
+  private var n: Int = _
+  private var reservoir: Array[Tuple] = _
   private val rand: Random = new Random(workerCount)
+
+  override def open(): Unit = {
+    n = 0
+    reservoir = Array.ofDim(count)
+  }
+
+  override def close(): Unit = {
+    reservoir = null
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 

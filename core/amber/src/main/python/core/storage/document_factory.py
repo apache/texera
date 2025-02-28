@@ -32,7 +32,7 @@ class DocumentFactory:
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
             if resource_type in {
                 VFSResourceType.RESULT,
@@ -44,14 +44,14 @@ class DocumentFactory:
 
                 create_table(
                     IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     override_if_exists=True,
                 )
 
                 return IcebergDocument[Tuple](
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     amber_tuples_to_arrow_table,
@@ -68,7 +68,7 @@ class DocumentFactory:
     def open_document(uri: str) -> (VirtualDocument, Optional[Schema]):
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == "vfs":
-            _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
             if resource_type in {
                 VFSResourceType.RESULT,
@@ -78,7 +78,7 @@ class DocumentFactory:
 
                 table = load_table_metadata(
                     IcebergCatalogInstance.get_instance(),
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                 )
 
@@ -88,7 +88,7 @@ class DocumentFactory:
                 amber_schema = Schema(table.schema().as_arrow())
 
                 document = IcebergDocument(
-                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
+                    StorageConfig.ICEBERG_TABLE_RESULT_NAMESPACE,
                     storage_key,
                     table.schema(),
                     amber_tuples_to_arrow_table,
