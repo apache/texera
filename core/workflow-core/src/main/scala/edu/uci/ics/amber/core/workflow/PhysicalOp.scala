@@ -263,14 +263,6 @@ case class PhysicalOp(
     )
   }
 
-  def withOutputPortStorage(portId: PortIdentity, storageUri: URI): PhysicalOp = {
-    this.copy(outputPorts = outputPorts.updatedWith(portId) {
-      case Some((port, links, schema)) =>
-        Some((port.withStorageUri(storageUri.toString), links, schema))
-      case None => None
-    })
-  }
-
   /**
     * creates a copy with suggested worker number. This is only to be used by Python UDF operators.
     */
