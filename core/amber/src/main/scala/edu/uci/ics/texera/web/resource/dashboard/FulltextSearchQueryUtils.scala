@@ -11,39 +11,29 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FulltextSearchQueryUtils {
 
   def getFullTextSearchFilter(
-      keywords: Seq[String],
-      fields: List[Field[String]]
-  ): Condition = {
-    if (fields.isEmpty) return noCondition()
-
+                               keywords: Seq[String],
+                               fields: List[Field[String]]
+                             ): Condition = {
+    // If no target columns, skip fulltext search
+    if (fields.isEmpty){
+      return noCondition()
+    }
     // Filter out empty keywords and trim
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-
-    // Build a SQL expression that concatenates all fields with spaces,
-    // then feeds them into to_tsvector('english', ...).
-    // E.g.: to_tsvector('english', COALESCE(firstName, '') || ' ' || COALESCE(lastName, ''))
-    val combinedFields = fields
-      .map(f => s"COALESCE($f, '')") // handle null -> ''
-      .mkString(" || ' ' || ")
-
-    // Fold each keyword into the final Condition
-    trimmedKeywords.foldLeft(noCondition()) { (acc, keyword) =>
-      // For each "keyword", split it into words
-      val words = keyword.split("\\s+").filter(_.nonEmpty)
-
-      // In Postgres tsquery syntax, an AND search uses '&' between terms
-      // e.g.: apple & banana
-      val tsQuery = words.mkString(" & ")
-
-      // Build the raw SQL string for Postgres FTS
-      // e.g.: to_tsvector('english', COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) @@ to_tsquery('english', 'apple & banana')
-      val conditionExpr =
-        s"to_tsvector('english', $combinedFields) @@ to_tsquery('english', '$tsQuery')"
-
-      // 'condition(...)' is presumably your helper method that takes a raw SQL string
-      // and an optional binding for debug/logging
-      acc.and(condition(conditionExpr, keyword))
+    // If no keywords, skip fulltext search
+    if (trimmedKeywords.isEmpty){
+      return noCondition()
     }
+    // Concatenate the fields into a single expression.
+    val combinedFields = fields
+      .map(f => s"COALESCE($f, '')") // convert null values to empty string
+      .mkString(" || ' ' || ")
+    // Combine all keywords (AND) into a single PGroonga
+    // fuzzy search condition with a fixed threshold
+    val fuzzySearchCondition =
+      s"($combinedFields) &@~ pgroonga_condition('${trimmedKeywords.mkString(" ")}', fuzzy_max_distance_ratio => 0.34)"
+    // Return the condition
+    condition(fuzzySearchCondition, trimmedKeywords.mkString(" "))
   }
 
   /**
