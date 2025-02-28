@@ -64,8 +64,14 @@ jobs:
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
       - name: Prepare ENV
-        run: sudo apt-get install libncurses5
-      - name: Checkout Texera
+        run: |
+          sudo apt-get install libncurses5
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository -y universe
+          sudo add-apt-repository -y ppa:groonga/ppa
+          sudo apt update
+          sudo apt install -y -V postgresql-14-pgroonga
+          sudo apt install -y -V groonga-tokenizer-mecab
         uses: actions/checkout@v2
       - name: Setup Java
         uses: actions/setup-java@v2
