@@ -1,4 +1,4 @@
-<div *ngIf="!isMaximized && !isCreatingDataset">
+<div *ngIf="!isMaximized">
   <nz-card>
     <h2 class="dataset-title">Dataset: {{datasetName}}</h2>
     <nz-card-meta
@@ -49,9 +49,9 @@
 </div>
 <nz-layout>
   <nz-content
-    [ngClass]="{'grayed-out': !isDisplayingDataset(), 'disabled-click': !isDisplayingDataset()}"
+    [ngClass]="{'grayed-out': false, 'disabled-click': false}"
     style="background-color: white">
-    <nz-card *ngIf="isDisplayingDataset()">
+    <nz-card>
       <div style="display: flex; justify-content: space-between; align-items: center">
         <div class="file-info">
           <h3 class="file-title">
@@ -130,11 +130,11 @@
     </nz-card>
     <nz-empty
       class="empty-version-indicator"
-      *ngIf="!selectedVersion && !isCreatingDataset && !isCreatingVersion"
+      *ngIf="!selectedVersion"
       nzNotFoundContent="No version is selected"></nz-empty>
 
     <texera-user-dataset-file-renderer
-      *ngIf="isDisplayingDataset() && selectedVersion"
+      *ngIf="selectedVersion"
       [isMaximized]="isMaximized"
       [did]="did"
       [dvid]="selectedVersion?.dvid"
@@ -160,22 +160,7 @@
           nzTheme="outline"></i>
       </div>
     </nz-resize-handle>
-    <div *ngIf="!isDisplayingDataset()">
-      <div class="right-panel-title">
-        <h5 *ngIf="isCreatingDataset">Create a New Dataset</h5>
-        <h5 *ngIf="isCreatingVersion">Create a New Version</h5>
-      </div>
-      <div class="dataset-version-creator">
-        <texera-user-dataset-version-creator
-          [did]="did"
-          [isCreatingVersion]="isCreatingVersion"
-          (datasetOrVersionCreationID)="onCreationFinished($event)">
-        </texera-user-dataset-version-creator>
-      </div>
-    </div>
-    <div
-      class="right-sider"
-      *ngIf="isDisplayingDataset()">
+    <div class="right-sider">
       <nz-collapse nzGhost>
         <nz-collapse-panel
           nzHeader="Current Versions"

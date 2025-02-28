@@ -1,11 +1,11 @@
 <div>
   <nz-spin
-    [nzSpinning]="isUploading"
+    [nzSpinning]="isCreating"
     nzSize="large"
     nzTip="Uploading...">
     <div
       class="texera-user-dataset-creator-form"
-      [ngClass]="{'disabled-backdrop': isUploading}">
+      [ngClass]="{'disabled-backdrop': isCreating}">
       <formly-form
         [form]="form"
         [fields]="fields"
@@ -22,7 +22,7 @@
       nz-button
       nzType="primary"
       (click)="onClickCreate()"
-      [disabled]="isCreateButtonDisabled || isUploading"
+      [disabled]="isCreateButtonDisabled || isCreating"
       class="create-btn">
       Create
     </button>
@@ -32,7 +32,7 @@
       nzType="default"
       (click)="onClickCancel()"
       class="cancel-btn"
-      [disabled]="isUploading">
+      [disabled]="isCreating">
       Cancel
     </button>
   </nz-spin>

@@ -21,6 +21,9 @@ import { HubService } from "../../../../../hub/service/hub.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { file } from "jszip";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
+import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -48,8 +51,6 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
 
-  public isCreatingVersion: boolean = false;
-  public isCreatingDataset: boolean = false;
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
 
@@ -67,6 +68,7 @@ export class DatasetDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
     private downloadService: DownloadService,
@@ -98,15 +100,9 @@ export class DatasetDetailComponent implements OnInit {
     this.route.params
       .pipe(
         switchMap(params => {
-          const param = params["did"];
-          if (param !== "create") {
-            this.did = param;
-            this.renderDatasetViewSider();
-            this.retrieveDatasetInfo();
-            this.retrieveDatasetVersionList();
-          } else {
-            this.renderDatasetCreatorSider();
-          }
+          this.did = params["did"];
+          this.retrieveDatasetInfo();
+          this.retrieveDatasetVersionList();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -144,47 +140,32 @@ export class DatasetDetailComponent implements OnInit {
       });
   }
 
-  renderDatasetViewSider() {
-    this.isCreatingVersion = false;
-    this.isCreatingDataset = false;
-  }
-  renderDatasetCreatorSider() {
-    this.isCreatingVersion = false;
-    this.isCreatingDataset = true;
-    this.siderWidth = this.MAX_SIDER_WIDTH;
-  }
-
-  renderVersionCreatorSider() {
-    if (this.did) {
-      this.isCreatingDataset = false;
-      this.isCreatingVersion = true;
-      this.siderWidth = this.MAX_SIDER_WIDTH;
-    }
-  }
-
-  public onCreationFinished(creationID: number) {
-    if (creationID != 0) {
-      // creation succeed
-      if (this.isCreatingVersion) {
-        this.retrieveDatasetVersionList();
-        this.renderDatasetViewSider();
-      } else {
-        this.router.navigate([`${DASHBOARD_USER_DATASET}/${creationID}`]);
-      }
-    } else {
-      // creation failed
-      if (this.isCreatingVersion) {
-        this.isCreatingVersion = false;
-        this.isCreatingDataset = false;
-        this.retrieveDatasetVersionList();
-      } else {
-        this.router.navigate([DASHBOARD_USER_DATASET]);
-      }
-    }
-  }
-
   public onClickOpenVersionCreator() {
-    this.renderVersionCreatorSider();
+    if (this.did) {
+      const modal = this.modalService.create({
+        nzTitle: "Create New Dataset Version",
+        nzContent: UserDatasetVersionCreatorComponent,
+        nzFooter: null,
+        nzData: {
+          isCreatingVersion: true,
+          did: this.did,
+        },
+        nzBodyStyle: {
+          resize: "both",
+          overflow: "auto",
+          minHeight: "200px",
+          minWidth: "550px",
+          maxWidth: "90vw",
+          maxHeight: "80vh",
+        },
+        nzWidth: "fit-content",
+      });
+      modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+        if (result != null) {
+          this.retrieveDatasetVersionList();
+        }
+      });
+    }
   }
 
   onPublicStatusChange(checked: boolean): void {
@@ -297,10 +278,6 @@ export class DatasetDetailComponent implements OnInit {
     this.loadFileContent(node);
   }
 
-  isDisplayingDataset(): boolean {
-    return !this.isCreatingDataset && !this.isCreatingVersion;
-  }
-
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
   }
@@ -322,7 +299,6 @@ export class DatasetDetailComponent implements OnInit {
             },
             complete: () => {
               this.uploadProgress = { filePath: file.name, percentage: 100, status: "finish" };
-              // Emit event to refresh dataset-staged-objects-list
               this.userMakeChanges.emit();
               setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
             },
