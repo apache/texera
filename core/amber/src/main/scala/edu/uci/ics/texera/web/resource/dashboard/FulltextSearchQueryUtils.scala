@@ -11,17 +11,17 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FulltextSearchQueryUtils {
 
   def getFullTextSearchFilter(
-                               keywords: Seq[String],
-                               fields: List[Field[String]]
-                             ): Condition = {
+      keywords: Seq[String],
+      fields: List[Field[String]]
+  ): Condition = {
     // If no target columns, skip fulltext search
-    if (fields.isEmpty){
+    if (fields.isEmpty) {
       return noCondition()
     }
     // Filter out empty keywords and trim
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
     // If no keywords, skip fulltext search
-    if (trimmedKeywords.isEmpty){
+    if (trimmedKeywords.isEmpty) {
       return noCondition()
     }
     // Concatenate the fields into a single expression.
