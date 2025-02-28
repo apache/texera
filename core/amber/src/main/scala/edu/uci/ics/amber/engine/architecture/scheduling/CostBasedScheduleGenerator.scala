@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalOpOutputPortIdentity, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -83,13 +82,27 @@ class CostBasedScheduleGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
+        val portIdsToViewResult: Set[GlobalPortIdentity] =
+          workflowContext
+            .workflowSettings
+            .outputPortsToViewResult
+            .toSet
+            .map(
+              (outputPort: PhysicalOpOutputPortIdentity)  => GlobalPortIdentity(
+                opId = outputPort.physicalOpIdentity,
+                portId = outputPort.outputPortId,
+                input = false
+              )
+            )
+            .filter(outputPort => operatorIds.contains(outputPort.opId))
         val materializedPortIds: Set[GlobalPortIdentity] = matEdges
+          .diff(physicalPlan.getDependeeLinks)
           .filter(matLink => operatorIds.contains(matLink.fromOpId))
           .flatMap(link =>
             List(
               GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
             )
-          )
+          ) ++ portIdsToViewResult
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,

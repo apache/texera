@@ -73,10 +73,9 @@ abstract class ScheduleGenerator(
   def allocateResource(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
-    val dataTransferBatchSize = workflowContext.workflowSettings.dataTransferBatchSize
 
     val resourceAllocator =
-      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, dataTransferBatchSize)
+      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, workflowContext)
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
@@ -160,9 +159,9 @@ abstract class ScheduleGenerator(
       physicalLink.fromPortId
     )
 
-    newPhysicalPlan = newPhysicalPlan.setOperator(
-      fromOp.withOutputPortStorage(portId = fromPortId, storageUri = storageUri)
-    )
+//    newPhysicalPlan = newPhysicalPlan.setOperator(
+//      fromOp.withOutputPortStorage(portId = fromPortId, storageUri = storageUri)
+//    )
 
     val fromPortOutputMode =
       physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
@@ -182,36 +181,16 @@ abstract class ScheduleGenerator(
 
     if (existingOperator.isEmpty) {
       // create cache writer and link
-//      val sourceToWriterLink =
-//        PhysicalLink(
-//          fromOp.id,
-//          fromPortId,
-//          matWriterPhysicalOp.id,
-//          matWriterPhysicalOp.inputPorts.keys.head
-//        )
-//      newPhysicalPlan = newPhysicalPlan
-//        .addOperator(matWriterPhysicalOp)
-//        .addLink(sourceToWriterLink)
-      // TODO: do not replace the existing port storage
-
-      // Only add the needStorage property
-
-//      // sink has exactly one input port and one output port
-//      val schema = newPhysicalPlan
-//        .getOperator(matWriterPhysicalOp.id)
-//        .outputPorts(matWriterPhysicalOp.outputPorts.keys.head)
-//        ._3
-//        .toOption
-//        .get
-//      // create the document
-//      DocumentFactory.createDocument(storageUri, schema)
-//      WorkflowExecutionsResource.insertOperatorPortResultUri(
-//        workflowContext.executionId,
-//        physicalLink.fromOpId.logicalOpId,
-//        physicalLink.fromOpId.layerName,
-//        physicalLink.fromPortId,
-//        storageUri
-//      )
+      val sourceToWriterLink =
+        PhysicalLink(
+          fromOp.id,
+          fromPortId,
+          matWriterPhysicalOp.id,
+          matWriterPhysicalOp.inputPorts.keys.head
+        )
+      newPhysicalPlan = newPhysicalPlan
+        .addOperator(matWriterPhysicalOp)
+        .addLink(sourceToWriterLink)
     }
 
     // create cache reader and link

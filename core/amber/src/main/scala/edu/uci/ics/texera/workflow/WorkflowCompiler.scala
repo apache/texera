@@ -111,34 +111,6 @@ class WorkflowCompiler(
                         outputPortId
                       )
                     )
-                    // Determine the storage type, defaulting to iceberg for large HTML visualizations
-                    val storageType =
-                      if (outputPort.mode == SINGLE_SNAPSHOT) DocumentFactory.ICEBERG
-                      else StorageConfig.resultStorageMode
-
-                    // Instead of creating the storage object here, only add the needStorage flag.
-                    // Create storage if it doesn't exist
-                    val sinkStorageSchema =
-                      schema.getOrElse(throw new IllegalStateException("Schema is missing"))
-//
-//                    // create the storage resource and record the URI
-//                    DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
-//                    WorkflowExecutionsResource.insertOperatorPortResultUri(
-//                      context.executionId,
-//                      physicalOp.id.logicalOpId,
-//                      physicalOp.id.layerName,
-//                      outputPortId,
-//                      storageUri.get
-//                    )
-
-                    // Add sink collection name to the JSON array of sinks
-
-                    sinksPointers.add(
-                      objectMapper
-                        .createObjectNode()
-                        .put("storageType", storageType)
-                        .put("storageKey", storageUri.get.toString)
-                    )
                   }
 
                   // TODO: remove sink operator in the next PR
@@ -154,15 +126,8 @@ class WorkflowCompiler(
                     sinkPhysicalOp.outputPorts.head._1
                   )
 
+                  // TODO: why having a sink causes problems
 //                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
-
-                  // TODO: move to scheduler
-                  if (storageUri.isDefined) {
-                    physicalPlan = physicalPlan.setOperator(
-                      physicalOp
-                        .withOutputPortStorage(portId = outputPortId, storageUri = storageUri.get)
-                    )
-                  }
 
                   physicalOpOutputPortsNeedingStorage += PhysicalOpOutputPortIdentity(
                     physicalOpIdentity = physicalOp.id,
@@ -180,12 +145,6 @@ class WorkflowCompiler(
           }
       }
     )
-
-    // update execution entry in MySQL to have pointers to the mongo collections
-    resultsJSON.set("results", sinksPointers)
-    ExecutionsMetadataPersistService.tryUpdateExistingExecution(context.executionId) {
-      _.setResult(resultsJSON.toString)
-    }
     (physicalPlan, physicalOpOutputPortsNeedingStorage.toList)
   }
 

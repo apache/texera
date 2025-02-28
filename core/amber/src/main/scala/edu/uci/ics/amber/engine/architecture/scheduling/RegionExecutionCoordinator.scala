@@ -156,12 +156,18 @@ class RegionExecutionCoordinator(
           val outputPortMapping = physicalOp.outputPorts
             .flatMap {
               case (outputPortId, (outputPort, _, Right(schema))) =>
+                val storageUri = region.outputPortResultURIs.get(GlobalPortIdentity(
+                  opId = physicalOp.id, portId = outputPortId, input = false
+                )) match {
+                  case Some(uri) => uri.toString
+                  case None => ""
+                }
                 Some(
                   GlobalPortIdentity(
                     physicalOp.id,
                     outputPortId,
                     input = false
-                  ) -> (outputPort.storageUri, schema)
+                  ) -> (storageUri, schema)
                 )
               case _ => None
             }
