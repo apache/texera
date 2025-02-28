@@ -40,8 +40,8 @@ val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
   "com.softwaremill.macwire" %% "macros" % "2.5.8" % Provided,
@@ -49,7 +49,7 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "util" % "2.5.8",
   "com.softwaremill.macwire" %% "proxy" % "2.5.8",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "ch.qos.logback" % "logback-classic" % "1.2.3"
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % Test
 )
 
 // dropwizard web framework
@@ -81,7 +81,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % "1.7.26",
   "io.github.classgraph" % "classgraph" % "4.8.157",
-  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.14" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
@@ -89,7 +89,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
