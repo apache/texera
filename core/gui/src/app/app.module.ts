@@ -145,6 +145,7 @@ import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-
 import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
+import { NzProgressModule } from "ng-zorro-antd/progress";
 
 registerLocaleData(en);
 
@@ -297,6 +298,7 @@ registerLocaleData(en);
     GoogleSigninButtonModule,
     NzEmptyModule,
     NzDividerModule,
+    NzProgressModule,
   ],
   providers: [
     provideNzI18n(en_US),

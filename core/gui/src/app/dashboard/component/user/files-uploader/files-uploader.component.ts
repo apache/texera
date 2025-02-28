@@ -16,17 +16,11 @@ import { NotificationService } from "../../../../common/service/notification/not
 })
 export class FilesUploaderComponent {
   @Input()
-  previouslyUploadFiles: DatasetFileNode[] | undefined;
-  previouslyUploadFilesManager: DatasetVersionFileTreeManager | undefined;
+  showUploadAlert: boolean = false;
 
   @Output()
   uploadedFiles = new EventEmitter<FileUploadItem[]>();
-  //
-  @Output()
-  removingFilePaths = new EventEmitter<string[]>();
 
-  newUploadNodeToFileItems: Map<DatasetFileNode, FileUploadItem> = new Map<DatasetFileNode, FileUploadItem>();
-  newUploadFileTreeManager: DatasetVersionFileTreeManager = new DatasetVersionFileTreeManager();
   newUploadFileTreeNodes: DatasetFileNode[] = [];
 
   fileUploadingFinished: boolean = false;
@@ -105,49 +99,5 @@ export class FilesUploaderComponent {
       .catch(error => {
         this.showFileUploadBanner("error", `Unexpected error: ${error.message}`);
       });
-  }
-
-  onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
-    this.removeFileTreeNode(node, true);
-    const paths = getPathsUnderOrEqualDatasetFileNode(node);
-    this.removingFilePaths.emit(paths);
-  }
-
-  onNewUploadsFileDeleted(node: DatasetFileNode) {
-    this.removeFileTreeNode(node, false);
-    this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
-  }
-
-  private removeFileTreeNode(node: DatasetFileNode, fromPreviouslyUploads: boolean) {
-    if (fromPreviouslyUploads) {
-      if (!this.previouslyUploadFilesManager) {
-        this.previouslyUploadFilesManager = new DatasetVersionFileTreeManager(this.previouslyUploadFiles);
-      }
-      if (this.previouslyUploadFilesManager) {
-        this.previouslyUploadFilesManager.removeNode(node);
-        this.previouslyUploadFiles = [...this.previouslyUploadFilesManager.getRootNodes()];
-      }
-    } else {
-      // from new uploads
-      this.newUploadFileTreeManager.removeNode(node);
-      this.newUploadFileTreeNodes = [...this.newUploadFileTreeManager.getRootNodes()];
-      this.removeNodeAndChildrenFromFileItemsMap(node);
-    }
-  }
-
-  private removeNodeAndChildrenFromFileItemsMap(node: DatasetFileNode) {
-    this.newUploadNodeToFileItems.delete(node);
-
-    // Recursively remove children if it's a directory
-    if (node.type === "directory" && node.children) {
-      node.children.forEach(child => this.removeNodeAndChildrenFromFileItemsMap(child));
-    }
-  }
-
-  private addFileToNewUploadsFileTree(path: string, fileUploadItem: FileUploadItem) {
-    const newNode = this.newUploadFileTreeManager.addNodeWithPath(path);
-
-    this.newUploadFileTreeNodes = [...this.newUploadFileTreeManager.getRootNodes()];
-    this.newUploadNodeToFileItems.set(newNode, fileUploadItem);
   }
 }

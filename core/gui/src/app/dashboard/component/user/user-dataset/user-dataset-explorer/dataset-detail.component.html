@@ -232,10 +232,27 @@
         <nz-collapse-panel
           nzActive="true"
           nzHeader="Create New Version">
-          <texera-user-files-uploader
-            (uploadedFiles)="onNewUploadFilesChanged($event)"
-            [previouslyUploadFiles]="[]">
-          </texera-user-files-uploader>
+          <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
+          <div
+            *ngIf="uploadProgress"
+            class="upload-progress-container">
+            <div class="progress-header">
+              <span>{{uploadProgress.status}}: {{ uploadProgress.filePath }}</span>
+              <button
+                nz-button
+                nzType="text"
+                nzShape="circle"
+                (click)="clearUploadProgress()">
+                <i
+                  nz-icon
+                  nzType="close"
+                  nzTheme="outline"></i>
+              </button>
+            </div>
+            <nz-progress
+              [nzPercent]="uploadProgress.percentage"
+              [nzStatus]="getUploadStatus(uploadProgress.status)"></nz-progress>
+          </div>
           <texera-dataset-staged-objects-list
             [did]="did"
             [userMakeChangesEvent]="userMakeChanges"

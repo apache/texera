@@ -1,6 +1,6 @@
 <div class="file-uploader">
   <nz-alert
-    *ngIf="fileUploadingFinished"
+    *ngIf="showUploadAlert && fileUploadingFinished"
     class="file-uploader-banner"
     [nzType]="fileUploadBannerType"
     nzMessage="{{fileUploadBannerMessage}}"

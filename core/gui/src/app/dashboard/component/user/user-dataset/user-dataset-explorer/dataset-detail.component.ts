@@ -60,6 +60,7 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
+  public uploadProgress: { filePath: string; percentage: number; status: string } | null = null;
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -307,15 +308,35 @@ export class DatasetDetailComponent implements OnInit {
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
       const did = this.did;
-      files.map(file => {
+      files.forEach(file => {
         this.datasetService
           .multipartUpload(did, file.name, file.file)
           .pipe(untilDestroyed(this))
-          .subscribe(res => {
-            this.userMakeChanges.emit();
+          .subscribe({
+            next: res => {
+              this.uploadProgress = res; // Update the progress UI
+            },
+            error: () => {
+              this.uploadProgress = { filePath: file.name, percentage: 100, status: "abort" };
+              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+            },
+            complete: () => {
+              this.uploadProgress = { filePath: file.name, percentage: 100, status: "finish" };
+              // Emit event to refresh dataset-staged-objects-list
+              this.userMakeChanges.emit();
+              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+            },
           });
       });
     }
+  }
+
+  clearUploadProgress() {
+    this.uploadProgress = null;
+  }
+
+  getUploadStatus(status: string): "active" | "exception" | "success" {
+    return status === "uploading" ? "active" : status === "abort" ? "exception" : "success";
   }
 
   onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {

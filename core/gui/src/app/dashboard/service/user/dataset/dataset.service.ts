@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from "@angular/common/http";
 import { catchError, map, switchMap, tap } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { forkJoin, from, Observable, throwError } from "rxjs";
+import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
@@ -115,72 +115,94 @@ export class DatasetService {
    * @param filePath Path of the file within the dataset
    * @param file File object to be uploaded
    */
-  public multipartUpload(did: number, filePath: string, file: File): Observable<Response> {
+  public multipartUpload(
+    did: number,
+    filePath: string,
+    file: File
+  ): Observable<{ filePath: string; percentage: number; status: "uploading" | "finished" | "aborted" }> {
     const partCount = Math.ceil(file.size / MULTIPART_UPLOAD_PART_SIZE_MB);
 
-    return this.initiateMultipartUpload(did, filePath, partCount).pipe(
-      switchMap(initiateResponse => {
-        const uploadId = initiateResponse.uploadId;
-        if (!uploadId) {
-          return throwError(() => new Error("Failed to initiate multipart upload"));
-        }
+    return new Observable(observer => {
+      this.initiateMultipartUpload(did, filePath, partCount)
+        .pipe(
+          switchMap(initiateResponse => {
+            const uploadId = initiateResponse.uploadId;
+            if (!uploadId) {
+              observer.error(new Error("Failed to initiate multipart upload"));
+              return EMPTY;
+            }
 
-        console.log(`Started multipart upload for ${filePath} with UploadId: ${uploadId}`);
+            const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+            let uploadedCount = 0; // Track uploaded parts
 
-        // Array to store part numbers and ETags
-        const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+            const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
+              const start = index * MULTIPART_UPLOAD_PART_SIZE_MB;
+              const end = Math.min(start + MULTIPART_UPLOAD_PART_SIZE_MB, file.size);
+              const chunk = file.slice(start, end);
 
-        const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
-          const start = index * MULTIPART_UPLOAD_PART_SIZE_MB;
-          const end = Math.min(start + MULTIPART_UPLOAD_PART_SIZE_MB, file.size);
-          const chunk = file.slice(start, end);
+              return from(fetch(url, { method: "PUT", body: chunk })).pipe(
+                switchMap(response => {
+                  if (!response.ok) {
+                    return throwError(() => new Error(`Failed to upload part ${index + 1}`));
+                  }
+                  const etag = response.headers.get("ETag")?.replace(/"/g, "");
+                  if (!etag) {
+                    return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
+                  }
 
-          return from(fetch(url, { method: "PUT", body: chunk })).pipe(
-            switchMap(response => {
-              if (!response.ok) {
-                return throwError(() => new Error(`Failed to upload part ${index + 1}`));
-              }
-              const etag = response.headers.get("ETag")?.replace(/"/g, ""); // Extract and clean ETag
-              if (!etag) {
-                return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
-              }
+                  uploadedParts.push({ PartNumber: index + 1, ETag: etag });
+                  uploadedCount++;
 
-              uploadedParts.push({ PartNumber: index + 1, ETag: etag });
-              console.log(`Uploaded part ${index + 1} of ${partCount}, ETag: ${etag}`);
-              return from(Promise.resolve());
-            })
-          );
-        });
+                  // Emit upload progress
+                  observer.next({
+                    filePath,
+                    percentage: Math.round((uploadedCount / partCount) * 100),
+                    status: "uploading",
+                  });
 
-        return forkJoin(uploadObservables).pipe(
-          switchMap(() =>
-            this.finalizeMultipartUpload(
-              did,
-              filePath,
-              uploadId,
-              uploadedParts,
-              initiateResponse.physicalAddress,
-              false
-            )
-          ),
-          tap(() => console.log(`Multipart upload for ${filePath} completed successfully!`)),
-          catchError((error: unknown) => {
-            console.error(`Multipart upload failed for ${filePath}`, error);
-            return this.finalizeMultipartUpload(
-              did,
-              filePath,
-              uploadId,
-              uploadedParts,
-              initiateResponse.physicalAddress,
-              true
-            ).pipe(
-              tap(() => console.error(`Upload aborted for ${filePath}`)),
-              switchMap(() => throwError(() => error))
+                  return of(null);
+                })
+              );
+            });
+
+            return forkJoin(uploadObservables).pipe(
+              switchMap(() =>
+                this.finalizeMultipartUpload(
+                  did,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  initiateResponse.physicalAddress,
+                  false
+                )
+              ),
+              tap(() => {
+                observer.next({ filePath, percentage: 100, status: "finished" });
+                observer.complete();
+              }),
+              catchError((error: unknown) => {
+                observer.next({
+                  filePath,
+                  percentage: Math.round((uploadedCount / partCount) * 100),
+                  status: "aborted",
+                });
+
+                return this.finalizeMultipartUpload(
+                  did,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  initiateResponse.physicalAddress,
+                  true
+                ).pipe(switchMap(() => throwError(() => error)));
+              })
             );
           })
-        );
-      })
-    );
+        )
+        .subscribe({
+          error: (err: unknown) => observer.error(err),
+        });
+    });
   }
 
   /**
