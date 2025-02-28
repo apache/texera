@@ -60,6 +60,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       workflowIdentity,
       getLatestExecutionId(workflowIdentity).get,
       OperatorIdentity(request.operatorId),
+      None,
       PortIdentity()
     )
     val operatorResult: VirtualDocument[Tuple] =
