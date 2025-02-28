@@ -301,7 +301,7 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 
--- Fulltext search indexes
+-- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 
 DO $$
@@ -319,7 +319,7 @@ WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
     EXECUTE format('DROP INDEX IF EXISTS %I;', r.indexname);
 END LOOP;
 
-  -- Retrieve PGroonga schema as JSONB
+-- Retrieve PGroonga schema as JSONB
 SELECT (pgroonga_command('schema'::TEXT))::JSONB INTO schema_json;
 
 -- Check if TokenFilterStem exists in the "token_filters" section
@@ -353,3 +353,5 @@ FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version
     );
 END LOOP;
 END $$;
+
+-- END Fulltext search index creation (DO NOT EDIT THIS LINE)
