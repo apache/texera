@@ -8,8 +8,9 @@ import org.apache.commons.io.input.NullInputStream
 import org.apache.hadoop.io.IOUtils.NullOutputStream
 
 import java.io.{DataInputStream, DataOutputStream}
+import scala.reflect.ClassTag
 
-class EmptyRecordStorage[T >: Null <: AnyRef] extends SequentialRecordStorage[T] {
+class EmptyRecordStorage[T >: Null <: AnyRef: ClassTag] extends SequentialRecordStorage[T] {
   override def getWriter(fileName: String): SequentialRecordWriter[T] = {
     new SequentialRecordWriter(
       new DataOutputStream(
