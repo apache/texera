@@ -10,6 +10,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
+  var usePgroonga: Boolean = true // only override by tests
+
   def getFullTextSearchFilter(
       keywords: Seq[String],
       fields: List[Field[String]]
@@ -28,12 +30,23 @@ object FulltextSearchQueryUtils {
     val combinedFields = fields
       .map(f => s"COALESCE($f, '')") // convert null values to empty string
       .mkString(" || ' ' || ")
-    // Combine all keywords (AND) into a single PGroonga
-    // fuzzy search condition with a fixed threshold
-    val fuzzySearchCondition =
-      s"($combinedFields) &@~ pgroonga_condition('${trimmedKeywords.mkString(" ")}', fuzzy_max_distance_ratio => 0.34)"
-    // Return the condition
-    condition(fuzzySearchCondition, trimmedKeywords.mkString(" "))
+    if (usePgroonga) {
+      // Combine all keywords (AND) into a single PGroonga
+      // fuzzy search condition with a fixed threshold
+      val fuzzySearchCondition =
+        s"($combinedFields) &@~ pgroonga_condition('${trimmedKeywords.mkString(" ")}', fuzzy_max_distance_ratio => 0.34)"
+      // Return the condition
+      condition(fuzzySearchCondition, trimmedKeywords.mkString(" "))
+    } else {
+      // Only invoked by tests that uses embedded DB
+      trimmedKeywords.foldLeft(noCondition()) { (acc, keyword) =>
+        val words = keyword.split("\\s+").filter(_.nonEmpty)
+        val tsQuery = words.mkString(" & ")
+        val conditionExpr =
+          s"to_tsvector('english', $combinedFields) @@ to_tsquery('english', '$tsQuery')"
+        acc.and(condition(conditionExpr, keyword))
+      }
+    }
   }
 
   /**

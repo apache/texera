@@ -80,14 +80,11 @@ trait MockTexeraDB {
         .mkString("\n")
     executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, removeCCommands(parts(0)))
     val texeraDB = embedded.getDatabase(username, database)
-    val tablesAndIndexCreation = removeCCommands(parts(1))
+    var tablesAndIndexCreation = removeCCommands(parts(1))
 
     // remove indexes creation for pgroonga because we cannot install the plugin
-    val blockPattern = """(?s)
-                         |-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\)
-                         |.*?
-                         |-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?
-                         |""".stripMargin.r
+    val blockPattern =
+      """(?s)-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\).*?-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?""".r
     // replace with native fulltext indexes
     val replacementText =
       """CREATE INDEX idx_workflow_name_description_content
@@ -134,9 +131,8 @@ trait MockTexeraDB {
         |    )
         |    );""".stripMargin
 
-    blockPattern.replaceAllIn(tablesAndIndexCreation, replacementText).trim
+    tablesAndIndexCreation = blockPattern.replaceAllIn(tablesAndIndexCreation, replacementText).trim
     executeScriptInJDBC(texeraDB.getConnection, tablesAndIndexCreation)
-
     SqlServer.initConnection(embedded.getJdbcUrl(username, database), username, password)
     val sqlServerInstance = SqlServer.getInstance()
     dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))
