@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalOpOutputPortIdentity, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -197,11 +198,26 @@ class CostBasedScheduleGenerator(
       )
     }
     // Since the plan is now schedulable, calling the search directly returns a region DAG.
+    // This new search is only needed because of additional cache read operators.
+    // As a result the original materialized ports are not kept in the new region DAG.
+    // TODO: remove this step after cache read is removed.
     val regionDAG = bottomUpSearch().regionDAG
+
     addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     populateDependeeLinks(regionDAG)
+    // Need to add the original materialized port results back. This will not be needed after removal of cache read ops.
+    repopulateMaterializedOutputPorts(linksToMaterialize, regionDAG)
     allocateResource(regionDAG)
     regionDAG
+  }
+
+  private def repopulateMaterializedOutputPorts(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+    linksToMaterialize.foreach(link => {
+      getRegions(link.fromOpId, regionDAG).foreach(fromRegion => {
+        val newFromRegion = fromRegion.copy(materializedPortIds = fromRegion.materializedPortIds ++ Set(GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId, input = false)))
+        replaceVertex(regionDAG, fromRegion, newFromRegion)
+      })
+    })
   }
 
   /**

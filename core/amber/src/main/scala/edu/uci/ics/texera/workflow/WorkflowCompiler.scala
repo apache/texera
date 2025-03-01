@@ -126,8 +126,7 @@ class WorkflowCompiler(
                     sinkPhysicalOp.outputPorts.head._1
                   )
 
-                  // TODO: why having a sink causes problems
-//                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
 
                   physicalOpOutputPortsNeedingStorage += PhysicalOpOutputPortIdentity(
                     physicalOpIdentity = physicalOp.id,
