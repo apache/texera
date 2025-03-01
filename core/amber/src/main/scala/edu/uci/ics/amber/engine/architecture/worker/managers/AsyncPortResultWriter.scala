@@ -11,22 +11,16 @@ import scala.collection.mutable
 sealed trait TerminateSignal
 case object TerminateSignalInst extends TerminateSignal
 
-class AsyncPortResultWriter extends Thread {
+class AsyncPortResultWriter(writer: BufferedItemWriter[Tuple]) extends Thread {
 
-  private val writerMap: mutable.Map[PortIdentity, BufferedItemWriter[Tuple]] =
-    mutable.HashMap[PortIdentity, BufferedItemWriter[Tuple]]()
   private val queue = Queues
-    .newLinkedBlockingQueue[Either[(PortIdentity, Tuple), TerminateSignal]]() // (Location, Tuple)
+    .newLinkedBlockingQueue[Either[Tuple, TerminateSignal]]() // (Location, Tuple)
   private var stopped = false
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
-  def addWriter(location: PortIdentity, writer: BufferedItemWriter[Tuple]): Unit = {
-    writerMap.put(location, writer)
-  }
-
-  def putTuple(location: PortIdentity, tuple: Tuple): Unit = {
+  def putTuple(tuple: Tuple): Unit = {
     assert(!stopped)
-    queue.put(Left((location, tuple))) // Non-blocking enqueue
+    queue.put(Left(tuple)) // Non-blocking enqueue
   }
 
   def terminate(): Unit = {
@@ -40,11 +34,11 @@ class AsyncPortResultWriter extends Thread {
     while (!internalStop) {
       val queueContent = queue.take()
       queueContent match {
-        case Left((location, tuple)) => writerMap.get(location).foreach(_.putOne(tuple))
+        case Left(tuple) => writer.putOne(tuple)
         case Right(_)                => internalStop = true
       }
     }
-    writerMap.values.foreach(_.close()) // Close all writers on termination
+    writer.close() // Close all writers on termination
     gracefullyStopped.complete(())
   }
 }

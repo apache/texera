@@ -105,7 +105,7 @@ class OutputManager(
   private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
-  private var asyncPortResultWriterOption: Option[AsyncPortResultWriter] = None
+  private val asyncPortResultWriterOption: mutable.HashMap[PortIdentity, AsyncPortResultWriter] = mutable.HashMap()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -154,19 +154,18 @@ class OutputManager(
       tupleLike: SchemaEnforceable,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
-    this.asyncPortResultWriterOption match {
-      case Some(asyncPortResultWriter) =>
-        (outputPortId match {
-          case Some(portId) => ports.filter(_._1 == portId)
-          case None         => ports
-        }).foreach({
-          case (portId, _) =>
-            val tuple = tupleLike.enforceSchema(getPort(portId).schema)
-            // write to storage in a separate thread
-            asyncPortResultWriter.putTuple(location = portId, tuple = tuple)
-        })
-      case None => // No need to write
-    }
+    (outputPortId match {
+      case Some(portId) => this.asyncPortResultWriterOption.get(portId) match {
+        case Some(_) => this.asyncPortResultWriterOption.filter(_._1 == portId)
+        case None => Map.empty
+      }
+      case None => this.asyncPortResultWriterOption
+    }).foreach({
+      case (portId, writerThread) =>
+        val tuple = tupleLike.enforceSchema(this.getPort(portId).schema)
+        // write to storage in a separate thread
+        writerThread.putTuple(tuple)
+    })
   }
 
   /**
@@ -212,8 +211,9 @@ class OutputManager(
           ._1
           .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
           .asInstanceOf[BufferedItemWriter[Tuple]]
-        this.enableAsyncWriterIfNotExists()
-        this.asyncPortResultWriterOption.get.addWriter(location = portId, writer = writer)
+        val writerThread = new AsyncPortResultWriter(writer)
+        this.asyncPortResultWriterOption(portId) = writerThread
+        writerThread.start()
       case None => // No need to add a writer
     }
   }
@@ -231,23 +231,12 @@ class OutputManager(
   }
 
   def closeOutputStorageWriters(): Unit = {
-    this.asyncPortResultWriterOption match {
-      case Some(asyncPortResultWriter) => asyncPortResultWriter.terminate()
-      case None                        => // No thread is created
-    }
+    this.asyncPortResultWriterOption.values.foreach ( writer => writer.terminate() )
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
     assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
-  }
-
-  private def enableAsyncWriterIfNotExists(): Unit = {
-    if (this.asyncPortResultWriterOption.isEmpty) { // Prevent multiple initializations
-      val writer = new AsyncPortResultWriter()
-      writer.start()
-      this.asyncPortResultWriterOption = Some(writer)
-    }
   }
 
 }
