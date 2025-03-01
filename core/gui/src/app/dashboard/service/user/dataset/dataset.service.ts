@@ -61,7 +61,9 @@ export class DatasetService {
     return this.http
       .get<{
         presignedUrl: string;
-      }>(`${AppSettings.getApiEndpoint()}/dataset/presign?filePath=${encodeURIComponent(filePath)}`)
+      }>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/presign-download?filePath=${encodeURIComponent(filePath)}`
+      )
       .pipe(
         switchMap(({ presignedUrl }) => {
           return this.http.get(presignedUrl, { responseType: "blob" });
@@ -111,19 +113,19 @@ export class DatasetService {
 
   /**
    * Handles multipart upload for large files using RxJS.
-   * @param did Dataset ID
+   * @param datasetName Dataset Name
    * @param filePath Path of the file within the dataset
    * @param file File object to be uploaded
    */
   public multipartUpload(
-    did: number,
+    datasetName: string,
     filePath: string,
     file: File
   ): Observable<{ filePath: string; percentage: number; status: "uploading" | "finished" | "aborted" }> {
     const partCount = Math.ceil(file.size / MULTIPART_UPLOAD_PART_SIZE_MB);
 
     return new Observable(observer => {
-      this.initiateMultipartUpload(did, filePath, partCount)
+      this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
             const uploadId = initiateResponse.uploadId;
@@ -168,7 +170,7 @@ export class DatasetService {
             return forkJoin(uploadObservables).pipe(
               switchMap(() =>
                 this.finalizeMultipartUpload(
-                  did,
+                  datasetName,
                   filePath,
                   uploadId,
                   uploadedParts,
@@ -188,7 +190,7 @@ export class DatasetService {
                 });
 
                 return this.finalizeMultipartUpload(
-                  did,
+                  datasetName,
                   filePath,
                   uploadId,
                   uploadedParts,
@@ -207,22 +209,23 @@ export class DatasetService {
 
   /**
    * Initiates a multipart upload and retrieves presigned URLs for each part.
-   * @param did Dataset ID
+   * @param datasetName Dataset Name
    * @param filePath File path within the dataset
    * @param numParts Number of parts for the multipart upload
    */
   private initiateMultipartUpload(
-    did: number,
+    datasetName: string,
     filePath: string,
     numParts: number
   ): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
     const params = new HttpParams()
       .set("type", "init")
-      .set("key", encodeURIComponent(filePath))
+      .set("datasetName", datasetName)
+      .set("filePath", encodeURIComponent(filePath))
       .set("numParts", numParts.toString());
 
     return this.http.post<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/multipart-upload`,
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
       {},
       { params }
     );
@@ -232,7 +235,7 @@ export class DatasetService {
    * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
    */
   private finalizeMultipartUpload(
-    did: number,
+    datasetName: string,
     filePath: string,
     uploadId: string,
     parts: { PartNumber: number; ETag: string }[],
@@ -241,11 +244,12 @@ export class DatasetService {
   ): Observable<Response> {
     const params = new HttpParams()
       .set("type", isAbort ? "abort" : "finish")
-      .set("key", encodeURIComponent(filePath))
+      .set("datasetName", datasetName)
+      .set("filePath", encodeURIComponent(filePath))
       .set("uploadId", uploadId);
 
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/dataset/${did}/multipart-upload`,
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
       { parts, physicalAddress },
       { params }
     );

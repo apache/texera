@@ -36,6 +36,7 @@ object LakeFSFileStorage {
   private lazy val branchesApi: BranchesApi = new BranchesApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
+  private lazy val stagingApi: StagingApi = new StagingApi(apiClient)
   private lazy val experimentalApi: ExperimentalApi = new ExperimentalApi(apiClient)
 
   private val storageNamespaceURI: String =
@@ -84,13 +85,12 @@ object LakeFSFileStorage {
     */
   def writeFileToRepo(
       repoName: String,
-      branch: String,
       filePath: String,
       inputStream: InputStream
   ): ObjectStats = {
     val tempFilePath = Files.createTempFile("lakefs-upload-", ".tmp")
     val tempFileStream = new FileOutputStream(tempFilePath.toFile)
-    val buffer = new Array[Byte](1024)
+    val buffer = new Array[Byte](8192)
 
     // Create an iterator to repeatedly call inputStream.read, and direct buffered data to file
     Iterator
@@ -102,7 +102,7 @@ object LakeFSFileStorage {
     tempFileStream.close()
 
     // Upload the temporary file to LakeFS
-    objectsApi.uploadObject(repoName, branch, filePath).content(tempFilePath.toFile).execute()
+    objectsApi.uploadObject(repoName, branchName, filePath).content(tempFilePath.toFile).execute()
   }
 
   /**
@@ -124,14 +124,14 @@ object LakeFSFileStorage {
     * @param commitMessage Commit message.
     * @param operations    File operations to perform before committing.
     */
-  def withCreateVersion(repoName: String, branch: String, commitMessage: String)(
+  def withCreateVersion(repoName: String, commitMessage: String)(
       operations: => Unit
   ): Commit = {
     operations
     val commit = new CommitCreation()
       .message(commitMessage)
 
-    commitsApi.commit(repoName, branch, commit).execute()
+    commitsApi.commit(repoName, branchName, commit).execute()
   }
 
   /**
@@ -154,6 +154,14 @@ object LakeFSFileStorage {
     */
   def getFilePresignedUrl(repoName: String, commitHash: String, filePath: String): String = {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
+  }
+
+  def getFilePresignedUploadUrl(repoName: String, filePath: String): String = {
+    stagingApi
+      .getPhysicalAddress(repoName, branchName, filePath)
+      .presign(true)
+      .execute()
+      .getPresignedUrl
   }
 
   /**
@@ -265,7 +273,7 @@ object LakeFSFileStorage {
     objectsApi.deleteObject(repoName, branchName, filePath).execute()
   }
 
-  def resertObjectUploadOrDeletion(repoName: String, filePath: String): Unit = {
+  def resetObjectUploadOrDeletion(repoName: String, filePath: String): Unit = {
     val resetCreation: ResetCreation = new ResetCreation
     resetCreation.setType(TypeEnum.OBJECT)
     resetCreation.setPath(filePath)

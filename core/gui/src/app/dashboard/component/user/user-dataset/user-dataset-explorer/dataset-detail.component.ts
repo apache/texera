@@ -287,7 +287,7 @@ export class DatasetDetailComponent implements OnInit {
       const did = this.did;
       files.forEach(file => {
         this.datasetService
-          .multipartUpload(did, file.name, file.file)
+          .multipartUpload(this.datasetName, file.name, file.file)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: res => {

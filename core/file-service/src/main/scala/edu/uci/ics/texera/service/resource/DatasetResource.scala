@@ -422,9 +422,39 @@ class DatasetResource {
     }
   }
 
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/upload")
+  @Consumes(Array(MediaType.APPLICATION_OCTET_STREAM))
+  def uploadOneFileToDataset(
+      @PathParam("did") did: Integer,
+      @QueryParam("filePath") encodedFilePath: String,
+      @QueryParam("message") message: String,
+      fileStream: InputStream,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+
+    withTransaction(context) { ctx =>
+      // Verify the user has write access
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      // Retrieve dataset name
+      val dataset = getDatasetByID(ctx, did)
+      val datasetName = dataset.getName
+      // Decode file path
+      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
+      // TODO: in the future consider using multipart to upload this stream more faster
+      LakeFSFileStorage.writeFileToRepo(datasetName, filePath, fileStream)
+      Response.ok(Map("message" -> "File uploaded successfully")).build()
+    }
+  }
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/presign")
+  @Path("/presign-download")
   def getPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
       @QueryParam("datasetName") datasetName: String,
@@ -519,12 +549,12 @@ class DatasetResource {
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/{did}/multipart-upload")
+  @Path("/multipart-upload")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def multipartUpload(
-      @PathParam("did") did: Integer,
+      @QueryParam("datasetName") datasetName: String,
       @QueryParam("type") operationType: String,
-      @QueryParam("key") encodedUrl: String,
+      @QueryParam("filePath") encodedUrl: String,
       @QueryParam("uploadId") uploadId: Optional[String],
       @QueryParam("numParts") numParts: Optional[Integer],
       payload: Map[
@@ -536,10 +566,11 @@ class DatasetResource {
     val uid = user.getUid
 
     withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid)) {
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val datasets = datasetDao.fetchByName(datasetName).asScala.toList
+      if (datasets.isEmpty || !userHasWriteAccess(ctx, datasets.head.getDid, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
-      val datasetName = getDatasetByID(ctx, did).getName
 
       // Decode the file path
       val filePath = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
@@ -711,7 +742,7 @@ class DatasetResource {
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
       // Try to reset the file change in LakeFS
       try {
-        LakeFSFileStorage.resertObjectUploadOrDeletion(datasetName, filePath)
+        LakeFSFileStorage.resetObjectUploadOrDeletion(datasetName, filePath)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(

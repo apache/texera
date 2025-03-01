@@ -1,7 +1,10 @@
 package edu.uci.ics.amber.core.storage.model
 
 import edu.uci.ics.amber.core.storage.LakeFSFileStorage
-import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{fileServiceEndpoint, userJwtToken}
+import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
+  fileServiceGetPresignURLEndpoint,
+  userJwtToken
+}
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 
@@ -14,8 +17,13 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 object DatasetFileDocument {
   lazy val userJwtToken: String = sys.env.getOrElse("USER_JWT_TOKEN", "").trim
 
-  lazy val fileServiceEndpoint: String =
-    sys.env.getOrElse("FILE_SERVICE_ENDPOINT", "http://localhost:9092/api/dataset/presign").trim
+  lazy val fileServiceGetPresignURLEndpoint: String =
+    sys.env
+      .getOrElse(
+        "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT",
+        "http://localhost:9092/api/dataset/presign-download"
+      )
+      .trim
 }
 
 private[storage] class DatasetFileDocument(uri: URI)
@@ -56,7 +64,7 @@ private[storage] class DatasetFileDocument(uri: URI)
 
     // Step 1: Get the presigned URL from the file service
     val presignRequestUrl =
-      s"$fileServiceEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+      s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
         .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
 
     val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
@@ -84,7 +92,7 @@ private[storage] class DatasetFileDocument(uri: URI)
     } catch {
       case e: Exception =>
         throw new RuntimeException(
-          s"Failed to retrieve presigned URL from $fileServiceEndpoint: ${e.getMessage}",
+          s"Failed to retrieve presigned URL from $fileServiceGetPresignURLEndpoint: ${e.getMessage}",
           e
         )
     } finally {
