@@ -7,9 +7,9 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -21,7 +21,6 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
-import org.jooq.types.UInteger
 
 import java.net.URI
 import scala.collection.mutable
@@ -32,7 +31,7 @@ object WorkflowExecutionService {
       return Some(DEFAULT_EXECUTION_ID)
     }
     WorkflowExecutionsResource
-      .getLatestExecutionID(UInteger.valueOf(workflowId.id))
+      .getLatestExecutionID(workflowId.id.toInt)
       .map(eid => new ExecutionIdentity(eid.longValue()))
   }
 }
@@ -163,6 +162,7 @@ class WorkflowExecutionService(
     super.unsubscribeAll()
     if (client != null) {
       // runtime created
+      client.shutdown()
       executionRuntimeService.unsubscribeAll()
       executionConsoleService.unsubscribeAll()
       executionStatsService.unsubscribeAll()

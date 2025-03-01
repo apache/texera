@@ -13,11 +13,10 @@ import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunctio
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos._
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.workflow.LogicalLink
-import org.jooq.types.UInteger
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -40,9 +39,9 @@ class DefaultCostEstimatorSpec
 
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setEmail("test_user@test.com")
     user
@@ -51,7 +50,7 @@ class DefaultCostEstimatorSpec
   private val testWorkflowEntry: Workflow = {
     val workflow = new Workflow
     workflow.setName("test workflow")
-    workflow.setWid(UInteger.valueOf(1))
+    workflow.setWid(Integer.valueOf(1))
     workflow.setContent("test workflow content")
     workflow.setDescription("test description")
     workflow
@@ -59,17 +58,17 @@ class DefaultCostEstimatorSpec
 
   private val testWorkflowVersionEntry: WorkflowVersion = {
     val workflowVersion = new WorkflowVersion
-    workflowVersion.setWid(UInteger.valueOf(1))
-    workflowVersion.setVid(UInteger.valueOf(1))
+    workflowVersion.setWid(Integer.valueOf(1))
+    workflowVersion.setVid(Integer.valueOf(1))
     workflowVersion.setContent("test version content")
     workflowVersion
   }
 
   private val testWorkflowExecutionEntry: WorkflowExecutions = {
     val workflowExecution = new WorkflowExecutions
-    workflowExecution.setEid(UInteger.valueOf(1))
-    workflowExecution.setVid(UInteger.valueOf(1))
-    workflowExecution.setUid(UInteger.valueOf(1))
+    workflowExecution.setEid(Integer.valueOf(1))
+    workflowExecution.setVid(Integer.valueOf(1))
+    workflowExecution.setUid(Integer.valueOf(1))
     workflowExecution.setStatus(3.toByte)
     workflowExecution.setEnvironmentVersion("test engine")
     workflowExecution
@@ -159,6 +158,8 @@ class DefaultCostEstimatorSpec
         new Timestamp(System.currentTimeMillis()),
         0L,
         0L,
+        0L,
+        0L,
         100L,
         100L,
         0L,
@@ -171,6 +172,8 @@ class DefaultCostEstimatorSpec
       Array(
         keywordOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
+        0L,
+        0L,
         0L,
         0L,
         300L,
@@ -239,6 +242,8 @@ class DefaultCostEstimatorSpec
         new Timestamp(System.currentTimeMillis()),
         0L,
         0L,
+        0L,
+        0L,
         100L,
         100L,
         0L,
@@ -253,6 +258,8 @@ class DefaultCostEstimatorSpec
         new Timestamp(System.currentTimeMillis()),
         0L,
         0L,
+        0L,
+        0L,
         1000L,
         1000L,
         0L,
@@ -265,6 +272,8 @@ class DefaultCostEstimatorSpec
       Array(
         keywordOpDesc.operatorIdentifier.id,
         new Timestamp(System.currentTimeMillis()),
+        0L,
+        0L,
         0L,
         0L,
         300L,
@@ -299,8 +308,8 @@ class DefaultCostEstimatorSpec
 
     val groupByRegionCost = costEstimator.estimate(groupByRegion, 1)
 
-    val groupByOperatorCost = (groupByOpRuntimeStatistics.getField(4).asInstanceOf[Long] +
-      groupByOpRuntimeStatistics.getField(5).asInstanceOf[Long]) / 1e9
+    val groupByOperatorCost = (groupByOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
+      groupByOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
     // The cost of the first region should be the cost of the GroupBy operator (note the two physical operators for
     // the GroupBy logical operator have the same cost because we use logical operator in the statistics.
@@ -309,8 +318,8 @@ class DefaultCostEstimatorSpec
 
     val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
 
-    val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(4).asInstanceOf[Long] +
-      keywordOpRuntimeStatistics.getField(5).asInstanceOf[Long]) / 1e9
+    val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
+      keywordOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
     // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
     // logical operator as the keyword operator.

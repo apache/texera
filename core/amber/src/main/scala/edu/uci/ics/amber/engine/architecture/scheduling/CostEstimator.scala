@@ -1,18 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
-import org.jooq.types.UInteger
 
-import scala.util.{Failure, Success, Try}
 import java.net.URI
+import scala.util.{Failure, Success, Try}
 
 /**
   * A cost estimator should estimate a cost of running a region under the given resource constraints as units.
@@ -85,11 +84,7 @@ class DefaultCostEstimator(
 
     val uriString: String = withTransaction(
       SqlServer
-        .getInstance(
-          StorageConfig.jdbcUrl,
-          StorageConfig.jdbcUsername,
-          StorageConfig.jdbcPassword
-        )
+        .getInstance()
         .createDSLContext()
     ) { context =>
       context
@@ -99,7 +94,7 @@ class DefaultCostEstimator(
         .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(
           WORKFLOW_VERSION.WID
-            .eq(UInteger.valueOf(wid))
+            .eq(wid.toInt)
             .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
         )
         .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
@@ -113,18 +108,19 @@ class DefaultCostEstimator(
       val uri: URI = new URI(uriString)
       val document = DocumentFactory.openDocument(uri)
 
-      val cumulatedStats = document._1
+      val maxStats = document._1
         .get()
         .foldLeft(Map.empty[String, Double]) { (acc, tuple) =>
           val record = tuple.asInstanceOf[Tuple]
           val operatorId = record.getField(0).asInstanceOf[String]
-          val dataProcessingTime = record.getField(4).asInstanceOf[Long]
-          val controlProcessingTime = record.getField(5).asInstanceOf[Long]
-          val opTotalExecutionTime = acc.getOrElse(operatorId, 0.0)
-          acc + (operatorId -> (opTotalExecutionTime + (dataProcessingTime + controlProcessingTime) / 1e9))
+          val dataProcessingTime = record.getField(6).asInstanceOf[Long]
+          val controlProcessingTime = record.getField(7).asInstanceOf[Long]
+          val currentMaxTime = acc.getOrElse(operatorId, 0.0)
+          val newTime = (dataProcessingTime + controlProcessingTime) / 1e9
+          acc + (operatorId -> Math.max(currentMaxTime, newTime))
         }
 
-      if (cumulatedStats.isEmpty) None else Some(cumulatedStats)
+      if (maxStats.isEmpty) None else Some(maxStats)
     }
   }
 }

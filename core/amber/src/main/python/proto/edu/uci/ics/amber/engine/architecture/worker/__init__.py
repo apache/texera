@@ -20,15 +20,21 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
-class PortTupleCountMapping(betterproto.Message):
+class PortTupleMetricsMapping(betterproto.Message):
     port_id: "___core__.PortIdentity" = betterproto.message_field(1)
-    tuple_count: int = betterproto.int64_field(2)
+    tuple_metrics: "TupleMetrics" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class TupleMetrics(betterproto.Message):
+    count: int = betterproto.int64_field(1)
+    size: int = betterproto.int64_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class WorkerStatistics(betterproto.Message):
-    input_tuple_count: List["PortTupleCountMapping"] = betterproto.message_field(1)
-    output_tuple_count: List["PortTupleCountMapping"] = betterproto.message_field(2)
+    input_tuple_metrics: List["PortTupleMetricsMapping"] = betterproto.message_field(1)
+    output_tuple_metrics: List["PortTupleMetricsMapping"] = betterproto.message_field(2)
     data_processing_time: int = betterproto.int64_field(3)
     control_processing_time: int = betterproto.int64_field(4)
     idle_time: int = betterproto.int64_field(5)

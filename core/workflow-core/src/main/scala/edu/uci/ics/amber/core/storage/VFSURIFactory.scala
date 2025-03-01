@@ -30,6 +30,7 @@ object VFSURIFactory {
       WorkflowIdentity,
       ExecutionIdentity,
       Option[OperatorIdentity],
+      Option[String],
       Option[PortIdentity],
       VFSResourceType.Value
   ) = {
@@ -55,6 +56,11 @@ object VFSURIFactory {
       case idx => Some(OperatorIdentity(extractValue("opid")))
     }
 
+    val layerName = segments.indexOf("layername") match {
+      case -1  => None
+      case idx => Some(extractValue("layername"))
+    }
+
     val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
       case -1 => None
       case idx if idx + 1 < segments.length =>
@@ -75,7 +81,7 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    (workflowId, executionId, operatorId, portIdentity, resourceType)
+    (workflowId, executionId, operatorId, layerName, portIdentity, resourceType)
   }
 
   /**
@@ -85,6 +91,7 @@ object VFSURIFactory {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorId: OperatorIdentity,
+      layerName: Option[String],
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -92,6 +99,7 @@ object VFSURIFactory {
       workflowId,
       executionId,
       Some(operatorId),
+      layerName,
       Some(portIdentity)
     )
   }
@@ -103,6 +111,7 @@ object VFSURIFactory {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorId: OperatorIdentity,
+      layerName: String,
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
@@ -110,6 +119,7 @@ object VFSURIFactory {
       workflowId,
       executionId,
       Some(operatorId),
+      Some(layerName),
       Some(portIdentity)
     )
   }
@@ -160,6 +170,7 @@ object VFSURIFactory {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorId: Option[OperatorIdentity] = None,
+      layerName: Option[String] = None,
       portIdentity: Option[PortIdentity] = None
   ): URI = {
 
@@ -193,12 +204,18 @@ object VFSURIFactory {
       case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
     }
 
+    val uriWithLayer = layerName match {
+      case Some(layer) =>
+        s"$baseUri/layername/$layer"
+      case None => baseUri
+    }
+
     val uriWithPort = portIdentity match {
       case Some(port) =>
         val portType = if (port.internal) "I" else "E"
-        s"$baseUri/pid/${port.id}_$portType"
+        s"$uriWithLayer/pid/${port.id}_$portType"
       case None =>
-        baseUri
+        uriWithLayer
     }
 
     new URI(s"$uriWithPort/${resourceType.toString.toLowerCase}")
