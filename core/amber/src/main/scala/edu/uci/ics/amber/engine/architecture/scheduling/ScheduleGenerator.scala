@@ -149,7 +149,6 @@ abstract class ScheduleGenerator(
     var newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
-    // TODO: merge this with port result
     // create the uri of the materialization storage
     val storageUri = VFSURIFactory.createResultURI(
       workflowContext.workflowId,
@@ -159,10 +158,6 @@ abstract class ScheduleGenerator(
       physicalLink.fromPortId
     )
 
-//    newPhysicalPlan = newPhysicalPlan.setOperator(
-//      fromOp.withOutputPortStorage(portId = fromPortId, storageUri = storageUri)
-//    )
-
     val fromPortOutputMode =
       physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
     val matWriterPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
@@ -171,7 +166,6 @@ abstract class ScheduleGenerator(
     )
 
     // Check if an operator with the same storageUri already exists
-    // TODO: replace using storage URI
     val existingOperator = newPhysicalPlan.operators.find {
       case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
         val OpExecSink(uri, _, _) = op.opExecInitInfo
@@ -218,7 +212,6 @@ abstract class ScheduleGenerator(
         toPortId
       )
     // add the pair to the map for later adding edges between 2 regions.
-    // TODO: remove this as it is not used
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)

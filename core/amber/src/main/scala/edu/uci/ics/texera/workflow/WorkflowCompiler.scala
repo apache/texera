@@ -30,9 +30,6 @@ class WorkflowCompiler(
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
     val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
-    // create a JSON object that holds pointers to the workflow's results in Mongo
-    val resultsJSON = objectMapper.createObjectNode()
-    val sinksPointers = objectMapper.createArrayNode()
     val outputPortsToViewResult: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>

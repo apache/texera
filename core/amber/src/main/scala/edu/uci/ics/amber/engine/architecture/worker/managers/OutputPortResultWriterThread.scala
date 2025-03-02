@@ -11,10 +11,9 @@ import scala.collection.mutable
 sealed trait TerminateSignal
 case object TerminateSignalInst extends TerminateSignal
 
-class AsyncPortResultWriter(writer: BufferedItemWriter[Tuple]) extends Thread {
+class OutputPortResultWriterThread(writer: BufferedItemWriter[Tuple]) extends Thread {
 
-  private val queue = Queues
-    .newLinkedBlockingQueue[Either[Tuple, TerminateSignal]]() // (Location, Tuple)
+  private val queue = Queues.newLinkedBlockingQueue[Either[Tuple, TerminateSignal]]()
   private var stopped = false
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
@@ -38,7 +37,7 @@ class AsyncPortResultWriter(writer: BufferedItemWriter[Tuple]) extends Thread {
         case Right(_)    => internalStop = true
       }
     }
-    writer.close() // Close all writers on termination
+    writer.close() // Close writer on termination
     gracefullyStopped.complete(())
   }
 }

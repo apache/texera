@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.architecture.worker.managers.AsyncPortResultWriter
+import edu.uci.ics.amber.engine.architecture.worker.managers.OutputPortResultWriterThread
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 import java.net.URI
@@ -105,7 +105,8 @@ class OutputManager(
   private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
-  private val asyncPortResultWriterOption: mutable.HashMap[PortIdentity, AsyncPortResultWriter] =
+  private val outputPortResultWriterThreads
+      : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
     mutable.HashMap()
 
   /**
@@ -157,11 +158,11 @@ class OutputManager(
   ): Unit = {
     (outputPortId match {
       case Some(portId) =>
-        this.asyncPortResultWriterOption.get(portId) match {
-          case Some(_) => this.asyncPortResultWriterOption.filter(_._1 == portId)
+        this.outputPortResultWriterThreads.get(portId) match {
+          case Some(_) => this.outputPortResultWriterThreads.filter(_._1 == portId)
           case None    => Map.empty
         }
-      case None => this.asyncPortResultWriterOption
+      case None => this.outputPortResultWriterThreads
     }).foreach({
       case (portId, writerThread) =>
         val tuple = tupleLike.enforceSchema(this.getPort(portId).schema)
@@ -213,8 +214,8 @@ class OutputManager(
           ._1
           .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
           .asInstanceOf[BufferedItemWriter[Tuple]]
-        val writerThread = new AsyncPortResultWriter(writer)
-        this.asyncPortResultWriterOption(portId) = writerThread
+        val writerThread = new OutputPortResultWriterThread(writer)
+        this.outputPortResultWriterThreads(portId) = writerThread
         writerThread.start()
       case None => // No need to add a writer
     }
@@ -233,7 +234,7 @@ class OutputManager(
   }
 
   def closeOutputStorageWriters(): Unit = {
-    this.asyncPortResultWriterOption.values.foreach(writer => writer.terminate())
+    this.outputPortResultWriterThreads.values.foreach(writer => writer.terminate())
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
