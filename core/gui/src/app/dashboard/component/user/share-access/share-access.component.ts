@@ -159,12 +159,20 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public onChange(value: string): void {
-    if (value === null || value === undefined) {
+    if (!this.allOwners || !Array.isArray(this.allOwners)) {
+      this.filteredOwners = [];
+      return;
+    }
+
+    if (!value) {
       this.filteredOwners = [];
     } else {
-      this.filteredOwners = this.allOwners.filter(owner => owner.toLowerCase().indexOf(value.toLowerCase()) !== -1);
+      this.filteredOwners = this.allOwners.filter(owner =>
+        owner.toLowerCase().includes(value.toLowerCase())
+      );
     }
   }
+
 
   public revokeAccess(userToRemove: string): void {
     this.accessService
