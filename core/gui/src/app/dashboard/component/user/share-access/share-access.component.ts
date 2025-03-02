@@ -235,25 +235,35 @@ export class ShareAccessComponent implements OnInit {
 
   public publishWorkflow(): void {
     if (!this.isPublic) {
-      console.log("Workflow " + this.id + " is published");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, true)
         .pipe(untilDestroyed(this))
-        .subscribe(() => (this.isPublic = true));
-    } else {
-      console.log("Workflow " + this.id + " is already published");
+        .subscribe({
+          next: () => {
+            this.isPublic = true;
+            this.notificationService.success("Workflow published successfully");
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to publish the workflow");
+          }
+        });
     }
   }
 
   public unpublishWorkflow(): void {
     if (this.isPublic) {
-      console.log("Workflow " + this.id + " is unpublished");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, false)
         .pipe(untilDestroyed(this))
-        .subscribe(() => (this.isPublic = false));
-    } else {
-      console.log("Workflow " + this.id + " is already private");
+        .subscribe({
+          next: () => {
+            this.isPublic = false;
+            this.notificationService.success("Workflow unpublished successfully");
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to unpublish the workflow");
+          }
+        });
     }
   }
 
@@ -265,13 +275,12 @@ export class ShareAccessComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.isPublic = true;
+            this.notificationService.success("Dataset published successfully");
           },
           error: (err: unknown) => {
             this.notificationService.error("Failed to publish the dataset");
           },
         });
-    } else {
-      console.log("Dataset " + this.id + " is already private");
     }
   }
 
@@ -283,13 +292,12 @@ export class ShareAccessComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.isPublic = false;
+            this.notificationService.success("Dataset unpublished successfully");
           },
           error: (err: unknown) => {
             this.notificationService.error("Failed to unpublish the dataset");
           },
         });
-    } else {
-      console.log("Dataset " + this.id + " is already private");
     }
   }
 }
