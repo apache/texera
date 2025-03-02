@@ -1,11 +1,13 @@
-<div class="computing-units-selection">
-  <button nz-button
-          nz-popover
-          [nzPopoverContent]="selectedComputingUnit ? metricsTemplate : undefined"
-          nzPopoverTrigger="click"
-          nzPopoverPlacement="bottom"
-          id="metrics-container-id"
-          class="metrics-container">
+<div class="computing-units-selection" [ngClass]="{ 'metrics-visible': isComputingUnitRunning() }">
+  <div
+    *ngIf="isComputingUnitRunning()"
+    nz-button
+    nz-popover
+    [nzPopoverContent]="selectedComputingUnit ? metricsTemplate : undefined"
+    nzPopoverTrigger="hover"
+    nzPopoverPlacement="bottom"
+    id="metrics-container-id"
+    class="metrics-container">
     <div class="metric-item">
       <span class="metric-label">CPU</span>
       <nz-progress
@@ -31,62 +33,53 @@
         [nzShowInfo]="false"
       ></nz-progress>
     </div>
+  </div>
+
+  <button
+    nz-button
+    nz-dropdown
+    nzTrigger="click"
+    [nzDropdownMenu]="menu"
+    [nzPlacement]="'bottomRight'"
+    class="computing-units-dropdown-button">
+    <nz-badge nzStatus="processing" [nzText]="''"></nz-badge>
+    <span *ngIf="selectedComputingUnit" nz-tooltip [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
+      Connected
+    </span>
+    <span *ngIf="!selectedComputingUnit">Connect</span>
+    <i nz-icon nzType="down"></i>
   </button>
 
-  <nz-select
-    id="computing-units-list"
-    nzSize="default"
-    nzShowSearch
-    nzAllowClear
-    nzDropdownClassName="ant-select-item-title-weight"
-    [nzDropdownRender]="renderTemplate"
-    nzPlaceHolder="Select a computing unit"
-    [(ngModel)]="selectedComputingUnit"
-    (ngModelChange)="onComputingUnitChange($event)">
-    <nz-option
-      *ngFor="let unit of computingUnits"
-      nzCustomContent
-      [nzLabel]="getComputingUnitName(unit.uri).toString()"
-      [nzValue]="unit">
-      <div class="computing-unit-option" id="computing-unit-option-id">
-        <!-- Badge with state -->
-        <nz-badge
-          [nzColor]="getBadgeColor(unit.status)"
-          [nzText]="''">
-        </nz-badge>
-
-        <!-- Name and tooltip -->
-        <span class="unit-details">
-          <span
-            nz-tooltip
-            [nzTooltipTitle]="unit.computingUnit.name"
-            >{{ getComputingUnitName(unit.uri) }}</span
-          >
-          <div
+  <nz-dropdown-menu #menu="nzDropdownMenu" >
+    <ul nz-menu class="computing-units-dropdown">
+      <li
+        nz-menu-item
+        *ngFor="let unit of computingUnits"
+        class="computing-unit-option"
+        (click)="selectedComputingUnit = unit; onComputingUnitChange(unit)">
+        <div class="computing-unit-option-content">
+          <nz-badge [nzColor]="getBadgeColor(unit.status)" [nzText]="''"></nz-badge>
+          <span class="unit-details">
+            <span nz-tooltip [nzTooltipTitle]="unit.computingUnit.name">
+              {{ getComputingUnitName(unit.uri) }}
+            </span>
+          </span>
+          <i
             class="terminate-icon"
             nz-icon
             nzType="close"
             nz-tooltip
             [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
-            (click)="terminateComputingUnit(unit.computingUnit.cuid)"></div>
-        </span>
-      </div>
-    </nz-option>
-  </nz-select>
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></i>
+        </div>
+      </li>
+      <li nz-menu-divider></li>
+      <li nz-menu-item (click)="startComputingUnit()">
+        <i nz-icon nzType="plus"></i>Computing Unit
+      </li>
+    </ul>
+  </nz-dropdown-menu>
 </div>
-
-<ng-template #renderTemplate>
-  <div class="dropdown-footer">
-    <button
-      class="create-unit"
-      nz-button
-      nzType="primary"
-      nzBlock
-      (click)="startComputingUnit()">
-      Start
-    </button>
-  </div>
-</ng-template>
 
 <ng-template #metricsTemplate>
   <div class="resource-metrics">

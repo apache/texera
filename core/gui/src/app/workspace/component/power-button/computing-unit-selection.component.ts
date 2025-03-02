@@ -128,6 +128,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  isComputingUnitRunning(): boolean {
+    return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
+  }
+
   /**
    * Gets the computing unit name from the units URI
    * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")

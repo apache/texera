@@ -1,14 +1,54 @@
 .computing-units-selection {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr; /* Single column by default */
   justify-content: center;
   align-items: center;
-  width: 350px;
+  width: 100%;
+}
+
+.computing-units-selection.metrics-visible { /* Renamed for clarity */
+  grid-template-columns: repeat(2, 1fr); /* Two columns when visible */
+  justify-content: center;
+  align-items: center;
+  justify-items: end;
+  width: 100%;
   gap: 10px;
 }
 
 nz-option {
   height: 100%;
+}
+
+.computing-units-dropdown {
+  min-width: 250px;
+  max-width: 350px;
+}
+
+.computing-unit-option-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  nz-badge {
+    margin-right: 8px;
+  }
+
+  .unit-details {
+    flex: 1;
+  }
+
+  .terminate-icon {
+    visibility: hidden;
+    cursor: pointer;
+
+    &:hover {
+      color: #ff4d4f;
+    }
+  }
+
+  &:hover .terminate-icon {
+    visibility: visible;
+  }
 }
 
 .computing-unit-option {
@@ -54,10 +94,6 @@ nz-option {
 
 .terminate-icon:hover {
   opacity: 0.8; /* Slight opacity on hover for visual feedback */
-}
-
-#computing-units-list {
-  width: 225px;
 }
 
 .metrics-container {
