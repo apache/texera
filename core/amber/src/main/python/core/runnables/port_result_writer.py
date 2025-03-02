@@ -1,12 +1,10 @@
 import queue
 import threading
-from typing import Dict
 
 from core.models import Tuple
 from core.storage.model.buffered_item_writer import BufferedItemWriter
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.core import PortIdentity
 
 
 class PortResultWriter(Runnable, Stoppable):
@@ -30,7 +28,6 @@ class PortResultWriter(Runnable, Stoppable):
                 self.writer.put_one(queue_content)
         self.writer.close()
         self.stop_event.set()  # Signal that run() has fully stopped
-
 
     def stop(self) -> None:
         self.stopped = True

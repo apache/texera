@@ -35,7 +35,7 @@ class AsyncPortResultWriter(writer: BufferedItemWriter[Tuple]) extends Thread {
       val queueContent = queue.take()
       queueContent match {
         case Left(tuple) => writer.putOne(tuple)
-        case Right(_)                => internalStop = true
+        case Right(_)    => internalStop = true
       }
     }
     writer.close() // Close all writers on termination

@@ -64,7 +64,9 @@ class OutputManager:
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
         self._port_result_writers: typing.Dict[PortIdentity, PortResultWriter] = dict()
 
-    def add_output_port(self, port_id: PortIdentity, schema: Schema, storage_uri: str) -> None:
+    def add_output_port(
+        self, port_id: PortIdentity, schema: Schema, storage_uri: str
+    ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
@@ -76,7 +78,9 @@ class OutputManager:
             writer = document.writer(str(get_worker_index(self.worker_id)))
             writer_thread = PortResultWriter(writer)
             threading.Thread(
-                target=writer_thread.run, daemon=True, name=f"port_storage_writer_thread_{port_id}"
+                target=writer_thread.run,
+                daemon=True,
+                name=f"port_storage_writer_thread_{port_id}",
             ).start()
             self._port_result_writers[port_id] = writer_thread
 

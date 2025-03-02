@@ -3,10 +3,25 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkflowAggregatedState}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkflowAggregatedState
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -140,11 +155,11 @@ class RegionExecutionCoordinator(
           val outputPortMapping = physicalOp.outputPorts
             .flatMap {
               case (outputPortId, (outputPort, _, Right(schema))) =>
-                val storageUri = region.outputPortResultURIs.get(GlobalPortIdentity(
-                  opId = physicalOp.id, portId = outputPortId, input = false
-                )) match {
+                val storageUri = region.outputPortResultURIs.get(
+                  GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
+                ) match {
                   case Some(uri) => uri.toString
-                  case None => ""
+                  case None      => ""
                 }
                 Some(
                   GlobalPortIdentity(

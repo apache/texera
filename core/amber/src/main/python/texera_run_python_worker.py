@@ -23,13 +23,19 @@ def init_loguru_logger(stream_log_level) -> None:
 
 
 if __name__ == "__main__":
-    _, worker_id, output_port, logger_level, r_path, \
-        iceberg_postgres_catalog_uri_without_scheme, \
-        iceberg_postgres_catalog_username, \
-        iceberg_postgres_catalog_password, \
-        iceberg_table_namespace, \
-        iceberg_file_storage_directory_path, \
-        iceberg_table_commit_batch_size = sys.argv
+    (
+        _,
+        worker_id,
+        output_port,
+        logger_level,
+        r_path,
+        iceberg_postgres_catalog_uri_without_scheme,
+        iceberg_postgres_catalog_username,
+        iceberg_postgres_catalog_password,
+        iceberg_table_namespace,
+        iceberg_file_storage_directory_path,
+        iceberg_table_commit_batch_size,
+    ) = sys.argv
     init_loguru_logger(logger_level)
     StorageConfig.initialize(
         iceberg_postgres_catalog_uri_without_scheme,
@@ -37,7 +43,7 @@ if __name__ == "__main__":
         iceberg_postgres_catalog_password,
         iceberg_table_namespace,
         iceberg_file_storage_directory_path,
-        iceberg_table_commit_batch_size
+        iceberg_table_commit_batch_size,
     )
 
     # Setting R_HOME environment variable for R-UDF usage

@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
@@ -85,9 +90,7 @@ class CostBasedScheduleGenerator(
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
         val portIdsToViewResult: Set[GlobalPortIdentity] =
-          workflowContext
-            .workflowSettings
-            .outputPortsToViewResult
+          workflowContext.workflowSettings.outputPortsToViewResult
             .filter(outputPort => operatorIds.contains(outputPort.opId))
         val portIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
           .diff(physicalPlan.getDependeeLinks)
@@ -97,13 +100,17 @@ class CostBasedScheduleGenerator(
               GlobalPortIdentity(link.fromOpId, link.fromPortId)
             )
           ) ++ portIdsToViewResult
-        val outputPortResultURIs = portIdsNeedingStorage.map(outputPortId => outputPortId -> createResultURI(
-          workflowId = workflowContext.workflowId,
-          executionId = workflowContext.executionId,
-          operatorId = outputPortId.opId.logicalOpId,
-          layerName = Some(outputPortId.opId.layerName),
-          portIdentity = outputPortId.portId
-        )).toMap
+        val outputPortResultURIs = portIdsNeedingStorage
+          .map(outputPortId =>
+            outputPortId -> createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              operatorId = outputPortId.opId.logicalOpId,
+              layerName = Some(outputPortId.opId.layerName),
+              portIdentity = outputPortId.portId
+            )
+          )
+          .toMap
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
@@ -211,21 +218,28 @@ class CostBasedScheduleGenerator(
     regionDAG
   }
 
-  private def repopulateOutputPortsWithStorage(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
-    val materializedPorts = linksToMaterialize.map(link => GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId))
+  private def repopulateOutputPortsWithStorage(
+      linksToMaterialize: Set[PhysicalLink],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+    val materializedPorts = linksToMaterialize.map(link =>
+      GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
+    )
     (materializedPorts ++ workflowContext.workflowSettings.outputPortsToViewResult)
       .foreach(outputPortId => {
-      getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-        val newFromRegion = fromRegion.copy(outputPortResultURIs = fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
-          workflowId = workflowContext.workflowId,
-          executionId = workflowContext.executionId,
-          operatorId = outputPortId.opId.logicalOpId,
-          layerName = Some(outputPortId.opId.layerName),
-          portIdentity = outputPortId.portId
-        )))
-        replaceVertex(regionDAG, fromRegion, newFromRegion)
+        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+          val newFromRegion = fromRegion.copy(outputPortResultURIs =
+            fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              operatorId = outputPortId.opId.logicalOpId,
+              layerName = Some(outputPortId.opId.layerName),
+              portIdentity = outputPortId.portId
+            ))
+          )
+          replaceVertex(regionDAG, fromRegion, newFromRegion)
+        })
       })
-    })
   }
 
   /**

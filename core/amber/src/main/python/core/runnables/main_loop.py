@@ -189,7 +189,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                             payload=batch,
                         )
                     )
-                self.context.output_manager.save_tuple_to_storage_if_needed(output_tuple)
+                self.context.output_manager.save_tuple_to_storage_if_needed(
+                    output_tuple
+                )
 
     def process_input_state(self) -> None:
         self._switch_context()

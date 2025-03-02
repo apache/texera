@@ -105,7 +105,8 @@ class OutputManager(
   private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
-  private val asyncPortResultWriterOption: mutable.HashMap[PortIdentity, AsyncPortResultWriter] = mutable.HashMap()
+  private val asyncPortResultWriterOption: mutable.HashMap[PortIdentity, AsyncPortResultWriter] =
+    mutable.HashMap()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -155,10 +156,11 @@ class OutputManager(
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
     (outputPortId match {
-      case Some(portId) => this.asyncPortResultWriterOption.get(portId) match {
-        case Some(_) => this.asyncPortResultWriterOption.filter(_._1 == portId)
-        case None => Map.empty
-      }
+      case Some(portId) =>
+        this.asyncPortResultWriterOption.get(portId) match {
+          case Some(_) => this.asyncPortResultWriterOption.filter(_._1 == portId)
+          case None    => Map.empty
+        }
       case None => this.asyncPortResultWriterOption
     }).foreach({
       case (portId, writerThread) =>
@@ -231,7 +233,7 @@ class OutputManager(
   }
 
   def closeOutputStorageWriters(): Unit = {
-    this.asyncPortResultWriterOption.values.foreach ( writer => writer.terminate() )
+    this.asyncPortResultWriterOption.values.foreach(writer => writer.terminate())
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {

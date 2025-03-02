@@ -3,12 +3,24 @@ package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.{createResultURI, decodeURI}
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PartitionInfo, PhysicalLink, PhysicalPlan, PortIdentity, UnknownPartition, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PartitionInfo,
+  PhysicalLink,
+  PhysicalPlan,
+  PortIdentity,
+  UnknownPartition,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{LinkConfig, OperatorConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  LinkConfig,
+  OperatorConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -87,34 +99,37 @@ class DefaultResourceAllocator(
 
   private def createOutputPortStorageObjects(region: Region): Unit = {
     // Create storage objects
-    region.outputPortResultURIs.foreach{ case (outputPortId, storageUriToAdd) =>
-      val existingStorageUri =
-        WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-          wid = workflowContext.workflowId,
-          eid = workflowContext.executionId,
-          opId = outputPortId.opId.logicalOpId,
-          layerName = Some(outputPortId.opId.layerName),
-          portId = outputPortId.portId
-        )
-      if (
-        (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-          .getResourceURIs(workflowContext.executionId)
-          .contains(
-            existingStorageUri
-          )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
-      ) {
-        // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
-        val schemaOptional = region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
-        val schema = schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-        DocumentFactory.createDocument(storageUriToAdd, schema)
-        WorkflowExecutionsResource.insertOperatorPortResultUri(
-          eid = workflowContext.executionId,
-          opId = outputPortId.opId.logicalOpId,
-          layerName = outputPortId.opId.layerName,
-          portId = outputPortId.portId,
-          storageUriToAdd
-        )
-      }
+    region.outputPortResultURIs.foreach {
+      case (outputPortId, storageUriToAdd) =>
+        val existingStorageUri =
+          WorkflowExecutionsResource.getResultUriByExecutionAndPort(
+            wid = workflowContext.workflowId,
+            eid = workflowContext.executionId,
+            opId = outputPortId.opId.logicalOpId,
+            layerName = Some(outputPortId.opId.layerName),
+            portId = outputPortId.portId
+          )
+        if (
+          (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
+            .getResourceURIs(workflowContext.executionId)
+            .contains(
+              existingStorageUri
+            )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
+        ) {
+          // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
+          val schemaOptional =
+            region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
+          val schema =
+            schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          DocumentFactory.createDocument(storageUriToAdd, schema)
+          WorkflowExecutionsResource.insertOperatorPortResultUri(
+            eid = workflowContext.executionId,
+            opId = outputPortId.opId.logicalOpId,
+            layerName = outputPortId.opId.layerName,
+            portId = outputPortId.portId,
+            storageUriToAdd
+          )
+        }
     }
   }
 
