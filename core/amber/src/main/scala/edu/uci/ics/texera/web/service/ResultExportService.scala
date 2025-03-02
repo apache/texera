@@ -1,11 +1,6 @@
 package edu.uci.ics.texera.web.service
 
 import com.github.tototoshi.csv.CSVWriter
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.model.{File, FileList, Permission}
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
@@ -16,7 +11,6 @@ import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
-import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowExecutionsResource,
@@ -158,9 +152,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val attributeNames = results.head.getSchema.getAttributeNames
 
     request.exportType match {
-      case "google_sheet" =>
-        handleGoogleSheetRequest(operatorId, results, attributeNames, request)
-
       case "csv" =>
         handleCSVRequest(operatorId, user, request, results, attributeNames)
 
@@ -335,135 +326,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     writer.end()
   }
 
-  /**
-    * Handle exporting to Google Sheets.
-    */
-  private def handleGoogleSheetRequest(
-      operatorId: String,
-      results: Iterable[Tuple],
-      header: List[String],
-      request: ResultExportRequest
-  ): (Option[String], Option[String]) = {
-    try {
-      val sheetService: Sheets = GoogleResource.getSheetService
-      val sheetId: String = createGoogleSheet(sheetService, s"${request.workflowName}-$operatorId")
-      if (sheetId == null) {
-        return (None, Some(s"Fail to create google sheet for operator $operatorId"))
-      }
-
-      val driveService: Drive = GoogleResource.getDriveService
-      moveToResultFolder(driveService, sheetId)
-
-      // share: set "anyone" as reader
-      val perm = new Permission().setType("anyone").setRole("reader")
-      driveService.permissions().create(sheetId, perm).execute()
-
-      // asynchronously upload data
-      pool.submit(new Runnable {
-        override def run(): Unit = {
-          uploadHeader(sheetService, sheetId, header)
-          uploadResult(sheetService, sheetId, results)
-        }
-      })
-
-      val link = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
-      val cacheKey = s"${request.exportType}-$operatorId"
-      cache(cacheKey) = link
-
-      val msg = s"Google sheet created for operator $operatorId: $link (results are uploading)"
-      (Some(msg), None)
-    } catch {
-      case ex: Exception =>
-        (None, Some(s"Google Sheet export failed for operator $operatorId: ${ex.getMessage}"))
-    }
-  }
-
-  private def createGoogleSheet(sheetService: Sheets, title: String): String = {
-    val sheetProps = new SpreadsheetProperties().setTitle(title)
-    val createReq = new Spreadsheet().setProperties(sheetProps)
-    val target = sheetService.spreadsheets.create(createReq).setFields("spreadsheetId").execute()
-    target.getSpreadsheetId
-  }
-
-  @tailrec
-  private def moveToResultFolder(
-      driveService: Drive,
-      sheetId: String,
-      retryOnce: Boolean = true
-  ): Unit = {
-    val folderId = retrieveResultFolderId(driveService)
-    try {
-      driveService.files().update(sheetId, null).setAddParents(folderId).execute()
-    } catch {
-      case ex: GoogleJsonResponseException =>
-        if (retryOnce) {
-          // possibly folder was removed or not found, re-check and retry
-          moveToResultFolder(driveService, sheetId, retryOnce = false)
-        } else {
-          throw ex
-        }
-    }
-  }
-
-  private def retrieveResultFolderId(driveService: Drive): String = synchronized {
-    val folderResult: FileList =
-      driveService
-        .files()
-        .list()
-        .setQ(
-          s"mimeType = 'application/vnd.google-apps.folder' and name='$WORKFLOW_RESULT_FOLDER_NAME'"
-        )
-        .setSpaces("drive")
-        .execute()
-
-    if (folderResult.getFiles.isEmpty) {
-      val fileMetadata = new File()
-      fileMetadata.setName(WORKFLOW_RESULT_FOLDER_NAME)
-      fileMetadata.setMimeType("application/vnd.google-apps.folder")
-      val targetFolder: File = driveService.files.create(fileMetadata).setFields("id").execute()
-      targetFolder.getId
-    } else {
-      folderResult.getFiles.get(0).getId
-    }
-  }
-
-  private def uploadHeader(sheetService: Sheets, sheetId: String, header: List[AnyRef]): Unit = {
-    uploadContent(sheetService, sheetId, List(header.asJava).asJava)
-  }
-
-  private def uploadResult(sheetService: Sheets, sheetId: String, result: Iterable[Tuple]): Unit = {
-    val batch = new util.ArrayList[util.List[AnyRef]](UPLOAD_BATCH_ROW_COUNT)
-    for (tuple <- result) {
-      val row: util.List[AnyRef] = tuple.getFields.map(convertUnsupported).toList.asJava
-      batch.add(row)
-
-      if (batch.size() == UPLOAD_BATCH_ROW_COUNT) {
-        uploadContent(sheetService, sheetId, batch)
-        batch.clear()
-      }
-    }
-    if (!batch.isEmpty) {
-      uploadContent(sheetService, sheetId, batch)
-    }
-  }
-
-  private def uploadContent(
-      sheetService: Sheets,
-      sheetId: String,
-      content: util.List[util.List[AnyRef]]
-  ): Unit = {
-    val body = new ValueRange().setValues(content)
-    val range = "A1"
-    val options = "RAW"
-    retry(attempts = RETRY_ATTEMPTS, baseBackoffTimeInMS = BASE_BACK_OOF_TIME_IN_MS) {
-      sheetService.spreadsheets
-        .values()
-        .append(sheetId, range, body)
-        .setValueInputOption(options)
-        .execute()
-    }
-  }
-
   private def convertUnsupported(anyVal: Any): AnyRef = {
     anyVal match {
       case null      => ""
@@ -483,7 +345,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       extension: String
   ): String = {
     val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+      WorkflowVersionResource.getLatestVersion(request.workflowId)
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -504,10 +366,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val datasetPath = PathUtils.getDatasetPath(did)
       val filePath = datasetPath.resolve(fileName)
       createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
+        did,
         user,
         Map(filePath -> pipedInputStream)
       )
@@ -567,7 +429,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   private def writeArrow(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
     if (results.isEmpty) return
-
+    println("Check results ", results)
     val allocator = new RootAllocator()
     Using.Manager { use =>
       val (writer, root) = createArrowWriter(results, allocator, outputStream)
@@ -583,9 +445,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       for (batchStart <- 0 until totalSize by batchSize) {
         val batchEnd = Math.min(batchStart + batchSize, totalSize)
         val currentBatchSize = batchEnd - batchStart
-
         for (i <- 0 until currentBatchSize) {
           val tuple = resultList(batchStart + i)
+          println("Check tuple: " + tuple)
           ArrowUtils.setTexeraTuple(tuple, i, root)
         }
         root.setRowCount(currentBatchSize)
