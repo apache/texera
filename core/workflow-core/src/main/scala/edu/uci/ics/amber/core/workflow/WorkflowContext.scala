@@ -12,7 +12,6 @@ object WorkflowContext {
   val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
   val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(
     dataTransferBatchSize = 400, // TODO: make this configurable
-    outputPortsToViewResult = List.empty
   )
 }
 class WorkflowContext(

@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.{createResultURI, decodeURI}
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.workflow.{PartitionInfo, PhysicalLink, PhysicalPlan, PortIdentity, UnknownPartition, WorkflowContext}
-import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PartitionInfo, PhysicalLink, PhysicalPlan, PortIdentity, UnknownPartition, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs

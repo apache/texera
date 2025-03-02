@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalOpOutputPortIdentity, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
@@ -87,14 +87,6 @@ class CostBasedScheduleGenerator(
           workflowContext
             .workflowSettings
             .outputPortsToViewResult
-            .toSet
-            .map(
-              (outputPort: PhysicalOpOutputPortIdentity)  => GlobalPortIdentity(
-                opId = outputPort.physicalOpIdentity,
-                portId = outputPort.outputPortId,
-                input = false
-              )
-            )
             .filter(outputPort => operatorIds.contains(outputPort.opId))
         val materializedPortIds: Set[GlobalPortIdentity] = matEdges
           .diff(physicalPlan.getDependeeLinks)
@@ -212,11 +204,8 @@ class CostBasedScheduleGenerator(
   }
 
   private def repopulateOutputPortsWithStorage(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
-    val materializedPorts = linksToMaterialize.map(link => GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId, input = false))
-    val portsToViewResult = workflowContext.workflowSettings.outputPortsToViewResult.map(outputPort =>
-        GlobalPortIdentity(opId = outputPort.physicalOpIdentity, portId = outputPort.outputPortId, input = false)
-      ).toSet
-    (materializedPorts ++ portsToViewResult)
+    val materializedPorts = linksToMaterialize.map(link => GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId))
+    (materializedPorts ++ workflowContext.workflowSettings.outputPortsToViewResult)
       .foreach(globalPort => {
       getRegions(globalPort.opId, regionDAG).foreach(fromRegion => {
         val newFromRegion = fromRegion.copy(materializedPortIds = fromRegion.materializedPortIds + globalPort)
