@@ -418,7 +418,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   private def writeArrow(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
     if (results.isEmpty) return
-    println("Check results ", results)
+
     val allocator = new RootAllocator()
     Using.Manager { use =>
       val (writer, root) = createArrowWriter(results, allocator, outputStream)
@@ -436,7 +436,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
         val currentBatchSize = batchEnd - batchStart
         for (i <- 0 until currentBatchSize) {
           val tuple = resultList(batchStart + i)
-          println("Check tuple: " + tuple)
           ArrowUtils.setTexeraTuple(tuple, i, root)
         }
         root.setRowCount(currentBatchSize)
