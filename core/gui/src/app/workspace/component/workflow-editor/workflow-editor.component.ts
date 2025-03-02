@@ -758,30 +758,35 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "element:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (this.currentOpenedOperatorID !== null) {
+        const operatorID = event[0].model.id.toString();
+
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
         }
 
-        this.currentOpenedOperatorID = event[0].model.id.toString();
-        this.jointUIService.unfoldOperatorDetails(this.paper, this.currentOpenedOperatorID);
+        this.currentOpenedOperatorID = operatorID;
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (this.currentOpenedOperatorID !== null) {
+        const operatorID = event[0].model.id.toString();
+
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
         }
 
-        this.currentOpenedOperatorID = event[0].model.id.toString();
-        this.jointUIService.unfoldOperatorDetails(this.paper, event[0].model.id.toString());
+        this.currentOpenedOperatorID = operatorID;
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
       });
 
     fromJointPaperEvent(this.paper, "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.currentOpenedOperatorID !== null) {
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
+          this.currentOpenedOperatorID = null;
         }
       });
   }
