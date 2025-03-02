@@ -75,6 +75,13 @@ class PortIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class GlobalPortIdentity(betterproto.Message):
+    op_id: "PhysicalOpIdentity" = betterproto.message_field(1)
+    port_id: "PortIdentity" = betterproto.message_field(2)
+    input: bool = betterproto.bool_field(3)
+
+
+@dataclass(eq=False, repr=False)
 class InputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
     display_name: str = betterproto.string_field(2)
@@ -88,7 +95,6 @@ class OutputPort(betterproto.Message):
     display_name: str = betterproto.string_field(2)
     blocking: bool = betterproto.bool_field(3)
     mode: "OutputPortOutputMode" = betterproto.enum_field(4)
-    storage_uri: str = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)
