@@ -38,11 +38,21 @@ object LakeFSFileStorage {
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
   private lazy val stagingApi: StagingApi = new StagingApi(apiClient)
   private lazy val experimentalApi: ExperimentalApi = new ExperimentalApi(apiClient)
+  private lazy val healthCheckApi: HealthCheckApi = new HealthCheckApi(apiClient)
 
   private val storageNamespaceURI: String =
     s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
 
   private val branchName: String = "main"
+
+  def healthCheck(): Unit = {
+    try {
+      this.healthCheckApi.healthCheck().execute()
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(s"Failed to connect to lake fs server: ${e.getMessage}")
+    }
+  }
 
   /**
     * Initializes a new repository in LakeFS.

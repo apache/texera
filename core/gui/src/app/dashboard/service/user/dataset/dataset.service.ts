@@ -9,6 +9,7 @@ import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
 import { S3Client } from "@aws-sdk/client-s3";
+import { environment } from "../../../../../environments/environment";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -27,8 +28,6 @@ export const DEFAULT_DATASET_NAME = "Untitled dataset";
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
-
-const MULTIPART_UPLOAD_PART_SIZE_MB = 50 * 1024 * 1024; // 50MB per part
 
 @Injectable({
   providedIn: "root",
@@ -122,7 +121,7 @@ export class DatasetService {
     filePath: string,
     file: File
   ): Observable<{ filePath: string; percentage: number; status: "uploading" | "finished" | "aborted" }> {
-    const partCount = Math.ceil(file.size / MULTIPART_UPLOAD_PART_SIZE_MB);
+    const partCount = Math.ceil(file.size / environment.multipartUploadChunkSizeByte);
 
     return new Observable(observer => {
       this.initiateMultipartUpload(datasetName, filePath, partCount)
@@ -138,8 +137,8 @@ export class DatasetService {
             let uploadedCount = 0; // Track uploaded parts
 
             const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
-              const start = index * MULTIPART_UPLOAD_PART_SIZE_MB;
-              const end = Math.min(start + MULTIPART_UPLOAD_PART_SIZE_MB, file.size);
+              const start = index * environment.multipartUploadChunkSizeByte;
+              const end = Math.min(start + environment.multipartUploadChunkSizeByte, file.size);
               const chunk = file.slice(start, end);
 
               return from(fetch(url, { method: "PUT", body: chunk })).pipe(
@@ -261,16 +260,9 @@ export class DatasetService {
    * @param filePath File path to reset
    */
   public resetDatasetFileDiff(did: number, filePath: string): Observable<Response> {
-    const apiUrl = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`;
     const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
 
-    return this.http.put<Response>(apiUrl, {}, { params }).pipe(
-      tap(() => console.log(`Reset file diff for dataset ${did}, file: ${filePath}`)),
-      catchError((error: unknown) => {
-        console.error(`Failed to reset file diff for ${filePath}:`, error);
-        return throwError(() => error);
-      })
-    );
+    return this.http.put<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`, {}, { params });
   }
 
   /**
@@ -279,16 +271,9 @@ export class DatasetService {
    * @param filePath File path to delete
    */
   public deleteDatasetFile(did: number, filePath: string): Observable<Response> {
-    const apiUrl = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/file`;
     const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
 
-    return this.http.delete<Response>(apiUrl, { params }).pipe(
-      tap(() => console.log(`Deleted file from dataset ${did}, file: ${filePath}`)),
-      catchError((error: unknown) => {
-        console.error(`Failed to delete file ${filePath}:`, error);
-        return throwError(() => error);
-      })
-    );
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/file`, { params });
   }
 
   /**
@@ -346,10 +331,8 @@ export class DatasetService {
     return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(apiUrl);
   }
 
-  public deleteDatasets(dids: number[]): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_DELETE_URL}`, {
-      dids: dids,
-    });
+  public deleteDatasets(did: number): Observable<Response> {
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`);
   }
 
   public updateDatasetName(did: number, name: string): Observable<Response> {

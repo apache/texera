@@ -30,6 +30,47 @@ object S3Storage {
   }
 
   /**
+    * Checks if a directory (prefix) exists within an S3 bucket.
+    *
+    * @param bucketName The bucket name.
+    * @param directoryPrefix The directory (prefix) to check (must end with `/`).
+    * @return True if the directory contains at least one object, False otherwise.
+    */
+  def directoryExists(bucketName: String, directoryPrefix: String): Boolean = {
+    // Ensure the prefix ends with `/` to correctly match directories
+    val normalizedPrefix =
+      if (directoryPrefix.endsWith("/")) directoryPrefix else directoryPrefix + "/"
+
+    val listRequest = ListObjectsV2Request
+      .builder()
+      .bucket(bucketName)
+      .prefix(normalizedPrefix)
+      .maxKeys(1) // Only check if at least one object exists
+      .build()
+
+    val listResponse = s3Client.listObjectsV2(listRequest)
+    !listResponse.contents().isEmpty // If contents exist, directory exists
+  }
+
+  /**
+    * Creates an S3 bucket if it does not already exist.
+    *
+    * @param bucketName The name of the bucket to create.
+    */
+  def createBucketIfNotExist(bucketName: String): Unit = {
+    try {
+      // Check if the bucket already exists
+      s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build())
+    } catch {
+      case _: NoSuchBucketException | _: S3Exception =>
+        // If the bucket does not exist, create it
+        val createBucketRequest = CreateBucketRequest.builder().bucket(bucketName).build()
+        s3Client.createBucket(createBucketRequest)
+        println(s"Bucket '$bucketName' created successfully.")
+    }
+  }
+
+  /**
     * Deletes a directory (all objects under a given prefix) from a bucket.
     *
     * @param bucketName Target S3/MinIO bucket.
@@ -64,8 +105,6 @@ object S3Storage {
       val md5Hash = MessageDigest
         .getInstance("MD5")
         .digest(deleteRequest.toString.getBytes("UTF-8"))
-
-      val contentMD5 = Base64.getEncoder.encodeToString(md5Hash)
 
       // Convert object keys to S3 DeleteObjectsRequest format
       val deleteObjectsRequest = DeleteObjectsRequest

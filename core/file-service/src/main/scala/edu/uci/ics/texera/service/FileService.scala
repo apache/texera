@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.{LakeFSFileStorage, S3Storage, StorageConfig}
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
@@ -19,7 +19,7 @@ class FileService extends Application[FileServiceConfiguration] {
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
-    // register a new custom module and add the custom serializer into it
+    // register a new custom module just for DatasetFileNode serde/deserde
     val customSerializerModule = new SimpleModule("CustomSerializers")
     customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
     bootstrap.getObjectMapper.registerModule(customSerializerModule)
@@ -33,6 +33,11 @@ class FileService extends Application[FileServiceConfiguration] {
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
+
+    // check if the texera dataset bucket exists, if not create it
+    S3Storage.createBucketIfNotExist(StorageConfig.lakefsBlockStorageBucketName)
+    // check if we can connect to the lakeFS service
+    LakeFSFileStorage.healthCheck()
 
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)

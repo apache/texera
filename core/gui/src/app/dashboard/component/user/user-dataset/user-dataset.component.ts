@@ -189,7 +189,7 @@ export class UserDatasetComponent implements AfterViewInit {
       return;
     }
     this.datasetService
-      .deleteDatasets([entry.dataset.dataset.did])
+      .deleteDatasets(entry.dataset.dataset.did)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(

@@ -316,20 +316,20 @@ class DatasetResource {
     }
   }
 
-  @POST
+  @DELETE
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/delete")
-  def deleteDataset(datasetName: String, @Auth user: SessionUser): Response = {
+  @Path("/{did}")
+  def deleteDataset(@PathParam("did") did: Integer, @Auth user: SessionUser): Response = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
-      val dataset = datasetDao.fetchByName(datasetName).asScala.toList
-      if (dataset.isEmpty || !userOwnDataset(ctx, dataset.head.getDid, uid)) {
+      val dataset = getDatasetByID(ctx, did)
+      if (!userOwnDataset(ctx, dataset.getDid, uid)) {
         // throw the exception that user has no access to certain dataset
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       try {
-        LakeFSFileStorage.deleteRepo(datasetName)
+        LakeFSFileStorage.deleteRepo(dataset.getName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
@@ -339,10 +339,12 @@ class DatasetResource {
       }
 
       // delete the directory on S3
-      S3Storage.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, datasetName)
+      if (S3Storage.directoryExists(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)) {
+        S3Storage.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
+      }
 
       // delete the dataset from the DB
-      datasetDao.deleteById(dataset.head.getDid)
+      datasetDao.deleteById(dataset.getDid)
 
       Response.ok().build()
     }
