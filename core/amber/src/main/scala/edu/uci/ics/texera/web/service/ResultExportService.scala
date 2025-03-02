@@ -67,8 +67,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   import ResultExportService._
 
-  private val cache = new mutable.HashMap[String, String]
-
   /**
     * Generate the VirtualDocument for one operator's result.
     * Incorporates the remote code's extra parameter `None` for sub-operator ID.
@@ -128,15 +126,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       request: ResultExportRequest,
       operatorId: String
   ): (Option[String], Option[String]) = {
-
-    // Possibly use a unique cache key for operator + export type
-    val cacheKey = s"${request.exportType}-$operatorId"
-    if (cache.contains(cacheKey)) {
-      return (
-        Some(s"Link retrieved from cache for operator $operatorId: ${cache(cacheKey)}"),
-        None
-      )
-    }
 
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
