@@ -7,7 +7,7 @@ lazy val WorkflowOperator = (project in file("workflow-operator"))
   .dependsOn(WorkflowCore)
   .settings(
     dependencyOverrides ++= Seq(
-      "org.apache.commons" % "commons-compress" % "1.23.0", // because of the dependency introduced by iceberg
+      "org.apache.commons" % "commons-compress" % "1.27.1", // because of the dependency introduced by iceberg
     )
   )
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
