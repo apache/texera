@@ -78,7 +78,7 @@ libraryDependencies ++= Seq(
   "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
