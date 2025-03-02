@@ -206,15 +206,20 @@ class CostBasedScheduleGenerator(
     addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     populateDependeeLinks(regionDAG)
     // Need to add the original materialized port results back. This will not be needed after removal of cache read ops.
-    repopulateMaterializedOutputPorts(linksToMaterialize, regionDAG)
+    repopulateOutputPortsWithStorage(linksToMaterialize, regionDAG)
     allocateResource(regionDAG)
     regionDAG
   }
 
-  private def repopulateMaterializedOutputPorts(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
-    linksToMaterialize.foreach(link => {
-      getRegions(link.fromOpId, regionDAG).foreach(fromRegion => {
-        val newFromRegion = fromRegion.copy(materializedPortIds = fromRegion.materializedPortIds ++ Set(GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId, input = false)))
+  private def repopulateOutputPortsWithStorage(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+    val materializedPorts = linksToMaterialize.map(link => GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId, input = false))
+    val portsToViewResult = workflowContext.workflowSettings.outputPortsToViewResult.map(outputPort =>
+        GlobalPortIdentity(opId = outputPort.physicalOpIdentity, portId = outputPort.outputPortId, input = false)
+      ).toSet
+    (materializedPorts ++ portsToViewResult)
+      .foreach(globalPort => {
+      getRegions(globalPort.opId, regionDAG).foreach(fromRegion => {
+        val newFromRegion = fromRegion.copy(materializedPortIds = fromRegion.materializedPortIds + globalPort)
         replaceVertex(regionDAG, fromRegion, newFromRegion)
       })
     })
