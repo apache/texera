@@ -17,7 +17,6 @@ case class Region(
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
     resourceConfig: Option[ResourceConfig] = None,
-    materializedPortIds: Set[GlobalPortIdentity] = Set.empty,
     outputPortResultURIs: Map[GlobalPortIdentity, URI] = Map.empty
 ) {
 

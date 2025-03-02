@@ -51,7 +51,7 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val resultURIMap = createOutputPortStorageObjects(region)
+    createOutputPortStorageObjects(region)
 
     val opToOperatorConfigMapping = region.getOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
@@ -82,21 +82,12 @@ class DefaultResourceAllocator(
 
     val resourceConfig = ResourceConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
 
-    (region.copy(resourceConfig = Some(resourceConfig), outputPortResultURIs = resultURIMap), 0)
+    (region.copy(resourceConfig = Some(resourceConfig)), 0)
   }
 
-  private def createOutputPortStorageObjects(region: Region): Map[GlobalPortIdentity, URI] = {
-    val resultURIMap: mutable.HashMap[GlobalPortIdentity, URI] = mutable.HashMap.empty
-
+  private def createOutputPortStorageObjects(region: Region): Unit = {
     // Create storage objects
-    region.materializedPortIds.foreach(outputPortId => {
-      val storageUriToAdd = createResultURI(
-        workflowId = workflowContext.workflowId,
-        executionId = workflowContext.executionId,
-        operatorId = outputPortId.opId.logicalOpId,
-        layerName = Some(outputPortId.opId.layerName),
-        portIdentity = outputPortId.portId
-      )
+    region.outputPortResultURIs.foreach{ case (outputPortId, storageUriToAdd) =>
       val existingStorageUri =
         WorkflowExecutionsResource.getResultUriByExecutionAndPort(
           wid = workflowContext.workflowId,
@@ -123,50 +114,8 @@ class DefaultResourceAllocator(
           portId = outputPortId.portId,
           storageUriToAdd
         )
-
-        // TODO: Add storage URI as part of region
-        resultURIMap(outputPortId) = storageUriToAdd
       }
-    })
-    resultURIMap.toMap
-
-//    region.getOperators.foreach(physicalOp =>
-//      physicalOp.outputPorts.foreach {
-//        case (outputPortId, (outputPort, _, schemaOptional)) =>
-//          if (outputPort.storageUri != "") {
-//            // Assign storage object.
-//            val storageUriToAdd = new URI(outputPort.storageUri)
-//            val (workflowId, executionId, logicalOpId, layerName, _, _) = decodeURI(storageUriToAdd)
-//            val existingStorageUri =
-//              WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-//                workflowId,
-//                executionId,
-//                logicalOpId.get,
-//                layerName,
-//                outputPortId
-//              )
-//            if (
-//              (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-//                .getResourceURIs(executionId)
-//                .contains(
-//                  existingStorageUri
-//                )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
-//            ) {
-//              // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
-//              val schema =
-//                schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-//              DocumentFactory.createDocument(storageUriToAdd, schema)
-//              WorkflowExecutionsResource.insertOperatorPortResultUri(
-//                executionId,
-//                logicalOpId.get,
-//                layerName.get,
-//                outputPortId,
-//                storageUriToAdd
-//              )
-//            }
-//          }
-//      }
-//    )
+    }
   }
 
   /**

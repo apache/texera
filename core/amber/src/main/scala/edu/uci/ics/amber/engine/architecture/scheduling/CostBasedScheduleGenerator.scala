@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
@@ -88,19 +89,26 @@ class CostBasedScheduleGenerator(
             .workflowSettings
             .outputPortsToViewResult
             .filter(outputPort => operatorIds.contains(outputPort.opId))
-        val materializedPortIds: Set[GlobalPortIdentity] = matEdges
+        val portIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
           .diff(physicalPlan.getDependeeLinks)
           .filter(matLink => operatorIds.contains(matLink.fromOpId))
           .flatMap(link =>
             List(
-              GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
+              GlobalPortIdentity(link.fromOpId, link.fromPortId)
             )
           ) ++ portIdsToViewResult
+        val outputPortResultURIs = portIdsNeedingStorage.map(outputPortId => outputPortId -> createResultURI(
+          workflowId = workflowContext.workflowId,
+          executionId = workflowContext.executionId,
+          operatorId = outputPortId.opId.logicalOpId,
+          layerName = Some(outputPortId.opId.layerName),
+          portIdentity = outputPortId.portId
+        )).toMap
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
           physicalLinks = links,
-          materializedPortIds = materializedPortIds
+          outputPortResultURIs = outputPortResultURIs
         )
     }
   }
@@ -206,9 +214,15 @@ class CostBasedScheduleGenerator(
   private def repopulateOutputPortsWithStorage(linksToMaterialize: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
     val materializedPorts = linksToMaterialize.map(link => GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId))
     (materializedPorts ++ workflowContext.workflowSettings.outputPortsToViewResult)
-      .foreach(globalPort => {
-      getRegions(globalPort.opId, regionDAG).foreach(fromRegion => {
-        val newFromRegion = fromRegion.copy(materializedPortIds = fromRegion.materializedPortIds + globalPort)
+      .foreach(outputPortId => {
+      getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+        val newFromRegion = fromRegion.copy(outputPortResultURIs = fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
+          workflowId = workflowContext.workflowId,
+          executionId = workflowContext.executionId,
+          operatorId = outputPortId.opId.logicalOpId,
+          layerName = Some(outputPortId.opId.layerName),
+          portIdentity = outputPortId.portId
+        )))
         replaceVertex(regionDAG, fromRegion, newFromRegion)
       })
     })
