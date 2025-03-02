@@ -9,6 +9,7 @@ import { NotificationService } from "../../../../../../common/service/notificati
 
 export const MIME_TYPES = {
   JPEG: "image/jpeg",
+  JPG: "image/jpeg",
   PNG: "image/png",
   CSV: "text/csv",
   TXT: "text/plain",

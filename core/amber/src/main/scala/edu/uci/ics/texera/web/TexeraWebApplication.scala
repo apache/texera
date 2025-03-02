@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web
 
-import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
@@ -17,14 +16,7 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  DatasetFileNodeSerializer
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
-  DatasetAccessResource,
-  DatasetResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -89,11 +81,6 @@ class TexeraWebApplication
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    // register a new custom module and add the custom serializer into it
-    val customSerializerModule = new SimpleModule("CustomSerializers")
-    customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
-    bootstrap.getObjectMapper.registerModule(customSerializerModule)
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
@@ -146,7 +133,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[ResultResource])
     environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
-    environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])

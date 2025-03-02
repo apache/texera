@@ -8,11 +8,6 @@ import edu.uci.ics.amber.core.storage.{
   S3Storage,
   StorageConfig
 }
-import edu.uci.ics.amber.core.storage.util.dataset.{
-  GitVersionControlLocalFileStorage,
-  PhysicalFileNode
-}
-import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -58,56 +53,18 @@ import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
 import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.{DSLContext, EnumType}
 
-import java.io.{IOException, InputStream, OutputStream}
-import java.net.{URI, URLDecoder}
+import java.io.{InputStream, OutputStream}
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.util.Optional
-import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
-import scala.util.control.NonFatal
-import scala.util.Using
 
 object DatasetResource {
   private val context = SqlServer
     .getInstance()
     .createDSLContext()
-
-  /**
-    * Fetch the size of a certain dataset version.
-    *
-    * @param name         The target dataset's name (LakeFS repository name).
-    * @param versionHash  The hash of the version. If None, fetch the latest version.
-    * @return The total size of all objects in the dataset version.
-    * @throws NoSuchElementException If the version hash is not found in the repository.
-    */
-  def calculateDatasetVersionSize(name: String, versionHash: Option[String] = None): Long = {
-    // Retrieve all commits (versions) of the dataset repository
-    val commits = LakeFSFileStorage.retrieveVersionsOfRepository(name)
-
-    // Determine the target commit
-    val targetCommit = versionHash match {
-      case Some(hash) =>
-        commits
-          .find(_.getId == hash)
-          .getOrElse(
-            throw new NoSuchElementException(
-              s"Version hash '$hash' not found in repository '$name'"
-            )
-          )
-      case None =>
-        commits.headOption // The latest commit (commits are sorted from latest to earliest)
-          .getOrElse(throw new NoSuchElementException(s"No versions found for dataset '$name'"))
-    }
-
-    // Retrieve objects of the target version and sum up their sizes
-    val objects = LakeFSFileStorage.retrieveObjectsOfVersion(name, targetCommit.getId)
-
-    // Sum the sizes of all objects in the dataset version
-    objects.map(_.getSizeBytes.longValue()).sum
-  }
 
   /**
     * Helper function to get the dataset from DB using did
@@ -152,12 +109,6 @@ object DatasetResource {
       .toScala
   }
 
-  // DatasetOperation defines the operations that will be applied when creating a new dataset version
-  private case class DatasetOperation(
-      filesToAdd: Map[java.nio.file.Path, InputStream],
-      filesToRemove: List[URI]
-  )
-
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
@@ -176,7 +127,7 @@ object DatasetResource {
       sizeBytes: Option[Long] // Size of the changed file (None for directories)
   )
 
-  case class DatasetDescriptionModification(name: String, description: String)
+  case class DatasetDescriptionModification(did: Integer, description: String)
 
   case class DatasetVersionRootFileNodesResponse(
       fileNodes: List[DatasetFileNode],
@@ -408,16 +359,14 @@ class DatasetResource {
   ): Response = {
     withTransaction(context) { ctx =>
       val uid = sessionUser.getUid
-
       val datasetDao = new DatasetDao(ctx.configuration())
-      val datasets = datasetDao.fetchByName(modificator.name).asScala.toList
-      if (datasets.isEmpty || !userHasWriteAccess(ctx, datasets.head.getDid, uid)) {
+      val dataset = getDatasetByID(ctx, modificator.did)
+      if (!userHasWriteAccess(ctx, modificator.did, uid)) {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val datasetToChange = datasets.head
-      datasetToChange.setDescription(modificator.description)
-      datasetDao.update(datasetToChange)
+      dataset.setDescription(modificator.description)
+      datasetDao.update(dataset)
       Response.ok().build()
     }
   }
@@ -988,89 +937,6 @@ class DatasetResource {
 
       Response.ok(streamingOutput).`type`(contentType).build()
     })
-  }
-
-  /**
-    * Retrieves a ZIP file for a specific dataset version or the latest version.
-    *
-    * @param did  The dataset ID (used when getLatest is true).
-    * @param dvid The dataset version ID, if given, retrieve this version; if not given, retrieve the latest version
-    * @param user The session user.
-    * @return A Response containing the dataset version as a ZIP file.
-    */
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/version-zip")
-  def retrieveDatasetVersionZip(
-      @QueryParam("did") did: Integer,
-      @QueryParam("dvid") dvid: Optional[Integer],
-      @Auth user: SessionUser
-  ): Response = {
-    if (!userHasReadAccess(context, did, user.getUid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-    val dataset = getDatasetByID(context, did)
-    val version = if (dvid.isEmpty) {
-      getLatestDatasetVersion(context, did).getOrElse(
-        throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
-      )
-    } else {
-      getDatasetVersionByID(context, Integer.valueOf(dvid.get))
-    }
-    val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
-    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-      targetDatasetPath,
-      version.getVersionHash
-    )
-
-    val streamingOutput = new StreamingOutput {
-      override def write(outputStream: OutputStream): Unit = {
-        Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
-          def addFileNodeToZip(fileNode: PhysicalFileNode): Unit = {
-            val relativePath = fileNode.getRelativePath.toString
-
-            if (fileNode.isDirectory) {
-              // For directories, add a ZIP entry with a trailing slash
-              zipOutputStream.putNextEntry(new ZipEntry(relativePath + "/"))
-              zipOutputStream.closeEntry()
-
-              // Recursively add children
-              fileNode.getChildren.asScala.foreach(addFileNodeToZip)
-            } else {
-              // For files, add the file content
-              try {
-                zipOutputStream.putNextEntry(new ZipEntry(relativePath))
-                Using(Files.newInputStream(fileNode.getAbsolutePath)) { inputStream =>
-                  inputStream.transferTo(zipOutputStream)
-                }
-              } catch {
-                case e: IOException =>
-                  throw new WebApplicationException(s"Error processing file: $relativePath", e)
-              } finally {
-                zipOutputStream.closeEntry()
-              }
-            }
-          }
-
-          // Start the recursive process for each root file node
-          fileNodes.asScala.foreach(addFileNodeToZip)
-        }.recover {
-          case e: IOException =>
-            throw new WebApplicationException("Error creating ZIP output stream", e)
-          case NonFatal(e) =>
-            throw new WebApplicationException("Unexpected error while creating ZIP", e)
-        }
-      }
-    }
-
-    Response
-      .ok(streamingOutput)
-      .header(
-        "Content-Disposition",
-        s"attachment; filename=${dataset.getName}-${version.getName}.zip"
-      )
-      .`type`("application/zip")
-      .build()
   }
 
   @GET

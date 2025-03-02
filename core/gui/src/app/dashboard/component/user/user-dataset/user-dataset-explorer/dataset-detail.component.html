@@ -179,18 +179,19 @@
                   [nzValue]="version"
                   [nzLabel]="version.name"></nz-option>
               </nz-select>
-              <button
-                nz-button
-                nz-tooltip="Download Dataset"
-                (click)="onClickDownloadVersionAsZip()"
-                *ngIf="selectedVersion"
-                [disabled]="!isLogin"
-                class="spaced-button">
-                <i
-                  nz-icon
-                  nzType="download"
-                  nzTheme="outline"></i>
-              </button>
+              <!-- downloading the whole dataset is currently disabled because we switched the backend to LakeFS-->
+              <!--              <button-->
+              <!--                nz-button-->
+              <!--                nz-tooltip="Download Dataset"-->
+              <!--                (click)="onClickDownloadVersionAsZip()"-->
+              <!--                *ngIf="selectedVersion"-->
+              <!--                [disabled]="!isLogin"-->
+              <!--                class="spaced-button">-->
+              <!--                <i-->
+              <!--                  nz-icon-->
+              <!--                  nzType="download"-->
+              <!--                  nzTheme="outline"></i>-->
+              <!--              </button>-->
             </div>
             <div
               *ngIf="selectedVersion"
@@ -213,7 +214,9 @@
       </nz-collapse>
 
       <nz-divider></nz-divider>
-      <nz-collapse nzGhost>
+      <nz-collapse
+        *ngIf="userDatasetAccessLevel === 'WRITE'"
+        nzGhost>
         <nz-collapse-panel
           nzActive="true"
           nzHeader="Create New Version">

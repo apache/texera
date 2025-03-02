@@ -163,6 +163,7 @@ export class DatasetDetailComponent implements OnInit {
       modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
         if (result != null) {
           this.retrieveDatasetVersionList();
+          this.userMakeChanges.emit();
         }
       });
     }
@@ -200,7 +201,7 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
-          this.datasetIsPublic = dataset.isPublic === 1;
+          this.datasetIsPublic = dataset.isPublic;
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }
@@ -234,15 +235,6 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did || !this.selectedVersion?.dvid) return;
 
     this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
-  };
-
-  onClickDownloadVersionAsZip = (): void => {
-    if (!this.did || !this.selectedVersion?.dvid) return;
-
-    this.downloadService
-      .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
-      .pipe(untilDestroyed(this))
-      .subscribe();
   };
 
   onClickScaleTheView() {

@@ -142,10 +142,6 @@ nz-select {
   color: red;
 }
 
-nz-collapse {
-  margin-bottom: 10px;
-}
-
 .empty-version-indicator {
   margin-top: 15%;
 }
@@ -153,12 +149,3 @@ nz-collapse {
 .upload-progress-container {
   margin-left: 20px;
 }
-
-//::ng-deep .ant-collapse-header {
-//  font-weight: bold !important; // Make the text bolder
-//  font-size: 1.2em !important; // Increase font size (adjust as needed)
-//  text-align: center !important; // Center the text
-//  display: flex;
-//  justify-content: center;
-//  align-items: center;
-//}
