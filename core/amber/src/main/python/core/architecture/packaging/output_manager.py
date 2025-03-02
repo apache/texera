@@ -62,7 +62,7 @@ class OutputManager:
         }
         self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
-        self._port_result_writer: typing.Optional[PortResultWriter] = None
+        self._port_result_writers: typing.Dict[PortIdentity, PortResultWriter] = dict()
 
     def add_output_port(self, port_id: PortIdentity, schema: Schema, storage_uri: str) -> None:
         if port_id.id is None:
@@ -73,20 +73,16 @@ class OutputManager:
         if storage_uri != "":
             document: VirtualDocument[Tuple]
             document, _ = DocumentFactory.open_document(storage_uri)
-            optional_writer = document.writer(str(get_worker_index(self.worker_id)))
-            self.enable_port_storage_writer_if_not_exists()
-            self._port_result_writer.add_writer(port_id, optional_writer)
+            writer = document.writer(str(get_worker_index(self.worker_id)))
+            writer_thread = PortResultWriter(writer)
+            threading.Thread(
+                target=writer_thread.run, daemon=True, name=f"port_storage_writer_thread_{port_id}"
+            ).start()
+            self._port_result_writers[port_id] = writer_thread
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
-
-    def enable_port_storage_writer_if_not_exists(self):
-        if self._port_result_writer is None:
-            self._port_result_writer = PortResultWriter()
-            threading.Thread(
-                target=self._port_result_writer.run, daemon=True, name="port_storage_writer_thread"
-            ).start()
 
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
@@ -95,16 +91,15 @@ class OutputManager:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
-        if self._port_result_writer is not None:
-            if port_id in self._ports:
-                self._port_result_writer.put_tuple(port_id, amber_tuple)
-            else:
-                for available_port_id in self._ports:
-                    self._port_result_writer.put_tuple(available_port_id, amber_tuple)
+        if port_id is None:
+            for writer_thread in self._port_result_writers.values():
+                writer_thread.put_tuple(amber_tuple)
+        elif port_id in self._port_result_writers.keys():
+            self._port_result_writers[port_id].put_tuple(amber_tuple)
 
     def close_output_storage_writers(self) -> None:
-        if self._port_result_writer is not None:
-            self._port_result_writer.stop()
+        for writer_thread in self._port_result_writers.values():
+            writer_thread.stop()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
