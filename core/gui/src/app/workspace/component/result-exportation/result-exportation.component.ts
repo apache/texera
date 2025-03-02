@@ -112,36 +112,6 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
-    if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResult(
-        this.exportType,
-        this.workflowName,
-        [dataset.dataset.did],
-        this.rowIndex,
-        this.columnIndex,
-        this.inputFileName,
-        this.sourceTriggered === "menu",
-        "dataset"
-      );
-      this.modalRef.close();
-    }
-  }
-
-  onClickSaveResultFileToLocal() {
-    this.workflowResultExportService.exportWorkflowExecutionResult(
-      this.exportType,
-      this.workflowName,
-      [],
-      this.rowIndex,
-      this.columnIndex,
-      this.inputFileName,
-      this.sourceTriggered === "menu",
-      "local"
-    );
-    this.modalRef.close();
-  }
-
   onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
     const datasetIds =
       destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
