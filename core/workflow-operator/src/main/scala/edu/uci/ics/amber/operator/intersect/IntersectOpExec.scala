@@ -6,10 +6,20 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import scala.collection.mutable
 
 class IntersectOpExec extends OperatorExecutor {
-  private val leftSet = new mutable.HashSet[Tuple]()
-  private val rightSet = new mutable.HashSet[Tuple]()
+  private var leftSet: mutable.HashSet[Tuple] = _
+  private var rightSet: mutable.HashSet[Tuple] = _
+  private var exhaustedCounter: Int = _
 
-  private var exhaustedCounter: Int = 0
+  override def open(): Unit = {
+    leftSet = new mutable.HashSet[Tuple]()
+    rightSet = new mutable.HashSet[Tuple]()
+    exhaustedCounter = 0
+  }
+
+  override def close(): Unit = {
+    leftSet.clear()
+    rightSet.clear()
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 

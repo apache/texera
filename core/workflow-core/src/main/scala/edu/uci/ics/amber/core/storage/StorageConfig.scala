@@ -17,6 +17,8 @@ object StorageConfig {
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergMap = storageMap("iceberg").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCatalogMap = icebergMap("catalog").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val icebergPostgresMap =
+      icebergCatalogMap("postgres").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergTableMap = icebergMap("table").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap
@@ -36,7 +38,10 @@ object StorageConfig {
                 icebergCommitMap.updated("retry", icebergRetryMap)
               )
             )
-            .updated("catalog", icebergCatalogMap)
+            .updated(
+              "catalog",
+              icebergCatalogMap.updated("postgres", icebergPostgresMap)
+            )
         )
         .updated("jdbc", jdbcMap)
     )
@@ -62,10 +67,22 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("commit-batch-size")
     .asInstanceOf[Int]
 
-  val icebergTableNamespace: String = conf("storage")
+  val icebergTableResultNamespace: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("iceberg")
     .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("namespace")
+    .asInstanceOf[Map[String, Any]]("result-namespace")
+    .asInstanceOf[String]
+
+  val icebergTableConsoleMessagesNamespace: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("table")
+    .asInstanceOf[Map[String, Any]]("console-messages-namespace")
+    .asInstanceOf[String]
+
+  val icebergTableRuntimeStatisticsNamespace: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("table")
+    .asInstanceOf[Map[String, Any]]("runtime-statistics-namespace")
     .asInstanceOf[String]
 
   val icebergTableCommitBatchSize: Int = conf("storage")
@@ -106,10 +123,31 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("type")
     .asInstanceOf[String]
 
-  val icebergCatalogUri: String = conf("storage")
+  val icebergRESTCatalogUri: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("iceberg")
     .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("uri")
+    .asInstanceOf[Map[String, Any]]("rest-uri")
+    .asInstanceOf[String]
+
+  val icebergPostgresCatalogUriWithoutScheme: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("catalog")
+    .asInstanceOf[Map[String, Any]]("postgres")
+    .asInstanceOf[Map[String, Any]]("uri-without-scheme")
+    .asInstanceOf[String]
+
+  val icebergPostgresCatalogUsername: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("catalog")
+    .asInstanceOf[Map[String, Any]]("postgres")
+    .asInstanceOf[Map[String, Any]]("username")
+    .asInstanceOf[String]
+
+  val icebergPostgresCatalogPassword: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("catalog")
+    .asInstanceOf[Map[String, Any]]("postgres")
+    .asInstanceOf[Map[String, Any]]("password")
     .asInstanceOf[String]
 
   // JDBC configurations

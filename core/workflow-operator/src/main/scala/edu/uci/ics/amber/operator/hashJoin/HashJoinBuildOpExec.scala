@@ -12,6 +12,14 @@ class HashJoinBuildOpExec[K](descString: String) extends OperatorExecutor {
     objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, ListBuffer[Tuple]] = _
 
+  override def open(): Unit = {
+    buildTableHashMap = new mutable.HashMap[K, mutable.ListBuffer[Tuple]]()
+  }
+
+  override def close(): Unit = {
+    buildTableHashMap.clear()
+  }
+
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
     val key = tuple.getField(desc.buildAttributeName).asInstanceOf[K]
@@ -23,13 +31,5 @@ class HashJoinBuildOpExec[K](descString: String) extends OperatorExecutor {
     buildTableHashMap.iterator.flatMap {
       case (k, v) => v.map(t => TupleLike(List(k) ++ t.getFields))
     }
-  }
-
-  override def open(): Unit = {
-    buildTableHashMap = new mutable.HashMap[K, mutable.ListBuffer[Tuple]]()
-  }
-
-  override def close(): Unit = {
-    buildTableHashMap.clear()
   }
 }

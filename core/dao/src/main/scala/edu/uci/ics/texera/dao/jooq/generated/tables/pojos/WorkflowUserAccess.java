@@ -4,10 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowUserAccess;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -16,11 +14,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess implements IWorkflowUserAccess {
 
-    private static final long serialVersionUID = 1451132866;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger                    uid;
-    private UInteger                    wid;
-    private WorkflowUserAccessPrivilege privilege;
+    private Integer       uid;
+    private Integer       wid;
+    private PrivilegeEnum privilege;
 
     public WorkflowUserAccess() {}
 
@@ -31,42 +29,60 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
     }
 
     public WorkflowUserAccess(
-        UInteger                    uid,
-        UInteger                    wid,
-        WorkflowUserAccessPrivilege privilege
+        Integer       uid,
+        Integer       wid,
+        PrivilegeEnum privilege
     ) {
         this.uid = uid;
         this.wid = wid;
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
-    public UInteger getUid() {
+    public Integer getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
-    public void setUid(UInteger uid) {
+    public void setUid(Integer uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
-    public UInteger getWid() {
+    public Integer getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
-    public void setWid(UInteger wid) {
+    public void setWid(Integer wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
-    public WorkflowUserAccessPrivilege getPrivilege() {
+    public PrivilegeEnum getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
-    public void setPrivilege(WorkflowUserAccessPrivilege privilege) {
+    public void setPrivilege(PrivilegeEnum privilege) {
         this.privilege = privilege;
     }
 

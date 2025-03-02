@@ -15,10 +15,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
 
 import scala.collection.mutable
 
-object ChannelMarkerManager {
-  final case class MarkerContext(marker: ChannelMarkerPayload, fromChannel: ChannelIdentity)
-}
-
 class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
     extends AmberLogging {
 

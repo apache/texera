@@ -9,6 +9,7 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
+import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
@@ -86,8 +87,26 @@ object IcebergUtil {
       catalogName,
       Map(
         "warehouse" -> warehouse.toString,
-        CatalogProperties.URI -> StorageConfig.icebergCatalogUri,
+        CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
         CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
+      ).asJava
+    )
+    catalog
+  }
+
+  def createPostgresCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): JdbcCatalog = {
+    val catalog = new JdbcCatalog()
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString,
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
+        CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
+        JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
+        JdbcCatalog.PROPERTY_PREFIX + "password" -> StorageConfig.icebergPostgresCatalogPassword
       ).asJava
     )
     catalog
@@ -112,11 +131,22 @@ object IcebergUtil {
       tableSchema: IcebergSchema,
       overrideIfExists: Boolean
   ): Table = {
-    val tableProperties = Map(
+
+    val baseProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
+
+    val tableProperties =
+      if (tableNamespace == StorageConfig.icebergTableRuntimeStatisticsNamespace) {
+        baseProperties ++ Map(
+          TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> "true",
+          TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> "1"
+        )
+      } else {
+        baseProperties
+      }
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
       catalog.dropTable(identifier)
