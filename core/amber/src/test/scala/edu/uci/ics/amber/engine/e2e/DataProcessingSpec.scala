@@ -111,8 +111,6 @@ class DataProcessingSpec
   def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
     import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 
-    import java.sql.DriverManager
-
     val database: String = "new"
     val table: String = "test"
     val username: String = "root"
@@ -126,17 +124,6 @@ class DataProcessingSpec
     inMemoryMySQLInstance.get.start()
     inMemoryMySQLInstance.get.createDB(database)
 
-    // insert test data
-    val conn = DriverManager.getConnection(config.getURL(database), username, password)
-    var statement: PreparedStatement = conn.prepareStatement(
-      s"create table $table (id int primary key auto_increment, text VARCHAR(512), " +
-        s"point FLOAT, created_at DATE default NOW() not null)"
-    )
-    statement.execute()
-    statement = conn.prepareStatement(s"insert into $table (text) values ('hello world')")
-    statement.execute()
-    statement.close()
-    conn.close()
     ("localhost", config.getPort.toString, database, table, username, password)
   }
 
