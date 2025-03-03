@@ -1,11 +1,14 @@
 package edu.uci.ics.amber.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.compiler.model.LogicalPlan.LogicalEdge
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
+import scalax.collection.OneOrMore
+import scalax.collection.generic.{AbstractDiEdge, MultiEdge}
 import scalax.collection.mutable.Graph
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,13 +16,20 @@ import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
 
+  case class LogicalEdge(logicalLink: LogicalLink)
+      extends AbstractDiEdge(logicalLink.fromOpId, logicalLink.toOpId)
+      with MultiEdge {
+    override def extendKeyBy: OneOrMore[Any] =
+      OneOrMore.one((logicalLink.fromPortId, logicalLink.toPortId))
+  }
+
   private def toScalaDAG(
       operatorList: List[LogicalOp],
       links: List[LogicalLink]
-  ): Graph[OperatorIdentity, LogicalLink] = {
-    val workflowDag = Graph.empty[OperatorIdentity, LogicalLink]()
+  ): Graph[OperatorIdentity, LogicalEdge] = {
+    val workflowDag = Graph.empty[OperatorIdentity, LogicalEdge]()
     operatorList.foreach(op => workflowDag.add(op.operatorIdentifier))
-    links.foreach(l => workflowDag.add(l))
+    links.foreach(l => workflowDag.add(LogicalEdge(l)))
     workflowDag
   }
 
@@ -39,7 +49,7 @@ case class LogicalPlan(
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
     operators.map(op => (op.operatorIdentifier, op)).toMap
 
-  private lazy val scalaDAG: Graph[OperatorIdentity, LogicalLink] =
+  private lazy val scalaDAG: Graph[OperatorIdentity, LogicalEdge] =
     LogicalPlan.toScalaDAG(operators, links)
 
   def getTopologicalOpIds: Iterator[OperatorIdentity] = {
