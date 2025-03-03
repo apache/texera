@@ -26,13 +26,13 @@ storage:
           num-retries: 10
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
-
+  # configuration of the LakeFS & S3 for dataset storage
   lakefs:
-    endpoint: "http://127.0.0.1:8000/api/v1"
+    endpoint: "http://localhost:8000/api/v1"
     auth:
-      api-secret: "random_string_for_lakefs"
-      username: "AKIAIOSFOLKFSSAMPLES"
-      password: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+      api-secret: ""
+      username: ""
+      password: ""
     block-storage:
       type: "s3"
       bucket-name: "texera-dataset"
@@ -40,8 +40,8 @@ storage:
   s3:
     endpoint: "http://localhost:9000"
     auth:
-      username: "texera_minio"
-      password: "password"
+      username: ""
+      password: ""
 
   jdbc:
     url: "jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public"
