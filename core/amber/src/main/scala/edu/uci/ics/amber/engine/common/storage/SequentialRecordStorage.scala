@@ -1,13 +1,7 @@
 package edu.uci.ics.amber.engine.common.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
-import com.twitter.chill.{KryoBase, KryoPool, KryoSerializer, ScalaKryoInstantiator}
-import edu.uci.ics.amber.engine.architecture.logreplay.{
-  MessageContent,
-  ProcessingStep,
-  ReplayLogRecord
-}
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
   SequentialRecordReader,
   SequentialRecordWriter
@@ -16,22 +10,9 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.{ClassTag, classTag}
 
 object SequentialRecordStorage {
-  private val kryoPool = {
-    val r = KryoSerializer.registerAll
-    val ki = new ScalaKryoInstantiator {
-      override def newKryo(): KryoBase = {
-        val kryo = super.newKryo()
-        kryo.register(classOf[ReplayLogRecord])
-        kryo.register(classOf[MessageContent])
-        kryo.register(classOf[ProcessingStep])
-        kryo.register(classOf[WorkerState])
-        kryo
-      }
-    }.withRegistrar(r)
-    KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
-  }
 
   // For debugging purpose only
   def fetchAllRecords[T >: Null <: AnyRef](
@@ -50,7 +31,7 @@ object SequentialRecordStorage {
   class SequentialRecordWriter[T >: Null <: AnyRef](outputStream: DataOutputStream) {
     lazy val output = new Output(outputStream)
     def writeRecord(obj: T): Unit = {
-      val bytes = kryoPool.toBytesWithClass(obj)
+      val bytes = AmberRuntime.serde.serialize(obj).get
       output.writeInt(bytes.length)
       output.write(bytes)
     }
@@ -62,7 +43,11 @@ object SequentialRecordStorage {
     }
   }
 
-  class SequentialRecordReader[T >: Null <: AnyRef](inputStreamGen: () => DataInputStream) {
+  class SequentialRecordReader[T >: Null <: AnyRef: ClassTag](
+      inputStreamGen: () => DataInputStream
+  ) {
+    val clazz = classTag[T].runtimeClass.asInstanceOf[Class[T]]
+
     def mkRecordIterator(): Iterator[T] = {
       lazy val input = new Input(inputStreamGen())
       new Iterator[T] {
@@ -71,7 +56,7 @@ object SequentialRecordStorage {
           try {
             val len = input.readInt()
             val bytes = input.readBytes(len)
-            kryoPool.fromBytes(bytes).asInstanceOf[T]
+            AmberRuntime.serde.deserialize(bytes, clazz).get
           } catch {
             case e: Throwable =>
               input.close()
@@ -88,7 +73,9 @@ object SequentialRecordStorage {
     }
   }
 
-  def getStorage[T >: Null <: AnyRef](storageLocation: Option[URI]): SequentialRecordStorage[T] = {
+  def getStorage[T >: Null <: AnyRef: ClassTag](
+      storageLocation: Option[URI]
+  ): SequentialRecordStorage[T] = {
     storageLocation match {
       case Some(location) =>
         if (location.getScheme.toLowerCase == "hdfs") {

@@ -6,8 +6,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.net.URI
+import scala.reflect.ClassTag
 
-class HDFSRecordStorage[T >: Null <: AnyRef](hdfsLogFolderURI: URI)
+class HDFSRecordStorage[T >: Null <: AnyRef: ClassTag](hdfsLogFolderURI: URI)
     extends SequentialRecordStorage[T]
     with LazyLogging {
 

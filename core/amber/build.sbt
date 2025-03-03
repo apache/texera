@@ -222,8 +222,7 @@ libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models"
 
-// https://mvnrepository.com/artifact/com.twitter/chill-akka
-libraryDependencies += "com.twitter" %% "chill-akka" % "0.10.0"
+libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.0"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

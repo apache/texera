@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
+import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
@@ -32,16 +33,22 @@ import edu.uci.ics.amber.core.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.net.URI
 
 class LoggingSpec
-    extends TestKit(ActorSystem("LoggingSpec"))
+    extends TestKit(ActorSystem("LoggingSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
+
+  override def beforeAll(): Unit = {
+    AmberRuntime.serde = SerializationExtension(system)
+  }
+
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
