@@ -47,6 +47,21 @@
         </nz-filter-trigger>
       </th>
       <th
+        [nzSortFn]="sortByComment"
+        [nzSortDirections]="['ascend', 'descend']"
+        nzCustomFilter>
+        Comment
+        <nz-filter-trigger
+          [(nzVisible)]="commentSearchVisible"
+          [nzActive]="commentSearchValue.length > 0"
+          [nzDropdownMenu]="commentMenu">
+          <span
+            nz-icon
+            nzType="search"></span>
+        </nz-filter-trigger>
+      </th>
+      <th>Action</th>
+      <th
         [nzFilterFn]="filterByRole"
         [nzSortDirections]="['ascend', 'descend']"
         [nzFilters]="[
@@ -110,6 +125,31 @@
       </div>
     </div>
   </nz-dropdown-menu>
+  <nz-dropdown-menu #commentMenu="nzDropdownMenu">
+    <div class="ant-table-filter-dropdown">
+      <div class="search-box">
+        <input
+          [(ngModel)]="commentSearchValue"
+          nz-input
+          placeholder="Search comment"
+          type="text" />
+        <button
+          (click)="searchByComment()"
+          class="search-button"
+          nz-button
+          nzSize="small"
+          nzType="primary">
+          Search
+        </button>
+        <button
+          (click)="reset()"
+          nz-button
+          nzSize="small">
+          Reset
+        </button>
+      </div>
+    </div>
+  </nz-dropdown-menu>
   <tbody>
     <tr *ngFor="let user of basicTable.data">
       <td>
@@ -137,6 +177,19 @@
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
             {{user.email}}
+      <td>
+        <ng-container *ngIf="editUid !== user.uid; else editCommentTemplate"> {{user.comment}} </ng-container>
+        <ng-template #editCommentTemplate>
+          <input
+            [(ngModel)]="editComment"
+            nz-input
+            type="text" />
+        </ng-template>
+      </td>
+      <td style="color: #1890ff">
+        <div>
+          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
+            <a (click)="startEdit(user)">Edit</a>
           </ng-container>
           <ng-template #editEmailTemplate>
             <input

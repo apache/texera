@@ -22,10 +22,13 @@ export class AdminUserComponent implements OnInit {
   editName: string = "";
   editEmail: string = "";
   editRole: Role = Role.REGULAR;
+  editComment: string = "";
   nameSearchValue: string = "";
   emailSearchValue: string = "";
+  commentSearchValue: string = "";
   nameSearchVisible = false;
   emailSearchVisible = false;
+  commentSearchVisible = false;
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
 
@@ -54,6 +57,12 @@ export class AdminUserComponent implements OnInit {
     this.saveEdit();
   }
 
+  public updateComment(user: User, comment: string) {
+    this.startEdit(user);
+    this.editComment = comment;
+    this.saveEdit();
+  }
+
   addUser(): void {
     this.adminUserService
       .addUser()
@@ -67,13 +76,14 @@ export class AdminUserComponent implements OnInit {
     this.editName = user.name;
     this.editEmail = user.email;
     this.editRole = user.role;
+    this.editComment = user.comment;
   }
 
   saveEdit(): void {
     const currentUid = this.editUid;
     this.stopEdit();
     this.adminUserService
-      .updateUser(currentUid, this.editName, this.editEmail, this.editRole)
+      .updateUser(currentUid, this.editName, this.editEmail, this.editRole, this.editComment)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.ngOnInit(),
@@ -92,13 +102,16 @@ export class AdminUserComponent implements OnInit {
   public sortByID: NzTableSortFn<User> = (a: User, b: User) => b.uid - a.uid;
   public sortByName: NzTableSortFn<User> = (a: User, b: User) => (b.name || "").localeCompare(a.name);
   public sortByEmail: NzTableSortFn<User> = (a: User, b: User) => (b.email || "").localeCompare(a.email);
+  public sortByComment: NzTableSortFn<User> = (a: User, b: User) => (b.comment || "").localeCompare(a.comment);
   public sortByRole: NzTableSortFn<User> = (a: User, b: User) => b.role.localeCompare(a.role);
 
   reset(): void {
     this.nameSearchValue = "";
     this.emailSearchValue = "";
+    this.commentSearchValue = "";
     this.nameSearchVisible = false;
     this.emailSearchVisible = false;
+    this.commentSearchVisible = false;
     this.listOfDisplayUser = [...this.userList];
   }
 
@@ -110,6 +123,11 @@ export class AdminUserComponent implements OnInit {
   searchByEmail(): void {
     this.emailSearchVisible = false;
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
+  }
+
+  searchByComment(): void {
+    this.commentSearchVisible = false;
+    this.listOfDisplayUser = this.userList.filter(user => (user.comment || "").indexOf(this.commentSearchValue) !== -1);
   }
 
   clickToViewQuota(uid: number) {
