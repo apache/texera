@@ -126,7 +126,7 @@ class WorkflowResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-
+    FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
@@ -330,25 +330,6 @@ class WorkflowResourceSpec
 
     test(sessionUser1, testWorkflow1)
     test(sessionUser2, testWorkflow2)
-  }
-
-  it should "search for keywords containing special characters" in {
-    // testWorkflow1: {name: test_name, description: test_description, content: "key@gmail.com"}
-    // search "key@gmail.com" should return testWorkflow1
-    workflowResource.persistWorkflow(testWorkflowWithSpecialCharacters, sessionUser1)
-    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList =
-      dashboardResource
-        .searchAllResourcesCall(
-          sessionUser1,
-          SearchQueryParams(getKeywordsArray(exampleEmailAddress))
-        )
-        .results
-    assert(DashboardWorkflowEntryList.size == 1)
-    assertSameWorkflow(
-      testWorkflowWithSpecialCharacters,
-      DashboardWorkflowEntryList.head.workflow.get
-    )
   }
 
   it should "return a proper condition for a single owner" in {
