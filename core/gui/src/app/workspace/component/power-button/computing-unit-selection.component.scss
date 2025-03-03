@@ -1,13 +1,13 @@
 .computing-units-selection {
   display: grid;
-  grid-template-columns: 1fr; /* Single column by default */
+  grid-template-columns: 1fr;
   justify-content: center;
   align-items: center;
   width: 100%;
 }
 
-.computing-units-selection.metrics-visible { /* Renamed for clarity */
-  grid-template-columns: repeat(2, 1fr); /* Two columns when visible */
+.computing-units-selection.metrics-visible {
+  grid-template-columns: repeat(2, 1fr);
   justify-content: center;
   align-items: center;
   justify-items: end;
@@ -15,85 +15,51 @@
   gap: 10px;
 }
 
-nz-option {
-  height: 100%;
-}
-
 .computing-units-dropdown {
   min-width: 250px;
   max-width: 350px;
 }
 
-.computing-unit-option-content {
-  display: flex;
-  align-items: center;
-  width: 100%;
-
-  nz-badge {
-    margin-right: 8px;
-  }
-
-  .unit-details {
-    flex: 1;
-  }
-
-  .terminate-icon {
-    visibility: hidden;
-    cursor: pointer;
-
-    &:hover {
-      color: #ff4d4f;
-    }
-  }
-
-  &:hover .terminate-icon {
-    visibility: visible;
-  }
+#computing-unit-option.unit-selected {
+  background-color: #f1eeee;
 }
 
-.computing-unit-option {
+.create-computing-unit {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
   gap: 10px;
-}
-
-.unit-details {
-  display: flex;
+  justify-content: start;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-grow: 1;
 }
 
-.terminate-icon {
-  color: red;
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid red;
-  border-radius: 50%;
-  padding: 1px;
-}
-
-.create-unit {
-  width: 65%;
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-.dropdown-footer {
+.computing-unit-name {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .terminate-icon:hover {
-  opacity: 0.8; /* Slight opacity on hover for visual feedback */
+  opacity: 0.8;
+}
+
+.memory-selection,
+.cpu-selection {
+  width: 200px;
+}
+
+.create-compute-unit-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  justify-content: start;
+  align-items: center;
+}
+
+.select-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: start;
 }
 
 .metrics-container {

@@ -25,6 +25,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   computingUnits: DashboardWorkflowComputingUnit[] = [];
   private readonly REFRESH_INTERVAL_MS = 2000;
 
+  addComputeUnitModalVisible = false;
+  selectedMemory: string = "2Gi";
+  selectedCpu: string = "2";
+
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
@@ -77,8 +81,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   startComputingUnit(): void {
     const computeUnitName = `Compute for Workflow ${this.workflowId}`;
+    const computeCPU = this.selectedCpu;
+    const computeMemory = this.selectedMemory;
     this.computingUnitService
-      .createComputingUnit(computeUnitName, "1", "2Gi")
+      .createComputingUnit(computeUnitName, computeCPU, computeMemory)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit) => {
@@ -130,6 +136,37 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   isComputingUnitRunning(): boolean {
     return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
+  }
+
+  computeStatus(): string {
+    if (!this.selectedComputingUnit) {
+      return "processing";
+    }
+    switch (this.selectedComputingUnit.status) {
+      case "Running":
+        return "success";
+      case "Pending" || "Terminating":
+        return "warning";
+      default:
+        return "error";
+    }
+  }
+
+  isSelectedUnit(unit: DashboardWorkflowComputingUnit): boolean {
+    return unit.uri === this.selectedComputingUnit?.uri;
+  }
+
+  showAddComputeUnitModalVisible(): void {
+    this.addComputeUnitModalVisible = true;
+  }
+
+  handleAddComputeUnitModalOk(): void {
+    this.startComputingUnit();
+    this.addComputeUnitModalVisible = false;
+  }
+
+  handleAddComputeUnitModalCancel(): void {
+    this.addComputeUnitModalVisible = false;
   }
 
   /**

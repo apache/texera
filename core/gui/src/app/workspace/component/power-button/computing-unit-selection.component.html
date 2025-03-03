@@ -42,7 +42,7 @@
     [nzDropdownMenu]="menu"
     [nzPlacement]="'bottomRight'"
     class="computing-units-dropdown-button">
-    <nz-badge nzStatus="processing" [nzText]="''"></nz-badge>
+    <nz-badge [nzStatus]="computeStatus()" [nzText]="''"></nz-badge>
     <span *ngIf="selectedComputingUnit" nz-tooltip [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
       Connected
     </span>
@@ -55,31 +55,68 @@
       <li
         nz-menu-item
         *ngFor="let unit of computingUnits"
-        class="computing-unit-option"
+        id="computing-unit-option"
+        [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
         (click)="selectedComputingUnit = unit; onComputingUnitChange(unit)">
-        <div class="computing-unit-option-content">
+        <div class="computing-unit-name">
           <nz-badge [nzColor]="getBadgeColor(unit.status)" [nzText]="''"></nz-badge>
-          <span class="unit-details">
-            <span nz-tooltip [nzTooltipTitle]="unit.computingUnit.name">
-              {{ getComputingUnitName(unit.uri) }}
-            </span>
+          <span nz-tooltip [nzTooltipTitle]="unit.computingUnit.name">
+            {{ getComputingUnitName(unit.uri) }}
           </span>
-          <i
-            class="terminate-icon"
-            nz-icon
-            nzType="close"
-            nz-tooltip
-            [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
-            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></i>
         </div>
+        <div
+          class="terminate-icon"
+          nz-icon
+          nzType="delete"
+          nz-tooltip
+          [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
+          (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
       <li nz-menu-divider></li>
-      <li nz-menu-item (click)="startComputingUnit()">
-        <i nz-icon nzType="plus"></i>Computing Unit
+      <li nz-menu-item (click)="showAddComputeUnitModalVisible()">
+        <div class="create-computing-unit">
+          <i nz-icon nzType="plus"></i>
+          <span>Computing Unit</span>
+        </div>
       </li>
     </ul>
   </nz-dropdown-menu>
 </div>
+
+<nz-modal
+  [(nzVisible)]="addComputeUnitModalVisible"
+  [nzTitle]="addComputeUnitModalTitle"
+  [nzContent]="addComputeUnitModalContent"
+  [nzFooter]="addComputeUnitModalFooter"
+  (nzOnCancel)="handleAddComputeUnitModalCancel()"
+>
+  <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
+  <ng-template #addComputeUnitModalContent>
+    <div class="create-compute-unit-container">
+        <div class="select-unit">
+          <span>Select Memory</span>
+          <nz-select class="memory-selection" [(ngModel)]="selectedMemory">
+            <nz-option nzValue="1Gi" nzLabel="Lowest Memory (1Gi)"></nz-option>
+            <nz-option nzValue="2Gi" nzLabel="Standard Memory (2Gi)"></nz-option>
+            <nz-option nzValue="4Gi" nzLabel="High Memory (4Gi)"></nz-option>
+          </nz-select>
+        </div>
+
+        <div class="select-unit">
+          <span>Select CPU</span>
+          <nz-select class="cpu-selection" [(ngModel)]="selectedCpu">
+            <nz-option nzValue="1" nzLabel="Lowest CPU (1 Core)"></nz-option>
+            <nz-option nzValue="2" nzLabel="Standard CPU (2 Core)"></nz-option>
+            <nz-option nzValue="4" nzLabel="High CPU (4 Core)"></nz-option>
+          </nz-select>
+        </div>
+    </div>
+  </ng-template>
+  <ng-template #addComputeUnitModalFooter>
+    <button nz-button nzType="default" (click)="handleAddComputeUnitModalCancel()">Cancel</button>
+    <button nz-button nzType="primary" (click)="handleAddComputeUnitModalOk()">Create</button>
+  </ng-template>
+</nz-modal>
 
 <ng-template #metricsTemplate>
   <div class="resource-metrics">
