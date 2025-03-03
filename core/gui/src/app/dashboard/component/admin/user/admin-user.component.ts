@@ -46,7 +46,6 @@ export class AdminUserComponent implements OnInit {
         this.userList = userList;
         this.reset();
       });
-
   }
 
   public updateRole(user: User, role: Role): void {
@@ -69,7 +68,6 @@ export class AdminUserComponent implements OnInit {
     this.editEmail = user.email;
     this.editRole = user.role;
   }
-
 
   saveEdit(): void {
     const currentUid = this.editUid;
@@ -114,7 +112,6 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
-
   clickToViewQuota(uid: number) {
     this.modalService.create({
       nzContent: UserQuotaComponent,
@@ -126,9 +123,6 @@ export class AdminUserComponent implements OnInit {
     });
   }
 
-
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
-
-
 }
