@@ -1,13 +1,8 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.core.storage.model.OnDataset
-import edu.uci.ics.amber.core.storage.{
-  DocumentFactory,
-  FileResolver,
-  LakeFSFileStorage,
-  S3Storage,
-  StorageConfig
-}
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -46,6 +41,7 @@ import edu.uci.ics.texera.service.resource.DatasetResource.{
   getDatasetVersionByID,
   getLatestDatasetVersion
 }
+import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -189,7 +185,7 @@ class DatasetResource {
 
       // Try to initialize the repository in LakeFS
       try {
-        LakeFSFileStorage.initRepo(datasetName)
+        LakeFSStorageClient.initRepo(datasetName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
@@ -252,7 +248,7 @@ class DatasetResource {
       val datasetName = dataset.getName
 
       // Check if there are any changes in LakeFS before creating a new version
-      val diffs = LakeFSFileStorage.retrieveUncommittedObjects(repoName = datasetName)
+      val diffs = LakeFSStorageClient.retrieveUncommittedObjects(repoName = datasetName)
 
       if (diffs.isEmpty) {
         throw new WebApplicationException(
@@ -276,7 +272,7 @@ class DatasetResource {
       }
 
       // Create a commit in LakeFS
-      val commit = LakeFSFileStorage.createCommit(
+      val commit = LakeFSStorageClient.createCommit(
         repoName = datasetName,
         branch = "main",
         commitMessage = s"Created dataset version: $newVersionName"
@@ -304,7 +300,7 @@ class DatasetResource {
         .into(classOf[DatasetVersion])
 
       // Retrieve committed file structure
-      val fileNodes = LakeFSFileStorage.retrieveObjectsOfVersion(datasetName, commit.getId)
+      val fileNodes = LakeFSStorageClient.retrieveObjectsOfVersion(datasetName, commit.getId)
 
       DashboardDatasetVersion(
         insertedVersion,
@@ -329,7 +325,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       try {
-        LakeFSFileStorage.deleteRepo(dataset.getName)
+        LakeFSStorageClient.deleteRepo(dataset.getName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
@@ -339,8 +335,10 @@ class DatasetResource {
       }
 
       // delete the directory on S3
-      if (S3Storage.directoryExists(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)) {
-        S3Storage.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
+      if (
+        S3StorageClient.directoryExists(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
+      ) {
+        S3StorageClient.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
       }
 
       // delete the dataset from the DB
@@ -398,7 +396,7 @@ class DatasetResource {
       // Decode file path
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
       // TODO: in the future consider using multipart to upload this stream more faster
-      LakeFSFileStorage.writeFileToRepo(datasetName, filePath, fileStream)
+      LakeFSStorageClient.writeFileToRepo(datasetName, filePath, fileStream)
       Response.ok(Map("message" -> "File uploaded successfully")).build()
     }
   }
@@ -435,7 +433,7 @@ class DatasetResource {
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
           }
 
-          val url = LakeFSFileStorage.getFilePresignedUrl(dsName, commit, decodedPathStr)
+          val url = LakeFSStorageClient.getFilePresignedUrl(dsName, commit, decodedPathStr)
           Response.ok(Map("presignedUrl" -> url)).build()
         }
 
@@ -454,7 +452,7 @@ class DatasetResource {
           Response
             .ok(
               Map(
-                "presignedUrl" -> LakeFSFileStorage.getFilePresignedUrl(
+                "presignedUrl" -> LakeFSStorageClient.getFilePresignedUrl(
                   document.getDatasetName(),
                   document.getVersionHash(),
                   document.getFileRelativePath()
@@ -486,7 +484,7 @@ class DatasetResource {
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
       // Try to initialize the repository in LakeFS
       try {
-        LakeFSFileStorage.deleteObject(datasetName, filePath)
+        LakeFSStorageClient.deleteObject(datasetName, filePath)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
@@ -532,7 +530,7 @@ class DatasetResource {
             throw new BadRequestException("numParts is required for initialization")
           )
 
-          val presignedResponse = LakeFSFileStorage.initiatePresignedMultipartUploads(
+          val presignedResponse = LakeFSStorageClient.initiatePresignedMultipartUploads(
             datasetName,
             filePath,
             numPartsValue
@@ -577,7 +575,7 @@ class DatasetResource {
           }
 
           // Complete the multipart upload with parts and physical address
-          val objectStats = LakeFSFileStorage.completePresignedMultipartUploads(
+          val objectStats = LakeFSStorageClient.completePresignedMultipartUploads(
             datasetName,
             filePath,
             uploadIdValue,
@@ -606,7 +604,7 @@ class DatasetResource {
           }
 
           // Abort the multipart upload
-          LakeFSFileStorage.abortPresignedMultipartUploads(
+          LakeFSStorageClient.abortPresignedMultipartUploads(
             datasetName,
             filePath,
             uploadIdValue,
@@ -659,7 +657,7 @@ class DatasetResource {
 
       // Retrieve staged (uncommitted) changes from LakeFS
       val dataset = getDatasetByID(ctx, did)
-      val lakefsDiffs = LakeFSFileStorage.retrieveUncommittedObjects(dataset.getName)
+      val lakefsDiffs = LakeFSStorageClient.retrieveUncommittedObjects(dataset.getName)
 
       // Convert LakeFS Diff objects to our custom Diff case class
       lakefsDiffs.map(d =>
@@ -693,7 +691,7 @@ class DatasetResource {
       val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name())
       // Try to reset the file change in LakeFS
       try {
-        LakeFSFileStorage.resetObjectUploadOrDeletion(datasetName, filePath)
+        LakeFSStorageClient.resetObjectUploadOrDeletion(datasetName, filePath)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
@@ -834,7 +832,7 @@ class DatasetResource {
         .fromLakeFSRepositoryCommittedObjects(
           Map(
             (user.getEmail, dataset.getName, latestVersion.getName) ->
-              LakeFSFileStorage
+              LakeFSStorageClient
                 .retrieveObjectsOfVersion(dataset.getName, latestVersion.getVersionHash)
           )
         )
@@ -978,7 +976,7 @@ class DatasetResource {
     val ownerFileNode = DatasetFileNode
       .fromLakeFSRepositoryCommittedObjects(
         Map(
-          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSFileStorage
+          (dataset.ownerEmail, datasetName, datasetVersion.getName) -> LakeFSStorageClient
             .retrieveObjectsOfVersion(datasetName, datasetVersion.getVersionHash)
         )
       )

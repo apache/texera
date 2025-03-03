@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.core.storage.model
 
-import edu.uci.ics.amber.core.storage.LakeFSFileStorage
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken
 }
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 
@@ -54,7 +54,7 @@ private[storage] class DatasetFileDocument(uri: URI)
 
   override def asInputStream(): InputStream = {
     if (userJwtToken.isEmpty) {
-      val presignUrl = LakeFSFileStorage.getFilePresignedUrl(
+      val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
         getDatasetName(),
         getVersionHash(),
         getFileRelativePath()

@@ -63,5 +63,7 @@ libraryDependencies ++= Seq(
   "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
-  "io.lakefs" % "sdk" % "1.48.0"
+  "software.amazon.awssdk" % "s3" % "2.29.51",
+  "software.amazon.awssdk" % "auth" % "2.29.51",
+  "software.amazon.awssdk" % "regions" % "2.29.51",
 )

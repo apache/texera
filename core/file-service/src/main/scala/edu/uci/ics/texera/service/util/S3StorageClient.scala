@@ -1,12 +1,12 @@
-package edu.uci.ics.amber.core.storage
+package edu.uci.ics.texera.service.util
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.services.s3.model._
 
 import java.security.MessageDigest
-import java.util.Base64
 import scala.jdk.CollectionConverters._
 
 /**
@@ -14,7 +14,7 @@ import scala.jdk.CollectionConverters._
   * - Uses credentials and endpoint from StorageConfig.
   * - Supports object upload, download, listing, and deletion.
   */
-object S3Storage {
+object S3StorageClient {
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
     val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)

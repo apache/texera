@@ -7,24 +7,10 @@
 
 .truncate-file-path {
   display: inline-block;
-  max-width: 200px; /* Adjust width as needed */
+  max-width: 250px; /* Adjust width as needed */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  direction: rtl; /* Makes ellipsis appear at the beginning */
-  unicode-bidi: plaintext; /* Prevents text from flipping in RTL mode */
-}
-
-.truncate-file-path:hover::after {
-  content: attr(data-fullpath); /* Show full path as tooltip */
-  position: absolute;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 5px;
-  border-radius: 4px;
-  white-space: nowrap;
-  z-index: 10;
-  transform: translateY(-25px);
 }
 
 .delete-button {

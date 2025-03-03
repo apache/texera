@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.core.storage
+package edu.uci.ics.amber.core.storage.util
 
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model._
@@ -13,7 +13,7 @@ import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
   * LakeFSFileStorage provides high-level file storage operations using LakeFS,
   * similar to Git operations for version control and file management.
   */
-object LakeFSFileStorage {
+object LakeFSStorageClient {
 
   private lazy val apiClient: ApiClient = {
     val client = new ApiClient()
