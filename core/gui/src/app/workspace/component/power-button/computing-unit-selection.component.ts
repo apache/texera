@@ -152,6 +152,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  cannotSelectUnit(unit: DashboardWorkflowComputingUnit): boolean {
+    return !unit || unit.status !== "Running";
+  }
+
   isSelectedUnit(unit: DashboardWorkflowComputingUnit): boolean {
     return unit.uri === this.selectedComputingUnit?.uri;
   }
