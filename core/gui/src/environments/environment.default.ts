@@ -79,6 +79,11 @@ export const defaultEnvironment = {
   singleFileUploadMaximumSizeMB: 20,
 
   /**
+   * the size of each chunk during the multipart upload of file
+   */
+  multipartUploadChunkSizeByte: 50 * 1024 * 1024, // 50 MB
+
+  /**
    * default data transfer batch size for workflows
    */
   defaultDataTransferBatchSize: 400,
