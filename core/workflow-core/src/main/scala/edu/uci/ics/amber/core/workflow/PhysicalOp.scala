@@ -2,7 +2,7 @@ package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.executor.{OpExecWithCode, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -10,8 +10,8 @@ import edu.uci.ics.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
-import org.jgrapht.traverse.TopologicalOrderIterator
+import scalax.collection.edges.{DiEdge, DiEdgeImplicits}
+import scalax.collection.mutable.Graph
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
@@ -484,30 +484,28 @@ case class PhysicalOp(
     */
   @JsonIgnore
   def getInputLinksInProcessingOrder: List[PhysicalLink] = {
-    val dependencyDag = {
-      new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
-    }
+    val dependencyDag: Graph[PhysicalLink, DiEdge[PhysicalLink]] = Graph()
+
     inputPorts.values
       .map(_._1)
       .flatMap(port => port.dependencies.map(dependee => port.id -> dependee))
-      .foreach({
+      .foreach {
         case (depender: PortIdentity, dependee: PortIdentity) =>
           val upstreamLink = getInputLinks(Some(dependee)).head
           val downstreamLink = getInputLinks(Some(depender)).head
-          if (!dependencyDag.containsVertex(upstreamLink)) {
-            dependencyDag.addVertex(upstreamLink)
-          }
-          if (!dependencyDag.containsVertex(downstreamLink)) {
-            dependencyDag.addVertex(downstreamLink)
-          }
-          dependencyDag.addEdge(upstreamLink, downstreamLink)
-      })
-    val topologicalIterator =
-      new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
-    val processingOrder = new ArrayBuffer[PhysicalLink]()
-    while (topologicalIterator.hasNext) {
-      processingOrder.append(topologicalIterator.next())
+
+          dependencyDag.add(upstreamLink)
+          dependencyDag.add(downstreamLink)
+          dependencyDag.add(upstreamLink ~> downstreamLink)
+      }
+
+    val sortedNodes = new ArrayBuffer[PhysicalLink]()
+    dependencyDag.topologicalSort match {
+      case Right(order) => sortedNodes.appendAll(order.toOuter)
+      case Left(_)      => throw new IllegalStateException("Cycle detected in dependency graph")
     }
-    processingOrder.toList
+
+    sortedNodes.toList
   }
+
 }

@@ -9,32 +9,38 @@ import edu.uci.ics.amber.core.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import org.jgrapht.alg.connectivity.BiconnectivityInspector
-import org.jgrapht.alg.shortestpath.AllDirectedPaths
-import org.jgrapht.graph.DirectedAcyclicGraph
-import org.jgrapht.traverse.TopologicalOrderIterator
-import org.jgrapht.util.SupplierUtil
+import scalax.collection.OneOrMore
+import scalax.collection.generic.{AbstractDiEdge, MultiEdge}
+import scalax.collection.mutable.Graph
 
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
+import scala.collection.mutable
+import scala.language.implicitConversions
+
+case class PhysicalEdge(physicalLink: PhysicalLink)
+    extends AbstractDiEdge(physicalLink.fromOpId, physicalLink.toOpId)
+    with MultiEdge {
+
+  override def extendKeyBy: OneOrMore[Any] =
+    OneOrMore.one((physicalLink.fromPortId, physicalLink.toPortId))
+}
 
 case class PhysicalPlan(
     operators: Set[PhysicalOp],
     links: Set[PhysicalLink]
 ) extends LazyLogging {
 
+  implicit def physicalLinkToEdge(physicalLink: PhysicalLink): PhysicalEdge = {
+    PhysicalEdge(physicalLink)
+  }
+
   @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
     operators.map(o => (o.id, o)).toMap
 
   // the dag will be re-computed again once it reaches the coordinator.
-  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink] = {
-    val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink](
-      null, // vertexSupplier
-      SupplierUtil.createSupplier(classOf[PhysicalLink]), // edgeSupplier
-      false, // weighted
-      true // allowMultipleEdges
-    )
-    operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
-    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId, l))
+  @transient lazy val dag: Graph[PhysicalOpIdentity, PhysicalEdge] = {
+    val jgraphtDag = Graph.empty[PhysicalOpIdentity, PhysicalEdge]()
+    operatorMap.foreach(op => jgraphtDag.add(op._1))
+    links.foreach(l => jgraphtDag.add(l))
     jgraphtDag
   }
 
@@ -42,7 +48,7 @@ case class PhysicalPlan(
 
   @JsonIgnore
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
-    operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
+    operatorMap.keys.filter(op => dag.get(op).inDegree == 0).toSet
 
   def getPhysicalOpsOfLogicalOp(logicalOpId: OperatorIdentity): List[PhysicalOp] = {
     topologicalIterator()
@@ -66,7 +72,7 @@ case class PhysicalPlan(
   }
 
   def getUpstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
-    dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toSet
+    dag.get(physicalOpId).incoming.map(e => e.physicalLink.fromOpId)
   }
 
   def getUpstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
@@ -78,7 +84,10 @@ case class PhysicalPlan(
   }
 
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
-    new TopologicalOrderIterator(dag).asScala
+    dag.topologicalSort match {
+      case Left(value)  => throw new RuntimeException("topological sort failed")
+      case Right(value) => value.iterator.map(_.outer)
+    }
   }
   def addOperator(physicalOp: PhysicalOp): PhysicalPlan = {
     this.copy(operators = Set(physicalOp) ++ operators)
@@ -225,11 +234,13 @@ case class PhysicalPlan(
   @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges =
-      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala
+      this.dag
+        .componentTraverser()
+        .flatMap(_.frontierEdges)
         .map { edge =>
           {
-            val fromOpId = this.dag.getEdgeSource(edge)
-            val toOpId = this.dag.getEdgeTarget(edge)
+            val fromOpId = edge.physicalLink.fromOpId
+            val toOpId = edge.physicalLink.toOpId
             links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
           }
         }
@@ -247,42 +258,70 @@ case class PhysicalPlan(
     *
     * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
     */
-  private def getMaxChains: Set[Set[PhysicalLink]] = {
-    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, PhysicalLink](this.dag)
-    val chains = this.dag
-      .vertexSet()
-      .asScala
-      .flatMap { ancestor =>
-        {
-          this.dag.getDescendants(ancestor).asScala.flatMap { descendant =>
-            {
-              dijkstra
-                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
-                .asScala
-                .filter(path =>
-                  path.getLength > 1 &&
-                    path.getVertexList.asScala
-                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
-                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
-                )
-                .map(path =>
-                  path.getEdgeList.asScala
-                    .map { edge =>
-                      {
-                        val fromOpId = this.dag.getEdgeSource(edge)
-                        val toOpId = this.dag.getEdgeTarget(edge)
-                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
-                      }
-                    }
-                    .flatMap(_.toList)
-                    .toSet
-                )
-                .toSet
-            }
-          }
+  def getMaxChains: Set[Set[PhysicalLink]] = {
+    val allChains = mutable.Set[Set[PhysicalLink]]()
+
+    /**
+      * Recursively expands chains from the current node, enumerating all possible paths.
+      * @param current The current operator identity from which to expand.
+      * @param path    The accumulated list of operator IDs we have visited so far.
+      */
+    def expandChain(current: PhysicalOpIdentity, path: List[PhysicalOpIdentity]): Unit = {
+      // If current has no successors, see if we've formed a valid chain
+      val successors = this.dag.get(current).outNeighbors.map(_.outer)
+      if (successors.isEmpty) {
+        // If path length > 1 and intermediate nodes have inDegree/outDegree == 1, record it
+        if (path.length > 1 && validIntermediateNodes(path)) {
+          allChains += pathToLinks(path)
+        }
+        return
+      }
+
+      // Otherwise, expand to each successor
+      successors.foreach { next =>
+        // Avoid cycles by checking if we've already visited 'next'
+        if (!path.contains(next)) {
+          expandChain(next, path :+ next)
         }
       }
-    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
+    }
+
+    /**
+      * Checks that all intermediate nodes in the path
+      * (except the first and last) have inDegree == 1 and outDegree == 1.
+      */
+    def validIntermediateNodes(path: List[PhysicalOpIdentity]): Boolean = {
+      // drop first and last, then check degree
+      path.drop(1).dropRight(1).forall { mid =>
+        val midNode = this.dag.get(mid)
+        midNode.inDegree == 1 && midNode.outDegree == 1
+      }
+    }
+
+    /**
+      * Converts a path of operator IDs into a set of PhysicalLink
+      * by looking up each consecutive pair in `links`.
+      */
+    def pathToLinks(path: List[PhysicalOpIdentity]): Set[PhysicalLink] = {
+      path
+        .sliding(2)
+        .flatMap {
+          case Seq(from, to) =>
+            links.find(l => l.fromOpId == from && l.toOpId == to)
+          case _ => None
+        }
+        .toSet
+    }
+
+    // Enumerate all possible starting nodes (potential ancestors)
+    for (node <- this.dag.nodes.map(_.outer)) {
+      expandChain(node, List(node))
+    }
+
+    // Now we have a bunch of chain candidates in `allChains`.
+    // We remove those that are strictly sub-chains of others.
+    val chainCandidates = allChains.toSet
+    chainCandidates.filter(s1 => chainCandidates.forall(s2 => s1 == s2 || !s1.subsetOf(s2)))
   }
 
   def propagateSchema(inputSchemas: Map[PortIdentity, Schema]): PhysicalPlan = {

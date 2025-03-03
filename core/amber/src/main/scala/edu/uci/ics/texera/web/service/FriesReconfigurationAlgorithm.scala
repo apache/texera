@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.web.service
 
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalPlan
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ModifyLogicRequest,
   PropagateChannelMarkerRequest
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -84,29 +83,29 @@ object FriesReconfigurationAlgorithm {
     // for each component, send an epoch marker to each of its source operators
     val epochMarkers = new ArrayBuffer[PropagateChannelMarkerRequest]()
 
-    val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
-    connectedSets.forEach(component => {
-      val componentSet = component.asScala.toSet
-      val componentPlan = mcsPlan.getSubPlan(componentSet)
+    mcsPlan.dag
+      .componentTraverser()
+      .foreach(component => {
+        val componentPlan = mcsPlan.getSubPlan(component.nodes.map(_.outer))
 
-      // generate the reconfiguration command for this component
-      //      val reconfigCommands =
-      //        reconfiguration.updateRequest
-      //          .filter(req => component.contains(req.targetOpId))
-      //      val reconfigTargets = reconfigCommands.map(_.targetOpId)
-      //
-      //      // find the source operators of the component
-      //      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      //      epochMarkers += PropagateChannelMarkerRequest(
-      //        sources.toSeq,
-      //        ChannelMarkerIdentity(epochMarkerId),
-      //        REQUIRE_ALIGNMENT,
-      //        componentPlan.operators.map(_.id).toSeq,
-      //        reconfigTargets,
-      //        ModifyLogicRequest(reconfigCommands),
-      //        METHOD_MODIFY_LOGIC.getBareMethodName
-      //      )
-    })
+        // generate the reconfiguration command for this component
+        //      val reconfigCommands =
+        //        reconfiguration.updateRequest
+        //          .filter(req => component.contains(req.targetOpId))
+        //      val reconfigTargets = reconfigCommands.map(_.targetOpId)
+        //
+        //      // find the source operators of the component
+        //      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+        //      epochMarkers += PropagateChannelMarkerRequest(
+        //        sources.toSeq,
+        //        ChannelMarkerIdentity(epochMarkerId),
+        //        REQUIRE_ALIGNMENT,
+        //        componentPlan.operators.map(_.id).toSeq,
+        //        reconfigTargets,
+        //        ModifyLogicRequest(reconfigCommands),
+        //        METHOD_MODIFY_LOGIC.getBareMethodName
+        //      )
+      })
     epochMarkers.toList
   }
 

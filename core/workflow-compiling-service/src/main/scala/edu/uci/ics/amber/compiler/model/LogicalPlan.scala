@@ -2,38 +2,24 @@ package edu.uci.ics.amber.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import org.jgrapht.graph.DirectedAcyclicGraph
-import org.jgrapht.util.SupplierUtil
+import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
+import scalax.collection.mutable.Graph
 
-import java.util
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
 
-  private def toJgraphtDAG(
+  private def toScalaDAG(
       operatorList: List[LogicalOp],
       links: List[LogicalLink]
-  ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
-    val workflowDag =
-      new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](
-        null, // vertexSupplier
-        SupplierUtil.createSupplier(classOf[LogicalLink]), // edgeSupplier
-        false, // weighted
-        true // allowMultipleEdges
-      )
-    operatorList.foreach(op => workflowDag.addVertex(op.operatorIdentifier))
-    links.foreach(l =>
-      workflowDag.addEdge(
-        l.fromOpId,
-        l.toOpId,
-        l
-      )
-    )
+  ): Graph[OperatorIdentity, LogicalLink] = {
+    val workflowDag = Graph.empty[OperatorIdentity, LogicalLink]()
+    operatorList.foreach(op => workflowDag.add(op.operatorIdentifier))
+    links.foreach(l => workflowDag.add(l))
     workflowDag
   }
 
@@ -53,10 +39,15 @@ case class LogicalPlan(
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
     operators.map(op => (op.operatorIdentifier, op)).toMap
 
-  private lazy val jgraphtDag: DirectedAcyclicGraph[OperatorIdentity, LogicalLink] =
-    LogicalPlan.toJgraphtDAG(operators, links)
+  private lazy val scalaDAG: Graph[OperatorIdentity, LogicalLink] =
+    LogicalPlan.toScalaDAG(operators, links)
 
-  def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
+  def getTopologicalOpIds: Iterator[OperatorIdentity] = {
+    scalaDAG.topologicalSort match {
+      case Left(value)  => throw new RuntimeException("topological sort failed.")
+      case Right(value) => value.iterator.map(_.outer)
+    }
+  }
 
   def getOperator(opId: String): LogicalOp = operatorMap(OperatorIdentity(opId))
 

@@ -6,19 +6,16 @@ import edu.uci.ics.amber.compiler.WorkflowCompiler.{
   collectInputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
-
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object WorkflowCompiler {
@@ -107,7 +104,7 @@ class WorkflowCompiler(
   ): PhysicalPlan = {
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
+    logicalPlan.getTopologicalOpIds.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
         val allUpstreamLinks = logicalPlan

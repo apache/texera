@@ -167,8 +167,8 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "com.github.sisyphsu" % "dateparser" % "1.0.11",                    // DateParser
   "com.google.guava" % "guava" % "31.1-jre",                          // Guava
+  "org.scala-graph" %% "graph-core" % "2.0.2",                        // scala-graph
   "org.ehcache" % "sizeof" % "0.4.3",                                 // Ehcache SizeOf
-  "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
   "org.yaml" % "snakeyaml" % "1.30",                                  // yaml reader (downgrade to 1.30 due to dropwizard 1.3.23 required by amber)

@@ -2,10 +2,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.PhysicalLink
-import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalPlan, WorkflowContext}
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
@@ -63,12 +61,10 @@ class ExpansionGreedyScheduleGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val dependeeLinksRemovedDAG = physicalPlan.getDependeeLinksRemovedDAG
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
-      dependeeLinksRemovedDAG.dag
-    ).getConnectedComponents.asScala.toSet
+    val connectedComponents = dependeeLinksRemovedDAG.dag.componentTraverser().toSet
     connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
+        val operatorIds = connectedSubDAG.nodes.map(_.outer)
         val links = operatorIds
           .flatMap(operatorId => {
             physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan

@@ -1,10 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.PhysicalLink
-import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import java.util.concurrent.TimeoutException
@@ -70,12 +68,10 @@ class CostBasedScheduleGenerator(
     val matEdgesRemovedDAG = matEdges.foldLeft(physicalPlan) { (currentPlan, linkToRemove) =>
       currentPlan.removeLink(linkToRemove)
     }
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
-      matEdgesRemovedDAG.dag
-    ).getConnectedComponents.asScala.toSet
+    val connectedComponents = matEdgesRemovedDAG.dag.componentTraverser().toSet
     connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
+        val operatorIds = connectedSubDAG.nodes.map(_.outer)
         val links = operatorIds
           .flatMap(operatorId => {
             physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
