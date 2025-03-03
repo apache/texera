@@ -9,8 +9,9 @@ import org.apache.commons.vfs2.{FileObject, FileSystemManager, VFS}
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI
+import scala.reflect.ClassTag
 
-class VFSRecordStorage[T >: Null <: AnyRef](vfsLogFolderURI: URI)
+class VFSRecordStorage[T >: Null <: AnyRef: ClassTag](vfsLogFolderURI: URI)
     extends SequentialRecordStorage[T]
     with LazyLogging {
 
