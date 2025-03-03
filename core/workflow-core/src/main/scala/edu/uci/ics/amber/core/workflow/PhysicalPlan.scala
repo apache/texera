@@ -271,7 +271,7 @@ case class PhysicalPlan(
     *
     * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
     */
-  def getMaxChains: Set[Set[PhysicalLink]] = {
+  private def getMaxChains: Set[Set[PhysicalLink]] = {
     val allChains = mutable.Set[Set[PhysicalLink]]()
 
     /**
