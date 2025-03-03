@@ -69,19 +69,19 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
-            .filter(terminalOpId => {
-              val uri = VFSURIFactory.createResultURI(
-                workflowContext.workflowId,
-                workflowContext.executionId,
-                terminalOpId,
-                Some("main"),
-                PortIdentity()
-              )
-              // expecting the first output port only.
-              ExecutionResourcesMapping
-                .getResourceURIs(workflowContext.executionId)
-                .contains(uri)
-            })
+//            .filter(terminalOpId => {
+//              val uri = VFSURIFactory.createResultURI(
+//                workflowContext.workflowId,
+//                workflowContext.executionId,
+//                terminalOpId,
+//                Some("main"),
+//                PortIdentity()
+//              )
+//              // expecting the first output port only.
+//              ExecutionResourcesMapping
+//                .getResourceURIs(workflowContext.executionId)
+//                .contains(uri)
+//            })
             .map(terminalOpId => {
               //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
               Thread.sleep(1000)
