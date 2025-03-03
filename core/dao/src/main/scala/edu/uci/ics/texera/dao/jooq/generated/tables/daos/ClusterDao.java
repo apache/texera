@@ -10,10 +10,10 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.ClusterRecord;
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -42,7 +42,8 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>cid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>cid BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfCid(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(Cluster.CLUSTER.CID, lowerInclusive, upperInclusive);
@@ -63,7 +64,15 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>cid = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchOptionalByCid(Integer value) {
+        return fetchOptional(Cluster.CLUSTER.CID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
         return fetchRange(Cluster.CLUSTER.NAME, lowerInclusive, upperInclusive);
@@ -77,21 +86,23 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>owner_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>owner_id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfOwnerId(UInteger lowerInclusive, UInteger upperInclusive) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfOwnerId(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(Cluster.CLUSTER.OWNER_ID, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>owner_id IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchByOwnerId(UInteger... values) {
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchByOwnerId(Integer... values) {
         return fetch(Cluster.CLUSTER.OWNER_ID, values);
     }
 
     /**
-     * Fetch records that have <code>machine_type BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>machine_type BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfMachineType(String lowerInclusive, String upperInclusive) {
         return fetchRange(Cluster.CLUSTER.MACHINE_TYPE, lowerInclusive, upperInclusive);
@@ -105,7 +116,8 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>number_of_machines BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>number_of_machines BETWEEN lowerInclusive
+     * AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfNumberOfMachines(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(Cluster.CLUSTER.NUMBER_OF_MACHINES, lowerInclusive, upperInclusive);
@@ -119,7 +131,8 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(Cluster.CLUSTER.CREATION_TIME, lowerInclusive, upperInclusive);
@@ -133,7 +146,8 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.dao.jo
     }
 
     /**
-     * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>status BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster> fetchRangeOfStatus(ClusterStatus lowerInclusive, ClusterStatus upperInclusive) {
         return fetchRange(Cluster.CLUSTER.STATUS, lowerInclusive, upperInclusive);

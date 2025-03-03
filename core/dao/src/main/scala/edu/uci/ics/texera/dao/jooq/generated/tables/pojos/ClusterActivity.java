@@ -15,7 +15,7 @@ import java.sql.Timestamp;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ClusterActivity implements IClusterActivity {
 
-    private static final long serialVersionUID = -1720691351;
+    private static final long serialVersionUID = 1L;
 
     private Integer   id;
     private Integer   clusterId;
@@ -43,41 +43,65 @@ public class ClusterActivity implements IClusterActivity {
         this.endTime = endTime;
     }
 
+    /**
+     * Getter for <code>texera_db.cluster_activity.id</code>.
+     */
     @Override
     public Integer getId() {
         return this.id;
     }
 
+    /**
+     * Setter for <code>texera_db.cluster_activity.id</code>.
+     */
     @Override
     public void setId(Integer id) {
         this.id = id;
     }
 
+    /**
+     * Getter for <code>texera_db.cluster_activity.cluster_id</code>.
+     */
     @Override
     public Integer getClusterId() {
         return this.clusterId;
     }
 
+    /**
+     * Setter for <code>texera_db.cluster_activity.cluster_id</code>.
+     */
     @Override
     public void setClusterId(Integer clusterId) {
         this.clusterId = clusterId;
     }
 
+    /**
+     * Getter for <code>texera_db.cluster_activity.start_time</code>.
+     */
     @Override
     public Timestamp getStartTime() {
         return this.startTime;
     }
 
+    /**
+     * Setter for <code>texera_db.cluster_activity.start_time</code>.
+     */
     @Override
     public void setStartTime(Timestamp startTime) {
         this.startTime = startTime;
     }
 
+    /**
+     * Getter for <code>texera_db.cluster_activity.end_time</code>.
+     */
     @Override
     public Timestamp getEndTime() {
         return this.endTime;
     }
 
+    /**
+     * Setter for <code>texera_db.cluster_activity.end_time</code>.
+     */
     @Override
     public void setEndTime(Timestamp endTime) {
         this.endTime = endTime;

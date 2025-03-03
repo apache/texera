@@ -7,13 +7,18 @@ import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{
+  ExecutionStateUpdate,
   ExecutionStatsUpdate,
   FatalError,
   WorkerAssignmentUpdate,
   WorkflowRecoveryStatus
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED
+}
 import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.{
@@ -165,6 +170,22 @@ class ExecutionStatsService(
     )
   }
 
+  addSubscription(
+    client.registerCallback[ExecutionStateUpdate] {
+      case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
+          if Set(COMPLETED, FAILED, KILLED).contains(state) =>
+        logger.info("Workflow execution terminated. Commit runtime statistics.")
+        runtimeStatsWriter.foreach { writer =>
+          try {
+            writer.close()
+          } catch {
+            case e: Exception =>
+              logger.error("Failed to close runtime statistics writer", e)
+          }
+        }
+    }
+  )
+
   private def computeStatsDiff(
       newMetrics: Map[String, OperatorMetrics]
   ): Map[String, OperatorMetrics] = {
@@ -230,7 +251,6 @@ class ExecutionStatsService(
               )
               writer.putOne(runtimeStats)
           }
-          writer.close()
         } catch {
           case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
         }

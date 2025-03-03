@@ -23,8 +23,10 @@ import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
 
@@ -34,7 +36,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ClusterActivity extends TableImpl<ClusterActivityRecord> {
 
-    private static final long serialVersionUID = -1050156712;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.cluster_activity</code>
@@ -52,28 +54,29 @@ public class ClusterActivity extends TableImpl<ClusterActivityRecord> {
     /**
      * The column <code>texera_db.cluster_activity.id</code>.
      */
-    public final TableField<ClusterActivityRecord, Integer> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
+    public final TableField<ClusterActivityRecord, Integer> ID = createField(DSL.name("id"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.cluster_activity.cluster_id</code>.
      */
-    public final TableField<ClusterActivityRecord, Integer> CLUSTER_ID = createField(DSL.name("cluster_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<ClusterActivityRecord, Integer> CLUSTER_ID = createField(DSL.name("cluster_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster_activity.start_time</code>.
      */
-    public final TableField<ClusterActivityRecord, Timestamp> START_TIME = createField(DSL.name("start_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false), this, "");
+    public final TableField<ClusterActivityRecord, Timestamp> START_TIME = createField(DSL.name("start_time"), SQLDataType.TIMESTAMP(0).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster_activity.end_time</code>.
      */
-    public final TableField<ClusterActivityRecord, Timestamp> END_TIME = createField(DSL.name("end_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
+    public final TableField<ClusterActivityRecord, Timestamp> END_TIME = createField(DSL.name("end_time"), SQLDataType.TIMESTAMP(0), this, "");
 
-    /**
-     * Create a <code>texera_db.cluster_activity</code> table reference
-     */
-    public ClusterActivity() {
-        this(DSL.name("cluster_activity"), null);
+    private ClusterActivity(Name alias, Table<ClusterActivityRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private ClusterActivity(Name alias, Table<ClusterActivityRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -90,12 +93,11 @@ public class ClusterActivity extends TableImpl<ClusterActivityRecord> {
         this(alias, CLUSTER_ACTIVITY);
     }
 
-    private ClusterActivity(Name alias, Table<ClusterActivityRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private ClusterActivity(Name alias, Table<ClusterActivityRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.cluster_activity</code> table reference
+     */
+    public ClusterActivity() {
+        this(DSL.name("cluster_activity"), null);
     }
 
     public <O extends Record> ClusterActivity(Table<O> child, ForeignKey<O, ClusterActivityRecord> key) {
@@ -104,36 +106,39 @@ public class ClusterActivity extends TableImpl<ClusterActivityRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.CLUSTER_ACTIVITY_CLUSTER_ID, Indexes.CLUSTER_ACTIVITY_PRIMARY);
+        return Arrays.asList(Indexes.CLUSTER_ACTIVITY_CLUSTER_ID_START_TIME_IDX);
     }
 
     @Override
     public Identity<ClusterActivityRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_CLUSTER_ACTIVITY;
+        return (Identity<ClusterActivityRecord, Integer>) super.getIdentity();
     }
 
     @Override
     public UniqueKey<ClusterActivityRecord> getPrimaryKey() {
-        return Keys.KEY_CLUSTER_ACTIVITY_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<ClusterActivityRecord>> getKeys() {
-        return Arrays.<UniqueKey<ClusterActivityRecord>>asList(Keys.KEY_CLUSTER_ACTIVITY_PRIMARY);
+        return Keys.CLUSTER_ACTIVITY_PKEY;
     }
 
     @Override
     public List<ForeignKey<ClusterActivityRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<ClusterActivityRecord, ?>>asList(Keys.CLUSTER_ACTIVITY_IBFK_1);
+        return Arrays.asList(Keys.CLUSTER_ACTIVITY__CLUSTER_ACTIVITY_CLUSTER_ID_FKEY);
     }
 
+    private transient Cluster _cluster;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.cluster</code> table.
+     */
     public Cluster cluster() {
-        return new Cluster(this, Keys.CLUSTER_ACTIVITY_IBFK_1);
+        if (_cluster == null)
+            _cluster = new Cluster(this, Keys.CLUSTER_ACTIVITY__CLUSTER_ACTIVITY_CLUSTER_ID_FKEY);
+
+        return _cluster;
     }
 
     @Override

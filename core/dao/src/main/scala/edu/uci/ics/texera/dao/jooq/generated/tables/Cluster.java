@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.Indexes;
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus;
@@ -17,17 +16,17 @@ import java.util.List;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
-import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -36,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster extends TableImpl<ClusterRecord> {
 
-    private static final long serialVersionUID = -770796919;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.cluster</code>
@@ -54,43 +53,44 @@ public class Cluster extends TableImpl<ClusterRecord> {
     /**
      * The column <code>texera_db.cluster.cid</code>.
      */
-    public final TableField<ClusterRecord, Integer> CID = createField(DSL.name("cid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
+    public final TableField<ClusterRecord, Integer> CID = createField(DSL.name("cid"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.cluster.name</code>.
      */
-    public final TableField<ClusterRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ClusterRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster.owner_id</code>.
      */
-    public final TableField<ClusterRecord, UInteger> OWNER_ID = createField(DSL.name("owner_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ClusterRecord, Integer> OWNER_ID = createField(DSL.name("owner_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster.machine_type</code>.
      */
-    public final TableField<ClusterRecord, String> MACHINE_TYPE = createField(DSL.name("machine_type"), org.jooq.impl.SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ClusterRecord, String> MACHINE_TYPE = createField(DSL.name("machine_type"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster.number_of_machines</code>.
      */
-    public final TableField<ClusterRecord, Integer> NUMBER_OF_MACHINES = createField(DSL.name("number_of_machines"), org.jooq.impl.SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<ClusterRecord, Integer> NUMBER_OF_MACHINES = createField(DSL.name("number_of_machines"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster.creation_time</code>.
      */
-    public final TableField<ClusterRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<ClusterRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.TIMESTAMP(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.cluster.status</code>.
      */
-    public final TableField<ClusterRecord, ClusterStatus> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.VARCHAR(18).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus.class), this, "");
+    public final TableField<ClusterRecord, ClusterStatus> STATUS = createField(DSL.name("status"), SQLDataType.VARCHAR.asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus.class), this, "");
 
-    /**
-     * Create a <code>texera_db.cluster</code> table reference
-     */
-    public Cluster() {
-        this(DSL.name("cluster"), null);
+    private Cluster(Name alias, Table<ClusterRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private Cluster(Name alias, Table<ClusterRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -107,12 +107,11 @@ public class Cluster extends TableImpl<ClusterRecord> {
         this(alias, CLUSTER);
     }
 
-    private Cluster(Name alias, Table<ClusterRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private Cluster(Name alias, Table<ClusterRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.cluster</code> table reference
+     */
+    public Cluster() {
+        this(DSL.name("cluster"), null);
     }
 
     public <O extends Record> Cluster(Table<O> child, ForeignKey<O, ClusterRecord> key) {
@@ -121,36 +120,34 @@ public class Cluster extends TableImpl<ClusterRecord> {
 
     @Override
     public Schema getSchema() {
-        return TexeraDb.TEXERA_DB;
-    }
-
-    @Override
-    public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.CLUSTER_OWNER_ID, Indexes.CLUSTER_PRIMARY);
+        return aliased() ? null : TexeraDb.TEXERA_DB;
     }
 
     @Override
     public Identity<ClusterRecord, Integer> getIdentity() {
-        return Keys.IDENTITY_CLUSTER;
+        return (Identity<ClusterRecord, Integer>) super.getIdentity();
     }
 
     @Override
     public UniqueKey<ClusterRecord> getPrimaryKey() {
-        return Keys.KEY_CLUSTER_PRIMARY;
-    }
-
-    @Override
-    public List<UniqueKey<ClusterRecord>> getKeys() {
-        return Arrays.<UniqueKey<ClusterRecord>>asList(Keys.KEY_CLUSTER_PRIMARY);
+        return Keys.CLUSTER_PKEY;
     }
 
     @Override
     public List<ForeignKey<ClusterRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<ClusterRecord, ?>>asList(Keys.CLUSTER_IBFK_1);
+        return Arrays.asList(Keys.CLUSTER__CLUSTER_OWNER_ID_FKEY);
     }
 
+    private transient User _user;
+
+    /**
+     * Get the implicit join path to the <code>texera_db.user</code> table.
+     */
     public User user() {
-        return new User(this, Keys.CLUSTER_IBFK_1);
+        if (_user == null)
+            _user = new User(this, Keys.CLUSTER__CLUSTER_OWNER_ID_FKEY);
+
+        return _user;
     }
 
     @Override
@@ -184,7 +181,7 @@ public class Cluster extends TableImpl<ClusterRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<Integer, String, UInteger, String, Integer, Timestamp, ClusterStatus> fieldsRow() {
+    public Row7<Integer, String, Integer, String, Integer, Timestamp, ClusterStatus> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

@@ -27,6 +27,6 @@ storage:
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
   jdbc:
-    url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
-    username: ""
+    url: "jdbc:postgresql://localhost:5432/texera_db"
+    username: "postgres"
     password: ""

@@ -29,7 +29,7 @@ import javax.ws.rs.core.{MediaType, Response}
 
 object ClusterResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private lazy val clusterDao = new ClusterDao(context.configuration)
 

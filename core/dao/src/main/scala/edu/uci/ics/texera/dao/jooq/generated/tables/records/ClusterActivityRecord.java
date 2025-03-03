@@ -22,7 +22,7 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ClusterActivityRecord extends UpdatableRecordImpl<ClusterActivityRecord> implements Record4<Integer, Integer, Timestamp, Timestamp>, IClusterActivity {
 
-    private static final long serialVersionUID = 124766855;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.cluster_activity.id</code>.
@@ -239,9 +239,23 @@ public class ClusterActivityRecord extends UpdatableRecordImpl<ClusterActivityRe
     public ClusterActivityRecord(Integer id, Integer clusterId, Timestamp startTime, Timestamp endTime) {
         super(ClusterActivity.CLUSTER_ACTIVITY);
 
-        set(0, id);
-        set(1, clusterId);
-        set(2, startTime);
-        set(3, endTime);
+        setId(id);
+        setClusterId(clusterId);
+        setStartTime(startTime);
+        setEndTime(endTime);
+    }
+
+    /**
+     * Create a detached, initialised ClusterActivityRecord
+     */
+    public ClusterActivityRecord(edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity value) {
+        super(ClusterActivity.CLUSTER_ACTIVITY);
+
+        if (value != null) {
+            setId(value.getId());
+            setClusterId(value.getClusterId());
+            setStartTime(value.getStartTime());
+            setEndTime(value.getEndTime());
+        }
     }
 }

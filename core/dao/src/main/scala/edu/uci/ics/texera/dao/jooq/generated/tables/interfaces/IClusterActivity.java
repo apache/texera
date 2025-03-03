@@ -59,12 +59,14 @@ public interface IClusterActivity extends Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IClusterActivity
+     * Load data from another generated Record/POJO implementing the common
+     * interface IClusterActivity
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IClusterActivity from);
+    public void from(IClusterActivity from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IClusterActivity
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IClusterActivity
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IClusterActivity> E into(E into);
+    public <E extends IClusterActivity> E into(E into);
 }

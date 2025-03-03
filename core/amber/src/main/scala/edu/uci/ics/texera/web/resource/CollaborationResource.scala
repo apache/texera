@@ -9,7 +9,6 @@ import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.CollaborationResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
-import org.jooq.types.UInteger
 
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
@@ -25,7 +24,7 @@ object CollaborationResource {
   final val DUMMY_WID = -1
 
   private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
-    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
+    !WorkflowAccessResource.hasWriteAccess(Integer.valueOf(wId), Integer.valueOf(uId))
   }
 }
 

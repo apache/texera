@@ -4,11 +4,9 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
-import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege;
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum;
 
 import java.io.Serializable;
-
-import org.jooq.types.UInteger;
 
 
 /**
@@ -20,44 +18,46 @@ public interface IDatasetUserAccess extends Serializable {
     /**
      * Setter for <code>texera_db.dataset_user_access.did</code>.
      */
-    public void setDid(UInteger value);
+    public void setDid(Integer value);
 
     /**
      * Getter for <code>texera_db.dataset_user_access.did</code>.
      */
-    public UInteger getDid();
+    public Integer getDid();
 
     /**
      * Setter for <code>texera_db.dataset_user_access.uid</code>.
      */
-    public void setUid(UInteger value);
+    public void setUid(Integer value);
 
     /**
      * Getter for <code>texera_db.dataset_user_access.uid</code>.
      */
-    public UInteger getUid();
+    public Integer getUid();
 
     /**
      * Setter for <code>texera_db.dataset_user_access.privilege</code>.
      */
-    public void setPrivilege(DatasetUserAccessPrivilege value);
+    public void setPrivilege(PrivilegeEnum value);
 
     /**
      * Getter for <code>texera_db.dataset_user_access.privilege</code>.
      */
-    public DatasetUserAccessPrivilege getPrivilege();
+    public PrivilegeEnum getPrivilege();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
 
     /**
-     * Load data from another generated Record/POJO implementing the common interface IDatasetUserAccess
+     * Load data from another generated Record/POJO implementing the common
+     * interface IDatasetUserAccess
      */
-    public void from(edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAccess from);
+    public void from(IDatasetUserAccess from);
 
     /**
-     * Copy data into another generated Record/POJO implementing the common interface IDatasetUserAccess
+     * Copy data into another generated Record/POJO implementing the common
+     * interface IDatasetUserAccess
      */
-    public <E extends edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IDatasetUserAccess> E into(E into);
+    public <E extends IDatasetUserAccess> E into(E into);
 }

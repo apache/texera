@@ -4,6 +4,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.enums;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
+
 import org.jooq.Catalog;
 import org.jooq.EnumType;
 import org.jooq.Schema;
@@ -51,12 +53,12 @@ public enum ClusterStatus implements EnumType {
 
     @Override
     public Catalog getCatalog() {
-        return null;
+        return getSchema().getCatalog();
     }
 
     @Override
     public Schema getSchema() {
-        return null;
+        return TexeraDb.TEXERA_DB;
     }
 
     @Override
@@ -67,5 +69,12 @@ public enum ClusterStatus implements EnumType {
     @Override
     public String getLiteral() {
         return literal;
+    }
+
+    /**
+     * Lookup a value of this EnumType by its literal
+     */
+    public static ClusterStatus lookupLiteral(String literal) {
+        return EnumType.lookupLiteral(ClusterStatus.class, literal);
     }
 }
