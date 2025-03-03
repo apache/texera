@@ -159,25 +159,24 @@
           class="user-avatar"></texera-user-avatar>
       </td>
       <td>{{user.uid}}</td>
-      <td>
-        <ng-container *ngIf="editUid !== user.uid; else editNameTemplate"> {{user.name}} </ng-container>
-        <ng-template #editNameTemplate>
-          <input
-            [(ngModel)]="editName"
-            nz-input
-            type="text" />
-        </ng-template>
+      <td (click)="startEdit(user, 'name')">
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'name'; else editNameTemplate">
+            {{user.name}}
+          </ng-container>
+          <ng-template #editNameTemplate>
+            <input
+              [(ngModel)]="editName"
+              (keydown.enter)="saveEdit()"
+              nz-input
+              type="text" />
+          </ng-template>
+        </div>
       </td>
-      <td>
-        <ng-container *ngIf="editUid !== user.uid; else editEmailTemplate"> {{user.email}} </ng-container>
-        <ng-template #editEmailTemplate>
-          <input
-            [(ngModel)]="editEmail"
-            [email]="true"
-            nz-input
-            type="email" />
-        </ng-template>
-      </td>
+      <td (click)="startEdit(user, 'email')">
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
+            {{user.email}}
       <td>
         <ng-container *ngIf="editUid !== user.uid; else editCommentTemplate"> {{user.comment}} </ng-container>
         <ng-template #editCommentTemplate>
@@ -192,17 +191,17 @@
           <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
             <a (click)="startEdit(user)">Edit</a>
           </ng-container>
-          <ng-template #editActionTemplate>
-            <a
-              (nzOnConfirm)="saveEdit()"
-              nz-popconfirm=""
-              nzPopconfirmTitle="Sure to save?"
-              >Save</a
-            >&nbsp;
-            <a (click)="stopEdit()">Cancel</a>
+          <ng-template #editEmailTemplate>
+            <input
+              [(ngModel)]="editEmail"
+              (keydown.enter)="saveEdit()"
+              [email]="true"
+              nz-input
+              type="email" />
           </ng-template>
         </div>
       </td>
+
       <td>
         <nz-select
           (ngModelChange)="updateRole(user,$event)"
