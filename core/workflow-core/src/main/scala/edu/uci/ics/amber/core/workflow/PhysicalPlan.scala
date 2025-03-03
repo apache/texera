@@ -224,6 +224,49 @@ case class PhysicalPlan(
     this.copy(operators, links.diff(getDependeeLinks))
   }
 
+
+  /**
+   * Computes the bridges (cut-edges) in the given directed graph using Tarjan's Algorithm.
+   * A bridge is an edge whose removal increases the number of connected components.
+   * This method runs in O(V + E) time complexity.
+   *
+   * @return A set of PhysicalLinks representing the bridges in the graph.
+   */
+  private def findBridges: Set[PhysicalLink] = {
+    var time = 0
+    val discoveryTime = mutable.Map[PhysicalOpIdentity, Int]()
+    val lowLink = mutable.Map[PhysicalOpIdentity, Int]()
+    val parent = mutable.Map[PhysicalOpIdentity, PhysicalOpIdentity]()
+    val bridges = mutable.Set[PhysicalLink]()
+
+    def dfs(node: PhysicalOpIdentity): Unit = {
+      discoveryTime(node) = time
+      lowLink(node) = time
+      time += 1
+
+      for (neighbor <- this.dag.get(node).diSuccessors.map(_.outer)) {
+        if (!discoveryTime.contains(neighbor)) { // If neighbor is not visited
+          parent(neighbor) = node
+          dfs(neighbor)
+          lowLink(node) = Math.min(lowLink(node), lowLink(neighbor))
+
+          if (lowLink(neighbor) > discoveryTime(node)) {
+            links.find(l => l.fromOpId == node && l.toOpId == neighbor).foreach(bridges.add)
+          }
+        } else if (!parent.get(node).contains(neighbor)) {
+          lowLink(node) = Math.min(lowLink(node), discoveryTime(neighbor))
+        }
+      }
+    }
+
+    for (node <- this.dag.nodes.map(_.outer) if !discoveryTime.contains(node)) {
+      dfs(node)
+    }
+
+    bridges.toSet
+  }
+
+
   /**
     * A link is a bridge if removal of that link would increase the number of (weakly) connected components in the DAG.
     * Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
@@ -233,19 +276,7 @@ case class PhysicalPlan(
     */
   @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
-    val bridges =
-      this.dag
-        .componentTraverser()
-        .flatMap(_.frontierEdges)
-        .map { edge =>
-          {
-            val fromOpId = edge.physicalLink.fromOpId
-            val toOpId = edge.physicalLink.toOpId
-            links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
-          }
-        }
-        .flatMap(_.toList)
-    this.links.diff(getNonMaterializedBlockingAndDependeeLinks).diff(bridges.toSet)
+    this.links.diff(getNonMaterializedBlockingAndDependeeLinks).diff(findBridges)
   }
 
   /**
@@ -267,15 +298,13 @@ case class PhysicalPlan(
       * @param path    The accumulated list of operator IDs we have visited so far.
       */
     def expandChain(current: PhysicalOpIdentity, path: List[PhysicalOpIdentity]): Unit = {
+
+      if (path.length > 2 && validIntermediateNodes(path)) {
+        allChains += pathToLinks(path)
+      }
+
       // If current has no successors, see if we've formed a valid chain
       val successors = this.dag.get(current).outNeighbors.map(_.outer)
-      if (successors.isEmpty) {
-        // If path length > 1 and intermediate nodes have inDegree/outDegree == 1, record it
-        if (path.length > 1 && validIntermediateNodes(path)) {
-          allChains += pathToLinks(path)
-        }
-        return
-      }
 
       // Otherwise, expand to each successor
       successors.foreach { next =>
