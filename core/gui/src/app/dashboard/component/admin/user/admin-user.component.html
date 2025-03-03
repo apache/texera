@@ -176,21 +176,8 @@
       <td (click)="startEdit(user, 'email')">
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
-            {{user.email}}
-      <td>
-        <ng-container *ngIf="editUid !== user.uid; else editCommentTemplate"> {{user.comment}} </ng-container>
-        <ng-template #editCommentTemplate>
-          <textarea
-            [(ngModel)]="editComment"
-            nz-input
-            type="text"></textarea>
-        </ng-template>
-      </td>
-      <td style="color: #1890ff">
-        <div>
-          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
-            <a (click)="startEdit(user)">Edit</a>
-          </ng-container>
+            {{user.email}}</ng-container
+          >
           <ng-template #editEmailTemplate>
             <input
               [(ngModel)]="editEmail"
@@ -201,7 +188,20 @@
           </ng-template>
         </div>
       </td>
-
+      <td (click)="startEdit(user, 'comment')">
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">
+            {{user.comment}}</ng-container
+          >
+          <ng-template #editCommentTemplate>
+            <textarea
+              [(ngModel)]="editComment"
+              (keydown.enter)="saveEdit()"
+              nz-input
+              type="text"></textarea>
+          </ng-template>
+        </div>
+      </td>
       <td>
         <nz-select
           (ngModelChange)="updateRole(user,$event)"

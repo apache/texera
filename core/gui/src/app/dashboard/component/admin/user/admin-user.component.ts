@@ -57,12 +57,6 @@ export class AdminUserComponent implements OnInit {
     this.saveEdit();
   }
 
-  public updateComment(user: User, comment: string) {
-    this.startEdit(user);
-    this.editComment = comment;
-    this.saveEdit();
-  }
-
   addUser(): void {
     this.adminUserService
       .addUser()
