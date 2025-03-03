@@ -94,7 +94,6 @@ libraryDependencies ++= Seq(
   "commons-io" % "commons-io" % "2.15.1",
   "org.tukaani" % "xz" % "1.9",
   "com.univocity" % "univocity-parsers" % "2.9.1",
-  "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4",
-  "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
+  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
   "io.github.redouane59.twitter" % "twittered" % "2.21"
 )
