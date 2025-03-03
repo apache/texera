@@ -70,6 +70,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private gridOn: boolean = false;
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
+  private currentOpenedOperatorID: string | null = null;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -127,8 +128,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewRemovePort();
     this.handlePortClick();
     this.handlePaperPan();
-    this.handleViewMouseoverOperator();
-    this.handleViewMouseoutOperator();
+    this.handleOperatorSelectionEvents();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
@@ -754,19 +754,40 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private handleViewMouseoverOperator(): void {
-    fromJointPaperEvent(this.paper, "element:mouseenter")
+  private handleOperatorSelectionEvents(): void {
+    fromJointPaperEvent(this.paper, "element:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        this.jointUIService.unfoldOperatorDetails(this.paper, event[0].model.id.toString());
-      });
-  }
+        const operatorID = event[0].model.id.toString();
 
-  private handleViewMouseoutOperator(): void {
-    fromJointPaperEvent(this.paper, "element:mouseleave")
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
+          this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
+        }
+
+        this.currentOpenedOperatorID = operatorID;
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+      });
+
+    fromJointPaperEvent(this.paper, "element:contextmenu")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        this.jointUIService.foldOperatorDetails(this.paper, event[0].model.id.toString());
+        const operatorID = event[0].model.id.toString();
+
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
+          this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
+        }
+
+        this.currentOpenedOperatorID = operatorID;
+        this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+      });
+
+    fromJointPaperEvent(this.paper, "blank:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.currentOpenedOperatorID !== null && this.paper.getModelById(this.currentOpenedOperatorID)) {
+          this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
+          this.currentOpenedOperatorID = null;
+        }
       });
   }
 

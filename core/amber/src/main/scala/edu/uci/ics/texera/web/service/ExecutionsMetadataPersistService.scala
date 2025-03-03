@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -9,7 +8,6 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 
@@ -19,9 +17,9 @@ import java.sql.Timestamp
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
-  private val workflowExecutionsDao = new WorkflowExecutionsDao(
+  private lazy val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
 
@@ -35,13 +33,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
 
   def insertNewExecution(
       workflowId: WorkflowIdentity,
-      uid: Option[UInteger],
+      uid: Option[Integer],
       executionName: String,
       environmentVersion: String
   ): ExecutionIdentity = {
     if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
-    val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
+    val vid = getLatestVersion(workflowId.id.toInt)
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
@@ -57,7 +55,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def tryGetExistingExecution(executionId: ExecutionIdentity): Option[WorkflowExecutions] = {
     if (!AmberConfig.isUserSystemEnabled) return None
     try {
-      Some(workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id)))
+      Some(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
     } catch {
       case t: Throwable =>
         logger.info("Unable to get execution. Error = " + t.getMessage)
@@ -70,7 +68,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   )(updateFunc: WorkflowExecutions => Unit): Unit = {
     if (!AmberConfig.isUserSystemEnabled) return
     try {
-      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))
+      val execution = workflowExecutionsDao.fetchOneByEid(executionId.id.toInt)
       updateFunc(execution)
       workflowExecutionsDao.update(execution)
     } catch {

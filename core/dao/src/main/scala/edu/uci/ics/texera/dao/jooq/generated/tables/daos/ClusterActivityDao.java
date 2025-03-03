@@ -9,6 +9,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.ClusterActivityRecor
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
@@ -40,7 +41,8 @@ public class ClusterActivityDao extends DAOImpl<ClusterActivityRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity> fetchRangeOfId(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(ClusterActivity.CLUSTER_ACTIVITY.ID, lowerInclusive, upperInclusive);
@@ -61,7 +63,15 @@ public class ClusterActivityDao extends DAOImpl<ClusterActivityRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>cluster_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch a unique record that has <code>id = value</code>
+     */
+    public Optional<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity> fetchOptionalById(Integer value) {
+        return fetchOptional(ClusterActivity.CLUSTER_ACTIVITY.ID, value);
+    }
+
+    /**
+     * Fetch records that have <code>cluster_id BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity> fetchRangeOfClusterId(Integer lowerInclusive, Integer upperInclusive) {
         return fetchRange(ClusterActivity.CLUSTER_ACTIVITY.CLUSTER_ID, lowerInclusive, upperInclusive);
@@ -75,7 +85,8 @@ public class ClusterActivityDao extends DAOImpl<ClusterActivityRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>start_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>start_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity> fetchRangeOfStartTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(ClusterActivity.CLUSTER_ACTIVITY.START_TIME, lowerInclusive, upperInclusive);
@@ -89,7 +100,8 @@ public class ClusterActivityDao extends DAOImpl<ClusterActivityRecord, edu.uci.i
     }
 
     /**
-     * Fetch records that have <code>end_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>end_time BETWEEN lowerInclusive AND
+     * upperInclusive</code>
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity> fetchRangeOfEndTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(ClusterActivity.CLUSTER_ACTIVITY.END_TIME, lowerInclusive, upperInclusive);

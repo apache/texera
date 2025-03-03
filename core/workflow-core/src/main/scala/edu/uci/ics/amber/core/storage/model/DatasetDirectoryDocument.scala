@@ -1,11 +1,9 @@
 package edu.uci.ics.amber.core.storage.model
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
-import org.jooq.types.UInteger
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
@@ -15,7 +13,7 @@ import java.nio.file.{Files, Path, Paths}
 class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = true) {
 
   private val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   private val (dataset, datasetVersion, fileRelativePath) =
     resolvePath(fileFullPath, shouldContainFile)
@@ -32,7 +30,7 @@ class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = 
       .fetchOneInto(classOf[Dataset])
   }
 
-  private def getDatasetVersionByName(did: UInteger, versionName: String): DatasetVersion = {
+  private def getDatasetVersionByName(did: Integer, versionName: String): DatasetVersion = {
     context
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))

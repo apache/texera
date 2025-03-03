@@ -24,7 +24,7 @@ import java.sql.Timestamp
 
 object ClusterCallbackResource {
   final private val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private lazy val clusterDao = new ClusterDao(context.configuration)
   final private lazy val clusterActivityDao = new ClusterActivityDao(context.configuration)

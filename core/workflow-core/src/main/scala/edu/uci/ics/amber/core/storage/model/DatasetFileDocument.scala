@@ -2,7 +2,6 @@ package edu.uci.ics.amber.core.storage.model
 
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
-import org.jooq.types.UInteger
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.net.{URI, URLDecoder}
@@ -34,7 +33,7 @@ private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Not
   override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+    val datasetAbsolutePath = PathUtils.getDatasetPath(Integer.valueOf(did))
     GitVersionControlLocalFileStorage
       .retrieveFileContentOfVersionAsInputStream(
         datasetAbsolutePath,
@@ -76,8 +75,8 @@ private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Not
     }
     // then remove the dataset file
     GitVersionControlLocalFileStorage.removeFileFromRepo(
-      PathUtils.getDatasetPath(UInteger.valueOf(did)),
-      PathUtils.getDatasetPath(UInteger.valueOf(did)).resolve(fileRelativePath)
+      PathUtils.getDatasetPath(Integer.valueOf(did)),
+      PathUtils.getDatasetPath(Integer.valueOf(did)).resolve(fileRelativePath)
     )
   }
 }
