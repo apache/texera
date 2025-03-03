@@ -285,10 +285,8 @@ case class PhysicalPlan(
         allChains += pathToLinks(path)
       }
 
-      // If current has no successors, see if we've formed a valid chain
       val successors = this.dag.get(current).outNeighbors.map(_.outer)
-
-      // Otherwise, expand to each successor
+      
       successors.foreach { next =>
         // Avoid cycles by checking if we've already visited 'next'
         if (!path.contains(next)) {
