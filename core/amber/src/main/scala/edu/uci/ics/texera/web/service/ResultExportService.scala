@@ -53,10 +53,6 @@ private class NonClosingOutputStream(os: OutputStream) extends FilterOutputStrea
 }
 
 object ResultExportService {
-  final private val UPLOAD_BATCH_ROW_COUNT = 10000
-  final private val RETRY_ATTEMPTS = 7
-  final private val BASE_BACK_OOF_TIME_IN_MS = 1000
-  final private val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
 
   // Matches the remote's approach for a thread pool
   final private val pool: ThreadPoolExecutor =
@@ -315,14 +311,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     writer.end()
   }
 
-  private def convertUnsupported(anyVal: Any): AnyRef = {
-    anyVal match {
-      case null      => ""
-      case s: String => s
-      case n: Number => n
-      case other     => other.toString
-    }
-  }
 
   /**
     * Generate a file name for an operator's exported file.
