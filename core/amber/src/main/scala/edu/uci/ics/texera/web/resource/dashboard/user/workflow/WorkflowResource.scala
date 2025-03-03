@@ -5,17 +5,17 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
+import org.jooq.{Condition, Record9, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -155,6 +155,77 @@ object WorkflowResource {
         updatedContent.replace(oldId, newId)
     }
   }
+
+  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+    Integer,
+    String,
+    String,
+    Timestamp,
+    Timestamp,
+    PrivilegeEnum,
+    Integer,
+    String,
+    String
+  ]] = {
+    context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME,
+        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+  }
+
+  def mapWorkflowEntries(
+      workflowEntries: Result[Record9[
+        Integer,
+        String,
+        String,
+        Timestamp,
+        Timestamp,
+        PrivilegeEnum,
+        Integer,
+        String,
+        String
+      ]],
+      uid: Integer
+  ): List[DashboardWorkflow] = {
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflow(
+          if (uid != null)
+            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
+          else false,
+          workflowRecord
+            .into(WORKFLOW_USER_ACCESS)
+            .into(classOf[WorkflowUserAccess])
+            .getPrivilege
+            .toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          if (workflowRecord.component9() == null) List[Integer]()
+          else
+            workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
+          workflowRecord.into(WORKFLOW_OF_USER).getUid
+        )
+      )
+      .asScala
+      .toList
+  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -262,27 +333,7 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(
-        WORKFLOW.WID,
-        WORKFLOW.NAME,
-        WORKFLOW.DESCRIPTION,
-        WORKFLOW.CREATION_TIME,
-        WORKFLOW.LAST_MODIFIED_TIME,
-        WORKFLOW_USER_ACCESS.PRIVILEGE,
-        WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
-      )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+    val workflowEntries = baseWorkflowSelect()
       .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
       .groupBy(
         WORKFLOW.WID,
@@ -295,25 +346,7 @@ class WorkflowResource extends LazyLogging {
         USER.NAME
       )
       .fetch()
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[Integer]()
-          else
-            workflowRecord.component9().split(',').map(number => Integer.valueOf(number)).toList,
-          workflowRecord.into(WORKFLOW_OF_USER).getUid
-        )
-      )
-      .asScala
-      .toList
+    mapWorkflowEntries(workflowEntries, user.getUid)
   }
 
   /**

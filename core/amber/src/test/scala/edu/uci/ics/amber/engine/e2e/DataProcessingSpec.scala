@@ -74,6 +74,7 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               // expecting the first output port only.
@@ -82,10 +83,13 @@ class DataProcessingSpec
                 .contains(uri)
             })
             .map(terminalOpId => {
+              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
+              Thread.sleep(1000)
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               terminalOpId -> DocumentFactory

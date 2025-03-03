@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  WorkerState
+}
 import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
@@ -58,29 +61,20 @@ case class OperatorExecution() {
   }
 
   private[this] def computeOperatorPortStats(
-      workerPortStats: Iterable[PortTupleCountMapping]
-  ): Seq[PortTupleCountMapping] = {
-    workerPortStats
-      .map(_.portId)
-      .toSet
-      .map { portId =>
-        PortTupleCountMapping(
-          portId,
-          workerPortStats.filter(_.portId == portId).map(_.tupleCount).sum
-        )
-      }
-      .toSeq
+      workerPortStats: Iterable[PortTupleMetricsMapping]
+  ): Seq[PortTupleMetricsMapping] = {
+    ExecutionUtils.aggregatePortMetrics(workerPortStats)
   }
 
   def getStats: OperatorMetrics = {
     val workerRawStats = workerExecutions.values.asScala.map(_.getStats)
-    val inputPortStats = workerRawStats.flatMap(_.inputTupleCount)
-    val outputPortStats = workerRawStats.flatMap(_.outputTupleCount)
+    val inputMetrics = workerRawStats.flatMap(_.inputTupleMetrics)
+    val outputMetrics = workerRawStats.flatMap(_.outputTupleMetrics)
     OperatorMetrics(
       getState,
       OperatorStatistics(
-        inputCount = computeOperatorPortStats(inputPortStats),
-        outputCount = computeOperatorPortStats(outputPortStats),
+        inputMetrics = computeOperatorPortStats(inputMetrics),
+        outputMetrics = computeOperatorPortStats(outputMetrics),
         getWorkerIds.size,
         dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
         controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,

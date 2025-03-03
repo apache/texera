@@ -56,6 +56,7 @@ class TestIcebergDocument:
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
             OperatorIdentity(id=f"test_table_{operator_uuid}"),
+            "main",
             PortIdentity(id=0),
         )
         DocumentFactory.create_document(uri, amber_schema)

@@ -44,12 +44,11 @@ class ProgressiveSinkOpExec(
   }
 
   override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+    writer.close()
     Iterator.empty
   }
 
-  override def close(): Unit = {
-    writer.close()
-  }
+  override def close(): Unit = {}
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 }

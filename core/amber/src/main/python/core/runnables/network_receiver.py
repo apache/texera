@@ -17,11 +17,17 @@ from core.models import (
     DataFrame,
     MarkerFrame,
 )
-from core.models.internal_queue import DataElement, ControlElement, InternalQueue
+from core.models.internal_queue import (
+    DataElement,
+    ControlElement,
+    InternalQueue,
+    ChannelMarkerElement,
+)
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
@@ -64,19 +70,32 @@ class NetworkReceiver(Runnable, Stoppable):
             :return: sender credits
             """
             data_header = PythonDataHeader().parse(command)
+            # Explicitly set is_control to trigger lazy computation.
+            # If not set, it may be computed at different times,
+            # causing hash inconsistencies.
+            data_header.tag.is_control = False
             payload = match(
                 data_header.payload_type,
                 "Data",
                 lambda _: DataFrame(table),
                 "State",
                 lambda _: MarkerFrame(State(table)),
+                "ChannelMarker",
+                lambda _: ChannelMarkerPayload().parse(table["payload"][0].as_py()),
                 "StartOfInputChannel",
                 MarkerFrame(StartOfInputChannel()),
                 "EndOfInputChannel",
                 MarkerFrame(EndOfInputChannel()),
             )
-
-            shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
+            if isinstance(payload, ChannelMarkerPayload):
+                for channel_id in payload.scope:
+                    if not channel_id.is_control:
+                        channel_id.is_control = False
+                shared_queue.put(
+                    ChannelMarkerElement(tag=data_header.tag, payload=payload)
+                )
+            else:
+                shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)

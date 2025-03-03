@@ -162,6 +162,7 @@ class WorkflowExecutionService(
     super.unsubscribeAll()
     if (client != null) {
       // runtime created
+      client.shutdown()
       executionRuntimeService.unsubscribeAll()
       executionConsoleService.unsubscribeAll()
       executionStatsService.unsubscribeAll()

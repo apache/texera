@@ -6,7 +6,9 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
@@ -16,7 +18,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
@@ -58,9 +59,19 @@ public class TexeraDb extends SchemaImpl {
     public final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
 
     /**
+     * The table <code>texera_db.dataset_user_likes</code>.
+     */
+    public final DatasetUserLikes DATASET_USER_LIKES = DatasetUserLikes.DATASET_USER_LIKES;
+
+    /**
      * The table <code>texera_db.dataset_version</code>.
      */
     public final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
+
+    /**
+     * The table <code>texera_db.dataset_view_count</code>.
+     */
+    public final DatasetViewCount DATASET_VIEW_COUNT = DatasetViewCount.DATASET_VIEW_COUNT;
 
     /**
      * The table <code>texera_db.operator_executions</code>.
@@ -106,11 +117,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.workflow</code>.
      */
     public final Workflow WORKFLOW = Workflow.WORKFLOW;
-
-    /**
-     * The table <code>texera_db.workflow_computing_unit</code>.
-     */
-    public final WorkflowComputingUnit WORKFLOW_COMPUTING_UNIT = WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT;
 
     /**
      * The table <code>texera_db.workflow_executions</code>.
@@ -170,7 +176,9 @@ public class TexeraDb extends SchemaImpl {
         return Arrays.asList(
             Dataset.DATASET,
             DatasetUserAccess.DATASET_USER_ACCESS,
+            DatasetUserLikes.DATASET_USER_LIKES,
             DatasetVersion.DATASET_VERSION,
+            DatasetViewCount.DATASET_VIEW_COUNT,
             OperatorExecutions.OPERATOR_EXECUTIONS,
             OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS,
             Project.PROJECT,
@@ -180,7 +188,6 @@ public class TexeraDb extends SchemaImpl {
             UserActivity.USER_ACTIVITY,
             UserConfig.USER_CONFIG,
             Workflow.WORKFLOW,
-            WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT,
             WorkflowExecutions.WORKFLOW_EXECUTIONS,
             WorkflowOfProject.WORKFLOW_OF_PROJECT,
             WorkflowOfUser.WORKFLOW_OF_USER,

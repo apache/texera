@@ -19,7 +19,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer
     .getInstance()
     .createDSLContext()
-  private val workflowExecutionsDao = new WorkflowExecutionsDao(
+  private lazy val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
 
