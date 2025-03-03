@@ -38,10 +38,10 @@ case class PhysicalPlan(
 
   // the dag will be re-computed again once it reaches the coordinator.
   @transient lazy val dag: Graph[PhysicalOpIdentity, PhysicalEdge] = {
-    val jgraphtDag = Graph.empty[PhysicalOpIdentity, PhysicalEdge]()
-    operatorMap.foreach(op => jgraphtDag.add(op._1))
-    links.foreach(l => jgraphtDag.add(l))
-    jgraphtDag
+    val scalaDAG = Graph.empty[PhysicalOpIdentity, PhysicalEdge]()
+    operatorMap.foreach(op => scalaDAG.add(op._1))
+    links.foreach(l => scalaDAG.add(l))
+    scalaDAG
   }
 
   @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
