@@ -227,7 +227,6 @@ case class PhysicalPlan(
   /**
     * Computes the bridges (cut-edges) in the given directed graph using Tarjan's Algorithm.
     * A bridge is an edge whose removal increases the number of connected components.
-    * This method runs in O(V + E) time complexity.
     *
     * @return A set of PhysicalLinks representing the bridges in the graph.
     */
@@ -286,7 +285,7 @@ case class PhysicalPlan(
       }
 
       val successors = this.dag.get(current).outNeighbors.map(_.outer)
-      
+
       successors.foreach { next =>
         // Avoid cycles by checking if we've already visited 'next'
         if (!path.contains(next)) {
