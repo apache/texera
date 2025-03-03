@@ -43,7 +43,6 @@ import edu.uci.ics.amber.operator.projection.ProjectionOpDesc
 import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
-import edu.uci.ics.amber.operator.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
@@ -140,7 +139,6 @@ trait StateTransferFunc
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
-    new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
