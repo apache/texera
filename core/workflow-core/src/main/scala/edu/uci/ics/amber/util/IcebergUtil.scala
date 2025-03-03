@@ -139,7 +139,12 @@ object IcebergUtil {
     )
 
     val tableProperties =
-      if (tableNamespace == StorageConfig.icebergTableRuntimeStatisticsNamespace) {
+      if (
+        Set(
+          StorageConfig.icebergTableRuntimeStatisticsNamespace,
+          StorageConfig.icebergTableConsoleMessagesNamespace
+        ).contains(tableNamespace)
+      ) {
         baseProperties ++ Map(
           TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> "true",
           TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> "1"
