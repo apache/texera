@@ -102,53 +102,56 @@ class WorkflowCompiler(
 
   // function to expand logical plan to physical plan
   private def expandLogicalPlan(
-      logicalPlan: LogicalPlan,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): PhysicalPlan = {
+                                 logicalPlan: LogicalPlan,
+                                 errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+                               ): PhysicalPlan = {
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
-      Try {
-        val logicalOp = logicalPlan.getOperator(logicalOpId)
-        val allUpstreamLinks = logicalPlan
-          .getUpstreamLinks(logicalOp.operatorIdentifier)
+    logicalPlan.getTopologicalOpIds.asScala.foreach { logicalOpId =>
+      val logicalOp = logicalPlan.getOperator(logicalOpId)
+      val allUpstreamLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
 
-        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
-        subPlan
-          .topologicalIterator()
-          .map(subPlan.getOperator)
-          .foreach({ physicalOp =>
-            {
-              val externalLinks = allUpstreamLinks
-                .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-                .flatMap { link =>
-                  physicalPlan
-                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                    .find(_.outputPorts.contains(link.fromPortId))
-                    .map(fromOp =>
-                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-                    )
-                }
-
-              val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
-
-              // Add the operator to the physical plan
-              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
-
-              // Add all the links to the physical plan
-              physicalPlan = (externalLinks ++ internalLinks)
-                .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
-            }
-          })
-      } match {
-        case Success(_) =>
-        case Failure(err) =>
+      // Try to get the physical plan for this operator
+      val subPlanOpt = try {
+        Some(logicalOp.getPhysicalPlan(context.workflowId, context.executionId))
+      } catch {
+        case err: Throwable =>
           errorList match {
-            case Some(list) => list.append((logicalOpId, err))
-            case None       => throw err
+            case Some(list) =>
+              list.append((logicalOpId, err))
+              None // Skip processing this operator
+            case None => throw err
           }
       }
-    )
+
+      // Continue if we couldn't get a subPlan
+      subPlanOpt.foreach { subPlan =>
+        subPlan.topologicalIterator()
+          .map(subPlan.getOperator)
+          .foreach { physicalOp =>
+            val externalLinks = allUpstreamLinks
+              .filter(link => physicalOp.inputPorts.contains(link.toPortId))
+              .flatMap { link =>
+                physicalPlan
+                  .getPhysicalOpsOfLogicalOp(link.fromOpId)
+                  .find(_.outputPorts.contains(link.fromPortId))
+                  .map(fromOp =>
+                    PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                  )
+              }
+
+            val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+
+            // Add the operator to the physical plan
+            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+
+            // Add all the links to the physical plan
+            physicalPlan = (externalLinks ++ internalLinks).foldLeft(physicalPlan) { (plan, link) =>
+              plan.addLink(link)
+            }
+          }
+      }
+    }
     physicalPlan
   }
 
@@ -172,11 +175,9 @@ class WorkflowCompiler(
     // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
 
-    if (errorList.isEmpty) {
-      // no error during the expansion, then do:
-      // - collect the input schema for each op
-      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
-    }
+    // 4. collect the input schema for each logical op
+    // even if error is encountered when logical => physical, we still want to get the input schemas for rest no-error operators
+    opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
 
     WorkflowCompilationResult(
       physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
