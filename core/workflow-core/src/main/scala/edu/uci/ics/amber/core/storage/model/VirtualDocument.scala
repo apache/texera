@@ -116,10 +116,4 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     */
   def getTableStatistics: Map[String, Map[String, Any]] =
     throw new NotImplementedError("getTableStatistics method is not implemented")
-
-  /**
-    * Expire snapshots if the document supports it.
-    */
-  def expireSnapshots(): Unit =
-    throw new NotImplementedError("expireSnapshots method is not implemented")
 }

@@ -37,7 +37,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableSchema: org.apache.iceberg.Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record,
     val deserde: (org.apache.iceberg.Schema, Record) => T
-) extends VirtualDocument[T] {
+) extends VirtualDocument[T]
+    with OnIceberg {
 
   private val lock = new ReentrantReadWriteLock()
 
@@ -387,23 +388,5 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       case (field, stats) =>
         field -> stats.toMap
     }.toMap
-  }
-
-  /**
-    * Expire snapshots for the table.
-    */
-  override def expireSnapshots(): Unit = {
-    val table = IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(s"table $tableNamespace.$tableName doesn't exist")
-      )
-
-    table
-      .expireSnapshots()
-      .retainLast(1)
-      .expireOlderThan(System.currentTimeMillis())
-      .cleanExpiredFiles(true)
-      .commit()
   }
 }
