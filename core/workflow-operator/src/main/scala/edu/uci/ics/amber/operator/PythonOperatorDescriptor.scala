@@ -7,28 +7,20 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagat
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
-    val finalCode =
-      s"""
-         |from pytexera import *
-         |
-         |class ProcessTupleOperator(UDFOperatorV2):
-         |    @overrides
-         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-         |        raise ValueError("Exception is thrown when generating the python code for current operator: ${ex.toString}")
-         |        """.stripMargin
-    finalCode
+    s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
   }
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    // TODO: make python code be the error reporting code
     val pythonCode =
       try {
         generatePythonCode()
       } catch {
         case ex: Throwable =>
+          // instead of throwing error directly, we embed the error in the code
+          // this can let upper-level compiler catch the error without interrupting the schema propagation
           generatePythonCodeForRaisingException(ex)
       }
     val physicalOp = if (asSource()) {
