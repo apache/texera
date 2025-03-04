@@ -5,6 +5,7 @@ organization := "edu.uci.ics"
 version := "0.1.0"
 scalaVersion := "2.13.12"
 
+enablePlugins(JavaAppPackaging)
 
 // Enable semanticdb for Scalafix
 ThisBuild / semanticdbEnabled := true
@@ -60,7 +61,6 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2",
   "org.glassfish.jersey.media" % "jersey-media-multipart" % "3.1.10",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
-  "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
   "org.playframework" %% "play-json" % "3.1.0-M1",
   "software.amazon.awssdk" % "s3" % "2.29.51",
