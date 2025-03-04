@@ -5038,6 +5038,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/content-disposition@npm:0":
+  version: 0.5.8
+  resolution: "@types/content-disposition@npm:0.5.8"
+  checksum: 10c0/f10baeab2ec44579012c1170763851687e740ea30531a80cd7a403475730ce7d7ead4f88927cea6970cc2d5e74fa7af38cdf4f039c5f115fba1bb98ec0014977
+  languageName: node
+  linkType: hard
+
 "@types/cookie@npm:^0.4.1":
   version: 0.4.1
   resolution: "@types/cookie@npm:0.4.1"
@@ -11111,6 +11118,7 @@ __metadata:
     "@nx/angular": "npm:20.0.3"
     "@stoplight/json-ref-resolver": "npm:3.1.5"
     "@types/backbone": "npm:1.4.15"
+    "@types/content-disposition": "npm:0"
     "@types/dagre": "npm:0.7.47"
     "@types/file-saver": "npm:2.0.5"
     "@types/graphlib": "npm:2.1.8"
@@ -11130,6 +11138,7 @@ __metadata:
     babel-plugin-dynamic-import-node: "npm:2.3.3"
     backbone: "npm:1.4.1"
     concurrently: "npm:7.4.0"
+    content-disposition: "npm:0.5.4"
     dagre: "npm:0.8.5"
     deep-map: "npm:2.0.0"
     edit-distance: "npm:1.0.4"
