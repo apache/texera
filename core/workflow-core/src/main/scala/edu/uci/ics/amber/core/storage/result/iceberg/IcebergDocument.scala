@@ -399,7 +399,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         throw new NoSuchTableException(s"table $tableNamespace.$tableName doesn't exist")
       )
 
-    table.expireSnapshots()
+    table
+      .expireSnapshots()
       .retainLast(1)
       .expireOlderThan(System.currentTimeMillis())
       .cleanExpiredFiles(true)

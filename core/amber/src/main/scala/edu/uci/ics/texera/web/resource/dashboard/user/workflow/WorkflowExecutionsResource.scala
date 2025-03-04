@@ -141,8 +141,8 @@ object WorkflowExecutionsResource {
     }
   }
 
-  def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] = {
-    if (AmberConfig.isUserSystemEnabled) {
+  def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
+    if (AmberConfig.isUserSystemEnabled)
       context
         .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
         .from(OPERATOR_EXECUTIONS)
@@ -151,13 +151,10 @@ object WorkflowExecutionsResource {
         .asScala
         .toList
         .map(URI.create)
-    } else {
-      List()
-    }
-  }
+    else Nil
 
-  def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] = {
-    if (AmberConfig.isUserSystemEnabled) {
+  def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] =
+    if (AmberConfig.isUserSystemEnabled)
       Option(
         context
           .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
@@ -165,11 +162,8 @@ object WorkflowExecutionsResource {
           .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
           .fetchOneInto(classOf[String])
       ).filter(_.nonEmpty)
-        .map(uriStr => URI.create(uriStr))
-    } else {
-      None
-    }
-  }
+        .map(URI.create)
+    else None
 
   def clearUris(eid: ExecutionIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {

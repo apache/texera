@@ -100,24 +100,7 @@ class WorkflowService(
             }
           )
 
-          WorkflowExecutionsResource
-            .getConsoleMessagesUriByExecutionId(eid)
-            .foreach(uri => {
-              try {
-                DocumentFactory.openDocument(uri)._1.expireSnapshots()
-              } catch {
-                case _: Throwable => // exception can be raised if the document is already cleared
-              }
-            })
-          WorkflowExecutionsResource
-            .getRuntimeStatsUriByExecutionId(eid)
-            .foreach(uri => {
-              try {
-                DocumentFactory.openDocument(uri)._1.expireSnapshots()
-              } catch {
-                case _: Throwable => // exception can be raised if the document is already cleared
-              }
-            })
+          expireSnapshotsForExecution(eid)
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
@@ -187,28 +170,6 @@ class WorkflowService(
   ): Unit = {
 
     if (executionService.hasValue) {
-      WorkflowExecutionService
-        .getLatestExecutionId(workflowId)
-        .foreach(eid => {
-          WorkflowExecutionsResource
-            .getConsoleMessagesUriByExecutionId(eid)
-            .foreach(uri => {
-              try {
-                DocumentFactory.openDocument(uri)._1.expireSnapshots()
-              } catch {
-                case _: Throwable => // exception can be raised if the document is already cleared
-              }
-            })
-          WorkflowExecutionsResource
-            .getRuntimeStatsUriByExecutionId(eid)
-            .foreach(uri => {
-              try {
-                DocumentFactory.openDocument(uri)._1.expireSnapshots()
-              } catch {
-                case _: Throwable => // exception can be raised if the document is already cleared
-              }
-            })
-        })
       executionService.getValue.unsubscribeAll()
     }
 
@@ -218,19 +179,21 @@ class WorkflowService(
     var controllerConf = ControllerConfig.default
 
     // clean up results from previous run
-    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
-    previousExecutionId.foreach(eid => {
-      val uris = WorkflowExecutionsResource
-        .getResultUrisByExecutionId(eid)
-      WorkflowExecutionsResource.clearUris(eid)
-      uris.foreach(uri =>
-        try {
-          DocumentFactory.openDocument(uri)._1.clear()
-        } catch { // exception can happen if the resource is already cleared
-          case _: Throwable =>
-        }
-      )
-    }) // TODO: change this behavior after enabling cache.
+    WorkflowExecutionService
+      .getLatestExecutionId(workflowId)
+      .foreach(eid => {
+        val uris = WorkflowExecutionsResource
+          .getResultUrisByExecutionId(eid)
+        WorkflowExecutionsResource.clearUris(eid)
+        uris.foreach(uri =>
+          try {
+            DocumentFactory.openDocument(uri)._1.clear()
+          } catch { // exception can happen if the resource is already cleared
+            case _: Throwable =>
+          }
+        )
+        expireSnapshotsForExecution(eid)
+      }) // TODO: change this behavior after enabling cache.
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
@@ -334,6 +297,20 @@ class WorkflowService(
     super.unsubscribeAll()
     Option(executionService.getValue).foreach(_.unsubscribeAll())
     resultService.unsubscribeAll()
+  }
+
+  private def expireSnapshots(uri: URI): Unit = {
+    try {
+      // Call the expireSnapshots on the opened document
+      DocumentFactory.openDocument(uri)._1.expireSnapshots()
+    } catch {
+      case _: Throwable => // exception can be raised if the document is already cleared
+    }
+  }
+
+  private def expireSnapshotsForExecution(eid: ExecutionIdentity): Unit = {
+    WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid).foreach(expireSnapshots)
+    WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach(expireSnapshots)
   }
 
 }
