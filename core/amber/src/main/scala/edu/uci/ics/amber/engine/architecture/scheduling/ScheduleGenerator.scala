@@ -2,8 +2,15 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.executor.OpExecSink
 import edu.uci.ics.amber.core.storage.VFSURIFactory
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalOp, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalOp,
+  PhysicalPlan,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
@@ -216,5 +223,26 @@ abstract class ScheduleGenerator(
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
+  }
+
+  def updatesRegionsWithOutputPortStorage(
+      outputPortsToMaterialize: Set[GlobalPortIdentity],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsToViewResult)
+      .foreach(outputPortId => {
+        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+          val newFromRegion = fromRegion.copy(outputPortResultURIs =
+            fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              operatorId = outputPortId.opId.logicalOpId,
+              layerName = Some(outputPortId.opId.layerName),
+              portIdentity = outputPortId.portId
+            ))
+          )
+          replaceVertex(regionDAG, fromRegion, newFromRegion)
+        })
+      })
   }
 }

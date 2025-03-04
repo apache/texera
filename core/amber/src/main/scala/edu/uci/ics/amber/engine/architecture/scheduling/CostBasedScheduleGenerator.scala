@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
@@ -8,8 +9,6 @@ import edu.uci.ics.amber.core.workflow.{
   WorkflowContext
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -213,33 +212,12 @@ class CostBasedScheduleGenerator(
     addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     populateDependeeLinks(regionDAG)
     // Need to add the original materialized port results back. This will not be needed after removal of cache read ops.
-    repopulateOutputPortsWithStorage(linksToMaterialize, regionDAG)
-    allocateResource(regionDAG)
-    regionDAG
-  }
-
-  private def repopulateOutputPortsWithStorage(
-      linksToMaterialize: Set[PhysicalLink],
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-    val materializedPorts = linksToMaterialize.map(link =>
+    val outputPortsToMaterialize = linksToMaterialize.map(link =>
       GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
     )
-    (materializedPorts ++ workflowContext.workflowSettings.outputPortsToViewResult)
-      .foreach(outputPortId => {
-        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val newFromRegion = fromRegion.copy(outputPortResultURIs =
-            fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
-              workflowId = workflowContext.workflowId,
-              executionId = workflowContext.executionId,
-              operatorId = outputPortId.opId.logicalOpId,
-              layerName = Some(outputPortId.opId.layerName),
-              portIdentity = outputPortId.portId
-            ))
-          )
-          replaceVertex(regionDAG, fromRegion, newFromRegion)
-        })
-      })
+    updatesRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
+    allocateResource(regionDAG)
+    regionDAG
   }
 
   /**
