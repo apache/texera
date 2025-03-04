@@ -37,7 +37,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableSchema: org.apache.iceberg.Schema,
     val serde: (org.apache.iceberg.Schema, T) => Record,
     val deserde: (org.apache.iceberg.Schema, Record) => T
-) extends VirtualDocument[T] {
+) extends VirtualDocument[T]
+    with OnIceberg {
 
   private val lock = new ReentrantReadWriteLock()
 

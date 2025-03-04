@@ -183,6 +183,7 @@ class ExecutionStatsService(
               logger.error("Failed to close runtime statistics writer", e)
           }
         }
+      case _ =>
     }
   )
 

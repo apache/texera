@@ -135,6 +135,7 @@ class ExecutionConsoleService(
               logger.error("Failed to close console message writer", e)
           }
         }
+      case _ =>
     }
   )
 
@@ -152,6 +153,9 @@ class ExecutionConsoleService(
             Array(consoleMessage.toProtoString)
           )
           writer.putOne(tuple)
+        } catch {
+          case e: Exception =>
+            logger.error(s"Error while writing console message for operator $opId", e)
         }
       })
     }
