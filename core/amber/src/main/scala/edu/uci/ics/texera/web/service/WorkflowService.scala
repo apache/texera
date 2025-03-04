@@ -94,7 +94,7 @@ class WorkflowService(
           WorkflowExecutionsResource.clearUris(eid)
           uris.foreach(uri =>
             try {
-              DocumentFactory.openDocument(uri)
+              DocumentFactory.openDocument(uri)._1.clear()
             } catch {
               case _: Throwable => // exception can be raised if the document is already cleared
             }
@@ -187,6 +187,28 @@ class WorkflowService(
   ): Unit = {
 
     if (executionService.hasValue) {
+      WorkflowExecutionService
+        .getLatestExecutionId(workflowId)
+        .foreach(eid => {
+          WorkflowExecutionsResource
+            .getConsoleMessagesUriByExecutionId(eid)
+            .foreach(uri => {
+              try {
+                DocumentFactory.openDocument(uri)._1.expireSnapshots()
+              } catch {
+                case _: Throwable => // exception can be raised if the document is already cleared
+              }
+            })
+          WorkflowExecutionsResource
+            .getRuntimeStatsUriByExecutionId(eid)
+            .foreach(uri => {
+              try {
+                DocumentFactory.openDocument(uri)._1.expireSnapshots()
+              } catch {
+                case _: Throwable => // exception can be raised if the document is already cleared
+              }
+            })
+        })
       executionService.getValue.unsubscribeAll()
     }
 
