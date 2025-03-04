@@ -6,7 +6,6 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
@@ -17,7 +16,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
-import org.jooq.types.UInteger
 
 import java.io.{FilterOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
 import java.nio.channels.Channels
@@ -25,12 +23,9 @@ import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import java.util.zip.{ZipEntry, ZipOutputStream}
-import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 import scala.util.Using
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._

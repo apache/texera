@@ -40,7 +40,6 @@ import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
-import scala.util.Try
 
 import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
 
@@ -302,15 +301,20 @@ class WorkflowService(
     resultService.unsubscribeAll()
   }
 
-  private def expireSnapshots(uri: URI): Unit =
-    Try(DocumentFactory.openDocument(uri)._1).foreach {
-      case iceberg: OnIceberg =>
-        iceberg.expireSnapshots()
-      case other =>
-        logger.error(
-          s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. Expected an instance of ${classOf[OnIceberg].getName}."
-        )
+  private def expireSnapshots(uri: URI): Unit = {
+    try {
+      DocumentFactory.openDocument(uri)._1 match {
+        case iceberg: OnIceberg =>
+          iceberg.expireSnapshots()
+        case other =>
+          logger.error(
+            s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. Expected an instance of ${classOf[OnIceberg].getName}."
+          )
+      }
+    } catch {
+      case _: Throwable => logger.error("Cannot expire snapshots")
     }
+  }
 
   private def expireSnapshotsForExecution(eid: ExecutionIdentity): Unit = {
     WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid).foreach(expireSnapshots)
