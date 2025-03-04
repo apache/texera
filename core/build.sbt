@@ -3,13 +3,7 @@ lazy val WorkflowCore = (project in file("workflow-core"))
   .dependsOn(DAO)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
-lazy val WorkflowOperator = (project in file("workflow-operator"))
-  .dependsOn(WorkflowCore)
-  .settings(
-    dependencyOverrides ++= Seq(
-      "org.apache.commons" % "commons-compress" % "1.23.0", // because of the dependency introduced by iceberg
-    )
-  )
+lazy val WorkflowOperator = (project in file("workflow-operator")).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator)
   .settings(
@@ -29,9 +23,9 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.1",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.1",
       "org.slf4j" % "slf4j-api" % "1.7.26",
-      "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-server" % "9.4.57.v20241219",
+      "org.eclipse.jetty" % "jetty-servlet" % "9.4.57.v20241219",
+      "org.eclipse.jetty" % "jetty-http" % "9.4.57.v20241219",
     )
   )
   .configs(Test)
