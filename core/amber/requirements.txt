@@ -31,5 +31,5 @@ pyiceberg==0.8.1
 readerwriterlock==1.0.9
 tenacity==8.5.0
 SQLAlchemy==2.0.37
-psycopg2==2.9.10
+pg8000==1.31.2
 pympler==1.1
