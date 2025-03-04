@@ -25,7 +25,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.models import Tuple, Schema, MarkerFrame
 from core.models.marker import Marker
 from core.models.payload import DataPayload, DataFrame
-from core.runnables.port_result_writer import PortResultWriter
+from core.storage.runnables.port_result_writer import PortResultWriter
 from core.storage.document_factory import DocumentFactory
 from core.storage.model.virtual_document import VirtualDocument
 from core.util import get_one_of
