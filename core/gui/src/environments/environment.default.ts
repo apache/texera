@@ -29,6 +29,12 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
+   * whether selecting files from datasets instead of the local file system.
+   * The user system must be enabled to make this flag work!
+   */
+  selectingFilesFromDatasetsEnabled: true,
+
+  /**
    * whether local login is enabled
    */
   localLogin: true,
