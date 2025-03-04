@@ -80,8 +80,59 @@ trait MockTexeraDB {
         .mkString("\n")
     executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, removeCCommands(parts(0)))
     val texeraDB = embedded.getDatabase(username, database)
-    executeScriptInJDBC(texeraDB.getConnection, removeCCommands(parts(1)))
+    var tablesAndIndexCreation = removeCCommands(parts(1))
 
+    // remove indexes creation for pgroonga because we cannot install the plugin
+    val blockPattern =
+      """(?s)-- START Fulltext search index creation \(DO NOT EDIT THIS LINE\).*?-- END Fulltext search index creation \(DO NOT EDIT THIS LINE\)\n?""".r
+    // replace with native fulltext indexes
+    val replacementText =
+      """CREATE INDEX idx_workflow_name_description_content
+        |    ON workflow
+        |    USING GIN (
+        |    to_tsvector('english',
+        |    COALESCE(name, '') || ' ' ||
+        |    COALESCE(description, '') || ' ' ||
+        |    COALESCE(content, '')
+        |    )
+        |    );
+        |
+        |CREATE INDEX idx_user_name
+        |    ON "user"
+        |    USING GIN (
+        |    to_tsvector('english',
+        |    COALESCE(name, '')
+        |    )
+        |    );
+        |
+        |CREATE INDEX idx_user_project_name_description
+        |    ON project
+        |    USING GIN (
+        |    to_tsvector('english',
+        |    COALESCE(name, '') || ' ' ||
+        |    COALESCE(description, '')
+        |    )
+        |    );
+        |
+        |CREATE INDEX idx_dataset_name_description
+        |    ON dataset
+        |    USING GIN (
+        |    to_tsvector('english',
+        |    COALESCE(name, '') || ' ' ||
+        |    COALESCE(description, '')
+        |    )
+        |    );
+        |
+        |CREATE INDEX idx_dataset_version_name
+        |    ON dataset_version
+        |    USING GIN (
+        |    to_tsvector('english',
+        |    COALESCE(name, '')
+        |    )
+        |    );""".stripMargin
+
+    tablesAndIndexCreation = blockPattern.replaceAllIn(tablesAndIndexCreation, replacementText).trim
+    executeScriptInJDBC(texeraDB.getConnection, tablesAndIndexCreation)
     SqlServer.initConnection(embedded.getJdbcUrl(username, database), username, password)
     val sqlServerInstance = SqlServer.getInstance()
     dslContext = Some(DSL.using(texeraDB, SQLDialect.POSTGRES))

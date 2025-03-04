@@ -36,7 +36,7 @@ def create_postgres_catalog(
     return SqlCatalog(
         catalog_name,
         **{
-            "uri": f"postgresql+psycopg2://{username}:{password}@{uri_without_scheme}",
+            "uri": f"postgresql+pg8000://{username}:{password}@{uri_without_scheme}",
             "warehouse": f"file://{warehouse_path}",
         },
     )
