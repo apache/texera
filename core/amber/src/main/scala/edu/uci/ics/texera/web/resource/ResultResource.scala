@@ -23,6 +23,14 @@ class ResultResource extends LazyLogging {
       request: ResultExportRequest,
       @Auth user: SessionUser
   ): Response = {
+
+    if (request.operatorIds.size <= 0)
+      Response
+        .status(Response.Status.BAD_REQUEST)
+        .`type`(MediaType.APPLICATION_JSON)
+        .entity(Map("error" -> "No operator selected").asJava)
+        .build()
+
     try {
       request.destination match {
         case "local" =>

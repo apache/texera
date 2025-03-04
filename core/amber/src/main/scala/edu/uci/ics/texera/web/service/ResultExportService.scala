@@ -311,7 +311,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     writer.end()
   }
 
-
   /**
     * Generate a file name for an operator's exported file.
     * Preserves your logic: uses operatorId in the name.
