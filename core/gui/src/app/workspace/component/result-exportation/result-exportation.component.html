@@ -57,6 +57,9 @@
                 <nz-option
                   nzValue="dataset"
                   nzLabel="Dataset"></nz-option>
+                <nz-option
+                  nzValue="local"
+                  nzLabel="Local"></nz-option>
               </nz-select>
             </nz-form-control>
           </nz-form-item>
@@ -86,7 +89,7 @@
           nz-button
           nzType="primary"
           class="dataset-option-link-btn"
-          (click)="onClickSaveResultFileToDatasets(dataset)">
+          (click)="onClickExportResult('dataset', dataset)">
           Save
         </button>
       </div>
@@ -96,7 +99,7 @@
     nz-button
     nzType="default"
     *ngIf="destination === 'local'"
-    (click)="onClickExportAllResult()">
+    (click)="onClickExportResult( 'local')">
     Export
   </button>
 </div>

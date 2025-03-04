@@ -53,19 +53,53 @@ export class ResultExportationComponent implements OnInit {
   }
 
   updateOutputType(): void {
-    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIds.length === 1) {
-      const operatorId = highlightedOperatorIds[0];
-      const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
-      this.isTableOutput = outputTypes.isTableOutput;
-      this.isVisualizationOutput = outputTypes.isVisualizationOutput;
-      this.containsBinaryData = outputTypes.containsBinaryData;
+    // Determine if the caller of this component is menu or context menu
+    // if its menu then we need to export all operators else we need to export only highlighted operators
+    // TODO: currently, user need to set `view result` to true in order to export result but
+    //  we should allow user to export result without setting `view result` to true
+    let operatorIds: readonly string[];
+    if (this.sourceTriggered === "menu") {
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID);
     } else {
-      // TODO: handle multiple operators
+      operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    }
+
+    if (operatorIds.length === 0) {
+      // No operators highlighted
       this.isTableOutput = false;
       this.isVisualizationOutput = false;
       this.containsBinaryData = false;
+      return;
     }
+
+    // Assume they're all table or visualization
+    // until we find an operator that isn't
+    let allTable = true;
+    let allVisualization = true;
+    let anyBinaryData = false;
+
+    for (const operatorId of operatorIds) {
+      const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
+      if (!outputTypes.hasAnyResult) {
+        continue;
+      }
+      if (!outputTypes.isTableOutput) {
+        allTable = false;
+      }
+      if (!outputTypes.isVisualizationOutput) {
+        allVisualization = false;
+      }
+      if (outputTypes.containsBinaryData) {
+        anyBinaryData = true;
+      }
+    }
+
+    this.isTableOutput = allTable;
+    this.isVisualizationOutput = allVisualization;
+    this.containsBinaryData = anyBinaryData;
   }
 
   onUserInputDatasetName(event: Event): void {
@@ -78,23 +112,19 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
-    if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResult(
-        this.exportType,
-        this.workflowName,
-        [dataset.dataset.did],
-        this.rowIndex,
-        this.columnIndex,
-        this.inputFileName,
-        this.sourceTriggered === "menu"
-      );
-      this.modalRef.close();
-    }
-  }
-
-  onClickExportAllResult() {
-    this.workflowResultExportService.exportOperatorsResultToLocal(this.sourceTriggered === "menu");
+  onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
+    const datasetIds =
+      destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
+    this.workflowResultExportService.exportWorkflowExecutionResult(
+      this.exportType,
+      this.workflowName,
+      datasetIds,
+      this.rowIndex,
+      this.columnIndex,
+      this.inputFileName,
+      this.sourceTriggered === "menu",
+      destination
+    );
     this.modalRef.close();
   }
 }
