@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
+import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -15,7 +15,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
-
 
 import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
@@ -37,6 +36,7 @@ import edu.uci.ics.texera.web.auth.JwtAuth
 import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 
 import java.net.{HttpURLConnection, URL, URLEncoder}
+
 /**
   * A simple wrapper that ignores 'close()' calls on the underlying stream.
   * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
@@ -212,7 +212,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       val field = selectedRow.getField(columnIndex)
       val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
-
       saveToDatasets(
         request,
         user,
@@ -225,7 +224,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       (Some(s"Data export done for operator $operatorId -> file: $fileName"), None)
     } catch {
       case ex: Exception =>
-        (None, Some(s"Data export failed for operator $operatorId: ${ex.getMessage}"))}
+        (None, Some(s"Data export failed for operator $operatorId: ${ex.getMessage}"))
+    }
   }
 
   private def convertFieldToBytes(field: Any): Array[Byte] = {
