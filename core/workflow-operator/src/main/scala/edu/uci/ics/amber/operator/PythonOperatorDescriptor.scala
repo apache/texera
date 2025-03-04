@@ -6,23 +6,36 @@ import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdenti
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 
 trait PythonOperatorDescriptor extends LogicalOp {
+  private def generatePythonCodeForRaisingException(ex: Throwable): String = {
+    s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
+  }
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val pythonCode =
+      try {
+        generatePythonCode()
+      } catch {
+        case ex: Throwable =>
+          // instead of throwing error directly, we embed the error in the code
+          // this can let upper-level compiler catch the error without interrupting the schema propagation
+          generatePythonCodeForRaisingException(ex)
+      }
     val physicalOp = if (asSource()) {
       PhysicalOp.sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
+        OpExecWithCode(pythonCode, "python")
       )
     } else {
       PhysicalOp.oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(generatePythonCode(), "python")
+        OpExecWithCode(pythonCode, "python")
       )
     }
 

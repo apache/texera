@@ -217,6 +217,14 @@ case class PhysicalOp(
     }
   }
 
+  @JsonIgnore
+  def getCode: String = {
+    opExecInitInfo match {
+      case OpExecWithCode(code, _) => code
+      case _                       => throw new IllegalAccessError("No code information in this physical operator")
+    }
+  }
+
   /**
     * creates a copy with the location preference information
     */
