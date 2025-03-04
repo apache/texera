@@ -212,15 +212,24 @@ object WorkflowExecutionsResource {
           }
       }
     } else {
-      Option(
-        VFSURIFactory.createResultURI(
-          wid,
-          eid,
-          opId,
-          layerName,
-          portId
+      if (layerName.nonEmpty) {
+        Option(
+          VFSURIFactory.createResultURI(
+            wid,
+            eid,
+            opId,
+            layerName,
+            portId
+          )
         )
-      )
+      } else {
+        ExecutionResourcesMapping
+          .getResourceURIs(eid)
+          .find(uri => {
+            val (_, _, retrievedOpId, _, retrievedPortId, _) = VFSURIFactory.decodeURI(uri)
+            retrievedOpId.nonEmpty && retrievedOpId.get == opId && retrievedPortId.nonEmpty && retrievedPortId.get == portId && !retrievedPortId.get.internal
+          })
+      }
     }
   }
 

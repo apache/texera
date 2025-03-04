@@ -93,6 +93,15 @@ object ExecutionResultService {
       }
     }
 
+    val layerName = physicalOps
+      .filter(physicalOp =>
+        physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
+      )
+      .headOption match {
+      case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
+      case None                         => "main"
+    }
+
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       executionId,
@@ -264,6 +273,15 @@ class ExecutionResultService(
               }
 
               if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+                val layerName = physicalPlan.operators
+                  .filter(physicalOp =>
+                    physicalOp.id.logicalOpId == opId &&
+                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
+                  )
+                  .headOption match {
+                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
+                  case None                         => "main"
+                }
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByExecutionAndPort(
                     workflowIdentity,
@@ -299,6 +317,7 @@ class ExecutionResultService(
     val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
       throw new IllegalStateException("No execution is recorded")
     )
+
     val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       latestExecutionId,
