@@ -389,13 +389,20 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     }.toMap
   }
 
+  /**
+    * Expire snapshots for the table.
+    */
   override def expireSnapshots(): Unit = {
     val table = IcebergUtil
       .loadTableMetadata(catalog, tableNamespace, tableName)
       .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+        throw new NoSuchTableException(s"table $tableNamespace.$tableName doesn't exist")
       )
 
-    table.expireSnapshots().retainLast(1).expireOlderThan(System.currentTimeMillis()).cleanExpiredFiles(true).commit()
+    table.expireSnapshots()
+      .retainLast(1)
+      .expireOlderThan(System.currentTimeMillis())
+      .cleanExpiredFiles(true)
+      .commit()
   }
 }
