@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 
-import java.io.{FilterOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
+import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
@@ -33,10 +33,6 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.StreamingOutput
-import java.io.OutputStream
-import java.nio.channels.Channels
-import scala.util.Using
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.auth.JwtAuth
 import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 
@@ -226,6 +222,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
         },
         fileName
       )
+      (Some(s"Data export done for operator $operatorId -> file: $fileName"), None)
+    } catch {
+      case ex: Exception =>
+        (None, Some(s"Data export failed for operator $operatorId: ${ex.getMessage}"))}
+  }
 
   private def convertFieldToBytes(field: Any): Array[Byte] = {
     field match {
