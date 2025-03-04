@@ -181,21 +181,20 @@ class WorkflowService(
     var controllerConf = ControllerConfig.default
 
     // clean up results from previous run
-    WorkflowExecutionService
-      .getLatestExecutionId(workflowId)
-      .foreach(eid => {
-        val uris = WorkflowExecutionsResource
-          .getResultUrisByExecutionId(eid)
-        WorkflowExecutionsResource.clearUris(eid)
-        uris.foreach(uri =>
-          try {
-            DocumentFactory.openDocument(uri)._1.clear()
-          } catch { // exception can happen if the resource is already cleared
-            case _: Throwable =>
-          }
-        )
-        expireSnapshotsForExecution(eid)
-      }) // TODO: change this behavior after enabling cache.
+    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    previousExecutionId.foreach(eid => {
+      val uris = WorkflowExecutionsResource
+        .getResultUrisByExecutionId(eid)
+      WorkflowExecutionsResource.clearUris(eid)
+      uris.foreach(uri =>
+        try {
+          DocumentFactory.openDocument(uri)._1.clear()
+        } catch { // exception can happen if the resource is already cleared
+          case _: Throwable =>
+        }
+      )
+      expireSnapshotsForExecution(eid)
+    }) // TODO: change this behavior after enabling cache.
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
