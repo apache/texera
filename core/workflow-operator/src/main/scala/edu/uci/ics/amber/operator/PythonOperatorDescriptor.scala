@@ -6,17 +6,31 @@ import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdenti
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 
 trait PythonOperatorDescriptor extends LogicalOp {
+  private def generatePythonCodeForRaisingException(ex: Throwable): String = {
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        raise ValueError("Exception is thrown when generating the python code for current operator: ${ex.toString}")
+         |        """.stripMargin
+    finalCode
+  }
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     // TODO: make python code be the error reporting code
-    val pythonCode = try {
-      generatePythonCode()
-    } catch {
-      case ex: Throwable =>
-        "" // Proceed with an empty string if an exception occurs
-    }
+    val pythonCode =
+      try {
+        generatePythonCode()
+      } catch {
+        case ex: Throwable =>
+          generatePythonCodeForRaisingException(ex)
+      }
     val physicalOp = if (asSource()) {
       PhysicalOp.sourcePhysicalOp(
         workflowId,
