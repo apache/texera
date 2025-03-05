@@ -4,6 +4,13 @@ import akka.actor.ActorSystem
 import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AddPartitioningRequest,
@@ -18,6 +25,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
   METHOD_START_WORKER
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{
   DataFrame,
   WorkflowFIFOMessage,
@@ -26,16 +34,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.AmberRuntime
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.AsyncTimeLimitedTests
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.time.Span
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -47,7 +47,7 @@ class LoggingSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with AsyncTimeLimitedTests {
+    with TimeLimitedTests {
 
   override def beforeAll(): Unit = {
     AmberRuntime.serde = SerializationExtension(system)
