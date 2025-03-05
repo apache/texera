@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 
 object AmberRuntime {
 
-  var serde: Serialization = _
+  @volatile var serde: Serialization = _
   private var _actorSystem: ActorSystem = _
 
   def actorSystem: ActorSystem = {
