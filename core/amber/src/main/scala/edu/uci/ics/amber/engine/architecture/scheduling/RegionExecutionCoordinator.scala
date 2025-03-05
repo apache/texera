@@ -270,7 +270,6 @@ class RegionExecutionCoordinator(
             layerName = Some(outputPortId.opId.layerName),
             portId = outputPortId.portId
           )
-        if (AmberConfig.isUserSystemEnabled && existingStorageUri.nonEmpty || !AmberConfig.isUserSystemEnabled && ExecutionResourcesMapping.getResourceURIs(eid).contains(existingStorageUri))
         if (
           (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
             .getResourceURIs(eid)
