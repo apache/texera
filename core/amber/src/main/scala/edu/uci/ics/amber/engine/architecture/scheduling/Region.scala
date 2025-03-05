@@ -16,8 +16,7 @@ case class Region(
     id: RegionIdentity,
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
-    resourceConfig: Option[ResourceConfig] = None,
-    storageURIs: Map[GlobalPortIdentity, URI] = Map.empty
+    resourceConfig: Option[ResourceConfig] = None
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =

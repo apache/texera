@@ -12,6 +12,7 @@ import edu.uci.ics.amber.core.workflow.{
   WorkflowContext
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
@@ -236,15 +237,19 @@ abstract class ScheduleGenerator(
     (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsToViewResult)
       .foreach(outputPortId => {
         getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val newFromRegion = fromRegion.copy(storageURIs =
-            fromRegion.storageURIs + (outputPortId -> createResultURI(
-              workflowId = workflowContext.workflowId,
-              executionId = workflowContext.executionId,
-              operatorId = outputPortId.opId.logicalOpId,
-              layerName = Some(outputPortId.opId.layerName),
-              portIdentity = outputPortId.portId
-            ))
-          )
+          val uriConfigToAdd = (outputPortId -> createResultURI(
+            workflowId = workflowContext.workflowId,
+            executionId = workflowContext.executionId,
+            operatorId = outputPortId.opId.logicalOpId,
+            layerName = Some(outputPortId.opId.layerName),
+            portIdentity = outputPortId.portId
+          ))
+          val newResourceConfig = fromRegion.resourceConfig match {
+            case Some(existingConfig) =>
+              existingConfig.copy(storageURIs = existingConfig.storageURIs + uriConfigToAdd)
+            case None => ResourceConfig(storageURIs = Map(uriConfigToAdd))
+          }
+          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
           replaceVertex(regionDAG, fromRegion, newFromRegion)
         })
       })

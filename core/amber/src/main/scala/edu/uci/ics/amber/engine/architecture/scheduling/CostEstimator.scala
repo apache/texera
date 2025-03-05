@@ -69,7 +69,10 @@ class DefaultCostEstimator(
       case None =>
         // Without past statistics (e.g., first execution), we use number of materialized ports as the cost.
         // This is independent of the schedule / resource allocator.
-        region.storageURIs.size
+        region.resourceConfig match {
+          case Some(config) => config.storageURIs.size
+          case None         => 0
+        }
     }
   }
 
