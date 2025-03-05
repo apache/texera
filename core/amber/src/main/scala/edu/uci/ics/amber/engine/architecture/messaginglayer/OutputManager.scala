@@ -152,6 +152,13 @@ class OutputManager(
     }
   }
 
+  /**
+   * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
+   * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
+   *
+   * @param tupleLike TupleLike to be written to storage.
+   * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
+   */
   def saveTupleToStorageIfNeeded(
       tupleLike: SchemaEnforceable,
       outputPortId: Option[PortIdentity] = None
@@ -199,15 +206,15 @@ class OutputManager(
     networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
   }
 
-  def addPort(portId: PortIdentity, schema: Schema, storageUriOptional: Option[URI]): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
     this.ports(portId) = WorkerPort(schema)
 
-    // set up result storage writer
-    storageUriOptional match {
+    // if a storage URI is provided, set up a storage writer thread
+    storageURIOption match {
       case Some(storageUri) =>
         val writer = DocumentFactory
           .openDocument(storageUri)

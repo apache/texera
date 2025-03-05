@@ -212,8 +212,7 @@ class ExpansionGreedyScheduleGenerator(
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
 
-    // add both materialized output ports and view-result output ports to regions
-    updatesRegionsWithOutputPortStorage(outputPortsToMaterialize.toSet, regionDAG)
+    updateRegionsWithOutputPortStorage(outputPortsToMaterialize.toSet, regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)

@@ -82,7 +82,7 @@ abstract class ScheduleGenerator(
   ): Unit = {
 
     val resourceAllocator =
-      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, workflowContext)
+      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, workflowContext.workflowSettings)
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
@@ -157,7 +157,7 @@ abstract class ScheduleGenerator(
       .removeLink(physicalLink)
 
     // create the uri of the materialization storage
-    val storageUri = VFSURIFactory.createResultURI(
+    val storageURI = VFSURIFactory.createResultURI(
       workflowContext.workflowId,
       workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
@@ -168,7 +168,7 @@ abstract class ScheduleGenerator(
     val fromPortOutputMode =
       physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
     val matWriterPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-      storageUri,
+      storageURI,
       fromPortOutputMode
     )
 
@@ -176,7 +176,7 @@ abstract class ScheduleGenerator(
     val existingOperator = newPhysicalPlan.operators.find {
       case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
         val OpExecSink(uri, _, _) = op.opExecInitInfo
-        uri == storageUri.toString
+        uri == storageURI.toString
       case _ => false
     }
 
@@ -206,7 +206,7 @@ abstract class ScheduleGenerator(
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
-      storageUri,
+      storageURI,
       toOp.id,
       toPortId,
       schema
@@ -225,15 +225,15 @@ abstract class ScheduleGenerator(
       .addLink(readerToDestLink)
   }
 
-  def updatesRegionsWithOutputPortStorage(
+  def updateRegionsWithOutputPortStorage(
       outputPortsToMaterialize: Set[GlobalPortIdentity],
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
     (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsToViewResult)
       .foreach(outputPortId => {
         getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val newFromRegion = fromRegion.copy(outputPortResultURIs =
-            fromRegion.outputPortResultURIs + (outputPortId -> createResultURI(
+          val newFromRegion = fromRegion.copy(storageURIs =
+            fromRegion.storageURIs + (outputPortId -> createResultURI(
               workflowId = workflowContext.workflowId,
               executionId = workflowContext.executionId,
               operatorId = outputPortId.opId.logicalOpId,

@@ -21,7 +21,10 @@ class WorkflowCompiler(
     context: WorkflowContext
 ) extends LazyLogging {
 
-  // function to expand logical plan to physical plan
+  /**
+   * Function to expand logical plan to physical plan
+   * @return the expanded physical plan and a set of output ports that need storage
+   */
   private def expandLogicalPlan(
       logicalPlan: LogicalPlan,
       logicalOpsToViewResult: List[String],
@@ -172,7 +175,7 @@ class WorkflowCompiler(
     // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
-    // 3. expand the logical plan to the physical plan, without assigning storage
+    // 3. expand the logical plan to the physical plan, and get a set of output ports that need storage
     val (physicalPlan, outputPortsToViewResult) =
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 

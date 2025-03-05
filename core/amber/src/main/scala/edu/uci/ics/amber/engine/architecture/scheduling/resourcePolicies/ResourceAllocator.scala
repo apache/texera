@@ -1,17 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.storage.VFSURIFactory.{createResultURI, decodeURI}
+import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.workflow.{
-  GlobalPortIdentity,
-  PartitionInfo,
-  PhysicalLink,
-  PhysicalPlan,
-  PortIdentity,
-  UnknownPartition,
-  WorkflowContext
-}
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
@@ -21,11 +14,9 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OperatorConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import java.net.URI
 import scala.collection.mutable
 
 trait ResourceAllocator {
@@ -35,7 +26,7 @@ trait ResourceAllocator {
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo,
-    workflowContext: WorkflowContext
+    workflowSettings: WorkflowSettings
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -85,7 +76,7 @@ class DefaultResourceAllocator(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink),
-          workflowContext.workflowSettings.dataTransferBatchSize
+          workflowSettings.dataTransferBatchSize
         )
       )
     }.toMap
@@ -99,19 +90,20 @@ class DefaultResourceAllocator(
 
   private def createOutputPortStorageObjects(region: Region): Unit = {
     // Create storage objects
-    region.outputPortResultURIs.foreach {
+    region.storageURIs.foreach {
       case (outputPortId, storageUriToAdd) =>
+        val (wid, eid, _, _, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
           WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-            wid = workflowContext.workflowId,
-            eid = workflowContext.executionId,
+            wid = wid,
+            eid = eid,
             opId = outputPortId.opId.logicalOpId,
             layerName = Some(outputPortId.opId.layerName),
             portId = outputPortId.portId
           )
         if (
           (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-            .getResourceURIs(workflowContext.executionId)
+            .getResourceURIs(eid)
             .contains(
               existingStorageUri
             )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
@@ -123,11 +115,11 @@ class DefaultResourceAllocator(
             schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
           DocumentFactory.createDocument(storageUriToAdd, schema)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = workflowContext.executionId,
+            eid = eid,
             opId = outputPortId.opId.logicalOpId,
             layerName = outputPortId.opId.layerName,
             portId = outputPortId.portId,
-            storageUriToAdd
+            uri = storageUriToAdd
           )
         }
     }

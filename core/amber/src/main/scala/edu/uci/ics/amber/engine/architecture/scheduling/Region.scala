@@ -13,11 +13,11 @@ case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
 case class Region(
-    id: RegionIdentity,
-    physicalOps: Set[PhysicalOp],
-    physicalLinks: Set[PhysicalLink],
-    resourceConfig: Option[ResourceConfig] = None,
-    outputPortResultURIs: Map[GlobalPortIdentity, URI] = Map.empty
+                   id: RegionIdentity,
+                   physicalOps: Set[PhysicalOp],
+                   physicalLinks: Set[PhysicalLink],
+                   resourceConfig: Option[ResourceConfig] = None,
+                   storageURIs: Map[GlobalPortIdentity, URI] = Map.empty
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =

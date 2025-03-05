@@ -19,11 +19,11 @@ trait AssignPortHandler {
     if (msg.input) {
       dp.inputManager.addPort(msg.portId, schema)
     } else {
-      val storageUriOptional: Option[URI] = msg.storageUri match {
+      val storageURIOption: Option[URI] = msg.storageUri match {
         case ""        => None
         case uriString => Some(URI.create(uriString))
       }
-      dp.outputManager.addPort(msg.portId, schema, storageUriOptional)
+      dp.outputManager.addPort(msg.portId, schema, storageURIOption)
     }
     EmptyReturn()
   }

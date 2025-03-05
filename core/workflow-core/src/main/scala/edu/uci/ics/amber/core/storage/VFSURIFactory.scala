@@ -105,26 +105,6 @@ object VFSURIFactory {
   }
 
   /**
-    * Create a URI pointing to a materialized storage
-    */
-  def createMaterializedResultURI(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
-      layerName: String,
-      portIdentity: PortIdentity
-  ): URI = {
-    createVFSURI(
-      VFSResourceType.MATERIALIZED_RESULT,
-      workflowId,
-      executionId,
-      Some(operatorId),
-      Some(layerName),
-      Some(portIdentity)
-    )
-  }
-
-  /**
     * Create a URI pointing to runtime statistics
     */
   def createRuntimeStatisticsURI(

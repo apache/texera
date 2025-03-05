@@ -114,7 +114,7 @@ class CostBasedScheduleGenerator(
           id = RegionIdentity(idx),
           physicalOps = operators,
           physicalLinks = links,
-          outputPortResultURIs = outputPortResultURIs
+          storageURIs = outputPortResultURIs
         )
     }
   }
@@ -203,19 +203,24 @@ class CostBasedScheduleGenerator(
         )
       )
     }
-    // Since the plan is now schedulable, calling the search directly returns a region DAG.
-    // This new search is only needed because of additional cache read operators.
-    // As a result the original materialized ports are not kept in the new region DAG.
+    // Calling the search again to include cache read ops in the regions.
+    // This new search is only needed because of additional cache read operators which alters the physical plan.
+    // However, as the new physical plan is already schedulable, the original materialized ports of each region will not
+    // be included in the new region DAG.
     // TODO: remove this step after cache read is removed.
     val regionDAG = bottomUpSearch().regionDAG
 
     addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     populateDependeeLinks(regionDAG)
-    // Need to add the original materialized port results back. This will not be needed after removal of cache read ops.
+    // The materialized ports of each region are already decided by the first RPG search
+    // However they will be lost after the second search as a consequence of the modified physical plan.
+    // The second search is only needed because of additional cache read operators.
+    // Need to add the original materialized ports back. This will not be needed after removal of cache read ops.
+    // TODO: remove this step after cache read is removed.
     val outputPortsToMaterialize = linksToMaterialize.map(link =>
       GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
     )
-    updatesRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
+    updateRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
     allocateResource(regionDAG)
     regionDAG
   }
