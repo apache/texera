@@ -59,8 +59,8 @@ class IcebergDocumentConsoleMessagesSpec
 
   override def getDocument: VirtualDocument[Tuple] = {
     DocumentFactory.openDocument(uri)._1 match {
-      case doc: VirtualDocument[Tuple] => doc
-      case _                           => fail("Failed to open document as VirtualDocument[Tuple]")
+      case doc: VirtualDocument[_] => doc.asInstanceOf[VirtualDocument[Tuple]]
+      case _                       => fail("Failed to open document as VirtualDocument[Tuple]")
     }
   }
 }
