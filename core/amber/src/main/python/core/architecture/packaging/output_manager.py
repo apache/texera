@@ -65,24 +65,24 @@ class OutputManager:
         self._port_result_writers: typing.Dict[PortIdentity, PortResultWriter] = dict()
 
     def add_output_port(
-        self, port_id: PortIdentity, schema: Schema, storage_uri: str
+        self, port_id: PortIdentity, schema: Schema, storage_uri: typing.Optional[str]=None
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri != "":
+        if storage_uri is not None:
             document: VirtualDocument[Tuple]
             document, _ = DocumentFactory.open_document(storage_uri)
             writer = document.writer(str(get_worker_index(self.worker_id)))
-            writer_thread = PortResultWriter(writer)
+            port_result_writer = PortResultWriter(writer)
             threading.Thread(
-                target=writer_thread.run,
+                target=port_result_writer.run,
                 daemon=True,
                 name=f"port_storage_writer_thread_{port_id}",
             ).start()
-            self._port_result_writers[port_id] = writer_thread
+            self._port_result_writers[port_id] = port_result_writer
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
@@ -95,6 +95,15 @@ class OutputManager:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
+        """
+        Optionally write the tuple to storage if the specified output port
+        is determined by the scheduler to need storage. This method is not blocking because a
+        separate thread is used to flush the tuple to storage in batch.
+        :param amber_tuple: A tuple produced by the data processor.
+        :param port_id: If not specified, the tuple will be written to all output ports
+        that need storage.
+        :return:
+        """
         if port_id is None:
             for writer_thread in self._port_result_writers.values():
                 writer_thread.put_tuple(amber_tuple)
