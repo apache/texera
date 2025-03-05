@@ -82,7 +82,11 @@ abstract class ScheduleGenerator(
   ): Unit = {
 
     val resourceAllocator =
-      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, workflowContext.workflowSettings)
+      new DefaultResourceAllocator(
+        physicalPlan,
+        executionClusterInfo,
+        workflowContext.workflowSettings
+      )
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {

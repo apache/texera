@@ -162,9 +162,7 @@ class RegionExecutionCoordinator(
                   case None      => ""
                 }
                 Some(
-                  GlobalPortIdentity(
-                    physicalOp.id,
-                    outputPortId) -> (storageURI, schema)
+                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (storageURI, schema)
                 )
               case _ => None
             }

@@ -65,7 +65,10 @@ class OutputManager:
         self._port_result_writers: typing.Dict[PortIdentity, PortResultWriter] = dict()
 
     def add_output_port(
-        self, port_id: PortIdentity, schema: Schema, storage_uri: typing.Optional[str]=None
+        self,
+        port_id: PortIdentity,
+        schema: Schema,
+        storage_uri: typing.Optional[str] = None,
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
@@ -97,11 +100,11 @@ class OutputManager:
     def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
         """
         Optionally write the tuple to storage if the specified output port
-        is determined by the scheduler to need storage. This method is not blocking because a
-        separate thread is used to flush the tuple to storage in batch.
+        is determined by the scheduler to need storage. This method is not blocking
+        because a separate thread is used to flush the tuple to storage in batch.
         :param amber_tuple: A tuple produced by the data processor.
-        :param port_id: If not specified, the tuple will be written to all output ports
-        that need storage.
+        :param port_id: If not specified, the tuple will be written to all
+        output ports that need storage.
         :return:
         """
         if port_id is None:

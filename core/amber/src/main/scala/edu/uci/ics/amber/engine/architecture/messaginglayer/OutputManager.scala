@@ -153,12 +153,12 @@ class OutputManager(
   }
 
   /**
-   * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
-   * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
-   *
-   * @param tupleLike TupleLike to be written to storage.
-   * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
-   */
+    * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
+    * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
+    *
+    * @param tupleLike TupleLike to be written to storage.
+    * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
+    */
   def saveTupleToStorageIfNeeded(
       tupleLike: SchemaEnforceable,
       outputPortId: Option[PortIdentity] = None

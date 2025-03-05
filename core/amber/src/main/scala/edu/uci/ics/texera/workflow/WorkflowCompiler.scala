@@ -22,9 +22,9 @@ class WorkflowCompiler(
 ) extends LazyLogging {
 
   /**
-   * Function to expand logical plan to physical plan
-   * @return the expanded physical plan and a set of output ports that need storage
-   */
+    * Function to expand logical plan to physical plan
+    * @return the expanded physical plan and a set of output ports that need storage
+    */
   private def expandLogicalPlan(
       logicalPlan: LogicalPlan,
       logicalOpsToViewResult: List[String],
