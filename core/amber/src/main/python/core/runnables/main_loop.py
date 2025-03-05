@@ -291,7 +291,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
-        self.context.output_manager.close_output_storage_writers()
+        self.context.output_manager.close_port_storage_writers()
 
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(
