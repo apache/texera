@@ -3,14 +3,9 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.core.marker.Marker
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
-import edu.uci.ics.amber.core.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
+import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
   DPOutputIterator,
   getBatchSize,
@@ -18,10 +13,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.engine.architecture.worker.managers.{
+  OutputPortResultWriterThread,
+  PortStorageWriterTerminateSignal
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.architecture.worker.managers.OutputPortResultWriterThread
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 import java.net.URI
@@ -153,32 +149,6 @@ class OutputManager(
   }
 
   /**
-    * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
-    * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
-    *
-    * @param tupleLike TupleLike to be written to storage.
-    * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
-    */
-  def saveTupleToStorageIfNeeded(
-      tupleLike: SchemaEnforceable,
-      outputPortId: Option[PortIdentity] = None
-  ): Unit = {
-    (outputPortId match {
-      case Some(portId) =>
-        this.outputPortResultWriterThreads.get(portId) match {
-          case Some(_) => this.outputPortResultWriterThreads.filter(_._1 == portId)
-          case None    => Map.empty
-        }
-      case None => this.outputPortResultWriterThreads
-    }).foreach({
-      case (portId, writerThread) =>
-        val tuple = tupleLike.enforceSchema(this.getPort(portId).schema)
-        // write to storage in a separate thread
-        writerThread.putTuple(tuple)
-    })
-  }
-
-  /**
     * Flushes the network output buffers based on the specified set of physical links.
     *
     * This method flushes the buffers associated with the network output. If the 'onlyFor' parameter
@@ -215,17 +185,48 @@ class OutputManager(
 
     // if a storage URI is provided, set up a storage writer thread
     storageURIOption match {
-      case Some(storageUri) =>
-        val writer = DocumentFactory
-          .openDocument(storageUri)
-          ._1
-          .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
-          .asInstanceOf[BufferedItemWriter[Tuple]]
-        val writerThread = new OutputPortResultWriterThread(writer)
-        this.outputPortResultWriterThreads(portId) = writerThread
-        writerThread.start()
-      case None => // No need to add a writer
+      case Some(storageUri) => setupOutputStorageWriterThread(portId, storageUri)
+      case None             => // No need to add a writer
     }
+  }
+
+  /**
+    * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
+    * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
+    *
+    * @param tupleLike TupleLike to be written to storage.
+    * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
+    */
+  def saveTupleToStorageIfNeeded(
+      tupleLike: SchemaEnforceable,
+      outputPortId: Option[PortIdentity] = None
+  ): Unit = {
+    (outputPortId match {
+      case Some(portId) =>
+        this.outputPortResultWriterThreads.get(portId) match {
+          case Some(_) => this.outputPortResultWriterThreads.filter(_._1 == portId)
+          case None    => Map.empty
+        }
+      case None => this.outputPortResultWriterThreads
+    }).foreach({
+      case (portId, writerThread) =>
+        val tuple = tupleLike.enforceSchema(this.getPort(portId).schema)
+        // write to storage in a separate thread
+        writerThread.queue.put(Left(tuple))
+    })
+  }
+
+  /**
+    * Singal the port storage writers to flush the remaining buffer and wait for commits to finish so that
+    * the output ports are properly completed.
+    */
+  def closeOutputStorageWriters(): Unit = {
+    // Non-blocking calls
+    this.outputPortResultWriterThreads.values.foreach(writerThread =>
+      writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
+    )
+    // Blocking calls
+    this.outputPortResultWriterThreads.values.foreach(writerThread => writerThread.join())
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
@@ -240,13 +241,20 @@ class OutputManager(
     outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
   }
 
-  def closeOutputStorageWriters(): Unit = {
-    this.outputPortResultWriterThreads.values.foreach(writer => writer.terminate())
-  }
-
   def getSingleOutputPortIdentity: PortIdentity = {
     assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
+  }
+
+  private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
+    val bufferedItemWriter = DocumentFactory
+      .openDocument(storageUri)
+      ._1
+      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    val writerThread = new OutputPortResultWriterThread(bufferedItemWriter)
+    this.outputPortResultWriterThreads(portId) = writerThread
+    writerThread.start()
   }
 
 }
