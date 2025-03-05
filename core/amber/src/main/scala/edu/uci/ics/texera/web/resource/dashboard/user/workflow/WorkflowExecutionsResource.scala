@@ -180,11 +180,11 @@ object WorkflowExecutionsResource {
     * @param layerName optional, if not specified, the method will return only the first layer (physicalop) stored with
     *                external ports
     * @return If user system is enabled, this method trys to find a URI regardless of whether layerName is provided.
-   *         None will be returned only if the specified storage URI for the port does not exist in the database.
-   *         If user system is not enabled, when layerName is provided, this method creates the URI directly; else
-   *         this method also trys to find the URI from ExecutionResourcesMapping.
-   *         TODO: Get rid of layerName
-   *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
+    *         None will be returned only if the specified storage URI for the port does not exist in the database.
+    *         If user system is not enabled, when layerName is provided, this method creates the URI directly; else
+    *         this method also trys to find the URI from ExecutionResourcesMapping.
+    *         TODO: Get rid of layerName
+    *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
     */
   def getResultUriByExecutionAndPort(
       wid: WorkflowIdentity,
