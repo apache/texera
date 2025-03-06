@@ -40,6 +40,7 @@ storage:
 
   s3:
     endpoint: "http://localhost:9000"
+    region: "us-west-2"
     auth:
       username: "texera_minio"
       password: "password"

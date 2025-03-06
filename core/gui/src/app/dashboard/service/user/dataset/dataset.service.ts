@@ -5,10 +5,8 @@ import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
-import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
-import { S3Client } from "@aws-sdk/client-s3";
 import { environment } from "../../../../../environments/environment";
 
 export const DATASET_BASE_URL = "dataset";

@@ -20,8 +20,8 @@ object S3StorageClient {
     val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
     S3Client
       .builder()
-      .region(Region.US_WEST_2) // MinIO doesn't require region, but AWS SDK enforces one
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .region(Region.of(StorageConfig.s3Region))
       .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // MinIO URL
       .serviceConfiguration(
         S3Configuration.builder().pathStyleAccessEnabled(true).build()

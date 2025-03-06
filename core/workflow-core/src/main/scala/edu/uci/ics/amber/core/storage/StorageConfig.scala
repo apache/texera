@@ -218,6 +218,11 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("endpoint")
     .asInstanceOf[String]
 
+  val s3Region: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("s3")
+    .asInstanceOf[Map[String, Any]]("region")
+    .asInstanceOf[String]
+
   val s3Username: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("s3")
     .asInstanceOf[Map[String, Any]]("auth")

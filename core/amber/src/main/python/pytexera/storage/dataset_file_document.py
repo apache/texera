@@ -21,16 +21,15 @@ class DatasetFileDocument:
         self.owner_email = parts[0]
         self.dataset_name = parts[1]
         self.version_name = parts[2]
-        self.file_relative_path = "/".join(parts[3:])  # Remaining path as fileRelativePath
+        self.file_relative_path = "/".join(parts[3:])
 
-        # Load environment variables
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
         self.presign_endpoint = os.getenv("PRESIGN_API_ENDPOINT")
 
         if not self.jwt_token:
             raise ValueError("JWT token is required but not set in environment variables.")
         if not self.presign_endpoint:
-            self.presign_endpoint = "http://localhost:9092/api/dataset/presign"
+            self.presign_endpoint = "http://localhost:9092/api/dataset/presign-download"
 
     def get_presigned_url(self) -> str:
         """
@@ -64,4 +63,4 @@ class DatasetFileDocument:
         if response.status_code != 200:
             raise RuntimeError(f"Failed to retrieve file content: {response.status_code} {response.text}")
 
-        return io.BytesIO(response.content)  # Returns file-like object
+        return io.BytesIO(response.content)
