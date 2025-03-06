@@ -2,8 +2,6 @@ import os
 import io
 import requests
 import urllib.parse
-from urllib.parse import urljoin
-from typing import Optional
 
 
 class DatasetFileDocument:
