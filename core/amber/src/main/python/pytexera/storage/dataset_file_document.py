@@ -16,7 +16,9 @@ class DatasetFileDocument:
         """
         parts = file_path.strip("/").split("/")
         if len(parts) < 4:
-            raise ValueError("Invalid file path format. Expected: /ownerEmail/datasetName/versionName/fileRelativePath")
+            raise ValueError(
+                "Invalid file path format. Expected: /ownerEmail/datasetName/versionName/fileRelativePath"
+            )
 
         self.owner_email = parts[0]
         self.dataset_name = parts[1]
@@ -27,7 +29,9 @@ class DatasetFileDocument:
         self.presign_endpoint = os.getenv("PRESIGN_API_ENDPOINT")
 
         if not self.jwt_token:
-            raise ValueError("JWT token is required but not set in environment variables.")
+            raise ValueError(
+                "JWT token is required but not set in environment variables."
+            )
         if not self.presign_endpoint:
             self.presign_endpoint = "http://localhost:9092/api/dataset/presign-download"
 
@@ -39,14 +43,18 @@ class DatasetFileDocument:
         :raises: RuntimeError if the request fails.
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        encoded_file_path = urllib.parse.quote(f"/{self.owner_email}/{self.dataset_name}/{self.version_name}/{self.file_relative_path}")
+        encoded_file_path = urllib.parse.quote(
+            f"/{self.owner_email}/{self.dataset_name}/{self.version_name}/{self.file_relative_path}"
+        )
 
         params = {"filePath": encoded_file_path}
 
         response = requests.get(self.presign_endpoint, headers=headers, params=params)
 
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to get presigned URL: {response.status_code} {response.text}")
+            raise RuntimeError(
+                f"Failed to get presigned URL: {response.status_code} {response.text}"
+            )
 
         return response.json().get("presignedUrl")
 
@@ -61,6 +69,8 @@ class DatasetFileDocument:
         response = requests.get(presigned_url)
 
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to retrieve file content: {response.status_code} {response.text}")
+            raise RuntimeError(
+                f"Failed to retrieve file content: {response.status_code} {response.text}"
+            )
 
         return io.BytesIO(response.content)
