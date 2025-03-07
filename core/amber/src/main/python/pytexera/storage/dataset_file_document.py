@@ -44,7 +44,10 @@ class DatasetFileDocument:
         """
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         encoded_file_path = urllib.parse.quote(
-            f"/{self.owner_email}/{self.dataset_name}/{self.version_name}/{self.file_relative_path}"
+            f"/{self.owner_email}"
+            f"/{self.dataset_name}"
+            f"/{self.version_name}"
+            f"/{self.file_relative_path}"
         )
 
         params = {"filePath": encoded_file_path}
@@ -53,7 +56,8 @@ class DatasetFileDocument:
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Failed to get presigned URL: {response.status_code} {response.text}"
+                f"Failed to get presigned URL: "
+                f"{response.status_code} {response.text}"
             )
 
         return response.json().get("presignedUrl")
@@ -62,7 +66,7 @@ class DatasetFileDocument:
         """
         Reads the file content from the presigned URL.
 
-        :return: A file-like object (io.BytesIO) for compatibility with various Python libraries.
+        :return: A file-like object.
         :raises: RuntimeError if the retrieval fails.
         """
         presigned_url = self.get_presigned_url()
@@ -70,7 +74,8 @@ class DatasetFileDocument:
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Failed to retrieve file content: {response.status_code} {response.text}"
+                f"Failed to retrieve file content: "
+                f"{response.status_code} {response.text}"
             )
 
         return io.BytesIO(response.content)
