@@ -9,13 +9,15 @@ class DatasetFileDocument:
         """
         Parses the file path into dataset metadata.
 
-        :param file_path: Expected format - "/ownerEmail/datasetName/versionName/fileRelativePath"
-                          Example: "/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv"
+        :param file_path:
+           Expected format - "/ownerEmail/datasetName/versionName/fileRelativePath"
+           Example: "/bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv"
         """
         parts = file_path.strip("/").split("/")
         if len(parts) < 4:
             raise ValueError(
-                "Invalid file path format. Expected: /ownerEmail/datasetName/versionName/fileRelativePath"
+                "Invalid file path format. "
+                "Expected: /ownerEmail/datasetName/versionName/fileRelativePath"
             )
 
         self.owner_email = parts[0]
