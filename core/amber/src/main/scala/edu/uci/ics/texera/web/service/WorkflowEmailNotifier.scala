@@ -25,10 +25,9 @@ class WorkflowEmailNotifier(
   )
 
   override def shouldSendEmail(
-      oldState: WorkflowAggregatedState,
-      newState: WorkflowAggregatedState
+      workflowState: WorkflowAggregatedState
   ): Boolean = {
-    oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
+    CompletedPausedOrTerminatedStates.contains(workflowState)
   }
 
   override def sendStatusEmail(state: WorkflowAggregatedState): Unit = {

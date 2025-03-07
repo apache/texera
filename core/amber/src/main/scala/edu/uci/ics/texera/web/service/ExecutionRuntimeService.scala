@@ -2,10 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  EmptyRequest,
-  TakeGlobalCheckpointRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -15,6 +12,7 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
+import java.net.URI
 import java.util.UUID
 
 class ExecutionRuntimeService(
@@ -22,9 +20,23 @@ class ExecutionRuntimeService(
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
     reconfigurationService: ExecutionReconfigurationService,
-    logConf: Option[FaultToleranceConfig]
+    logConf: Option[FaultToleranceConfig],
+    workflowId: Long,
+    emailNotificationEnabled: Boolean,
+    userEmailOpt: Option[String],
+    sessionUri: URI
 ) extends SubscriptionManager
     with LazyLogging {
+
+  private val emailNotificationService = userEmailOpt.map(email =>
+    new EmailNotificationService(
+      new WorkflowEmailNotifier(
+        workflowId,
+        email,
+        sessionUri
+      )
+    )
+  )
 
   //Receive skip tuple
   addSubscription(wsInput.subscribe((req: SkipTupleRequest, uidOpt) => {
@@ -36,6 +48,9 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(evt.state, metadataStore)
     )
+    if (emailNotificationEnabled && emailNotificationService.nonEmpty) {
+      emailNotificationService.get.sendEmailNotification(evt.state)
+    }
     if (evt.state == COMPLETED) {
       client.shutdown()
       stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
@@ -87,5 +102,12 @@ class ExecutionRuntimeService(
       ()
     )
   }))
+
+  override def unsubscribeAll(): Unit = {
+    super.unsubscribeAll()
+    if (emailNotificationService.nonEmpty) {
+      emailNotificationService.get.shutdown()
+    }
+  }
 
 }
