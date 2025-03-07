@@ -94,7 +94,7 @@ class CostBasedScheduleGenerator(
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
         val portIdsToViewResult: Set[GlobalPortIdentity] =
-          workflowContext.workflowSettings.outputPortsToViewResult
+          workflowContext.workflowSettings.outputPortsNeedingStorage
             .filter(outputPort => operatorIds.contains(outputPort.opId))
         val portIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
           .diff(physicalPlan.getDependeeLinks)

@@ -234,7 +234,7 @@ abstract class ScheduleGenerator(
       outputPortsToMaterialize: Set[GlobalPortIdentity],
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
-    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsToViewResult)
+    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
       .foreach(outputPortId => {
         getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
           val uriConfigToAdd = (outputPortId -> createResultURI(

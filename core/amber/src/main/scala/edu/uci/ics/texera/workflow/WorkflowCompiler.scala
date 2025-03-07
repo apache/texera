@@ -33,7 +33,7 @@ class WorkflowCompiler(
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
     val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
-    val outputPortsToViewResult: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
+    val outputPortsNeedingStorage: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
@@ -137,7 +137,7 @@ class WorkflowCompiler(
 
                   physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
 
-                  outputPortsToViewResult += GlobalPortIdentity(
+                  outputPortsNeedingStorage += GlobalPortIdentity(
                     opId = physicalOp.id,
                     portId = outputPortId
                   )
@@ -153,7 +153,7 @@ class WorkflowCompiler(
           }
       }
     )
-    (physicalPlan, outputPortsToViewResult.toSet)
+    (physicalPlan, outputPortsNeedingStorage.toSet)
   }
 
   /**
@@ -176,11 +176,11 @@ class WorkflowCompiler(
     logicalPlan.resolveScanSourceOpFileName(None)
 
     // 3. expand the logical plan to the physical plan, and get a set of output ports that need storage
-    val (physicalPlan, outputPortsToViewResult) =
+    val (physicalPlan, outputPortsNeedingStorage) =
       expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
     context.workflowSettings =
-      WorkflowSettings(context.workflowSettings.dataTransferBatchSize, outputPortsToViewResult)
+      WorkflowSettings(context.workflowSettings.dataTransferBatchSize, outputPortsNeedingStorage)
 
     Workflow(context, logicalPlan, physicalPlan)
   }
