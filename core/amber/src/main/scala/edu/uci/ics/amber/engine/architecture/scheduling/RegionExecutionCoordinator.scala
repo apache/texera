@@ -25,7 +25,11 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   EmptyReturn,
   WorkflowAggregatedState
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  PortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -45,7 +49,7 @@ class RegionExecutionCoordinator(
     val resourceConfig = region.resourceConfig.get
 
     // Create storage objects for output ports of the region
-    createOutputPortStorageObjects(resourceConfig.storageURIs)
+    createOutputPortStorageObjects(resourceConfig.portConfigs)
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
@@ -168,11 +172,11 @@ class RegionExecutionCoordinator(
           val outputPortMapping = physicalOp.outputPorts
             .flatMap {
               case (outputPortId, (_, _, Right(schema))) =>
-                val storageURI = resourceConfig.storageURIs.get(
+                val storageURI = resourceConfig.portConfigs.get(
                   GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
                 ) match {
-                  case Some(uri) => uri.toString
-                  case None      => ""
+                  case Some(portConfig) => portConfig.storageURI.toString
+                  case None             => ""
                 }
                 Some(
                   GlobalPortIdentity(physicalOp.id, outputPortId) -> (storageURI, schema)
@@ -258,9 +262,12 @@ class RegionExecutionCoordinator(
     )
   }
 
-  private def createOutputPortStorageObjects(storageURIs: Map[GlobalPortIdentity, URI]): Unit = {
-    storageURIs.foreach {
-      case (outputPortId, storageUriToAdd) =>
+  private def createOutputPortStorageObjects(
+      portConfigs: Map[GlobalPortIdentity, PortConfig]
+  ): Unit = {
+    portConfigs.foreach {
+      case (outputPortId, portConfig: PortConfig) =>
+        val storageUriToAdd = portConfig.storageURI
         val (wid, eid, _, _, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
           WorkflowExecutionsResource.getResultUriByExecutionAndPort(

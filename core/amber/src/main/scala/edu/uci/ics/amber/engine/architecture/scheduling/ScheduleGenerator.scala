@@ -12,7 +12,7 @@ import edu.uci.ics.amber.core.workflow.{
   WorkflowContext
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
@@ -237,17 +237,20 @@ abstract class ScheduleGenerator(
     (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
       .foreach(outputPortId => {
         getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val uriConfigToAdd = (outputPortId -> createResultURI(
-            workflowId = workflowContext.workflowId,
-            executionId = workflowContext.executionId,
-            operatorId = outputPortId.opId.logicalOpId,
-            layerName = Some(outputPortId.opId.layerName),
-            portIdentity = outputPortId.portId
-          ))
+          val portConfigToAdd = outputPortId -> {
+            val uriToAdd = createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              operatorId = outputPortId.opId.logicalOpId,
+              layerName = Some(outputPortId.opId.layerName),
+              portIdentity = outputPortId.portId
+            )
+            PortConfig(storageURI = uriToAdd)
+          }
           val newResourceConfig = fromRegion.resourceConfig match {
             case Some(existingConfig) =>
-              existingConfig.copy(storageURIs = existingConfig.storageURIs + uriConfigToAdd)
-            case None => ResourceConfig(storageURIs = Map(uriConfigToAdd))
+              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
           }
           val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
           replaceVertex(regionDAG, fromRegion, newFromRegion)

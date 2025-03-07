@@ -11,6 +11,7 @@ import edu.uci.ics.amber.core.workflow.{
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
+  PortConfig,
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
@@ -104,18 +105,21 @@ class CostBasedScheduleGenerator(
               GlobalPortIdentity(link.fromOpId, link.fromPortId)
             )
           ) ++ portIdsToViewResult
-        val outputPortResultURIs = portIdsNeedingStorage
+        val portConfigs = portIdsNeedingStorage
           .map(outputPortId =>
-            outputPortId -> createResultURI(
-              workflowId = workflowContext.workflowId,
-              executionId = workflowContext.executionId,
-              operatorId = outputPortId.opId.logicalOpId,
-              layerName = Some(outputPortId.opId.layerName),
-              portIdentity = outputPortId.portId
-            )
+            outputPortId -> {
+              val uri = createResultURI(
+                workflowId = workflowContext.workflowId,
+                executionId = workflowContext.executionId,
+                operatorId = outputPortId.opId.logicalOpId,
+                layerName = Some(outputPortId.opId.layerName),
+                portIdentity = outputPortId.portId
+              )
+              PortConfig(storageURI = uri)
+            }
           )
           .toMap
-        val resourceConfig = ResourceConfig(storageURIs = outputPortResultURIs)
+        val resourceConfig = ResourceConfig(portConfigs = portConfigs)
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,

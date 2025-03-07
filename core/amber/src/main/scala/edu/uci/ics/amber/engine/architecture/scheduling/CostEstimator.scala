@@ -67,10 +67,11 @@ class DefaultCostEstimator(
         val longestRunningOpExecutionTime = opExecutionTimes.max
         longestRunningOpExecutionTime
       case None =>
-        // Without past statistics (e.g., first execution), we use number of materialized ports as the cost.
+        // Without past statistics (e.g., first execution), we use number of ports needing storage as the cost.
+        // Each port needing storage has a portConfig.
         // This is independent of the schedule / resource allocator.
         region.resourceConfig match {
-          case Some(config) => config.storageURIs.size
+          case Some(config) => config.portConfigs.size
           case None         => 0
         }
     }

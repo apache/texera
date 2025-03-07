@@ -8,5 +8,5 @@ import java.net.URI
 case class ResourceConfig(
     operatorConfigs: Map[PhysicalOpIdentity, OperatorConfig] = Map.empty,
     linkConfigs: Map[PhysicalLink, LinkConfig] = Map.empty,
-    storageURIs: Map[GlobalPortIdentity, URI] = Map.empty
+    portConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
 )

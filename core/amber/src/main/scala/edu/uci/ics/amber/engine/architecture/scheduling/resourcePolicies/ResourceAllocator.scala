@@ -79,7 +79,7 @@ class DefaultResourceAllocator(
     val resourceConfig = ResourceConfig(
       opToOperatorConfigMapping,
       linkToLinkConfigMapping,
-      region.resourceConfig.get.storageURIs
+      region.resourceConfig.get.portConfigs
     )
 
     (region.copy(resourceConfig = Some(resourceConfig)), 0)
