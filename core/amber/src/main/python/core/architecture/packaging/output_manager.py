@@ -88,7 +88,7 @@ class OutputManager:
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
-    def set_up_port_storage_writer(self, port_id, storage_uri):
+    def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri: str):
         """
         Create a separate thread for saving output tuples of a port
         to storage in batch.
@@ -117,22 +117,22 @@ class OutputManager:
     def get_output_channel_ids(self):
         return self._channels.keys()
 
-    def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
+    def save_tuple_to_storage_if_needed(self, tuple_: Tuple, port_id=None) -> None:
         """
         Optionally write the tuple to storage if the specified output port
         is determined by the scheduler to need storage. This method is not blocking
         because a separate thread is used to flush the tuple to storage in batch.
-        :param amber_tuple: A tuple produced by the data processor.
+        :param tuple_: A tuple produced by the data processor.
         :param port_id: If not specified, the tuple will be written to all
         output ports that need storage.
         :return:
         """
         if port_id is None:
             for writer_queue, _, _ in self._port_storage_writers.values():
-                writer_queue.put(PortStorageWriterElement(data_tuple=amber_tuple))
+                writer_queue.put(PortStorageWriterElement(data_tuple=tuple_))
         elif port_id in self._port_storage_writers.keys():
             self._port_storage_writers[port_id][0].put(
-                PortStorageWriterElement(data_tuple=amber_tuple)
+                PortStorageWriterElement(data_tuple=tuple_)
             )
 
     def close_port_storage_writers(self) -> None:

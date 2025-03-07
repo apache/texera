@@ -110,6 +110,9 @@ object ExecutionResultService {
             val numTuples = storage.getCount
             val maxPageIndex =
               Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+            // This can be extremly expensive when we have a lot of pages.
+            // It causes delays in some obseved cases.
+            // TODO: try to optimize this.
             WebPaginationUpdate(
               PaginationMode(),
               newTupleCount,

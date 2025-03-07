@@ -76,7 +76,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields).enforceSchema(schema), None)
     }
     outputManager.emitMarker(EndOfInputChannel())
   }

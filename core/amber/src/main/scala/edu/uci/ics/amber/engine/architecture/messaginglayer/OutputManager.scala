@@ -127,12 +127,12 @@ class OutputManager(
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     *
-    * @param tupleLike    TupleLike to be passed.
+    * @param tuple    TupleLike to be passed.
     * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
     *                     If None, the tuple is broadcast to all output ports.
     */
   def passTupleToDownstream(
-      tupleLike: SchemaEnforceable,
+      tuple: Tuple,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
     (outputPortId match {
@@ -140,8 +140,6 @@ class OutputManager(
       case None         => partitioners // send to all ports
     }).foreach {
       case (link, partitioner) =>
-        // Enforce schema based on the port's schema
-        val tuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
         partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
           networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
         }
@@ -194,11 +192,11 @@ class OutputManager(
     * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
     * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
     *
-    * @param tupleLike TupleLike to be written to storage.
+    * @param tuple TupleLike to be written to storage.
     * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
     */
   def saveTupleToStorageIfNeeded(
-      tupleLike: SchemaEnforceable,
+      tuple: Tuple,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
     (outputPortId match {
@@ -210,7 +208,6 @@ class OutputManager(
       case None => this.outputPortResultWriterThreads
     }).foreach({
       case (portId, writerThread) =>
-        val tuple = tupleLike.enforceSchema(this.getPort(portId).schema)
         // write to storage in a separate thread
         writerThread.queue.put(Left(tuple))
     })
