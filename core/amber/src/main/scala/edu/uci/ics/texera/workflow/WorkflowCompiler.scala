@@ -66,6 +66,23 @@ class WorkflowCompiler(
               // Add all the links to the physical plan
               physicalPlan = (externalLinks ++ internalLinks)
                 .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
+
+              // **Check for Python-based operator errors during code generation**
+              if (physicalOp.isPythonBased) {
+                val code = physicalOp.getCode
+                val exceptionPattern = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
+
+                exceptionPattern.findFirstMatchIn(code).foreach { matchResult =>
+                  val errorMessage = matchResult.group(1).trim
+                  val error =
+                    new RuntimeException(s"Operator is not configured properly: $errorMessage")
+
+                  errorList match {
+                    case Some(list) => list.append((logicalOpId, error)) // Store error and continue
+                    case None       => throw error // Throw immediately if no error list is provided
+                  }
+                }
+              }
             }
           })
 
@@ -84,6 +101,7 @@ class WorkflowCompiler(
                       context.workflowId,
                       context.executionId,
                       physicalOp.id.logicalOpId,
+                      Some(physicalOp.id.layerName),
                       outputPortId
                     )
                   if (
@@ -99,6 +117,7 @@ class WorkflowCompiler(
                         context.workflowId,
                         context.executionId,
                         physicalOp.id.logicalOpId,
+                        Some(physicalOp.id.layerName),
                         outputPortId
                       )
                     )
@@ -116,6 +135,7 @@ class WorkflowCompiler(
                     WorkflowExecutionsResource.insertOperatorPortResultUri(
                       context.executionId,
                       physicalOp.id.logicalOpId,
+                      physicalOp.id.layerName,
                       outputPortId,
                       storageUri.get
                     )
@@ -129,6 +149,7 @@ class WorkflowCompiler(
                     )
                   }
 
+                  // TODO: remove
                   // Create and link the sink operator
                   val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
                     storageUri.get,

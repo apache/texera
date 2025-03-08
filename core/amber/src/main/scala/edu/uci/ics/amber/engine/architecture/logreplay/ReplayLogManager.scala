@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRe
 import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 //In-mem formats:
-sealed trait ReplayLogRecord
+sealed trait ReplayLogRecord extends Serializable
 
 case class MessageContent(message: WorkflowFIFOMessage) extends ReplayLogRecord
 

@@ -5,11 +5,10 @@ import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils.toByteArray
-
 import java.io._
 import java.net.URI
+import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -25,9 +24,7 @@ class FileScanSourceOpExec private[scan] (
     val fileEntries: Iterator[InputStream] = {
       val is = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
       if (desc.extract) {
-        val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
-          new BufferedInputStream(is)
-        )
+        val inputStream = new ZipInputStream(new BufferedInputStream(is))
         val (it1, it2) = Iterator
           .continually(inputStream.getNextEntry)
           .takeWhile(_ != null)

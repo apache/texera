@@ -32,6 +32,7 @@ import {
   DASHBOARD_USER_DATASET,
   DASHBOARD_HUB_DATASET_RESULT_DETAIL,
 } from "../../../../app-routing.constant";
+import { isDefined } from "../../../../common/util/predicate";
 
 @UntilDestroy()
 @Component({
@@ -150,25 +151,37 @@ export class ListItemComponent implements OnInit, OnChanges {
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
+
+    if (typeof this.entry.id === "number") {
+      this.hubService
+        .getLikeCount(this.entry.id, this.entry.type)
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.likeCount = count;
+        });
+      this.hubService
+        .getViewCount(this.entry.id, this.entry.type)
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.viewCount = count;
+        });
+    }
   }
 
   ngOnInit(): void {
     this.initializeEntry();
-    if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      this.hubService
-        .isLiked(this.entry.id, this.currentUid, this.entry.type)
-        .pipe(untilDestroyed(this))
-        .subscribe((isLiked: boolean) => {
-          this.isLiked = isLiked;
-        });
-    }
+    this.checkLikeStatus();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
+      this.checkLikeStatus();
     }
-    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+  }
+
+  private checkLikeStatus(): void {
+    if (this.entry?.id !== undefined && this.currentUid !== undefined) {
       this.hubService
         .isLiked(this.entry.id, this.currentUid, this.entry.type)
         .pipe(untilDestroyed(this))
@@ -382,20 +395,24 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
-    if (workflowId === undefined || userId === undefined) {
+  toggleLike(): void {
+    const userId = this.currentUid;
+    if (!isDefined(userId) || !isDefined(this.entry.id)) {
       return;
     }
 
+    const entryId = this.entry.id!;
+
     if (this.isLiked) {
       this.hubService
-        .postUnlike(workflowId, userId, this.entry.type)
+        .postUnlike(entryId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getLikeCount(workflowId, this.entry.type)
+              .getLikeCount(entryId, this.entry.type)
+
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
@@ -404,13 +421,13 @@ export class ListItemComponent implements OnInit, OnChanges {
         });
     } else {
       this.hubService
-        .postLike(workflowId, userId, this.entry.type)
+        .postLike(entryId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getLikeCount(workflowId, this.entry.type)
+              .getLikeCount(entryId, this.entry.type)
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;

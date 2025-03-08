@@ -1,56 +1,55 @@
 package edu.uci.ics.texera.web.service
 
 import com.github.tototoshi.csv.CSVWriter
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.util.Lists
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.model.{File, FileList, Permission}
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.engine.common.Utils.retry
-import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
-import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowExecutionsResource,
   WorkflowVersionResource
 }
-import org.jooq.types.UInteger
-import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
-import java.io.{PipedInputStream, PipedOutputStream}
+import java.io.{FilterOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
-import scala.annotation.tailrec
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.SeqHasAsJava
+import scala.util.Using
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
+import javax.ws.rs.WebApplicationException
+import javax.ws.rs.core.StreamingOutput
 
-import java.io.OutputStream
-import java.nio.channels.Channels
-import scala.util.Using
-import edu.uci.ics.amber.core.workflow.PortIdentity
+/**
+  * A simple wrapper that ignores 'close()' calls on the underlying stream.
+  * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
+  */
+private class NonClosingOutputStream(os: OutputStream) extends FilterOutputStream(os) {
+  @throws[IOException]
+  override def close(): Unit = {
+    // do not actually close the underlying stream
+    super.flush()
+    // omit super.close()
+  }
+}
 
 object ResultExportService {
-  final private val UPLOAD_BATCH_ROW_COUNT = 10000
-  final private val RETRY_ATTEMPTS = 7
-  final private val BASE_BACK_OOF_TIME_IN_MS = 1000
-  final private val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
+
+  // Matches the remote's approach for a thread pool
   final private val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
@@ -59,324 +58,195 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   import ResultExportService._
 
-  private val cache = new mutable.HashMap[String, String]
-  def exportResult(
-      user: User,
-      request: ResultExportRequest
-  ): ResultExportResponse = {
-    // retrieve the file link saved in the session if exists
-    if (cache.contains(request.exportType)) {
-      return ResultExportResponse(
-        "success",
-        s"Link retrieved from cache ${cache(request.exportType)}"
-      )
-    }
-
+  /**
+    * Generate the VirtualDocument for one operator's result.
+    * Incorporates the remote code's extra parameter `None` for sub-operator ID.
+    */
+  private def generateOneOperatorResult(operatorId: String): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       getLatestExecutionId(workflowIdentity).get,
-      OperatorIdentity(request.operatorId),
+      OperatorIdentity(operatorId),
+      None, // from remote code
       PortIdentity()
     )
-    val operatorResult: VirtualDocument[Tuple] =
-      DocumentFactory.openDocument(storageUri.get)._1.asInstanceOf[VirtualDocument[Tuple]]
-    if (operatorResult.getCount == 0) {
-      return ResultExportResponse("error", "The workflow contains no results")
+
+    // Return null if no URI so that caller can handle empty/absent data
+    storageUri
+      .map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]])
+      .orNull
+  }
+
+  /**
+    * Export results for all specified operators in the request.
+    */
+  def exportResult(user: User, request: ResultExportRequest): ResultExportResponse = {
+    val successMessages = new mutable.ListBuffer[String]()
+    val errorMessages = new mutable.ListBuffer[String]()
+
+    // Handle each operator requested
+    request.operatorIds.foreach { opId =>
+      try {
+        val (msgOpt, errOpt) = exportSingleOperator(user, request, opId)
+        msgOpt.foreach(successMessages += _)
+        errOpt.foreach(errorMessages += _)
+      } catch {
+        case ex: Exception =>
+          errorMessages += s"Error exporting operator $opId: ${ex.getMessage}"
+      }
     }
 
-    val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
-    val attributeNames = results.head.getSchema.getAttributeNames
-
-    // handle the request according to export type
-    request.exportType match {
-      case "google_sheet" =>
-        handleGoogleSheetRequest(cache, request, results, attributeNames)
-      case "csv" =>
-        handleCSVRequest(user, request, results, attributeNames)
-      case "data" =>
-        handleDataRequest(user, request, results)
-      case "arrow" =>
-        handleArrowRequest(user, request, results)
-      case _ =>
-        ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
+    // Decide final response
+    if (errorMessages.isEmpty) {
+      ResultExportResponse("success", successMessages.mkString("\n"))
+    } else if (successMessages.isEmpty) {
+      ResultExportResponse("error", errorMessages.mkString("\n"))
+    } else {
+      // At least one success, so we consider overall success (with partial possible).
+      ResultExportResponse("success", successMessages.mkString("\n"))
     }
   }
 
+  /**
+    * Export a single operator's result and handle different export types.
+    */
+  private def exportSingleOperator(
+      user: User,
+      request: ResultExportRequest,
+      operatorId: String
+  ): (Option[String], Option[String]) = {
+
+    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    if (execIdOpt.isEmpty) {
+      return (None, Some(s"Workflow ${request.workflowId} has no execution result"))
+    }
+
+    val operatorResult = generateOneOperatorResult(operatorId)
+    if (operatorResult == null || operatorResult.getCount == 0) {
+      return (Some("error"), Some("The workflow contains no results"))
+    }
+
+    val results = operatorResult.get().to(Iterable)
+    val attributeNames = results.head.getSchema.getAttributeNames
+
+    request.exportType match {
+      case "csv" =>
+        handleCSVRequest(operatorId, user, request, results, attributeNames)
+
+      case "data" =>
+        handleDataRequest(operatorId, user, request, results)
+
+      case "arrow" =>
+        handleArrowRequest(operatorId, user, request, results)
+
+      case unknown =>
+        (None, Some(s"Unknown export type: $unknown"))
+    }
+  }
+
+  /**
+    * Handle exporting a CSV file for a single operator.
+    */
   private def handleCSVRequest(
+      operatorId: String,
       user: User,
       request: ResultExportRequest,
       results: Iterable[Tuple],
       headers: List[String]
-  ): ResultExportResponse = {
-    val pipedOutputStream = new PipedOutputStream()
-    val pipedInputStream = new PipedInputStream(pipedOutputStream)
-
-    pool.submit(() =>
-      {
-        val writer = CSVWriter.open(pipedOutputStream)
-        writer.writeRow(headers)
-        results.foreach { tuple =>
-          writer.writeRow(tuple.getFields.toIndexedSeq)
-        }
-        writer.close()
-      }.asInstanceOf[Runnable]
-    )
-
-    val fileName = generateFileName(request, "csv")
-    saveToDatasets(request, user, pipedInputStream, fileName)
-
-    ResultExportResponse(
-      "success",
-      s"File saved to User Dashboard as $fileName to Datasets ${request.datasetIds.mkString(",")}"
-    )
-  }
-
-  private def handleGoogleSheetRequest(
-      exportCache: mutable.HashMap[String, String],
-      request: ResultExportRequest,
-      results: Iterable[Tuple],
-      header: List[String]
-  ): ResultExportResponse = {
-    // create google sheet
-    val sheetService: Sheets = GoogleResource.getSheetService
-    val sheetId: String =
-      createGoogleSheet(sheetService, request.workflowName)
-    if (sheetId == null) {
-      return ResultExportResponse("error", "Fail to create google sheet")
-    }
-
-    val driveService: Drive = GoogleResource.getDriveService
-    moveToResultFolder(driveService, sheetId)
-
-    // allow user to access this sheet in the service account
-    val sharePermission: Permission = new Permission()
-      .setType("anyone")
-      .setRole("reader")
-    driveService
-      .permissions()
-      .create(sheetId, sharePermission)
-      .execute()
-
-    // upload the content asynchronously to avoid long waiting on the user side.
-    pool
-      .submit(() =>
-        {
-          uploadHeader(sheetService, sheetId, header)
-          uploadResult(sheetService, sheetId, results)
-        }.asInstanceOf[Runnable]
-      )
-
-    // generate success response
-    val link = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
-    val message: String =
-      s"Google sheet created. The results may be still uploading. You can access the sheet $link"
-    // save the file link in the session cache
-    exportCache(request.exportType) = link
-    ResultExportResponse("success", message)
-  }
-
-  /**
-    * create the google sheet and return the sheet Id
-    */
-  private def createGoogleSheet(sheetService: Sheets, workflowName: String): String = {
-    val createSheetRequest = new Spreadsheet()
-      .setProperties(new SpreadsheetProperties().setTitle(workflowName))
-    val targetSheet: Spreadsheet = sheetService.spreadsheets
-      .create(createSheetRequest)
-      .setFields("spreadsheetId")
-      .execute
-    targetSheet.getSpreadsheetId
-  }
-
-  private def handleDataRequest(
-      user: User,
-      request: ResultExportRequest,
-      results: Iterable[Tuple]
-  ): ResultExportResponse = {
-    val rowIndex = request.rowIndex
-    val columnIndex = request.columnIndex
-    val filename = request.filename
-
-    if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
-      return ResultExportResponse("error", s"Invalid row or column index")
-    }
-
-    val selectedRow = results.toSeq(rowIndex)
-    val field: Any = selectedRow.getField(columnIndex)
-    val dataBytes: Array[Byte] = convertFieldToBytes(field)
-
-    val pipedOutputStream = new PipedOutputStream()
-    val pipedInputStream = new PipedInputStream(pipedOutputStream)
-
-    pool.submit(() =>
-      {
-        pipedOutputStream.write(dataBytes)
-        pipedOutputStream.close()
-      }.asInstanceOf[Runnable]
-    )
-
-    saveToDatasets(request, user, pipedInputStream, filename)
-
-    ResultExportResponse(
-      "success",
-      s"Data file $filename saved to Datasets ${request.datasetIds.mkString(",")}"
-    )
-  }
-
-  /**
-    * move the workflow results to a specific folder
-    */
-  @tailrec
-  private def moveToResultFolder(
-      driveService: Drive,
-      sheetId: String,
-      retry: Boolean = true
-  ): Unit = {
-    val folderId = retrieveResultFolderId(driveService)
+  ): (Option[String], Option[String]) = {
     try {
-      driveService
-        .files()
-        .update(sheetId, null)
-        .setAddParents(folderId)
-        .execute()
-    } catch {
-      case exception: GoogleJsonResponseException =>
-        if (retry) {
-          // This exception maybe caused by the full deletion of the target folder and
-          // the cached folder id is obsolete.
-          //  * note: by full deletion, the folder has to be deleted from trash as well.
-          // In this case, try again.
-          moveToResultFolder(driveService, sheetId, retry = false)
-        } else {
-          // if the exception continues to show up then just throw it normally.
-          throw exception
+      val pipedOutputStream = new PipedOutputStream()
+      val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+      pool.submit(new Runnable {
+        override def run(): Unit = {
+          val writer = CSVWriter.open(pipedOutputStream)
+          writer.writeRow(headers)
+          results.foreach { tuple =>
+            writer.writeRow(tuple.getFields.toIndexedSeq)
+          }
+          writer.close()
         }
-    }
-  }
+      })
 
-  private def retrieveResultFolderId(driveService: Drive): String =
-    synchronized {
-      val folderResult: FileList = driveService
-        .files()
-        .list()
-        .setQ(
-          s"mimeType = 'application/vnd.google-apps.folder' and name='$WORKFLOW_RESULT_FOLDER_NAME'"
-        )
-        .setSpaces("drive")
-        .execute()
-
-      if (folderResult.getFiles.isEmpty) {
-        val fileMetadata: File = new File()
-        fileMetadata.setName(WORKFLOW_RESULT_FOLDER_NAME)
-        fileMetadata.setMimeType("application/vnd.google-apps.folder")
-        val targetFolder: File = driveService.files.create(fileMetadata).setFields("id").execute
-        targetFolder.getId
-      } else {
-        folderResult.getFiles.get(0).getId
-      }
-    }
-
-  /**
-    * upload the result header to the google sheet
-    */
-  private def uploadHeader(
-      sheetService: Sheets,
-      sheetId: String,
-      header: List[AnyRef]
-  ): Unit = {
-    uploadContent(sheetService, sheetId, List(header.asJava).asJava)
-  }
-
-  /**
-    * upload the result body to the google sheet
-    */
-  private def uploadResult(
-      sheetService: Sheets,
-      sheetId: String,
-      result: Iterable[Tuple]
-  ): Unit = {
-    val content: util.List[util.List[AnyRef]] =
-      Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
-    // use for loop to avoid copying the whole result at the same time
-    for (tuple: Tuple <- result) {
-
-      val tupleContent: util.List[AnyRef] =
-        tuple.getFields
-          .map(convertUnsupported)
-          .toArray
-          .toList
-          .asJava
-      content.add(tupleContent)
-
-      if (content.size() == UPLOAD_BATCH_ROW_COUNT) {
-        uploadContent(sheetService, sheetId, content)
-        content.clear()
-      }
-    }
-
-    if (!content.isEmpty) {
-      uploadContent(sheetService, sheetId, content)
+      val fileName = generateFileName(request, operatorId, "csv")
+      saveToDatasets(request, user, pipedInputStream, fileName)
+      (Some(s"CSV export done for operator $operatorId -> file: $fileName"), None)
+    } catch {
+      case ex: Exception =>
+        (None, Some(s"CSV export failed for operator $operatorId: ${ex.getMessage}"))
     }
   }
 
   /**
-    * convert the tuple content into the type the Google Sheet API supports
+    * Handle exporting data for a single (row, column) from an operator's result.
     */
-  private def convertUnsupported(content: Any): AnyRef = {
-    content match {
-
-      // if null, use empty string to represent.
-      case null => ""
-
-      // Google Sheet API supports String and number(long, int, double and so on)
-      case _: String | _: Number => content.asInstanceOf[AnyRef]
-
-      // convert all the other type into String
-      case _ => content.toString
-    }
-
-  }
-
-  /**
-    * upload the content to the google sheet
-    * The type of content is java list because the google API is in java
-    */
-  private def uploadContent(
-      sheetService: Sheets,
-      sheetId: String,
-      content: util.List[util.List[AnyRef]]
-  ): Unit = {
-    val body: ValueRange = new ValueRange().setValues(content)
-    val range: String = "A1"
-    val valueInputOption: String = "RAW"
-
-    // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
-    retry(attempts = RETRY_ATTEMPTS, baseBackoffTimeInMS = BASE_BACK_OOF_TIME_IN_MS) {
-      sheetService.spreadsheets.values
-        .append(sheetId, range, body)
-        .setValueInputOption(valueInputOption)
-        .execute
-    }
-
-  }
-
-  private def handleArrowRequest(
+  private def handleDataRequest(
+      operatorId: String,
       user: User,
       request: ResultExportRequest,
       results: Iterable[Tuple]
-  ): ResultExportResponse = {
+  ): (Option[String], Option[String]) = {
+    try {
+      val rowIndex = request.rowIndex
+      val columnIndex = request.columnIndex
+      val fileName = request.filename
+
+      if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
+        return (None, Some(s"Invalid rowIndex or columnIndex for operator $operatorId"))
+      }
+
+      val selectedRow = results.toSeq(rowIndex)
+      val field = selectedRow.getField(columnIndex)
+      val dataBytes: Array[Byte] = convertFieldToBytes(field)
+
+      val pipedOutputStream = new PipedOutputStream()
+      val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+      pool.submit(new Runnable {
+        override def run(): Unit = {
+          pipedOutputStream.write(dataBytes)
+          pipedOutputStream.close()
+        }
+      })
+
+      saveToDatasets(request, user, pipedInputStream, fileName)
+      (Some(s"Data export done for operator $operatorId -> file: $fileName"), None)
+    } catch {
+      case ex: Exception =>
+        (None, Some(s"Data export failed for operator $operatorId: ${ex.getMessage}"))
+    }
+  }
+
+  private def convertFieldToBytes(field: Any): Array[Byte] = {
+    field match {
+      case data: Array[Byte] => data
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case other             => other.toString.getBytes(StandardCharsets.UTF_8)
+    }
+  }
+
+  /**
+    * Handle exporting results to Arrow format for a single operator.
+    */
+  private def handleArrowRequest(
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): (Option[String], Option[String]) = {
     if (results.isEmpty) {
-      return ResultExportResponse("error", "No results to export")
+      return (None, Some(s"No results to export for operator $operatorId"))
     }
 
-    val pipedOutputStream = new PipedOutputStream()
-    val pipedInputStream = new PipedInputStream(pipedOutputStream)
-    val allocator = new RootAllocator()
+    try {
+      val pipedOutputStream = new PipedOutputStream()
+      val pipedInputStream = new PipedInputStream(pipedOutputStream)
+      val allocator = new RootAllocator()
 
-    pool.submit(() =>
-      {
+      pool.submit(() => {
         Using.Manager { use =>
           val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
           use(writer)
@@ -386,16 +256,16 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
           writeArrowData(writer, root, results)
         }
-      }.asInstanceOf[Runnable]
-    )
+      })
 
-    val fileName = generateFileName(request, "arrow")
-    saveToDatasets(request, user, pipedInputStream, fileName)
+      val fileName = generateFileName(request, operatorId, "arrow")
+      saveToDatasets(request, user, pipedInputStream, fileName)
 
-    ResultExportResponse(
-      "success",
-      s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
-    )
+      (Some(s"Arrow file export done for operator $operatorId -> file: $fileName"), None)
+    } catch {
+      case ex: Exception =>
+        (None, Some(s"Arrow export failed for operator $operatorId: ${ex.getMessage}"))
+    }
   }
 
   private def createArrowWriter(
@@ -418,45 +288,48 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   ): Unit = {
     writer.start()
     val batchSize = 1000
+    val resultList = results.toList
+    val totalSize = resultList.size
 
-    // Convert to Seq to get total size
-    val resultSeq = results.toSeq
-    val totalSize = resultSeq.size
-
-    // Process in complete batches
     for (batchStart <- 0 until totalSize by batchSize) {
       val batchEnd = Math.min(batchStart + batchSize, totalSize)
       val currentBatchSize = batchEnd - batchStart
 
-      // Process each tuple in the current batch
       for (i <- 0 until currentBatchSize) {
-        val tuple = resultSeq(batchStart + i)
+        val tuple = resultList(batchStart + i)
         ArrowUtils.setTexeraTuple(tuple, i, root)
       }
-
-      // Set the correct row count for this batch and write it
       root.setRowCount(currentBatchSize)
       writer.writeBatch()
       root.clear()
     }
-
     writer.end()
   }
 
-  private def generateFileName(request: ResultExportRequest, extension: String): String = {
+  /**
+    * Generate a file name for an operator's exported file.
+    * Preserves your logic: uses operatorId in the name.
+    */
+  private def generateFileName(
+      request: ResultExportRequest,
+      operatorId: String,
+      extension: String
+  ): String = {
     val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+      WorkflowVersionResource.getLatestVersion(request.workflowId)
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    StringUtils.replaceEach(
-      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension",
-      Array("/", "\\"),
-      Array("", "")
-    )
+
+    val rawName = s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extension"
+    // remove path separators
+    StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
   }
 
+  /**
+    * Save the pipedInputStream into the specified datasets as a new dataset version.
+    */
   private def saveToDatasets(
       request: ResultExportRequest,
       user: User,
@@ -464,21 +337,157 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val datasetPath = PathUtils.getDatasetPath(did)
       val filePath = datasetPath.resolve(fileName)
       createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
+        did,
         user,
         Map(filePath -> pipedInputStream)
       )
     }
   }
 
-  private def convertFieldToBytes(field: Any): Array[Byte] = {
-    field match {
-      case data: Array[Byte] => data
-      case data: String      => data.getBytes(StandardCharsets.UTF_8)
-      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
+  /**
+    * Export a single operator's results as a streaming response (e.g., for download).
+    */
+  def exportOperatorResultAsStream(
+      request: ResultExportRequest,
+      operatorId: String
+  ): (StreamingOutput, Option[String]) = {
+    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    if (execIdOpt.isEmpty) {
+      return (null, None)
     }
+
+    val operatorResult = generateOneOperatorResult(operatorId)
+    if (operatorResult == null || operatorResult.getCount == 0) {
+      return (null, None)
+    }
+
+    val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
+    val extension: String = request.exportType match {
+      case "csv"   => "csv"
+      case "arrow" => "arrow"
+      case "data"  => "bin"
+      case _       => "dat"
+    }
+
+    val fileName = generateFileName(request, operatorId, extension)
+
+    val streamingOutput: StreamingOutput = new StreamingOutput {
+      override def write(out: OutputStream): Unit = {
+        request.exportType match {
+          case "csv"   => writeCsv(out, results)
+          case "arrow" => writeArrow(out, results)
+          case _       => writeCsv(out, results) // fallback
+        }
+      }
+    }
+
+    (streamingOutput, Some(fileName))
+  }
+
+  private def writeCsv(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
+    if (results.isEmpty) return
+    val csvWriter = CSVWriter.open(outputStream)
+    val headers = results.head.getSchema.getAttributeNames
+    csvWriter.writeRow(headers)
+    results.foreach { tuple =>
+      csvWriter.writeRow(tuple.getFields.toIndexedSeq)
+    }
+    csvWriter.close()
+  }
+
+  private def writeArrow(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
+    if (results.isEmpty) return
+
+    val allocator = new RootAllocator()
+    Using.Manager { use =>
+      val (writer, root) = createArrowWriter(results, allocator, outputStream)
+      use(writer)
+      use(root)
+      use(allocator)
+
+      writer.start()
+      val batchSize = 1000
+      val resultList = results.toList
+      val totalSize = resultList.size
+
+      for (batchStart <- 0 until totalSize by batchSize) {
+        val batchEnd = Math.min(batchStart + batchSize, totalSize)
+        val currentBatchSize = batchEnd - batchStart
+        for (i <- 0 until currentBatchSize) {
+          val tuple = resultList(batchStart + i)
+          ArrowUtils.setTexeraTuple(tuple, i, root)
+        }
+        root.setRowCount(currentBatchSize)
+        writer.writeBatch()
+        root.clear()
+      }
+      writer.end()
+    }
+  }
+
+  /**
+    * Export multiple operators' results as a single ZIP file stream.
+    */
+  def exportOperatorsAsZip(
+      user: User,
+      request: ResultExportRequest
+  ): (StreamingOutput, Option[String]) = {
+    if (request.operatorIds.isEmpty) {
+      return (null, None)
+    }
+
+    val timestamp = LocalDateTime
+      .now()
+      .truncatedTo(ChronoUnit.SECONDS)
+      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    val zipFileName = s"${request.workflowName}-$timestamp.zip"
+
+    val streamingOutput: StreamingOutput = new StreamingOutput {
+      override def write(outputStream: OutputStream): Unit = {
+        Using.resource(new ZipOutputStream(outputStream)) { zipOut =>
+          request.operatorIds.foreach { opId =>
+            val execIdOpt = getLatestExecutionId(workflowIdentity)
+            if (execIdOpt.isEmpty) {
+              throw new WebApplicationException(
+                s"No execution result for workflow ${request.workflowId}"
+              )
+            }
+
+            val operatorResult = generateOneOperatorResult(opId)
+            if (operatorResult == null || operatorResult.getCount == 0) {
+              // create an "empty" file for this operator
+              zipOut.putNextEntry(new ZipEntry(s"$opId-empty.txt"))
+              val msg = s"Operator $opId has no results"
+              zipOut.write(msg.getBytes(StandardCharsets.UTF_8))
+              zipOut.closeEntry()
+            } else {
+              val results = operatorResult.get().to(Iterable)
+              val extension = request.exportType match {
+                case "csv"   => "csv"
+                case "arrow" => "arrow"
+                case "data"  => "bin"
+                case _       => "dat"
+              }
+              val operatorFileName = generateFileName(request, opId, extension)
+
+              zipOut.putNextEntry(new ZipEntry(operatorFileName))
+              val nonClosingStream = new NonClosingOutputStream(zipOut)
+
+              request.exportType match {
+                case "csv"   => writeCsv(nonClosingStream, results)
+                case "arrow" => writeArrow(nonClosingStream, results)
+                case _       => writeCsv(nonClosingStream, results)
+              }
+              zipOut.closeEntry()
+            }
+          }
+        }
+      }
+    }
+
+    (streamingOutput, Some(zipFileName))
   }
 }

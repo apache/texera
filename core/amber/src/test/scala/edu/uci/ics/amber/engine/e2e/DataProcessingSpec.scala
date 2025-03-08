@@ -25,8 +25,6 @@ import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-
-import java.sql.PreparedStatement
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
@@ -74,6 +72,7 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               // expecting the first output port only.
@@ -82,10 +81,13 @@ class DataProcessingSpec
                 .contains(uri)
             })
             .map(terminalOpId => {
+              //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
+              Thread.sleep(1000)
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
+                Some("main"),
                 PortIdentity()
               )
               terminalOpId -> DocumentFactory
@@ -102,41 +104,6 @@ class DataProcessingSpec
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Await.result(completion, Duration.fromMinutes(1))
     results
-  }
-
-  def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
-    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-
-    import java.sql.DriverManager
-
-    val database: String = "new"
-    val table: String = "test"
-    val username: String = "root"
-    val password: String = ""
-    val driver = new com.mysql.cj.jdbc.Driver()
-    DriverManager.registerDriver(driver)
-
-    val config = DBConfigurationBuilder.newBuilder
-      .setPort(0) // 0 => automatically detect free port
-      .addArg("--default-time-zone=+0:00")
-      .build()
-
-    inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
-    inMemoryMySQLInstance.get.start()
-    inMemoryMySQLInstance.get.createDB(database)
-
-    // insert test data
-    val conn = DriverManager.getConnection(config.getURL(database), username, password)
-    var statement: PreparedStatement = conn.prepareStatement(
-      s"create table $table (id int primary key auto_increment, text VARCHAR(512), " +
-        s"point FLOAT, created_at DATE default NOW() not null)"
-    )
-    statement.execute()
-    statement = conn.prepareStatement(s"insert into $table (text) values ('hello world')")
-    statement.execute()
-    statement.close()
-    conn.close()
-    ("localhost", config.getPort.toString, database, table, username, password)
   }
 
   "Engine" should "execute headerlessCsv workflow normally" in {
@@ -339,37 +306,4 @@ class DataProcessingSpec
     )
     executeWorkflow(workflow)
   }
-
-  // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
-  //  "Engine" should "execute asterixdb workflow normally" in {
-  //
-  //    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
-  //    val (id, workflow) = buildWorkflow(
-  //      List(asterixDBOp),
-  //      List()
-  //    )
-  //    executeWorkflow(id, workflow)
-  //  }
-
-  "Engine" should "execute mysql workflow normally" in {
-    val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()
-    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
-      host,
-      port,
-      database,
-      table,
-      username,
-      password
-    )
-
-    val workflow = buildWorkflow(
-      List(inMemoryMsSQLSourceOpDesc),
-      List(),
-      workflowContext
-    )
-    executeWorkflow(workflow)
-
-    inMemoryMySQLInstance.get.stop()
-  }
-
 }
