@@ -605,6 +605,9 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
   def makePublic(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)){
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
     workflow.setIsPublic(true)
     workflowDao.update(workflow)
@@ -613,7 +616,10 @@ class WorkflowResource extends LazyLogging {
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/private/{wid}")
-  def makePrivate(@PathParam("wid") wid: Integer): Unit = {
+  def makePrivate(@PathParam("wid") wid: Integer,  @Auth user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)){
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
     workflow.setIsPublic(false)
     workflowDao.update(workflow)
