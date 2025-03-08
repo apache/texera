@@ -20,7 +20,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.WorkflowCompiler
 
 import java.net.URI
 import scala.collection.mutable
@@ -43,7 +43,6 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
-    lastCompletedLogicalPlan: Option[LogicalPlan],
     userEmailOpt: Option[String],
     sessionUri: URI
 ) extends SubscriptionManager
@@ -52,26 +51,12 @@ class WorkflowExecutionService(
   workflowContext.workflowSettings = request.workflowSettings
   val wsInput = new WebsocketInput(errorHandler)
 
-  private val emailNotificationService = userEmailOpt.map(email =>
-    new EmailNotificationService(
-      new WorkflowEmailNotifier(
-        workflowContext.workflowId.id,
-        email,
-        sessionUri
-      )
-    )
-  )
-
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
 
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         outputEvents.append(createStateEvent(newState))
-
-        if (request.emailNotificationEnabled && emailNotificationService.nonEmpty) {
-          emailNotificationService.get.sendEmailNotification(oldState.state, newState.state)
-        }
       }
 
       if (newState.fatalErrors != oldState.fatalErrors) {
@@ -123,7 +108,11 @@ class WorkflowExecutionService(
       executionStateStore,
       wsInput,
       executionReconfigurationService,
-      controllerConfig.faultToleranceConfOpt
+      controllerConfig.faultToleranceConfOpt,
+      workflowContext.workflowId.id,
+      request.emailNotificationEnabled,
+      userEmailOpt,
+      sessionUri
     )
     executionConsoleService =
       new ExecutionConsoleService(client, executionStateStore, wsInput, workflowContext)
@@ -167,9 +156,6 @@ class WorkflowExecutionService(
       executionConsoleService.unsubscribeAll()
       executionStatsService.unsubscribeAll()
       executionReconfigurationService.unsubscribeAll()
-    }
-    if (emailNotificationService.nonEmpty) {
-      emailNotificationService.get.shutdown()
     }
 
   }
