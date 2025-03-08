@@ -153,7 +153,8 @@ class WorkflowService(
         .toSeq
       localDisposable.addAll(subscriptions: _*)
     }
-    new CompositeDisposable(localDisposable, disposable)
+    localDisposable.add(disposable)
+    localDisposable
   }
 
   def disconnect(): Unit = {
