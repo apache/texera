@@ -218,11 +218,8 @@ libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models"
-
-libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.0"
+// https://mvnrepository.com/artifact/io.altoo/akka-kryo-serialization
+libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.2"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

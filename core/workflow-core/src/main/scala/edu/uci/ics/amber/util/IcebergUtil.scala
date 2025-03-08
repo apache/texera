@@ -132,21 +132,12 @@ object IcebergUtil {
       overrideIfExists: Boolean
   ): Table = {
 
-    val baseProperties = Map(
+    val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
 
-    val tableProperties =
-      if (tableNamespace == StorageConfig.icebergTableRuntimeStatisticsNamespace) {
-        baseProperties ++ Map(
-          TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED -> "true",
-          TableProperties.METADATA_PREVIOUS_VERSIONS_MAX -> "1"
-        )
-      } else {
-        baseProperties
-      }
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
       catalog.dropTable(identifier)

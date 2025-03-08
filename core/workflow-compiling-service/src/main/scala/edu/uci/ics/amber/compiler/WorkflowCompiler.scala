@@ -19,7 +19,6 @@ import java.time.Instant
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Failure, Success, Try}
 
 object WorkflowCompiler {
   // util function for extracting the error causes
@@ -107,48 +106,64 @@ class WorkflowCompiler(
   ): PhysicalPlan = {
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
-      Try {
-        val logicalOp = logicalPlan.getOperator(logicalOpId)
-        val allUpstreamLinks = logicalPlan
-          .getUpstreamLinks(logicalOp.operatorIdentifier)
+    logicalPlan.getTopologicalOpIds.asScala.foreach { logicalOpId =>
+      val logicalOp = logicalPlan.getOperator(logicalOpId)
+      val allUpstreamLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
 
+      try {
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)
-          .foreach({ physicalOp =>
-            {
-              val externalLinks = allUpstreamLinks
-                .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-                .flatMap { link =>
-                  physicalPlan
-                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                    .find(_.outputPorts.contains(link.fromPortId))
-                    .map(fromOp =>
-                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-                    )
-                }
+          .foreach { physicalOp =>
+            val externalLinks = allUpstreamLinks
+              .filter(link => physicalOp.inputPorts.contains(link.toPortId))
+              .flatMap { link =>
+                physicalPlan
+                  .getPhysicalOpsOfLogicalOp(link.fromOpId)
+                  .find(_.outputPorts.contains(link.fromPortId))
+                  .map(fromOp =>
+                    PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                  )
+              }
 
-              val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+            val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-              // Add the operator to the physical plan
-              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+            // Add the operator to the physical plan
+            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
 
-              // Add all the links to the physical plan
-              physicalPlan = (externalLinks ++ internalLinks)
-                .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
+            // Add all the links to the physical plan
+            physicalPlan = (externalLinks ++ internalLinks).foldLeft(physicalPlan) { (plan, link) =>
+              plan.addLink(link)
             }
-          })
-      } match {
-        case Success(_) =>
-        case Failure(err) =>
+
+            // **Check for Python-based operator errors during code generation**
+            if (physicalOp.isPythonBased) {
+              val code = physicalOp.getCode
+              val exceptionPattern = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
+
+              exceptionPattern.findFirstMatchIn(code).foreach { matchResult =>
+                val errorMessage = matchResult.group(1).trim
+                val error =
+                  new RuntimeException(s"Operator is not configured properly: $errorMessage")
+
+                errorList match {
+                  case Some(list) => list.append((logicalOpId, error)) // Store error and continue
+                  case None       => throw error // Throw immediately if no error list is provided
+                }
+              }
+            }
+          }
+      } catch {
+        case e: Throwable =>
           errorList match {
-            case Some(list) => list.append((logicalOpId, err))
-            case None       => throw err
+            case Some(list) => list.append((logicalOpId, e)) // Store error
+            case None       => throw e // Throw if no list is provided
           }
       }
-    )
+    }
+
     physicalPlan
   }
 
@@ -172,11 +187,9 @@ class WorkflowCompiler(
     // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
 
-    if (errorList.isEmpty) {
-      // no error during the expansion, then do:
-      // - collect the input schema for each op
-      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
-    }
+    // 4. collect the input schema for each logical op
+    // even if error is encountered when logical => physical, we still want to get the input schemas for rest no-error operators
+    opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
 
     WorkflowCompilationResult(
       physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
