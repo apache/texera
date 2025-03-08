@@ -23,7 +23,7 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 export const WORKFLOW_OWNER_USER = WORKFLOW_BASE_URL + "/owner_user";
 export const WORKFLOW_NAME = WORKFLOW_BASE_URL + "/workflow_name";
-export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/public";
+export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/publicised";
 export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
 export const WORKFLOW_USER_ACCESS = WORKFLOW_BASE_URL + "/workflow_user_access";
 

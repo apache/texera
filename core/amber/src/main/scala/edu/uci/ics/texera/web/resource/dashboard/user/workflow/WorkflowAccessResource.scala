@@ -155,10 +155,21 @@ class WorkflowAccessResource() {
     if (email.equals(user.getEmail)) {
       throw new BadRequestException("You cannot grant access to yourself!")
     }
+
+    val userUid = userDao.fetchOneByEmail(email).getUid
+    val workflowOwnerUid = context
+      .select(WORKFLOW_OF_USER.UID)
+      .from(WORKFLOW_OF_USER)
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetchOneInto(classOf[Integer])
+    if (userUid == workflowOwnerUid) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
+
     try {
       workflowUserAccessDao.merge(
         new WorkflowUserAccess(
-          userDao.fetchOneByEmail(email).getUid,
+          userUid,
           wid,
           PrivilegeEnum.valueOf(privilege)
         )
@@ -167,7 +178,6 @@ class WorkflowAccessResource() {
       case _: NullPointerException =>
         throw new BadRequestException(s"User $email Not Found!")
     }
-
   }
 
   /**

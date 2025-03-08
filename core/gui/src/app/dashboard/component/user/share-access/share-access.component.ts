@@ -172,7 +172,8 @@ export class ShareAccessComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
   }
-  verifyPublish(): void {
+
+  public verifyPublish(): void {
     if (!this.isPublic) {
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
@@ -203,7 +204,7 @@ export class ShareAccessComponent implements OnInit {
     }
   }
 
-  verifyUnpublish(): void {
+  public verifyUnpublish(): void {
     if (this.isPublic) {
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
@@ -243,9 +244,11 @@ export class ShareAccessComponent implements OnInit {
             this.isPublic = true;
             this.notificationService.success("Workflow published successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to publish the workflow");
-          }
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
+          },
         });
     }
   }
@@ -260,9 +263,11 @@ export class ShareAccessComponent implements OnInit {
             this.isPublic = false;
             this.notificationService.success("Workflow unpublished successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to unpublish the workflow");
-          }
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
+          },
         });
     }
   }
@@ -277,8 +282,10 @@ export class ShareAccessComponent implements OnInit {
             this.isPublic = true;
             this.notificationService.success("Dataset published successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to publish the dataset");
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
           },
         });
     }
@@ -294,8 +301,10 @@ export class ShareAccessComponent implements OnInit {
             this.isPublic = false;
             this.notificationService.success("Dataset unpublished successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to unpublish the dataset");
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
           },
         });
     }
