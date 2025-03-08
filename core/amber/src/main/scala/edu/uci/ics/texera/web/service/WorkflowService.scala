@@ -142,17 +142,19 @@ class WorkflowService(
   }
 
   def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
-    var localDisposable = Disposable.empty()
-    executionService.subscribe { executionService: WorkflowExecutionService =>
-      localDisposable.dispose()
-      val subscriptions = executionService.executionStateStore.getAllStores
+    val localDisposable = new CompositeDisposable()
+    val disposable = executionService.subscribe { execService: WorkflowExecutionService =>
+      localDisposable.clear() // Clears previous subscriptions safely
+      val subscriptions = execService.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
           evtPub.subscribe { events: Iterable[TexeraWebSocketEvent] => events.foreach(onNext) }
         )
         .toSeq
-      localDisposable = new CompositeDisposable(subscriptions: _*)
+      localDisposable.addAll(subscriptions: _*)
     }
+    localDisposable.add(disposable)
+    localDisposable
   }
 
   def disconnect(): Unit = {
