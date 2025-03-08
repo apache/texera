@@ -20,7 +20,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.WorkflowCompiler
 
 import java.net.URI
 import scala.collection.mutable

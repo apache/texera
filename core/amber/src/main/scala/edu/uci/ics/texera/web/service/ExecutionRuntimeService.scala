@@ -2,7 +2,10 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  TakeGlobalCheckpointRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -28,13 +31,14 @@ class ExecutionRuntimeService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  private val emailNotificationService = userEmailOpt.map(email =>
-    new EmailNotificationService(
-      new WorkflowEmailNotifier(
-        workflowId,
-        email,
-        sessionUri
-      )
+  private val emailNotificationService = for {
+    email <- userEmailOpt
+    if emailNotificationEnabled
+  } yield new EmailNotificationService(
+    new WorkflowEmailNotifier(
+      workflowId,
+      email,
+      sessionUri
     )
   )
 
@@ -48,9 +52,9 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(evt.state, metadataStore)
     )
-    if (emailNotificationEnabled && emailNotificationService.nonEmpty) {
-      emailNotificationService.get.sendEmailNotification(evt.state)
-    }
+
+    emailNotificationService.foreach(_.processEmailNotificationIfNeeded(evt.state))
+
     if (evt.state == COMPLETED) {
       client.shutdown()
       stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
@@ -105,9 +109,7 @@ class ExecutionRuntimeService(
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
-    if (emailNotificationService.nonEmpty) {
-      emailNotificationService.get.shutdown()
-    }
+    emailNotificationService.foreach(_.shutdown())
   }
 
 }

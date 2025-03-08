@@ -274,7 +274,6 @@ class WorkflowService(
         req,
         executionStateStore,
         errorHandler,
-        lastCompletedLogicalPlan,
         userEmailOpt,
         sessionUri
       )

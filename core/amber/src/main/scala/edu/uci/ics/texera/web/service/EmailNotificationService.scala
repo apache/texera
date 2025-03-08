@@ -15,7 +15,7 @@ class EmailNotificationService(emailNotifier: EmailNotifier) {
   private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
   private implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
 
-  def sendEmailNotification(
+  def processEmailNotificationIfNeeded(
       workflowState: WorkflowAggregatedState
   ): Future[Unit] = {
     Future {
