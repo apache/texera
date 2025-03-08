@@ -175,6 +175,7 @@ export class WorkflowResultService {
   }
 
   public determineOutputTypes(operatorId: string): {
+    hasAnyResult: boolean;
     isTableOutput: boolean;
     isVisualizationOutput: boolean;
     containsBinaryData: boolean;
@@ -183,6 +184,7 @@ export class WorkflowResultService {
     const paginatedResultService = this.getPaginatedResultService(operatorId);
 
     return {
+      hasAnyResult: this.hasAnyResult(operatorId),
       isTableOutput: this.hasTableOutput(paginatedResultService),
       containsBinaryData: this.hasBinaryData(paginatedResultService),
       isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),

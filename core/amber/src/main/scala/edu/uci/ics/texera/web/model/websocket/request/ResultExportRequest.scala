@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.web.model.websocket.request
 
 case class ResultExportRequest(
-    exportType: String,
+    exportType: String, // e.g. "csv", "google_sheet", "arrow", "data"
     workflowId: Int,
     workflowName: String,
-    operatorId: String,
-    operatorName: String,
+    operatorIds: List[String], // changed from single operatorId: String -> List of strings
     datasetIds: List[Int],
-    rowIndex: Int,
-    columnIndex: Int,
-    filename: String
+    rowIndex: Int, // used by "data" export
+    columnIndex: Int, // used by "data" export
+    filename: String, // optional filename override
+    destination: String // "dataset" or "local"
 )

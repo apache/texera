@@ -41,6 +41,8 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
+import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
+
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
@@ -99,6 +101,8 @@ class WorkflowService(
               case _: Throwable => // exception can be raised if the document is already cleared
             }
           )
+
+          expireSnapshotsForExecution(eid)
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
@@ -138,17 +142,19 @@ class WorkflowService(
   }
 
   def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
-    var localDisposable = Disposable.empty()
-    executionService.subscribe { executionService: WorkflowExecutionService =>
-      localDisposable.dispose()
-      val subscriptions = executionService.executionStateStore.getAllStores
+    val localDisposable = new CompositeDisposable()
+    val disposable = executionService.subscribe { execService: WorkflowExecutionService =>
+      localDisposable.clear() // Clears previous subscriptions safely
+      val subscriptions = execService.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
           evtPub.subscribe { events: Iterable[TexeraWebSocketEvent] => events.foreach(onNext) }
         )
         .toSeq
-      localDisposable = new CompositeDisposable(subscriptions: _*)
+      localDisposable.addAll(subscriptions: _*)
     }
+    localDisposable.add(disposable)
+    localDisposable
   }
 
   def disconnect(): Unit = {
@@ -189,6 +195,7 @@ class WorkflowService(
           case _: Throwable =>
         }
       )
+      expireSnapshotsForExecution(eid)
     }) // TODO: change this behavior after enabling cache.
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
@@ -269,7 +276,6 @@ class WorkflowService(
         req,
         executionStateStore,
         errorHandler,
-        lastCompletedLogicalPlan,
         userEmailOpt,
         sessionUri
       )
@@ -293,6 +299,26 @@ class WorkflowService(
     super.unsubscribeAll()
     Option(executionService.getValue).foreach(_.unsubscribeAll())
     resultService.unsubscribeAll()
+  }
+
+  private def expireSnapshots(uri: URI): Unit = {
+    try {
+      DocumentFactory.openDocument(uri)._1 match {
+        case iceberg: OnIceberg =>
+          iceberg.expireSnapshots()
+        case other =>
+          logger.error(
+            s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. Expected an instance of ${classOf[OnIceberg].getName}."
+          )
+      }
+    } catch {
+      case _: Throwable => logger.error("Cannot expire snapshots")
+    }
+  }
+
+  private def expireSnapshotsForExecution(eid: ExecutionIdentity): Unit = {
+    WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid).foreach(expireSnapshots)
+    WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach(expireSnapshots)
   }
 
 }

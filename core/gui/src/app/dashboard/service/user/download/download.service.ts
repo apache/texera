@@ -8,13 +8,19 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpResponse } from "@angular/common/http";
+var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
 
 interface DownloadableItem {
   blob: Blob;
   fileName: string;
+}
+
+export interface ExportWorkflowJsonResponse {
+  status: string;
+  message: string;
 }
 
 @Injectable({
@@ -88,40 +94,73 @@ export class DownloadService {
     );
   }
 
+  /**
+   * Export the workflow result. If destination = "local", the server returns a BLOB (file).
+   * Otherwise, it returns JSON with a status message.
+   */
   public exportWorkflowResult(
     exportType: string,
     workflowId: number,
     workflowName: string,
-    operatorId: string,
-    operatorName: string,
+    operatorIds: string[],
     datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
-    filename: string
-  ): Observable<any> {
+    filename: string,
+    destination: "local" | "dataset" = "dataset" // "local" or "dataset" => default to "dataset"
+  ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const requestBody = {
       exportType,
       workflowId,
       workflowName,
-      operatorId,
-      operatorName,
+      operatorIds,
       datasetIds,
       rowIndex,
       columnIndex,
       filename,
+      destination,
     };
+    if (destination === "local") {
+      return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+        responseType: "blob",
+        observe: "response",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/octet-stream",
+        },
+      });
+    } else {
+      // dataset => return JSON
+      return this.http.post<ExportWorkflowJsonResponse>(
+        `${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`,
+        requestBody,
+        {
+          responseType: "json",
+          observe: "response",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+    }
+  }
 
-    /*
-     TODO: curently, the response is json because the backend does not return a file and export
-      the result into the database. Next, we will implement download feature (export to local).
-     */
-    return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
-      responseType: "json",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
+  /**
+   * Utility function to download a file from the server from blob object.
+   */
+  public saveBlobFile(response: any, defaultFileName: string): void {
+    // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
+    // we can parse that out. Otherwise just use defaultFileName.
+    const dispositionHeader = response.headers.get("Content-Disposition");
+    let fileName = defaultFileName;
+    if (dispositionHeader) {
+      const parsed = contentDisposition.parse(dispositionHeader);
+      fileName = parsed.parameters.filename || defaultFileName;
+    }
+
+    const blob = response.body; // the actual file data
+    this.fileSaverService.saveAs(blob, fileName);
   }
 
   downloadOperatorsResult(
