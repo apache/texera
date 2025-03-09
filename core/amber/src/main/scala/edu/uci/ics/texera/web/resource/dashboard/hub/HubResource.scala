@@ -264,19 +264,10 @@ object HubResource {
 
     val records = baseDatasetSelect()
       .where(DATASET.DID.in(dids: _*))
-      .groupBy(
-        DATASET.DID,
-        DATASET.NAME,
-        DATASET.DESCRIPTION,
-        DATASET.OWNER_UID,
-        USER.NAME,
-        DATASET_USER_ACCESS.DID,
-        DATASET_USER_ACCESS.UID,
-        USER.UID
-      )
       .fetch()
 
-    mapDashboardDataset(records, uid)
+    val dashboardDatasets: List[DashboardDataset] = mapDashboardDataset(records, uid)
+    dashboardDatasets.distinctBy(_.dataset.getDid)
   }
 }
 
