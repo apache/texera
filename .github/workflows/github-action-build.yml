@@ -65,10 +65,6 @@ jobs:
     steps:
       - name: Prepare ENV
         run: sudo apt-get install libncurses5
-      - name: Install PostgreSQL
-        run: sudo apt-get update && sudo apt-get install -y postgresql
-      - name: Start PostgreSQL Service
-        run: sudo systemctl start postgresql
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
@@ -79,9 +75,6 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
-      - name: Create Postgres Iceberg catalog database and User
-        run: |
-          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
       - name: Compile with sbt
