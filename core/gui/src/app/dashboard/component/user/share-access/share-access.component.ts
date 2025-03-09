@@ -58,7 +58,6 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log("reload share access");
     this.accessService
       .getAccessList(this.type, this.id)
       .pipe(untilDestroyed(this))
