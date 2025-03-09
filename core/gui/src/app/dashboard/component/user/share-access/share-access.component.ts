@@ -1,4 +1,4 @@
-import { Component, inject, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, FormControl } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { ShareAccess } from "../../../type/share-access.interface";
@@ -170,7 +170,16 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe({
+        next: () => {
+          this.ngOnInit();
+        },
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error(error.error.message);
+          }
+        },
+      });
   }
 
   public verifyPublish(): void {

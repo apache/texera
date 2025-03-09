@@ -8,10 +8,13 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   context,
-  getOwner
+  getOwner,
+  userHasWriteAccess
 }
+import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
 import java.util
@@ -146,9 +149,13 @@ class DatasetAccessResource {
   def grantAccess(
       @PathParam("did") did: Integer,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, user.getUid)) {
+        throw new ForbiddenException(s"You do not have permission to modify dataset $did")
+      }
       val datasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
       val userDao = new UserDao(ctx.configuration())
       datasetUserAccessDao.merge(
@@ -173,9 +180,14 @@ class DatasetAccessResource {
   @Path("/revoke/{did}/{email}")
   def revokeAccess(
       @PathParam("did") did: Integer,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, user.getUid)) {
+        throw new ForbiddenException(s"You do not have permission to modify dataset $did")
+      }
+
       val userDao = new UserDao(ctx.configuration())
 
       ctx

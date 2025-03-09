@@ -11,7 +11,10 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
@@ -156,6 +159,10 @@ class WorkflowAccessResource() {
       throw new BadRequestException("You cannot grant access to yourself!")
     }
 
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
     val userUid = userDao.fetchOneByEmail(email).getUid
     val workflowOwnerUid = context
       .select(WORKFLOW_OF_USER.UID)
@@ -191,8 +198,13 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: Integer,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(
