@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from "@angular/core";
+import { Component, EventEmitter, inject, OnDestroy, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, FormControl } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { ShareAccess } from "../../../type/share-access.interface";
@@ -19,7 +19,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
   templateUrl: "share-access.component.html",
   styleUrls: ["./share-access.component.scss"],
 })
-export class ShareAccessComponent implements OnInit {
+export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);
   readonly writeAccess: boolean = this.nzModalData.writeAccess;
   readonly type: string = this.nzModalData.type;
@@ -35,6 +35,8 @@ export class ShareAccessComponent implements OnInit {
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
   isPublic: boolean | null = null;
+  private shouldRefresh = false;
+  @Output() refresh = new EventEmitter<void>();
 
   constructor(
     private accessService: ShareAccessService,
@@ -56,6 +58,7 @@ export class ShareAccessComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    console.log("reload share access");
     this.accessService
       .getAccessList(this.type, this.id)
       .pipe(untilDestroyed(this))
@@ -80,6 +83,12 @@ export class ShareAccessComponent implements OnInit {
         .subscribe(dashboardDataset => {
           this.isPublic = dashboardDataset.dataset.isPublic === 1;
         });
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.shouldRefresh) {
+      this.refresh.emit();
     }
   }
 
@@ -133,6 +142,7 @@ export class ShareAccessComponent implements OnInit {
                   this.id,
                 email
               );
+              this.ngOnInit();
             },
             error: (error: unknown) => {
               if (error instanceof HttpErrorResponse) {
@@ -142,7 +152,6 @@ export class ShareAccessComponent implements OnInit {
           });
       });
       this.emailTags = [];
-      this.ngOnInit();
     }
   }
 
@@ -172,6 +181,9 @@ export class ShareAccessComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
+          if (userToRemove == this.userService.getCurrentUser()?.email) {
+            this.shouldRefresh = true;
+          }
           this.ngOnInit();
         },
         error: (error: unknown) => {
