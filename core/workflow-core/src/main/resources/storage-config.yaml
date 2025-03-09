@@ -6,7 +6,7 @@ storage:
     commit-batch-size: 1000
   iceberg:
     catalog:
-      type: hadoop # either hadoop, rest, or postgres
+      type: postgres # either hadoop, rest, or postgres
       rest-uri: "" # the uri of the rest catalog, not needed unless using REST catalog
       postgres:
         # do not include scheme in the uri as Python and Java use different schemes

@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.gene
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
+  PortConfig,
   ResourceConfig
 }
 
@@ -76,10 +77,17 @@ class DefaultResourceAllocator(
 
     linkConfigs ++= linkToLinkConfigMapping
 
+    val portConfigs = region.resourceConfig match {
+      case Some(existingResourceConfig) => existingResourceConfig.portConfigs
+      case None =>
+        val newPortConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
+        newPortConfigs
+    }
+
     val resourceConfig = ResourceConfig(
       opToOperatorConfigMapping,
       linkToLinkConfigMapping,
-      region.resourceConfig.get.portConfigs
+      portConfigs
     )
 
     (region.copy(resourceConfig = Some(resourceConfig)), 0)
