@@ -71,9 +71,6 @@ jobs:
         run: sudo systemctl start postgresql
       - name: Checkout Texera
         uses: actions/checkout@v2
-      - name: Create Postgres Iceberg catalog database and User
-        run: |
-          sudo -u postgres psql -f core/scripts/sql/iceberg_postgres_catalog.sql
       - name: Setup Java
         uses: actions/setup-java@v2
         with:
@@ -82,6 +79,9 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
+      - name: Create Postgres Iceberg catalog database and User
+        run: |
+          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
       - name: Compile with sbt
