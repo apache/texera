@@ -81,7 +81,7 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Create Postgres Iceberg catalog database and User
         run: |
-          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          sudo cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
       - name: Compile with sbt
