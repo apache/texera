@@ -1,3 +1,4 @@
+import typing
 from urllib.parse import urlparse
 
 from typing import Optional
@@ -65,7 +66,7 @@ class DocumentFactory:
             )
 
     @staticmethod
-    def open_document(uri: str) -> (VirtualDocument, Optional[Schema]):
+    def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == "vfs":
             _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)

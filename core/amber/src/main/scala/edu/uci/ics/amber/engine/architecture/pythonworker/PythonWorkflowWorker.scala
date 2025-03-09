@@ -4,6 +4,7 @@ import akka.actor.Props
 import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -159,7 +160,13 @@ class PythonWorkflowWorker(
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level"),
-        RENVPath
+        RENVPath,
+        StorageConfig.icebergPostgresCatalogUriWithoutScheme,
+        StorageConfig.icebergPostgresCatalogUsername,
+        StorageConfig.icebergPostgresCatalogPassword,
+        StorageConfig.icebergTableResultNamespace,
+        StorageConfig.fileStorageDirectoryPath.toString,
+        StorageConfig.icebergTableCommitBatchSize.toString
       )
     ).run(BasicIO.standard(false))
   }

@@ -50,9 +50,9 @@ object DocumentFactory {
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {
-          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case RESULT             => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
@@ -104,9 +104,9 @@ object DocumentFactory {
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {
-          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case RESULT             => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }

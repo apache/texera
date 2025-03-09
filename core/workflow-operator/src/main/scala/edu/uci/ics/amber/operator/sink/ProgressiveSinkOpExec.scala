@@ -14,12 +14,12 @@ class ProgressiveSinkOpExec(
     outputMode: OutputMode,
     storageURI: URI
 ) extends SinkOperatorExecutor {
-  val (doc, _) = DocumentFactory.openDocument(storageURI)
-  val writer: BufferedItemWriter[Tuple] =
-    doc.writer(workerId.toString).asInstanceOf[BufferedItemWriter[Tuple]]
+//  val (doc, _) = DocumentFactory.openDocument(storageURI)
+//  val writer: BufferedItemWriter[Tuple] =
+//    doc.writer(workerId.toString).asInstanceOf[BufferedItemWriter[Tuple]]
 
   override def open(): Unit = {
-    writer.open()
+//    writer.open()
   }
 
   override def consumeTuple(
@@ -28,7 +28,7 @@ class ProgressiveSinkOpExec(
   ): Unit = {
     outputMode match {
       case OutputMode.SET_SNAPSHOT | OutputMode.SINGLE_SNAPSHOT => updateSetSnapshot(tuple)
-      case OutputMode.SET_DELTA                                 => writer.putOne(tuple)
+      case OutputMode.SET_DELTA                                 =>
       case _                                                    => throw new UnsupportedOperationException("Unsupported output mode")
     }
   }
@@ -37,14 +37,14 @@ class ProgressiveSinkOpExec(
     val (isInsertion, tupleValue) = ProgressiveUtils.getTupleFlagAndValue(deltaUpdate)
 
     if (isInsertion) {
-      writer.putOne(tupleValue)
+//      writer.putOne(tupleValue)
     } else {
-      writer.removeOne(tupleValue)
+//      writer.removeOne(tupleValue)
     }
   }
 
   override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
-    writer.close()
+//    writer.close()
     Iterator.empty
   }
 

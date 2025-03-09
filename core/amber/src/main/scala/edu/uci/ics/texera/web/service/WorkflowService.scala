@@ -153,8 +153,8 @@ class WorkflowService(
         .toSeq
       localDisposable.addAll(subscriptions: _*)
     }
-    localDisposable.add(disposable)
-    localDisposable
+    // Note: this new CompositeDisposable is necessary. DO NOT OPTIMIZE.
+    new CompositeDisposable(localDisposable, disposable)
   }
 
   def disconnect(): Unit = {

@@ -11,7 +11,7 @@ object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)
   val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
   val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(
-    400 // TODO: make this configurable
+    dataTransferBatchSize = 400 // TODO: make this configurable
   )
 }
 class WorkflowContext(

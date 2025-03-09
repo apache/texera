@@ -95,7 +95,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
-    dp.outputManager.addPort(outputPortId, schema)
+    dp.outputManager.addPort(outputPortId, schema, None)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(
@@ -154,7 +154,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
-    dp.outputManager.addPort(outputPortId, schema)
+    dp.outputManager.addPort(outputPortId, schema, None)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(

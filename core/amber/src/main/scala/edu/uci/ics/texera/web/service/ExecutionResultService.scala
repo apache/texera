@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
-import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
@@ -93,37 +92,51 @@ object ExecutionResultService {
       }
     }
 
-    val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
+    // Cannot assume the storage is available at this point. The storage object is only available
+    // after a region is scheduled to execute.
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       executionId,
       physicalOps.head.id.logicalOpId,
       None,
       PortIdentity()
     )
-    val storage: VirtualDocument[Tuple] =
-      DocumentFactory.openDocument(storageUri.get)._1.asInstanceOf[VirtualDocument[Tuple]]
-    val webUpdate = webOutputMode match {
-      case PaginationMode() =>
-        val numTuples = storage.getCount
-        val maxPageIndex =
-          Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+    storageUriOption match {
+      case Some(storageUri) =>
+        val storage: VirtualDocument[Tuple] =
+          DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+        val webUpdate = webOutputMode match {
+          case PaginationMode() =>
+            val numTuples = storage.getCount
+            val maxPageIndex =
+              Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+            // This can be extremly expensive when we have a lot of pages.
+            // It causes delays in some obseved cases.
+            // TODO: try to optimize this.
+            WebPaginationUpdate(
+              PaginationMode(),
+              newTupleCount,
+              (1 to maxPageIndex).toList
+            )
+          case SetSnapshotMode() =>
+            tuplesToWebData(webOutputMode, storage.get().toList)
+          case SetDeltaMode() =>
+            val deltaList = storage.getAfter(oldTupleCount).toList
+            tuplesToWebData(webOutputMode, deltaList)
+
+          case _ =>
+            throw new RuntimeException(
+              "update mode combination not supported: " + (webOutputMode, outputMode)
+            )
+        }
+        webUpdate
+      case None =>
         WebPaginationUpdate(
           PaginationMode(),
-          newTupleCount,
-          (1 to maxPageIndex).toList
-        )
-      case SetSnapshotMode() =>
-        tuplesToWebData(webOutputMode, storage.get().toList)
-      case SetDeltaMode() =>
-        val deltaList = storage.getAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList)
-
-      case _ =>
-        throw new RuntimeException(
-          "update mode combination not supported: " + (webOutputMode, outputMode)
+          0,
+          List.empty
         )
     }
-    webUpdate
   }
 
   /**
@@ -264,6 +277,15 @@ class ExecutionResultService(
               }
 
               if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+                val layerName = physicalPlan.operators
+                  .filter(physicalOp =>
+                    physicalOp.id.logicalOpId == opId &&
+                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
+                  ) // TODO: Remove layerName and use GlobalPortIdentity for storage URIs
+                  .headOption match {
+                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
+                  case None                         => "main"
+                }
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByExecutionAndPort(
                     workflowIdentity,
@@ -272,8 +294,10 @@ class ExecutionResultService(
                     None,
                     PortIdentity()
                   )
-                val opStorage = DocumentFactory.openDocument(storageUri.get)._1
-                allTableStats(opId.id) = opStorage.getTableStatistics
+                if (storageUri.nonEmpty) {
+                  val opStorage = DocumentFactory.openDocument(storageUri.get)._1
+                  allTableStats(opId.id) = opStorage.getTableStatistics
+                }
               }
           }
         Iterable(
@@ -299,6 +323,7 @@ class ExecutionResultService(
     val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
       throw new IllegalStateException("No execution is recorded")
     )
+
     val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
       workflowIdentity,
       latestExecutionId,
@@ -336,10 +361,6 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
-          .filter(uri => {
-            val (_, _, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
-            resourceType != MATERIALIZED_RESULT
-          })
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 

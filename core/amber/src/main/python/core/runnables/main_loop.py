@@ -189,6 +189,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                             payload=batch,
                         )
                     )
+                self.context.output_manager.save_tuple_to_storage_if_needed(
+                    output_tuple
+                )
 
     def process_input_state(self) -> None:
         self._switch_context()
@@ -288,6 +291,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
+        self.context.output_manager.close_port_storage_writers()
+
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(
                 DataElement(

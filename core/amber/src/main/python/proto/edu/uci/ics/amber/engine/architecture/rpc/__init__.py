@@ -344,6 +344,7 @@ class AssignPortRequest(betterproto.Message):
     schema: Dict[str, str] = betterproto.map_field(
         3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
+    storage_uri: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)

@@ -11,7 +11,6 @@ import java.net.URI
 
 object VFSResourceType extends Enumeration {
   val RESULT: Value = Value("result")
-  val MATERIALIZED_RESULT: Value = Value("materializedResult")
   val RUNTIME_STATISTICS: Value = Value("runtimeStatistics")
   val CONSOLE_MESSAGES: Value = Value("consoleMessages")
 }
@@ -105,26 +104,6 @@ object VFSURIFactory {
   }
 
   /**
-    * Create a URI pointing to a materialized storage
-    */
-  def createMaterializedResultURI(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
-      layerName: String,
-      portIdentity: PortIdentity
-  ): URI = {
-    createVFSURI(
-      VFSResourceType.MATERIALIZED_RESULT,
-      workflowId,
-      executionId,
-      Some(operatorId),
-      Some(layerName),
-      Some(portIdentity)
-    )
-  }
-
-  /**
     * Create a URI pointing to runtime statistics
     */
   def createRuntimeStatisticsURI(
@@ -174,9 +153,7 @@ object VFSURIFactory {
       portIdentity: Option[PortIdentity] = None
   ): URI = {
 
-    if (
-      (resourceType == VFSResourceType.RESULT || resourceType == VFSResourceType.MATERIALIZED_RESULT) && (portIdentity.isEmpty || operatorId.isEmpty)
-    ) {
+    if (resourceType == VFSResourceType.RESULT && (portIdentity.isEmpty || operatorId.isEmpty)) {
       throw new IllegalArgumentException(
         "PortIdentity must be provided when resourceType is RESULT or MATERIALIZED_RESULT."
       )

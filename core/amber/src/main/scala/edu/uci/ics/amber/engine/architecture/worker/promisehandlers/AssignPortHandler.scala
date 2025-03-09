@@ -9,6 +9,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 
+import java.net.URI
+
 trait AssignPortHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
@@ -17,7 +19,11 @@ trait AssignPortHandler {
     if (msg.input) {
       dp.inputManager.addPort(msg.portId, schema)
     } else {
-      dp.outputManager.addPort(msg.portId, schema)
+      val storageURIOption: Option[URI] = msg.storageUri match {
+        case ""        => None
+        case uriString => Some(URI.create(uriString))
+      }
+      dp.outputManager.addPort(msg.portId, schema, storageURIOption)
     }
     EmptyReturn()
   }

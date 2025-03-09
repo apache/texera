@@ -47,7 +47,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
     val mockPortId = PortIdentity()
-    outputManager.addPort(mockPortId, schema)
+    outputManager.addPort(mockPortId, schema, None)
 
     val tuples = Array.fill(21)(
       TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
@@ -76,7 +76,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields).enforceSchema(schema), None)
     }
     outputManager.emitMarker(EndOfInputChannel())
   }
