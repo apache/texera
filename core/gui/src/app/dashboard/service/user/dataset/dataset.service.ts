@@ -34,12 +34,11 @@ export class DatasetService {
   constructor(private http: HttpClient) {}
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
-    const formData = new FormData();
-    formData.append("datasetName", dataset.name);
-    formData.append("datasetDescription", dataset.description);
-    formData.append("isDatasetPublic", dataset.isPublic ? "true" : "false");
-
-    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
+    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, {
+      datasetName: dataset.name,
+      datasetDescription: dataset.description,
+      isDatasetPublic: dataset.isPublic,
+    });
   }
 
   public getDataset(did: number, isLogin: boolean = true): Observable<DashboardDataset> {

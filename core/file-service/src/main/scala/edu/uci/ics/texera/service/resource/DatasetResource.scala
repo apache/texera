@@ -31,6 +31,7 @@ import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
   userOwnDataset
 }
 import edu.uci.ics.texera.service.resource.DatasetResource.{
+  CreateDatasetRequest,
   DashboardDataset,
   DashboardDatasetVersion,
   DatasetDescriptionModification,
@@ -46,7 +47,6 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
-import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.{DSLContext, EnumType}
 
 import java.io.{InputStream, OutputStream}
@@ -116,6 +116,12 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode]
   )
 
+  case class CreateDatasetRequest(
+      datasetName: String,
+      datasetDescription: String,
+      isDatasetPublic: Boolean
+  )
+
   case class Diff(
       path: String,
       pathType: String,
@@ -165,39 +171,41 @@ class DatasetResource {
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/create")
-  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
   def createDataset(
-      @Auth user: SessionUser,
-      @FormDataParam("datasetName") datasetName: String,
-      @FormDataParam("datasetDescription") datasetDescription: String,
-      @FormDataParam("isDatasetPublic") isDatasetPublic: String
+      request: CreateDatasetRequest,
+      @Auth user: SessionUser
   ): DashboardDataset = {
 
     withTransaction(context) { ctx =>
       val uid = user.getUid
       val datasetDao: DatasetDao = new DatasetDao(ctx.configuration())
-      val datasetOfUserDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
+      val datasetUserAccessDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
 
-      // do the name duplication check
+      val datasetName = request.datasetName
+      val datasetDescription = request.datasetDescription
+      val isDatasetPublic = request.isDatasetPublic
+
+      // Check if a dataset with the same name already exists
       if (!datasetDao.fetchByName(datasetName).isEmpty) {
         throw new BadRequestException("Dataset with the same name already exists")
       }
 
-      // Try to initialize the repository in LakeFS
+      // Initialize the repository in LakeFS
       try {
         LakeFSStorageClient.initRepo(datasetName)
       } catch {
         case e: Exception =>
           throw new WebApplicationException(
-            s"Failed to initialize repository in LakeFS: ${e.getMessage}"
+            s"Failed to create the dataset: ${e.getMessage}"
           )
       }
 
-      // insert the dataset into database
-      val dataset: Dataset = new Dataset()
+      // Insert the dataset into the database
+      val dataset = new Dataset()
       dataset.setName(datasetName)
       dataset.setDescription(datasetDescription)
-      dataset.setIsPublic(isDatasetPublic.toBoolean)
+      dataset.setIsPublic(isDatasetPublic)
       dataset.setOwnerUid(uid)
 
       val createdDataset = ctx
@@ -206,12 +214,12 @@ class DatasetResource {
         .returning()
         .fetchOne()
 
-      // insert requester as the write access of the dataset
+      // Insert the requester as the WRITE access user for this dataset
       val datasetUserAccess = new DatasetUserAccess()
       datasetUserAccess.setDid(createdDataset.getDid)
       datasetUserAccess.setUid(uid)
       datasetUserAccess.setPrivilege(PrivilegeEnum.WRITE)
-      datasetOfUserDao.insert(datasetUserAccess)
+      datasetUserAccessDao.insert(datasetUserAccess)
 
       DashboardDataset(
         new Dataset(

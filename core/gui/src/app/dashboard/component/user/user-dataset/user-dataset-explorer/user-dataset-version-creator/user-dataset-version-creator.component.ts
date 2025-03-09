@@ -2,11 +2,9 @@ import { Component, EventEmitter, inject, Input, OnInit, Output } from "@angular
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { FileUploadItem } from "../../../../../type/dashboard-file.interface";
-import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
+import { Dataset } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
-import sanitize from "sanitize-filename";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 
@@ -85,10 +83,16 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
 
   datasetNameSanitization(datasetName: string): string {
-    const sanitizedDatasetName = sanitize(datasetName);
-    if (sanitizedDatasetName != datasetName) {
+    // Remove leading spaces
+    let sanitizedDatasetName = datasetName.trimStart();
+
+    // Replace all characters that are not letters (a-z, A-Z), numbers (0-9) with a short dash "-"
+    sanitizedDatasetName = sanitizedDatasetName.replace(/[^a-zA-Z0-9]+/g, "-");
+
+    if (sanitizedDatasetName !== datasetName) {
       this.isDatasetNameSanitized = true;
     }
+
     return sanitizedDatasetName;
   }
 

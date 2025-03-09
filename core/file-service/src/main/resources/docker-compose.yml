@@ -9,6 +9,10 @@ services:
       - MINIO_ROOT_USER=texera_minio
       - MINIO_ROOT_PASSWORD=password
     command: server --console-address ":9001" /data
+# By uncommenting the below, you can mount the actual data to your local directory.
+# This is recommended as this can ensure the data persistence even if the container is deleted.
+#    volumes:
+#      - /your/local/directory:/data  # Mount MinIO data directory
     profiles:
       - local-lakefs
 

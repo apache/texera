@@ -25,7 +25,7 @@ object S3StorageClient {
       .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // MinIO URL
       .serviceConfiguration(
         S3Configuration.builder().pathStyleAccessEnabled(true).build()
-      ) // Needed for MinIO
+      )
       .build()
   }
 
