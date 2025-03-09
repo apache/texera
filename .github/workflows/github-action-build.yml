@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Create Postgres Iceberg catalog database and User
         run: |
-          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          chmod 777 core/scripts/sql && cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Setup Java
         uses: actions/setup-java@v2
         with:
