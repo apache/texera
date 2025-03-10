@@ -31,7 +31,7 @@ export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
   name: DEFAULT_WORKFLOW_NAME,
   description: undefined,
-  wid: -1,
+  wid: 0,
   creationTime: undefined,
   lastModifiedTime: undefined,
   isPublished: 0,
@@ -567,6 +567,7 @@ export class WorkflowActionService {
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
 
       if (workflow === undefined) {
+        console.log("workflow is undefined")
         this.setNewSharedModel();
         return;
       }
@@ -604,6 +605,7 @@ export class WorkflowActionService {
   }
 
   public workflowChanged(): Observable<unknown> {
+    console.log("workflow changed")
     return merge(
       this.getTexeraGraph().getOperatorAddStream(),
       this.getTexeraGraph().getOperatorDeleteStream(),
