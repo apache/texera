@@ -31,7 +31,7 @@ export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
   name: DEFAULT_WORKFLOW_NAME,
   description: undefined,
-  wid: 0,
+  wid: -1,
   creationTime: undefined,
   lastModifiedTime: undefined,
   isPublished: 0,

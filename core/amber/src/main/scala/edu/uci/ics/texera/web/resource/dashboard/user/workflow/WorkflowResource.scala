@@ -409,7 +409,10 @@ class WorkflowResource extends LazyLogging {
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // not owner and no access record --> new record
+        workflow.setWid(null)
+        println("after set null " + workflow.getWid)
         insertWorkflow(workflow, user)
+        println(workflow.getWid)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
@@ -422,6 +425,7 @@ class WorkflowResource extends LazyLogging {
     }
 
     val wid = workflow.getWid
+    println(wid)
     workflowDao.fetchOneByWid(wid)
   }
 

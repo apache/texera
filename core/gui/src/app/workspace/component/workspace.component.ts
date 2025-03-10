@@ -146,13 +146,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        console.log("workflow changed")
         if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
+          console.log("above in the place")
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
+              console.log("in the place " + updatedWorkflow.wid)
+              console.log("meta data " + this.workflowActionService.getWorkflowMetadata().wid)
               if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
-                this.location.go(`/workflow/${updatedWorkflow.wid}`);
+                console.log(" in if ")
+                this.location.go(`/dashboard/user/workspace/${updatedWorkflow.wid}`);
               }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });
