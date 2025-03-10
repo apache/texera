@@ -87,7 +87,6 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "mysql" % "mysql-connector-java" % "8.0.33",          // MySQL connector
   "org.postgresql" % "postgresql" % "42.7.4",
   "org.yaml" % "snakeyaml" % "1.30",                    // for reading storage config yaml file
 )

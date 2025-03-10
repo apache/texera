@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
@@ -32,6 +33,13 @@ import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util.concurrent.{ExecutorService, Executors}
@@ -43,7 +51,8 @@ class ExecutionConsoleService(
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
     workflowContext: WorkflowContext
-) extends SubscriptionManager {
+) extends SubscriptionManager
+    with LazyLogging {
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
@@ -113,6 +122,23 @@ class ExecutionConsoleService(
 
   }
 
+  addSubscription(
+    client.registerCallback[ExecutionStateUpdate] {
+      case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
+          if Set(COMPLETED, FAILED, KILLED).contains(state) =>
+        logger.info("Workflow execution terminated. Commit console messages.")
+        consoleMessageOpIdToWriterMap.values.foreach { writer =>
+          try {
+            writer.close()
+          } catch {
+            case e: Exception =>
+              logger.error("Failed to close console message writer", e)
+          }
+        }
+      case _ =>
+    }
+  )
+
   private[this] def addConsoleMessage(
       consoleStore: ExecutionConsoleStore,
       opId: String,
@@ -127,8 +153,9 @@ class ExecutionConsoleService(
             Array(consoleMessage.toProtoString)
           )
           writer.putOne(tuple)
-        } finally {
-          writer.close()
+        } catch {
+          case e: Exception =>
+            logger.error(s"Error while writing console message for operator $opId", e)
         }
       })
     }

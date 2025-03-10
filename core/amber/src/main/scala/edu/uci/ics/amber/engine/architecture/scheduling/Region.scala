@@ -1,26 +1,22 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import java.net.URI
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
-
-case class GlobalPortIdentity(opId: PhysicalOpIdentity, portId: PortIdentity, input: Boolean)
-
 case class Region(
     id: RegionIdentity,
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
-    resourceConfig: Option[ResourceConfig] = None,
-    materializedPortIds: Set[GlobalPortIdentity] = Set.empty
+    resourceConfig: Option[ResourceConfig] = None
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =

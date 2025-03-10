@@ -124,7 +124,7 @@ class WorkflowResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-
+    FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
