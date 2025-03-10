@@ -179,7 +179,13 @@ object WorkflowExecutionsResource {
   /**
     * @param layerName optional, if not specified, the method will return only the first layer (physicalop) stored with
     *                external ports
-    * @return
+    * @return If user system is enabled, this method trys to find a URI regardless of whether layerName is provided.
+    *         None will be returned only if the specified storage URI for the port does not exist in the database.
+    *         If user system is not enabled, when layerName is provided, this method creates the URI directly; else
+    *         this method also trys to find the URI from ExecutionResourcesMapping.
+    *         TODO: Get rid of layerName and optimize the lookup (currently if no layerName is provided, the lookup is
+    *           O(n), where n is the number of physical ops of the specified logical op.
+    *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
     */
   def getResultUriByExecutionAndPort(
       wid: WorkflowIdentity,
@@ -236,15 +242,27 @@ object WorkflowExecutionsResource {
           }
       }
     } else {
-      Option(
-        VFSURIFactory.createResultURI(
-          wid,
-          eid,
-          opId,
-          layerName,
-          portId
+      if (layerName.nonEmpty) {
+        Option(
+          VFSURIFactory.createResultURI(
+            wid,
+            eid,
+            opId,
+            layerName,
+            portId
+          )
         )
-      )
+      } else {
+        // Dev mode without user system. Use ExecutionResourcesMapping to find URI by using eid, opId and portId
+        // to match a URI, and the port should only be an external port as this is requested by the frontend.
+        ExecutionResourcesMapping
+          .getResourceURIs(eid)
+          .find(uri => {
+            val (_, _, retrievedOpId, _, retrievedPortId, _) = VFSURIFactory.decodeURI(uri)
+            retrievedOpId.nonEmpty && retrievedOpId.get == opId &&
+            retrievedPortId.nonEmpty && retrievedPortId.get == portId && !retrievedPortId.get.internal
+          })
+      }
     }
   }
 

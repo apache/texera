@@ -95,14 +95,14 @@ class WorkflowExecutionService(
     }
 
     client = ComputingUnitMaster.createAmberRuntime(
-      workflowContext,
+      workflow.context,
       workflow.physicalPlan,
       controllerConfig,
       errorHandler
     )
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
-    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
+    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflow.context)
     executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,
@@ -115,11 +115,11 @@ class WorkflowExecutionService(
       sessionUri
     )
     executionConsoleService =
-      new ExecutionConsoleService(client, executionStateStore, wsInput, workflowContext)
+      new ExecutionConsoleService(client, executionStateStore, wsInput, workflow.context)
 
     logger.info("Starting the workflow execution.")
     resultService.attachToExecution(
-      workflowContext.executionId,
+      workflow.context.executionId,
       executionStateStore,
       workflow.physicalPlan,
       client
