@@ -39,6 +39,7 @@ import java.io.{IOException, InputStream, OutputStream}
 import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.util
 import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
@@ -965,6 +966,26 @@ class DatasetResource {
       .fetch()
 
     records.getValues(DATASET_USER_ACCESS.UID)
+  }
+
+  /**
+    * This method returns all owner user names of the dataset that the user has access to
+    *
+    * @return OwnerName[]
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-dataset-owners")
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(DATASET)
+      .on(DATASET.OWNER_UID.eq(USER.UID))
+      .join(DATASET_USER_ACCESS)
+      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .where(DATASET_USER_ACCESS.UID.eq(user.getUid))
+      .fetchInto(classOf[String])
   }
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
