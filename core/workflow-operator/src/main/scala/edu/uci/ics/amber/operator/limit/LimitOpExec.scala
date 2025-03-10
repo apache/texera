@@ -12,10 +12,6 @@ class LimitOpExec(descString: String) extends OperatorExecutor {
     count = 0
   }
 
-  override def open(): Unit = {
-    count = 0
-  }
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     if (count < desc.limit) {
       count += 1
