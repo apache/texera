@@ -142,11 +142,6 @@ export class DatasetService {
                 fetch(url, {
                   method: "PUT",
                   body: chunk,
-                  headers: {
-                    "Access-Control-Allow-Origin": "*", // Ensures CORS works
-                    "Access-Control-Allow-Methods": "PUT, OPTIONS",
-                    "Access-Control-Allow-Headers": "*",
-                  },
                 })
               ).pipe(
                 switchMap(response => {
