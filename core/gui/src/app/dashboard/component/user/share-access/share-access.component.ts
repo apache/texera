@@ -48,7 +48,8 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private modalRef: NzModalRef
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
@@ -182,6 +183,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
         next: () => {
           if (userToRemove == this.userService.getCurrentUser()?.email) {
             this.shouldRefresh = true;
+            this.modalRef.close();
           }
           this.ngOnInit();
         },
