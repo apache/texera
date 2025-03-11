@@ -85,9 +85,10 @@ export const defaultEnvironment = {
   singleFileUploadMaximumSizeMB: 20,
 
   /**
-   * the maximum number of file chunks that can be held in the memory
+   * the maximum number of file chunks that can be held in the memory;
+   * you may increase this number if your deployment environment has enough memory resource.
    */
-  maxNumberOfConcurrentUploadingFileChunks: 20,
+  maxNumberOfConcurrentUploadingFileChunks: 10,
 
   /**
    * the size of each chunk during the multipart upload of file
