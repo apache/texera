@@ -6,11 +6,12 @@ import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.ManualLocationConfiguration
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 
-class ChatSourceOpDesc extends SourceOperatorDescriptor {
+class ChatSourceOpDesc extends SourceOperatorDescriptor with ManualLocationConfiguration {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Question")
@@ -47,8 +48,9 @@ class ChatSourceOpDesc extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(Option.empty)
-      physicalOp.withParallelizable(false)
+      .withParallelizable(false)
 
+    applyManualLocation(physicalOp)
   }
 
   override def sourceSchema(): Schema = {
