@@ -26,6 +26,25 @@ storage:
           num-retries: 10
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
+  # Configurations of the LakeFS & S3 for dataset storage;
+  # Default values are provided for each field, which you don't need to change them if you deployed LakeFS+S3 via docker-compose.yml in file-service/src/main/resources/docker-compose.yml
+  lakefs:
+    endpoint: "http://localhost:8000/api/v1"
+    auth:
+      api-secret: "random_string_for_lakefs"
+      username: "AKIAIOSFOLKFSSAMPLES"
+      password: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    block-storage:
+      type: "s3"
+      bucket-name: "texera-dataset"
+
+  s3:
+    endpoint: "http://localhost:9000"
+    region: "us-west-2"
+    auth:
+      username: "texera_minio"
+      password: "password"
+
   jdbc:
     url: "jdbc:postgresql://localhost:5432/texera_db?currentSchema=texera_db,public"
     username: "postgres"

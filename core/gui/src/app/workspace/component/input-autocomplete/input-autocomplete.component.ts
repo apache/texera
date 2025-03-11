@@ -50,7 +50,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   get isFileSelectionEnabled(): boolean {
-    return environment.userSystemEnabled;
+    return environment.userSystemEnabled && environment.selectingFilesFromDatasetsEnabled;
   }
 
   get selectedFilePath(): string | null {

@@ -78,7 +78,7 @@ export class ShareAccessComponent implements OnInit {
         .getDataset(this.id)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
-          this.isPublic = dashboardDataset.dataset.isPublic === 1;
+          this.isPublic = dashboardDataset.dataset.isPublic;
         });
     }
   }

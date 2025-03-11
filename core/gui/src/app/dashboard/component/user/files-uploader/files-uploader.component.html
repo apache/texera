@@ -1,6 +1,6 @@
 <div class="file-uploader">
   <nz-alert
-    *ngIf="fileUploadingFinished"
+    *ngIf="showUploadAlert && fileUploadingFinished"
     class="file-uploader-banner"
     [nzType]="fileUploadBannerType"
     nzMessage="{{fileUploadBannerMessage}}"
@@ -29,23 +29,4 @@
       </div>
     </ng-template>
   </ngx-file-drop>
-  <div
-    *ngIf="previouslyUploadFiles && previouslyUploadFiles.length > 0"
-    class="uploaded-files-list">
-    <h4 class="new-upload-title">Previous Uploads</h4>
-    <texera-user-dataset-version-filetree
-      [fileTreeNodes]="previouslyUploadFiles"
-      [isTreeNodeDeletable]="true"
-      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)">
-    </texera-user-dataset-version-filetree>
-  </div>
-  <div
-    *ngIf="newUploadNodeToFileItems && newUploadNodeToFileItems.size > 0"
-    class="uploaded-files-list">
-    <h4 class="new-upload-title">New Uploads</h4>
-    <texera-user-dataset-version-filetree
-      [fileTreeNodes]="newUploadFileTreeNodes"
-      [isTreeNodeDeletable]="true"
-      (deletedTreeNode)="onNewUploadsFileDeleted($event)"></texera-user-dataset-version-filetree>
-  </div>
 </div>
