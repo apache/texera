@@ -225,7 +225,7 @@
             *ngIf="uploadProgress"
             class="upload-progress-container">
             <div class="progress-header">
-              <span>{{uploadProgress.status}}: {{ uploadProgress.filePath }}</span>
+              <span><b>{{ uploadProgress.status }}</b>: {{ uploadProgress.filePath }}</span>
               <button
                 nz-button
                 nzType="text"
