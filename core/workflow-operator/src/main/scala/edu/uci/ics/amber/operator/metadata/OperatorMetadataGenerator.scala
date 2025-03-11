@@ -8,7 +8,6 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants.LLM_GROUP
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
@@ -70,7 +69,7 @@ object OperatorMetadataGenerator {
       )
     )
     new util.ArrayList[NamedType](types).asScala
-      .filter(t => t.getType != null && t.getName != null && (t.getName == "ChatSource" || t.getName == "Chat"))
+      .filter(t => t.getType != null && t.getName != null)
       .map(t => (t.getType.asInstanceOf[Class[_ <: LogicalOp]], t.getName))
       .toMap
   }
@@ -112,7 +111,7 @@ object OperatorMetadataGenerator {
   def generateAllOperatorMetadata(): AllOperatorMetadata = {
     AllOperatorMetadata(
       operatorTypeMap.keys.map(generateOperatorMetadata).toList,
-      OperatorGroupConstants.OperatorGroupOrderList.filter(p => p.groupName == LLM_GROUP)
+      OperatorGroupConstants.OperatorGroupOrderList
     )
   }
 
