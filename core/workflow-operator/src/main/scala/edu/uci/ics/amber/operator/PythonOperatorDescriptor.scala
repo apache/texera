@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 
-trait PythonOperatorDescriptor extends LogicalOp {
+trait PythonOperatorDescriptor extends LogicalOp with ManualLocationConfiguration {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -26,11 +26,13 @@ trait PythonOperatorDescriptor extends LogicalOp {
       )
     }
 
-    physicalOp
+    val baseOp = physicalOp
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(parallelizable())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => getOutputSchemas(inputSchemas)))
+
+    applyManualLocation(baseOp)
   }
 
   def parallelizable(): Boolean = false

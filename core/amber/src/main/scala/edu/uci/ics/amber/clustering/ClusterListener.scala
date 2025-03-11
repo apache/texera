@@ -27,6 +27,9 @@ object ClusterListener {
   final case class GetAvailableNodeAddresses()
 
   var numWorkerNodesInCluster = 0
+
+  // add a variable to hold the addresses
+  var currentAddresses: Set[Address] = Set.empty
 }
 
 class ClusterListener extends Actor with AmberLogging {
@@ -117,9 +120,13 @@ class ClusterListener extends Actor with AmberLogging {
       case other => //skip
     }
 
+    ClusterListener.currentAddresses = getAllAddress.toSet
     numWorkerNodesInCluster = getAllAddress.size
+
+    val addressesStr = ClusterListener.currentAddresses.map(_.toString).toSeq
+
     SessionState.getAllSessionStates.foreach { state =>
-      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
+      state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster, addressesStr))
     }
 
     logger.info(

@@ -1,8 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Address, Deploy}
+import akka.actor.{Address, AddressFromURIString, Deploy}
 import akka.remote.RemoteScope
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.core.workflow.{
+  GoToSpecificNode,
+  PhysicalOp,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.AddressInfo
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
@@ -38,6 +43,16 @@ object ExecutorDeployment {
       val preferredAddress: Address = locationPreference match {
         case PreferController =>
           addressInfo.controllerAddress
+        case node: GoToSpecificNode =>
+          val targetAddress = AddressFromURIString(node.nodeAddr)
+          addressInfo.allAddresses.find(addr => addr == targetAddress) match {
+            case Some(address) => address
+            case None =>
+              throw new IllegalStateException(
+                s"Designated node address '${node.nodeAddr}' not found among available addresses: " +
+                  addressInfo.allAddresses.map(_.host.getOrElse("None")).mkString(", ")
+              )
+          }
         case RoundRobinPreference =>
           assert(
             addressInfo.allAddresses.nonEmpty,

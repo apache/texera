@@ -36,7 +36,10 @@ class WorkflowWebsocketResource extends LazyLogging {
     val workflowState =
       WorkflowService.getOrCreate(WorkflowIdentity(wid))
     sessionState.subscribe(workflowState)
-    sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
+    val addressesStr = ClusterListener.currentAddresses.map(_.toString).toSeq
+    sessionState.send(
+      ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster, addressesStr)
+    )
     logger.info("connection open")
   }
 
@@ -76,7 +79,14 @@ class WorkflowWebsocketResource extends LazyLogging {
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
             case Some(workflow) =>
-              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+              sessionState.send(WorkflowStateEvent("Initializing"))
+              synchronized {
+                workflow.initExecutionService(
+                  workflowExecuteRequest,
+                  userOpt,
+                  session.getRequestURI
+                )
+              }
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>

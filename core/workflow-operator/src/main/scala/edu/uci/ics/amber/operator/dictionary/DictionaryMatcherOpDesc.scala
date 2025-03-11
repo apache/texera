@@ -5,6 +5,7 @@ import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.ManualLocationConfiguration
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -15,7 +16,7 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
   * It outputs an extra column to label the tuple if it is matched or not
   * This is the description of the operator
   */
-class DictionaryMatcherOpDesc extends MapOpDesc {
+class DictionaryMatcherOpDesc extends MapOpDesc with ManualLocationConfiguration {
   @JsonProperty(value = "Dictionary", required = true)
   @JsonPropertyDescription("dictionary values separated by a comma") var dictionary: String = _
 
@@ -33,7 +34,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
 
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -54,6 +55,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
           )
         })
       )
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

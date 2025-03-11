@@ -10,12 +10,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import scala.util.Random
 
-class SplitOpDesc extends LogicalOp {
+class SplitOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   @JsonSchemaTitle("Split Percentage")
   @JsonProperty(defaultValue = "80")
@@ -43,7 +44,7 @@ class SplitOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -63,6 +64,8 @@ class SplitOpDesc extends LogicalOp {
           operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
         })
       )
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo = {
