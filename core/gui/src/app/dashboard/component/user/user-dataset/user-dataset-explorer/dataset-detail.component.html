@@ -230,7 +230,9 @@
                 nz-button
                 nzType="text"
                 nzShape="circle"
-                (click)="clearUploadProgress()">
+                [nz-tooltip]="uploadProgress
+                && (uploadProgress.status === 'aborted' || uploadProgress.status === 'finished') ? 'Close' : 'Cancel the upload'"
+                (click)="onClickAbortUploadProgress()">
                 <i
                   nz-icon
                   nzType="close"

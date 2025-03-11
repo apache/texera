@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
-import {catchError, map, mergeMap, switchMap, tap, toArray} from "rxjs/operators";
+import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
@@ -26,6 +26,14 @@ export const DEFAULT_DATASET_NAME = "Untitled dataset";
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
+
+export interface MultipartUploadProgress {
+  filePath: string;
+  percentage: number;
+  status: "initializing" | "uploading" | "finished" | "aborted";
+  uploadId: string;
+  physicalAddress: string;
+}
 
 @Injectable({
   providedIn: "root",
@@ -111,14 +119,9 @@ export class DatasetService {
    * Handles multipart upload for large files using RxJS,
    * with a concurrency limit on how many parts we process in parallel.
    */
-  public multipartUpload(
-    datasetName: string,
-    filePath: string,
-    file: File
-  ): Observable<{ filePath: string; percentage: number; status: "uploading" | "finished" | "aborted" }> {
+  public multipartUpload(datasetName: string, filePath: string, file: File): Observable<MultipartUploadProgress> {
     const partCount = Math.ceil(file.size / environment.multipartUploadChunkSizeByte);
-    // Adjust this to control how many parts can be uploaded in parallel
-    const concurrencyLimit = 10;
+    const concurrencyLimit = environment.maxNumberOfConcurrentUploadingFileChunks;
 
     return new Observable(observer => {
       this.initiateMultipartUpload(datasetName, filePath, partCount)
@@ -129,6 +132,13 @@ export class DatasetService {
               observer.error(new Error("Failed to initiate multipart upload"));
               return EMPTY;
             }
+            observer.next({
+              filePath: filePath,
+              percentage: 0,
+              status: "initializing",
+              uploadId: uploadId,
+              physicalAddress: physicalAddress,
+            });
 
             // Keep track of all uploaded parts
             const uploadedParts: { PartNumber: number; ETag: string }[] = [];
@@ -162,6 +172,8 @@ export class DatasetService {
                       filePath,
                       percentage: Math.round((uploadedCount / partCount) * 100),
                       status: "uploading",
+                      uploadId: uploadId,
+                      physicalAddress: physicalAddress,
                     });
 
                     return of(null); // indicate success
@@ -172,17 +184,16 @@ export class DatasetService {
               toArray(),
               // 4) Finalize if all parts succeeded
               switchMap(() =>
-                this.finalizeMultipartUpload(
-                  datasetName,
-                  filePath,
-                  uploadId,
-                  uploadedParts,
-                  physicalAddress,
-                  false
-                )
+                this.finalizeMultipartUpload(datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
               ),
               tap(() => {
-                observer.next({ filePath, percentage: 100, status: "finished" });
+                observer.next({
+                  filePath,
+                  percentage: 100,
+                  status: "finished",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
+                });
                 observer.complete();
               }),
               catchError((error: unknown) => {
@@ -191,6 +202,8 @@ export class DatasetService {
                   filePath,
                   percentage: Math.round((uploadedCount / partCount) * 100),
                   status: "aborted",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
                 });
 
                 return this.finalizeMultipartUpload(
@@ -238,7 +251,7 @@ export class DatasetService {
   /**
    * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
    */
-  private finalizeMultipartUpload(
+  public finalizeMultipartUpload(
     datasetName: string,
     filePath: string,
     uploadId: string,

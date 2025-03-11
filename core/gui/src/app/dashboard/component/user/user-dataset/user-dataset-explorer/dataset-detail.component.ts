@@ -1,7 +1,7 @@
 import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import {
   DatasetFileNode,
@@ -61,13 +61,12 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
-  public uploadProgress: { filePath: string; percentage: number; status: string } | null = null;
+  public uploadProgress: MultipartUploadProgress | null = null;
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
   constructor(
     private route: ActivatedRoute,
-    private router: Router,
     private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
@@ -286,11 +285,23 @@ export class DatasetDetailComponent implements OnInit {
               this.uploadProgress = res; // Update the progress UI
             },
             error: () => {
-              this.uploadProgress = { filePath: file.name, percentage: 100, status: "abort" };
+              this.uploadProgress = {
+                filePath: file.name,
+                percentage: 100,
+                status: "aborted",
+                physicalAddress: "",
+                uploadId: "",
+              };
               setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
             },
             complete: () => {
-              this.uploadProgress = { filePath: file.name, percentage: 100, status: "finish" };
+              this.uploadProgress = {
+                filePath: file.name,
+                percentage: 100,
+                status: "finished",
+                uploadId: "",
+                physicalAddress: "",
+              };
               this.userMakeChanges.emit();
               setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
             },
@@ -299,12 +310,27 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
-  clearUploadProgress() {
+  onClickAbortUploadProgress() {
+    if (this.uploadProgress) {
+      this.datasetService
+        .finalizeMultipartUpload(
+          this.datasetName,
+          this.uploadProgress.filePath,
+          this.uploadProgress.uploadId,
+          [],
+          this.uploadProgress.physicalAddress,
+          true
+        )
+        .pipe(untilDestroyed(this))
+        .subscribe(res => {
+          this.notificationService.info(`${this.uploadProgress?.filePath} uploading has been terminated`);
+        });
+    }
     this.uploadProgress = null;
   }
 
-  getUploadStatus(status: string): "active" | "exception" | "success" {
-    return status === "uploading" ? "active" : status === "abort" ? "exception" : "success";
+  getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
+    return status === "uploading" ? "active" : status === "aborted" ? "exception" : "success";
   }
 
   onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
