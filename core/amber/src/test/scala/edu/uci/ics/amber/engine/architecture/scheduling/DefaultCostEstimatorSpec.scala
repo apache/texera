@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
@@ -114,11 +114,19 @@ class DefaultCostEstimatorSpec
       workflow.context,
       CONTROLLER
     )
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
 
     val region = Region(
       id = RegionIdentity(0),
       physicalOps = workflow.physicalPlan.operators,
-      physicalLinks = workflow.physicalPlan.links
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
     )
 
     val costOfRegion = costEstimator.estimate(region, 1)
@@ -193,10 +201,19 @@ class DefaultCostEstimatorSpec
       CONTROLLER
     )
 
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
+
     val region = Region(
       id = RegionIdentity(0),
       physicalOps = workflow.physicalPlan.operators,
-      physicalLinks = workflow.physicalPlan.links
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
     )
 
     val costOfRegion = costEstimator.estimate(region, 1)

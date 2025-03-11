@@ -134,7 +134,10 @@ abstract class ScheduleGenerator(
           val newRegion = region.copy(
             physicalLinks = region.physicalLinks ++ links,
             physicalOps =
-              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id))
+              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id)),
+            ports = region.getPorts ++ links.map(dependeeLink =>
+              GlobalPortIdentity(dependeeLink.toOpId, dependeeLink.toPortId, input = true)
+            )
           )
           replaceVertex(regionDAG, region, newRegion)
       }

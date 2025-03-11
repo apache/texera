@@ -47,7 +47,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(2)).foreach {
+    regionList.zip(Iterator(3)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -99,7 +99,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(4, 2)).foreach {
+    regionList.zip(Iterator(4, 4)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -176,7 +176,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(5, 2)).foreach {
+    regionList.zip(Iterator(6, 4)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -241,7 +241,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(7, 4)).foreach {
+    regionList.zip(Iterator(7, 7)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -305,7 +305,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(6, 2)).foreach {
+    regionList.zip(Iterator(7, 4)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }

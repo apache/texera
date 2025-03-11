@@ -115,10 +115,18 @@ class CostBasedScheduleGenerator(
           )
           .toMap
         val resourceConfig = ResourceConfig(portConfigs = portConfigs)
+        val ports = operators.flatMap(op =>
+          op.inputPorts.keys
+            .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+            .toSet ++ op.outputPorts.keys
+            .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+            .toSet
+        )
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
           physicalLinks = links,
+          ports = ports,
           resourceConfig = Some(resourceConfig)
         )
     }
