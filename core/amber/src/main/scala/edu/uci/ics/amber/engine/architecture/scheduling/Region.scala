@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import java.net.URI
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
@@ -37,6 +36,7 @@ case class Region(
 
   def getLinks: Set[PhysicalLink] = physicalLinks
 
+  // TODO: Do not use links to get ports.
   def getPorts: Set[GlobalPortIdentity] =
     getLinks
       .flatMap(link =>

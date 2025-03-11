@@ -9,8 +9,6 @@ import edu.uci.ics.amber.core.workflow.{
   WorkflowContext
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
   PortConfig,
   ResourceConfig
 }
@@ -201,7 +199,7 @@ class CostBasedScheduleGenerator(
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
     val linksToMaterialize =
-      (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
+      (searchResult.state ++ physicalPlan.getBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks
       )
     if (linksToMaterialize.nonEmpty) {
@@ -281,7 +279,7 @@ class CostBasedScheduleGenerator(
         physicalPlan.getNonBridgeNonBlockingLinks
       } else {
         physicalPlan.links.diff(
-          physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+          physicalPlan.getBlockingAndDependeeLinks
         )
       }
     // Queue to hold states to be explored, starting with the empty set
@@ -312,7 +310,7 @@ class CostBasedScheduleGenerator(
         }
         visited.add(currentState)
         tryConnectRegionDAG(
-          physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+          physicalPlan.getBlockingAndDependeeLinks ++ currentState
         ) match {
           case Left(regionDAG) =>
             updateOptimumIfApplicable(regionDAG)
@@ -346,7 +344,7 @@ class CostBasedScheduleGenerator(
         */
       def addNeighborStatesToFrontier(): Unit = {
         val allCurrentMaterializedEdges =
-          currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+          currentState ++ physicalPlan.getBlockingAndDependeeLinks
         // Generate and enqueue all neighbour states that haven't been visited
         var candidateEdges = originalNonBlockingEdges
           .diff(currentState)
@@ -382,7 +380,7 @@ class CostBasedScheduleGenerator(
           if (filteredNeighborStates.nonEmpty) {
             val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   evaluate(
@@ -425,15 +423,13 @@ class CostBasedScheduleGenerator(
     val startTime = System.nanoTime()
     // Starting from a state where all non-blocking edges are materialized
     val originalSeedState = physicalPlan.links.diff(
-      physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+      physicalPlan.getBlockingAndDependeeLinks
     )
 
     // Chain optimization: an edge in the same chain as a blocking edge should not be materialized
     val seedStateOptimizedByChainsIfApplicable = if (oChains) {
       val edgesInChainWithBlockingEdge = physicalPlan.maxChains
-        .filter(chain =>
-          chain.intersect(physicalPlan.getNonMaterializedBlockingAndDependeeLinks).nonEmpty
-        )
+        .filter(chain => chain.intersect(physicalPlan.getBlockingAndDependeeLinks).nonEmpty)
         .flatten
       originalSeedState.diff(edgesInChainWithBlockingEdge)
     } else {
@@ -462,7 +458,7 @@ class CostBasedScheduleGenerator(
       val currentState = queue.dequeue()
       visited.add(currentState)
       tryConnectRegionDAG(
-        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+        physicalPlan.getBlockingAndDependeeLinks ++ currentState
       ) match {
         case Left(regionDAG) =>
           updateOptimumIfApplicable(regionDAG)
@@ -508,7 +504,7 @@ class CostBasedScheduleGenerator(
           if (unvisitedNeighborStates.nonEmpty) {
             val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   evaluate(

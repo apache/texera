@@ -289,7 +289,7 @@ class DefaultCostEstimatorSpec
     writer.putOne(keywordOpRuntimeStatistics)
     writer.close()
 
-    // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
+    // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword
     val searchResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
@@ -299,7 +299,7 @@ class DefaultCostEstimatorSpec
     val groupByRegion =
       searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 3).head
     val keywordRegion =
-      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 2).head
+      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 1).head
 
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
@@ -321,8 +321,7 @@ class DefaultCostEstimatorSpec
     val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
       keywordOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
-    // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
-    // logical operator as the keyword operator.
+    // The cost of the second region should be the cost of the keyword operator.
     assert(keywordRegionCost == keywordOperatorCost)
 
     // The cost of the region plan should be the sum of region costs

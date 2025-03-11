@@ -1,16 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.executor.OpExecSink
 import edu.uci.ics.amber.core.storage.VFSURIFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.{
-  GlobalPortIdentity,
-  PhysicalLink,
-  PhysicalOp,
-  PhysicalPlan,
-  WorkflowContext
-}
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -123,7 +116,7 @@ abstract class ScheduleGenerator(
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
             .filter(link =>
-              !physicalPlan.getOperator(physicalOpId).isSinkOperator && physicalPlan
+              physicalPlan
                 .getOperator(physicalOpId)
                 .isInputLinkDependee(link)
             )
@@ -158,7 +151,7 @@ abstract class ScheduleGenerator(
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
-    var newPhysicalPlan = physicalPlan
+    val newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
     // create the uri of the materialization storage
@@ -169,35 +162,6 @@ abstract class ScheduleGenerator(
       Some(physicalLink.fromOpId.layerName),
       physicalLink.fromPortId
     )
-
-    val fromPortOutputMode =
-      physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
-    val matWriterPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-      storageURI,
-      fromPortOutputMode
-    )
-
-    // Check if an operator with the same storageUri already exists
-    val existingOperator = newPhysicalPlan.operators.find {
-      case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
-        val OpExecSink(uri, _, _) = op.opExecInitInfo
-        uri == storageURI.toString
-      case _ => false
-    }
-
-    if (existingOperator.isEmpty) {
-      // create cache writer and link
-      val sourceToWriterLink =
-        PhysicalLink(
-          fromOp.id,
-          fromPortId,
-          matWriterPhysicalOp.id,
-          matWriterPhysicalOp.inputPorts.keys.head
-        )
-      newPhysicalPlan = newPhysicalPlan
-        .addOperator(matWriterPhysicalOp)
-        .addLink(sourceToWriterLink)
-    }
 
     // create cache reader and link
 
@@ -224,7 +188,7 @@ abstract class ScheduleGenerator(
         toPortId
       )
     // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
+    writerReaderPairs(fromOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
