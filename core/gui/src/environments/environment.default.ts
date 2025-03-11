@@ -29,6 +29,12 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
+   * whether selecting files from datasets instead of the local file system.
+   * The user system must be enabled to make this flag work!
+   */
+  selectingFilesFromDatasetsEnabled: true,
+
+  /**
    * whether local login is enabled
    */
   localLogin: true,
@@ -77,6 +83,17 @@ export const defaultEnvironment = {
    * the file size limit for dataset upload
    */
   singleFileUploadMaximumSizeMB: 20,
+
+  /**
+   * the maximum number of file chunks that can be held in the memory;
+   * you may increase this number if your deployment environment has enough memory resource.
+   */
+  maxNumberOfConcurrentUploadingFileChunks: 10,
+
+  /**
+   * the size of each chunk during the multipart upload of file
+   */
+  multipartUploadChunkSizeByte: 50 * 1024 * 1024, // 50 MB
 
   /**
    * default data transfer batch size for workflows

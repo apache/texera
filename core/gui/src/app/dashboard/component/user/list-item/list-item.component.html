@@ -116,11 +116,12 @@
       nz-col
       nzFlex="75px"
       class="resource-info">
-      <div
-        *ngIf="entry.type === 'dataset'"
-        class="resource-info">
-        Size: {{ formatSize(entry.size) }}
-      </div>
+      <!-- Disable the Size Display as the backend API of datasets doesn't support it-->
+      <!--      <div-->
+      <!--        *ngIf="entry.type === 'dataset'"-->
+      <!--        class="resource-info">-->
+      <!--        Size: {{ formatSize(entry.size) }}-->
+      <!--      </div>-->
     </div>
 
     <div

@@ -22,8 +22,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
@@ -198,28 +197,6 @@ object DatasetResource {
 
     // Return a new DatasetOperation with the map and list
     DatasetOperation(filesToAdd.toMap, filesToRemove.toList)
-  }
-
-  /**
-    * Create a new dataset version by adding new files
-    * @param did the target dataset id
-    * @param user the user submitting the request
-    * @param filesToAdd the map containing the files to add
-    * @return the created dataset version
-    */
-  def createNewDatasetVersionByAddingFiles(
-      did: Integer,
-      user: User,
-      filesToAdd: Map[java.nio.file.Path, InputStream]
-  ): Option[DashboardDatasetVersion] = {
-    applyDatasetOperationToCreateNewVersion(
-      context,
-      did,
-      user.getUid,
-      user.getEmail,
-      "",
-      DatasetOperation(filesToAdd, List())
-    )
   }
 
   // apply the dataset operation to create a new dataset version

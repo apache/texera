@@ -14,7 +14,7 @@ export interface Dataset {
   did: number | undefined;
   ownerUid: number | undefined;
   name: string;
-  isPublic: number;
+  isPublic: boolean;
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;
