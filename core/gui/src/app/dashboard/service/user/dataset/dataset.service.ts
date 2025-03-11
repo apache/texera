@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams } from "@angular/common/http";
-import { catchError, map, switchMap, tap } from "rxjs/operators";
+import {catchError, map, mergeMap, switchMap, tap, toArray} from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
@@ -108,10 +108,8 @@ export class DatasetService {
   }
 
   /**
-   * Handles multipart upload for large files using RxJS.
-   * @param datasetName Dataset Name
-   * @param filePath Path of the file within the dataset
-   * @param file File object to be uploaded
+   * Handles multipart upload for large files using RxJS,
+   * with a concurrency limit on how many parts we process in parallel.
    */
   public multipartUpload(
     datasetName: string,
@@ -119,63 +117,67 @@ export class DatasetService {
     file: File
   ): Observable<{ filePath: string; percentage: number; status: "uploading" | "finished" | "aborted" }> {
     const partCount = Math.ceil(file.size / environment.multipartUploadChunkSizeByte);
+    // Adjust this to control how many parts can be uploaded in parallel
+    const concurrencyLimit = 10;
 
     return new Observable(observer => {
       this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
-            const uploadId = initiateResponse.uploadId;
+            const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
             if (!uploadId) {
               observer.error(new Error("Failed to initiate multipart upload"));
               return EMPTY;
             }
 
+            // Keep track of all uploaded parts
             const uploadedParts: { PartNumber: number; ETag: string }[] = [];
-            let uploadedCount = 0; // Track uploaded parts
+            let uploadedCount = 0;
 
-            const uploadObservables = initiateResponse.presignedUrls.map((url, index) => {
-              const start = index * environment.multipartUploadChunkSizeByte;
-              const end = Math.min(start + environment.multipartUploadChunkSizeByte, file.size);
-              const chunk = file.slice(start, end);
+            // 1) Convert presignedUrls into a stream of URLs
+            return from(presignedUrls).pipe(
+              // 2) Use mergeMap with concurrency limit to upload chunk by chunk
+              mergeMap((url, index) => {
+                const start = index * environment.multipartUploadChunkSizeByte;
+                const end = Math.min(start + environment.multipartUploadChunkSizeByte, file.size);
+                const chunk = file.slice(start, end);
 
-              return from(
-                fetch(url, {
-                  method: "PUT",
-                  body: chunk,
-                })
-              ).pipe(
-                switchMap(response => {
-                  if (!response.ok) {
-                    return throwError(() => new Error(`Failed to upload part ${index + 1}`));
-                  }
-                  const etag = response.headers.get("ETag")?.replace(/"/g, "");
-                  if (!etag) {
-                    return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
-                  }
+                // Upload the chunk
+                return from(fetch(url, { method: "PUT", body: chunk })).pipe(
+                  switchMap(response => {
+                    if (!response.ok) {
+                      return throwError(() => new Error(`Failed to upload part ${index + 1}`));
+                    }
+                    const etag = response.headers.get("ETag")?.replace(/"/g, "");
+                    if (!etag) {
+                      return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
+                    }
 
-                  uploadedParts.push({ PartNumber: index + 1, ETag: etag });
-                  uploadedCount++;
+                    // Record the uploaded part
+                    uploadedParts.push({ PartNumber: index + 1, ETag: etag });
+                    uploadedCount++;
 
-                  // Emit upload progress
-                  observer.next({
-                    filePath,
-                    percentage: Math.round((uploadedCount / partCount) * 100),
-                    status: "uploading",
-                  });
+                    // Emit progress after each part
+                    observer.next({
+                      filePath,
+                      percentage: Math.round((uploadedCount / partCount) * 100),
+                      status: "uploading",
+                    });
 
-                  return of(null);
-                })
-              );
-            });
-
-            return forkJoin(uploadObservables).pipe(
+                    return of(null); // indicate success
+                  })
+                );
+              }, concurrencyLimit),
+              // 3) Collect results from all uploads (like forkJoin, but respects concurrency)
+              toArray(),
+              // 4) Finalize if all parts succeeded
               switchMap(() =>
                 this.finalizeMultipartUpload(
                   datasetName,
                   filePath,
                   uploadId,
                   uploadedParts,
-                  initiateResponse.physicalAddress,
+                  physicalAddress,
                   false
                 )
               ),
@@ -184,6 +186,7 @@ export class DatasetService {
                 observer.complete();
               }),
               catchError((error: unknown) => {
+                // If an error occurred, abort the upload
                 observer.next({
                   filePath,
                   percentage: Math.round((uploadedCount / partCount) * 100),
@@ -195,7 +198,7 @@ export class DatasetService {
                   filePath,
                   uploadId,
                   uploadedParts,
-                  initiateResponse.physicalAddress,
+                  physicalAddress,
                   true
                 ).pipe(switchMap(() => throwError(() => error)));
               })
