@@ -330,7 +330,11 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
-    return status === "uploading" ? "active" : status === "aborted" ? "exception" : "success";
+    return status === "uploading" || status === "initializing"
+      ? "active"
+      : status === "aborted"
+        ? "exception"
+        : "success";
   }
 
   onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
