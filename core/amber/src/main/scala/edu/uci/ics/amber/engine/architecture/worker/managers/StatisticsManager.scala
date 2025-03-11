@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.core.executor.{OperatorExecutor, SinkOperatorExecutor}
+import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{
   PortTupleMetricsMapping,
   TupleMetrics,
@@ -29,17 +29,12 @@ class StatisticsManager {
     * @return a WorkerStatistics object containing the statistics
     */
   def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
-    val userFriendlyOutputStatistics = operator match {
-      case _: SinkOperatorExecutor => inputStatistics
-      case _                       => outputStatistics
-    }
-
     WorkerStatistics(
       inputStatistics.map {
         case (portId, (tupleCount, tupleSize)) =>
           PortTupleMetricsMapping(portId, TupleMetrics(tupleCount, tupleSize))
       }.toSeq,
-      userFriendlyOutputStatistics.map {
+      outputStatistics.map {
         case (portId, (tupleCount, tupleSize)) =>
           PortTupleMetricsMapping(portId, TupleMetrics(tupleCount, tupleSize))
       }.toSeq,
