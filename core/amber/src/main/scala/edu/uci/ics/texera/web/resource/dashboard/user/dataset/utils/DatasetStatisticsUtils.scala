@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
 
 import scala.jdk.CollectionConverters._
@@ -50,7 +49,7 @@ object DatasetStatisticsUtils {
   def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val size = DatasetResource.calculateDatasetVersionSize(dataset.did)
+      val size = 0 // we disabled the size calculation due to the switch of dataset implementation
       dataset.copy(size = size)
     }
   }

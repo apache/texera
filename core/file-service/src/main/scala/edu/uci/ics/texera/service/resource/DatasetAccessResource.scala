@@ -8,12 +8,10 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_US
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{AccessEntry, context, getOwner}
+import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.{GET, DELETE, PUT, Path, PathParam, Produces}
+import jakarta.ws.rs.core.{MediaType, Response}
 import org.jooq.{DSLContext, EnumType}
-
-import java.util
-import javax.annotation.security.RolesAllowed
-import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
   private lazy val context: DSLContext = SqlServer
@@ -111,7 +109,7 @@ class DatasetAccessResource {
   @Path("/list/{did}")
   def getAccessList(
       @PathParam("did") did: Integer
-  ): util.List[AccessEntry] = {
+  ): java.util.List[AccessEntry] = {
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
       ctx

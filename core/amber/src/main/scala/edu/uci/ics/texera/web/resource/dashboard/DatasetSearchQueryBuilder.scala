@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getDateFilter,
   getFullTextSearchFilter
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 
@@ -109,9 +108,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           DATASET_USER_ACCESS.PRIVILEGE,
           classOf[PrivilegeEnum]
         ),
-      dataset.getOwnerUid == uid,
-      List(),
-      DatasetResource.calculateDatasetVersionSize(dataset.getDid)
+      dataset.getOwnerUid == uid
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

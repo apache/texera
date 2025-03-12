@@ -145,7 +145,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         ownerUid: undefined,
         storagePath: undefined,
         creationTime: undefined,
-        versionHierarchy: undefined,
       };
       this.datasetService
         .createDataset(ds)

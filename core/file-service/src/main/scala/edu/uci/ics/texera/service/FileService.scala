@@ -52,7 +52,6 @@ class FileService extends Application[FileServiceConfiguration] {
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
 
-    // Register multipart feature for file uploads
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
   }

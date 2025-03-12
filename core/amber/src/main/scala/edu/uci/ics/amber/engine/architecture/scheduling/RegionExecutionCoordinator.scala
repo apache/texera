@@ -35,8 +35,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import java.net.URI
-
 class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,

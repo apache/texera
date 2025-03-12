@@ -13,7 +13,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 

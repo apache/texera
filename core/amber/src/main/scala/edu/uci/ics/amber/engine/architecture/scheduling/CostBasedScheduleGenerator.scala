@@ -8,12 +8,7 @@ import edu.uci.ics.amber.core.workflow.{
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
-  PortConfig,
-  ResourceConfig
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}

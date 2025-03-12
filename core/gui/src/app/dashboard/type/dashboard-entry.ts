@@ -76,7 +76,7 @@ export class DashboardEntry {
       this.ownerEmail = value.ownerEmail;
       this.ownerGoogleAvatar = "";
       this.ownerId = value.dataset.ownerUid;
-      this.size = value.size;
+      this.size = 0; // as we switch to lakeFS dataset implementation, the size is not available anymore
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
