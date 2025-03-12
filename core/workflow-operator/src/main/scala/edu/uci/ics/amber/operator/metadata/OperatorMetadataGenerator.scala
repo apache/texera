@@ -70,7 +70,9 @@ object OperatorMetadataGenerator {
       )
     )
     new util.ArrayList[NamedType](types).asScala
-      .filter(t => t.getType != null && t.getName != null && (t.getName == "ChatSource" || t.getName == "Chat"))
+      .filter(t =>
+        t.getType != null && t.getName != null && (t.getName == "ChatSource" || t.getName == "Chat")
+      )
       .map(t => (t.getType.asInstanceOf[Class[_ <: LogicalOp]], t.getName))
       .toMap
   }

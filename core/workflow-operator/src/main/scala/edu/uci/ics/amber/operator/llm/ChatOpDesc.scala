@@ -32,7 +32,9 @@ class ChatOpDesc extends PythonOperatorDescriptor {
        |        yield {'answer': answer}""".stripMargin
   }
 
-  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Map(operatorInfo.outputPorts.head.id -> inputSchemas.values.head)
   }
 

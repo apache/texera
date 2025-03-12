@@ -55,6 +55,7 @@ class RegionExecutionCoordinator(
       // If no existing execution, build the operator with specified config
       if (!existOpExecution) {
         buildOperator(
+          workflowExecution.deployStrategy,
           actorService,
           physicalOp,
           resourceConfig.operatorConfigs(physicalOp.id),
@@ -103,12 +104,15 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
+      deploymentStrategy: String,
       actorService: AkkaActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
   ): Unit = {
     ExecutorDeployment.createWorkers(
+      deploymentStrategy,
+      region.getOperators,
       physicalOp,
       actorService,
       operatorExecution,

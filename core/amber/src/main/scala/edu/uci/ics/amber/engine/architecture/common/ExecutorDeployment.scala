@@ -2,7 +2,9 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Address, AddressFromURIString, Deploy}
 import akka.remote.RemoteScope
+import edu.uci.ics.amber.core.workflow.deployment.{DeploymentStrategies, NodeProfiles}
 import edu.uci.ics.amber.core.workflow.{
+  CustomizedPreference,
   GoToSpecificNode,
   PhysicalOp,
   PreferController,
@@ -23,6 +25,8 @@ import edu.uci.ics.amber.util.VirtualIdentityUtils
 object ExecutorDeployment {
 
   def createWorkers(
+      deploymentStrategy: String,
+      operators: Set[PhysicalOp],
       op: PhysicalOp,
       controllerActorService: AkkaActorService,
       operatorExecution: OperatorExecution,
@@ -39,7 +43,13 @@ object ExecutorDeployment {
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val locationPreference = op.locationPreference.getOrElse(RoundRobinPreference)
+
+      val locationPreference =
+        if (deploymentStrategy == null || deploymentStrategy.isEmpty || deploymentStrategy == "rr")
+          op.locationPreference.getOrElse(RoundRobinPreference)
+        else
+          CustomizedPreference
+
       val preferredAddress: Address = locationPreference match {
         case PreferController =>
           addressInfo.controllerAddress
@@ -59,6 +69,36 @@ object ExecutorDeployment {
             "Execution failed to start, no available computation nodes"
           )
           addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
+        case CustomizedPreference =>
+          deploymentStrategy match {
+            case "maxQuality" =>
+              AddressFromURIString(
+                DeploymentStrategies.maxQuality(
+                  addressInfo.allAddresses.map(_.toString),
+                  NodeProfiles.getAllProfiles,
+                  operators,
+                  op
+                )
+              )
+            case "maxSpeed" =>
+              AddressFromURIString(
+                DeploymentStrategies.maxSpeed(
+                  addressInfo.allAddresses.map(_.toString),
+                  NodeProfiles.getAllProfiles,
+                  operators,
+                  op
+                )
+              )
+            case "hybrid" =>
+              AddressFromURIString(
+                DeploymentStrategies.hybrid(
+                  addressInfo.allAddresses.map(_.toString),
+                  NodeProfiles.getAllProfiles,
+                  operators,
+                  op
+                )
+              )
+          }
       }
 
       val workflowWorker = if (op.isPythonBased) {

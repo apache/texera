@@ -36,11 +36,16 @@ class ChatSourceOpDesc extends SourceOperatorDescriptor with ManualLocationConfi
   }
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     val physicalOp = PhysicalOp
-      .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(generatePythonCode(), "python"))
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecWithCode(generatePythonCode(), "python")
+      )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
@@ -57,11 +62,12 @@ class ChatSourceOpDesc extends SourceOperatorDescriptor with ManualLocationConfi
     Schema.apply(List(new Attribute("answer", AttributeType.STRING)))
   }
 
-  override def operatorInfo: OperatorInfo = OperatorInfo(
-    "ChatSource",
-    "Chat with LLM",
-    OperatorGroupConstants.LLM_GROUP,
-    inputPorts = List.empty,
-    outputPorts = List(OutputPort())
-  )
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "ChatSource",
+      "Chat with LLM",
+      OperatorGroupConstants.LLM_GROUP,
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
+    )
 }
