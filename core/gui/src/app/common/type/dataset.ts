@@ -18,5 +18,4 @@ export interface Dataset {
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;
-  versionHierarchy: DatasetVersion[] | undefined;
 }
