@@ -3,7 +3,6 @@ package edu.uci.ics.amber.core.tuple;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.List;
 
@@ -90,7 +89,7 @@ public enum AttributeType implements Serializable {
             return BOOLEAN;
         } else if (fieldClass.equals(Timestamp.class)) {
             return TIMESTAMP;
-        } else if (fieldClass.equals(List.class) || fieldClass.getName().contains("List") || fieldClass.getName().contains("scala.collection")) {
+        } else if (fieldClass.equals(List.class)) {
             return BINARY;
         } else {
             return ANY;

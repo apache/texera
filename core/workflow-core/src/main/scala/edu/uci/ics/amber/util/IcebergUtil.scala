@@ -21,7 +21,6 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 
-import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
 import java.time.LocalDateTime
@@ -229,9 +228,8 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val value = tuple.getField[AnyRef](index) match {
-          case null               => null
-          case ts: Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case bytes: Array[Byte] => ByteBuffer.wrap(bytes)
+          case null          => null
+          case ts: Timestamp => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
           case scalaList: scala.collection.immutable.List[_] =>
             scalaList.asJava
           case other => other
@@ -253,16 +251,10 @@ object IcebergUtil {
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
       val value = record.getField(attribute.getName) match {
-        case null               => null
-        case ldt: LocalDateTime => Timestamp.valueOf(ldt)
-        case buffer: ByteBuffer =>
-          val bytes = new Array[Byte](buffer.remaining())
-          buffer.get(bytes)
-          bytes
-        case list: java.util.List[_] =>
-          println(s"List: ${list.asScala.toList}")
-          list.asScala.toList
-        case other => other
+        case null                    => null
+        case ldt: LocalDateTime      => Timestamp.valueOf(ldt)
+        case list: java.util.List[_] => list.asScala.toList
+        case other                   => other
       }
       value
     }
@@ -302,7 +294,6 @@ object IcebergUtil {
       case _: Types.DoubleType      => AttributeType.DOUBLE
       case _: Types.BooleanType     => AttributeType.BOOLEAN
       case _: Types.TimestampType   => AttributeType.TIMESTAMP
-      case _: Types.BinaryType      => AttributeType.BINARY
       case listType: Types.ListType =>
         // For list types, return the corresponding Amber type based on element type
         // Currently we only support binary lists
