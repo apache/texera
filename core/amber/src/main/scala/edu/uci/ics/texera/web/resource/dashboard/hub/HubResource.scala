@@ -2,8 +2,21 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, getUserLCCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import HubResource.{
+  fetchDashboardDatasetsByDids,
+  fetchDashboardWorkflowsByWids,
+  getUserLCCount,
+  isLikedHelper,
+  recordLikeActivity,
+  recordUserActivity,
+  userRequest,
+  validateEntityType
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 
 import java.util
@@ -279,7 +292,7 @@ object HubResource {
         isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
         dataset = dataset,
         accessPrivilege = datasetAccess.getPrivilege,
-        ownerEmail = ownerEmail,
+        ownerEmail = ownerEmail
       )
     }.toList
   }

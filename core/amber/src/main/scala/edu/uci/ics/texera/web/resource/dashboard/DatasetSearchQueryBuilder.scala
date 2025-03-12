@@ -108,7 +108,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           DATASET_USER_ACCESS.PRIVILEGE,
           classOf[PrivilegeEnum]
         ),
-      dataset.getOwnerUid == uid,
+      dataset.getOwnerUid == uid
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
