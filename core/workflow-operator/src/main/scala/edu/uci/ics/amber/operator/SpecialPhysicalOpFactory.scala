@@ -2,7 +2,6 @@ package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.{OpExecSink, OpExecSource}
 import edu.uci.ics.amber.core.storage.VFSURIFactory
-import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
