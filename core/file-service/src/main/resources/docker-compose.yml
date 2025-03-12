@@ -24,7 +24,7 @@ services:
       - POSTGRES_USER=texera_lakefs_admin
       - POSTGRES_PASSWORD=password
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "texera_lakefs_admin"]
+      test: ["CMD", "pg_isready", "-U", "texera_lakefs_admin", "-d", "texera_lakefs"]
       interval: 10s
       retries: 5
       start_period: 5s
