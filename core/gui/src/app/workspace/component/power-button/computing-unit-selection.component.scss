@@ -1,0 +1,33 @@
+nz-select {
+  width: 300px;
+}
+
+nz-option {
+  height: 100%;
+}
+
+.computing-unit-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.unit-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.terminate-box {
+  width: 16px; /* Size of the red box */
+  height: 16px;
+  background-color: red;
+  border-radius: 2px; /* Optional, if you want slightly rounded corners */
+  cursor: pointer; /* Pointer cursor to indicate it's clickable */
+}
+
+.terminate-box:hover {
+  opacity: 0.8; /* Slight opacity on hover for visual feedback */
+}

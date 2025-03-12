@@ -1,0 +1,52 @@
+<nz-select
+  nzSize="large"
+  nzShowSearch
+  nzAllowClear
+  [nzDropdownRender]="renderTemplate"
+  nzPlaceHolder="Select a computing unit"
+  [(ngModel)]="selectedComputingUnit"
+  (ngModelChange)="onComputingUnitChange($event)">
+  <nz-option
+    *ngFor="let unit of computingUnits"
+    nzCustomContent
+    [nzLabel]="unit.uri"
+    [nzValue]="unit">
+    <div class="computing-unit-option">
+      <!-- Badge with state -->
+      <nz-badge
+        [nzColor]="getBadgeColor(unit.status)"
+        [nzText]="''">
+        <span
+          nz-icon
+          nzType="desktop"></span>
+      </nz-badge>
+
+      <!-- Name and tooltip -->
+      <span class="unit-details">
+        <span
+          nz-tooltip
+          [nzTooltipTitle]="unit.uri"
+          >{{ unit.computingUnit.name }}</span
+        >
+        <div
+          class="terminate-box"
+          nz-tooltip
+          [nzTooltipTitle]="'Terminate'"
+          (click)="terminateComputingUnit(unit.computingUnit.cuid)"></div>
+      </span>
+    </div>
+  </nz-option>
+</nz-select>
+
+<ng-template #renderTemplate>
+  <nz-divider></nz-divider>
+  <div class="dropdown-footer">
+    <button
+      nz-button
+      nzType="primary"
+      nzBlock
+      (click)="startComputingUnit()">
+      Start
+    </button>
+  </div>
+</ng-template>
