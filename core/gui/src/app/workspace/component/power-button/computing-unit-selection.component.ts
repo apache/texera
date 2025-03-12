@@ -8,8 +8,8 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {ActivatedRoute} from "@angular/router";
-import {environment} from "../../../../environments/environment";
+import { ActivatedRoute } from "@angular/router";
+import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -29,14 +29,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private route: ActivatedRoute,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     this.computingUnitService.listComputingUnits().subscribe({
       next: (units: DashboardWorkflowComputingUnit[]) => {
-        let firstRunningUnit = units.find(unit => unit.status === "Running")
-        if(firstRunningUnit){
+        let firstRunningUnit = units.find(unit => unit.status === "Running");
+        if (firstRunningUnit) {
           this.selectedComputingUnit = firstRunningUnit;
           this.onComputingUnitChange(firstRunningUnit);
         }
@@ -44,7 +44,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.refreshComputingUnits();
       },
       error: (err: unknown) => console.error("Failed to fetch computing units:", err),
-    })
+    });
   }
 
   /**
@@ -131,11 +131,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
     console.log("Selected computing unit changed to:", newSelection);
     let wid = this.route.snapshot.params.id;
     if (newSelection) {
-      if(!isDefined(wid)){
+      if (!isDefined(wid)) {
         wid = 0;
       }
       console.log(`Selected Unit URI: ${newSelection.uri}`);
-      this.workflowWebsocketService.closeWebsocket()
+      this.workflowWebsocketService.closeWebsocket();
       this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
     } else {
       console.log("No valid selection, keep the current websocket.");

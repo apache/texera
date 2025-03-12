@@ -1,10 +1,10 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import {Observable, of} from "rxjs";
+import { Observable, of } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { environment } from "../../../../environments/environment";
-import {assert} from "../../../common/util/assert";
+import { assert } from "../../../common/util/assert";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
@@ -24,7 +24,7 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createComputingUnit(name: string, unitType: string = "k8s_pod"): Observable<DashboardWorkflowComputingUnit> {
-    assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.")
+    assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.");
     const body = { name, unitType };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
@@ -39,7 +39,7 @@ export class WorkflowComputingUnitManagingService {
    * @param uri
    */
   public terminateComputingUnit(uri: string): Observable<Response> {
-    assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.")
+    assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.");
     const body = { uri: uri, name: "dummy" };
 
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_TERMINATE_URL}`, body);
@@ -50,11 +50,11 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of a list of WorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    if(environment.computingUnitManagerEnabled){
+    if (environment.computingUnitManagerEnabled) {
       return this.http.get<DashboardWorkflowComputingUnit[]>(
         `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`
       );
-    }else{
+    } else {
       // Create a default single WorkflowComputingUnit
       const defaultComputingUnit: DashboardWorkflowComputingUnit = {
         computingUnit: {
@@ -62,14 +62,13 @@ export class WorkflowComputingUnitManagingService {
           uid: 1,
           name: "Local Computing Unit",
           creationTime: Date.now(),
-          terminateTime: undefined
+          terminateTime: undefined,
         },
         uri: "http://localhost:8085",
-        status: "Running"
+        status: "Running",
       };
 
       return of([defaultComputingUnit]);
     }
-
   }
 }

@@ -15,7 +15,8 @@
       <nz-badge
         [nzColor]="getBadgeColor(unit.status)"
         [nzText]="''">
-        <span class="unit-type"
+        <span
+          class="unit-type"
           nz-icon
           nzType="desktop"></span>
       </nz-badge>
@@ -39,7 +40,9 @@
 </nz-select>
 
 <ng-template #renderTemplate>
-  <div *ngIf="environment.computingUnitManagerEnabled" class="dropdown-footer">
+  <div
+    *ngIf="environment.computingUnitManagerEnabled"
+    class="dropdown-footer">
     <button
       nz-button
       nzType="primary"
