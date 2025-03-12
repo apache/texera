@@ -9,8 +9,6 @@ import edu.uci.ics.amber.core.workflow.{
   WorkflowContext
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
   PortConfig,
   ResourceConfig
 }

@@ -1,8 +1,6 @@
 package edu.uci.ics.amber.operator.sink
 
 import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
-import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity

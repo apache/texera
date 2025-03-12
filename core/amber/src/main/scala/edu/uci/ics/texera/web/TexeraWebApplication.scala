@@ -4,9 +4,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.engine.common.Utils
-import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -35,21 +33,11 @@ import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
-import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.time.Duration
 
 object TexeraWebApplication {
-
-  // this method is used to abort uncommitted changes for every dataset
-  def discardUncommittedChangesOfAllDatasets(): Unit = {
-    val datasetPaths = PathUtils.getAllDatasetDirectories()
-
-    datasetPaths.foreach(path => {
-      GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
-    })
-  }
 
   def main(args: Array[String]): Unit = {
 
@@ -109,9 +97,6 @@ class TexeraWebApplication
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
-
-    // register MultiPartFeature
-    environment.jersey.register(classOf[MultiPartFeature])
 
     environment.jersey.register(classOf[SystemMetadataResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
