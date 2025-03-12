@@ -8,32 +8,20 @@ import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
@@ -46,13 +34,76 @@ object ExecutionResultService {
   private val defaultPageSize: Int = 5
 
   /**
+    * Helper method to convert a collection of Tuples to JSON format
+    * For binary types, format the byte data as human-readable string
+    */
+  private def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
+    tuples.map(tuple => {
+      // Create a new tuple with processed binary fields if needed
+      val processedTuple = if (tuple.schema.getAttributes.exists(_.getType == AttributeType.BINARY)) {
+        // We have at least one binary field, need to process
+        val processedFields = tuple.schema.getAttributes.zipWithIndex.map { case (attr, idx) =>
+          if (attr.getType == AttributeType.BINARY) {
+            val binaryValue = tuple.getField[AnyRef](idx)
+            binaryValue match {
+              case list: List[_] if !list.isEmpty => 
+                // Extract the first binary element
+                list.head match {
+                  case buffer: java.nio.ByteBuffer =>
+                    // Convert ByteBuffer to byte array
+                    val bytes = new Array[Byte](buffer.remaining())
+                    // Make a duplicate to avoid affecting the original position
+                    val dupBuffer = buffer.duplicate()
+                    dupBuffer.get(bytes)
+                    
+                    // Convert byte array to hex string representation
+                    val hexString = bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+                    
+                    // Format the hex string similar to the frontend approach
+                    val length = hexString.length
+                    if (length < 40) {
+                      List(s"bytes'${hexString}' (length: ${bytes.length})")
+                    } else {
+                      val leadingBytes = hexString.take(30)
+                      val trailingBytes = hexString.takeRight(10)
+                      List(s"bytes'${leadingBytes}...${trailingBytes}' (length: ${bytes.length})")
+                    }
+                  
+                  case other =>
+                    // If not a ByteBuffer, just convert to string
+                    val str = other.toString
+                    List(s"bytes'${str}' (length: ${str.length})")
+                }
+              
+              case _ =>
+                // This shouldn't happen - binary values should always be lists
+                throw new RuntimeException("Expected a List for binary type field, but got: " + binaryValue.getClass.getName)
+            }
+          } else {
+            // Non-binary field, keep as is
+            tuple.getField[AnyRef](idx)
+          }
+        }
+        // Create new tuple with the processed fields
+        Tuple(tuple.schema, processedFields.toArray)
+      } else {
+        // No binary fields, use original tuple
+        tuple
+      }
+      
+      // Convert to JSON
+      processedTuple.asKeyValuePairJson()
+    }).toList
+  }
+
+  /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
       table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
+    val tableInJson = convertTuplesToJson(table)
     WebDataUpdate(mode, tableInJson)
   }
 
@@ -342,9 +393,7 @@ class ExecutionResultService(
             .getRange(from, from + request.pageSize)
             .to(Iterable)
         }
-        val mappedResults = paginationIterable
-          .map(tuple => tuple.asKeyValuePairJson())
-          .toList
+        val mappedResults = convertTuplesToJson(paginationIterable)
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
           .getOrElse(List.empty)
