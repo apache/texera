@@ -33,18 +33,21 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.computingUnitService.listComputingUnits().subscribe({
-      next: (units: DashboardWorkflowComputingUnit[]) => {
-        let firstRunningUnit = units.find(unit => unit.status === "Running");
-        if (firstRunningUnit) {
-          this.selectedComputingUnit = firstRunningUnit;
-          this.onComputingUnitChange(firstRunningUnit);
-        }
-        this.updateComputingUnits(units);
-        this.refreshComputingUnits();
-      },
-      error: (err: unknown) => console.error("Failed to fetch computing units:", err),
-    });
+    this.computingUnitService
+      .listComputingUnits()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (units: DashboardWorkflowComputingUnit[]) => {
+          let firstRunningUnit = units.find(unit => unit.status === "Running");
+          if (firstRunningUnit) {
+            this.selectedComputingUnit = firstRunningUnit;
+            this.onComputingUnitChange(firstRunningUnit);
+          }
+          this.updateComputingUnits(units);
+          this.refreshComputingUnits();
+        },
+        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+      });
   }
 
   /**
