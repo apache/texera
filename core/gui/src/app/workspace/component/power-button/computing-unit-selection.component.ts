@@ -132,6 +132,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     let wid = this.route.snapshot.params.id;
     if (newSelection) {
       if (!isDefined(wid)) {
+        console.log(`wid is ${wid}, defaulting to wid = 0`);
         wid = 0;
       }
       console.log(`Selected Unit URI: ${newSelection.uri}`);
