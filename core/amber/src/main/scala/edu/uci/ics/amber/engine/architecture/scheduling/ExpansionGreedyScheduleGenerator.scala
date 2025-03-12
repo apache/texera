@@ -80,10 +80,18 @@ class ExpansionGreedyScheduleGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
+        val ports = operators.flatMap(op =>
+          op.inputPorts.keys
+            .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+            .toSet ++ op.outputPorts.keys
+            .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+            .toSet
+        )
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
-          physicalLinks = links
+          physicalLinks = links,
+          ports = ports
         )
     }
   }

@@ -114,6 +114,9 @@ class OutputManager:
     def get_port(self, port_id=None) -> WorkerPort:
         return list(self._ports.values())[0]
 
+    def get_port_ids(self) -> typing.List[PortIdentity]:
+        return list(self._ports.keys())
+
     def get_output_channel_ids(self):
         return self._channels.keys()
 

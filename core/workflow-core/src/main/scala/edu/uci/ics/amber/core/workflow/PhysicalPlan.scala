@@ -165,12 +165,8 @@ case class PhysicalPlan(
     }
   }
 
-  private def isMaterializedLink(link: PhysicalLink): Boolean = {
-    getOperator(link.toOpId).isSinkOperator
-  }
-
   @JsonIgnore
-  def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
+  def getBlockingAndDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
         {
@@ -181,9 +177,9 @@ case class PhysicalPlan(
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
                 .filter(link =>
-                  !isMaterializedLink(link) && (getOperator(physicalOp.id).isInputLinkDependee(
+                  getOperator(physicalOp.id).isInputLinkDependee(
                     link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link))
+                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
                 )
             }
         }
@@ -234,7 +230,7 @@ case class PhysicalPlan(
           }
         }
         .flatMap(_.toList)
-    this.links.diff(getNonMaterializedBlockingAndDependeeLinks).diff(bridges.toSet)
+    this.links.diff(getBlockingAndDependeeLinks).diff(bridges.toSet)
   }
 
   /**

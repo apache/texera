@@ -4,7 +4,7 @@ package edu.uci.ics.amber.core.workflow
 sealed trait LocationPreference extends Serializable
 
 // PreferController: Run on the controller node.
-// Example: For scan operators reading files or sink operators writing results on the controller.
+// Example: For scan operators reading files.
 object PreferController extends LocationPreference
 
 // RoundRobinPreference: Distribute across worker nodes, per operator.

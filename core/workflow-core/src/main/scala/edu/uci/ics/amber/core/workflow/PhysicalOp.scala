@@ -200,14 +200,6 @@ case class PhysicalOp(
     inputPorts.isEmpty
   }
 
-  /**
-    * Helper function used to determine whether the input link is a materialized link.
-    */
-  @JsonIgnore
-  def isSinkOperator: Boolean = {
-    outputPorts.forall(port => port._2._2.isEmpty)
-  }
-
   @JsonIgnore // this is needed to prevent the serialization issue
   def isPythonBased: Boolean = {
     opExecInitInfo match {

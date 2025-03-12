@@ -23,12 +23,6 @@ message OpExecWithClassName {
   string descString = 2;
 }
 
-message OpExecSink  {
-  string storageKey = 1;
-  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
-  OutputPort.OutputMode outputMode = 3 [(scalapb.field).no_box = true];
-}
-
 message OpExecSource {
   string storageKey = 1;
   WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
@@ -38,7 +32,6 @@ message OpExecInitInfo {
   oneof sealed_value {
     OpExecWithClassName opExecWithClassName = 1;
       OpExecWithCode opExecWithCode = 2;
-      OpExecSink opExecSink = 3;
-      OpExecSource opExecSource = 4;
+      OpExecSource opExecSource = 3;
   }
 }

@@ -222,7 +222,7 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->keyword->count->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->count workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =

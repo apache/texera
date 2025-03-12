@@ -214,16 +214,19 @@ class OutputManager(
   }
 
   /**
-    * Singal the port storage writers to flush the remaining buffer and wait for commits to finish so that
-    * the output ports are properly completed.
+    * Singal the port storage writer to flush the remaining buffer and wait for commits to finish so that
+    * the output port is properly completed. If the output port does not need storage, no action will be done.
     */
-  def closeOutputStorageWriters(): Unit = {
-    // Non-blocking calls
-    this.outputPortResultWriterThreads.values.foreach(writerThread =>
-      writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
-    )
-    // Blocking calls
-    this.outputPortResultWriterThreads.values.foreach(writerThread => writerThread.join())
+  def closeOutputStorageWriterIfNeeded(outputPortId: PortIdentity): Unit = {
+    this.outputPortResultWriterThreads.get(outputPortId) match {
+      case Some(writerThread) =>
+        // Non-blocking call
+        writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
+        // Blocking call
+        this.outputPortResultWriterThreads.values.foreach(writerThread => writerThread.join())
+      case None =>
+    }
+
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
