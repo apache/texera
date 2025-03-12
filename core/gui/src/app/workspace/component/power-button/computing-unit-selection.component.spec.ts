@@ -4,10 +4,36 @@ import { ComputingUnitSelectionComponent } from "./computing-unit-selection.comp
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { CommonModule } from "@angular/common";
 import { NzIconModule } from "ng-zorro-antd/icon";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params, UrlSegment } from "@angular/router";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
   let fixture: ComponentFixture<ComputingUnitSelectionComponent>;
+
+  let activatedRouteMock: Partial<ActivatedRoute>;
+  const activatedRouteSnapshotMock: Partial<ActivatedRouteSnapshot> = {
+    queryParams: {},
+    url: [] as UrlSegment[],
+    params: {} as Params,
+    fragment: null,
+    data: {} as Data,
+    paramMap: convertToParamMap({}),
+    queryParamMap: convertToParamMap({}),
+    outlet: "",
+    routeConfig: null,
+    root: null as any,
+    parent: null as any,
+    firstChild: null as any,
+    children: [],
+    pathFromRoot: [],
+  };
+  activatedRouteMock = {
+    snapshot: activatedRouteSnapshotMock as ActivatedRouteSnapshot,
+  };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -18,6 +44,7 @@ describe("PowerButtonComponent", () => {
         NzButtonModule,
         NzIconModule,
       ],
+      providers: [{ provide: ActivatedRoute, useValue: activatedRouteMock }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ComputingUnitSelectionComponent);
