@@ -1,45 +1,107 @@
 package edu.uci.ics.amber.core.storage.model
 
+import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
+  fileServiceGetPresignURLEndpoint,
+  userJwtToken
+}
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 
 import java.io.{File, FileOutputStream, InputStream}
-import java.net.{URI, URLDecoder}
+import java.net.{HttpURLConnection, URI, URL, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
+object DatasetFileDocument {
+  // Since requests need to be sent to the FileService in order to read the file, we store USER_JWT_TOKEN in the environment vars
+  // This variable should be NON-EMPTY in the dynamic-computing-unit architecture, i.e. each user-created computing unit should store user's jwt token.
+  // In the local development or other architectures, this token can be empty.
+  lazy val userJwtToken: String = sys.env.getOrElse("USER_JWT_TOKEN", "").trim
+
+  // The endpoint of getting presigned url from the file service, also stored in the environment vars.
+  lazy val fileServiceGetPresignURLEndpoint: String =
+    sys.env
+      .getOrElse(
+        "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT",
+        "http://localhost:9092/api/dataset/presign-download"
+      )
+      .trim
+}
+
+private[storage] class DatasetFileDocument(uri: URI)
+    extends VirtualDocument[Nothing]
+    with OnDataset {
   // Utility function to parse and decode URI segments into individual components
-  private def parseUri(uri: URI): (Int, String, Path) = {
+  private def parseUri(uri: URI): (String, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
     if (segments.length < 3)
       throw new IllegalArgumentException("URI format is incorrect")
 
-    val did = segments(0).toInt
+    // TODO: consider whether use dataset name or did
+    val datasetName = segments(0)
     val datasetVersionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
     val decodedRelativeSegments =
       segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
     val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
 
-    (did, datasetVersionHash, fileRelativePath)
+    (datasetName, datasetVersionHash, fileRelativePath)
   }
 
   // Extract components from URI using the utility function
-  private val (did, datasetVersionHash, fileRelativePath) = parseUri(uri)
+  private val (datasetName, datasetVersionHash, fileRelativePath) = parseUri(uri)
 
   private var tempFile: Option[File] = None
 
   override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    val datasetAbsolutePath = PathUtils.getDatasetPath(Integer.valueOf(did))
-    GitVersionControlLocalFileStorage
-      .retrieveFileContentOfVersionAsInputStream(
-        datasetAbsolutePath,
-        datasetVersionHash,
-        datasetAbsolutePath.resolve(fileRelativePath)
+    if (userJwtToken.isEmpty) {
+      val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+        getDatasetName(),
+        getVersionHash(),
+        getFileRelativePath()
       )
+      return new URL(presignUrl).openStream()
+    }
+
+    // Step 1: Get the presigned URL from the file service
+    val presignRequestUrl =
+      s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+        .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
+
+    val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
+    connection.setRequestMethod("GET")
+    connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
+
+    try {
+      if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
+        throw new RuntimeException(
+          s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+        )
+      }
+
+      // Read response body as a string
+      val responseBody =
+        new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+
+      // Extract presigned URL from JSON response
+      val presignedUrl = responseBody
+        .split("\"presignedUrl\"\\s*:\\s*\"")(1)
+        .split("\"")(0)
+
+      // Step 2: Fetch the file using the retrieved presigned URL
+      new URL(presignedUrl).openStream()
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Failed to retrieve presigned URL from $fileServiceGetPresignURLEndpoint: ${e.getMessage}",
+          e
+        )
+    } finally {
+      connection.disconnect()
+    }
   }
 
   override def asFile(): File = {
@@ -75,8 +137,14 @@ private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Not
     }
     // then remove the dataset file
     GitVersionControlLocalFileStorage.removeFileFromRepo(
-      PathUtils.getDatasetPath(Integer.valueOf(did)),
-      PathUtils.getDatasetPath(Integer.valueOf(did)).resolve(fileRelativePath)
+      PathUtils.getDatasetPath(0),
+      PathUtils.getDatasetPath(0).resolve(fileRelativePath)
     )
   }
+
+  override def getVersionHash(): String = datasetVersionHash
+
+  override def getDatasetName(): String = datasetName
+
+  override def getFileRelativePath(): String = fileRelativePath.toString
 }

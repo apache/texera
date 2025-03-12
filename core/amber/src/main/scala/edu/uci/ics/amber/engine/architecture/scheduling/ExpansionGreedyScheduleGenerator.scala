@@ -2,9 +2,13 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
@@ -164,6 +168,8 @@ class ExpansionGreedyScheduleGenerator(
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
 
+    val outputPortsToMaterialize = new mutable.HashSet[GlobalPortIdentity]()
+
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
       tryConnectRegionDAG() match {
@@ -173,6 +179,10 @@ class ExpansionGreedyScheduleGenerator(
             physicalPlan = replaceLinkWithMaterialization(
               link,
               matReaderWriterPairs
+            )
+            outputPortsToMaterialize += GlobalPortIdentity(
+              opId = link.fromOpId,
+              portId = link.fromPortId
             )
           }
           recConnectRegionDAG()
@@ -201,6 +211,8 @@ class ExpansionGreedyScheduleGenerator(
 
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
+
+    updateRegionsWithOutputPortStorage(outputPortsToMaterialize.toSet, regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)

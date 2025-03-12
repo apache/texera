@@ -2,7 +2,6 @@ package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.{OpExecSink, OpExecSource}
 import edu.uci.ics.amber.core.storage.VFSURIFactory
-import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -70,7 +69,8 @@ object SpecialPhysicalOpFactory {
       executionIdentity: ExecutionIdentity,
       uri: URI,
       downstreamOperator: PhysicalOpIdentity,
-      downstreamPort: PortIdentity
+      downstreamPort: PortIdentity,
+      schema: Schema
   ): PhysicalOp = {
 
     val (_, _, opId, layerName, portId, _) = VFSURIFactory.decodeURI(uri)
@@ -89,11 +89,7 @@ object SpecialPhysicalOpFactory {
       .withInputPorts(List.empty)
       .withOutputPorts(List(outputPort))
       .withPropagateSchema(
-        SchemaPropagationFunc(_ =>
-          Map(outputPort.id -> {
-            DocumentFactory.openDocument(uri)._2.get
-          })
-        )
+        SchemaPropagationFunc(_ => Map(outputPort.id -> schema))
       )
       .propagateSchema()
 

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.executor.{OpExecWithCode, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -214,6 +214,14 @@ case class PhysicalOp(
       case OpExecWithCode(_, language) =>
         language == "python" || language == "r-tuple" || language == "r-table"
       case _ => false
+    }
+  }
+
+  @JsonIgnore
+  def getCode: String = {
+    opExecInitInfo match {
+      case OpExecWithCode(code, _) => code
+      case _                       => throw new IllegalAccessError("No code information in this physical operator")
     }
   }
 

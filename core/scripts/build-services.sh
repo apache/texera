@@ -2,6 +2,9 @@ sbt clean dist
 unzip workflow-compiling-service/target/universal/workflow-compiling-service-0.1.0.zip -d target/
 rm workflow-compiling-service/target/universal/workflow-compiling-service-0.1.0.zip
 
+unzip file-service/target/universal/file-service-0.1.0.zip -d target/
+rm file-service/target/universal/file-service-0.1.0.zip
+
 unzip workflow-computing-unit-managing-service/target/universal/workflow-computing-unit-managing-service-0.1.0.zip -d target/
 rm workflow-computing-unit-managing-service/target/universal/workflow-computing-unit-managing-service-0.1.0.zip
 

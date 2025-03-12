@@ -57,8 +57,6 @@ val akkaDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // DropWizard server related
 val dropwizardVersion = "1.3.23"
-// jersey version should be the same as jersey-server that is contained in dropwizard
-val jerseyMultipartVersion = "2.25.1"
 
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -69,7 +67,6 @@ val dropwizardDependencies = Seq(
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
-  "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
 )
@@ -218,12 +215,8 @@ libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models"
-
-// https://mvnrepository.com/artifact/com.twitter/chill-akka
-libraryDependencies += "com.twitter" %% "chill-akka" % "0.10.0"
+// https://mvnrepository.com/artifact/io.altoo/akka-kryo-serialization
+libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.2"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

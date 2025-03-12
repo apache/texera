@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
@@ -14,26 +15,24 @@ class WorkflowEmailNotifier(
     workflowId: Long,
     userEmail: String,
     sessionUri: URI
-) extends EmailNotifier {
+) extends EmailNotifier
+    with LazyLogging {
   private val workflowName = WorkflowResource.getWorkflowName(workflowId.toInt)
   private val emailValidator = new EmailValidator()
-  private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
+
+  private val TerminalStates: Set[WorkflowAggregatedState] = Set(
     COMPLETED,
     PAUSED,
     FAILED,
     KILLED
   )
 
-  override def shouldSendEmail(
-      oldState: WorkflowAggregatedState,
-      newState: WorkflowAggregatedState
-  ): Boolean = {
-    oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
-  }
+  override def shouldSendEmail(workflowState: WorkflowAggregatedState): Boolean =
+    TerminalStates.contains(workflowState)
 
   override def sendStatusEmail(state: WorkflowAggregatedState): Unit = {
     if (!isValidEmail(userEmail)) {
-      println(s"Invalid email address: $userEmail")
+      logger.warn(s"Invalid email address: $userEmail")
       return
     }
 

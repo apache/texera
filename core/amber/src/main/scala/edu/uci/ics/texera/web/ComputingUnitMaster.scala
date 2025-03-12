@@ -28,7 +28,6 @@ import io.dropwizard.websockets.WebsocketBundle
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
-import org.glassfish.jersey.media.multipart.MultiPartFeature
 
 import java.net.URI
 import java.time.Duration
@@ -116,9 +115,6 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
-
-    // register MultiPartFeature
-    environment.jersey.register(classOf[MultiPartFeature])
 
     setupJwtAuth(environment)
 

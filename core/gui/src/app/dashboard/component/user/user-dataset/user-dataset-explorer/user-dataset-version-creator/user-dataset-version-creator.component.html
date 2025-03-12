@@ -1,11 +1,11 @@
 <div>
   <nz-spin
-    [nzSpinning]="isUploading"
+    [nzSpinning]="isCreating"
     nzSize="large"
-    nzTip="Uploading...">
+    nzTip="Creating...">
     <div
       class="texera-user-dataset-creator-form"
-      [ngClass]="{'disabled-backdrop': isUploading}">
+      [ngClass]="{'disabled-backdrop': isCreating}">
       <formly-form
         [form]="form"
         [fields]="fields"
@@ -17,19 +17,12 @@
         nzCheckedChildren="public"
         nzUnCheckedChildren="private"></nz-switch>
     </div>
-    <div class="file-uploader">
-      <texera-user-files-uploader
-        (uploadedFiles)="onNewUploadFilesChanged($event)"
-        (removingFilePaths)="onRemovingFilePathsChanged($event)"
-        [previouslyUploadFiles]="baseVersion?.fileNodes">
-      </texera-user-files-uploader>
-    </div>
 
     <button
       nz-button
       nzType="primary"
       (click)="onClickCreate()"
-      [disabled]="isCreateButtonDisabled || isUploading"
+      [disabled]="isCreateButtonDisabled || isCreating"
       class="create-btn">
       Create
     </button>
@@ -39,7 +32,7 @@
       nzType="default"
       (click)="onClickCancel()"
       class="cancel-btn"
-      [disabled]="isUploading">
+      [disabled]="isCreating">
       Cancel
     </button>
   </nz-spin>
