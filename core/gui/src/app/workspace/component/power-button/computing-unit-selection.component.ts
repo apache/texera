@@ -9,6 +9,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {ActivatedRoute} from "@angular/router";
+import {environment} from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -128,8 +129,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   onComputingUnitChange(newSelection: DashboardWorkflowComputingUnit | null): void {
     console.log("Selected computing unit changed to:", newSelection);
-    const wid = this.route.snapshot.params.id;
-    if (newSelection && isDefined(wid)) {
+    let wid = this.route.snapshot.params.id;
+    if (newSelection) {
+      if(!isDefined(wid)){
+        wid = 0;
+      }
       console.log(`Selected Unit URI: ${newSelection.uri}`);
       this.workflowWebsocketService.closeWebsocket()
       this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
@@ -144,4 +148,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   getBadgeColor(status: string): string {
     return status === "Running" ? "green" : "yellow";
   }
+
+  protected readonly environment = environment;
 }

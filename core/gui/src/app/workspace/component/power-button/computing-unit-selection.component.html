@@ -1,7 +1,6 @@
 <nz-select
   nzSize="large"
   nzShowSearch
-  nzAllowClear
   [nzDropdownRender]="renderTemplate"
   nzPlaceHolder="Select a computing unit"
   [(ngModel)]="selectedComputingUnit"
@@ -16,7 +15,7 @@
       <nz-badge
         [nzColor]="getBadgeColor(unit.status)"
         [nzText]="''">
-        <span
+        <span class="unit-type"
           nz-icon
           nzType="desktop"></span>
       </nz-badge>
@@ -29,6 +28,7 @@
           >{{ unit.computingUnit.name }}</span
         >
         <div
+          *ngIf="environment.computingUnitManagerEnabled"
           class="terminate-box"
           nz-tooltip
           [nzTooltipTitle]="'Terminate'"
@@ -39,8 +39,7 @@
 </nz-select>
 
 <ng-template #renderTemplate>
-  <nz-divider></nz-divider>
-  <div class="dropdown-footer">
+  <div *ngIf="environment.computingUnitManagerEnabled" class="dropdown-footer">
     <button
       nz-button
       nzType="primary"
