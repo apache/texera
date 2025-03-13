@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
@@ -12,7 +13,6 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
-
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -108,7 +108,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           DATASET_USER_ACCESS.PRIVILEGE,
           classOf[PrivilegeEnum]
         ),
-      dataset.getOwnerUid == uid
+      dataset.getOwnerUid == uid,
+      LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

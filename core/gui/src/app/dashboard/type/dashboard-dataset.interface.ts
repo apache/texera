@@ -6,4 +6,5 @@ export interface DashboardDataset {
   ownerEmail: string;
   dataset: Dataset;
   accessPrivilege: "READ" | "WRITE" | "NONE";
+  size: number;
 }
