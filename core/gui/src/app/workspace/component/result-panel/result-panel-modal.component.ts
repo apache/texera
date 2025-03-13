@@ -1,6 +1,5 @@
 import { Component, inject, OnChanges } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { trimDisplayJsonData } from "src/app/common/util/json";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -45,7 +44,7 @@ export class RowModalComponent implements OnChanges {
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
-        this.currentDisplayRowData = trimDisplayJsonData(res.tuple, res.schema, PRETTY_JSON_TEXT_LIMIT);
+        this.currentDisplayRowData = res.tuple;
       });
   }
 }
