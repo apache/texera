@@ -57,7 +57,7 @@ object ExecutionResultService {
     * @param tuples The collection of Tuples to convert
     * @return A List of ObjectNodes containing the JSON representation of the tuples
     */
-  private def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
+  def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
     val maxStringLength = 100
 
     tuples.map { tuple =>
