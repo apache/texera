@@ -26,6 +26,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
@@ -292,7 +293,8 @@ object HubResource {
         isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
         dataset = dataset,
         accessPrivilege = datasetAccess.getPrivilege,
-        ownerEmail = ownerEmail
+        ownerEmail = ownerEmail,
+        size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
       )
     }.toList
   }
