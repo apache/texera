@@ -4,8 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 
 import scala.collection.mutable

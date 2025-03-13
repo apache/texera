@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
@@ -76,21 +76,21 @@ export class DatasetService {
   }
 
   /**
-   * Retrieves a zip file of a dataset or a specific path within a dataset.
-   * @param options An object containing optional parameters:
-   *   - path: A string representing a specific file or directory path within the dataset
-   *   - did: A number representing the dataset ID
-   * @returns An Observable that emits a Blob containing the zip file
+   * Retrieves a zip file of a dataset version.
+   * @param did Dataset ID
+   * @param dvid (Optional) Dataset version ID. If omitted, the latest version is downloaded.
+   * @returns An Observable that emits a Blob containing the zip file.
    */
-  public retrieveDatasetZip(options: { did: number; dvid?: number }): Observable<Blob> {
-    // TODO: finish this
+  public retrieveDatasetVersionZip(did: number, dvid?: number): Observable<Blob> {
     let params = new HttpParams();
-    params = params.set("did", options.did.toString());
-    if (options.dvid) {
-      params = params.set("dvid", options.dvid.toString());
+
+    if (dvid !== undefined && dvid !== null) {
+      params = params.set("dvid", dvid.toString());
+    } else {
+      params = params.set("latest", "true");
     }
 
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/dataset/${did}/versionZip`, {
       params,
       responseType: "blob",
     });

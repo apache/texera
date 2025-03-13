@@ -10,38 +10,12 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  isDatasetPublic,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.service.resource.DatasetResource.{
-  CreateDatasetRequest,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetVersionRootFileNodesResponse,
-  Diff,
-  context,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getLatestDatasetVersion
-}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.service.resource.DatasetResource.{CreateDatasetRequest, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetVersionRootFileNodesResponse, Diff, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
 import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
@@ -52,7 +26,9 @@ import org.jooq.{DSLContext, EnumType}
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
 import java.util.Optional
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
@@ -805,7 +781,6 @@ class DatasetResource {
     })
   }
 
-  // TODO: change did to name
   @GET
   @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
@@ -860,6 +835,76 @@ class DatasetResource {
       )
     })
   }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/versionZip")
+  def getDatasetVersionZip(
+                            @PathParam("did") did: Integer,
+                            @QueryParam("dvid") dvid: Integer,  // Dataset version ID, nullable
+                            @QueryParam("latest") latest: java.lang.Boolean, // Flag to get latest version, nullable
+                            @Auth user: SessionUser
+                          ): Response = {
+
+    val uid = user.getUid
+
+    withTransaction(context) { ctx =>
+      if ((dvid != null && latest != null) || (dvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
+      }
+
+      // Determine which version to retrieve
+      val datasetVersion = if (dvid != null) {
+        getDatasetVersionByID(ctx, dvid)
+      } else if (java.lang.Boolean.TRUE.equals(latest)) {
+        getLatestDatasetVersion(ctx, did).getOrElse(
+          throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
+        )
+      } else {
+        throw new BadRequestException("Invalid parameters")
+      }
+
+      // Retrieve dataset and version details
+      val dataset = getDatasetByID(ctx, did)
+      val datasetName = dataset.getName
+      val versionHash = datasetVersion.getVersionHash
+      val objects = LakeFSStorageClient.retrieveObjectsOfVersion(datasetName, versionHash)
+
+      if (objects.isEmpty) {
+        return Response
+          .status(Response.Status.NOT_FOUND)
+          .entity(s"No objects found in version $versionHash of repository $datasetName")
+          .build()
+      }
+
+      // StreamingOutput for ZIP download
+      val streamingOutput = new StreamingOutput {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOut = new ZipOutputStream(outputStream)
+          try {
+            objects.foreach { obj =>
+              val filePath = obj.getPath
+              val file = LakeFSStorageClient.getFileFromRepo(datasetName, versionHash, filePath)
+
+              zipOut.putNextEntry(new ZipEntry(filePath))
+              Files.copy(Paths.get(file.toURI), zipOut)
+              zipOut.closeEntry()
+            }
+          } finally {
+            zipOut.close()
+          }
+        }
+      }
+
+      val zipFilename = s"""attachment; filename="${datasetName}-${datasetVersion.getName}.zip""""
+
+      Response
+        .ok(streamingOutput, "application/zip")
+        .header("Content-Disposition", zipFilename)
+        .build()
+    }
+  }
+
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
