@@ -38,12 +38,17 @@ object ExecutionResultService {
     * For binary types, format the byte data as human-readable string
     */
   private def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
+    // Define a maximum length for string values, similar to what's used in the frontend
+    val maxStringLength = 100
+
     tuples.map(tuple => {
-      // Create a new tuple with processed binary fields if needed
-      val processedTuple = if (tuple.schema.getAttributes.exists(_.getType == AttributeType.BINARY)) {
-        // We have at least one binary field, need to process
+      // Create a new tuple with processed binary fields and truncated string fields if needed
+      val processedTuple = if (tuple.schema.getAttributes.exists(attr => 
+          attr.getType == AttributeType.BINARY || attr.getType == AttributeType.STRING)) {
+        // We have at least one binary or string field, need to process
         val processedFields = tuple.schema.getAttributes.zipWithIndex.map { case (attr, idx) =>
           if (attr.getType == AttributeType.BINARY) {
+            // Binary field processing (existing code)
             val binaryValue = tuple.getField[AnyRef](idx)
             binaryValue match {
               case list: List[_] if list.nonEmpty =>
@@ -106,15 +111,25 @@ object ExecutionResultService {
                 // This shouldn't happen - binary values should always be lists
                 throw new RuntimeException("Expected a List for binary type field, but got: " + binaryValue.getClass.getName)
             }
+          } else if (attr.getType == AttributeType.STRING) {
+            // String field processing (new code based on json.ts)
+            val stringValue = tuple.getField[String](idx)
+            if (stringValue != null && stringValue.length > maxStringLength) {
+              // Truncate and add ellipsis similar to trimAndFormatData in json.ts
+              stringValue.substring(0, maxStringLength) + "..."
+            } else {
+              // Keep original string value
+              stringValue
+            }
           } else {
-            // Non-binary field, keep as is
+            // Non-binary, non-string field, keep as is
             tuple.getField[AnyRef](idx)
           }
         }
         // Create new tuple with the processed fields
         Tuple(tuple.schema, processedFields.toArray)
       } else {
-        // No binary fields, use original tuple
+        // No binary or string fields, use original tuple
         tuple
       }
       
