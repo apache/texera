@@ -39,7 +39,7 @@
     nz-button
     nz-dropdown
     nzTrigger="click"
-    [nzDropdownMenu]="menu"
+    [nzDropdownMenu]="environment.computingUnitManagerEnabled ? menu : null"
     [nzPlacement]="'bottomRight'"
     class="computing-units-dropdown-button">
     <nz-badge
@@ -54,6 +54,7 @@
     <span *ngIf="!selectedComputingUnit">Connect</span>
     <i
       nz-icon
+      *ngIf="environment.computingUnitManagerEnabled"
       nzType="down"></i>
   </button>
 
@@ -83,14 +84,12 @@
           nz-icon
           nzType="delete"
           nz-tooltip
-          *ngIf="environment.computingUnitManagerEnabled"
           [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
           (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
       <li nz-menu-divider></li>
       <li
         nz-menu-item
-        *ngIf="environment.computingUnitManagerEnabled"
         (click)="showAddComputeUnitModalVisible()">
         <div class="create-computing-unit">
           <i
