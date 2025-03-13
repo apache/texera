@@ -146,7 +146,7 @@ describe("DownloadService", () => {
       next: blob => {
         expect(blob).toBe(mockBlob);
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId );
+        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId);
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
         expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
         done();
