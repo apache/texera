@@ -16,7 +16,7 @@ describe("DownloadService", () => {
   beforeEach(() => {
     const datasetSpy = jasmine.createSpyObj("DatasetService", [
       "retrieveDatasetVersionSingleFile",
-      "retrieveDatasetZip", // Add this method to the spy
+      "retrieveDatasetVersionZip", // Add this method to the spy
     ]);
     const fileSaverSpy = jasmine.createSpyObj("FileSaverService", ["saveAs"]);
     const notificationSpy = jasmine.createSpyObj("NotificationService", ["info", "success", "error"]);
