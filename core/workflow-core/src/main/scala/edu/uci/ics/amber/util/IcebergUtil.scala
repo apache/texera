@@ -102,7 +102,7 @@ object IcebergUtil {
     catalog.initialize(
       catalogName,
       Map(
-        "warehouse" -> warehouse.toString,
+        "warehouse" -> warehouse.toString.replace(":", ""),
         CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
         CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
         JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
@@ -148,6 +148,7 @@ object IcebergUtil {
       PartitionSpec.unpartitioned,
       tableProperties.asJava
     )
+
   }
 
   /**
