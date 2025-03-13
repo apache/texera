@@ -74,12 +74,12 @@ export class WorkflowComputingUnitManagingService {
         status: "Running",
         metrics: {
           cpuUsage: "NaN",
-          memoryUsage: "NaN"
+          memoryUsage: "NaN",
         },
         resourceLimits: {
           cpuLimit: "NaN",
-          memoryLimit: "NaN"
-        }
+          memoryLimit: "NaN",
+        },
       };
 
       return of([defaultComputingUnit]);

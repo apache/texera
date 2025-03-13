@@ -8,7 +8,7 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {environment} from "../../../../environments/environment";
+import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
