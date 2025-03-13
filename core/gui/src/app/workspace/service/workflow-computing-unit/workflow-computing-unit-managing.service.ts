@@ -1,11 +1,8 @@
 import { Injectable } from "@angular/core";
-import {HttpClient, HttpParams} from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import {
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitMetrics
-} from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit, WorkflowComputingUnitMetrics } from "../../types/workflow-computing-unit";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_METRICS_BASE_URL = "resource-metrics";
@@ -27,7 +24,12 @@ export class WorkflowComputingUnitManagingService {
    * @param unitType
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createComputingUnit(name: string, cpuLimit: string, memoryLimit: string, unitType: string = "k8s_pod"): Observable<DashboardWorkflowComputingUnit> {
+  public createComputingUnit(
+    name: string,
+    cpuLimit: string,
+    memoryLimit: string,
+    unitType: string = "k8s_pod"
+  ): Observable<DashboardWorkflowComputingUnit> {
     const body = { name, cpuLimit, memoryLimit, unitType };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
@@ -63,6 +65,8 @@ export class WorkflowComputingUnitManagingService {
    * @param cuid
    */
   public getComputingUnitMetrics(cuid: number): Observable<WorkflowComputingUnitMetrics> {
-    return this.http.get<WorkflowComputingUnitMetrics>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/metrics`)
+    return this.http.get<WorkflowComputingUnitMetrics>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/metrics`
+    );
   }
 }

@@ -144,7 +144,7 @@ import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } 
 import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
 import { lastValueFrom } from "rxjs";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
-import {NzProgressModule} from "ng-zorro-antd/progress";
+import { NzProgressModule } from "ng-zorro-antd/progress";
 
 registerLocaleData(en);
 

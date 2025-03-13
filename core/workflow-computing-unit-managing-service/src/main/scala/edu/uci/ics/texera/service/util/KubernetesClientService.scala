@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.service.util
 
 import config.WorkflowComputingUnitManagingServiceConf
-import config.WorkflowComputingUnitManagingServiceConf.{computeUnitImageName, computeUnitPortNumber, computeUnitServiceName}
+import config.WorkflowComputingUnitManagingServiceConf.{
+  computeUnitImageName,
+  computeUnitPortNumber,
+  computeUnitServiceName
+}
 import edu.uci.ics.amber.core.storage.StorageConfig
 import io.kubernetes.client.custom.Quantity
 import io.kubernetes.client.openapi.apis.CoreV1Api
@@ -164,8 +168,10 @@ object KubernetesClientService {
                   new V1ResourceRequirements()
                     .limits(
                       util.Map.of(
-                        "cpu", cpu,
-                        "memory", memory
+                        "cpu",
+                        cpu,
+                        "memory",
+                        memory
                       )
                     ) // may want to add requests as well to make efficient use of the CPU resources
                 )

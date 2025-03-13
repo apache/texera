@@ -6,7 +6,15 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, WorkflowComputingUnitTerminationParams, context}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{
+  DashboardWorkflowComputingUnit,
+  TerminationResponse,
+  WorkflowComputingUnitCreationParams,
+  WorkflowComputingUnitMetrics,
+  WorkflowComputingUnitResourceLimit,
+  WorkflowComputingUnitTerminationParams,
+  context
+}
 import edu.uci.ics.texera.service.util.KubernetesClientService
 import edu.uci.ics.texera.service.util.KubernetesMetricService.{getPodLimits, getPodMetrics}
 import jakarta.ws.rs._
@@ -22,18 +30,23 @@ object WorkflowComputingUnitManagingResource {
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
 
-  case class WorkflowComputingUnitCreationParams(name: String, unitType: String, cpuLimit: String, memoryLimit: String)
+  case class WorkflowComputingUnitCreationParams(
+      name: String,
+      unitType: String,
+      cpuLimit: String,
+      memoryLimit: String
+  )
 
   case class WorkflowComputingUnitTerminationParams(uri: String, name: String)
 
   case class WorkflowComputingUnitResourceLimit(
-     cpuLimit: String,
-     memoryLimit: String
- )
+      cpuLimit: String,
+      memoryLimit: String
+  )
 
   case class WorkflowComputingUnitMetrics(
-     cpuUsage: String,
-     memoryUsage: String
+      cpuUsage: String,
+      memoryUsage: String
   )
 
   case class DashboardWorkflowComputingUnit(
@@ -121,7 +134,8 @@ class WorkflowComputingUnitManagingResource {
           DashboardWorkflowComputingUnit(
             computingUnit = unit,
             uri = KubernetesClientService.generatePodURI(cuid).toString,
-            status = if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
+            status =
+              if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
             getComputingUnitMetric(cuid.toString),
             getComputingUnitLimits(cuid.toString)
           )
@@ -160,11 +174,11 @@ class WorkflowComputingUnitManagingResource {
   }
 
   /**
-   * Retrieves the CPU and memory metrics for a computing unit identified by its `cuid`.
-   *
-   * @param cuid The computing unit ID.
-   * @return A `WorkflowComputingUnitMetrics` object with CPU and memory usage data.
-   */
+    * Retrieves the CPU and memory metrics for a computing unit identified by its `cuid`.
+    *
+    * @param cuid The computing unit ID.
+    * @return A `WorkflowComputingUnitMetrics` object with CPU and memory usage data.
+    */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
@@ -180,7 +194,9 @@ class WorkflowComputingUnitManagingResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/limits")
-  def getComputingUnitLimits(@PathParam("cuid") cuid: String): WorkflowComputingUnitResourceLimit = {
+  def getComputingUnitLimits(
+      @PathParam("cuid") cuid: String
+  ): WorkflowComputingUnitResourceLimit = {
     val podLimits: Map[String, String] = getPodLimits(cuid.toInt)
 
     WorkflowComputingUnitResourceLimit(

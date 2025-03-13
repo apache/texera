@@ -1,15 +1,13 @@
-import {Component, Input, OnInit} from "@angular/core";
-import {interval} from "rxjs";
-import {switchMap} from "rxjs/operators";
-import {
-  WorkflowComputingUnitManagingService
-} from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import {DashboardWorkflowComputingUnit} from "../../types/workflow-computing-unit";
-import {NotificationService} from "../../../common/service/notification/notification.service";
-import {WorkflowWebsocketService} from "../../service/workflow-websocket/workflow-websocket.service";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {isDefined} from "../../../common/util/predicate";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import { Component, Input, OnInit } from "@angular/core";
+import { interval } from "rxjs";
+import { switchMap } from "rxjs/operators";
+import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { isDefined } from "../../../common/util/predicate";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
@@ -178,14 +176,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
    * @return "Computing unit 85"
    */
-  getComputingUnitName(unitURI: string) : string {
-    const computingUnit = unitURI.split(".")[0]
+  getComputingUnitName(unitURI: string): string {
+    const computingUnit = unitURI.split(".")[0];
     return computingUnit
       .split("-")
-      .map((word, index) =>
-        index < 2 ? word.charAt(0).toUpperCase() + word.slice(1) : word
-      )
-      .join(" ")
+      .map((word, index) => (index < 2 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(" ");
   }
 
   /**
@@ -193,7 +189,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param resource (i.e. "12412512n")
    * @return associated unit with resource (i.e. "n", "Mi", "Gi", ...)
    */
-  parseResourceUnit(resource: string) : string {
+  parseResourceUnit(resource: string): string {
     const match = resource.match(/[a-z].*/i);
     return match ? match[0] : "";
   }
@@ -203,7 +199,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param resource (i.e. "12412512n")
    * @return associated number with resource (i.e. 12412512)
    */
-  parseResourceNumber(resource: string) : number {
+  parseResourceNumber(resource: string): number {
     const match = resource.match(/[0-9.]*/);
     return match ? Number(match[0]) : 0;
   }
@@ -214,14 +210,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param toUnit (i.e. cores)
    * @return i.e. 1.2412512 Cores
    */
-  cpuResourceConversion(from: string, toUnit: string) : string {
+  cpuResourceConversion(from: string, toUnit: string): string {
     // CPU conversion constants (base unit: nanocores)
     type CpuUnit = "n" | "u" | "m" | "";
     const cpuUnits: Record<CpuUnit, number> = {
-      "n": 1,         // nanocores
-      "u": 10**3,     // microcores
-      "m": 10**6,     // millicores
-      "": 10**9       // cores
+      n: 1, // nanocores
+      u: 10 ** 3, // microcores
+      m: 10 ** 6, // millicores
+      "": 10 ** 9, // cores
     };
 
     const fromNumber: number = this.parseResourceNumber(from);
@@ -230,7 +226,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (!(fromUnit in cpuUnits) || !(toUnit in cpuUnits)) {
       return "";
     }
-    return `${(fromNumber * (cpuUnits[fromUnit as CpuUnit] / cpuUnits[toUnit as CpuUnit]))} ${toUnit}`;
+    return `${fromNumber * (cpuUnits[fromUnit as CpuUnit] / cpuUnits[toUnit as CpuUnit])} ${toUnit}`;
   }
 
   /**
@@ -239,14 +235,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param toUnit (i.e. "Gi")
    * @return i.e. 0.524 Gi
    */
-  memoryResourceConversion(from: string, toUnit: string) : string {
+  memoryResourceConversion(from: string, toUnit: string): string {
     // Memory conversion constants (base unit: bytes)
     type MemoryUnit = "Ki" | "Mi" | "Gi" | "";
     const memoryUnits = {
-      "": 1,          // bytes
-      "Ki": 1024,     // KiB
-      "Mi": 1024**2,  // MiB
-      "Gi": 1024**3   // GiB
+      "": 1, // bytes
+      Ki: 1024, // KiB
+      Mi: 1024 ** 2, // MiB
+      Gi: 1024 ** 3, // GiB
     };
 
     const fromNumber: number = this.parseResourceNumber(from);
@@ -311,7 +307,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   getMemoryValue(): number {
     // convert to appropriate unit based on the limit
     const memoryLimitUnit: string = this.getMemoryLimitUnit();
-    const convertedValue: string = this.memoryResourceConversion(this.getCurrentComputingUnitMemoryUsage(), memoryLimitUnit);
+    const convertedValue: string = this.memoryResourceConversion(
+      this.getCurrentComputingUnitMemoryUsage(),
+      memoryLimitUnit
+    );
     return this.parseResourceNumber(convertedValue);
   }
 
@@ -321,7 +320,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (cpuLimit <= 0) {
       return 0;
     }
-    return this.getCpuValue() / cpuLimit * 100;
+    return (this.getCpuValue() / cpuLimit) * 100;
   }
 
   getCpuStatus(): "success" | "exception" | "active" | "normal" {
@@ -336,7 +335,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (memoryLimit <= 0) {
       return 0;
     }
-    return this.getMemoryValue() / memoryLimit * 100;
+    return (this.getMemoryValue() / memoryLimit) * 100;
   }
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {

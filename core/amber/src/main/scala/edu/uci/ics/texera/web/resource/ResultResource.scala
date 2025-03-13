@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
-import edu.uci.ics.texera.web.service.{ResultExportService, WorkflowService}
+import edu.uci.ics.texera.web.service.ResultExportService
 import io.dropwizard.auth.Auth
 
 import javax.ws.rs._
