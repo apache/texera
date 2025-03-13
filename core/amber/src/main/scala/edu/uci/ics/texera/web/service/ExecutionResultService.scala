@@ -46,9 +46,15 @@ object ExecutionResultService {
           if (attr.getType == AttributeType.BINARY) {
             val binaryValue = tuple.getField[AnyRef](idx)
             binaryValue match {
-              case list: List[_] if !list.isEmpty => 
-                // Extract the first binary element
-                list.head match {
+              case list: List[_] if list.nonEmpty =>
+                // Calculate total size of all ByteBuffers in the list
+                val totalSize = list.foldLeft(0)((sum, element) => element match {
+                  case buffer: java.nio.ByteBuffer => sum + buffer.remaining()
+                  case other => throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
+                })
+                
+                // Extract the first binary element for leading bytes
+                val firstElement = list.head match {
                   case buffer: java.nio.ByteBuffer =>
                     // Convert ByteBuffer to byte array
                     val bytes = new Array[Byte](buffer.remaining())
@@ -57,23 +63,44 @@ object ExecutionResultService {
                     dupBuffer.get(bytes)
                     
                     // Convert byte array to hex string representation
-                    val hexString = bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
-                    
-                    // Format the hex string similar to the frontend approach
-                    val length = hexString.length
-                    if (length < 40) {
-                      List(s"bytes'${hexString}' (length: ${bytes.length})")
-                    } else {
-                      val leadingBytes = hexString.take(30)
-                      val trailingBytes = hexString.takeRight(10)
-                      List(s"bytes'${leadingBytes}...${trailingBytes}' (length: ${bytes.length})")
-                    }
+                    bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
                   
                   case other =>
-                    // If not a ByteBuffer, just convert to string
-                    val str = other.toString
-                    List(s"bytes'${str}' (length: ${str.length})")
+                    throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
                 }
+                
+                // Extract the last binary element for trailing bytes (if different from first)
+                val lastElement = if (list.size > 1) {
+                  list.last match {
+                    case buffer: java.nio.ByteBuffer =>
+                      // Convert ByteBuffer to byte array
+                      val bytes = new Array[Byte](buffer.remaining())
+                      // Make a duplicate to avoid affecting the original position
+                      val dupBuffer = buffer.duplicate()
+                      dupBuffer.get(bytes)
+                      
+                      // Convert byte array to hex string representation
+                      bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+                    
+                    case other =>
+                      throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
+                  }
+                } else {
+                  // If there's only one element, lastElement is the same as firstElement
+                  firstElement
+                }
+                
+                if (firstElement.length < 39) {
+                  List(s"bytes'${firstElement}' (length: ${totalSize})")
+                } else {
+                  val leadingBytes = firstElement.take(30)
+                  val trailingBytes = lastElement.takeRight(9)
+                  List(s"bytes'${leadingBytes}...${trailingBytes}' (length: ${totalSize})")
+                }
+                
+              case null => 
+                // Handle null value
+                List("NULL")
               
               case _ =>
                 // This shouldn't happen - binary values should always be lists
