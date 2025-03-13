@@ -8,17 +8,30 @@ import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
@@ -34,108 +47,100 @@ object ExecutionResultService {
   private val defaultPageSize: Int = 5
 
   /**
-    * Helper method to convert a collection of Tuples to JSON format
-    * For binary types, format the byte data as human-readable string
+    * Converts a collection of Tuples to a list of JSON ObjectNodes.
+    *
+    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
+    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For string values longer than maxStringLength (100), it truncates them.
+    * NULL values are converted to the string "NULL".
+    *
+    * @param tuples The collection of Tuples to convert
+    * @return A List of ObjectNodes containing the JSON representation of the tuples
     */
   private def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
-    // Define a maximum length for string values, similar to what's used in the frontend
     val maxStringLength = 100
 
-    tuples.map(tuple => {
-      // Create a new tuple with processed binary fields and truncated string fields if needed
-      val processedTuple = if (tuple.schema.getAttributes.exists(attr => 
-          attr.getType == AttributeType.BINARY || attr.getType == AttributeType.STRING)) {
-        // We have at least one binary or string field, need to process
-        val processedFields = tuple.schema.getAttributes.zipWithIndex.map { case (attr, idx) =>
-          if (attr.getType == AttributeType.BINARY) {
-            // Binary field processing (existing code)
-            val binaryValue = tuple.getField[AnyRef](idx)
-            binaryValue match {
-              case list: List[_] if list.nonEmpty =>
-                // Calculate total size of all ByteBuffers in the list
-                val totalSize = list.foldLeft(0)((sum, element) => element match {
-                  case buffer: java.nio.ByteBuffer => sum + buffer.remaining()
-                  case other => throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
-                })
-                
-                // Extract the first binary element for leading bytes
-                val firstElement = list.head match {
-                  case buffer: java.nio.ByteBuffer =>
-                    // Convert ByteBuffer to byte array
-                    val bytes = new Array[Byte](buffer.remaining())
-                    // Make a duplicate to avoid affecting the original position
-                    val dupBuffer = buffer.duplicate()
-                    dupBuffer.get(bytes)
-                    
-                    // Convert byte array to hex string representation
-                    bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
-                  
-                  case other =>
-                    throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
+    tuples.map { tuple =>
+      val processedFields = tuple.schema.getAttributes.zipWithIndex
+        .map {
+          case (attr, idx) =>
+            val fieldValue = tuple.getField[AnyRef](idx)
+
+            Option(fieldValue) match {
+              case None => "NULL"
+              case Some(value) =>
+                attr.getType match {
+                  case AttributeType.BINARY =>
+                    value match {
+                      case binaryList: List[_] if binaryList.nonEmpty =>
+                        val totalSize = binaryList.foldLeft(0) {
+                          case (sum, buffer: java.nio.ByteBuffer) => sum + buffer.remaining()
+                          case (_, other) =>
+                            throw new RuntimeException(
+                              s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+                            )
+                        }
+
+                        val firstElement = getByteBufferHexString(binaryList.head)
+
+                        val lastElement = if (binaryList.size > 1) {
+                          getByteBufferHexString(binaryList.last)
+                        } else {
+                          firstElement
+                        }
+
+                        if (firstElement.length < 39) {
+                          s"bytes'$firstElement' (length: $totalSize)"
+                        } else {
+                          val leadingBytes = firstElement.take(30)
+                          val trailingBytes = lastElement.takeRight(9)
+                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                        }
+
+                      case _ =>
+                        throw new RuntimeException(
+                          s"Expected a List for binary type field, but got: ${value.getClass.getName}"
+                        )
+                    }
+                  case AttributeType.STRING =>
+                    val stringValue = value.asInstanceOf[String]
+                    if (stringValue.length > maxStringLength)
+                      stringValue.take(maxStringLength) + "..."
+                    else
+                      stringValue
+                  case _ => value
                 }
-                
-                // Extract the last binary element for trailing bytes (if different from first)
-                val lastElement = if (list.size > 1) {
-                  list.last match {
-                    case buffer: java.nio.ByteBuffer =>
-                      // Convert ByteBuffer to byte array
-                      val bytes = new Array[Byte](buffer.remaining())
-                      // Make a duplicate to avoid affecting the original position
-                      val dupBuffer = buffer.duplicate()
-                      dupBuffer.get(bytes)
-                      
-                      // Convert byte array to hex string representation
-                      bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
-                    
-                    case other =>
-                      throw new RuntimeException(s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}")
-                  }
-                } else {
-                  // If there's only one element, lastElement is the same as firstElement
-                  firstElement
-                }
-                
-                if (firstElement.length < 39) {
-                  List(s"bytes'${firstElement}' (length: ${totalSize})")
-                } else {
-                  val leadingBytes = firstElement.take(30)
-                  val trailingBytes = lastElement.takeRight(9)
-                  List(s"bytes'${leadingBytes}...${trailingBytes}' (length: ${totalSize})")
-                }
-                
-              case null => 
-                // Handle null value
-                List("NULL")
-              
-              case _ =>
-                // This shouldn't happen - binary values should always be lists
-                throw new RuntimeException("Expected a List for binary type field, but got: " + binaryValue.getClass.getName)
             }
-          } else if (attr.getType == AttributeType.STRING) {
-            // String field processing (new code based on json.ts)
-            val stringValue = tuple.getField[String](idx)
-            if (stringValue != null && stringValue.length > maxStringLength) {
-              // Truncate and add ellipsis similar to trimAndFormatData in json.ts
-              stringValue.substring(0, maxStringLength) + "..."
-            } else {
-              // Keep original string value
-              stringValue
-            }
-          } else {
-            // Non-binary, non-string field, keep as is
-            tuple.getField[AnyRef](idx)
-          }
         }
-        // Create new tuple with the processed fields
-        Tuple(tuple.schema, processedFields.toArray)
-      } else {
-        // No binary or string fields, use original tuple
-        tuple
-      }
-      
-      // Convert to JSON
-      processedTuple.asKeyValuePairJson()
-    }).toList
+        .toArray[Any]
+
+      TupleUtils.tuple2json(tuple.schema, processedFields)
+    }.toList
+  }
+
+  /**
+    * Converts a ByteBuffer value to a hex string representation.
+    *
+    * This helper function takes a ByteBuffer value and converts its contents to a space-separated
+    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
+    * If the input is not a ByteBuffer, it throws a RuntimeException.
+    *
+    * @param value The value to convert, expected to be a ByteBuffer
+    * @return A string containing the hex representation of the ByteBuffer's contents
+    * @throws RuntimeException if the input value is not a ByteBuffer
+    */
+  private def getByteBufferHexString(value: Any): String = {
+    value match {
+      case buffer: java.nio.ByteBuffer =>
+        val bytes = new Array[Byte](buffer.remaining())
+        val dupBuffer = buffer.duplicate()
+        dupBuffer.get(bytes)
+        bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+      case other =>
+        throw new RuntimeException(
+          s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+        )
+    }
   }
 
   /**

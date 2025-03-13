@@ -354,7 +354,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => this.formatCellValue(row[col.columnKey])
+      getCell: (row: IndexableObject) => this.formatCellValue(row[col.columnKey]),
     }));
   }
 
@@ -378,7 +378,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   // Rename from trimTableCell to formatCellValue
   formatCellValue(cellContent: any): string | number | boolean | object {
     // This function ensures type compatibility for table cell values
-    if (typeof cellContent === 'symbol') {
+    if (typeof cellContent === "symbol") {
       return cellContent.toString();
     }
     return cellContent;

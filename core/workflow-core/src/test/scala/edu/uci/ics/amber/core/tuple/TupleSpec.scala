@@ -95,9 +95,9 @@ class TupleSpec extends AnyFlatSpec {
       .add(boolAttribute, true)
       .build()
 
-    val line = tuple2json(inputTuple)
+    val line = tuple2json(inputTuple.schema, inputTuple.fieldVals).toString
     val newTuple = json2tuple(line)
-    assert(line == tuple2json(newTuple))
+    assert(line == tuple2json(newTuple.schema, newTuple.fieldVals).toString)
 
   }
 
