@@ -111,7 +111,8 @@ object DatasetResource {
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
-      isOwner: Boolean
+      isOwner: Boolean,
+      size: Long
   )
   case class DashboardDatasetVersion(
       datasetVersion: DatasetVersion,
@@ -161,12 +162,12 @@ class DatasetResource {
     }
 
     val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, requesterUid.get)
-
     DashboardDataset(
       targetDataset,
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
-      targetDataset.getOwnerUid == requesterUid.get
+      targetDataset.getOwnerUid == requesterUid.get,
+      LakeFSStorageClient.retrieveRepositorySize(targetDataset.getName)
     )
   }
 
@@ -234,7 +235,8 @@ class DatasetResource {
         ),
         user.getEmail,
         PrivilegeEnum.WRITE,
-        isOwner = true
+        isOwner = true,
+        0
       )
     }
   }
@@ -748,7 +750,8 @@ class DatasetResource {
               isOwner = dataset.getOwnerUid == uid,
               dataset = dataset,
               accessPrivilege = datasetAccess.getPrivilege,
-              ownerEmail = ownerEmail
+              ownerEmail = ownerEmail,
+              size = 0
             )
           })
           .asScala
@@ -771,7 +774,8 @@ class DatasetResource {
             isOwner = false,
             dataset = dataset,
             accessPrivilege = PrivilegeEnum.READ,
-            ownerEmail = ownerEmail
+            ownerEmail = ownerEmail,
+            size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
           )
         })
       publicDatasets.forEach { publicDataset =>
@@ -780,12 +784,12 @@ class DatasetResource {
             isOwner = false,
             dataset = publicDataset.dataset,
             ownerEmail = publicDataset.ownerEmail,
-            accessPrivilege = PrivilegeEnum.READ
+            accessPrivilege = PrivilegeEnum.READ,
+            size = LakeFSStorageClient.retrieveRepositorySize(publicDataset.dataset.getName)
           )
           accessibleDatasets = accessibleDatasets :+ dashboardDataset
         }
       }
-
       accessibleDatasets.toList
     })
   }
