@@ -773,7 +773,7 @@ class DatasetResource {
             dataset = dataset,
             accessPrivilege = PrivilegeEnum.READ,
             ownerEmail = ownerEmail,
-            size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName),
+            size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
           )
         })
       publicDatasets.forEach { publicDataset =>
