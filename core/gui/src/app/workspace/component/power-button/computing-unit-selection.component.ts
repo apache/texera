@@ -8,8 +8,7 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ActivatedRoute } from "@angular/router";
-import { environment } from "../../../../environments/environment";
+import {environment} from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -25,11 +24,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
   computingUnits: DashboardWorkflowComputingUnit[] = [];
   private readonly REFRESH_INTERVAL_MS = 2000;
 
+  addComputeUnitModalVisible = false;
+  selectedMemory: string = "2Gi";
+  selectedCpu: string = "2";
+
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private route: ActivatedRoute
+    private workflowActionService: WorkflowActionService
   ) {}
 
   ngOnInit(): void {
@@ -91,8 +94,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   startComputingUnit(): void {
     const computeUnitName = `Compute for Workflow ${this.workflowId}`;
+    const computeCPU = this.selectedCpu;
+    const computeMemory = this.selectedMemory;
     this.computingUnitService
-      .createComputingUnit(computeUnitName)
+      .createComputingUnit(computeUnitName, computeCPU, computeMemory)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit) => {
@@ -120,7 +125,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (res: Response) => {
-          this.notificationService.success(`Terminated computing unit with URI: ${uri}`);
+          this.notificationService.success(`Terminated ${this.getComputingUnitName(uri)}`);
           this.refreshComputingUnits();
         },
         error: (err: unknown) => this.notificationService.error("Failed to terminate computing unit"),
@@ -132,18 +137,152 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   onComputingUnitChange(newSelection: DashboardWorkflowComputingUnit | null): void {
     console.log("Selected computing unit changed to:", newSelection);
-    let wid = this.route.snapshot.params.id;
-    if (newSelection) {
-      if (!isDefined(wid)) {
-        console.log(`wid is ${wid}, defaulting to wid = 0`);
-        wid = 0;
-      }
+    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    if (newSelection && isDefined(wid)) {
       console.log(`Selected Unit URI: ${newSelection.uri}`);
       this.workflowWebsocketService.closeWebsocket();
       this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
     } else {
-      console.log("No valid selection, keep the current websocket.");
+      console.log("Selection cleared.");
     }
+  }
+
+  isComputingUnitRunning(): boolean {
+    return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
+  }
+
+  computeStatus(): string {
+    if (!this.selectedComputingUnit) {
+      return "processing";
+    }
+    switch (this.selectedComputingUnit.status) {
+      case "Running":
+        return "success";
+      case "Pending" || "Terminating":
+        return "warning";
+      default:
+        return "error";
+    }
+  }
+
+  cannotSelectUnit(unit: DashboardWorkflowComputingUnit): boolean {
+    return !unit || unit.status !== "Running";
+  }
+
+  isSelectedUnit(unit: DashboardWorkflowComputingUnit): boolean {
+    return unit.uri === this.selectedComputingUnit?.uri;
+  }
+
+  showAddComputeUnitModalVisible(): void {
+    this.addComputeUnitModalVisible = true;
+  }
+
+  handleAddComputeUnitModalOk(): void {
+    this.startComputingUnit();
+    this.addComputeUnitModalVisible = false;
+  }
+
+  handleAddComputeUnitModalCancel(): void {
+    this.addComputeUnitModalVisible = false;
+  }
+
+  /**
+   * Gets the computing unit name from the units URI
+   * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
+   * @return "Computing unit 85"
+   */
+  getComputingUnitName(unitURI: string): string {
+    const computingUnit = unitURI.split(".")[0];
+    return computingUnit
+      .split("-")
+      .map((word, index) => (index < 2 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(" ");
+  }
+
+  /**
+   * Parses computing units resource unit
+   * @param resource (i.e. "12412512n")
+   * @return associated unit with resource (i.e. "n", "Mi", "Gi", ...)
+   */
+  parseResourceUnit(resource: string): string {
+    const match = resource.match(/[a-z].*/i);
+    return match ? match[0] : "";
+  }
+
+  /**
+   * Parses computing units numerical value
+   * @param resource (i.e. "12412512n")
+   * @return associated number with resource (i.e. 12412512)
+   */
+  parseResourceNumber(resource: string): number {
+    const match = resource.match(/[0-9.]*/);
+    return match ? Number(match[0]) : 0;
+  }
+
+  /**
+   * Convert computing cpu unit resource number to a specific unit
+   * @param from (i.e. "12412512n")
+   * @param toUnit (i.e. cores)
+   * @return i.e. 1.2412512 Cores
+   */
+  cpuResourceConversion(from: string, toUnit: string): string {
+    // CPU conversion constants (base unit: nanocores)
+    type CpuUnit = "n" | "u" | "m" | "";
+    const cpuUnits: Record<CpuUnit, number> = {
+      n: 1, // nanocores
+      u: 10 ** 3, // microcores
+      m: 10 ** 6, // millicores
+      "": 10 ** 9, // cores
+    };
+
+    const fromNumber: number = this.parseResourceNumber(from);
+    const fromUnit: string = this.parseResourceUnit(from);
+
+    if (!(fromUnit in cpuUnits) || !(toUnit in cpuUnits)) {
+      return "";
+    }
+    return `${fromNumber * (cpuUnits[fromUnit as CpuUnit] / cpuUnits[toUnit as CpuUnit])} ${toUnit}`;
+  }
+
+  /**
+   * Convert computing unit memory resource number to a specific unit
+   * @param from (i.e. "523Mi")
+   * @param toUnit (i.e. "Gi")
+   * @return i.e. 0.524 Gi
+   */
+  memoryResourceConversion(from: string, toUnit: string): string {
+    // Memory conversion constants (base unit: bytes)
+    type MemoryUnit = "Ki" | "Mi" | "Gi" | "";
+    const memoryUnits = {
+      "": 1, // bytes
+      Ki: 1024, // KiB
+      Mi: 1024 ** 2, // MiB
+      Gi: 1024 ** 3, // GiB
+    };
+
+    const fromNumber: number = this.parseResourceNumber(from);
+    const fromUnit: string = this.parseResourceUnit(from);
+
+    if (!(fromUnit in memoryUnits) || !(toUnit in memoryUnits)) {
+      return "";
+    }
+    return `${fromNumber * (memoryUnits[fromUnit as MemoryUnit] / memoryUnits[toUnit as MemoryUnit])} ${toUnit}`;
+  }
+
+  getCurrentComputingUnitCpuUsage(): string {
+    return this.selectedComputingUnit?.metrics.cpuUsage || "";
+  }
+
+  getCurrentComputingUnitMemoryUsage(): string {
+    return this.selectedComputingUnit?.metrics.memoryUsage || "";
+  }
+
+  getCurrentComputingUnitCpuLimit(): string {
+    return this.selectedComputingUnit?.resourceLimits.cpuLimit || "";
+  }
+
+  getCurrentComputingUnitMemoryLimit(): string {
+    return this.selectedComputingUnit?.resourceLimits.memoryLimit || "";
   }
 
   /**
@@ -151,6 +290,81 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   getBadgeColor(status: string): string {
     return status === "Running" ? "green" : "yellow";
+  }
+
+  getCpuLimit(): number {
+    return this.parseResourceNumber(this.getCurrentComputingUnitCpuLimit());
+  }
+
+  getCpuLimitUnit(): string {
+    let unit = this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
+    if (!unit) {
+      return this.getCpuLimit() == 1 ? "Core" : "Cores";
+    }
+    return this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
+  }
+
+  getMemoryLimit(): number {
+    return this.parseResourceNumber(this.getCurrentComputingUnitMemoryLimit());
+  }
+
+  getMemoryLimitUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitMemoryLimit());
+  }
+
+  getCpuValue(): number {
+    // convert to appropriate unit based on the limit unit
+    const cpuLimitUnit: string = this.getCpuLimitUnit();
+    const convertedValue: string = this.cpuResourceConversion(this.getCurrentComputingUnitCpuUsage(), cpuLimitUnit);
+    return this.parseResourceNumber(convertedValue);
+  }
+
+  getMemoryValue(): number {
+    // convert to appropriate unit based on the limit
+    const memoryLimitUnit: string = this.getMemoryLimitUnit();
+    const convertedValue: string = this.memoryResourceConversion(
+      this.getCurrentComputingUnitMemoryUsage(),
+      memoryLimitUnit
+    );
+    return this.parseResourceNumber(convertedValue);
+  }
+
+  getCpuPercentage(): number {
+    // handle divison by zero
+    const cpuLimit = this.getCpuLimit();
+    if (cpuLimit <= 0) {
+      return 0;
+    }
+    return (this.getCpuValue() / cpuLimit) * 100;
+  }
+
+  getCpuStatus(): "success" | "exception" | "active" | "normal" {
+    const usage = this.getCpuValue();
+    const limit = this.getCpuLimit();
+    return usage >= limit ? "exception" : "active";
+  }
+
+  getMemoryPercentage(): number {
+    // handle divison by zero
+    const memoryLimit = this.getMemoryLimit();
+    if (memoryLimit <= 0) {
+      return 0;
+    }
+    return (this.getMemoryValue() / memoryLimit) * 100;
+  }
+
+  getMemoryStatus(): "success" | "exception" | "active" | "normal" {
+    const usage = this.getMemoryValue();
+    const limit = this.getMemoryLimit();
+    return usage >= limit ? "exception" : "active";
+  }
+
+  getCpuUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitCpuUsage());
+  }
+
+  getMemoryUnit(): string {
+    return this.parseResourceUnit(this.getCurrentComputingUnitMemoryUsage());
   }
 
   protected readonly environment = environment;
