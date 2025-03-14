@@ -1,15 +1,12 @@
 package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.VFSURIFactory
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -30,7 +27,8 @@ class WorkflowCompiler(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): (PhysicalPlan, Set[GlobalPortIdentity]) = {
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
-    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
+    val logicalOpsNeedingStorage =
+      (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     val outputPortsNeedingStorage: mutable.HashSet[GlobalPortIdentity] = mutable.HashSet()
 
@@ -84,58 +82,16 @@ class WorkflowCompiler(
             }
           })
 
-        // assign the sinks to toAddSink operators' external output ports
+        // convert logical operators needing storage to output ports needing storage
         subPlan
           .topologicalIterator()
-          .filter(opId => toAddSink.contains(opId.logicalOpId))
+          .filter(opId => logicalOpsNeedingStorage.contains(opId.logicalOpId))
           .map(physicalPlan.getOperator)
           .foreach { physicalOp =>
             physicalOp.outputPorts
               .filterNot(_._1.internal)
               .foreach {
-                case (outputPortId, (outputPort, _, schema)) =>
-                  var storageUri =
-                    WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-                      context.workflowId,
-                      context.executionId,
-                      physicalOp.id.logicalOpId,
-                      Some(physicalOp.id.layerName),
-                      outputPortId
-                    )
-                  if (
-                    (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-                      .getResourceURIs(context.executionId)
-                      .contains(
-                        storageUri.get
-                      )) || (AmberConfig.isUserSystemEnabled && storageUri.isEmpty)
-                  ) {
-                    // Create storage if it doesn't exist
-                    storageUri = Option(
-                      VFSURIFactory.createResultURI(
-                        context.workflowId,
-                        context.executionId,
-                        physicalOp.id.logicalOpId,
-                        Some(physicalOp.id.layerName),
-                        outputPortId
-                      )
-                    )
-                  }
-
-                  // TODO: remove sink operator in the next PR
-                  // Create and link the sink operator
-                  val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-                    storageUri.get,
-                    outputPort.mode
-                  )
-                  val sinkLink = PhysicalLink(
-                    physicalOp.id,
-                    outputPort.id,
-                    sinkPhysicalOp.id,
-                    sinkPhysicalOp.outputPorts.head._1
-                  )
-
-                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
-
+                case (outputPortId, _) =>
                   outputPortsNeedingStorage += GlobalPortIdentity(
                     opId = physicalOp.id,
                     portId = outputPortId

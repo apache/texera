@@ -10,6 +10,7 @@ object DatasetResource {
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
-      isOwner: Boolean
+      isOwner: Boolean,
+      size: Long
   )
 }
