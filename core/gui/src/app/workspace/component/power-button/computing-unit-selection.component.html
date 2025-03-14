@@ -87,7 +87,9 @@
           [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
           (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
-      <li *ngIf="computingUnits.length > 0" nz-menu-divider></li>
+      <li
+        *ngIf="computingUnits.length > 0"
+        nz-menu-divider></li>
       <li
         nz-menu-item
         (click)="showAddComputeUnitModalVisible()">
