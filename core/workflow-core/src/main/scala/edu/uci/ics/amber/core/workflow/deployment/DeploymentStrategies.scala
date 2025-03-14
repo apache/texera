@@ -13,9 +13,10 @@ object DeploymentStrategies {
       operators: Set[PhysicalOp],
       currentOp: PhysicalOp
   ): String = {
-    // dummy implementation: always return the first address
-    addresses.head
-    // TODO: add real implementation
+    //Select model with max size
+    val bestNode = nodeProfiles.maxBy { case (_, profile) => profile.modelSize }
+    // Return the address of that node
+    bestNode._1
   }
 
   // maximize the speed of the answer generation
