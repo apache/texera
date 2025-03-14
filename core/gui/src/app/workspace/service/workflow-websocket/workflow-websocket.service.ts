@@ -13,6 +13,7 @@ import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
+import { isDefined } from "../../../common/util/predicate";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -26,6 +27,7 @@ export class WorkflowWebsocketService {
   public isConnected: boolean = false;
   public numWorkers: number = -1;
   private connectedWid: number = 0;
+  private connectedCuid?: number;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -63,16 +65,25 @@ export class WorkflowWebsocketService {
   public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
+    this.connectedCuid = undefined;
   }
 
-  public openWebsocket(wId: number) {
+  public openWebsocket(wId: number, uId?: number, cuId?: number) {
+    if (uId == undefined) {
+      console.log(`uId is ${uId}, defaulting to uId = 1`);
+      uId = 1;
+    }
     const websocketUrl =
       getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
       "?wid=" +
       wId +
+      "&uid=" +
+      uId +
+      (isDefined(cuId) ? `&cuid=${cuId}` : "") +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "&access-token=" + AuthService.getAccessToken()
         : "");
+    console.log("websocketUrl", websocketUrl);
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
@@ -101,15 +112,7 @@ export class WorkflowWebsocketService {
       }
       this.isConnected = true;
       this.connectedWid = wId;
+      if (isDefined(cuId)) this.connectedCuid = cuId;
     });
-  }
-
-  public reopenWebsocket(wId: number) {
-    if (this.isConnected && this.connectedWid === wId) {
-      // prevent reconnections
-      return;
-    }
-    this.closeWebsocket();
-    this.openWebsocket(wId);
   }
 }

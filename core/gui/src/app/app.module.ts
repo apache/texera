@@ -146,6 +146,7 @@ import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/use
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
+import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 
 registerLocaleData(en);
 
@@ -235,6 +236,7 @@ registerLocaleData(en);
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
     HubSearchResultComponent,
+    ComputingUnitSelectionComponent,
   ],
   imports: [
     BrowserModule,
