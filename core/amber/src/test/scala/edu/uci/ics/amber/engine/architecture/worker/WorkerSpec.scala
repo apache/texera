@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.executor.{OpExecWithClassName, OperatorExecutor}
@@ -61,7 +60,6 @@ class WorkerSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    AmberRuntime.serde = SerializationExtension(system)
   }
 
   override def afterAll(): Unit = {
