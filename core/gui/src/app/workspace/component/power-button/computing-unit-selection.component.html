@@ -49,7 +49,7 @@
       *ngIf="selectedComputingUnit"
       nz-tooltip
       [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
-      Connected
+      {{selectedComputingUnit.computingUnit.name}}
     </span>
     <span *ngIf="!selectedComputingUnit">Connect</span>
     <i
@@ -87,7 +87,7 @@
           [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
           (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
-      <li nz-menu-divider></li>
+      <li *ngIf="computingUnits.length > 0" nz-menu-divider></li>
       <li
         nz-menu-item
         (click)="showAddComputeUnitModalVisible()">
