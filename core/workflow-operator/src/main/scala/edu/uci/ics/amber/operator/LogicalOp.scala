@@ -31,6 +31,7 @@ import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
+import edu.uci.ics.amber.operator.llm.{ChatOpDesc, ChatSourceOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
   SklearnAdvancedKNNClassifierTrainerOpDesc,
@@ -118,6 +119,8 @@ trait StateTransferFunc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[ChatSourceOpDesc], name = "ChatSource"),
+    new Type(value = classOf[ChatOpDesc], name = "Chat"),
     new Type(value = classOf[IfOpDesc], name = "If"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),

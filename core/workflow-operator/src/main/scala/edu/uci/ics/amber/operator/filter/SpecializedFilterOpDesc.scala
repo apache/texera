@@ -2,13 +2,13 @@ package edu.uci.ics.amber.operator.filter
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.workflow.PhysicalOp
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.ManualLocationConfiguration
 
-class SpecializedFilterOpDesc extends FilterOpDesc {
+class SpecializedFilterOpDesc extends FilterOpDesc with ManualLocationConfiguration {
 
   @JsonProperty(value = "predicates", required = true)
   @JsonPropertyDescription("multiple predicates in OR")
@@ -18,7 +18,7 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -30,6 +30,8 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo = {

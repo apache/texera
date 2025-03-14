@@ -104,6 +104,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
+  public basicFields: FormlyFieldConfig[] = [];
+  public advancedFields: FormlyFieldConfig[] = [];
+
   // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
   // example: new Map([
   //     ["attribute", "outline: 3px solid green; transition: 0.3s ease-in-out outline;"],
@@ -379,6 +382,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         },
       };
 
+      if (mappedField.key == "nodeAddr") {
+        mappedField.props = {
+          ...mappedField.props,
+          tab: "AdvancedSettings",
+        };
+      }
+
+      if (mappedField.key == "autoSelectNodeAddress") {
+        mappedField.props = {
+          ...mappedField.props,
+          tab: "AdvancedSettings",
+        };
+      }
+
       // Disable dummy operator for user
       if (mappedField.key === "dummyOperator") {
         mappedField.expressions = {
@@ -430,6 +447,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
+      }
+
+      // if the title is nodeAddr, then change it to custom inputnodeaddress input template
+      if (mappedField.key == "nodeAddr") {
+        mappedField.type = "inputnodeaddress";
       }
 
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
@@ -669,6 +691,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // not return field.fieldGroup directly because
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];
+
+    const fieldGroup = this.formlyFields?.[0]?.fieldGroup ?? [];
+    this.basicFields = fieldGroup.filter(f => f.props?.tab !== "AdvancedSettings");
+    this.advancedFields = fieldGroup.filter(f => f.props?.tab === "AdvancedSettings");
   }
 
   allowModifyOperatorLogic(): void {

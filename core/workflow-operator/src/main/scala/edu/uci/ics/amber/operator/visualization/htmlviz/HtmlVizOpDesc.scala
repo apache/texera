@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -16,7 +16,7 @@ import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator
   */
-class HtmlVizOpDesc extends LogicalOp {
+class HtmlVizOpDesc extends LogicalOp with ManualLocationConfiguration {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
   @AutofillAttributeName var htmlContentAttrName: String = _
@@ -25,7 +25,7 @@ class HtmlVizOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -43,6 +43,8 @@ class HtmlVizOpDesc extends LogicalOp {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

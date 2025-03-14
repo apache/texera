@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, RangePartition}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -20,7 +20,7 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
   }
 }
 """)
-class SortPartitionsOpDesc extends LogicalOp {
+class SortPartitionsOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -41,8 +41,8 @@ class SortPartitionsOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
-    PhysicalOp
+  ): PhysicalOp = {
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -57,6 +57,9 @@ class SortPartitionsOpDesc extends LogicalOp {
       .withPartitionRequirement(
         List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
       )
+
+    applyManualLocation(baseOp)
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

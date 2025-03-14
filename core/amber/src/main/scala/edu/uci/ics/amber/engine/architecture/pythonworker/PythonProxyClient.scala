@@ -3,14 +3,18 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.State
-import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
+  ChannelMarkerElement,
   ControlElement,
   DataElement
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
@@ -85,16 +89,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
-          sendData(dataPayload, channel.fromWorkerId)
+          sendData(dataPayload, channel)
         case ControlElement(cmd, channel) =>
-          sendControl(channel.fromWorkerId, cmd)
+          sendControl(channel, cmd)
+        case ChannelMarkerElement(cmd, channel) =>
+          sendChannelMarker(cmd, channel)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
       }
     }
   }
 
-  private def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+  private def sendData(dataPayload: DataPayload, from: ChannelIdentity): Unit = {
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
@@ -107,8 +113,19 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
+  private def sendChannelMarker(
+      markerPayload: ChannelMarkerPayload,
+      from: ChannelIdentity
+  ): Unit = {
+    val t = Tuple
+      .builder(Schema().add("payload", AttributeType.BINARY))
+      .add("payload", AttributeType.BINARY, markerPayload.toByteArray)
+      .build()
+    writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
+  }
+
   private def sendControl(
-      from: ActorVirtualIdentity,
+      from: ChannelIdentity,
       payload: ControlPayload
   ): Result = {
     var payloadV2 = ControlPayloadV2.defaultInstance
@@ -152,7 +169,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   private def writeArrowStream(
       tuples: mutable.Queue[Tuple],
-      from: ActorVirtualIdentity,
+      from: ChannelIdentity,
       payloadType: String
   ): Unit = {
 

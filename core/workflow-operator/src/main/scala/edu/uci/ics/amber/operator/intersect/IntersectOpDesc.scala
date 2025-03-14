@@ -3,16 +3,16 @@ package edu.uci.ics.amber.operator.intersect
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class IntersectOpDesc extends LogicalOp {
+class IntersectOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -23,6 +23,8 @@ class IntersectOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

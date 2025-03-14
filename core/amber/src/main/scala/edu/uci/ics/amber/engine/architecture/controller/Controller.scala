@@ -194,6 +194,8 @@ class Controller(
         case (opId, opExecution) =>
           val op = physicalPlan.getOperator(opId)
           ExecutorDeployment.createWorkers(
+            cp.workflowExecution.deployStrategy,
+            physicalPlan.operators,
             op,
             actorService,
             OperatorExecution(), //use dummy value here

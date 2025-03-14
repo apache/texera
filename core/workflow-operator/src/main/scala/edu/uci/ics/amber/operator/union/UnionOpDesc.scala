@@ -3,16 +3,16 @@ package edu.uci.ics.amber.operator.union
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class UnionOpDesc extends LogicalOp {
+class UnionOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -21,6 +21,8 @@ class UnionOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

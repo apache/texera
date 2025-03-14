@@ -39,6 +39,7 @@ export const DEFAULT_WORKFLOW = {
 };
 export const DEFAULT_SETTINGS = {
   dataTransferBatchSize: environment.defaultDataTransferBatchSize,
+  deploymentStrategy: "",
 };
 
 /**
@@ -732,6 +733,10 @@ export class WorkflowActionService {
     if (size > 0 && size != null) {
       this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
     }
+  }
+
+  public setWorkflowDeploymentStrategy(strategy: string): void {
+    this.setWorkflowSettings({ ...this.workflowSettings, deploymentStrategy: strategy });
   }
 
   public clearWorkflow(): void {

@@ -9,7 +9,7 @@ import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 
 import scala.collection.mutable
 
-case class WorkflowExecution() {
+case class WorkflowExecution(deployStrategy: String) {
 
   // region executions are stored with LinkedHashMap to maintain their creation order.
   private val regionExecutions: mutable.LinkedHashMap[RegionIdentity, RegionExecution] =

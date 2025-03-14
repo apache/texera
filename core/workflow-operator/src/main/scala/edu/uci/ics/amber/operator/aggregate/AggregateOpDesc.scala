@@ -10,14 +10,14 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
 
-class AggregateOpDesc extends LogicalOp {
+class AggregateOpDesc extends LogicalOp with ManualLocationConfiguration {
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
@@ -41,7 +41,7 @@ class AggregateOpDesc extends LogicalOp {
     val outputPort = OutputPort(PortIdentity(internal = true))
     val partialDesc = objectMapper.writeValueAsString(this)
     val localAggregations = List(aggregations: _*)
-    val partialPhysicalOp = PhysicalOp
+    val initPartialPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(operatorIdentifier, "localAgg"),
         workflowId,
@@ -64,13 +64,15 @@ class AggregateOpDesc extends LogicalOp {
         })
       )
 
+    val partialPhysicalOp = applyManualLocation(initPartialPhysicalOp)
+
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
     // change aggregations to final
     aggregations = aggregations.map(aggr => aggr.getFinal)
     val finalDesc = objectMapper.writeValueAsString(this)
 
-    val finalPhysicalOp = PhysicalOp
+    val initFinalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
@@ -88,6 +90,8 @@ class AggregateOpDesc extends LogicalOp {
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
       .withDerivePartition(_ => HashPartition(groupByKeys))
+
+    val finalPhysicalOp = applyManualLocation(initFinalPhysicalOp)
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),

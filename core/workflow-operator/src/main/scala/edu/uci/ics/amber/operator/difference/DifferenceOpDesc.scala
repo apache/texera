@@ -4,16 +4,16 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class DifferenceOpDesc extends LogicalOp {
+class DifferenceOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -29,6 +29,8 @@ class DifferenceOpDesc extends LogicalOp {
         val outputSchema = inputSchemas.values.head
         operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
       }))
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

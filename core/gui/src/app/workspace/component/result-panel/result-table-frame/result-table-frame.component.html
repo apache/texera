@@ -32,7 +32,7 @@
           </th>
         </tr>
         <tr
-          *ngIf="tableStats && prevTableStats && sinkStorageMode === 'mongodb'"
+          *ngIf="tableStats && prevTableStats"
           #statsRow
           class="custom-stats-row">
           <th *ngFor="let column of currentColumns">
@@ -47,20 +47,20 @@
                 </div>
               </ng-container>
               <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['mean'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">Average</h5>
-                  <h5 class="rightAlign">
-                    <span [innerHTML]="compare(column.header, 'mean')"></span>
-                  </h5>
-                </div>
-              </ng-container>
-              <ng-container
                 *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['max'] !== undefined">
                 <div class="statsLine">
                   <h5 class="leftAlign">Max</h5>
                   <h5 class="rightAlign">
                     <span [innerHTML]="compare(column.header, 'max')"></span>
+                  </h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['not_null_count'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">Non-Null Count</h5>
+                  <h5 class="rightAlign">
+                    <span [innerHTML]="compare(column.header, 'not_null_count')"></span>
                   </h5>
                 </div>
               </ng-container>

@@ -26,6 +26,7 @@ import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { DEFAULT_SETTINGS } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -239,7 +240,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       commentBoxes: [],
       links: [],
       operatorPositions: {},
-      settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
+      settings: DEFAULT_SETTINGS,
     };
     let localPid = this.pid;
     this.workflowPersistService

@@ -10,8 +10,9 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.ManualLocationConfiguration
 
-class RegexOpDesc extends FilterOpDesc {
+class RegexOpDesc extends FilterOpDesc with ManualLocationConfiguration {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to search regex on")
@@ -31,7 +32,7 @@ class RegexOpDesc extends FilterOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -43,6 +44,8 @@ class RegexOpDesc extends FilterOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

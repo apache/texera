@@ -3,6 +3,7 @@
   <form
     [formGroup]="settingsForm"
     class="form-inline">
+    <!-- Data Transfer Batch Size -->
     <div class="form-group">
       <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input
@@ -14,8 +15,22 @@
       <div
         *ngIf="settingsForm.get('dataTransferBatchSize')?.invalid && settingsForm.get('dataTransferBatchSize')?.touched"
         class="error-message">
-        Data Transfer Batch Size size must be at least 1.
+        Data Transfer Batch Size must be at least 1.
       </div>
+    </div>
+
+    <!-- Deployment Strategy Dropdown -->
+    <div class="form-group">
+      <label for="deploymentStrategy">Deployment Strategy:</label>
+      <select
+        id="deploymentStrategy"
+        formControlName="deploymentStrategy"
+        class="form-control">
+        <option value="rr">Round Robin</option>
+        <option value="maxSpeed">Max Speed</option>
+        <option value="maxQuality">Max Quality</option>
+        <option value="hybrid">Hybrid</option>
+      </select>
     </div>
   </form>
 </div>

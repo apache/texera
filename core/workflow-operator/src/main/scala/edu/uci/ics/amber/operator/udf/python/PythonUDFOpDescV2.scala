@@ -8,11 +8,16 @@ import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
+import edu.uci.ics.amber.operator.{
+  LogicalOp,
+  ManualLocationConfiguration,
+  PortDescription,
+  StateTransferFunc
+}
 
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends LogicalOp {
+class PythonUDFOpDescV2 extends LogicalOp with ManualLocationConfiguration {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -114,13 +119,15 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(false)
     }
 
-    physicalOp
+    val baseOp = physicalOp
       .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo = {

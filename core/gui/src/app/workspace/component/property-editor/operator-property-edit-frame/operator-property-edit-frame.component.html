@@ -68,23 +68,53 @@
   (focusout)="disconnectQuillFromText()"
   (keyup.enter)="disconnectQuillFromText()"></div>
 
-<form
-  nz-form
-  [nzLayout]="'vertical'"
-  *ngIf="formlyFields && formlyFormGroup"
-  [formGroup]="formlyFormGroup"
-  class="property-editor-form">
-  <formly-form
-    (modelChange)="onFormChanges($event)"
-    [fields]="formlyFields"
-    [form]="formlyFormGroup"
-    [model]="formData"
-    [options]="formlyOptions">
-  </formly-form>
-  <texera-type-casting-display
-    *ngIf="isTypeCasting"
-    currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
-</form>
+<nz-tabset>
+  <nz-tab
+    nzTitle="Basic Settings"
+    *ngIf="basicFields.length > 0">
+    <form
+      nz-form
+      nzLayout="vertical"
+      *ngIf="formlyFields && formlyFormGroup"
+      [formGroup]="formlyFormGroup"
+      class="property-editor-form">
+      <formly-form
+        (modelChange)="onFormChanges($event)"
+        [fields]="basicFields"
+        [form]="formlyFormGroup"
+        [model]="formData"
+        [options]="formlyOptions">
+      </formly-form>
+
+      <texera-type-casting-display
+        *ngIf="isTypeCasting"
+        currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
+    </form>
+  </nz-tab>
+
+  <nz-tab
+    nzTitle="Advanced Settings"
+    *ngIf="advancedFields.length > 0">
+    <form
+      nz-form
+      nzLayout="vertical"
+      *ngIf="formlyFields && formlyFormGroup"
+      [formGroup]="formlyFormGroup"
+      class="property-editor-form">
+      <formly-form
+        (modelChange)="onFormChanges($event)"
+        [fields]="advancedFields"
+        [form]="formlyFormGroup"
+        [model]="formData"
+        [options]="formlyOptions">
+      </formly-form>
+
+      <texera-type-casting-display
+        *ngIf="isTypeCasting"
+        currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
+    </form>
+  </nz-tab>
+</nz-tabset>
 
 <button
   (click)="allowModifyOperatorLogic()"

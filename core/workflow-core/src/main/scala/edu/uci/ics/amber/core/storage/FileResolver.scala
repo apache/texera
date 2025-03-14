@@ -14,11 +14,6 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
-object VFSResourceType extends Enumeration {
-  val RESULT: Value = Value("result")
-  val MATERIALIZED_RESULT: Value = Value("materializedResult")
-}
-
 /**
   * Unified object for resolving both VFS resources and local/dataset files.
   */
@@ -87,11 +82,7 @@ object FileResolver {
     val (dataset, datasetVersion) =
       withTransaction(
         SqlServer
-          .getInstance(
-            StorageConfig.jdbcUrl,
-            StorageConfig.jdbcUsername,
-            StorageConfig.jdbcPassword
-          )
+          .getInstance()
           .createDSLContext()
       ) { ctx =>
         // fetch the dataset from DB

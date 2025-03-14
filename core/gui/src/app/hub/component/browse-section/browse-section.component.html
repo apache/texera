@@ -1,22 +1,22 @@
 <div
-  *ngIf="workflows && workflows.length > 0"
+  *ngIf="entities && entities.length > 0"
   class="results-container">
   <h2 class="results-title">{{ sectionTitle }}</h2>
-  <div class="workflow-cards">
+  <div class="entity-cards">
     <nz-card
       nzHoverable
-      [routerLink]="[DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, workflow.id]"
+      [routerLink]="entity.id !== undefined ? entityRoutes[entity.id] : []"
       [nzCover]="coverTemplate"
-      class="workflow-card"
-      *ngFor="let workflow of workflows">
-      <h1 class="card-title">{{ workflow.name }}</h1>
-      <p class="card-description">{{ workflow.description || 'No description available' }}</p>
+      class="entity-card"
+      *ngFor="let entity of entities">
+      <h1 class="card-title">{{ entity.name }}</h1>
+      <p class="card-description">{{ entity.description || 'No description available' }}</p>
       <div class="footer">
-        <span class="footer-text">Edited: {{ workflow.lastModifiedTime | date }}</span>
+        <span class="footer-text">Edited: {{ entity.lastModifiedTime | date }}</span>
         <texera-user-avatar
-          [googleAvatar]="workflow.ownerGoogleAvatar"
+          [googleAvatar]="entity.ownerGoogleAvatar"
           userColor="grey"
-          [userName]="workflow.ownerName || ''"
+          [userName]="entity.ownerName || ''"
           nz-button>
         </texera-user-avatar>
       </div>
@@ -27,10 +27,10 @@
             class="card-cover-image"
             [src]="defaultBackground" />
           <nz-avatar
-            class="workflow-avatar"
+            class="entity-avatar"
             [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
             [nzGap]="4"
-            [nzText]="'' + workflow.id"
+            [nzText]="'' + entity.id"
             nzSize="default"></nz-avatar>
         </div>
       </ng-template>

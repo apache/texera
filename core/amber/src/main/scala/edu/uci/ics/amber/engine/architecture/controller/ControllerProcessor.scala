@@ -21,7 +21,9 @@ class ControllerProcessor(
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
-  val workflowExecution: WorkflowExecution = WorkflowExecution()
+  val workflowExecution: WorkflowExecution = WorkflowExecution(
+    workflowContext.workflowSettings.deploymentStrategy
+  )
   val workflowScheduler: WorkflowScheduler =
     new WorkflowScheduler(workflowContext, actorId)
   val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(

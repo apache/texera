@@ -1,11 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowOfUserDao,
@@ -15,7 +14,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -24,7 +22,7 @@ import javax.ws.rs.core.MediaType
 
 object WorkflowAccessResource {
   final private val context: DSLContext = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
 
   /**
@@ -34,8 +32,8 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    isPublic(wid) || getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(
+  def hasReadAccess(wid: Integer, uid: Integer): Boolean = {
+    isPublic(wid) || getPrivilege(wid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
       wid,
       uid
     )
@@ -48,16 +46,16 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.WRITE)
+  def hasWriteAccess(wid: Integer, uid: Integer): Boolean = {
+    getPrivilege(wid, uid).eq(PrivilegeEnum.WRITE)
   }
 
   /**
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
-    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
+    * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
+  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
     val access = context
       .select()
       .from(WORKFLOW_USER_ACCESS)
@@ -72,7 +70,7 @@ object WorkflowAccessResource {
         .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
         .fetchOneInto(classOf[WorkflowUserAccess])
       if (projectAccess == null) {
-        WorkflowUserAccessPrivilege.NONE
+        PrivilegeEnum.NONE
       } else {
         projectAccess.getPrivilege
       }
@@ -81,7 +79,7 @@ object WorkflowAccessResource {
     }
   }
 
-  def isPublic(wid: UInteger): Boolean = {
+  def isPublic(wid: Integer): Boolean = {
     context
       .select(WORKFLOW.IS_PUBLIC)
       .from(WORKFLOW)
@@ -106,7 +104,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/owner/{wid}")
-  def getOwner(@PathParam("wid") wid: UInteger): String = {
+  def getOwner(@PathParam("wid") wid: Integer): String = {
     userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
   }
 
@@ -119,7 +117,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/list/{wid}")
   def getAccessList(
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: Integer
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -149,7 +147,7 @@ class WorkflowAccessResource() {
   @PUT
   @Path("/grant/{wid}/{email}/{privilege}")
   def grantAccess(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String,
       @Auth user: SessionUser
@@ -162,7 +160,7 @@ class WorkflowAccessResource() {
         new WorkflowUserAccess(
           userDao.fetchOneByEmail(email).getUid,
           wid,
-          WorkflowUserAccessPrivilege.valueOf(privilege)
+          PrivilegeEnum.valueOf(privilege)
         )
       )
     } catch {
@@ -182,7 +180,7 @@ class WorkflowAccessResource() {
   @DELETE
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @PathParam("email") email: String
   ): Unit = {
     context

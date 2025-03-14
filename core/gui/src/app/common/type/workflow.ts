@@ -3,6 +3,7 @@ import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../worksp
 
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
+  deploymentStrategy: string;
 }
 
 /**

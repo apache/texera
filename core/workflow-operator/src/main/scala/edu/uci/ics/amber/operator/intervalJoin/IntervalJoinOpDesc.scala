@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -34,7 +34,7 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
   }
 }
 """)
-class IntervalJoinOpDesc extends LogicalOp {
+class IntervalJoinOpDesc extends LogicalOp with ManualLocationConfiguration {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
@@ -78,7 +78,7 @@ class IntervalJoinOpDesc extends LogicalOp {
       Option(HashPartition(List(rightAttributeName)))
     )
 
-    PhysicalOp
+    val baseOp = PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
@@ -111,6 +111,8 @@ class IntervalJoinOpDesc extends LogicalOp {
         })
       )
       .withPartitionRequirement(partitionRequirement)
+
+    applyManualLocation(baseOp)
   }
 
   override def operatorInfo: OperatorInfo =

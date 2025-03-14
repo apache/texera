@@ -16,6 +16,7 @@ import { environment } from "../../../../../environments/environment";
 export class SettingsComponent implements OnInit {
   settingsForm!: FormGroup;
   currentDataTransferBatchSize!: number;
+  currentDeploymentStrategy!: string;
   isSaving: boolean = false;
 
   constructor(
@@ -27,29 +28,40 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const workflowSettings = this.workflowActionService.getWorkflowContent().settings;
+
     this.currentDataTransferBatchSize =
-      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-      environment.defaultDataTransferBatchSize;
+      workflowSettings.dataTransferBatchSize || environment.defaultDataTransferBatchSize;
+    this.currentDeploymentStrategy = workflowSettings.deploymentStrategy || ""; // Default to empty string
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
+      deploymentStrategy: [this.currentDeploymentStrategy, Validators.required],
     });
 
+    // Handle changes
     this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
       if (this.settingsForm.valid) {
         this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
+        this.confirmUpdateDeploymentStrategy(value.deploymentStrategy);
       }
     });
 
+    // Listen for workflow updates
     this.workflowActionService
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        const newSettings = this.workflowActionService.getWorkflowContent().settings;
         this.currentDataTransferBatchSize =
-          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-          environment.defaultDataTransferBatchSize;
+          newSettings.dataTransferBatchSize || environment.defaultDataTransferBatchSize;
+        this.currentDeploymentStrategy = newSettings.deploymentStrategy || "";
+
         this.settingsForm.patchValue(
-          { dataTransferBatchSize: this.currentDataTransferBatchSize },
+          {
+            dataTransferBatchSize: this.currentDataTransferBatchSize,
+            deploymentStrategy: this.currentDeploymentStrategy,
+          },
           { emitEvent: false }
         );
       });
@@ -61,6 +73,13 @@ export class SettingsComponent implements OnInit {
       if (this.userService.isLogin()) {
         this.persistWorkflow();
       }
+    }
+  }
+
+  public confirmUpdateDeploymentStrategy(deploymentStrategy: string): void {
+    this.workflowActionService.setWorkflowDeploymentStrategy(deploymentStrategy);
+    if (this.userService.isLogin()) {
+      this.persistWorkflow();
     }
   }
 

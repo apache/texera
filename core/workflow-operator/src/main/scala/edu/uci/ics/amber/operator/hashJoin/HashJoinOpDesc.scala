@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, ManualLocationConfiguration}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -34,7 +34,7 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp {
+class HashJoinOpDesc[K] extends LogicalOp with ManualLocationConfiguration {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -61,7 +61,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true), blocking = true)
 
-    val buildPhysicalOp =
+    val initBuildPhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
           PhysicalOpIdentity(operatorIdentifier, "build"),
@@ -86,12 +86,14 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withParallelizable(true)
 
+    val buildPhysicalOp = applyManualLocation(initBuildPhysicalOp)
+
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
     val probeDataInputPort =
       InputPort(operatorInfo.inputPorts(1).id, dependencies = List(probeBuildInputPort.id))
     val probeOutputPort = OutputPort(PortIdentity(0))
 
-    val probePhysicalOp =
+    val initProbePhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
           PhysicalOpIdentity(operatorIdentifier, "probe"),
@@ -144,6 +146,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
             Map(PortIdentity() -> outputSchema)
           })
         )
+
+    val probePhysicalOp = applyManualLocation(initProbePhysicalOp)
 
     PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
