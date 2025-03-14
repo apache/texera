@@ -9,6 +9,7 @@ import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-w
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params, UrlSegment } from "@angular/router";
+import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -43,6 +44,7 @@ describe("PowerButtonComponent", () => {
         CommonModule,
         NzButtonModule,
         NzIconModule,
+        NzDropDownModule,
       ],
       providers: [{ provide: ActivatedRoute, useValue: activatedRouteMock }],
     }).compileComponents();
