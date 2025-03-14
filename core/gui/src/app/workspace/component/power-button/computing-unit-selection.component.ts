@@ -136,14 +136,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Called whenever the selected computing unit changes.
    */
   onComputingUnitChange(newSelection: DashboardWorkflowComputingUnit | null): void {
-    console.log("Selected computing unit changed to:", newSelection);
     const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
     if (newSelection && isDefined(wid)) {
-      console.log(`Selected Unit URI: ${newSelection.uri}`);
       this.workflowWebsocketService.closeWebsocket();
       this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
-    } else {
-      console.log("Selection cleared.");
     }
   }
 
