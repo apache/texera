@@ -70,7 +70,8 @@ object AmberRuntime {
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(defaultApplication())
+  def akkaConfig: Config =
+    ConfigFactory.load("cluster").withFallback(defaultApplication()).resolve()
 
   private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
