@@ -65,6 +65,7 @@ object AmberRuntime {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
+      .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
@@ -86,6 +87,7 @@ object AmberRuntime {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
+      .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)
   }
