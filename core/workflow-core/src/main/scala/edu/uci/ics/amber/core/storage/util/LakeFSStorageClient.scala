@@ -258,6 +258,29 @@ object LakeFSStorageClient {
     objectsApi.listObjects(repoName, commitHash).execute().getResults.asScala.toList
   }
 
+  def retrieveRepositorySize(repoName: String, commitHash: String = ""): Long = {
+    val versionHash: String =
+      if (commitHash.isEmpty) {
+        val versionList = retrieveVersionsOfRepository(repoName)
+        if (versionList.isEmpty) {
+          ""
+        } else {
+          versionList.head.getId
+        }
+      } else {
+        commitHash
+      }
+
+    if (versionHash.isEmpty) {
+      0
+    } else {
+      LakeFSStorageClient
+        .retrieveObjectsOfVersion(repoName, versionHash)
+        .map(_.getSizeBytes.longValue())
+        .sum
+    }
+  }
+
   /**
     * Retrieves a list of uncommitted (staged) objects in a repository branch.
     *
