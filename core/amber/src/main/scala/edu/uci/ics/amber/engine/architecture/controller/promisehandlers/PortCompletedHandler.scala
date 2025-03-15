@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.workflow.GlobalPortIdentity
 import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   FatalError
@@ -12,7 +13,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   QueryStatisticsRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 

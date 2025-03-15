@@ -1,0 +1,124 @@
+.computing-units-selection {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.computing-units-selection.metrics-visible {
+  grid-template-columns: repeat(2, 1fr);
+  justify-content: center;
+  align-items: center;
+  justify-items: end;
+  width: 100%;
+  gap: 10px;
+}
+
+.computing-units-dropdown {
+  min-width: 250px;
+  max-width: 350px;
+}
+
+#computing-unit-option.unit-selected {
+  background-color: #f1eeee;
+}
+
+.create-computing-unit {
+  display: flex;
+  gap: 10px;
+  justify-content: start;
+  align-items: center;
+}
+
+.computing-unit-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminate-icon:hover {
+  opacity: 0.8;
+}
+
+.memory-selection,
+.cpu-selection {
+  width: 200px;
+}
+
+.create-compute-unit-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  justify-content: start;
+  align-items: center;
+}
+
+.select-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: start;
+}
+
+.metrics-container {
+  display: grid;
+  align-items: center;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  height: 32px;
+  width: 100%;
+  padding: 0;
+  border: none;
+}
+
+.metric-item {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  height: 16px;
+  align-items: center;
+}
+
+#cpu-progress-bar,
+#memory-progress-bar {
+  height: 16px;
+}
+
+.metric-label {
+  font-size: 10px;
+}
+
+.resource-metrics {
+  width: 250px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(1, 1fr);
+  justify-content: start;
+  align-items: center;
+  gap: 5px;
+}
+
+.general-metric {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #f9fafb;
+  border-radius: 3px;
+  padding: 10px;
+  gap: 3px;
+}
+
+.metric-unit {
+  font-size: 8px;
+}
+
+.metric-name {
+  font-size: 10px;
+  margin: 0;
+}
+
+.metric-value {
+  margin: 0;
+}

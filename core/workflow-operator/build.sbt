@@ -78,7 +78,7 @@ libraryDependencies ++= Seq(
   "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
@@ -92,10 +92,8 @@ libraryDependencies ++= Seq(
   "com.github.tototoshi" %% "scala-csv" % "1.3.10",       // csv parser
   "com.konghq" % "unirest-java" % "3.14.2",
   "commons-io" % "commons-io" % "2.15.1",
-  "org.apache.commons" % "commons-compress" % "1.23.0",
   "org.tukaani" % "xz" % "1.9",
   "com.univocity" % "univocity-parsers" % "2.9.1",
-  "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4",
-  "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
+  "org.apache.lucene" % "lucene-analyzers-common" % "8.11.4",
   "io.github.redouane59.twitter" % "twittered" % "2.21"
 )

@@ -34,7 +34,7 @@ class StorageConfig:
         cls.ICEBERG_POSTGRES_CATALOG_PASSWORD = postgres_password
         cls.ICEBERG_TABLE_RESULT_NAMESPACE = table_result_namespace
         cls.ICEBERG_FILE_STORAGE_DIRECTORY_PATH = directory_path
-        cls.ICEBERG_TABLE_COMMIT_BATCH_SIZE = commit_batch_size
+        cls.ICEBERG_TABLE_COMMIT_BATCH_SIZE = int(commit_batch_size)
         cls._initialized = True
 
     def __new__(cls, *args, **kwargs):
