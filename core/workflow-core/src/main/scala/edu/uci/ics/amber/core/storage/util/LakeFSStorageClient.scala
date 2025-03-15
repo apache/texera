@@ -41,7 +41,7 @@ object LakeFSStorageClient {
   private lazy val healthCheckApi: HealthCheckApi = new HealthCheckApi(apiClient)
 
   private val storageNamespaceURI: String =
-    s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
+    s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBucketName}"
 
   private val branchName: String = "main"
 

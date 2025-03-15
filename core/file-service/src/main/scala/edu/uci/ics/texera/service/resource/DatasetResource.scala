@@ -347,10 +347,8 @@ class DatasetResource {
       }
 
       // delete the directory on S3
-      if (
-        S3StorageClient.directoryExists(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
-      ) {
-        S3StorageClient.deleteDirectory(StorageConfig.lakefsBlockStorageBucketName, dataset.getName)
+      if (S3StorageClient.directoryExists(StorageConfig.lakefsBucketName, dataset.getName)) {
+        S3StorageClient.deleteDirectory(StorageConfig.lakefsBucketName, dataset.getName)
       }
 
       // delete the dataset from the DB
