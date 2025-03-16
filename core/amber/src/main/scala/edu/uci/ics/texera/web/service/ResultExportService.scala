@@ -191,14 +191,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /*
-    * Handle streaming a single (row, column) from an operator's result.
-    * This is used for the "data" export type, which exports a single field value.
+   * Handle streaming a single (row, column) from an operator's result.
+   * This is used for the "data" export type, which exports a single field value.
    */
   private def writeData(
-                          out: OutputStream,
-                          request: ResultExportRequest,
-                          results: Iterable[Tuple]
-                       ): Unit = {
+      out: OutputStream,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): Unit = {
     val rowIndex = request.rowIndex
     val columnIndex = request.columnIndex
 
@@ -540,8 +540,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               request.exportType match {
                 case "csv"   => writeCsv(nonClosingStream, results)
                 case "arrow" => writeArrow(nonClosingStream, results)
-                case "data"  => writeData(nonClosingStream, request, results) // handle single cell export
-                case _       => writeCsv(nonClosingStream, results)
+                case "data" =>
+                  writeData(nonClosingStream, request, results) // handle single cell export
+                case _ => writeCsv(nonClosingStream, results)
               }
               zipOut.closeEntry()
             }
