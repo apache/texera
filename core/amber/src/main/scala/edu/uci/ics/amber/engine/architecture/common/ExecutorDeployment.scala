@@ -2,25 +2,19 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Address, AddressFromURIString, Deploy}
 import akka.remote.RemoteScope
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.deployment.{DeploymentStrategies, NodeProfiles}
-import edu.uci.ics.amber.core.workflow.{
-  CustomizedPreference,
-  GoToSpecificNode,
-  PhysicalOp,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.core.workflow.{CustomizedPreference, GoToSpecificNode, PhysicalOp, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.AddressInfo
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
+
+import scala.collection.mutable
+
 
 object ExecutorDeployment {
 
@@ -39,6 +33,9 @@ object ExecutorDeployment {
       controllerActorService.getClusterNodeAddresses,
       controllerActorService.self.path.address
     )
+
+    //Keep track which operator is at which address for maxSpeed and Hybrid strategy
+    val operatorMapping : mutable.Map[PhysicalOpIdentity, String] = mutable.Map()
 
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
@@ -86,7 +83,8 @@ object ExecutorDeployment {
                   addressInfo.allAddresses.map(_.toString),
                   NodeProfiles.getAllProfiles,
                   operators,
-                  op
+                  op,
+                  operatorMapping
                 )
               )
             case "hybrid" =>
@@ -95,7 +93,8 @@ object ExecutorDeployment {
                   addressInfo.allAddresses.map(_.toString),
                   NodeProfiles.getAllProfiles,
                   operators,
-                  op
+                  op,
+                  operatorMapping
                 )
               )
           }

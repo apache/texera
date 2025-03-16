@@ -21,12 +21,12 @@ object NodeProfiles {
 
     // Read profiles as a list
     val profilesList = config.getConfigList("profiles").asScala.map { profileConfig =>
+      val id = profileConfig.getString("id")
       val address = profileConfig.getString("address")
       val modelSize = profileConfig.getInt("modelSize")
       val modelSpeed = profileConfig.getDouble("modelSpeed").toFloat
       address -> Profile(address, modelSize, modelSpeed)
     }
-
     // Convert list to a map
     profilesList.toMap
   }
