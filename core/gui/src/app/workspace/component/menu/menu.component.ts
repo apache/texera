@@ -32,6 +32,8 @@ import { ReportGenerationService } from "../../service/report-generation/report-
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
+import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
+
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -278,6 +280,16 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public onClickAddCommentBox(): void {
     this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
+  }
+
+  private async waitForConditions(): Promise<void> {
+    const checkConditions = () => {
+      return this.workflowWebsocketService.isConnected && !this.displayParticularWorkflowVersion;
+    };
+
+    while (!checkConditions()) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
   public handleKill(): void {

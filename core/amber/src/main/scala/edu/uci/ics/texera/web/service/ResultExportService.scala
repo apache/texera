@@ -190,6 +190,28 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
   }
 
+  /*
+   * Handle streaming a single (row, column) from an operator's result.
+   * This is used for the "data" export type, which exports a single field value.
+   */
+  private def writeData(
+      out: OutputStream,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): Unit = {
+    val rowIndex = request.rowIndex
+    val columnIndex = request.columnIndex
+
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
+      -1
+    }
+
+    val selectedRow = results.toSeq(rowIndex)
+    val field: Any = selectedRow.getField(columnIndex)
+    val dataBytes = convertFieldToBytes(field)
+    out.write(dataBytes)
+  }
+
   /**
     * Handle exporting data for a single (row, column) from an operator's result.
     */
@@ -209,7 +231,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       }
 
       val selectedRow = results.toSeq(rowIndex)
-      val field = selectedRow.getField(columnIndex)
+      val field: Any = selectedRow.getField(columnIndex)
       val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
       saveToDatasets(
@@ -417,6 +439,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
         request.exportType match {
           case "csv"   => writeCsv(out, results)
           case "arrow" => writeArrow(out, results)
+          case "data"  => writeData(out, request, results) // handle single cell export
           case _       => writeCsv(out, results) // fallback
         }
       }
@@ -517,7 +540,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               request.exportType match {
                 case "csv"   => writeCsv(nonClosingStream, results)
                 case "arrow" => writeArrow(nonClosingStream, results)
-                case _       => writeCsv(nonClosingStream, results)
+                case "data" =>
+                  writeData(nonClosingStream, request, results) // handle single cell export
+                case _ => writeCsv(nonClosingStream, results)
               }
               zipOut.closeEntry()
             }

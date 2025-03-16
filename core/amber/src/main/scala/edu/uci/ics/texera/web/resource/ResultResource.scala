@@ -54,7 +54,7 @@ class ResultResource extends LazyLogging {
             return Response
               .status(Response.Status.BAD_REQUEST)
               .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Local download supports no operator or many.").asJava)
+              .entity(Map("error" -> "Local download does not support no operator.").asJava)
               .build()
           }
           val singleOpId = request.operatorIds.head
