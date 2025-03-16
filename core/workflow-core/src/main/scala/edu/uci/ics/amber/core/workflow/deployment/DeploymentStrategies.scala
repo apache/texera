@@ -20,7 +20,6 @@ object DeploymentStrategies {
                 ): String = {
     //Idea: Assign all vertices to best model
     val bestNode = nodeProfiles.maxBy { case (_, profile) => profile.modelSize }
-    println("Assigned " + currentOp.id + " to " + nodeProfiles(bestNode._1).id)
     bestNode._1
   }
 
@@ -43,13 +42,11 @@ object DeploymentStrategies {
       //Assign k source vertices to k fastest nodes
       sortedAddresses.find(addr => !operatorMapping.values.toSet.contains(addr)) match {
         case Some(freeAddr) =>
-          println("Assigned " + currentOp.id + " to " + nodeProfiles(freeAddr).id)
           operatorMapping += (currentOp.id -> freeAddr)
           freeAddr
         //Default to fastest worker if there are more source vertices than workers
         case None =>
           val fallback = sortedAddresses.head
-          println("Assigned " + currentOp.id + " to " + nodeProfiles(fallback).id)
           operatorMapping + (currentOp.id -> fallback)
           fallback
       }
@@ -63,7 +60,6 @@ object DeploymentStrategies {
         if (profiles != List.empty) {
           val bestNode = profiles.maxBy(profile => profile.modelSize)
           operatorMapping + (currentOp.id -> bestNode.nodeAddress)
-          println("Assigned " + currentOp.id + " to " + bestNode.id)
           return bestNode.nodeAddress
         }
       }
@@ -75,7 +71,6 @@ object DeploymentStrategies {
         if (profiles != List.empty) {
           val bestNode = profiles.maxBy(profile => profile.modelSize)
           operatorMapping + (currentOp.id -> bestNode.nodeAddress)
-          println("Assigned " + currentOp.id + " to " + bestNode.id)
           return bestNode.nodeAddress
         }
       }
@@ -90,12 +85,10 @@ object DeploymentStrategies {
     sortedAddresses.find(addr => !operatorMapping.values.toSet.contains(addr)) match {
       case Some(freeAddr) =>
         operatorMapping += (currentOp.id -> freeAddr)
-        println("Assigned " + currentOp.id + " to " + nodeProfiles(freeAddr).id)
         freeAddr
       //Default to fastest worker if there are more source vertices than workers
       case None =>
         val fallback = sortedAddresses.head
-        println("Assigned " + currentOp.id + " to " + nodeProfiles(fallback).id)
         operatorMapping + (currentOp.id -> fallback)
         fallback
     }
