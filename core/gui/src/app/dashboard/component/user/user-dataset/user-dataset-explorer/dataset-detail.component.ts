@@ -168,6 +168,15 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
+  public onClickDownloadVersionAsZip() {
+    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      this.downloadService
+        .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
+        .pipe(untilDestroyed(this))
+        .subscribe();
+    }
+  }
+
   onPublicStatusChange(checked: boolean): void {
     // Handle the change in dataset public status
     if (this.did) {

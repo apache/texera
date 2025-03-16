@@ -52,7 +52,9 @@ import org.jooq.{DSLContext, EnumType}
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
 import java.util.Optional
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
@@ -809,7 +811,6 @@ class DatasetResource {
     })
   }
 
-  // TODO: change did to name
   @GET
   @Path("/{name}/publicVersion/list")
   def getPublicDatasetVersionList(
@@ -863,6 +864,75 @@ class DatasetResource {
           .get
       )
     })
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/versionZip")
+  def getDatasetVersionZip(
+      @PathParam("did") did: Integer,
+      @QueryParam("dvid") dvid: Integer, // Dataset version ID, nullable
+      @QueryParam("latest") latest: java.lang.Boolean, // Flag to get latest version, nullable
+      @Auth user: SessionUser
+  ): Response = {
+
+    val uid = user.getUid
+
+    withTransaction(context) { ctx =>
+      if ((dvid != null && latest != null) || (dvid == null && latest == null)) {
+        throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
+      }
+
+      // Determine which version to retrieve
+      val datasetVersion = if (dvid != null) {
+        getDatasetVersionByID(ctx, dvid)
+      } else if (java.lang.Boolean.TRUE.equals(latest)) {
+        getLatestDatasetVersion(ctx, did).getOrElse(
+          throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
+        )
+      } else {
+        throw new BadRequestException("Invalid parameters")
+      }
+
+      // Retrieve dataset and version details
+      val dataset = getDatasetByID(ctx, did)
+      val datasetName = dataset.getName
+      val versionHash = datasetVersion.getVersionHash
+      val objects = LakeFSStorageClient.retrieveObjectsOfVersion(datasetName, versionHash)
+
+      if (objects.isEmpty) {
+        return Response
+          .status(Response.Status.NOT_FOUND)
+          .entity(s"No objects found in version $versionHash of repository $datasetName")
+          .build()
+      }
+
+      // StreamingOutput for ZIP download
+      val streamingOutput = new StreamingOutput {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOut = new ZipOutputStream(outputStream)
+          try {
+            objects.foreach { obj =>
+              val filePath = obj.getPath
+              val file = LakeFSStorageClient.getFileFromRepo(datasetName, versionHash, filePath)
+
+              zipOut.putNextEntry(new ZipEntry(filePath))
+              Files.copy(Paths.get(file.toURI), zipOut)
+              zipOut.closeEntry()
+            }
+          } finally {
+            zipOut.close()
+          }
+        }
+      }
+
+      val zipFilename = s"""attachment; filename="${datasetName}-${datasetVersion.getName}.zip""""
+
+      Response
+        .ok(streamingOutput, "application/zip")
+        .header("Content-Disposition", zipFilename)
+        .build()
+    }
   }
 
   @GET

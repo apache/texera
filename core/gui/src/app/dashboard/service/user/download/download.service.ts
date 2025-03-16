@@ -49,7 +49,7 @@ export class DownloadService {
 
   downloadDataset(id: number, name: string): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: id }),
+      () => this.datasetService.retrieveDatasetVersionZip(id),
       `${name}.zip`,
       "Starting to download the latest version of the dataset as ZIP",
       "The latest version of the dataset has been downloaded as ZIP",
@@ -64,7 +64,7 @@ export class DownloadService {
     versionName: string
   ): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
+      () => this.datasetService.retrieveDatasetVersionZip(datasetId, datasetVersionId),
       `${datasetName}-${versionName}.zip`,
       `Starting to download version ${versionName} as ZIP`,
       `Version ${versionName} has been downloaded as ZIP`,

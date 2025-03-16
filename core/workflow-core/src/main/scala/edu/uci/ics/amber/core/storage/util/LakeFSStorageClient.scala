@@ -115,6 +115,10 @@ object LakeFSStorageClient {
     objectsApi.uploadObject(repoName, branchName, filePath).content(tempFilePath.toFile).execute()
   }
 
+  def getFileFromRepo(repoName: String, versionHash: String, filePath: String): File = {
+    objectsApi.getObject(repoName, versionHash, filePath).execute()
+  }
+
   /**
     * Removes a file from the repository (similar to Git rm).
     *
