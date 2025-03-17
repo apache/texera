@@ -266,12 +266,6 @@ class Tuple:
                 if checknull(field_value):
                     self[field_name] = None
 
-                if field_value is not None:
-                    field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY and not isinstance(
-                        field_value, bytes
-                    ):
-                        self[field_name] = b"pickle    " + pickle.dumps(field_value)
             except Exception as err:
                 # Surpass exceptions during cast.
                 # Keep the value as it is if the cast fails, and continue to attempt

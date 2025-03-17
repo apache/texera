@@ -69,16 +69,16 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   }
 
   it should "convert from AttributeType correctly" in {
-    assert(ArrowUtils.fromAttributeType(AttributeType.INTEGER) == signedInt)
-    assert(ArrowUtils.fromAttributeType(AttributeType.LONG) == signedLongInt)
-    assert(ArrowUtils.fromAttributeType(AttributeType.BOOLEAN) == boolean)
-    assert(ArrowUtils.fromAttributeType(AttributeType.DOUBLE) == double)
-    assert(ArrowUtils.fromAttributeType(AttributeType.TIMESTAMP) == timestamp)
-    assert(ArrowUtils.fromAttributeType(AttributeType.STRING) == string)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.INTEGER) == signedInt)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.LONG) == signedLongInt)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.BOOLEAN) == boolean)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.DOUBLE) == double)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.TIMESTAMP) == timestamp)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.STRING) == string)
 
     // a special case that's not symmetric, AttributeType.ANY will be converted to ArrowType.Utf8
     // but not the other way around.
-    assert(ArrowUtils.fromAttributeType(AttributeType.ANY) == string)
+    assert(ArrowUtils.fromAttributeTypeToPrimitive(AttributeType.ANY) == string)
 
   }
 
