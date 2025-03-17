@@ -43,12 +43,12 @@ object DeploymentStrategies {
       sortedAddresses.find(addr => !operatorMapping.values.toSet.contains(addr)) match {
         case Some(freeAddr) =>
           operatorMapping += (currentOp.id -> freeAddr)
-          freeAddr
+          return freeAddr
         //Default to fastest worker if there are more source vertices than workers
         case None =>
           val fallback = sortedAddresses.head
           operatorMapping + (currentOp.id -> fallback)
-          fallback
+          return fallback
       }
     }
     else {
@@ -117,7 +117,7 @@ object DeploymentStrategies {
         case None =>
           val fallback = sortedAddresses.head
           operatorMapping + (currentOp.id -> fallback)
-          fallback
+          return fallback
       }
     }
     else {
