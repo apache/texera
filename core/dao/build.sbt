@@ -88,5 +88,5 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.postgresql" % "postgresql" % "42.7.4",
-  "org.yaml" % "snakeyaml" % "1.30",                    // for reading storage config yaml file
+  "com.typesafe" % "config" % "1.4.3"    // config reader
 )
