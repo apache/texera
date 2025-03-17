@@ -41,7 +41,7 @@ object LakeFSStorageClient {
   private lazy val healthCheckApi: HealthCheckApi = new HealthCheckApi(apiClient)
 
   private val storageNamespaceURI: String =
-    s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBlockStorageBucketName}"
+    s"${StorageConfig.lakefsBlockStorageType}://${StorageConfig.lakefsBucketName}"
 
   private val branchName: String = "main"
 
@@ -113,6 +113,10 @@ object LakeFSStorageClient {
 
     // Upload the temporary file to LakeFS
     objectsApi.uploadObject(repoName, branchName, filePath).content(tempFilePath.toFile).execute()
+  }
+
+  def getFileFromRepo(repoName: String, versionHash: String, filePath: String): File = {
+    objectsApi.getObject(repoName, versionHash, filePath).execute()
   }
 
   /**

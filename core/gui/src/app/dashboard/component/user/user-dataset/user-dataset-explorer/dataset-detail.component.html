@@ -179,19 +179,18 @@
                   [nzValue]="version"
                   [nzLabel]="version.name"></nz-option>
               </nz-select>
-              <!-- downloading the whole dataset is currently disabled because we switched the backend to LakeFS-->
-              <!--              <button-->
-              <!--                nz-button-->
-              <!--                nz-tooltip="Download Dataset"-->
-              <!--                (click)="onClickDownloadVersionAsZip()"-->
-              <!--                *ngIf="selectedVersion"-->
-              <!--                [disabled]="!isLogin"-->
-              <!--                class="spaced-button">-->
-              <!--                <i-->
-              <!--                  nz-icon-->
-              <!--                  nzType="download"-->
-              <!--                  nzTheme="outline"></i>-->
-              <!--              </button>-->
+              <button
+                nz-button
+                nz-tooltip="Download Dataset"
+                (click)="onClickDownloadVersionAsZip()"
+                *ngIf="selectedVersion"
+                [disabled]="!isLogin"
+                class="spaced-button">
+                <i
+                  nz-icon
+                  nzType="download"
+                  nzTheme="outline"></i>
+              </button>
             </div>
             <div
               *ngIf="selectedVersion"

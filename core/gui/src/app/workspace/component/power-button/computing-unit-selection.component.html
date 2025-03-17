@@ -68,7 +68,7 @@
         id="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
         [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
-        (click)="selectedComputingUnit = unit; onComputingUnitChange(unit)">
+        (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
         <div class="computing-unit-name">
           <nz-badge
             [nzColor]="getBadgeColor(unit.status)"

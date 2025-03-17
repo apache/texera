@@ -17,7 +17,7 @@ import { environment } from "../../../../environments/environment";
   styleUrls: ["./computing-unit-selection.component.scss"],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
-  @Input()
+  // current workflow's Id, will change with wid in the workflowActionService.metadata
   workflowId: number | undefined;
 
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
@@ -44,13 +44,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
           let firstRunningUnit = units.find(unit => unit.status === "Running");
           if (firstRunningUnit) {
             this.selectedComputingUnit = firstRunningUnit;
-            this.onComputingUnitChange(firstRunningUnit);
+            this.connectToComputingUnit(firstRunningUnit);
           }
           this.updateComputingUnits(units);
           this.refreshComputingUnits();
         },
         error: (err: unknown) => console.error("Failed to fetch computing units:", err),
       });
+
+    this.registerWorkflowMetadataSubscription();
   }
 
   /**
@@ -133,15 +135,32 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
+   * Registers a subscription to listen for workflow metadata changes;
+   * Calls `onComputingUnitChange` when the `wid` changes;
+   * The wid can change by time because of the workspace rendering;
+   */
+  private registerWorkflowMetadataSubscription(): void {
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+        if (wid !== this.workflowId) {
+          this.workflowId = wid;
+          this.connectToComputingUnit(this.selectedComputingUnit);
+        }
+      });
+  }
+
+  /**
    * Called whenever the selected computing unit changes.
    */
-  onComputingUnitChange(newSelection: DashboardWorkflowComputingUnit | null): void {
-    console.log("Selected computing unit changed to:", newSelection);
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
-    if (newSelection && isDefined(wid)) {
-      console.log(`Selected Unit URI: ${newSelection.uri}`);
+  connectToComputingUnit(computingUnit: DashboardWorkflowComputingUnit | null): void {
+    console.log("Selected computing unit changed to:", computingUnit);
+    if (computingUnit && isDefined(this.workflowId)) {
+      console.log(`Selected Unit URI: ${computingUnit.uri}`);
       this.workflowWebsocketService.closeWebsocket();
-      this.workflowWebsocketService.openWebsocket(wid, undefined, newSelection.computingUnit.cuid);
+      this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, computingUnit.computingUnit.cuid);
     } else {
       console.log("Selection cleared.");
     }

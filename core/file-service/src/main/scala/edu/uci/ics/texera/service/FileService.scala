@@ -37,7 +37,7 @@ class FileService extends Application[FileServiceConfiguration] {
     )
 
     // check if the texera dataset bucket exists, if not create it
-    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBlockStorageBucketName)
+    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
     // check if we can connect to the lakeFS service
     LakeFSStorageClient.healthCheck()
 
