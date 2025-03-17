@@ -16,7 +16,7 @@ describe("DownloadService", () => {
   beforeEach(() => {
     const datasetSpy = jasmine.createSpyObj("DatasetService", [
       "retrieveDatasetVersionSingleFile",
-      "retrieveDatasetZip", // Add this method to the spy
+      "retrieveDatasetVersionZip", // Add this method to the spy
     ]);
     const fileSaverSpy = jasmine.createSpyObj("FileSaverService", ["saveAs"]);
     const notificationSpy = jasmine.createSpyObj("NotificationService", ["info", "success", "error"]);
@@ -86,7 +86,7 @@ describe("DownloadService", () => {
     const datasetName = "TestDataset";
     const mockBlob = new Blob(["dataset content"], { type: "application/zip" });
 
-    datasetServiceSpy.retrieveDatasetZip.and.returnValue(of(mockBlob));
+    datasetServiceSpy.retrieveDatasetVersionZip.and.returnValue(of(mockBlob));
 
     downloadService.downloadDataset(datasetId, datasetName).subscribe({
       next: blob => {
@@ -94,7 +94,7 @@ describe("DownloadService", () => {
         expect(notificationServiceSpy.info).toHaveBeenCalledWith(
           "Starting to download the latest version of the dataset as ZIP"
         );
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId });
+        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId);
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset.zip");
         expect(notificationServiceSpy.success).toHaveBeenCalledWith(
           "The latest version of the dataset has been downloaded as ZIP"
@@ -112,7 +112,7 @@ describe("DownloadService", () => {
     const datasetName = "TestDataset";
     const errorMessage = "Dataset download failed";
 
-    datasetServiceSpy.retrieveDatasetZip.and.returnValue(throwError(() => new Error(errorMessage)));
+    datasetServiceSpy.retrieveDatasetVersionZip.and.returnValue(throwError(() => new Error(errorMessage)));
 
     downloadService.downloadDataset(datasetId, datasetName).subscribe({
       next: () => {
@@ -123,7 +123,7 @@ describe("DownloadService", () => {
         expect(notificationServiceSpy.info).toHaveBeenCalledWith(
           "Starting to download the latest version of the dataset as ZIP"
         );
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId });
+        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId);
         expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
         expect(notificationServiceSpy.error).toHaveBeenCalledWith(
           "Error downloading the latest version of the dataset as ZIP"
@@ -140,13 +140,13 @@ describe("DownloadService", () => {
     const versionName = "v1.0";
     const mockBlob = new Blob(["version content"], { type: "application/zip" });
 
-    datasetServiceSpy.retrieveDatasetZip.and.returnValue(of(mockBlob));
+    datasetServiceSpy.retrieveDatasetVersionZip.and.returnValue(of(mockBlob));
 
     downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
       next: blob => {
         expect(blob).toBe(mockBlob);
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId, dvid: datasetVersionId });
+        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId);
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
         expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
         done();
@@ -164,7 +164,7 @@ describe("DownloadService", () => {
     const versionName = "v1.0";
     const errorMessage = "Dataset version download failed";
 
-    datasetServiceSpy.retrieveDatasetZip.and.returnValue(throwError(() => new Error(errorMessage)));
+    datasetServiceSpy.retrieveDatasetVersionZip.and.returnValue(throwError(() => new Error(errorMessage)));
 
     downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
       next: () => {
@@ -173,7 +173,7 @@ describe("DownloadService", () => {
       error: (error: unknown) => {
         expect(error).toBeTruthy();
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId, dvid: datasetVersionId });
+        expect(datasetServiceSpy.retrieveDatasetVersionZip).toHaveBeenCalledWith(datasetId, datasetVersionId);
         expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
         expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
         done();

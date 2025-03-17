@@ -178,7 +178,7 @@ object ExecutionResultService {
 }
 
 /**
-  * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
+  * ExecutionResultService manages all operator output ports that have storage in one workflow execution.
   *
   * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,

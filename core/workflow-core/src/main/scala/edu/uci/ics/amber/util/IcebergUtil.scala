@@ -102,7 +102,10 @@ object IcebergUtil {
     catalog.initialize(
       catalogName,
       Map(
-        "warehouse" -> warehouse.toString,
+        "warehouse" -> warehouse.toString.replace(
+          ":",
+          ""
+        ), //warehouse path is C:/xxx/xxx in Windows, but PyArrow on the Python side cannot parse it. The acceptable format for PyArrow is C/xxx/xxx.
         CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
         CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
         JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
@@ -148,6 +151,7 @@ object IcebergUtil {
       PartitionSpec.unpartitioned,
       tableProperties.asJava
     )
+
   }
 
   /**

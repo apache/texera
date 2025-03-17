@@ -304,10 +304,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
             self._check_and_process_control()
 
+        # Need to send port completed even if there is no downstream link
+        for port_id in self.context.output_manager.get_port_ids():
             self._async_rpc_client.controller_stub().port_completed(
-                PortCompletedRequest(port_id=PortIdentity(0), input=False)
+                PortCompletedRequest(port_id=port_id, input=False)
             )
-
         self.complete()
 
     def _process_channel_marker_payload(self, marker_elem: ChannelMarkerElement):

@@ -1,8 +1,9 @@
-package edu.uci.ics.texera.web.resource.dashboard.user.dataset.type;
+package edu.uci.ics.texera.service.type.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import edu.uci.ics.texera.service.type.DatasetFileNode;
 import scala.collection.JavaConverters;
 import scala.collection.immutable.List;
 

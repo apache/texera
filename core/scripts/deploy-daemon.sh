@@ -42,6 +42,15 @@ done
 echo "${green}WorkflowCompilingService launched at $(pgrep -f TexeraWorkflowCompilingService)${reset}"
 echo
 
+echo "${green}Starting FileService in daemon...${reset}"
+setsid nohup ./scripts/file-service.sh >/dev/null 2>&1 &
+echo "${green}Waiting FileService to launch on 9092...${reset}"
+while ! nc -z localhost 9092; do
+	sleep 0.1 # wait 100ms before check again
+done
+echo "${green}FileService launched at $(pgrep -f FileService)${reset}"
+echo
+
 echo "${green}Starting WorkflowComputingUnit in daemon...${reset}"
 setsid nohup ./scripts/workflow-computing-unit.sh >/dev/null 2>&1 &
 echo "${green}Waiting WorkflowComputingUnit to launch on 8085...${reset}"
