@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
@@ -20,6 +20,7 @@ import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
+import edu.uci.ics.amber.engine.common.{FinalizeExecutor, FinalizePort}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -151,8 +152,8 @@ class DataProcessor(
     if (outputTuple == null) return
 
     outputTuple match {
-      case FinalizeExecutor() =>
-        outputManager.emitMarker(EndOfInputChannel())
+      case FinalizeExecutor(marker: ChannelMarkerPayload) =>
+        sendChannelMarker(marker)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -219,19 +220,6 @@ class DataProcessor(
             processInputState(state, portId.id)
           case StartOfInputChannel() =>
             processStartOfInputChannel(portId.id)
-          case EndOfInputChannel() =>
-            this.inputManager.getPort(portId).channels(channelId) = true
-            if (inputManager.isPortCompleted(portId)) {
-              inputManager.initBatch(channelId, Array.empty)
-              processEndOfInputChannel(portId.id)
-              outputManager.outputIterator.appendSpecialTupleToEnd(
-                FinalizePort(portId, input = true)
-              )
-            }
-            if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-              // assuming all the output ports finalize after all input ports are finalized.
-              outputManager.finalizeOutput()
-            }
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
@@ -247,10 +235,7 @@ class DataProcessor(
         FinalizePort(portId, input = true)
       )
     }
-    if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-      // assuming all the output ports finalize after all input ports are finalized.
-      outputManager.finalizeOutput()
-    }
+
   }
 
   def processChannelMarker(
@@ -258,42 +243,56 @@ class DataProcessor(
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
-    val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
-    logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = ${command}")
+
+    logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = $command")
+
     if (marker.markerType == REQUIRE_ALIGNMENT) {
-      pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
+      pauseManager.pauseInputChannel(EpochMarkerPause(marker.id), List(channelId))
     }
+
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
-      logManager.markAsReplayDestination(markerId)
-      // invoke the control command carried with the epoch marker
-      logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
-      if (command.isDefined) {
-        var request = command.get
-        if (request.methodName == METHOD_START_WORKER.getBareMethodName) {
-          request = request.withCommand(StartInputChannelRequest(channelId))
-        }
-        asyncRPCServer.receive(request, channelId.fromWorkerId)
-      }
-      // if this worker is not the final destination of the marker, pass it downstream
-      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
-      if (downstreamChannelsInScope.nonEmpty) {
-        outputManager.flush(Some(downstreamChannelsInScope))
-        outputGateway.getActiveChannels.foreach { activeChannelId =>
-          if (downstreamChannelsInScope.contains(activeChannelId)) {
-            logger.info(
-              s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"
-            )
-            outputGateway.sendTo(activeChannelId, marker)
-          }
+      logManager.markAsReplayDestination(marker.id)
+      logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = $command")
+
+      val isStartInputChannelRequest = command.exists { req =>
+        if (req.methodName == METHOD_START_WORKER.getBareMethodName) {
+          asyncRPCServer.receive(req.withCommand(StartInputChannelRequest(channelId)), channelId.fromWorkerId)
+          true
+        } else {
+          asyncRPCServer.receive(req, channelId.fromWorkerId)
+          false
         }
       }
-      // unblock input channels
-      if (marker.markerType == REQUIRE_ALIGNMENT) {
-        pauseManager.resume(EpochMarkerPause(markerId))
+
+      if (isStartInputChannelRequest && inputManager.getAllPorts.forall(inputManager.isPortCompleted)) {
+        outputManager.finalizeOutput(marker)
+      } else {
+        sendChannelMarker(marker)
       }
     }
   }
+
+  def sendChannelMarker(marker: ChannelMarkerPayload):Unit={
+    // if this worker is not the final destination of the marker, pass it downstream
+    val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
+    if (downstreamChannelsInScope.nonEmpty) {
+      outputManager.flush(Some(downstreamChannelsInScope))
+      outputGateway.getActiveChannels.foreach { activeChannelId =>
+        if (downstreamChannelsInScope.contains(activeChannelId)) {
+          logger.info(
+            s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${marker.commandMapping.get(actorId.name)}"
+          )
+          outputGateway.sendTo(activeChannelId, marker)
+        }
+      }
+    }
+    // unblock input channels
+    if (marker.markerType == REQUIRE_ALIGNMENT) {
+      pauseManager.resume(EpochMarkerPause(marker.id))
+    }
+  }
+
 
   private[this] def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.controllerInterface.consoleMessageTriggered(

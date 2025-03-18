@@ -28,11 +28,12 @@ trait StartHandler {
       dp.inputGateway.getChannel(channelId).setPortId(dummyInputPortId)
       //dp.processDataPayload(channelId, MarkerFrame(StartOfInputChannel()))
       //dp.processDataPayload(channelId, MarkerFrame(EndOfInputChannel()))
-      dp.endOfInputChannel(channelId)
+
     } else {
       println(
         s"non-source worker $actorId received unexpected StartWorker!")
     }
+    dp.endOfInputChannel(channelId)
     WorkerStateResponse(dp.stateManager.getCurrentState)
   }
 }
