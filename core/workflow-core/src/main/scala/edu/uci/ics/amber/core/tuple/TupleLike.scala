@@ -1,18 +1,27 @@
 package edu.uci.ics.amber.core.tuple
 
+import edu.uci.ics.amber.core.workflow.PortIdentity
+
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 sealed trait FieldArray {
   def getFields: Array[Any]
 }
 
-trait TupleLike extends FieldArray {
+sealed trait TupleLike extends FieldArray {
   def inMemSize: Long = 0L
 }
 
 trait SchemaEnforceable {
   def enforceSchema(schema: Schema): Tuple
 }
+
+trait InternalMarker extends TupleLike {
+  override def getFields: Array[Any] = Array.empty
+}
+
+final case class FinalizePort(portId: PortIdentity, input: Boolean) extends InternalMarker
+final case class FinalizeExecutor() extends InternalMarker
 
 trait SeqTupleLike extends TupleLike with SchemaEnforceable {
   override def inMemSize: Long = ???
