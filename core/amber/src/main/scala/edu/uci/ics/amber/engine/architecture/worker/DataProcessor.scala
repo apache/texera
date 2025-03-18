@@ -152,8 +152,8 @@ class DataProcessor(
     if (outputTuple == null) return
 
     outputTuple match {
-      case FinalizeExecutor(marker: ChannelMarkerPayload) =>
-        sendChannelMarker(marker)
+      case FinalizeExecutor() =>
+        sendChannelMarker(channelMarkerManager.marker)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -235,7 +235,10 @@ class DataProcessor(
         FinalizePort(portId, input = true)
       )
     }
-
+    if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
+      // assuming all the output ports finalize after all input ports are finalized.
+      outputManager.finalizeOutput()
+    }
   }
 
   def processChannelMarker(
@@ -258,16 +261,14 @@ class DataProcessor(
       val isStartInputChannelRequest = command.exists { req =>
         if (req.methodName == METHOD_START_WORKER.getBareMethodName) {
           asyncRPCServer.receive(req.withCommand(StartInputChannelRequest(channelId)), channelId.fromWorkerId)
+          channelMarkerManager.marker = marker
           true
         } else {
           asyncRPCServer.receive(req, channelId.fromWorkerId)
           false
         }
       }
-
-      if (isStartInputChannelRequest && inputManager.getAllPorts.forall(inputManager.isPortCompleted)) {
-        outputManager.finalizeOutput(marker)
-      } else {
+      if (!isStartInputChannelRequest ) {
         sendChannelMarker(marker)
       }
     }

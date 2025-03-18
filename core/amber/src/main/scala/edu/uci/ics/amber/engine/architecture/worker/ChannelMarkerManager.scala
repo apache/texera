@@ -18,6 +18,7 @@ import scala.collection.mutable
 class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
     extends AmberLogging {
 
+  var marker: ChannelMarkerPayload = _
   private val markerReceived =
     new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]()
 

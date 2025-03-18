@@ -9,7 +9,7 @@ import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, Physic
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{NO_ALIGNMENT, REQUIRE_ALIGNMENT}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest, PropagateChannelMarkerRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerStateResponse, WorkflowAggregatedState}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER

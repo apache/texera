@@ -227,12 +227,12 @@ class OutputManager(
 
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
-  def finalizeOutput(marker: ChannelMarkerPayload): Unit = {
+  def finalizeOutput(): Unit = {
     this.ports.keys
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
       )
-    outputIterator.appendSpecialTupleToEnd(FinalizeExecutor(marker))
+    outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {

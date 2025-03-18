@@ -9,4 +9,4 @@ trait InternalMarker extends TupleLike {
 }
 
 final case class FinalizePort(portId: PortIdentity, input: Boolean) extends InternalMarker
-final case class FinalizeExecutor(marker: ChannelMarkerPayload) extends InternalMarker
+final case class FinalizeExecutor() extends InternalMarker
