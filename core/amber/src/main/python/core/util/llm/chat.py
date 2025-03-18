@@ -3,7 +3,8 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
 # Force CPU usage
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # Retrieve the model path from the environment variable (if using local models)
 model_path = os.getenv("MODEL_PATH", "AlgorithmicResearchGroup/flan-t5-base-arxiv-cs-ml-question-answering")
