@@ -364,12 +364,12 @@ class ExecutionResultService(
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, _, storagePortId, _) = VFSURIFactory.decodeURI(uri)
+            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
               .getPhysicalOpsOfLogicalOp(opId.get)
-              .flatMap(_.outputPorts.get(storagePortId.get))
+              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
               .map(_._1.mode)
               .head
 

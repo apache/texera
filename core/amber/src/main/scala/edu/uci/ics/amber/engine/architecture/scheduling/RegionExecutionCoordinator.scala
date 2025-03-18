@@ -266,7 +266,7 @@ class RegionExecutionCoordinator(
     portConfigs.foreach {
       case (outputPortId, portConfig: PortConfig) =>
         val storageUriToAdd = portConfig.storageURI
-        val (wid, eid, _, _, _, _) = decodeURI(storageUriToAdd)
+        val (wid, eid, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
           WorkflowExecutionsResource.getResultUriByExecutionAndPort(
             wid = wid,

@@ -15,7 +15,7 @@ import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -54,19 +54,10 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     public final TableField<OperatorPortExecutionsRecord, Integer> WORKFLOW_EXECUTION_ID = createField(DSL.name("workflow_execution_id"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
-     * The column <code>texera_db.operator_port_executions.operator_id</code>.
+     * The column
+     * <code>texera_db.operator_port_executions.global_port_id</code>.
      */
-    public final TableField<OperatorPortExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
-
-    /**
-     * The column <code>texera_db.operator_port_executions.layer_name</code>.
-     */
-    public final TableField<OperatorPortExecutionsRecord, String> LAYER_NAME = createField(DSL.name("layer_name"), SQLDataType.VARCHAR(100).nullable(false).defaultValue(DSL.field("'main'::character varying", SQLDataType.VARCHAR)), this, "");
-
-    /**
-     * The column <code>texera_db.operator_port_executions.port_id</code>.
-     */
-    public final TableField<OperatorPortExecutionsRecord, Integer> PORT_ID = createField(DSL.name("port_id"), SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<OperatorPortExecutionsRecord, String> GLOBAL_PORT_ID = createField(DSL.name("global_port_id"), SQLDataType.VARCHAR(200).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.operator_port_executions.result_uri</code>.
@@ -115,12 +106,12 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
 
     @Override
     public UniqueKey<OperatorPortExecutionsRecord> getPrimaryKey() {
-        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY1;
+        return Keys.OPERATOR_PORT_EXECUTIONS_PKEY;
     }
 
     @Override
     public List<ForeignKey<OperatorPortExecutionsRecord, ?>> getReferences() {
-        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY1);
+        return Arrays.asList(Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
     }
 
     private transient WorkflowExecutions _workflowExecutions;
@@ -131,7 +122,7 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
      */
     public WorkflowExecutions workflowExecutions() {
         if (_workflowExecutions == null)
-            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY1);
+            _workflowExecutions = new WorkflowExecutions(this, Keys.OPERATOR_PORT_EXECUTIONS__OPERATOR_PORT_EXECUTIONS_WORKFLOW_EXECUTION_ID_FKEY);
 
         return _workflowExecutions;
     }
@@ -163,11 +154,11 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<Integer, String, String, Integer, String> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row3<Integer, String, String> fieldsRow() {
+        return (Row3) super.fieldsRow();
     }
 }

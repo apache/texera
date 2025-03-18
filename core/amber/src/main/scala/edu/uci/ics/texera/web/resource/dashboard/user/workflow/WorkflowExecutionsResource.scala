@@ -5,10 +5,11 @@ import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSResourceType, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
@@ -197,6 +198,7 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       layerName match {
         case Some(layerName) =>
+          val globalPortId = GlobalPortIdentity(opId = PhysicalOpIdentity(logicalOpId = opId, layerName = layerName), portId = portId)
           Option(
             context
               .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
@@ -204,9 +206,7 @@ object WorkflowExecutionsResource {
               .where(
                 OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
                   .eq(eid.id.toInt)
-                  .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-                  .and(OPERATOR_PORT_EXECUTIONS.LAYER_NAME.eq(layerName))
-                  .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
+                  .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.toUriString))
               )
               .fetchOneInto(classOf[String])
           ).map(URI.create)
@@ -231,9 +231,9 @@ object WorkflowExecutionsResource {
             case Some(uris) =>
               uris.asScala
                 .find(uri => {
-                  val (_, _, _, _, portIdentity, resourceType) = decodeURI(URI.create(uri))
-                  portIdentity match {
-                    case Some(portId) => !portId.internal && resourceType == VFSResourceType.RESULT
+                  val (_, _, globalPortIdOption, resourceType) = decodeURI(URI.create(uri))
+                  globalPortIdOption match {
+                    case Some(globalPortId) => !globalPortId.portId.internal && resourceType == VFSResourceType.RESULT
                     case None         => false
                   }
                 })
@@ -243,13 +243,13 @@ object WorkflowExecutionsResource {
       }
     } else {
       if (layerName.nonEmpty) {
+        val physicalOpId = PhysicalOpIdentity(logicalOpId = opId, layerName = layerName.get)
+        val globalPortId = GlobalPortIdentity(opId = physicalOpId, portId = portId)
         Option(
           VFSURIFactory.createResultURI(
             wid,
             eid,
-            opId,
-            layerName,
-            portId
+            globalPortId
           )
         )
       } else {
@@ -258,9 +258,11 @@ object WorkflowExecutionsResource {
         ExecutionResourcesMapping
           .getResourceURIs(eid)
           .find(uri => {
-            val (_, _, retrievedOpId, _, retrievedPortId, _) = VFSURIFactory.decodeURI(uri)
-            retrievedOpId.nonEmpty && retrievedOpId.get == opId &&
-            retrievedPortId.nonEmpty && retrievedPortId.get == portId && !retrievedPortId.get.internal
+            val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
+            globalPortIdOption match {
+              case Some(globalPortId) => !globalPortId.portId.internal && globalPortId.opId.logicalOpId == opId && globalPortId.portId == portId && resourceType == VFSResourceType.RESULT
+              case None => false
+            }
           })
       }
     }
