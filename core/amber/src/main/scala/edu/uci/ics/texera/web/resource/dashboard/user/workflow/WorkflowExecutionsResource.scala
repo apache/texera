@@ -81,15 +81,13 @@ object WorkflowExecutionsResource {
 
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
-      opId: OperatorIdentity,
-      layerName: String,
-      portId: PortIdentity,
+      globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, opId.id, layerName, portId.id, uri.toString)
+        .values(eid.id, globalPortId.toUriString, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
