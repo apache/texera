@@ -17,11 +17,12 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
-import org.apache.arrow.vector.complex.ListVector
+import org.apache.arrow.vector.complex.{ListVector, LargeListVector}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 
 import java.nio.charset.StandardCharsets
 import java.util
+import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
@@ -51,28 +52,89 @@ object ArrowUtils extends LazyLogging {
     val arrowSchema = vectorSchemaRoot.getSchema
     val schema = toTexeraSchema(arrowSchema)
 
-    Tuple
-      .builder(schema)
-      .addSequentially(
-        vectorSchemaRoot.getFieldVectors.asScala
-          .map((fieldVector: FieldVector) => {
-            val value: AnyRef = fieldVector.getObject(rowIndex)
-            try {
-              val arrowType = fieldVector.getField.getFieldType.getType
-              val attributeType = toAttributeType(arrowType)
-              AttributeTypeUtils.parseField(value, attributeType)
+    val builder = Tuple.builder(schema)
 
-            } catch {
-              case e: Exception =>
-                logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+    for (i <- 0 until vectorSchemaRoot.getFieldVectors.size()) {
+      val fieldVector = vectorSchemaRoot.getFieldVectors.get(i)
+      val arrowType = fieldVector.getField.getFieldType.getType
+
+      try {
+        val value = arrowType match {
+          case _: ArrowType.List | _: ArrowType.LargeList =>
+            // Special handling for list types
+            import org.apache.arrow.vector.complex.ListVector
+            import org.apache.arrow.vector.complex.LargeListVector
+
+            // Handle both ListVector and LargeListVector
+            fieldVector match {
+              case listVector: ListVector =>
+                if (listVector.isNull(rowIndex)) {
+                  null
+                } else {
+                  // Get the inner value vector (should be binary type for BINARY AttributeType)
+                  val innerVector = listVector.getDataVector
+
+                  // Get start/end indexes for this row's list
+                  val startIdx = listVector.getOffsetBuffer.getInt(rowIndex * 4)
+                  val endIdx = listVector.getOffsetBuffer.getInt((rowIndex + 1) * 4)
+
+                  // Convert to List[ByteBuffer]
+                  val bufferList = for (j <- startIdx until endIdx) yield {
+                    if (innerVector.isNull(j)) {
+                      java.nio.ByteBuffer.allocate(0)
+                    } else {
+                      val bytes = innerVector.getObject(j).asInstanceOf[Array[Byte]]
+                      java.nio.ByteBuffer.wrap(bytes)
+                    }
+                  }
+
+                  bufferList.toList
+                }
+
+              case largeListVector: LargeListVector =>
+                if (largeListVector.isNull(rowIndex)) {
+                  null
+                } else {
+                  // Get the inner value vector (should be binary type for BINARY AttributeType)
+                  val innerVector = largeListVector.getDataVector
+
+                  // Get start/end indexes for this row's list - LargeListVector uses Long offsets
+                  val startIdx = largeListVector.getOffsetBuffer.getLong(rowIndex * 8).toInt
+                  val endIdx = largeListVector.getOffsetBuffer.getLong((rowIndex + 1) * 8).toInt
+
+                  // Convert to List[ByteBuffer]
+                  val bufferList = for (j <- startIdx until endIdx) yield {
+                    if (innerVector.isNull(j)) {
+                      java.nio.ByteBuffer.allocate(0)
+                    } else {
+                      val bytes = innerVector.getObject(j).asInstanceOf[Array[Byte]]
+                      java.nio.ByteBuffer.wrap(bytes)
+                    }
+                  }
+
+                  bufferList.toList
+                }
+
+              case _ =>
+                logger.warn(s"Unsupported list vector type: ${fieldVector.getClass.getName}")
                 null
             }
+          case _ =>
+            // For other types, get the object and parse it using the AttributeType
+            val rawValue = fieldVector.getObject(rowIndex)
+            val attributeType = toAttributeType(arrowType)
+            AttributeTypeUtils.parseField(rawValue, attributeType)
+        }
 
-          })
-          .toArray
-      )
-      .build()
+        builder.add(schema.getAttributes.get(i), value)
+      } catch {
+        case e: Exception =>
+          logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+          builder.add(schema.getAttributes.get(i), null)
+      }
+    }
 
+    builder.build()
   }
 
   /**
@@ -117,6 +179,9 @@ object ArrowUtils extends LazyLogging {
 
       case _: ArrowType.Utf8 =>
         AttributeType.STRING
+
+      case _: ArrowType.Binary =>
+        AttributeType.BINARY
 
       case _: ArrowType.List | _: ArrowType.LargeList =>
         AttributeType.BINARY
@@ -196,33 +261,72 @@ object ArrowUtils extends LazyLogging {
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
         case _: ArrowType.List | _: ArrowType.LargeList =>
           if (isNull) {
-            vector.asInstanceOf[ListVector].setNull(index)
+            // Handle null case for both ListVector and LargeListVector
+            vector match {
+              case listVector: ListVector           => listVector.setNull(index)
+              case largeListVector: LargeListVector => largeListVector.setNull(index)
+              case _ =>
+                logger.warn(
+                  s"Unsupported list vector type for null value: ${vector.getClass.getName}"
+                )
+            }
           } else
             value match {
               case bufferList: List[_]
                   if bufferList.nonEmpty && bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
-                val listVector = vector.asInstanceOf[ListVector]
-                val writer = listVector.getWriter
+                vector match {
+                  case listVector: ListVector =>
+                    val writer = listVector.getWriter
 
-                writer.setPosition(index)
-                writer.startList()
+                    writer.setPosition(index)
+                    writer.startList()
 
-                // For each ByteBuffer in the list, write it as a binary value
-                bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
-                  val bytes = new Array[Byte](buffer.remaining())
-                  buffer.duplicate().get(bytes)
+                    // For each ByteBuffer in the list, write it as a binary value
+                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
+                      val bytes = new Array[Byte](buffer.remaining())
+                      buffer.duplicate().get(bytes)
 
-                  // Create an ArrowBuf and copy the bytes into it
-                  val arrowBuf = allocator.buffer(bytes.length)
-                  try {
-                    arrowBuf.writeBytes(bytes)
-                    writer.writeVarBinary(0, bytes.length, arrowBuf)
-                  } finally {
-                    arrowBuf.close() // Make sure to release the buffer
-                  }
+                      // Create an ArrowBuf and copy the bytes into it
+                      val arrowBuf = allocator.buffer(bytes.length)
+                      try {
+                        arrowBuf.writeBytes(bytes)
+                        writer.writeVarBinary(0, bytes.length, arrowBuf)
+                      } finally {
+                        arrowBuf.close() // Make sure to release the buffer
+                      }
+                    }
+
+                    writer.endList()
+
+                  case largeListVector: LargeListVector =>
+                    val writer = largeListVector.getWriter
+
+                    writer.setPosition(index)
+                    writer.startList()
+
+                    // For each ByteBuffer in the list, write it as a binary value
+                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
+                      val bytes = new Array[Byte](buffer.remaining())
+                      buffer.duplicate().get(bytes)
+
+                      // Create an ArrowBuf and copy the bytes into it
+                      val arrowBuf = allocator.buffer(bytes.length)
+                      try {
+                        arrowBuf.writeBytes(bytes)
+                        writer.writeVarBinary(0, bytes.length, arrowBuf)
+                      } finally {
+                        arrowBuf.close() // Make sure to release the buffer
+                      }
+                    }
+
+                    writer.endList()
+
+                  case _ =>
+                    logger.warn(s"Unsupported list vector type: ${vector.getClass.getName}")
+                    throw new AttributeTypeUtils.AttributeTypeException(
+                      s"Cannot write to unsupported list vector type: ${vector.getClass.getName}"
+                    )
                 }
-
-                writer.endList()
 
               case _ =>
                 throw new AttributeTypeUtils.AttributeTypeException(
@@ -283,9 +387,13 @@ object ArrowUtils extends LazyLogging {
 
       val field = attributeType match {
         case AttributeType.BINARY =>
-          // For BINARY type, create a List field with Binary element type
+          // For BINARY type, create a LargeList field with Binary element type
           val childField = Field.nullablePrimitive("element", new ArrowType.Binary())
-          new Field(name, FieldType.nullable(new ArrowType.List()), util.Arrays.asList(childField))
+          new Field(
+            name,
+            FieldType.nullable(new ArrowType.LargeList()),
+            util.Arrays.asList(childField)
+          )
         case _ =>
           Field.nullablePrimitive(name, fromAttributeTypeToPrimitive(attributeType))
       }
