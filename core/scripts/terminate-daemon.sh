@@ -16,6 +16,11 @@ kill -9 $(pgrep -f TexeraWebApplication)
 echo "${green}Terminated.${reset}"
 echo
 
-echo "${red}Terminating TexeraRunWorker at $(pgrep -f TexeraRunWorker)...${reset}"
-kill -9 $(pgrep -f TexeraRunWorker)
+echo "${red}Terminating ComputingUnitMaster at $(pgrep -f TexeraRunWorker)...${reset}"
+kill -9 $(pgrep -f ComputingUnitMaster)
 echo "${green}Terminated.${reset}"
+
+echo "${red}Terminating ComputingUnitWorker at $(pgrep -f TexeraRunWorker)...${reset}"
+kill -9 $(pgrep -f ComputingUnitWorker)
+echo "${green}Terminated.${reset}"
+

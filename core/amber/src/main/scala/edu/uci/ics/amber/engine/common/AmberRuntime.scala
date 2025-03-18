@@ -26,7 +26,7 @@ object AmberRuntime {
   }
 
   def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
-      call: => Unit
+    call: => Unit
   ): Cancellable = {
     _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
   }

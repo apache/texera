@@ -18,7 +18,7 @@ then
   echo "${green}Services compiled.${reset}"
 
   echo "${green}Compiling GUI...${reset}"
-  cd gui && yarn install && ng build --configuration production --deploy-url=/ --base-href=/
+  cd gui && yarn install && ng serve --host 0.0.0.0 --port 4200
   echo "${green}GUI compiled.${reset}"
   echo
   cd ..
@@ -43,7 +43,7 @@ echo "${green}WorkflowCompilingService launched at $(pgrep -f TexeraWorkflowComp
 echo
 
 echo "${green}Starting WorkflowComputingUnit in daemon...${reset}"
-setsid nohup ./scripts/workflow-computing-unit.sh >/dev/null 2>&1 &
+setsid nohup ./scripts/workflow-computing-unit.sh true>/dev/null 2>&1 &
 echo "${green}Waiting WorkflowComputingUnit to launch on 8085...${reset}"
 while ! nc -z localhost 8085; do
 	sleep 0.1 # wait 100ms before check again
