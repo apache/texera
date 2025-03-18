@@ -32,11 +32,11 @@ export function trimAndFormatData(value: any, attributeType: AttributeType, maxL
   if (attributeType === "binary") {
     return formatBinaryData(value);
   }
-  if (attributeType === "string") {
-    if (value.length > maxLen) {
-      return value.substring(0, maxLen) + "...";
-    }
-  }
+  // if (attributeType === "string") {
+  //   if (value.length > maxLen) {
+  //     return value.substring(0, maxLen) + "...";
+  //   }
+  // }
   return value ?? "";
 }
 

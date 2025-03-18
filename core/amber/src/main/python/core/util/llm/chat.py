@@ -8,7 +8,7 @@ print(f"Using device: {device}")
 
 # Retrieve the model path from the environment variable (if using local models)
 model_path = os.getenv("MODEL_PATH", "AlgorithmicResearchGroup/flan-t5-base-arxiv-cs-ml-question-answering")
-
+print(f"using model: {model_path}")
 # Load model and tokenizer for Seq2Seq tasks
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  # Corrected to use Seq2Seq model
