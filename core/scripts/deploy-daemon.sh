@@ -16,10 +16,6 @@ then
   echo "${green}Compiling Services...${reset}"
   bash scripts/build-services.sh
   echo "${green}Services compiled.${reset}"
-
-  echo "${green}Compiling GUI...${reset}"
-  cd gui && yarn install && ng serve --host 0.0.0.0 --port 4200
-  echo "${green}GUI compiled.${reset}"
   echo
   cd ..
 fi
@@ -55,3 +51,6 @@ echo "${green}Starting shared editing server...${reset}"
 setsid nohup ./scripts/shared-editing-server.sh >/dev/null 2>&1 &
 sleep 2
 echo "${green}Shared Editing Server launched at $(pgrep -f y-websocket)${reset}"
+
+echo "${green}Launching GUI...${reset}"
+cd gui && yarn install && ng serve --host 0.0.0.0 --port 4200
