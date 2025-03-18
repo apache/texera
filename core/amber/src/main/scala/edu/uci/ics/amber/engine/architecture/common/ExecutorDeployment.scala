@@ -47,6 +47,7 @@ object ExecutorDeployment {
         else
           CustomizedPreference
 
+      val addressStrList = addressInfo.allAddresses.map(_.toString)
       val preferredAddress: Address = locationPreference match {
         case PreferController =>
           addressInfo.controllerAddress
@@ -69,36 +70,42 @@ object ExecutorDeployment {
         case CustomizedPreference =>
           deploymentStrategy match {
             case "maxQuality" =>
+              val urlString = DeploymentStrategies.maxQuality(
+                addressInfo.allAddresses.map(_.toString),
+                NodeProfiles.getAllProfiles,
+                operators,
+                op
+              )
               AddressFromURIString(
-                DeploymentStrategies.maxQuality(
-                  addressInfo.allAddresses.map(_.toString),
-                  NodeProfiles.getAllProfiles,
-                  operators,
-                  op
-                )
+                addressStrList.find(_.startsWith(urlString)).getOrElse("akka://Amber@localhost:2552")
               )
             case "maxSpeed" =>
-              AddressFromURIString(
-                DeploymentStrategies.maxSpeed(
+               val urlString = DeploymentStrategies.maxSpeed(
                   addressInfo.allAddresses.map(_.toString),
                   NodeProfiles.getAllProfiles,
                   operators,
                   op,
                   operatorMapping
-                )
+               )
+              AddressFromURIString(
+                addressStrList.find(_.startsWith(urlString)).getOrElse("akka://Amber@localhost:2552")
               )
+
             case "hybrid" =>
-              AddressFromURIString(
-                DeploymentStrategies.hybrid(
+              val urlString = DeploymentStrategies.hybrid(
                   addressInfo.allAddresses.map(_.toString),
                   NodeProfiles.getAllProfiles,
                   operators,
                   op,
                   operatorMapping
                 )
+              AddressFromURIString(
+                addressStrList.find(_.startsWith(urlString)).getOrElse("akka://Amber@localhost:2552")
               )
           }
       }
+
+
 
       val workflowWorker = if (op.isPythonBased) {
         PythonWorkflowWorker.props(workerConfig)

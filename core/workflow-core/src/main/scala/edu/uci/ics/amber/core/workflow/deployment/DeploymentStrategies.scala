@@ -144,7 +144,9 @@ object DeploymentStrategies {
         }
       }
     }
-    val returnedAddress = addresses(Random.nextInt(addresses.length))
+
+    val addressArray = nodeProfiles.map(_._1).toArray
+    val returnedAddress = addressArray(Random.nextInt(addressArray.length))
     operatorMapping += (currentOp.id -> returnedAddress )
     returnedAddress
   }
