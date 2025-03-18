@@ -267,7 +267,7 @@ class DataProcessor(
           false
         }
       }
-      if (!isStartInputChannelRequest ) {
+      if (!isStartInputChannelRequest) {
         sendChannelMarker(marker)
       }
     }
