@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.architecture.worker.managers.{
   OutputPortResultWriterThread,
   PortStorageWriterTerminateSignal
 }
-import edu.uci.ics.amber.engine.common.{AmberLogging, FinalizeExecutor, FinalizePort}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 import java.net.URI

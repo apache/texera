@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
@@ -20,7 +20,6 @@ import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
-import edu.uci.ics.amber.engine.common.{FinalizeExecutor, FinalizePort}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
