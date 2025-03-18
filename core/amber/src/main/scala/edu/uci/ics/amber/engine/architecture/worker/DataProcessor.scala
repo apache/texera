@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.marker.{StartOfInputChannel, State}
 import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
