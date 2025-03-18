@@ -35,7 +35,8 @@ object JooqCodeGenerator {
 
     val jooqJdbcConfig = new Jdbc
     jooqJdbcConfig.setDriver("org.postgresql.Driver")
-    jooqJdbcConfig.setUrl(jdbcConfig.getString("url"))
+    // Skip all the query params, otherwise it will omit the "texera_db." prefix on the field names.
+    jooqJdbcConfig.setUrl(jdbcConfig.getString("url").split('?').head)
     jooqJdbcConfig.setUsername(jdbcConfig.getString("username"))
     jooqJdbcConfig.setPassword(jdbcConfig.getString("password"))
 
