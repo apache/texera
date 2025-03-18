@@ -157,13 +157,16 @@ abstract class ScheduleGenerator(
     val newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
+    val globalPortId = GlobalPortIdentity(
+      physicalLink.fromOpId,
+      physicalLink.fromPortId
+    )
+
     // create the uri of the materialization storage
     val storageURI = VFSURIFactory.createResultURI(
       workflowContext.workflowId,
       workflowContext.executionId,
-      physicalLink.fromOpId.logicalOpId,
-      Some(physicalLink.fromOpId.layerName),
-      physicalLink.fromPortId
+      globalPortId
     )
 
     // create cache reader and link

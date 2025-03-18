@@ -268,12 +268,10 @@ class RegionExecutionCoordinator(
         val storageUriToAdd = portConfig.storageURI
         val (wid, eid, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
-          WorkflowExecutionsResource.getResultUriByExecutionAndPort(
+          WorkflowExecutionsResource.getOrCreateResultUriByGlobalPortId(
             wid = wid,
             eid = eid,
-            opId = outputPortId.opId.logicalOpId,
-            layerName = Some(outputPortId.opId.layerName),
-            portId = outputPortId.portId
+            globalPortId = outputPortId
           )
         if (
           (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
