@@ -342,7 +342,8 @@ class Tuple:
                 # Check if it's a list
                 if not isinstance(field_value, list):
                     raise TypeError(
-                        f"Unmatched type for field '{field_name}', expected {expected} (list), "
+                        f"Unmatched type for field '{field_name}', "
+                        f"expected {expected} (list), "
                         f"got {field_value} ({type(field_value)}) instead."
                     )
 
@@ -350,7 +351,8 @@ class Tuple:
                 for i, item in enumerate(field_value):
                     if not isinstance(item, bytes):
                         raise TypeError(
-                            f"Unmatched type for item {i} in BINARY list field '{field_name}', "
+                            f"Unmatched type for item {i} "
+                            f"in BINARY list field '{field_name}', "
                             f"expected bytes, got {item} ({type(item)}) instead."
                         )
             # For other types, use the standard type check
