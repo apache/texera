@@ -106,9 +106,7 @@ class CostBasedScheduleGenerator(
               val uri = createResultURI(
                 workflowId = workflowContext.workflowId,
                 executionId = workflowContext.executionId,
-                operatorId = outputPortId.opId.logicalOpId,
-                layerName = Some(outputPortId.opId.layerName),
-                portIdentity = outputPortId.portId
+                globalPortId = outputPortId
               )
               PortConfig(storageURI = uri)
             }

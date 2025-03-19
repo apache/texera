@@ -94,11 +94,9 @@ object ExecutionResultService {
 
     // Cannot assume the storage is available at this point. The storage object is only available
     // after a region is scheduled to execute.
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       executionId,
       physicalOps.head.id.logicalOpId,
-      None,
       PortIdentity()
     )
     storageUriOption match {
@@ -287,11 +285,9 @@ class ExecutionResultService(
                   case None                         => "main"
                 }
                 val storageUri = WorkflowExecutionsResource
-                  .getResultUriByExecutionAndPort(
-                    workflowIdentity,
+                  .getResultUriByLogicalPortId(
                     executionId,
                     opId,
-                    None,
                     PortIdentity()
                   )
                 if (storageUri.nonEmpty) {
@@ -324,11 +320,9 @@ class ExecutionResultService(
       throw new IllegalStateException("No execution is recorded")
     )
 
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       latestExecutionId,
       OperatorIdentity(request.operatorID),
-      None,
       PortIdentity()
     )
 
@@ -364,12 +358,12 @@ class ExecutionResultService(
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, _, storagePortId, _) = VFSURIFactory.decodeURI(uri)
+            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(opId.get)
-              .flatMap(_.outputPorts.get(storagePortId.get))
+              .getPhysicalOpsOfLogicalOp(globalPortIdOption.get.opId.logicalOpId)
+              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
               .map(_._1.mode)
               .head
 
@@ -377,7 +371,7 @@ class ExecutionResultService(
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (opId.get, OperatorResultMetadata(count, changeDetector))
+            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
           })
           .toMap
       }

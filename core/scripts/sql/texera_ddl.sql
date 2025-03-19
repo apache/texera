@@ -230,17 +230,15 @@ CREATE TABLE IF NOT EXISTS operator_executions
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
--- operator_port_executions (replaces the old operator_runtime_statistics)
-CREATE TABLE IF NOT EXISTS operator_port_executions
+-- operator_port_executions
+CREATE TABLE operator_port_executions
 (
     workflow_execution_id INT NOT NULL,
-    operator_id           VARCHAR(100) NOT NULL,
-    layer_name            VARCHAR(100) NOT NULL DEFAULT 'main',
-    port_id               INT NOT NULL,
+    global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
-    PRIMARY KEY (workflow_execution_id, operator_id, layer_name, port_id),
+    PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
-    );
+);
 
 -- workflow_user_likes
 CREATE TABLE IF NOT EXISTS workflow_user_likes

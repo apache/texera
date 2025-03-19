@@ -22,13 +22,14 @@ object SpecialPhysicalOpFactory {
       schema: Schema
   ): PhysicalOp = {
 
-    val (_, _, opId, layerName, portId, _) = VFSURIFactory.decodeURI(uri)
+    val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
+    val globalPortId = globalPortIdOption.get
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(
         PhysicalOpIdentity(
-          opId.get,
-          s"${layerName.get}_source_${portId.get.id}_${downstreamOperator.logicalOpId.id
+          globalPortId.opId.logicalOpId,
+          s"${globalPortId.opId.layerName}_source_${globalPortId.portId.id}_${downstreamOperator.logicalOpId.id
             .replace('-', '_')}_${downstreamPort.id}"
         ),
         workflowIdentity,

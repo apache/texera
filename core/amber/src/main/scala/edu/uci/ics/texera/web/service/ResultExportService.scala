@@ -76,11 +76,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   private def generateOneOperatorResult(operatorId: String): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
-    val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUri = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       getLatestExecutionId(workflowIdentity).get,
       OperatorIdentity(operatorId),
-      None, // from remote code
       PortIdentity()
     )
 

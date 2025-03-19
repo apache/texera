@@ -7,9 +7,10 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
+  PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
@@ -33,9 +34,14 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
   var uri: URI = VFSURIFactory.createResultURI(
     WorkflowIdentity(0),
     ExecutionIdentity(0),
-    OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
-    None,
-    PortIdentity()
+    GlobalPortIdentity(
+      PhysicalOpIdentity(
+        logicalOpId =
+          OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+        layerName = "main"
+      ),
+      PortIdentity()
+    )
   )
 
   override def beforeAll(): Unit = {

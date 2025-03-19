@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSResourceType, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
@@ -81,15 +81,13 @@ object WorkflowExecutionsResource {
 
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
-      opId: OperatorIdentity,
-      layerName: String,
-      portId: PortIdentity,
+      globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, opId.id, layerName, portId.id, uri.toString)
+        .values(eid.id, globalPortId.serializeAsString, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -177,93 +175,78 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * @param layerName optional, if not specified, the method will return only the first layer (physicalop) stored with
-    *                external ports
-    * @return If user system is enabled, this method trys to find a URI regardless of whether layerName is provided.
-    *         None will be returned only if the specified storage URI for the port does not exist in the database.
-    *         If user system is not enabled, when layerName is provided, this method creates the URI directly; else
-    *         this method also trys to find the URI from ExecutionResourcesMapping.
-    *         TODO: Get rid of layerName and optimize the lookup (currently if no layerName is provided, the lookup is
-    *           O(n), where n is the number of physical ops of the specified logical op.
-    *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
+    * This method is mainly used for frontend requests. Given a logicalOpId and an outputPortId of an execution,
+    * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
+    * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
+    * TODO: Optimize the lookup once the frontend also has information about physical operators.
+    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
     */
-  def getResultUriByExecutionAndPort(
-      wid: WorkflowIdentity,
+  def getResultUriByLogicalPortId(
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
-      layerName: Option[String] = None,
       portId: PortIdentity
   ): Option[URI] = {
-    if (AmberConfig.isUserSystemEnabled) {
-      layerName match {
-        case Some(layerName) =>
-          Option(
-            context
-              .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-              .from(OPERATOR_PORT_EXECUTIONS)
-              .where(
-                OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-                  .eq(eid.id.toInt)
-                  .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-                  .and(OPERATOR_PORT_EXECUTIONS.LAYER_NAME.eq(layerName))
-                  .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
-              )
-              .fetchOneInto(classOf[String])
-          ).map(URI.create)
-        case None =>
-          // Assuming each logical operator will contain one physical operator that contains external ports.
-          // Example: Hash Join (layerName: Probe), Aggregate (layerName: globalAgg)
-          // If only logical op id is provided, use only the URIs created for external ports.
-          // TODO: Add support for multiple output ports in one logical operator
-          val urisOption = Option(
-            context
-              .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-              .from(OPERATOR_PORT_EXECUTIONS)
-              .where(
-                OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-                  .eq(eid.id.toInt)
-                  .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-                  .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
-              )
-              .fetchInto(classOf[String])
-          )
-          urisOption match {
-            case Some(uris) =>
-              uris.asScala
-                .find(uri => {
-                  val (_, _, _, _, portIdentity, resourceType) = decodeURI(URI.create(uri))
-                  portIdentity match {
-                    case Some(portId) => !portId.internal && resourceType == VFSResourceType.RESULT
-                    case None         => false
-                  }
-                })
-                .map(URI.create)
-            case None => None
-          }
-      }
-    } else {
-      if (layerName.nonEmpty) {
-        Option(
-          VFSURIFactory.createResultURI(
-            wid,
-            eid,
-            opId,
-            layerName,
-            portId
-          )
-        )
-      } else {
-        // Dev mode without user system. Use ExecutionResourcesMapping to find URI by using eid, opId and portId
-        // to match a URI, and the port should only be an external port as this is requested by the frontend.
-        ExecutionResourcesMapping
-          .getResourceURIs(eid)
-          .find(uri => {
-            val (_, _, retrievedOpId, _, retrievedPortId, _) = VFSURIFactory.decodeURI(uri)
-            retrievedOpId.nonEmpty && retrievedOpId.get == opId &&
-            retrievedPortId.nonEmpty && retrievedPortId.get == portId && !retrievedPortId.get.internal
-          })
+    def isMatchingExternalPortURI(uri: URI): Boolean = {
+      val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
+      globalPortIdOption.exists { globalPortId =>
+        !globalPortId.portId.internal &&
+        globalPortId.opId.logicalOpId == opId &&
+        globalPortId.portId == portId &&
+        resourceType == VFSResourceType.RESULT
       }
     }
+
+    val urisOfEid: List[URI] =
+      if (AmberConfig.isUserSystemEnabled) {
+        context
+          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+          .from(OPERATOR_PORT_EXECUTIONS)
+          .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+          .fetchInto(classOf[String])
+          .asScala
+          .toList
+          .map(URI.create)
+      } else {
+        ExecutionResourcesMapping.getResourceURIs(eid)
+      }
+
+    urisOfEid.find(isMatchingExternalPortURI)
+  }
+
+  /**
+    * This method trys to find a URI corresponding to the globalPortId if it exists. If user system is enabled, this
+    * method runs in O(1), otherwise O(n) where n is number of URIs in ExecutionResourceMapping.
+    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
+    */
+  def getResultUriByGlobalPortId(
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity
+  ): Option[URI] = {
+    if (AmberConfig.isUserSystemEnabled) {
+      Option(
+        context
+          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+          .from(OPERATOR_PORT_EXECUTIONS)
+          .where(
+            OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
+              .eq(eid.id.toInt)
+              .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+          )
+          .fetchOneInto(classOf[String])
+      ).map(URI.create)
+    } else {
+      def isMatchingPortURI(uri: URI): Boolean = {
+        val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
+        globalPortIdOption.exists { retrievedGlobalPortId =>
+          retrievedGlobalPortId == globalPortId &&
+          resourceType == VFSResourceType.RESULT
+        }
+      }
+      ExecutionResourcesMapping
+        .getResourceURIs(eid)
+        .find(isMatchingPortURI)
+    }
+
   }
 
   case class WorkflowExecutionEntry(
