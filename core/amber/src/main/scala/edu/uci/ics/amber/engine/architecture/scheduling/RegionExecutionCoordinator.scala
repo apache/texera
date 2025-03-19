@@ -266,20 +266,13 @@ class RegionExecutionCoordinator(
     portConfigs.foreach {
       case (outputPortId, portConfig: PortConfig) =>
         val storageUriToAdd = portConfig.storageURI
-        val (wid, eid, _, _) = decodeURI(storageUriToAdd)
+        val (_, eid, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
-          WorkflowExecutionsResource.getOrCreateResultUriByGlobalPortId(
-            wid = wid,
+          WorkflowExecutionsResource.getResultUriByGlobalPortId(
             eid = eid,
             globalPortId = outputPortId
           )
-        if (
-          (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-            .getResourceURIs(eid)
-            .contains(
-              existingStorageUri
-            )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
-        ) {
+        if (existingStorageUri.isEmpty) {
           // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
           val schemaOptional =
             region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3

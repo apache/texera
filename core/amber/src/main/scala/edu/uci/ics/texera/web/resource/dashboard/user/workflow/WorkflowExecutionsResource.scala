@@ -175,12 +175,12 @@ object WorkflowExecutionsResource {
   }
 
   /**
-   * This method is mainly used for frontend requests. Given a logicalOpId and an outputPortId of an execution,
-   * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
-   * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
-   * TODO: Optimize the lookup once the frontend also has information about physical operators.
-   * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
-   */
+    * This method is mainly used for frontend requests. Given a logicalOpId and an outputPortId of an execution,
+    * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
+    * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
+    * TODO: Optimize the lookup once the frontend also has information about physical operators.
+    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
+    */
   def getResultUriByLogicalPortId(
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
@@ -214,30 +214,39 @@ object WorkflowExecutionsResource {
   }
 
   /**
-   * If user system is enabled, this method trys to find a URI corresponding to the globalPortId if it exists.
-   * Otherwise, this method creates the URI directly.
-   * TODO: Remove the case of creating URI in this method when user system is permenantly enabled even in dev mode.
+    * This method trys to find a URI corresponding to the globalPortId if it exists. If user system is enabled, this
+    * method runs in O(1), otherwise O(n) where n is number of URIs in ExecutionResourceMapping.
+    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
     */
-  def getOrCreateResultUriByGlobalPortId(
-      wid: WorkflowIdentity,
+  def getResultUriByGlobalPortId(
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity
   ): Option[URI] = {
-    if (!AmberConfig.isUserSystemEnabled) {
-      return Option(VFSURIFactory.createResultURI(wid, eid, globalPortId))
+    if (AmberConfig.isUserSystemEnabled) {
+      Option(
+        context
+          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+          .from(OPERATOR_PORT_EXECUTIONS)
+          .where(
+            OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
+              .eq(eid.id.toInt)
+              .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+          )
+          .fetchOneInto(classOf[String])
+      ).map(URI.create)
+    } else {
+      def isMatchingPortURI(uri: URI): Boolean = {
+        val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
+        globalPortIdOption.exists { retrievedGlobalPortId =>
+          retrievedGlobalPortId == globalPortId &&
+          resourceType == VFSResourceType.RESULT
+        }
+      }
+      ExecutionResourcesMapping
+        .getResourceURIs(eid)
+        .find(isMatchingPortURI)
     }
 
-    Option(
-      context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(
-          OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-            .eq(eid.id.toInt)
-            .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
-        )
-        .fetchOneInto(classOf[String])
-    ).map(URI.create)
   }
 
   case class WorkflowExecutionEntry(
