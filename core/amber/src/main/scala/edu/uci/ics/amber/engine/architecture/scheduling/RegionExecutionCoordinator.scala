@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Execu
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{NO_ALIGNMENT, REQUIRE_ALIGNMENT}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest, PropagateChannelMarkerRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerStateResponse, WorkflowAggregatedState}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_WORKER, METHOD_START_WORKER}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -214,20 +214,20 @@ class RegionExecutionCoordinator(
       )
   }
 
-  private def sendStarts(region: Region): Future[Unit] = {
+  private def sendStarts(region: Region): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
         workflowExecution.getAllRegionExecutionsStats
       )
     )
-    asyncRPCClient.controllerInterface
+    val response = asyncRPCClient.controllerInterface
       .propagateChannelMarker(
         PropagateChannelMarkerRequest(
           region.getSourceOperators.map(_.id).toSeq,
           ChannelMarkerIdentity("start"),
           REQUIRE_ALIGNMENT,
-          region.getOperators.map(_.id).toSeq,
-          region.getOperators.map(_.id).toSeq,
+          region.getSourceOperators.map(_.id).toSeq,
+          region.getSourceOperators.map(_.id).toSeq,
           EmptyRequest(),
           METHOD_START_WORKER.getBareMethodName
         ),
@@ -241,8 +241,22 @@ class RegionExecutionCoordinator(
             .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
             .getWorkerExecution(workerId)
             .setState(x._2.asInstanceOf[WorkerStateResponse].state)
-        }
+        }.toSeq
       }
+      asyncRPCClient.controllerInterface
+        .propagateChannelMarker(
+          PropagateChannelMarkerRequest(
+            region.getSourceOperators.map(_.id).toSeq,
+            ChannelMarkerIdentity("end"),
+            REQUIRE_ALIGNMENT,
+            region.getOperators.map(_.id).toSeq,
+            region.getOperators.map(_.id).toSeq,
+            EmptyRequest(),
+            METHOD_END_WORKER.getBareMethodName
+          ),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
+      response
   }
 
   private def createOutputPortStorageObjects(

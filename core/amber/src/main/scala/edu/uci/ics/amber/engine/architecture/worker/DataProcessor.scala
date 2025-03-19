@@ -19,7 +19,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_WORKER, METHOD_START_WORKER}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -92,12 +92,11 @@ class DataProcessor(
 
   /**
     * process start of an input port with Executor.produceStateOnStart().
-    * this function is only called by the DP thread.
     */
-  private[this] def processStartOfInputChannel(portId: Int): Unit = {
+  def startOfInputChannel(channelId: ChannelIdentity): Unit = {
+    val portId = this.inputGateway.getChannel(channelId).getPortId
     try {
-      outputManager.emitMarker(StartOfInputChannel())
-      val outputState = executor.produceStateOnStart(portId)
+      val outputState = executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
         outputManager.emitMarker(outputState.get)
       }
@@ -217,8 +216,6 @@ class DataProcessor(
         marker match {
           case state: State =>
             processInputState(state, portId.id)
-          case StartOfInputChannel() =>
-            processStartOfInputChannel(portId.id)
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
@@ -257,9 +254,9 @@ class DataProcessor(
       logManager.markAsReplayDestination(marker.id)
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = $command")
 
-      val isStartInputChannelRequest = command.exists { req =>
-        if (req.methodName == METHOD_START_WORKER.getBareMethodName) {
-          asyncRPCServer.receive(req.withCommand(StartInputChannelRequest(channelId)), channelId.fromWorkerId)
+      val isEndInputChannelRequest = command.exists { req =>
+        if (req.methodName == METHOD_END_WORKER.getBareMethodName) {
+          asyncRPCServer.receive(req.withCommand(EndInputChannelRequest(channelId)), channelId.fromWorkerId)
           channelMarkerManager.marker = marker
           true
         } else {
@@ -267,7 +264,7 @@ class DataProcessor(
           false
         }
       }
-      if (!isStartInputChannelRequest) {
+      if (!isEndInputChannelRequest) {
         sendChannelMarker(marker)
       }
     }
