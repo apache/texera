@@ -174,16 +174,19 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+   * This method is mainly used for frontend requests. Given a logicalOpId and an outputPortId of an execution,
+   * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
+   * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
+   * TODO: Optimize the lookup once the frontend also has information about physical operators.
+   * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
+   */
   def getResultUriByLogicalPortId(
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
       portId: PortIdentity
   ): Option[URI] = {
     def isMatchingExternalPortURI(uri: URI): Boolean = {
-      // Assuming each logical operator will contain one physical operator that contains external ports.
-      // Example: Hash Join (layerName: Probe), Aggregate (layerName: globalAgg)
-      // If only logical op id is provided, use only the URIs created for external ports.
-      // TODO: Add support for multiple output ports in one logical operator
       val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
       globalPortIdOption.exists { globalPortId =>
         !globalPortId.portId.internal &&
@@ -211,13 +214,9 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * @return If user system is enabled, this method trys to find a URI regardless of whether layerName is provided.
-    *         None will be returned only if the specified storage URI for the port does not exist in the database.
-    *         If user system is not enabled, when layerName is provided, this method creates the URI directly; else
-    *         this method also trys to find the URI from ExecutionResourcesMapping.
-    *         TODO: Get rid of layerName and optimize the lookup (currently if no layerName is provided, the lookup is
-    *           O(n), where n is the number of physical ops of the specified logical op.
-    *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
+   * If user system is enabled, this method trys to find a URI corresponding to the globalPortId if it exists.
+   * Otherwise, this method creates the URI directly.
+   * TODO: Remove the case of creating URI in this method when user system is permenantly enabled even in dev mode.
     */
   def getOrCreateResultUriByGlobalPortId(
       wid: WorkflowIdentity,
