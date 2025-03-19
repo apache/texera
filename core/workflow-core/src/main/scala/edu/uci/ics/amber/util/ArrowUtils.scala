@@ -17,7 +17,7 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
-import org.apache.arrow.vector.complex.{ListVector, LargeListVector}
+import org.apache.arrow.vector.complex.LargeListVector
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 
 import java.nio.charset.StandardCharsets
@@ -60,37 +60,12 @@ object ArrowUtils extends LazyLogging {
 
       try {
         val value = arrowType match {
-          case _: ArrowType.List | _: ArrowType.LargeList =>
-            // Special handling for list types
-            import org.apache.arrow.vector.complex.ListVector
+          case _: ArrowType.LargeList =>
+            // Special handling for large list types
             import org.apache.arrow.vector.complex.LargeListVector
 
-            // Handle both ListVector and LargeListVector
+            // Handle LargeListVector
             fieldVector match {
-              case listVector: ListVector =>
-                if (listVector.isNull(rowIndex)) {
-                  null
-                } else {
-                  // Get the inner value vector (should be binary type for BINARY AttributeType)
-                  val innerVector = listVector.getDataVector
-
-                  // Get start/end indexes for this row's list
-                  val startIdx = listVector.getOffsetBuffer.getInt(rowIndex * 4)
-                  val endIdx = listVector.getOffsetBuffer.getInt((rowIndex + 1) * 4)
-
-                  // Convert to List[ByteBuffer]
-                  val bufferList = for (j <- startIdx until endIdx) yield {
-                    if (innerVector.isNull(j)) {
-                      java.nio.ByteBuffer.allocate(0)
-                    } else {
-                      val bytes = innerVector.getObject(j).asInstanceOf[Array[Byte]]
-                      java.nio.ByteBuffer.wrap(bytes)
-                    }
-                  }
-
-                  bufferList.toList
-                }
-
               case largeListVector: LargeListVector =>
                 if (largeListVector.isNull(rowIndex)) {
                   null
@@ -183,7 +158,7 @@ object ArrowUtils extends LazyLogging {
       case _: ArrowType.Binary =>
         AttributeType.BINARY
 
-      case _: ArrowType.List | _: ArrowType.LargeList =>
+      case _: ArrowType.LargeList =>
         AttributeType.BINARY
 
       case _ =>
@@ -259,11 +234,10 @@ object ArrowUtils extends LazyLogging {
             vector
               .asInstanceOf[VarCharVector]
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
-        case _: ArrowType.List | _: ArrowType.LargeList =>
+        case _: ArrowType.LargeList =>
           if (isNull) {
-            // Handle null case for both ListVector and LargeListVector
+            // Handle null case for LargeListVector
             vector match {
-              case listVector: ListVector           => listVector.setNull(index)
               case largeListVector: LargeListVector => largeListVector.setNull(index)
               case _ =>
                 logger.warn(
@@ -275,29 +249,6 @@ object ArrowUtils extends LazyLogging {
               case bufferList: List[_]
                   if bufferList.nonEmpty && bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
                 vector match {
-                  case listVector: ListVector =>
-                    val writer = listVector.getWriter
-
-                    writer.setPosition(index)
-                    writer.startList()
-
-                    // For each ByteBuffer in the list, write it as a binary value
-                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
-                      val bytes = new Array[Byte](buffer.remaining())
-                      buffer.duplicate().get(bytes)
-
-                      // Create an ArrowBuf and copy the bytes into it
-                      val arrowBuf = allocator.buffer(bytes.length)
-                      try {
-                        arrowBuf.writeBytes(bytes)
-                        writer.writeVarBinary(0, bytes.length, arrowBuf)
-                      } finally {
-                        arrowBuf.close() // Make sure to release the buffer
-                      }
-                    }
-
-                    writer.endList()
-
                   case largeListVector: LargeListVector =>
                     val writer = largeListVector.getWriter
 
