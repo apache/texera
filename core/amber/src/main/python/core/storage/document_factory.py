@@ -1,4 +1,5 @@
 import typing
+import urllib
 from urllib.parse import urlparse
 
 from typing import Optional
@@ -27,7 +28,15 @@ class DocumentFactory:
 
     @staticmethod
     def sanitize_uri_path(uri):
-        return uri.path.lstrip("/").replace("/", "_")
+        """
+        Matches the same implementation in our Scala codebase.
+        urllib.parse.urlparse does not automatically unquote the URI, while
+        java.net.URI.getPath does. Hence we need to explicitly
+        unquote to decode percent-encoded characters, then sanitize.
+        :param uri: Result of urllib.parse.urlparse(). Could be quoted.
+        :return: Unquoted and sanitized format of uri.
+        """
+        return urllib.parse.unquote(uri.path).lstrip("/").replace("/", "_")
 
     @staticmethod
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
