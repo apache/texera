@@ -155,9 +155,6 @@ object ArrowUtils extends LazyLogging {
       case _: ArrowType.Utf8 =>
         AttributeType.STRING
 
-      case _: ArrowType.Binary =>
-        AttributeType.BINARY
-
       case _: ArrowType.LargeList =>
         AttributeType.BINARY
 

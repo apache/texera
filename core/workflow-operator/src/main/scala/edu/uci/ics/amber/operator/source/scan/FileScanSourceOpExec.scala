@@ -12,6 +12,8 @@ import java.nio.ByteBuffer
 import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.util.Using
+import scala.collection.mutable.ArrayBuffer
 
 class FileScanSourceOpExec private[scan] (
     descString: String
@@ -19,35 +21,34 @@ class FileScanSourceOpExec private[scan] (
   private val desc: FileScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[FileScanSourceOpDesc])
 
-  // Size of each chunk when reading large files (8MB)
-  private val BUFFER_SIZE = 8 * 1024 * 1024
+  // Size of each chunk when reading large files (1GB)
+  private val BufferSizeBytes: Int = 1 * 1024 * 1024 * 1024
 
   /**
-    * Reads an InputStream into a List of ByteBuffers
-    * This allows handling files larger than 2GB
+    * Reads an InputStream into a List of ByteBuffers.
+    * This allows handling files up to 1TB (1GB * 1000 sub-columns).
     *
     * @param input the input stream to read
     * @return a List of ByteBuffers containing the data
     */
   private def readToByteBuffers(input: InputStream): List[ByteBuffer] = {
-    val buffers = mutable.ListBuffer[ByteBuffer]()
-    val buffer = new Array[Byte](BUFFER_SIZE)
-    var bytesRead = 0
+    Using.resource(input) { inputStream =>
+      val buffers = ArrayBuffer.empty[ByteBuffer]
+      val buffer = new Array[Byte](BufferSizeBytes)
 
-    try {
-      while ({ bytesRead = input.read(buffer); bytesRead != -1 }) {
-        if (bytesRead > 0) {
+      Iterator
+        .continually(inputStream.read(buffer))
+        .takeWhile(_ != -1)
+        .filter(_ > 0)
+        .foreach { bytesRead =>
           val byteBuffer = ByteBuffer.allocate(bytesRead)
           byteBuffer.put(buffer, 0, bytesRead)
           byteBuffer.flip() // Prepare for reading
           buffers += byteBuffer
         }
-      }
-    } finally {
-      input.close()
-    }
 
-    buffers.toList
+      buffers.toList
+    }
   }
 
   @throws[IOException]
