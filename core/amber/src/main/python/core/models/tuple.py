@@ -78,11 +78,10 @@ class ArrowTableTupleProvider:
                 and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
-            
+
             # Handle ListType<Binary> as BINARY type (List[ByteBuffer] from Scala)
             elif (
-                isinstance(field_type, pyarrow.ListType) 
-                or isinstance(field_type, pyarrow.LargeListType)
+                isinstance(field_type, pyarrow.LargeListType)
             ) and field_type.value_type == pyarrow.binary():
                 # value is already a list of bytes objects, which is correct
                 # Handle special case for pickled list items
@@ -279,14 +278,14 @@ class Tuple:
 
                 if field_value is not None:
                     field_type = schema.get_attr_type(field_name)
-                    
+
                     # Handle BINARY type - expected to be a list of byte arrays
                     if field_type == AttributeType.BINARY:
                         # If it's already a list, make sure all items are bytes
                         if isinstance(field_value, list):
                             # Convert each item to bytes if needed
                             self[field_name] = [
-                                item if isinstance(item, bytes) else bytes(item) 
+                                item if isinstance(item, bytes) else bytes(item)
                                 for item in field_value
                             ]
                         # If it's a single bytes object, convert to list with one item
@@ -294,8 +293,10 @@ class Tuple:
                             self[field_name] = [field_value]
                         # For other types, pickle them
                         else:
-                            self[field_name] = [b"pickle    " + pickle.dumps(field_value)]
-                    
+                            self[field_name] = [
+                                b"pickle    " + pickle.dumps(field_value)
+                            ]
+
             except Exception as err:
                 # Surpass exceptions during cast.
                 # Keep the value as it is if the cast fails, and continue to attempt
@@ -332,10 +333,10 @@ class Tuple:
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
             expected_type = TO_PYOBJECT_MAPPING.get(expected)
-            
+
             if field_value is None:
                 continue
-                
+
             # Special handling for BINARY type
             if expected == AttributeType.BINARY:
                 # Check if it's a list
@@ -344,7 +345,7 @@ class Tuple:
                         f"Unmatched type for field '{field_name}', expected {expected} (list), "
                         f"got {field_value} ({type(field_value)}) instead."
                     )
-                
+
                 # Check that all items are bytes objects
                 for i, item in enumerate(field_value):
                     if not isinstance(item, bytes):
