@@ -71,10 +71,10 @@ object VFSURIFactory {
       executionId: ExecutionIdentity,
       globalPortId: GlobalPortIdentity
   ): URI = {
-    val finalUri =
+    val baseUri =
       s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/globalportid/${globalPortId.serializeAsString}"
 
-    new URI(s"$finalUri/${VFSResourceType.RESULT.toString.toLowerCase}")
+    new URI(s"$baseUri/${VFSResourceType.RESULT.toString.toLowerCase}")
   }
 
   /**
@@ -144,12 +144,12 @@ object VFSURIFactory {
       )
     }
 
-    val finalUri = operatorId match {
+    val baseUri = operatorId match {
       case Some(opId) =>
         s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${opId.id}"
       case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
     }
 
-    new URI(s"$finalUri/${resourceType.toString.toLowerCase}")
+    new URI(s"$baseUri/${resourceType.toString.toLowerCase}")
   }
 }

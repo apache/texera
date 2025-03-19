@@ -10,7 +10,7 @@ def get_worker_index(worker_id: str) -> int:
     match = worker_name_pattern.match(worker_id)
     if match:
         return int(match.group(2))
-    raise ValueError("Invalid worker ID format")  # Import protobuf class
+    raise ValueError("Invalid worker ID format")
 
 
 def serialize_global_port_identity(obj: GlobalPortIdentity) -> str:
