@@ -33,12 +33,9 @@ class DocumentFactory:
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {
-                VFSResourceType.RESULT,
-                VFSResourceType.MATERIALIZED_RESULT,
-            }:
+            if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 iceberg_schema = Schema.as_arrow_schema(schema)
@@ -69,12 +66,9 @@ class DocumentFactory:
     def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == "vfs":
-            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {
-                VFSResourceType.RESULT,
-                VFSResourceType.MATERIALIZED_RESULT,
-            }:
+            if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 table = load_table_metadata(

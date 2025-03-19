@@ -1,23 +1,24 @@
 package edu.uci.ics.amber.util.serde
 
+import org.apache.commons.codec.binary.Base32
 import edu.uci.ics.amber.core.workflow.GlobalPortIdentity
 
-import java.net.{URLDecoder, URLEncoder}
-import java.util.Base64
-
+/**
+  * Serialize and deserializes a GlobalPortIdentity object to a string using Base32 encoding
+  * to ensure it works with both URI and file path and does not incldue underscore "_" so
+  * that it does not interfere with our own VFS URI parsing.
+  */
 object GlobalPortIdentitySerde {
-  implicit class SerdeOps(msg: GlobalPortIdentity) {
-    // Serialize GlobalPortIdentity to a URL-safe Base64 string
-    def toUriString: String = {
-      val base64 = Base64.getUrlEncoder.encodeToString(msg.toByteArray)
-      URLEncoder.encode(base64, "UTF-8") // Ensure it's fully URI-safe
+  implicit class SerdeOps(globalPortId: GlobalPortIdentity) {
+    def serializeAsString: String = {
+      val base32 = new Base32()
+      base32.encodeToString(globalPortId.toByteArray)
     }
   }
 
-  // Deserialize GlobalPortIdentity from a URL-safe Base64 string
-  def fromUriString(encodedStr: String): GlobalPortIdentity = {
-    val base64 = URLDecoder.decode(encodedStr, "UTF-8")
-    val bytes = Base64.getUrlDecoder.decode(base64)
+  def deserializeFromString(serializedString: String): GlobalPortIdentity = {
+    val base32 = new Base32()
+    val bytes = base32.decode(serializedString)
     GlobalPortIdentity.parseFrom(bytes)
   }
 }

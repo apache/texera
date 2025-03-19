@@ -288,7 +288,7 @@ class RegionExecutionCoordinator(
           DocumentFactory.createDocument(storageUriToAdd, schema)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
             eid = eid,
-            globalPortId=outputPortId,
+            globalPortId = outputPortId,
             uri = storageUriToAdd
           )
         }

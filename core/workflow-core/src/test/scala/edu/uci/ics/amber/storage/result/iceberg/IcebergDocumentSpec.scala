@@ -3,7 +3,12 @@ package edu.uci.ics.amber.storage.result.iceberg
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
@@ -54,7 +59,14 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     uri = VFSURIFactory.createResultURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
-      GlobalPortIdentity(PhysicalOpIdentity(logicalOpId=OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"), layerName="main"), PortIdentity())
+      GlobalPortIdentity(
+        PhysicalOpIdentity(
+          logicalOpId =
+            OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+          layerName = "main"
+        ),
+        PortIdentity()
+      )
     )
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()

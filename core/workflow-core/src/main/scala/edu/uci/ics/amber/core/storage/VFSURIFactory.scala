@@ -52,13 +52,8 @@ object VFSURIFactory {
 
     val globalPortIdOption = segments.indexOf("globalportid") match {
       case -1 => None
-      case _ => Some(GlobalPortIdentitySerde.fromUriString(extractValue("globalportid")))
+      case _  => Some(GlobalPortIdentitySerde.deserializeFromString(extractValue("globalportid")))
     }
-
-//    val operatorIdOption = segments.indexOf("opid") match {
-//      case -1  => None
-//      case _ => Some(OperatorIdentity(extractValue("opid")))
-//    }
 
     val resourceTypeStr = segments.last.toLowerCase
     val resourceType = VFSResourceType.values
@@ -72,11 +67,12 @@ object VFSURIFactory {
     * Create a URI pointing to a result storage
     */
   def createResultURI(
-     workflowId: WorkflowIdentity,
-     executionId: ExecutionIdentity,
-     globalPortId: GlobalPortIdentity
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity
   ): URI = {
-    val finalUri = s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/globalportid/${globalPortId.toUriString}"
+    val finalUri =
+      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/globalportid/${globalPortId.serializeAsString}"
 
     new URI(s"$finalUri/${VFSResourceType.RESULT.toString.toLowerCase}")
   }
@@ -121,13 +117,13 @@ object VFSURIFactory {
     * @param operatorId     Operator identifier.
     * @return A VFS URI
     * @throws IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
-   *                                  `RUNTIME_STATISTICS`, or if `operatorId` is not provided for `CONSOLE_MESSAGES`.
+    *                                  `RUNTIME_STATISTICS`, or if `operatorId` is not provided for `CONSOLE_MESSAGES`.
     */
   private def createNonResultVFSURI(
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[OperatorIdentity] = None,
+      operatorId: Option[OperatorIdentity] = None
   ): URI = {
 
     if (resourceType == VFSResourceType.RESULT) {
@@ -136,17 +132,13 @@ object VFSURIFactory {
       )
     }
 
-    if (
-      resourceType == VFSResourceType.RUNTIME_STATISTICS && operatorId.isDefined
-    ) {
+    if (resourceType == VFSResourceType.RUNTIME_STATISTICS && operatorId.isDefined) {
       throw new IllegalArgumentException(
         "Runtime statistics URI should not contain operatorId."
       )
     }
 
-    if (
-      resourceType == VFSResourceType.CONSOLE_MESSAGES && operatorId.isEmpty
-    ) {
+    if (resourceType == VFSResourceType.CONSOLE_MESSAGES && operatorId.isEmpty) {
       throw new IllegalArgumentException(
         "Console messages URI should contain operatorId."
       )

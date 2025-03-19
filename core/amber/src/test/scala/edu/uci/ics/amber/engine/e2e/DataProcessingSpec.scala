@@ -69,7 +69,10 @@ class DataProcessingSpec
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
-                GlobalPortIdentity(PhysicalOpIdentity(logicalOpId=terminalOpId, layerName="main"), PortIdentity())
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
               )
               // expecting the first output port only.
               ExecutionResourcesMapping
@@ -82,7 +85,10 @@ class DataProcessingSpec
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
-                GlobalPortIdentity(PhysicalOpIdentity(logicalOpId=terminalOpId, layerName="main"), PortIdentity())
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
               )
               terminalOpId -> DocumentFactory
                 .openDocument(uri)

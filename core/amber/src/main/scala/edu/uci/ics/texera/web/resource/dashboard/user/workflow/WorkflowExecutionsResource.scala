@@ -87,7 +87,7 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, globalPortId.toUriString, uri.toString)
+        .values(eid.id, globalPortId.serializeAsString, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -178,7 +178,7 @@ object WorkflowExecutionsResource {
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
       portId: PortIdentity
-                             ): Option[URI] = {
+  ): Option[URI] = {
     def isMatchingExternalPortURI(uri: URI): Boolean = {
       // Assuming each logical operator will contain one physical operator that contains external ports.
       // Example: Hash Join (layerName: Probe), Aggregate (layerName: globalAgg)
@@ -187,9 +187,9 @@ object WorkflowExecutionsResource {
       val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
       globalPortIdOption.exists { globalPortId =>
         !globalPortId.portId.internal &&
-          globalPortId.opId.logicalOpId == opId &&
-          globalPortId.portId == portId &&
-          resourceType == VFSResourceType.RESULT
+        globalPortId.opId.logicalOpId == opId &&
+        globalPortId.portId == portId &&
+        resourceType == VFSResourceType.RESULT
       }
     }
 
@@ -220,10 +220,10 @@ object WorkflowExecutionsResource {
     *         TODO: Refactor this method when user system is permenantly enabled even in dev mode
     */
   def getOrCreateResultUriByGlobalPortId(
-                                          wid: WorkflowIdentity,
-                                          eid: ExecutionIdentity,
-                                          globalPortId: GlobalPortIdentity
-                                        ): Option[URI] = {
+      wid: WorkflowIdentity,
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity
+  ): Option[URI] = {
     if (!AmberConfig.isUserSystemEnabled) {
       return Option(VFSURIFactory.createResultURI(wid, eid, globalPortId))
     }
@@ -235,7 +235,7 @@ object WorkflowExecutionsResource {
         .where(
           OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
             .eq(eid.id.toInt)
-            .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.toUriString))
+            .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
         )
         .fetchOneInto(classOf[String])
     ).map(URI.create)
