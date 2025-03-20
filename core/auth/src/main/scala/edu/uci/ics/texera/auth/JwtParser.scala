@@ -1,12 +1,12 @@
-package edu.uci.ics.texera.service.auth
+package edu.uci.ics.texera.auth
 
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 import org.jose4j.lang.UnresolvableKeyException
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.jose4j.jwt.JwtClaims
 
 import java.nio.charset.StandardCharsets
 import java.util.Optional

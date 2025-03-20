@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.service.auth
+package edu.uci.ics.texera.auth
 
 import com.typesafe.config.{Config, ConfigFactory}
 

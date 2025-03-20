@@ -3,6 +3,7 @@ package edu.uci.ics.texera.service.resource
 import edu.uci.ics.amber.core.storage.model.OnDataset
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -10,38 +11,11 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
-import edu.uci.ics.texera.service.auth.SessionUser
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  isDatasetPublic,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.service.resource.DatasetResource.{
-  CreateDatasetRequest,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetVersionRootFileNodesResponse,
-  Diff,
-  context,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getLatestDatasetVersion
-}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, isDatasetPublic, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.service.resource.DatasetResource.{CreateDatasetRequest, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetVersionRootFileNodesResponse, Diff, context, getDatasetByID, getDatasetVersionByID, getLatestDatasetVersion}
 import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
