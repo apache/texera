@@ -39,7 +39,7 @@ object PathUtils {
 
   lazy val fileServicePath: Path = corePath.resolve("file-service")
 
-  lazy val workflowComputingUnitManagingServicePath: Path = corePath.resolve("workflow-computing-unit-managing-service")
+  lazy val workflowComputingUnitManagingServicePath: Path = corePath.resolve("computing-unit-managing-service")
 
   private lazy val datasetsRootPath =
     corePath.resolve("amber").resolve("user-resources").resolve("datasets")

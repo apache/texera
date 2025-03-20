@@ -6,7 +6,7 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
   DashboardWorkflowComputingUnit,
   TerminationResponse,
   WorkflowComputingUnitCreationParams,
@@ -24,7 +24,7 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 
-object WorkflowComputingUnitManagingResource {
+object ComputingUnitManagingResource {
 
   private lazy val context: DSLContext = SqlServer
     .getInstance()
@@ -62,7 +62,7 @@ object WorkflowComputingUnitManagingResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
-class WorkflowComputingUnitManagingResource {
+class ComputingUnitManagingResource {
 
   /**
     * Create a new pod for the given user ID.

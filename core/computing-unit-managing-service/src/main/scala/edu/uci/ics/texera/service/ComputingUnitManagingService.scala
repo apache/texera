@@ -4,22 +4,22 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.core.Application
 
-class WorkflowComputingUnitManagingService
-    extends Application[WorkflowComputingUnitManagingServiceConfiguration] {
+class ComputingUnitManagingService
+    extends Application[ComputingUnitManagingServiceConfiguration] {
 
   override def initialize(
-      bootstrap: Bootstrap[WorkflowComputingUnitManagingServiceConfiguration]
+      bootstrap: Bootstrap[ComputingUnitManagingServiceConfiguration]
   ): Unit = {
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
   override def run(
-      configuration: WorkflowComputingUnitManagingServiceConfiguration,
-      environment: Environment
+                    configuration: ComputingUnitManagingServiceConfiguration,
+                    environment: Environment
   ): Unit = {
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
@@ -28,20 +28,20 @@ class WorkflowComputingUnitManagingService
     )
     // Register http resources
     environment.jersey.setUrlPattern("/api/*")
-    environment.jersey().register(new WorkflowComputingUnitManagingResource)
+    environment.jersey().register(new ComputingUnitManagingResource)
   }
 }
 
-object WorkflowComputingUnitManagingService {
+object ComputingUnitManagingService {
   def main(args: Array[String]): Unit = {
     val configFilePath = workflowComputingUnitManagingServicePath
       .resolve("src")
       .resolve("main")
       .resolve("resources")
-      .resolve("workflow-computing-unit-managing-service-config.yaml")
+      .resolve("computing-unit-managing-service-config.yaml")
       .toAbsolutePath
       .toString
 
-    new WorkflowComputingUnitManagingService().run("server", configFilePath)
+    new ComputingUnitManagingService().run("server", configFilePath)
   }
 }

@@ -11,6 +11,6 @@ RUN apt-get update && apt-get install -y unzip
 WORKDIR /core
 RUN scripts/build-services.sh
 
-CMD ["scripts/workflow-computing-unit-managing-service.sh"]
+CMD ["scripts/computing-unit-managing-service.sh"]
 
 EXPOSE 8888
