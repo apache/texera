@@ -29,7 +29,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator)
+  .dependsOn(WorkflowOperator, Auth)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
@@ -45,7 +45,7 @@ lazy val WorkflowExecutionService = (project in file("amber"))
     ),
   )
   .configs(Test)
-  .dependsOn(DAO % "test->test") // test scope dependency
+  .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
 
 // root project definition
 lazy val CoreProject = (project in file("."))
