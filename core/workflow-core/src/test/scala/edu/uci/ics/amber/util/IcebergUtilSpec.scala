@@ -46,7 +46,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.toIcebergType(AttributeType.STRING) == Types.StringType.get())
     assert(
       IcebergUtil.toIcebergType(AttributeType.BINARY) == Types.ListType
-        .ofRequired(-7, Types.BinaryType.get())
+        .ofRequired(0, Types.BinaryType.get())
     )
   }
 
@@ -61,7 +61,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.fromIcebergType(Types.StringType.get()) == AttributeType.STRING)
     assert(
       IcebergUtil.fromIcebergType(
-        Types.ListType.ofRequired(-7, Types.BinaryType.get())
+        Types.ListType.ofRequired(0, Types.BinaryType.get())
       ) == AttributeType.BINARY
     )
   }

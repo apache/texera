@@ -3,6 +3,7 @@ package edu.uci.ics.amber.core.tuple
 import edu.uci.ics.amber.core.tuple.TupleUtils.{json2tuple, tuple2json}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.ByteBuffer
 import java.sql.Timestamp
 
 class TupleSpec extends AnyFlatSpec {
@@ -120,7 +121,7 @@ class TupleSpec extends AnyFlatSpec {
       .add(longAttribute, 1123213213213L)
       .add(doubleAttribute, 214214.9969346)
       .add(timestampAttribute, new Timestamp(100000000L))
-      .add(binaryAttribute, Array[Byte](104, 101, 108, 108, 111))
+      .add(binaryAttribute, List(ByteBuffer.wrap(Array[Byte](104, 101, 108, 108, 111))))
       .build()
     assert(inputTuple.hashCode() == -1335416166)
 
@@ -132,7 +133,7 @@ class TupleSpec extends AnyFlatSpec {
       .add(longAttribute, 0L)
       .add(doubleAttribute, 0.0)
       .add(timestampAttribute, new Timestamp(0L))
-      .add(binaryAttribute, Array[Byte]())
+      .add(binaryAttribute, List(ByteBuffer.wrap(Array[Byte](104, 101, 108, 108, 111))))
       .build()
     assert(inputTuple2.hashCode() == -1409761483)
 
@@ -168,7 +169,7 @@ class TupleSpec extends AnyFlatSpec {
       .add(longAttribute, Long.MaxValue)
       .add(doubleAttribute, 7 / 17.0d)
       .add(timestampAttribute, new Timestamp(1234567890L))
-      .add(binaryAttribute, Array.fill[Byte](4097)('o'))
+      .add(binaryAttribute, List(ByteBuffer.wrap(Array.fill[Byte](4097)('o'))))
       .build()
     assert(inputTuple5.hashCode() == -2099556631)
   }
