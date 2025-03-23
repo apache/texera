@@ -22,7 +22,7 @@ from proto.edu.uci.ics.amber.core import (
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
-    postgres_username="texera_iceberg_admin",
+    postgres_username="texera",
     postgres_password="password",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../core/amber/user-resources/workflow-results",

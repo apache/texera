@@ -1,18 +1,31 @@
-\set db_user texera
+-- Replace these with actual values (no \set)
+-- Variables can't be used inside DO blocks in this context
+-- Instead, write them explicitly
 
+-- Connect to the default postgres database
 \c postgres
 
+-- Create the user if it doesn't exist
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT FROM pg_catalog.pg_roles WHERE rolname = 'texera'
+        ) THEN
+            CREATE ROLE texera LOGIN PASSWORD 'password';
+        END IF;
+    END
+$$;
+
+-- Drop and recreate the database
 DROP DATABASE IF EXISTS texera_iceberg_catalog;
 CREATE DATABASE texera_iceberg_catalog;
 
--- Important: the database must exist before you GRANT or ALTER
--- So this part should ideally go into a separate connection session
--- or follow the DO block with a short delay to allow connection refresh
+-- Grant and change ownership
+GRANT ALL PRIVILEGES ON DATABASE texera_iceberg_catalog TO texera;
+ALTER DATABASE texera_iceberg_catalog OWNER TO texera;
 
--- Next, grant privileges
-GRANT ALL PRIVILEGES ON DATABASE texera_iceberg_catalog TO :db_user;
-ALTER DATABASE texera_iceberg_catalog OWNER TO :db_user;
-
+-- Reconnect to the new database
 \c texera_iceberg_catalog
 
-GRANT ALL ON SCHEMA public TO :db_user;
+-- Grant schema access
+GRANT ALL ON SCHEMA public TO texera;
