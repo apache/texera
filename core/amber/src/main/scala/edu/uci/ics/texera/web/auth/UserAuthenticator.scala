@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.web.auth
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.Authenticator
-
 import org.jose4j.jwt.consumer.JwtContext
 
 import java.util.Optional

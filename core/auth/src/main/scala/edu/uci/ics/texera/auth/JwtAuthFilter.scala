@@ -1,14 +1,12 @@
-package edu.uci.ics.texera.service.auth
+package edu.uci.ics.texera.auth
 
-import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter}
-import jakarta.ws.rs.core.{HttpHeaders, SecurityContext}
-import jakarta.ws.rs.ext.Provider
-import jakarta.ws.rs.container.ResourceInfo
-import jakarta.ws.rs.core.Context
-
-import java.security.Principal
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter, ResourceInfo}
+import jakarta.ws.rs.core.{Context, HttpHeaders, SecurityContext}
+import jakarta.ws.rs.ext.Provider
+
+import java.security.Principal
 
 @Provider
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {

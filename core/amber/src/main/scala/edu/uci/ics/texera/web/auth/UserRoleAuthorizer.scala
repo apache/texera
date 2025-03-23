@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.auth
 
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import io.dropwizard.auth.Authorizer
 

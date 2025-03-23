@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.service.auth
+package edu.uci.ics.texera.auth
 
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
