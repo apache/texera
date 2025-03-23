@@ -10,7 +10,7 @@ For example, to build the image using `texera-web-application.dockerfile`, run t
 
 ```bash
 docker build -f texera-web-application.dockerfile -t texera/texera-web-application:test ..
-```
+``` 
 
 You can also find prebuilt images published by the Texera team on the [Texera DockerHub Repository](https://hub.docker.com/repositories/texera).
 
@@ -18,6 +18,6 @@ You can also find prebuilt images published by the Texera team on the [Texera Do
 
 Subdirectories like `single-node` contain configuration files for deploying Texera using the above Docker images.
 
-### `single-node`
+### `single-node` architecture
 
 The `single-node` directory includes the necessary files for deploying Texera on a single machine using Docker Compose.
