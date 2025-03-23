@@ -71,7 +71,7 @@ services:
       retries: 10
 
   file-service:
-    image: bobbai00/file-service:test
+    image: texera/file-service:test
     container_name: texera-file-service
     restart: always
     depends_on:
@@ -83,7 +83,7 @@ services:
       - .env
 
   workflow-compiling-service:
-    image: bobbai00/workflow-compiling-service:test
+    image: texera/workflow-compiling-service:test
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
@@ -93,7 +93,7 @@ services:
       - .env
 
   texera-web-application:
-    image: bobbai00/texera-web-application:user-sys
+    image: texera/texera-web-application:test
     container_name: texera-web-application
     restart: always
     depends_on:
@@ -103,7 +103,7 @@ services:
       - .env
   
   computing-unit-master:
-    image: bobbai00/computing-unit-master:test
+    image: texera/computing-unit-master:test
     container_name: texera-computing-unit-master
     restart: always
     depends_on:
