@@ -119,16 +119,12 @@ metals.sbt
 
 # Ignore Angular build output
 **/dist/
-**/angular.json
-**/nx.json
-**/.angular/
-**/.nx/
+**/.angular/cache/
+**/.nx/cache/
 
 # Ignore Yarn cache and lock files
 **/.yarn/cache/
 **/.yarn/install-state.gz
-**/.yarnrc.yml
-**/.yarnrc
 **/.pnp.cjs
 **/.pnp.loader.mjs
 

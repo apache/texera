@@ -1,12 +1,3 @@
-FROM node:18 AS build-gui
-
-WORKDIR /gui
-COPY core/gui .
-COPY .git ./.git
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path 4.5.1
-RUN yarn install && \
-    yarn run build
-
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
@@ -34,15 +25,34 @@ RUN unzip amber/target/universal/texera-0.1-SNAPSHOT.zip -d amber/target/
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
 WORKDIR /core/amber
-# Copy built GUI files from the build-gui stage
-COPY --from=build-gui /gui/dist /core/gui/dist
+
+COPY --from=build /core/amber/requirements.txt /tmp/requirements.txt
+COPY --from=build /core/amber/operator-requirements.txt /tmp/operator-requirements.txt
+
+# Install Python runtime and dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-dev \
+    libpq-dev \
+    && apt-get clean
+
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install python-lsp-server python-lsp-server[websockets]
+
+# Install requirements with a fallback for wordcloud
+RUN pip3 install -r /tmp/requirements.txt
+RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
+    pip3 install --no-cache-dir wordcloud==1.9.2
+
 # Copy the built texera binary from the build phase
 COPY --from=build /core/amber/target/texera-0.1-SNAPSHOT /core/amber
 # Copy resources directories under /core from build phase
 COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
 COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
 COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
+# Copy code for python UDF
+COPY --from=build /core/amber/src/main/python /core/amber/src/main/python
 
-CMD ["bin/texera-web-application"]
+CMD ["bin/computing-unit-master"]
 
-EXPOSE 8080
+EXPOSE 8085

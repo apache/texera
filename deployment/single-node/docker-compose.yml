@@ -1,4 +1,4 @@
-name: texera-local-test
+name: texera-single-node
 services:
   minio:
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
@@ -6,18 +6,18 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=texera_minio
-      - MINIO_ROOT_PASSWORD=password
+    env_file:
+      - .env
+    volumes:
+      - minio_data:/data
     command: server --console-address ":9001" /data
 
   postgres:
     image: groonga/pgroonga:4.0.1-debian-15
     container_name: texera-postgres
     restart: always
-    environment:
-      - POSTGRES_USER=texera
-      - POSTGRES_PASSWORD=password
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "texera", "-d", "texera_db"]
       interval: 10s
@@ -25,11 +25,12 @@ services:
       start_period: 5s
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./core/scripts/sql:/docker-entrypoint-initdb.d
+      - ../../core/scripts/sql:/docker-entrypoint-initdb.d
 
   lakefs:
     image: treeverse/lakefs:1.51
     container_name: texera-lakefs
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,6 +38,8 @@ services:
         condition: service_started
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - LAKEFS_BLOCKSTORE_TYPE=s3
       - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
@@ -49,9 +52,6 @@ services:
       - LAKEFS_STATS_ENABLED=1
       - LAKEFS_DATABASE_TYPE=postgres
       - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://texera:password@texera-postgres:5432/texera_lakefs?sslmode=disable
-      - LAKEFS_INSTALLATION_USER_NAME=texera-admin
-      - LAKEFS_INSTALLATION_ACCESS_KEY_ID=AKIAIOSFOLKFSSAMPLES
-      - LAKEFS_INSTALLATION_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -73,22 +73,61 @@ services:
   file-service:
     image: bobbai00/file-service:test
     container_name: texera-file-service
+    restart: always
     depends_on:
       minio:
         condition: service_started
       lakefs:
         condition: service_healthy
-    environment:
-      - STORAGE_S3_ENDPOINT=http://texera-minio:9000
-      - STORAGE_LAKEFS_ENDPOINT=http://texera-lakefs:8000/api/v1
+    env_file:
+      - .env
+
+  workflow-compiling-service:
+    image: bobbai00/workflow-compiling-service:test
+    container_name: texera-workflow-compiling-service
+    restart: always
+    depends_on:
+      file-service:
+        condition: service_started
+    env_file:
+      - .env
+
+  texera-web-application:
+    image: bobbai00/texera-web-application:user-sys
+    container_name: texera-web-application
+    restart: always
+    depends_on:
+      file-service:
+        condition: service_started
+    env_file:
+      - .env
+  
+  computing-unit-master:
+    image: bobbai00/computing-unit-master:test
+    container_name: texera-computing-unit-master
+    restart: always
+    depends_on:
+      texera-web-application:
+        condition: service_started
+    env_file:
+      - .env
+
+  nginx:
+    image: nginx:alpine
+    container_name: texera-nginx
+    depends_on:
+      - workflow-compiling-service
+      - file-service
+      - texera-web-application
+      - computing-unit-master
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "9092:9092"
-
-
-
+      - "8080:8080"
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   default:
-    name: texera-local-test
+    name: texera-single-node
