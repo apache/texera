@@ -11,10 +11,10 @@ This directory provides a Docker Compose setup for launching all core Texera mic
 To start all services, run the following command from this directory:
 
 ```bash
-docker compose up
+docker compose up 
 ```
 
-This will build and launch all containers, including the web application, workflow engine, file service, and their required dependencies. 
+This will pull the needed images from [Texera DockerHub Repository](https://hub.docker.com/repositories/texera) and launch all containers, including the web application, workflow engine, file service, and their required dependencies. 
 
 Two named volumes, `postgres` and `minio`, will be created. This ensures that the data will be persisted even if the containers are stopped or killed.
 

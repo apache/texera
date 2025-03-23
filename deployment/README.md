@@ -12,7 +12,7 @@ For example, to build the image using `texera-web-application.dockerfile`, run t
 docker build -f texera-web-application.dockerfile -t texera/texera-web-application:test ..
 ```
 
-You can also find prebuilt images published by the Texera team on the [Texera Docker Hub repository](https://hub.docker.com/repositories/texera).
+You can also find prebuilt images published by the Texera team on the [Texera DockerHub Repository](https://hub.docker.com/repositories/texera).
 
 ## Deployment Based on Docker Images
 
