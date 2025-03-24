@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
@@ -8,22 +7,27 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDa
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, WorkflowComputingUnitTerminationParams, context}
-import edu.uci.ics.texera.service.util.{KubernetesClientService, KubernetesMetricService}
-import edu.uci.ics.texera.service.util.KubernetesMetricService.{getPodLimits, getPodMetrics}
+import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object ComputingUnitManagingResource {
-
   private lazy val context: DSLContext = SqlServer
     .getInstance()
     .createDSLContext()
+
+  def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
+    val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
+
+    Option(computingUnitDao.fetchOneByCuid(uid))
+      .exists(_.getUid == uid)
+  }
 
   case class WorkflowComputingUnitCreationParams(
       name: String,
@@ -59,6 +63,24 @@ object ComputingUnitManagingResource {
 @Path("/computing-unit")
 class ComputingUnitManagingResource {
 
+  private def getComputingUnitMetrics(cuid: Int): WorkflowComputingUnitMetrics = {
+    val metrics: Map[String, String] = KubernetesClient.getPodMetrics(cuid)
+
+    WorkflowComputingUnitMetrics(
+      metrics.getOrElse("cpu", ""),
+      metrics.getOrElse("memory", "")
+    )
+  }
+
+  private def getComputingUnitResourceLimit(cuid: Int): WorkflowComputingUnitResourceLimit = {
+    val podLimits: Map[String, String] = KubernetesClient.getPodLimits(cuid)
+
+    WorkflowComputingUnitResourceLimit(
+      podLimits.getOrElse("cpu", ""),
+      podLimits.getOrElse("memory", "")
+    )
+  }
+
   /**
     * Create a new pod for the given user ID.
     *
@@ -91,12 +113,12 @@ class ComputingUnitManagingResource {
         val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
         // Create the pod with the generated CUID
-        val pod = KubernetesClientService.createPod(cuid, param.cpuLimit, param.memoryLimit)
+        val pod = KubernetesClient.createPod(cuid, param.cpuLimit, param.memoryLimit)
 
         // Return the dashboard response
         DashboardWorkflowComputingUnit(
           insertedUnit,
-          KubernetesClientService.generatePodURI(cuid).toString,
+          KubernetesClient.generatePodURI(cuid).toString,
           pod.getStatus.getPhase,
           WorkflowComputingUnitMetrics("", ""),
           WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit)
@@ -116,31 +138,28 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("")
   def listComputingUnits(
-      @Auth user: SessionUser
-                        ): java.util.List[DashboardWorkflowComputingUnit] = {
+                          @Auth user: SessionUser
+                        ): List[DashboardWorkflowComputingUnit] = {
     withTransaction(context) { ctx =>
-      val result = ctx
-        .select()
-        .from(WORKFLOW_COMPUTING_UNIT)
-        .where(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull) // Filter out terminated units
-        .fetch()
-        .map(record => {
-          val unit = record.into(WORKFLOW_COMPUTING_UNIT).into(classOf[WorkflowComputingUnit])
-          val cuid = unit.getCuid.intValue()
-          val podName = KubernetesClientService.generatePodName(cuid)
-          val pod = KubernetesClientService.getPodByName(podName)
+      val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
 
-          DashboardWorkflowComputingUnit(
-            computingUnit = unit,
-            uri = KubernetesClientService.generatePodURI(cuid).toString,
-            status =
-              if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
-            WorkflowComputingUnitMetrics("", ""),
-            WorkflowComputingUnitResourceLimit("", ""),
-          )
-        })
+      val units = computingUnitDao
+        .fetchByUid(user.getUid)
+        .filter(_.getTerminateTime == null) // Filter out terminated units
 
-      result
+      units.map { unit =>
+        val cuid = unit.getCuid.intValue()
+        val podName = KubernetesClient.generatePodName(cuid)
+        val pod = KubernetesClient.getPodByName(podName)
+
+        DashboardWorkflowComputingUnit(
+          computingUnit = unit,
+          uri = KubernetesClient.generatePodURI(cuid),
+          status = pod.map(_.getStatus.getPhase).getOrElse("Unknown"),
+          metrics = getComputingUnitMetrics(cuid),
+          resourceLimits = getComputingUnitResourceLimit(cuid)
+        )
+      }.toList
     }
   }
 
@@ -161,12 +180,12 @@ class ComputingUnitManagingResource {
                             ): TerminationResponse = {
     // Attempt to delete the pod using the provided URI
     val podURI = param.uri
-    KubernetesClientService.deletePod(podURI)
+    KubernetesClient.deletePod(podURI)
 
     // If successful, update the database
     withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val cuid = KubernetesClientService.parseCUIDFromURI(podURI)
+      val cuid = KubernetesClient.parseCUIDFromURI(podURI)
       val units = cuDao.fetchByCuid(cuid)
 
       units.forEach(unit => unit.setTerminateTime(new Timestamp(System.currentTimeMillis())))
@@ -186,31 +205,21 @@ class ComputingUnitManagingResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
-  def getComputingUnitMetric(
+  def getComputingUnitMetrics(
                               @PathParam("cuid") cuid: String,
                               @Auth sessionUser: SessionUser,
                             ): WorkflowComputingUnitMetrics = {
-    val metrics: Map[String, String] = getPodMetrics(cuid.toInt)
-
-    WorkflowComputingUnitMetrics(
-      metrics.getOrElse("cpu", ""),
-      metrics.getOrElse("memory", "")
-    )
+    getComputingUnitMetrics(cuid.toInt)
   }
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/limits")
-  def getComputingUnitLimits(
+  def getComputingUnitResourceLimit(
       @PathParam("cuid") cuid: String,
       @Auth user: SessionUser,
   ): WorkflowComputingUnitResourceLimit = {
-    val podLimits: Map[String, String] = getPodLimits(cuid.toInt)
-
-    WorkflowComputingUnitResourceLimit(
-      podLimits.getOrElse("cpu", ""),
-      podLimits.getOrElse("memory", "")
-    )
+    getComputingUnitResourceLimit(cuid.toInt)
   }
 }

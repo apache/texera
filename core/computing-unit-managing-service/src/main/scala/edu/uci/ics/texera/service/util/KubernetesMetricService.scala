@@ -22,7 +22,7 @@ object KubernetesMetricService {
     */
   def getPodMetrics(cuid: Int): Map[String, String] = {
     val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
-    val targetPodName = KubernetesClientService.generatePodName(cuid)
+    val targetPodName = KubernetesClient.generatePodName(cuid)
 
     podMetricsList.getItems.asScala
       .collectFirst {
@@ -53,7 +53,7 @@ object KubernetesMetricService {
     */
   def getPodLimits(cuid: Int): Map[String, String] = {
     val podList: PodList = client.pods().inNamespace(namespace).list()
-    val targetPodName = KubernetesClientService.generatePodName(cuid)
+    val targetPodName = KubernetesClient.generatePodName(cuid)
 
     val pod = podList.getItems.asScala.find(pod => {
       pod.getMetadata.getName.equals(targetPodName)
