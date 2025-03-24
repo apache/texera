@@ -4,14 +4,13 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, WorkflowComputingUnitTerminationParams, context}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, context, userOwnComputingUnit}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
-import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.{MediaType, Response}
 import org.jooq.DSLContext
 
 import java.sql.Timestamp
@@ -25,7 +24,7 @@ object ComputingUnitManagingResource {
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
     val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
 
-    Option(computingUnitDao.fetchOneByCuid(uid))
+    Option(computingUnitDao.fetchOneByCuid(cuid))
       .exists(_.getUid == uid)
   }
 
@@ -35,8 +34,6 @@ object ComputingUnitManagingResource {
       cpuLimit: String,
       memoryLimit: String
   )
-
-  case class WorkflowComputingUnitTerminationParams(uri: String, name: String)
 
   case class WorkflowComputingUnitResourceLimit(
       cpuLimit: String,
@@ -55,8 +52,6 @@ object ComputingUnitManagingResource {
       metrics: WorkflowComputingUnitMetrics,
       resourceLimits: WorkflowComputingUnitResourceLimit
   )
-
-  case class TerminationResponse(message: String, uri: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -93,7 +88,8 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
   def createWorkflowComputingUnit(
-      param: WorkflowComputingUnitCreationParams
+      param: WorkflowComputingUnitCreationParams,
+      @Auth user: SessionUser
   ): DashboardWorkflowComputingUnit = {
     try {
       withTransaction(context) { ctx =>
@@ -101,7 +97,7 @@ class ComputingUnitManagingResource {
 
         val computingUnit = new WorkflowComputingUnit()
 
-        computingUnit.setUid(0)
+        computingUnit.setUid(user.getUid)
         computingUnit.setName(param.name)
         computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
 
@@ -118,9 +114,9 @@ class ComputingUnitManagingResource {
         // Return the dashboard response
         DashboardWorkflowComputingUnit(
           insertedUnit,
-          KubernetesClient.generatePodURI(cuid).toString,
+          KubernetesClient.generatePodURI(cuid),
           pod.getStatus.getPhase,
-          WorkflowComputingUnitMetrics("", ""),
+          getComputingUnitMetrics(cuid),
           WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit)
         )
       }
@@ -173,26 +169,29 @@ class ComputingUnitManagingResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/terminate")
+  @Path("/{cuid}/terminate")
   def terminateComputingUnit(
-                              param: WorkflowComputingUnitTerminationParams,
+                              @PathParam("cuid") cuid: Integer,
                               @Auth user: SessionUser,
-                            ): TerminationResponse = {
-    // Attempt to delete the pod using the provided URI
-    val podURI = param.uri
-    KubernetesClient.deletePod(podURI)
+                            ): Response = {
+    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity(s"User has no access to the computing unit")
+        .build()
+    }
+
+    KubernetesClient.deletePod(cuid)
 
     // If successful, update the database
     withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val cuid = KubernetesClient.parseCUIDFromURI(podURI)
       val units = cuDao.fetchByCuid(cuid)
 
       units.forEach(unit => unit.setTerminateTime(new Timestamp(System.currentTimeMillis())))
       cuDao.update(units)
     }
-
-    TerminationResponse(s"Successfully terminated compute unit with URI $podURI", podURI)
+    Response.ok().build()
   }
 
   /**
@@ -207,8 +206,11 @@ class ComputingUnitManagingResource {
   @Path("/{cuid}/metrics")
   def getComputingUnitMetrics(
                               @PathParam("cuid") cuid: String,
-                              @Auth sessionUser: SessionUser,
+                              @Auth user: SessionUser,
                             ): WorkflowComputingUnitMetrics = {
+    if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
+      throw new BadRequestException("User has no access to the computing unit")
+    }
     getComputingUnitMetrics(cuid.toInt)
   }
 
@@ -220,6 +222,9 @@ class ComputingUnitManagingResource {
       @PathParam("cuid") cuid: String,
       @Auth user: SessionUser,
   ): WorkflowComputingUnitResourceLimit = {
+    if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
+      throw new BadRequestException("User has no access to the computing unit")
+    }
     getComputingUnitResourceLimit(cuid.toInt)
   }
 }

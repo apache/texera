@@ -104,8 +104,7 @@ object KubernetesClient {
     client.pods().inNamespace(namespace).create(pod)
   }
 
-  def deletePod(podURI: String): Unit = {
-    val cuid = parseCUIDFromURI(podURI)
+  def deletePod(cuid: Int): Unit = {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
   }
 }
