@@ -1,11 +1,7 @@
--- Replace these with actual values (no \set)
--- Variables can't be used inside DO blocks in this context
--- Instead, write them explicitly
-
 -- Connect to the default postgres database
 \c postgres
 
--- Create the user if it doesn't exist
+-- Create the user `texera` with `password` if it doesn't exist
 DO $$
     BEGIN
         IF NOT EXISTS (
