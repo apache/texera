@@ -7,9 +7,10 @@ This directory provides a Docker Compose setup for launching all core Texera mic
 - `.env`: Environment variables file used to configure service credentials, ports, and other runtime settings.
 
 ## Prerequisites
+
 To launch the services, make sure:
 - Docker daemon is up and running
-- Port `8080`, `8000`, `9000` and `9001` are available
+- Port `8080`, `8000`, `9000`, and `9001` are available
 
 ## Launching the Deployment
 
@@ -19,12 +20,13 @@ To start all services, run the following command **from this directory**:
 docker compose up 
 ```
 
-This will pull the needed images from [Texera DockerHub Repository](https://hub.docker.com/repositories/texera) and launch all containers, including the web application, workflow engine, file service, and their required dependencies. 
+This will pull the needed images from [Texera DockerHub Repository](https://hub.docker.com/repositories/texera) and launch all containers, including the web application, workflow engine, file service, and their required dependencies.
 
 Two named volumes, `postgres` and `minio`, will be created. This ensures that the data will be persisted even if the containers are stopped or killed.
 
-> **Note**: There is **no need to modify** the `.env` file. It is preconfigured with default settings, and the deployment should work out of the box.
+> **Note**: You should **not** modify the `.env` file. It is preconfigured with default settings, and the deployment should work out of the box.
 
+> This architecture is intended for local testing and trial purposes only. For production deployment, use the Kubernetes-based architecture instead.
 
 ## Accessing the Application
 
@@ -34,9 +36,9 @@ Once the containers are up, you can access the Texera web interface at:
 http://localhost:8080
 ```
 
-LakeFS and Minio will also be launched and can be accessed via:
+LakeFS and MinIO will also be launched and can be accessed via:
 
 ```
-http://localhost:8000    for lakeFS dashboard
-http://localhost:9001    for minio dashboard
+http://localhost:8000    for lakeFS dashboard  
+http://localhost:9001    for MinIO dashboard
 ```
