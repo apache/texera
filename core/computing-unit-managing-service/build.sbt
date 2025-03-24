@@ -15,6 +15,7 @@ val dropwizardVersion = "4.0.7"
 // Dependencies
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
+  "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
   "io.kubernetes" % "client-java" % "21.0.0",
   "org.jooq" % "jooq" % "3.14.16",
   "com.typesafe" % "config" % "1.4.1",

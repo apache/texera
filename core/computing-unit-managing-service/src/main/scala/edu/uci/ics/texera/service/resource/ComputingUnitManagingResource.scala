@@ -1,22 +1,17 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  TerminationResponse,
-  WorkflowComputingUnitCreationParams,
-  WorkflowComputingUnitMetrics,
-  WorkflowComputingUnitResourceLimit,
-  WorkflowComputingUnitTerminationParams,
-  context
-}
-import edu.uci.ics.texera.service.util.KubernetesClientService
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, WorkflowComputingUnitTerminationParams, context}
+import edu.uci.ics.texera.service.util.{KubernetesClientService, KubernetesMetricService}
 import edu.uci.ics.texera.service.util.KubernetesMetricService.{getPodLimits, getPodMetrics}
+import io.dropwizard.auth.Auth
+import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
 import org.jooq.DSLContext
@@ -71,6 +66,7 @@ class ComputingUnitManagingResource {
     * @return The created pod or an error response.
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
@@ -102,7 +98,7 @@ class ComputingUnitManagingResource {
           insertedUnit,
           KubernetesClientService.generatePodURI(cuid).toString,
           pod.getStatus.getPhase,
-          getComputingUnitMetric(cuid.toString),
+          WorkflowComputingUnitMetrics("", ""),
           WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit)
         )
       }
@@ -115,10 +111,13 @@ class ComputingUnitManagingResource {
     * @return A list of computing units that are not terminated.
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("")
-  def listComputingUnits(): java.util.List[DashboardWorkflowComputingUnit] = {
+  def listComputingUnits(
+      @Auth user: SessionUser
+                        ): java.util.List[DashboardWorkflowComputingUnit] = {
     withTransaction(context) { ctx =>
       val result = ctx
         .select()
@@ -136,8 +135,8 @@ class ComputingUnitManagingResource {
             uri = KubernetesClientService.generatePodURI(cuid).toString,
             status =
               if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
-            getComputingUnitMetric(cuid.toString),
-            getComputingUnitLimits(cuid.toString)
+            WorkflowComputingUnitMetrics("", ""),
+            WorkflowComputingUnitResourceLimit("", ""),
           )
         })
 
@@ -152,10 +151,14 @@ class ComputingUnitManagingResource {
     * @return A response indicating success or failure.
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/terminate")
-  def terminateComputingUnit(param: WorkflowComputingUnitTerminationParams): TerminationResponse = {
+  def terminateComputingUnit(
+                              param: WorkflowComputingUnitTerminationParams,
+                              @Auth user: SessionUser,
+                            ): TerminationResponse = {
     // Attempt to delete the pod using the provided URI
     val podURI = param.uri
     KubernetesClientService.deletePod(podURI)
@@ -180,9 +183,13 @@ class ComputingUnitManagingResource {
     * @return A `WorkflowComputingUnitMetrics` object with CPU and memory usage data.
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
-  def getComputingUnitMetric(@PathParam("cuid") cuid: String): WorkflowComputingUnitMetrics = {
+  def getComputingUnitMetric(
+                              @PathParam("cuid") cuid: String,
+                              @Auth sessionUser: SessionUser,
+                            ): WorkflowComputingUnitMetrics = {
     val metrics: Map[String, String] = getPodMetrics(cuid.toInt)
 
     WorkflowComputingUnitMetrics(
@@ -192,10 +199,12 @@ class ComputingUnitManagingResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/limits")
   def getComputingUnitLimits(
-      @PathParam("cuid") cuid: String
+      @PathParam("cuid") cuid: String,
+      @Auth user: SessionUser,
   ): WorkflowComputingUnitResourceLimit = {
     val podLimits: Map[String, String] = getPodLimits(cuid.toInt)
 
