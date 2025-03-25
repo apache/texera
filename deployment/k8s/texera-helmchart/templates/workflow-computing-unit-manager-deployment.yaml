@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+spec:
+  replicas: {{ .Values.workflowComputingUnitManager.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+    spec:
+      serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
+      containers:
+        - name: {{ .Values.workflowComputingUnitManager.name }}
+          image: {{ .Values.workflowComputingUnitManager.imageName }}
+          ports:
+            - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
+          env:
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
+            - name: KUBERNETES_COMPUTE_UNIT_SERVICE_NAME
+              value: {{ .Values.workflowComputingUnitPool.name }}-svc
+            - name: KUBERNETES_IMAGE_NAME
+              value: {{ .Values.workflowComputingUnitPool.imageName }}
+                    {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+                    {{- end }}

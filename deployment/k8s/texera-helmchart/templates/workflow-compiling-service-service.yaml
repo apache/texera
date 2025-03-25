@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.workflowCompilingService.name }}-svc
+  namespace: {{ .Values.namespace }}
+spec:
+  type: {{ .Values.workflowCompilingService.service.type }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+  ports:
+    - name: api-port
+      protocol: TCP
+      port: {{ .Values.workflowCompilingService.service.port }}
+      targetPort: {{ .Values.workflowCompilingService.service.port }}
+      # if service type is set to NodePort, include nodePort attribute
+      {{- if eq .Values.workflowCompilingService.service.type "NodePort" }}
+      nodePort: {{ .Values.workflowCompilingService.service.nodePort }}
+      {{- end }}

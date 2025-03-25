@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.fileService.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.fileService.name }}
+spec:
+  replicas: {{ .Values.workflowCompilingService.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.fileService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.fileService.name }}
+    spec:
+      containers:
+        - name: {{ .Values.fileService.name }}
+          image: {{ .Values.fileService.imageName }}
+          ports:
+            - containerPort: {{ .Values.fileService.service.port }}
+          env:
+                    {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+                    {{- end }}

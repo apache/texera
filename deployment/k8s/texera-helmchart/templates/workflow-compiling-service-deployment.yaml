@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+spec:
+  replicas: {{ .Values.workflowCompilingService.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+    spec:
+      containers:
+        - name: {{ .Values.workflowCompilingService.name }}
+          image: {{ .Values.workflowCompilingService.imageName }}
+          ports:
+            - containerPort: {{ .Values.workflowCompilingService.service.port }}
+          env:
+                    {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+                    {{- end }}

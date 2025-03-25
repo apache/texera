@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.webserver.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.webserver.name }}
+spec:
+  replicas: {{ .Values.webserver.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.webserver.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.webserver.name }}
+    spec:
+      containers:
+        - name: {{ .Values.webserver.name }}
+          image: {{ .Values.webserver.imageName }}
+          ports:
+            - containerPort: {{ .Values.webserver.service.port }}
+          env:
+          {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+          {{- end }}

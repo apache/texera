@@ -1,0 +1,189 @@
+namespace: texera-dev
+
+createNamespaces: true
+
+# Part 1: the configuration of Postgres, Minio and LakeFS
+postgresql:
+  namespaceOverride: texera-dev
+  auth:
+    username: texera
+    password: password
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: local-path
+
+    initdb:
+      scriptsConfigMap: texera-postgresql-init-script
+
+minio:
+  namespaceOverride: texera-dev
+  mode: standalone
+  auth:
+    rootUser: texera_minio
+    rootPassword: password
+  service:
+    type: NodePort
+    nodePorts:
+      api: 31000
+      console: 31001
+  persistence:
+    enabled: true
+    size: 20Gi
+
+lakefs:
+  secretKeys:
+    authEncryptSecretKey: random_string_for_lakefs
+    databaseConnectionString: postgres://texera:password@texera-postgresql.texera-dev.svc.cluster.local:5432/texera_lakefs?sslmode=disable
+  lakefsConfig: |
+    database:
+      type: postgres
+    installation:
+      user_name: texera-admin
+      access_key_id: AKIAIOSFOLKFSSAMPLES
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    blockstore:
+      type: s3
+      s3:
+        endpoint: http://texera-minio.texera-dev.svc.cluster.local:9000
+        pre_signed_expiry: 15m
+        pre_signed_endpoint: http://localhost:31000
+        force_path_style: true
+        credentials:
+          access_key_id: texera_minio
+          secret_access_key: password
+
+webserver:
+  name: webserver
+  numOfPods: 1  # Number of pods for the Texera deployment
+  imageName: texera/texera-web-application:test # image name of the texera
+  service:
+    type: NodePort # for testing purpose, NodePort mode is fine
+    port: 8080 # port of the pod
+    nodePort: 30081 # exposed port
+
+workflowComputingUnitManager:
+  name: workflow-computing-unit-manager
+  numOfPods: 1
+  serviceAccountName: workflow-computing-unit-manager-service-account
+  imageName: texera/computing-unit-managing-service:test
+  service:
+    type: NodePort # for testing purpose, NodePort mode is fine
+    port: 8888 # port of the pod
+    nodePort: 30082 # exposed port
+
+workflowCompilingService:
+  name: workflow-compiling-service
+  numOfPods: 1
+  imageName: texera/workflow-compiling-service:test
+  service:
+    type: NodePort
+    port: 9090
+    nodePort: 30083
+
+fileService:
+  name: file-service
+  numOfPods: 1
+  imageName: texera/file-service:test
+  service:
+    type: NodePort
+    port: 9092
+    nodePort: 30084
+
+# Config required for envoy and workflow pods
+envoy:
+  replicas: 1
+  image:
+    repository: envoyproxy/envoy
+    tag: v1.31-latest
+  port:
+    10000
+  debug: false
+  service:
+    type: NodePort
+    port: 10000
+    nodePort: 31002
+
+# headless service
+# each pod's url is: computing-unit-%cuid.workflow-computing-unit.workflow-computing-unit-pool.svc.cluster.local
+workflowComputingUnitPool:
+  name: workflow-computing-unit
+  namespace: workflow-computing-unit-pool
+  imageName: texera/computing-unit-master:test
+  service:
+    port: 8085
+    targetPort: 8085
+
+texeraEnvVars:
+  - name: STORAGE_S3_ENDPOINT
+    value: http://texera-minio.texera-dev.svc.cluster.local:9000
+  - name: STORAGE_LAKEFS_ENDPOINT
+    value: http://texera-lakefs.texera-dev.svc.cluster.local:8000/api/v1
+  - name: STORAGE_JDBC_URL
+    value: jdbc:postgresql://texera-postgresql.texera-dev.svc.cluster.local:5432/texera_db?currentSchema=texera_db,public
+  - name: STORAGE_JDBC_USERNAME
+    value: texera
+  - name: STORAGE_JDBC_PASSWORD
+    value: password
+  - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
+    value: http://texera-file-service:9092/api/dataset/presign-download
+  - name: USER_SYS_ENABLED
+    value: "true"
+  - name: STORAGE_ICEBERG_CATALOG_TYPE
+    value: postgres
+  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
+    value: texera-postgres:5432/texera_iceberg_catalog
+  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
+    value: texera
+  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
+    value: password
+
+# Ingress dependency configs
+ingress-nginx:
+  controller:
+    replicaCount: 1
+    service:
+      type: NodePort
+      nodePorts:
+        http: 30080
+    ingressClassResource:
+      name: nginx
+      enabled: true
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  rbac:
+    create: true
+
+
+# Custom Ingress resource configs
+ingressPaths:
+  enabled: true
+  hostname: "localhost"
+  paths:
+    - path: /api/computing-unit
+      serviceName: workflow-computing-unit-manager-svc
+      servicePort: 8888
+    - path: /api/compile
+      serviceName: workflow-compiling-service-svc
+      servicePort: 9090
+    - path: /api/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /api/access/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api
+      serviceName: webserver-svc
+      servicePort: 8080
+    - path: /
+      serviceName: webserver-svc
+      servicePort: 8080

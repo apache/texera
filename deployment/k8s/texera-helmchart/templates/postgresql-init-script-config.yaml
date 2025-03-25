@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-init-script
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}
+data:
+  init.sql: |
+{{ .Files.Get "files/texera_ddl.sql" | indent 4 }}
