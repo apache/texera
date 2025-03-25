@@ -1,10 +1,5 @@
-namespace: texera-dev
-
-createNamespaces: true
-
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
-  namespaceOverride: texera-dev
   auth:
     username: texera
     password: password
@@ -18,7 +13,6 @@ postgresql:
       scriptsConfigMap: texera-postgresql-init-script
 
 minio:
-  namespaceOverride: texera-dev
   mode: standalone
   auth:
     rootUser: texera_minio
@@ -33,9 +27,11 @@ minio:
     size: 20Gi
 
 lakefs:
-  secretKeys:
+  secrets:
     authEncryptSecretKey: random_string_for_lakefs
     databaseConnectionString: postgres://texera:password@texera-postgresql.texera-dev.svc.cluster.local:5432/texera_lakefs?sslmode=disable
+  service:
+    port: 8000
   lakefsConfig: |
     database:
       type: postgres
@@ -57,7 +53,7 @@ lakefs:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:test # image name of the texera
+  imageName: texera/texera-web-application:dynamic-computing # image name of the texera
   service:
     type: NodePort # for testing purpose, NodePort mode is fine
     port: 8080 # port of the pod
@@ -108,6 +104,7 @@ envoy:
 # headless service
 # each pod's url is: computing-unit-%cuid.workflow-computing-unit.workflow-computing-unit-pool.svc.cluster.local
 workflowComputingUnitPool:
+  createNamespaces: true
   name: workflow-computing-unit
   namespace: workflow-computing-unit-pool
   imageName: texera/computing-unit-master:test
