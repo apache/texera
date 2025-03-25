@@ -1,11 +1,13 @@
 package edu.uci.ics.texera.service.resource
 
+import edu.uci.ics.amber.core.storage
+import edu.uci.ics.amber.core.storage.{EnvironmentalVariable, StorageConfig}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, context, userOwnComputingUnit}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, computingUnitEnvironmentVariables, context, userOwnComputingUnit}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
@@ -20,6 +22,15 @@ object ComputingUnitManagingResource {
   private lazy val context: DSLContext = SqlServer
     .getInstance()
     .createDSLContext()
+
+  private lazy val computingUnitEnvironmentVariables: Map[String, String] = Map(
+    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
+    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
+    EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword,
+    EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
+    EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
+    EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
+  )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
     val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
@@ -109,7 +120,7 @@ class ComputingUnitManagingResource {
         val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
         // Create the pod with the generated CUID
-        val pod = KubernetesClient.createPod(cuid, param.cpuLimit, param.memoryLimit)
+        val pod = KubernetesClient.createPod(cuid, param.cpuLimit, param.memoryLimit, computingUnitEnvironmentVariables)
 
         // Return the dashboard response
         DashboardWorkflowComputingUnit(
@@ -165,7 +176,7 @@ class ComputingUnitManagingResource {
     * @param param The parameters containing the pod URI.
     * @return A response indicating success or failure.
     */
-  @POST
+  @DELETE
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))

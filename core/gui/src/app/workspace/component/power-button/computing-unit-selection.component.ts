@@ -123,7 +123,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     this.computingUnitService
-      .terminateComputingUnit(uri)
+      .terminateComputingUnit(cuid)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (res: Response) => {

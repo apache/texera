@@ -49,7 +49,7 @@
       *ngIf="selectedComputingUnit"
       nz-tooltip
       [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
-      {{selectedComputingUnit.computingUnit.name}}
+      {{getComputingUnitName(selectedComputingUnit.uri)}}
     </span>
     <span *ngIf="!selectedComputingUnit">Connect</span>
     <i

@@ -69,11 +69,19 @@ object KubernetesClient {
       .getOrElse(Map.empty[String, String])
   }
 
-  def createPod(cuid: Int, cpuLimit: String, memoryLimit: String): Pod = {
+  def createPod(cuid: Int, cpuLimit: String, memoryLimit: String, envVars: Map[String, Any]): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
       throw new Exception(s"Pod with cuid $cuid already exists")
     }
+
+    val envList = envVars.map {
+      case (key, value) =>
+        new EnvVarBuilder()
+          .withName(key)
+          .withValue(value.toString)
+          .build()
+    }.toList.asJava
 
     val pod = new PodBuilder()
       .withNewMetadata()
@@ -88,9 +96,7 @@ object KubernetesClient {
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
       .addNewPort().withContainerPort(KubernetesConfig.computeUnitPortNumber).endPort()
-      .addNewEnv().withName("JDBC_URL").withValue(StorageConfig.jdbcUrl).endEnv()
-      .addNewEnv().withName("JDBC_USERNAME").withValue(StorageConfig.jdbcUsername).endEnv()
-      .addNewEnv().withName("JDBC_PASSWORD").withValue(StorageConfig.jdbcPassword).endEnv()
+      .withEnv(envList)
       .withNewResources()
       .addToLimits("cpu", new Quantity(cpuLimit))
       .addToLimits("memory", new Quantity(memoryLimit))
@@ -103,6 +109,7 @@ object KubernetesClient {
 
     client.pods().inNamespace(namespace).create(pod)
   }
+
 
   def deletePod(cuid: Int): Unit = {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
