@@ -163,6 +163,10 @@ ingress-nginx:
 ingressPaths:
   enabled: true
   hostname: "localhost"
+  # Optional TLS secret (manually created)
+  tlsSecretName: ""  # e.g., "texera-tls"
+  # Optional ClusterIssuer name for cert-manager
+  clusterIssuer: ""  # e.g., "letsencrypt-prod"
   paths:
     - path: /api/computing-unit
       serviceName: workflow-computing-unit-manager-svc

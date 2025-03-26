@@ -5,10 +5,21 @@ metadata:
   name: {{ .Release.Name }}-ingress
   namespace: {{ .Release.Namespace }}
   annotations:
-    # nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
+    {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.clusterIssuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+    {{- if .Values.ingressPaths.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingressPaths.clusterIssuer }}
+    {{- end }}
 spec:
   ingressClassName: nginx
+  {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.clusterIssuer }}
+  tls:
+    - hosts:
+        - {{ .Values.ingressPaths.hostname }}
+      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
+  {{- end }}
   rules:
     - host: {{ .Values.ingressPaths.hostname }}
       http:
