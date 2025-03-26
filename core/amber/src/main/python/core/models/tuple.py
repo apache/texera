@@ -139,7 +139,7 @@ def java_hash_bytes(
 ):
     """
     Java's hash function for an array of bytes.
-    :param byte_data: Either a list of bytes objects or an iterator of int (byte) values.
+    :param byte_data: Either a list of bytes objects or iterator of int (byte)values.
     :param init: An init hash value.
     :param salt: A hash salt value.
     :return: Java's hash value in a 32-bit integer.
