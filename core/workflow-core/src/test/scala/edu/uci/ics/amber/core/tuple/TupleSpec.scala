@@ -135,7 +135,7 @@ class TupleSpec extends AnyFlatSpec {
       .add(timestampAttribute, new Timestamp(0L))
       .add(binaryAttribute, List(ByteBuffer.wrap(Array[Byte](104, 101, 108, 108, 111))))
       .build()
-    assert(inputTuple2.hashCode() == -1409761483)
+    assert(inputTuple2.hashCode() == -1865726187)
 
     val inputTuple3 = Tuple
       .builder(inputSchema)

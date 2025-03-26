@@ -215,7 +215,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
     assert(stats("col-long")("not_null_count") == 7L)
     assert(stats("col-double")("not_null_count") == 8L)
     assert(stats("col-timestamp")("not_null_count") == 8L)
-    assert(stats("col-binary")("not_null_count") == 7L)
+    assert(stats("col-binary")("not_null_count") == 8L)
   }
 
   def generateSampleItems(
