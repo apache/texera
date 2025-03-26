@@ -1,13 +1,20 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage
 import edu.uci.ics.amber.core.storage.{EnvironmentalVariable, StorageConfig}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitResourceLimit, computingUnitEnvironmentVariables, context, userOwnComputingUnit}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnitCreationParams,
+  WorkflowComputingUnitMetrics,
+  WorkflowComputingUnitResourceLimit,
+  computingUnitEnvironmentVariables,
+  context,
+  userOwnComputingUnit
+}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
@@ -33,7 +40,7 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     // TODO: use AmberConfig for this item. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
+    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
@@ -124,7 +131,12 @@ class ComputingUnitManagingResource {
         val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
         // Create the pod with the generated CUID
-        val pod = KubernetesClient.createPod(cuid, param.cpuLimit, param.memoryLimit, computingUnitEnvironmentVariables)
+        val pod = KubernetesClient.createPod(
+          cuid,
+          param.cpuLimit,
+          param.memoryLimit,
+          computingUnitEnvironmentVariables
+        )
 
         // Return the dashboard response
         DashboardWorkflowComputingUnit(
@@ -149,8 +161,8 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("")
   def listComputingUnits(
-                          @Auth user: SessionUser
-                        ): List[DashboardWorkflowComputingUnit] = {
+      @Auth user: SessionUser
+  ): List[DashboardWorkflowComputingUnit] = {
     withTransaction(context) { ctx =>
       val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
 
@@ -186,9 +198,9 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/terminate")
   def terminateComputingUnit(
-                              @PathParam("cuid") cuid: Integer,
-                              @Auth user: SessionUser,
-                            ): Response = {
+      @PathParam("cuid") cuid: Integer,
+      @Auth user: SessionUser
+  ): Response = {
     if (!userOwnComputingUnit(context, cuid, user.getUid)) {
       return Response
         .status(Response.Status.BAD_REQUEST)
@@ -220,9 +232,9 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
   def getComputingUnitMetrics(
-                              @PathParam("cuid") cuid: String,
-                              @Auth user: SessionUser,
-                            ): WorkflowComputingUnitMetrics = {
+      @PathParam("cuid") cuid: String,
+      @Auth user: SessionUser
+  ): WorkflowComputingUnitMetrics = {
     if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
       throw new BadRequestException("User has no access to the computing unit")
     }
@@ -235,7 +247,7 @@ class ComputingUnitManagingResource {
   @Path("/{cuid}/limits")
   def getComputingUnitResourceLimit(
       @PathParam("cuid") cuid: String,
-      @Auth user: SessionUser,
+      @Auth user: SessionUser
   ): WorkflowComputingUnitResourceLimit = {
     if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
       throw new BadRequestException("User has no access to the computing unit")

@@ -10,8 +10,7 @@ import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.core.Application
 
-class ComputingUnitManagingService
-    extends Application[ComputingUnitManagingServiceConfiguration] {
+class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
 
   override def initialize(
       bootstrap: Bootstrap[ComputingUnitManagingServiceConfiguration]
@@ -20,8 +19,8 @@ class ComputingUnitManagingService
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
   override def run(
-                    configuration: ComputingUnitManagingServiceConfiguration,
-                    environment: Environment
+      configuration: ComputingUnitManagingServiceConfiguration,
+      environment: Environment
   ): Unit = {
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,

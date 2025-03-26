@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.service.util
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.service.KubernetesConfig
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
@@ -49,8 +48,9 @@ object KubernetesClient {
       .collectFirst {
         case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
           podMetrics.getContainers.asScala.flatMap { container =>
-            container.getUsage.asScala.map { case (metric, value) =>
-              metric -> value.toString
+            container.getUsage.asScala.map {
+              case (metric, value) =>
+                metric -> value.toString
             }
           }.toMap
       }
@@ -69,19 +69,27 @@ object KubernetesClient {
       .getOrElse(Map.empty[String, String])
   }
 
-  def createPod(cuid: Int, cpuLimit: String, memoryLimit: String, envVars: Map[String, Any]): Pod = {
+  def createPod(
+      cuid: Int,
+      cpuLimit: String,
+      memoryLimit: String,
+      envVars: Map[String, Any]
+  ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
       throw new Exception(s"Pod with cuid $cuid already exists")
     }
 
-    val envList = envVars.map {
-      case (key, value) =>
-        new EnvVarBuilder()
-          .withName(key)
-          .withValue(value.toString)
-          .build()
-    }.toList.asJava
+    val envList = envVars
+      .map {
+        case (key, value) =>
+          new EnvVarBuilder()
+            .withName(key)
+            .withValue(value.toString)
+            .build()
+      }
+      .toList
+      .asJava
 
     val pod = new PodBuilder()
       .withNewMetadata()
@@ -95,7 +103,9 @@ object KubernetesClient {
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
-      .addNewPort().withContainerPort(KubernetesConfig.computeUnitPortNumber).endPort()
+      .addNewPort()
+      .withContainerPort(KubernetesConfig.computeUnitPortNumber)
+      .endPort()
       .withEnv(envList)
       .withNewResources()
       .addToLimits("cpu", new Quantity(cpuLimit))
@@ -109,7 +119,6 @@ object KubernetesClient {
 
     client.pods().inNamespace(namespace).create(pod)
   }
-
 
   def deletePod(cuid: Int): Unit = {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
