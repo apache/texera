@@ -147,21 +147,23 @@ def java_hash_bytes(
     :param salt: A hash salt value.
     :return: Java's hash value in a 32-bit integer.
     """
-    h = init
-    # Handle case where input is a list of bytes or bytearray objects
+    hash_value = init
+
+    # Case 1: Input is a non-empty list of bytes/bytearray objects
     if (
         isinstance(byte_data, list)
         and byte_data
         and isinstance(byte_data[0], (bytes, bytearray))
     ):
         for byte_obj in byte_data:
-            for b in byte_obj:
-                h = int_32(salt * h + b)
+            for byte in byte_obj:
+                hash_value = int_32(salt * hash_value + byte)
+    # Case 2: Input is an iterator of integers or other iterable
     else:
-        # Original behavior for iterator of ints
-        for b in byte_data:
-            h = int_32(salt * h + b)
-    return h
+        for byte in byte_data:
+            hash_value = int_32(salt * hash_value + byte)
+
+    return hash_value
 
 
 class Tuple:
@@ -284,6 +286,8 @@ class Tuple:
             cast.
         :return:
         """
+        MAX_CHUNK_SIZE = 1 * 1024 * 1024 * 1024  # 1GB in bytes
+
         for field_name in self.get_field_names():
             try:
                 field_value: Field = self[field_name]
@@ -306,31 +310,27 @@ class Tuple:
                             ]
                         # If it's a single bytes object, convert to list with one item
                         elif isinstance(field_value, bytes):
-                            # Split large bytes objects into 1GB chunks
-                            MAX_CHUNK_SIZE = 1 * 1024 * 1024 * 1024  # 1GB in bytes
+
                             if len(field_value) > MAX_CHUNK_SIZE:
-                                chunks = []
-                                for i in range(0, len(field_value), MAX_CHUNK_SIZE):
-                                    chunks.append(field_value[i : i + MAX_CHUNK_SIZE])
-                                self[field_name] = chunks
+                                self[field_name] = [
+                                    field_value[i : i + MAX_CHUNK_SIZE]
+                                    for i in range(0, len(field_value), MAX_CHUNK_SIZE)
+                                ]
                             else:
                                 self[field_name] = [field_value]
                         # For other types, pickle them
                         else:
                             pickled_data = pickle.dumps(field_value)
-                            # Split pickled data into 1GB chunks if needed
-                            MAX_CHUNK_SIZE = 1 * 1024 * 1024 * 1024  # 1GB in bytes
                             pickled_prefix = b"pickle    "
-                            chunks = []
+
                             if len(pickled_data) > MAX_CHUNK_SIZE:
-                                for i in range(0, len(pickled_data), MAX_CHUNK_SIZE):
-                                    chunks.append(
-                                        pickled_prefix
-                                        + pickled_data[i : i + MAX_CHUNK_SIZE]
-                                    )
+                                self[field_name] = [
+                                    pickled_prefix
+                                    + pickled_data[i : i + MAX_CHUNK_SIZE]
+                                    for i in range(0, len(pickled_data), MAX_CHUNK_SIZE)
+                                ]
                             else:
-                                chunks = [pickled_prefix + pickled_data]
-                            self[field_name] = chunks
+                                self[field_name] = [pickled_prefix + pickled_data]
 
             except Exception as err:
                 # Surpass exceptions during cast.
