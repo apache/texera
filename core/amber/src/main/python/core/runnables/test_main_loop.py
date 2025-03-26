@@ -1,5 +1,4 @@
 import inspect
-import pickle
 from threading import Thread
 
 import pandas
