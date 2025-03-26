@@ -241,23 +241,35 @@ object ArrowUtils extends LazyLogging {
             case (false, largeListVector: LargeListVector) =>
               value match {
                 case bufferList: List[_]
-                    if bufferList.nonEmpty && bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
+                    if bufferList.isEmpty || bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
                   val writer = largeListVector.getWriter
                   writer.setPosition(index)
                   writer.startList()
 
                   // Process ByteBuffers in a more functional way
-                  bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
-                    val bytes = Array.ofDim[Byte](buffer.remaining())
-                    buffer.duplicate().get(bytes)
+                  if (bufferList.nonEmpty) {
+                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
+                      if (buffer == null) {
+                        // For null elements, write an empty byte array
+                        val arrowBuf = allocator.buffer(0)
+                        try {
+                          writer.writeVarBinary(0, 0, arrowBuf)
+                        } finally {
+                          arrowBuf.close() // Ensure buffer is released
+                        }
+                      } else {
+                        val bytes = Array.ofDim[Byte](buffer.remaining())
+                        buffer.duplicate().get(bytes)
 
-                    // Use loan pattern for resource management
-                    val arrowBuf = allocator.buffer(bytes.length)
-                    try {
-                      arrowBuf.writeBytes(bytes)
-                      writer.writeVarBinary(0, bytes.length, arrowBuf)
-                    } finally {
-                      arrowBuf.close() // Ensure buffer is released
+                        // Use loan pattern for resource management
+                        val arrowBuf = allocator.buffer(bytes.length)
+                        try {
+                          arrowBuf.writeBytes(bytes)
+                          writer.writeVarBinary(0, bytes.length, arrowBuf)
+                        } finally {
+                          arrowBuf.close() // Ensure buffer is released
+                        }
+                      }
                     }
                   }
 

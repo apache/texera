@@ -440,15 +440,12 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val binarySchema = Schema()
       .add("binary-data", AttributeType.BINARY)
 
-    // Create an incorrect type for binary data (String instead of List[ByteBuffer])
-    val incorrectValue = "This is not a List of ByteBuffers"
-
-    // Create a tuple with incorrect data type
+    // Create a test tuple with an empty list - this will pass Tuple validation
     val tuple = Tuple
       .builder(binarySchema)
       .addSequentially(
         Array(
-          incorrectValue // This is incorrect - should be List[ByteBuffer]
+          List[java.nio.ByteBuffer]() // Valid empty list
         )
       )
       .build()
@@ -458,9 +455,32 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
 
-    // Set tuple into Arrow vectors - should throw AttributeTypeException
+    // This should succeed
+    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+
+    // Now test with a reflectively created tuple that has an invalid value
+    // This simulates receiving a tuple with an incorrect type
+    val fieldMap = scala.reflect.runtime.currentMirror
+      .reflect(tuple)
+      .symbol
+      .typeSignature
+      .member(scala.reflect.runtime.universe.TermName("fields"))
+      .asTerm
+    val fieldsObj = scala.reflect.runtime.currentMirror.reflect(tuple).reflectField(fieldMap).get
+    val badFields = fieldsObj.asInstanceOf[Array[AnyRef]].clone()
+
+    // Replace the binary field with a string (non-List type)
+    badFields(0) = "This is not a List of ByteBuffers"
+
+    // Create a tuple with incorrect internal field via reflection
+    val badTupleClass = tuple.getClass
+    val badTuple = badTupleClass
+      .getDeclaredConstructor(classOf[Schema], classOf[Array[AnyRef]])
+      .newInstance(binarySchema, badFields)
+
+    // The ArrowUtils should throw AttributeTypeException for this malformed tuple
     assertThrows[AttributeTypeException] {
-      ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+      ArrowUtils.appendTexeraTuple(badTuple.asInstanceOf[Tuple], vectorSchemaRoot)
     }
   }
 
