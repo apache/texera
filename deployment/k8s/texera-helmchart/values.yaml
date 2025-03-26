@@ -7,7 +7,7 @@ postgresql:
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: local-path
+      storageClass: local-path # change to specific storageClass if needed.
 
     initdb:
       scriptsConfigMap: texera-postgresql-init-script
@@ -25,6 +25,7 @@ minio:
   persistence:
     enabled: true
     size: 20Gi
+    storageClass: local-path # change to specific storageClass if needed.
 
 lakefs:
   secrets:
