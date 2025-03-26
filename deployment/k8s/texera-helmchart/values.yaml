@@ -130,7 +130,7 @@ texeraEnvVars:
   - name: STORAGE_ICEBERG_CATALOG_TYPE
     value: postgres
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
-    value: texera-postgres:5432/texera_iceberg_catalog
+    value: texera-postgresql.texera-dev.svc.cluster.local:5432/texera_iceberg_catalog
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
     value: texera
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
