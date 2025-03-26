@@ -2,7 +2,9 @@ FROM node:18 AS build-gui
 
 WORKDIR /gui
 COPY core/gui /gui
+RUN rm -f /gui/.yarnrc.yml
 RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path 4.5.1
+RUN echo "nodeLinker: node-modules" >> /gui/.yarnrc.yml
 
 WORKDIR /gui
 RUN yarn install && yarn run build
