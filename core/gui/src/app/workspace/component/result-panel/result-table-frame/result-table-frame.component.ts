@@ -11,10 +11,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
-import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
-
-export const TABLE_COLUMN_TEXT_LIMIT = 100;
-export const PRETTY_JSON_TEXT_LIMIT = 50000;
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -354,7 +351,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => this.formatCellValue(row[col.columnKey]),
+      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
   }
 
@@ -373,14 +370,5 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
-  }
-
-  // Rename from trimTableCell to formatCellValue
-  formatCellValue(cellContent: any): string | number | boolean | object {
-    // This function ensures type compatibility for table cell values
-    if (typeof cellContent === "symbol") {
-      return cellContent.toString();
-    }
-    return cellContent;
   }
 }

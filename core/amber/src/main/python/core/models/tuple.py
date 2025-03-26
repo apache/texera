@@ -277,67 +277,83 @@ class Tuple:
     def cast_to_schema(self, schema: Schema) -> None:
         """
         Safely cast each field value to match the target schema.
-        If failed, the value will stay not changed.
 
-        This current conducts two kinds of casts:
-            1. cast NaN to None;
-            2. cast any object to bytes (using pickle).
-        :param schema: The target Schema that describes the target AttributeType to
-            cast.
-        :return:
+        This currently conducts two kinds of casts:
+            1. cast NaN to None
+            2. cast any object to bytes (using pickle)
+
+        Args:
+            schema: The target Schema that describes the AttributeType to cast to
         """
         MAX_CHUNK_SIZE = 1 * 1024 * 1024 * 1024  # 1GB in bytes
+        PICKLE_PREFIX = b"pickle    "
 
         for field_name in self.get_field_names():
             try:
                 field_value: Field = self[field_name]
 
-                # convert NaN to None to support null value conversion
+                # Convert NaN to None to support null value conversion
                 if checknull(field_value):
                     self[field_name] = None
+                    continue
 
-                if field_value is not None:
-                    field_type = schema.get_attr_type(field_name)
+                if field_value is None:
+                    continue
 
-                    # Handle BINARY type - expected to be a list of byte arrays
-                    if field_type == AttributeType.BINARY:
-                        # If it's already a list, make sure all items are bytes
-                        if isinstance(field_value, list):
-                            # Convert each item to bytes if needed
-                            self[field_name] = [
-                                item if isinstance(item, bytes) else bytes(item)
-                                for item in field_value
-                            ]
-                        # If it's a single bytes object, convert to list with one item
-                        elif isinstance(field_value, bytes):
+                field_type = schema.get_attr_type(field_name)
 
-                            if len(field_value) > MAX_CHUNK_SIZE:
-                                self[field_name] = [
-                                    field_value[i : i + MAX_CHUNK_SIZE]
-                                    for i in range(0, len(field_value), MAX_CHUNK_SIZE)
-                                ]
-                            else:
-                                self[field_name] = [field_value]
-                        # For other types, pickle them
-                        else:
-                            pickled_data = pickle.dumps(field_value)
-                            pickled_prefix = b"pickle    "
-
-                            if len(pickled_data) > MAX_CHUNK_SIZE:
-                                self[field_name] = [
-                                    pickled_prefix
-                                    + pickled_data[i : i + MAX_CHUNK_SIZE]
-                                    for i in range(0, len(pickled_data), MAX_CHUNK_SIZE)
-                                ]
-                            else:
-                                self[field_name] = [pickled_prefix + pickled_data]
+                # Handle BINARY type - expected to be a list of byte arrays
+                if field_type == AttributeType.BINARY:
+                    self._process_binary_field(
+                        field_name, field_value, MAX_CHUNK_SIZE, PICKLE_PREFIX
+                    )
 
             except Exception as err:
-                # Surpass exceptions during cast.
-                # Keep the value as it is if the cast fails, and continue to attempt
-                # on the next one.
-                logger.warning(err)
-                continue
+                # Suppress exceptions during cast.
+                # Keep the value as it is if the cast fails, and continue to the next one.
+                logger.warning(f"Failed to cast field '{field_name}': {err}")
+
+    def _process_binary_field(
+        self,
+        field_name: str,
+        field_value: Any,
+        max_chunk_size: int,
+        pickle_prefix: bytes,
+    ) -> None:
+        """
+        Process a field with BINARY type, converting it to the expected format.
+
+        Args:
+            field_name: Name of the field being processed
+            field_value: Value to convert to binary format
+            max_chunk_size: Maximum size of each binary chunk
+            pickle_prefix: Prefix to add to pickled data
+        """
+        # If it's already a list, make sure all items are bytes
+        if isinstance(field_value, list):
+            self[field_name] = [
+                item if isinstance(item, bytes) else bytes(item) for item in field_value
+            ]
+        # If it's a single bytes object, convert to list with one item
+        elif isinstance(field_value, bytes):
+            if len(field_value) > max_chunk_size:
+                self[field_name] = [
+                    field_value[i : i + max_chunk_size]
+                    for i in range(0, len(field_value), max_chunk_size)
+                ]
+            else:
+                self[field_name] = [field_value]
+        # For other types, pickle them
+        else:
+            pickled_data = pickle.dumps(field_value)
+
+            if len(pickled_data) > max_chunk_size:
+                self[field_name] = [
+                    pickle_prefix + pickled_data[i : i + max_chunk_size]
+                    for i in range(0, len(pickled_data), max_chunk_size)
+                ]
+            else:
+                self[field_name] = [pickle_prefix + pickled_data]
 
     def validate_schema(self, schema: Schema) -> None:
         """
