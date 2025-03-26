@@ -53,18 +53,16 @@ object ArrowUtils extends LazyLogging {
     val schema = toTexeraSchema(arrowSchema)
 
     val builder = Tuple.builder(schema)
+    val fieldVectors = vectorSchemaRoot.getFieldVectors
 
-    for (i <- 0 until vectorSchemaRoot.getFieldVectors.size()) {
-      val fieldVector = vectorSchemaRoot.getFieldVectors.get(i)
+    (0 until fieldVectors.size()).foreach { i =>
+      val fieldVector = fieldVectors.get(i)
       val arrowType = fieldVector.getField.getFieldType.getType
+      val attribute = schema.getAttributes.get(i)
 
       try {
         val value = arrowType match {
           case _: ArrowType.LargeList =>
-            // Special handling for large list types
-            import org.apache.arrow.vector.complex.LargeListVector
-
-            // Handle LargeListVector
             fieldVector match {
               case largeListVector: LargeListVector =>
                 if (largeListVector.isNull(rowIndex)) {
@@ -78,22 +76,21 @@ object ArrowUtils extends LazyLogging {
                   val endIdx = largeListVector.getOffsetBuffer.getLong((rowIndex + 1) * 8).toInt
 
                   // Convert to List[ByteBuffer]
-                  val bufferList = for (j <- startIdx until endIdx) yield {
+                  (startIdx until endIdx).map { j =>
                     if (innerVector.isNull(j)) {
                       java.nio.ByteBuffer.allocate(0)
                     } else {
                       val bytes = innerVector.getObject(j).asInstanceOf[Array[Byte]]
                       java.nio.ByteBuffer.wrap(bytes)
                     }
-                  }
-
-                  bufferList.toList
+                  }.toList
                 }
 
               case _ =>
                 logger.warn(s"Unsupported list vector type: ${fieldVector.getClass.getName}")
                 null
             }
+
           case _ =>
             // For other types, get the object and parse it using the AttributeType
             val rawValue = fieldVector.getObject(rowIndex)
@@ -101,11 +98,11 @@ object ArrowUtils extends LazyLogging {
             AttributeTypeUtils.parseField(rawValue, attributeType)
         }
 
-        builder.add(schema.getAttributes.get(i), value)
+        builder.add(attribute, value)
       } catch {
         case e: Exception =>
           logger.warn("Caught error during parsing Arrow value back to Texera value", e)
-          builder.add(schema.getAttributes.get(i), null)
+          builder.add(attribute, null)
       }
     }
 
@@ -232,55 +229,52 @@ object ArrowUtils extends LazyLogging {
               .asInstanceOf[VarCharVector]
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
         case _: ArrowType.LargeList =>
-          if (isNull) {
-            // Handle null case for LargeListVector
-            vector match {
-              case largeListVector: LargeListVector => largeListVector.setNull(index)
-              case _ =>
-                logger.warn(
-                  s"Unsupported list vector type for null value: ${vector.getClass.getName}"
-                )
-            }
-          } else
-            value match {
-              case bufferList: List[_]
-                  if bufferList.nonEmpty && bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
-                vector match {
-                  case largeListVector: LargeListVector =>
-                    val writer = largeListVector.getWriter
+          (isNull, vector) match {
+            case (true, largeListVector: LargeListVector) =>
+              largeListVector.setNull(index)
 
-                    writer.setPosition(index)
-                    writer.startList()
+            case (true, _) =>
+              logger.warn(
+                s"Unsupported list vector type for null value: ${vector.getClass.getName}"
+              )
 
-                    // For each ByteBuffer in the list, write it as a binary value
-                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
-                      val bytes = new Array[Byte](buffer.remaining())
-                      buffer.duplicate().get(bytes)
+            case (false, largeListVector: LargeListVector) =>
+              value match {
+                case bufferList: List[_]
+                    if bufferList.nonEmpty && bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
+                  val writer = largeListVector.getWriter
+                  writer.setPosition(index)
+                  writer.startList()
 
-                      // Create an ArrowBuf and copy the bytes into it
-                      val arrowBuf = allocator.buffer(bytes.length)
-                      try {
-                        arrowBuf.writeBytes(bytes)
-                        writer.writeVarBinary(0, bytes.length, arrowBuf)
-                      } finally {
-                        arrowBuf.close() // Make sure to release the buffer
-                      }
+                  // Process ByteBuffers in a more functional way
+                  bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
+                    val bytes = Array.ofDim[Byte](buffer.remaining())
+                    buffer.duplicate().get(bytes)
+
+                    // Use loan pattern for resource management
+                    val arrowBuf = allocator.buffer(bytes.length)
+                    try {
+                      arrowBuf.writeBytes(bytes)
+                      writer.writeVarBinary(0, bytes.length, arrowBuf)
+                    } finally {
+                      arrowBuf.close() // Ensure buffer is released
                     }
+                  }
 
-                    writer.endList()
+                  writer.endList()
 
-                  case _ =>
-                    logger.warn(s"Unsupported list vector type: ${vector.getClass.getName}")
-                    throw new AttributeTypeUtils.AttributeTypeException(
-                      s"Cannot write to unsupported list vector type: ${vector.getClass.getName}"
-                    )
-                }
+                case other =>
+                  throw new AttributeTypeUtils.AttributeTypeException(
+                    s"Cannot convert ${other.getClass.getName} to list of binary data"
+                  )
+              }
 
-              case _ =>
-                throw new AttributeTypeUtils.AttributeTypeException(
-                  s"Cannot convert ${value.getClass.getName} to list of binary data"
-                )
-            }
+            case (false, _) =>
+              logger.warn(s"Unsupported list vector type: ${vector.getClass.getName}")
+              throw new AttributeTypeUtils.AttributeTypeException(
+                s"Cannot write to unsupported list vector type: ${vector.getClass.getName}"
+              )
+          }
       }
     }
 

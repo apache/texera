@@ -408,7 +408,8 @@ class Tuple:
                 if non_bytes_items:
                     index, type_name = non_bytes_items[0]  # Report first error
                     raise TypeError(
-                        f"Type mismatch in BINARY list field '{field_name}' at index {index}: "
+                        f"Type mismatch in BINARY list field '{field_name}' "
+                        f"at index {index}: "
                         f"expected 'bytes', got '{type_name}' instead."
                     )
             # For other types, use the standard type check
