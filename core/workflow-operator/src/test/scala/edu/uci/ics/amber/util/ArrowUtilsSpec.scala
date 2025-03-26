@@ -440,8 +440,13 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val binarySchema = Schema()
       .add("binary-data", AttributeType.BINARY)
 
-    // Create a test tuple with an empty list - this will pass Tuple validation
-    val tuple = Tuple
+    val allocator: BufferAllocator = new RootAllocator()
+    val arrowSchema = ArrowUtils.fromTexeraSchema(binarySchema)
+    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
+    vectorSchemaRoot.allocateNew()
+
+    // Create a valid tuple first
+    val validTuple = Tuple
       .builder(binarySchema)
       .addSequentially(
         Array(
@@ -450,37 +455,22 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       )
       .build()
 
-    val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(binarySchema)
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
-
     // This should succeed
-    ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
+    ArrowUtils.appendTexeraTuple(validTuple, vectorSchemaRoot)
 
-    // Now test with a reflectively created tuple that has an invalid value
-    // This simulates receiving a tuple with an incorrect type
-    val fieldMap = scala.reflect.runtime.currentMirror
-      .reflect(tuple)
-      .symbol
-      .typeSignature
-      .member(scala.reflect.runtime.universe.TermName("fields"))
-      .asTerm
-    val fieldsObj = scala.reflect.runtime.currentMirror.reflect(tuple).reflectField(fieldMap).get
-    val badFields = fieldsObj.asInstanceOf[Array[AnyRef]].clone()
-
-    // Replace the binary field with a string (non-List type)
-    badFields(0) = "This is not a List of ByteBuffers"
-
-    // Create a tuple with incorrect internal field via reflection
-    val badTupleClass = tuple.getClass
-    val badTuple = badTupleClass
-      .getDeclaredConstructor(classOf[Schema], classOf[Array[AnyRef]])
-      .newInstance(binarySchema, badFields)
+    // Create an invalid tuple directly using addSequentially with a String instead of a List[ByteBuffer]
+    val invalidTuple = Tuple
+      .builder(binarySchema)
+      .addSequentially(
+        Array(
+          "This is not a List of ByteBuffers" // Invalid type
+        )
+      )
+      .build()
 
     // The ArrowUtils should throw AttributeTypeException for this malformed tuple
     assertThrows[AttributeTypeException] {
-      ArrowUtils.appendTexeraTuple(badTuple.asInstanceOf[Tuple], vectorSchemaRoot)
+      ArrowUtils.appendTexeraTuple(invalidTuple, vectorSchemaRoot)
     }
   }
 
