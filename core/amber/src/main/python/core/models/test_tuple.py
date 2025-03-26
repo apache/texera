@@ -205,3 +205,85 @@ class TestTuple:
             schema,
         )
         assert hash(tuple5) == -2099556631  # calculated with Java
+
+    def test_binary_field_processing(self):
+        """Test the processing of fields with BINARY type during schema finalization."""
+        # Create a schema with a BINARY field
+        schema = Schema(
+            raw_schema={
+                "bytes_list": "BINARY",
+                "single_bytes": "BINARY",
+                "regular_object": "BINARY",
+                "large_bytes": "BINARY",
+            }
+        )
+
+        # Create test data with different formats
+        bytes_list = [b"hello", b"world"]
+        single_bytes = b"single byte string"
+        regular_object = {"key": "value", "numbers": [1, 2, 3]}
+        large_bytes = b"x" * (1024 * 1024 + 100)
+
+        # Create a tuple with these values
+        tuple_ = Tuple(
+            {
+                "bytes_list": bytes_list,
+                "single_bytes": single_bytes,
+                "regular_object": regular_object,
+                "large_bytes": large_bytes,
+            }
+        )
+
+        # Finalize the tuple with the schema (this will trigger cast_to_schema)
+        tuple_.finalize(schema)
+
+        # Test case 1: Already a list of bytes objects
+        assert isinstance(tuple_["bytes_list"], list)
+        assert all(isinstance(item, bytes) for item in tuple_["bytes_list"])
+        assert tuple_["bytes_list"] == [b"hello", b"world"]
+
+        # Test case 2: Single bytes object converted to a list with one item
+        assert isinstance(tuple_["single_bytes"], list)
+        assert len(tuple_["single_bytes"]) == 1
+        assert tuple_["single_bytes"][0] == b"single byte string"
+
+        # Test case 3: Regular object pickled with pickle prefix
+        assert isinstance(tuple_["regular_object"], list)
+        assert len(tuple_["regular_object"]) == 1
+        assert tuple_["regular_object"][0].startswith(b"pickle    ")
+
+        # Test case 4: Large bytes object (but still under 1GB chunking threshold)
+        assert isinstance(tuple_["large_bytes"], list)
+        assert len(tuple_["large_bytes"]) == 1
+        assert len(tuple_["large_bytes"][0]) == len(large_bytes)
+        assert tuple_["large_bytes"][0] == large_bytes
+
+    def test_binary_field_chunking(self):
+        """Test that binary fields are properly chunked when exceeding chunk size."""
+        # Create a test tuple
+        test_tuple = Tuple({"test_field": b"test_data"})
+
+        # Manually call _process_binary_field with a small chunk size (3 bytes)
+        # This should split "test_data" into chunks: "tes", "t_d", "ata"
+        test_tuple._process_binary_field("test_field", b"test_data", 3, b"pickle    ")
+
+        # Verify chunking behavior
+        assert isinstance(test_tuple["test_field"], list)
+        assert len(test_tuple["test_field"]) == 3
+        assert test_tuple["test_field"] == [b"tes", b"t_d", b"ata"]
+
+        # Verify we can reconstruct the original data
+        assert b"".join(test_tuple["test_field"]) == b"test_data"
+
+        # Test with pickle prefix for non-bytes data
+        test_tuple2 = Tuple({"complex_field": "complex_value"})
+        test_tuple2._process_binary_field(
+            "complex_field", "complex_value", 10, b"pickle    "
+        )
+
+        # Verify pickle behavior
+        assert isinstance(test_tuple2["complex_field"], list)
+        assert len(test_tuple2["complex_field"]) > 0
+        assert all(
+            chunk.startswith(b"pickle    ") for chunk in test_tuple2["complex_field"]
+        )

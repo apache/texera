@@ -288,6 +288,37 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
+    * Converts an Amber schema into Arrow schema.
+    *
+    * @param schema The Texera Schema.
+    * @return An Arrow Schema.
+    */
+  def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
+    val arrowFields = new util.ArrayList[Field]
+
+    for (amberAttribute <- schema.getAttributes) {
+      val name = amberAttribute.getName
+      val attributeType = amberAttribute.getType
+
+      val field = attributeType match {
+        case AttributeType.BINARY =>
+          // For BINARY type, create a LargeList field with Binary element type
+          val childField = Field.nullablePrimitive("element", new ArrowType.Binary())
+          new Field(
+            name,
+            FieldType.nullable(new ArrowType.LargeList()),
+            util.Arrays.asList(childField)
+          )
+        case _ =>
+          Field.nullablePrimitive(name, fromAttributeTypeToPrimitive(attributeType))
+      }
+
+      arrowFields.add(field)
+    }
+    new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
+  }
+
+  /**
     * Converts an AttributeType into a primitive ArrowType.
     *
     * @param srcType The AttributeType to be converted.
@@ -319,36 +350,4 @@ object ArrowUtils extends LazyLogging {
         throw new AttributeTypeUtils.AttributeTypeException("Unexpected value: " + srcType)
     }
   }
-
-  /**
-    * Converts an Amber schema into Arrow schema.
-    *
-    * @param schema The Texera Schema.
-    * @return An Arrow Schema.
-    */
-  def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
-    val arrowFields = new util.ArrayList[Field]
-
-    for (amberAttribute <- schema.getAttributes) {
-      val name = amberAttribute.getName
-      val attributeType = amberAttribute.getType
-
-      val field = attributeType match {
-        case AttributeType.BINARY =>
-          // For BINARY type, create a LargeList field with Binary element type
-          val childField = Field.nullablePrimitive("element", new ArrowType.Binary())
-          new Field(
-            name,
-            FieldType.nullable(new ArrowType.LargeList()),
-            util.Arrays.asList(childField)
-          )
-        case _ =>
-          Field.nullablePrimitive(name, fromAttributeTypeToPrimitive(attributeType))
-      }
-
-      arrowFields.add(field)
-    }
-    new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
-  }
-
 }
