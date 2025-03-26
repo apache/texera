@@ -135,18 +135,25 @@ def java_hash_long(value: int) -> int:
 
 
 def java_hash_bytes(
-    byte_data: typing.Union[List[bytes], Iterator[int]], init: int, salt: int
+    byte_data: typing.Union[List[typing.Union[bytes, bytearray]], Iterator[int]],
+    init: int,
+    salt: int,
 ):
     """
     Java's hash function for an array of bytes.
-    :param byte_data: Either a list of bytes objects or iterator of int (byte)values.
+    :param byte_data: Either a list of bytes/bytearray objects
+                      or iterator of int (byte) values.
     :param init: An init hash value.
     :param salt: A hash salt value.
     :return: Java's hash value in a 32-bit integer.
     """
     h = init
-    # Handle case where input is a list of bytes objects
-    if isinstance(byte_data, list) and byte_data and isinstance(byte_data[0], bytes):
+    # Handle case where input is a list of bytes or bytearray objects
+    if (
+        isinstance(byte_data, list)
+        and byte_data
+        and isinstance(byte_data[0], (bytes, bytearray))
+    ):
         for byte_obj in byte_data:
             for b in byte_obj:
                 h = int_32(salt * h + b)
