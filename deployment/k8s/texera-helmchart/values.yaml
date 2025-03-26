@@ -138,6 +138,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
+  enabled: false # set to true if k8s does not have nginx installed.
   controller:
     replicaCount: 1
     service:
