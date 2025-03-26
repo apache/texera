@@ -118,7 +118,7 @@ class TestTuple:
             }
         )
         tuple_.finalize(schema)
-        assert isinstance(tuple_["scores"], bytes)
+        assert isinstance(tuple_["scores"], list)
         assert tuple_["height"] is None
 
     def test_hash(self):

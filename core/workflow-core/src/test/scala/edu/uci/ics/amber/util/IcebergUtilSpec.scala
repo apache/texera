@@ -98,7 +98,10 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(record.getField("test-4") == 3.14)
     assert(record.getField("test-5") == new Timestamp(10000L).toLocalDateTime)
     assert(record.getField("test-6") == "hello world")
-    assert(record.getField("test-7") == List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4))))
+    assert(
+      record.getField("test-7").asInstanceOf[java.util.List[ByteBuffer]].asScala.toList ==
+        List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
+    )
 
     val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
     assert(tupleFromRecord == tuple)
