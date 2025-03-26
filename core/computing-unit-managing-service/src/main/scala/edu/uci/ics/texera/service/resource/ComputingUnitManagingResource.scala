@@ -23,13 +23,17 @@ object ComputingUnitManagingResource {
     .getInstance()
     .createDSLContext()
 
-  private lazy val computingUnitEnvironmentVariables: Map[String, String] = Map(
+  // the environment variables passed to the created computing unit(pod)
+  private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword,
     EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
+    EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
+    // TODO: use AmberConfig for this item. Currently AmberConfig is only accessible in workflow-executing-service
+    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
