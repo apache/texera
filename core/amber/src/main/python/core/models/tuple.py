@@ -310,7 +310,8 @@ class Tuple:
 
             except Exception as err:
                 # Suppress exceptions during cast.
-                # Keep the value as it is if the cast fails, and continue to the next one.
+                # Keep the value as it is if the cast fails,
+                # and continue to the next one.
                 logger.warning(f"Failed to cast field '{field_name}': {err}")
 
     def _process_binary_field(
