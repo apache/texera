@@ -391,27 +391,32 @@ class Tuple:
 
             # Special handling for BINARY type
             if expected == AttributeType.BINARY:
-                # Check if it's a list
                 if not isinstance(field_value, list):
                     raise TypeError(
-                        f"Unmatched type for field '{field_name}', "
+                        f"Type mismatch for field '{field_name}': "
                         f"expected {expected} (list), "
-                        f"got {field_value} ({type(field_value)}) instead."
+                        f"got {type(field_value).__name__} instead."
                     )
 
-                # Check that all items are bytes objects
-                for i, item in enumerate(field_value):
-                    if not isinstance(item, bytes):
-                        raise TypeError(
-                            f"Unmatched type for item {i} "
-                            f"in BINARY list field '{field_name}', "
-                            f"expected bytes, got {item} ({type(item)}) instead."
-                        )
+                # Verify all items are bytes objects
+                non_bytes_items = [
+                    (i, type(item).__name__)
+                    for i, item in enumerate(field_value)
+                    if not isinstance(item, bytes)
+                ]
+
+                if non_bytes_items:
+                    index, type_name = non_bytes_items[0]  # Report first error
+                    raise TypeError(
+                        f"Type mismatch in BINARY list field '{field_name}' at index {index}: "
+                        f"expected 'bytes', got '{type_name}' instead."
+                    )
             # For other types, use the standard type check
             elif not isinstance(field_value, expected_type):
                 raise TypeError(
-                    f"Unmatched type for field '{field_name}', expected {expected}, "
-                    f"got {field_value} ({type(field_value)}) instead."
+                    f"Type mismatch for field '{field_name}': "
+                    f"expected {expected} ({expected_type.__name__}), "
+                    f"got {type(field_value).__name__} instead."
                 )
 
     def get_partial_tuple(self, attribute_names: List[str]) -> "Tuple":
