@@ -5,10 +5,11 @@ services:
     container_name: texera-minio
     ports:
       - "9000:9000"
-      - "9001:9001"
     env_file:
       - .env
     volumes:
+      #Uncomment the below line instead if you want to mount the minio data to a certain directory on your machine
+      #- /path/to/the/local/folder:/data
       - minio_data:/data
     command: server --console-address ":9001" /data
 
@@ -24,7 +25,10 @@ services:
       retries: 5
       start_period: 5s
     volumes:
+      # Uncomment the below line if you want to mount the postgres data to a certain directory on your machine
+      #- /path/to/the/local/folder:/var/lib/postgresql/data
       - postgres_data:/var/lib/postgresql/data
+      # mount the sql files for initializing the postgres
       - ../../core/scripts/sql:/docker-entrypoint-initdb.d
 
   lakefs:
@@ -36,8 +40,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     environment:
@@ -111,6 +113,10 @@ services:
         condition: service_started
     env_file:
       - .env
+    volumes:
+      #Uncomment the below line instead if you want to mount the workflow result data to a certain directory on your machine
+      #- /path/to/the/local/folder:/core/amber/user-resources
+      - computing_unit_data:/core/amber/user-resources
 
   nginx:
     image: nginx:alpine
@@ -127,6 +133,7 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  computing_unit_data:
 
 networks:
   default:
