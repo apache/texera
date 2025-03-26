@@ -171,6 +171,6 @@ class TupleSpec extends AnyFlatSpec {
       .add(timestampAttribute, new Timestamp(1234567890L))
       .add(binaryAttribute, List(ByteBuffer.wrap(Array.fill[Byte](4097)('o'))))
       .build()
-    assert(inputTuple5.hashCode() == -2099556631)
+    assert(inputTuple5.hashCode() == 278744158)
   }
 }

@@ -77,7 +77,7 @@ class TestIcebergDocument:
                     "col-long": 1123213213213,
                     "col-double": 214214.9969346,
                     "col-timestamp": datetime.datetime.now(),
-                    "col-binary": b"hello",
+                    "col-binary": list(b"hello"),
                 },
                 schema=amber_schema,
             ),
@@ -89,7 +89,7 @@ class TestIcebergDocument:
                     "col-long": -98765432109876,
                     "col-double": -0.001,
                     "col-timestamp": datetime.datetime.fromtimestamp(100000000),
-                    "col-binary": bytearray([255, 0, 0, 64]),
+                    "col-binary": list(bytearray([255, 0, 0, 64])),
                 },
                 schema=amber_schema,
             ),
@@ -101,7 +101,7 @@ class TestIcebergDocument:
                     "col-long": 9223372036854775807,
                     "col-double": 1.7976931348623157e308,
                     "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
-                    "col-binary": bytearray([1, 2, 3, 4, 5]),
+                    "col-binary": list(bytearray([1, 2, 3, 4, 5])),
                 },
                 schema=amber_schema,
             ),
@@ -127,7 +127,7 @@ class TestIcebergDocument:
                             datetime.datetime.now().timestamp() + i
                         )
                     ),
-                    "col-binary": None if i % 9 == 0 else generate_random_binary(10),
+                    "col-binary": None if i % 9 == 0 else list(generate_random_binary(10)),
                 },
                 schema=amber_schema,
             )
