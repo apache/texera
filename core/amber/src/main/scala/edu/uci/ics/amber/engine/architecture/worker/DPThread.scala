@@ -114,8 +114,14 @@ class DPThread(
         waitingForInput = false
         elem match {
           case WorkflowWorker.FIFOMessageElement(msg) =>
-            val channel = dp.inputGateway.getChannel(msg.channelId)
-            channel.acceptMessage(msg)
+            msg.payload match {
+              case payload: ChannelMarkerPayload if payload.id.id.contains("FlinkAsync") || payload.id.id.contains("CL") =>
+                val channel = dp.inputGateway.getChannel(msg.channelId)
+                channel.forcedAccept(msg)
+              case other =>
+                val channel = dp.inputGateway.getChannel(msg.channelId)
+                channel.acceptMessage(msg)
+            }
           case WorkflowWorker.TimerBasedControlElement(control) =>
             // establish order according to receiving order.
             // Note: this will not guarantee fifo & exactly-once

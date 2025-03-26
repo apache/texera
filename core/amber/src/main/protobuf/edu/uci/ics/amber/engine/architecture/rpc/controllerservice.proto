@@ -29,4 +29,10 @@ service ControllerService {
   rpc ControllerInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
   rpc RetryWorkflow(RetryWorkflowRequest) returns (EmptyReturn);
   rpc BroadcastMessage(BroadcastMessageRequest) returns (EmptyReturn);
+  rpc RetrieveOpStateReverseTopo(RetrieveOpStateReverseTopoRequest) returns (EmptyReturn);
+  rpc RetrieveOpStateViaMarker(RetrieveOpStateViaMarkerRequest) returns (EmptyReturn);
+  rpc RetrieveExecStateCL(RetrieveExecStateCLRequest) returns (EmptyReturn);
+  rpc RetrieveExecStateFlink(RetrieveExecStateFlinkRequest) returns (EmptyReturn);
+  rpc RetrieveExecStateFlinkAsync(RetrieveExecStateFlinkAsyncRequest) returns (EmptyReturn);
+  rpc RetrieveExecStatePause(RetrieveExecStatePauseRequest) returns (EmptyReturn);
 }

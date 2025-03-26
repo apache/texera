@@ -107,7 +107,7 @@ class DataProcessor(
       }
 
       statisticsManager.increaseInputTupleCount(portIdentity)
-      logger.info(s"process $tuple")
+      //logger.info(s"process $tuple")
 
     } catch safely {
       case e =>

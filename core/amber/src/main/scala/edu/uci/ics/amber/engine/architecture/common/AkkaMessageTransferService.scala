@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.Cancellable
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -57,13 +58,20 @@ class AkkaMessageTransferService(
   }
 
   def send(msg: WorkflowFIFOMessage): Unit = {
+
+
     val networkMessage = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = msg.channelId
     networkMessageID += 1
-    forwardToFlowControl(
-      networkMessage,
-      out => forwardToCongestionControl(out, refService.forwardToActor)
-    )
+    msg.payload match {
+      case payload: ChannelMarkerPayload if payload.id.id.contains("FlinkAsync") =>
+          refService.forwardToActor(networkMessage)
+      case _ =>
+        forwardToFlowControl(
+          networkMessage,
+          out => forwardToCongestionControl(out, refService.forwardToActor)
+        )
+    }
   }
 
   private def forwardToFlowControl(

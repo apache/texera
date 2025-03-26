@@ -40,7 +40,7 @@ class RegionExecutionCoordinator(
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
-    region.getOperators.foreach(physicalOp => {
+    region.getOperators.toSeq.sortBy(p => p.id.logicalOpId.id).foreach(physicalOp => {
       // Check for existing execution for this operator
       val existOpExecution =
         workflowExecution.getAllRegionExecutions.exists(_.hasOperatorExecution(physicalOp.id))

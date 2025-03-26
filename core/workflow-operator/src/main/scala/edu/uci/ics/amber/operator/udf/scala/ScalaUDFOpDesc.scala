@@ -2,12 +2,12 @@ package edu.uci.ics.amber.operator.udf.scala
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{OpExecWithCode, SourceOperatorExecutor}
-import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.amber.core.tuple.{Attribute, Schema, TupleLike}
+import edu.uci.ics.amber.core.executor.OpExecWithCode
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
 
 import scala.util.{Success, Try}
 
@@ -15,7 +15,7 @@ class ScalaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-        "import edu.uci.ics.amber.core.executor.SourceOperatorExecutor;\n" +
+        "import edu.uci.ics.amber.core.executor.OperatorExecutor;\n" +
           "import edu.uci.ics.amber.core.tuple.TupleLike;\n" +
           "import edu.uci.ics.amber.core.tuple.Tuple;\n" +
           "import scala.Function1;\n" +

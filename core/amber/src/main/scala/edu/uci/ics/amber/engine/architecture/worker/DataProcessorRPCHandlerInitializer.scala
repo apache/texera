@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ContinueProcessingRequest, DebugCommandRequest, EmptyRequest, EvaluatePythonExpressionRequest, StopProcessingRequest}
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, DebugCommandRequest, EmptyRequest, EvaluatePythonExpressionRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
@@ -42,6 +42,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
   override def retryCurrentTuple(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] =
     ???
 
-  override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
+  override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    EmptyReturn()
+  }
 
 }

@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.amber.engine.architecture.logreplay.{MessageContent, OutputRecord, ProcessingStep, ReplayDestination, ReplayLogRecord, TerminateSignal}
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.architecture.logreplay._
+import edu.uci.ics.amber.engine.common.AmberRuntime
+import edu.uci.ics.texera.ExpUtils.runExp
 
-import java.net.URI
 import scala.collection.mutable
 
 object JsonTest {
@@ -41,18 +41,56 @@ object JsonTest {
     (input, output, dest, avg_step_double)
   }
 
-  def main(args: Array[String]): Unit = {
+  import scala.io.StdIn
 
-    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
-      Some(new URI("file:///Users/shengquanni/Documents/GitHub/IcedTea/core/log/recovery-logs/WorkflowIdentity(0)/ExecutionIdentity(5)"))
-    )
-    logStorage.listFiles.foreach{
-      file =>
-        if(file != "CONTROLLER"){
-          val a = getDistribution(logStorage.getReader(file).mkRecordIterator())
-          println(s"$file, ${a._1}, ${a._2}, ${a._3}, ${a._4}")
+
+  def doExperiment(): Unit = {
+    val result = mutable.ArrayBuffer[String]()
+    List(2, 10, 50, 100).foreach{
+      udf =>
+        List(true,false).foreach{
+          scatter =>
+            List("flink-async").foreach{
+              method =>
+                (0 until 3).foreach{
+                  repeat =>
+                    result.append(runExp(AmberRuntime.actorSystem, udf, scatter, method, 2))
+                }
+            }
         }
     }
+    result.foreach{
+      s =>
+        println(s)
+    }
+  }
+
+  def waitForS(): Unit = {
+    var input = ""
+    while (input.trim.toLowerCase != "s") {
+      println("Press 's' to start...")
+      input = StdIn.readLine()
+    }
+    doExperiment()
+  }
+
+  def main(args: Array[String]): Unit = {
+
+//    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
+//      Some(new URI("file:///Users/shengquanni/Documents/GitHub/IcedTea/core/log/recovery-logs/WorkflowIdentity(0)/ExecutionIdentity(5)"))
+//    )
+//    logStorage.listFiles.foreach{
+//      file =>
+//        if(file != "CONTROLLER"){
+//          val a = getDistribution(logStorage.getReader(file).mkRecordIterator())
+//          println(s"$file, ${a._1}, ${a._2}, ${a._3}, ${a._4}")
+//        }
+//    }
+
+    AmberRuntime.startActorMaster(false)
+    // Call the function
+    waitForS()
+
   }
 }
 

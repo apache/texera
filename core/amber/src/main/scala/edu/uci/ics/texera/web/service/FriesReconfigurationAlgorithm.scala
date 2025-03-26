@@ -29,14 +29,11 @@ object FriesReconfigurationAlgorithm {
       .flatMap(region => computeMCS(region, reconfiguration, epochMarkerId))
   }
 
-  private def computeMCS(
-      region: Region,
-      reconfiguration: ModifyLogicRequest,
-      epochMarkerId: String
-  ): List[PropagateChannelMarkerRequest] = {
 
+
+  def computeMCS(region: Region, targetOps:Set[PhysicalOpIdentity]): Set[PhysicalOpIdentity] = {
     // add all reconfiguration operators to M
-    val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet
+    val reconfigOps = targetOps
     val M = mutable.Set.empty ++ reconfigOps
 
     // for each one-to-many operator, add it to M if its downstream has a reconfiguration operator
@@ -72,8 +69,19 @@ object FriesReconfigurationAlgorithm {
         backwardVertices += opId
       }
     })
+    forwardVertices.intersect(backwardVertices)
+  }
 
-    val resultMCSOpIds = forwardVertices.intersect(backwardVertices)
+  private def computeMCS(
+      region: Region,
+      reconfiguration: ModifyLogicRequest,
+      epochMarkerId: String
+  ): List[PropagateChannelMarkerRequest] = {
+
+    // add all reconfiguration operators to M
+    val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet
+
+    val resultMCSOpIds = computeMCS(region, reconfigOps)
     val newLinks =
       region.getLinks.filter(link =>
         resultMCSOpIds.contains(link.fromOpId) && resultMCSOpIds.contains(link.toOpId)

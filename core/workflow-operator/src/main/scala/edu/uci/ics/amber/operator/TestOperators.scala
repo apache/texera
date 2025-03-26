@@ -1,11 +1,7 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.operator.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
+import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -13,6 +9,7 @@ import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.amber.operator.udf.python.PythonUDFOpDescV2
+import edu.uci.ics.amber.operator.udf.scala.ScalaUDFOpDesc
 import edu.uci.ics.amber.util.PathUtils
 
 object TestOperators {
@@ -34,8 +31,8 @@ object TestOperators {
   val TestCRLFTextFilePath: String = s"$parentDir/src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = s"$parentDir/src/test/resources/numbers.txt"
 
-  def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc(CountrySalesHeaderlessSmallCsvPath, header = false)
+  def headerlessSmallCsvScanOpDesc(limit:Option[Int] = None): CSVScanSourceOpDesc = {
+    getCsvScanOpDesc(CountrySalesHeaderlessSmallCsvPath, header = false, limit)
   }
 
   def headerlessSmallMultiLineDataCsvScanOpDesc(): CSVScanSourceOpDesc = {
@@ -61,12 +58,14 @@ object TestOperators {
   def getCsvScanOpDesc(
       fileName: String,
       header: Boolean,
+      limit:Option[Int] = None,
       multiLine: Boolean = false
   ): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
+    csvHeaderlessOp.limit = limit
     csvHeaderlessOp.setResolvedFileName(FileResolver.resolve(fileName))
     csvHeaderlessOp
 
@@ -131,6 +130,33 @@ object TestOperators {
     inMemoryMySQLSourceOpDesc.limit = Some(1000)
     inMemoryMySQLSourceOpDesc
   }
+
+  def scalaUDFOpDesc(delayInMs: Int = 0): ScalaUDFOpDesc = {
+    val udf = new ScalaUDFOpDesc()
+    udf.retainInputColumns = true
+
+    val delayCode =
+      if (delayInMs > 0) s"Thread.sleep($delayInMs)" else ""
+
+    udf.code =
+      s"""import edu.uci.ics.amber.core.executor.OperatorExecutor;
+         |import edu.uci.ics.amber.core.tuple.TupleLike;
+         |import edu.uci.ics.amber.core.tuple.Tuple;
+         |import scala.Function1;
+         |
+         |class ScalaUDFOpExec extends OperatorExecutor {
+         |    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+         |        // Simulate delay
+         |        $delayCode
+         |        Iterator(tuple)
+         |    }
+         |}
+         |""".stripMargin
+
+    udf
+  }
+
+
 
   // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
   def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {

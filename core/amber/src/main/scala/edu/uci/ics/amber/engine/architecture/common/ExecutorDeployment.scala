@@ -17,6 +17,8 @@ import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 object ExecutorDeployment {
 
+  var totalWorkerIndex = 0
+
   def createWorkers(
       op: PhysicalOp,
       controllerActorService: AkkaActorService,
@@ -34,6 +36,7 @@ object ExecutorDeployment {
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
+      totalWorkerIndex += 1
       val locationPreference = op.locationPreference.getOrElse(RoundRobinPreference)
       val preferredAddress: Address = locationPreference match {
         case PreferController =>
@@ -43,7 +46,7 @@ object ExecutorDeployment {
             addressInfo.allAddresses.nonEmpty,
             "Execution failed to start, no available computation nodes"
           )
-          addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
+          addressInfo.allAddresses(totalWorkerIndex % addressInfo.allAddresses.length)
       }
 
       val workflowWorker = if (op.isPythonBased) {

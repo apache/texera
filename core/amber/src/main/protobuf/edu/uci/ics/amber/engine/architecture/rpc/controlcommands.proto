@@ -30,6 +30,14 @@ message ControlRequest {
     WorkerStateUpdatedRequest workerStateUpdatedRequest = 10;
     LinkWorkersRequest linkWorkersRequest = 11;
     BroadcastMessageRequest broadcastMessageRequest = 12;
+    RetrieveOpStateReverseTopoRequest retrieveOpStateReverseTopoRequest = 13;
+    RetrieveOpStateViaMarkerRequest retrieveOpStateViaMarkerRequest = 14;
+    RetrieveExecStateCLRequest retrieveExecStateCLRequest = 15;
+    RetrieveExecStateFlinkRequest retrieveExecStateFlinkRequest = 16;
+    RetrieveExecStateFlinkAsyncRequest retrieveExecStateFlinkAsyncRequest = 17;
+    RetrieveExecStatePauseRequest retrieveExecStatePauseRequest = 18;
+
+
 
     // request for worker
     AddInputChannelRequest addInputChannelRequest = 50;
@@ -269,4 +277,28 @@ message PrepareCheckpointRequest{
 
 message QueryStatisticsRequest{
   repeated core.ActorVirtualIdentity filterByWorkers = 1;
+}
+
+ message RetrieveOpStateReverseTopoRequest{
+   repeated core.PhysicalOpIdentity targets = 1;
+ }
+
+message RetrieveOpStateViaMarkerRequest{
+  repeated core.PhysicalOpIdentity targets = 1;
+}
+
+message RetrieveExecStateCLRequest{
+  repeated core.PhysicalOpIdentity targets = 1;
+}
+
+message RetrieveExecStateFlinkRequest{
+  repeated core.PhysicalOpIdentity targets = 1;
+}
+
+message RetrieveExecStateFlinkAsyncRequest{
+  repeated core.PhysicalOpIdentity targets = 1;
+}
+
+message RetrieveExecStatePauseRequest{
+  repeated core.PhysicalOpIdentity targets = 1;
 }

@@ -20,6 +20,16 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   private val fifoQueue = new mutable.ListBuffer[WorkflowFIFOMessage]
   private val holdCredit = new AtomicLong()
   private var portId: Option[PortIdentity] = None
+  private val skippedSeq = new mutable.HashSet[Long]()
+
+  def forcedAccept(msg:WorkflowFIFOMessage):Unit = {
+    if(getCurrentSeq != msg.sequenceNumber){
+      skippedSeq.add(msg.sequenceNumber)
+      fifoQueue.prepend(msg)
+    }else{
+      enforceFIFO(msg)
+    }
+  }
 
   def acceptMessage(msg: WorkflowFIFOMessage): Unit = {
     val seq = msg.sequenceNumber
@@ -51,12 +61,17 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
     fifoQueue.append(data)
     holdCredit.getAndAdd(getInMemSize(data))
     current += 1
-    while (ofoMap.contains(current)) {
-      val msg = ofoMap(current)
-      fifoQueue.append(msg)
-      holdCredit.getAndAdd(getInMemSize(msg))
-      ofoMap.remove(current)
-      current += 1
+    while (ofoMap.contains(current) || skippedSeq.contains(current)) {
+      if(skippedSeq.contains(current)){
+        skippedSeq.remove(current)
+        current += 1
+      }else{
+        val msg = ofoMap(current)
+        fifoQueue.append(msg)
+        holdCredit.getAndAdd(getInMemSize(msg))
+        ofoMap.remove(current)
+        current += 1
+      }
     }
   }
 

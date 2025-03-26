@@ -7,27 +7,31 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.controller._
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.texera.ExpUtils._
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.PreparedStatement
+import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
+
+
+
 
 class DataProcessingSpec
     extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
@@ -39,7 +43,6 @@ class DataProcessingSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   var inMemoryMySQLInstance: Option[DB] = None
-  val workflowContext: WorkflowContext = new WorkflowContext()
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -49,6 +52,45 @@ class DataProcessingSpec
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
+
+  "Engine" should "execute case1" in {
+    val (opList, workflow) = createWorkflow(2, 1)
+    val (client, promise) = executeWorkflowAndCM(workflow, system)
+    val targetOps = selectTargetOp(opList, Seq(1))
+    val target = targetOps.flatMap(t => workflow.physicalPlan.getPhysicalOpsOfLogicalOp(t).map(_.id))
+    val start = System.nanoTime()
+    client.controllerInterface.retrieveExecStatePause(RetrieveExecStatePauseRequest(target), ()).onSuccess{
+      ret =>
+        val end = System.nanoTime()
+        val durationMillis = (end - start) / 1_000_000
+        println(s"case1: $durationMillis ms")
+    }
+    Await.result(promise, Duration.fromMinutes(1))
+  }
+
+  "Engine" should "execute cases" in {
+    val result = mutable.ArrayBuffer[String]()
+    List(2, 10, 50, 100).foreach{
+      udf =>
+        List(true,false).foreach{
+          scatter =>
+            List("pause").foreach{
+              method =>
+                (0 until 3).foreach{
+                  repeat =>
+                    result.append(runExp(system, udf, scatter, method, 2))
+                }
+            }
+        }
+    }
+    result.foreach{
+      s =>
+        println(s)
+    }
+  }
+
+
+
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
     var results: Map[OperatorIdentity, List[Tuple]] = null

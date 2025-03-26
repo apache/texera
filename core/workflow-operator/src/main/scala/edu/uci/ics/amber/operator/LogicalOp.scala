@@ -276,7 +276,7 @@ trait StateTransferFunc
 abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
-  private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
+  var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion

@@ -8,7 +8,7 @@ import scala.tools.nsc.reporters.ConsoleReporter
 
 object ScalaRuntimeCompilation {
   def compileCode(code: String): Class[_] = {
-    val packageName = "edu.uci.ics.texera.workflow.operators.udf.scala"
+    val packageName = "edu.uci.ics.amber.core.executor.udf.scala"
 
     // Prepend the package declaration to the user code
     val codeToCompile = s"package $packageName;\n$code"
