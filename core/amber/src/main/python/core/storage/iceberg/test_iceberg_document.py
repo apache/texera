@@ -127,7 +127,9 @@ class TestIcebergDocument:
                             datetime.datetime.now().timestamp() + i
                         )
                     ),
-                    "col-binary": None if i % 9 == 0 else list(generate_random_binary(10)),
+                    "col-binary": (
+                        None if i % 9 == 0 else list(generate_random_binary(10))
+                    ),
                 },
                 schema=amber_schema,
             )
