@@ -115,6 +115,14 @@ object LakeFSStorageClient {
     objectsApi.uploadObject(repoName, branchName, filePath).content(tempFilePath.toFile).execute()
   }
 
+  /**
+    * Retrieves a file from a specific repository and commit.
+    *
+    * @param repoName     Repository name.
+    * @param versionHash  Commit hash of the version.
+    * @param filePath     Path to the file in the repository.
+    * @return             The file retrieved from LakeFS.
+    */
   def getFileFromRepo(repoName: String, versionHash: String, filePath: String): File = {
     objectsApi.getObject(repoName, versionHash, filePath).execute()
   }
@@ -170,15 +178,13 @@ object LakeFSStorageClient {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
   }
 
-  def getFilePresignedUploadUrl(repoName: String, filePath: String): String = {
-    stagingApi
-      .getPhysicalAddress(repoName, branchName, filePath)
-      .presign(true)
-      .execute()
-      .getPresignedUrl
-  }
-
   /**
+    * Initiates a presigned multipart upload for a file in LakeFS.
+    *
+    * @param repoName     Repository name.
+    * @param filePath     File path within the repository.
+    * @param numberOfParts Number of parts to upload.
+    * @return              Multipart upload information.
     */
   def initiatePresignedMultipartUploads(
       repoName: String,
@@ -192,6 +198,16 @@ object LakeFSStorageClient {
 
   }
 
+  /**
+    * Completes a previously initiated multipart upload.
+    *
+    * @param repoName        Repository name.
+    * @param filePath        File path within the repository.
+    * @param uploadId        Multipart upload ID.
+    * @param partsList       List of (part number, ETag) pairs.
+    * @param physicalAddress Physical location of the file in storage.
+    * @return                Object metadata after completion.
+    */
   def completePresignedMultipartUploads(
       repoName: String,
       filePath: String,
@@ -224,6 +240,14 @@ object LakeFSStorageClient {
       .execute()
   }
 
+  /**
+    * Aborts a multipart upload operation for a given file.
+    *
+    * @param repoName        Repository name.
+    * @param filePath        File path within the repository.
+    * @param uploadId        Multipart upload ID.
+    * @param physicalAddress Physical address of the file.
+    */
   def abortPresignedMultipartUploads(
       repoName: String,
       filePath: String,
