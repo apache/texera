@@ -1,5 +1,7 @@
 name: texera-single-node
 services:
+  # Part1: Specification of the storage services used by Texera
+  # MinIO is an S3-compatible object storage used to store datasets and files.
   minio:
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
     container_name: texera-minio
@@ -8,11 +10,11 @@ services:
     env_file:
       - .env
     volumes:
-      #Uncomment the below line instead if you want to mount the minio data to a certain directory on your machine
-      #- /path/to/the/local/folder:/data
       - minio_data:/data
     command: server --console-address ":9001" /data
 
+  # PostgreSQL with PGroonga extension for full-text search.
+  # Used by lakeFS and Texera's metadata storage.
   postgres:
     image: groonga/pgroonga:4.0.1-debian-15
     container_name: texera-postgres
@@ -25,12 +27,11 @@ services:
       retries: 5
       start_period: 5s
     volumes:
-      # Uncomment the below line if you want to mount the postgres data to a certain directory on your machine
-      #- /path/to/the/local/folder:/var/lib/postgresql/data
       - postgres_data:/var/lib/postgresql/data
       # mount the sql files for initializing the postgres
       - ../../core/scripts/sql:/docker-entrypoint-initdb.d
 
+  # lakeFS is the underlying storage of Texera's dataset service
   lakefs:
     image: treeverse/lakefs:1.51
     container_name: texera-lakefs
@@ -72,6 +73,8 @@ services:
       timeout: 5s
       retries: 10
 
+  # Part2: Specification of Texera's micro-services
+  # FileService provides endpoints for Texera's dataset management
   file-service:
     image: texera/file-service:test
     container_name: texera-file-service
@@ -84,6 +87,7 @@ services:
     env_file:
       - .env
 
+  # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
     image: texera/workflow-compiling-service:test
     container_name: texera-workflow-compiling-service
@@ -94,6 +98,7 @@ services:
     env_file:
       - .env
 
+  # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
     image: texera/texera-web-application:test
     container_name: texera-web-application
@@ -101,9 +106,12 @@ services:
     depends_on:
       file-service:
         condition: service_started
+      workflow-compiling-service:
+        condition: service_started
     env_file:
       - .env
-  
+
+  # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
   computing-unit-master:
     image: texera/computing-unit-master:test
     container_name: texera-computing-unit-master
@@ -114,10 +122,9 @@ services:
     env_file:
       - .env
     volumes:
-      #Uncomment the below line instead if you want to mount the workflow result data to a certain directory on your machine
-      #- /path/to/the/local/folder:/core/amber/user-resources
       - computing_unit_data:/core/amber/user-resources
 
+  # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
     container_name: texera-nginx
@@ -130,10 +137,21 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "8080:8080"
+
+# This section creates the named volumes for postgres, minio and workflow results, making sure data of these three
+#   services are persisted across containers terminations
 volumes:
   postgres_data:
   minio_data:
   computing_unit_data:
+  # By default, Docker assigns host locations for the above volumes.
+  # To bind them to specific local folders, configure each volume like below:
+  #   postgres_data:
+  #     driver: local
+  #     driver_opts:
+  #       type: none
+  #       o: bind
+  #       device: /absolute/path/to/your/local/folder
 
 networks:
   default:
