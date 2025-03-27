@@ -347,7 +347,9 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
 
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
+RAISE NOTICE 'Creating PGroonga extension...';
 CREATE EXTENSION IF NOT EXISTS pgroonga;
+RAISE NOTICE 'PGroonga extension creation complete.';
 
 DO $$
 DECLARE
