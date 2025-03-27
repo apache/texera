@@ -22,7 +22,7 @@ spec:
               service:
                 name: {{ .Release.Name }}-minio
                 port:
-                  number: 31000
+                  number: 9000
   {{- if or .Values.minio.ingress.tlsSecretName .Values.minio.ingress.issuer }}
   tls:
     - hosts:

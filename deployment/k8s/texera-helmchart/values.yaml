@@ -114,7 +114,7 @@ workflowComputingUnitPool:
 
 texeraEnvVars:
   - name: STORAGE_S3_ENDPOINT
-    value: texera-minio:9000
+    value: http://texera-minio:9000
   - name: STORAGE_LAKEFS_ENDPOINT
     value: texera-lakefs:8000/api/v1
   - name: STORAGE_JDBC_URL
