@@ -2,7 +2,7 @@ FROM bitnami/postgresql:17.4.0-debian-12-r11
 
 USER root
 
-# Install required packages for building PGroonga
+# Install build tools and Groonga APT repo
 RUN install_packages \
     build-essential \
     git \
@@ -10,15 +10,21 @@ RUN install_packages \
     curl \
     ca-certificates \
     pkg-config \
-    libgroonga-dev \
     libmecab-dev \
     mecab \
-    groonga-tokenizer-mecab \
-    libpq-dev \
-    gnupg
+    gnupg \
+    libpq-dev
 
-# Build PGroonga from source using Bitnami's PostgreSQL pg_config
-RUN git clone --depth 1 https://github.com/pgroonga/pgroonga.git /tmp/pgroonga && \
+# Add Groonga official APT repo
+RUN wget https://packages.groonga.org/debian/groonga-apt-source-latest-bookworm.deb && \
+    dpkg -i groonga-apt-source-latest-bookworm.deb && \
+    apt-get update && \
+    apt-get install -y \
+    libgroonga-dev \
+    groonga-tokenizer-mecab
+
+# Clone PGroonga with submodules and build it using Bitnami's pg_config
+RUN git clone --recursive https://github.com/pgroonga/pgroonga.git /tmp/pgroonga && \
     cd /tmp/pgroonga && \
     PG_CONFIG=/opt/bitnami/postgresql/bin/pg_config make && \
     PG_CONFIG=/opt/bitnami/postgresql/bin/pg_config make install && \
