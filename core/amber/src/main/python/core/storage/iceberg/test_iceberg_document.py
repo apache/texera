@@ -15,12 +15,14 @@ from proto.edu.uci.ics.amber.core import (
     ExecutionIdentity,
     OperatorIdentity,
     PortIdentity,
+    GlobalPortIdentity,
+    PhysicalOpIdentity,
 )
 
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
-    postgres_username="texera_iceberg_admin",
+    postgres_username="texera",
     postgres_password="password",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../core/amber/user-resources/workflow-results",
@@ -55,9 +57,14 @@ class TestIcebergDocument:
         uri = VFSURIFactory.create_result_uri(
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
-            OperatorIdentity(id=f"test_table_{operator_uuid}"),
-            "main",
-            PortIdentity(id=0),
+            GlobalPortIdentity(
+                op_id=PhysicalOpIdentity(
+                    logical_op_id=OperatorIdentity(id=f"test_table_{operator_uuid}"),
+                    layer_name="main",
+                ),
+                port_id=PortIdentity(id=0),
+                input=False,
+            ),
         )
         DocumentFactory.create_document(uri, amber_schema)
         document, _ = DocumentFactory.open_document(uri)

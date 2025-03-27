@@ -16,11 +16,11 @@ object AmberConfig {
   // Perform lazy reload
   private def getConfSource: Config = {
     if (lastModifiedTime == configFile.lastModified()) {
-      conf
+      conf.resolve()
     } else {
       lastModifiedTime = configFile.lastModified()
       conf = ConfigFactory.parseFile(configFile).withFallback(ConfigFactory.load())
-      conf
+      conf.resolve()
     }
   }
 
@@ -80,7 +80,6 @@ object AmberConfig {
 
   // User system
   val isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
-  val jWTConfig: Config = getConfSource.getConfig("user-sys.jwt")
   val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
   val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")

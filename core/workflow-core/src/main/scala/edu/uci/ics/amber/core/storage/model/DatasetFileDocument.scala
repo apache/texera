@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage.model
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken
@@ -32,7 +33,8 @@ object DatasetFileDocument {
 
 private[storage] class DatasetFileDocument(uri: URI)
     extends VirtualDocument[Nothing]
-    with OnDataset {
+    with OnDataset
+    with LazyLogging {
   // Utility function to parse and decode URI segments into individual components
   private def parseUri(uri: URI): (String, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
@@ -57,50 +59,61 @@ private[storage] class DatasetFileDocument(uri: URI)
   override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    if (userJwtToken.isEmpty) {
-      val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+
+    def fallbackToLakeFS(exception: Throwable): InputStream = {
+      logger.warn(s"${exception.getMessage}. Falling back to LakeFS direct file fetch.", exception)
+      val file = LakeFSStorageClient.getFileFromRepo(
         getDatasetName(),
         getVersionHash(),
         getFileRelativePath()
       )
-      return new URL(presignUrl).openStream()
+      Files.newInputStream(file.toPath)
     }
 
-    // Step 1: Get the presigned URL from the file service
-    val presignRequestUrl =
-      s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
-        .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
-
-    val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
-    connection.setRequestMethod("GET")
-    connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
-
-    try {
-      if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
-        throw new RuntimeException(
-          s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+    if (userJwtToken.isEmpty) {
+      try {
+        val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+          getDatasetName(),
+          getVersionHash(),
+          getFileRelativePath()
         )
+        new URL(presignUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
       }
+    } else {
+      val presignRequestUrl =
+        s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+          .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
 
-      // Read response body as a string
-      val responseBody =
-        new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
+      connection.setRequestMethod("GET")
+      connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
 
-      // Extract presigned URL from JSON response
-      val presignedUrl = responseBody
-        .split("\"presignedUrl\"\\s*:\\s*\"")(1)
-        .split("\"")(0)
+      try {
+        if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
+          throw new RuntimeException(
+            s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+          )
+        }
 
-      // Step 2: Fetch the file using the retrieved presigned URL
-      new URL(presignedUrl).openStream()
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(
-          s"Failed to retrieve presigned URL from $fileServiceGetPresignURLEndpoint: ${e.getMessage}",
-          e
-        )
-    } finally {
-      connection.disconnect()
+        // Read response body as a string
+        val responseBody =
+          new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+
+        // Extract presigned URL from JSON response
+        val presignedUrl = responseBody
+          .split("\"presignedUrl\"\\s*:\\s*\"")(1)
+          .split("\"")(0)
+
+        new URL(presignedUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
+      } finally {
+        connection.disconnect()
+      }
     }
   }
 

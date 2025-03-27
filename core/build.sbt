@@ -3,8 +3,10 @@ lazy val WorkflowCore = (project in file("workflow-core"))
   .dependsOn(DAO)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
+lazy val Auth = (project in file("auth"))
+  .dependsOn(DAO)
 lazy val FileService = (project in file("file-service"))
-  .dependsOn(WorkflowCore)
+  .dependsOn(WorkflowCore, Auth)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -27,7 +29,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator)
+  .dependsOn(WorkflowOperator, Auth)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
@@ -43,11 +45,11 @@ lazy val WorkflowExecutionService = (project in file("amber"))
     ),
   )
   .configs(Test)
-  .dependsOn(DAO % "test->test") // test scope dependency
+  .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
 
 // root project definition
 lazy val CoreProject = (project in file("."))
-  .aggregate(DAO, WorkflowCore, FileService, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
+  .aggregate(DAO, Auth, WorkflowCore, FileService, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
   .settings(
     name := "core",
     version := "0.1.0",
