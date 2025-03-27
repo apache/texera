@@ -1,19 +1,27 @@
-FROM docker.io/bitnami/postgresql:17.4.0-debian-12-r11
+FROM bitnami/postgresql:17.4.0-debian-12-r11
 
 USER root
 
-# Install prerequisites and add Groonga APT source
-RUN apt-get update && apt-get install -y \
+# Install build dependencies
+RUN install_packages \
+    build-essential \
+    git \
+    wget \
+    curl \
     ca-certificates \
-    lsb-release \
-    wget && \
-    wget https://packages.groonga.org/debian/groonga-apt-source-latest-$(lsb_release --codename --short).deb && \
-    apt install -y ./groonga-apt-source-latest-$(lsb_release --codename --short).deb && \
-    apt-get update && \
-    apt-get install -y \
-    postgresql-17-pgdg-pgroonga \
-    groonga-tokenizer-mecab && \
-    rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    libgroonga-dev \
+    libmecab-dev \
+    mecab \
+    groonga-tokenizer-mecab \
+    postgresql-server-dev-all \
+    gnupg
 
-USER 1001  # go back to non-root user (bitnami/postgres default)
+# Clone and build PGroonga
+RUN git clone --depth 1 https://github.com/pgroonga/pgroonga.git /tmp/pgroonga && \
+    cd /tmp/pgroonga && \
+    PG_CONFIG=/opt/bitnami/postgresql/bin/pg_config make && \
+    PG_CONFIG=/opt/bitnami/postgresql/bin/pg_config make install && \
+    rm -rf /tmp/pgroonga
 
+USER 1001
