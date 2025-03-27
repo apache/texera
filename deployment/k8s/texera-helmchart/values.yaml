@@ -9,10 +9,7 @@ postgresql:
     tag: latest
     debug: true
   auth:
-    enablePostgresUser: true # for executing init script with superuser
-    postgresPassword: root_password 
-    username: texera
-    password: password
+    postgresPassword: root_password  # for executing init script with superuser
   primary:
     persistence:
       enabled: true
@@ -39,7 +36,7 @@ minio:
 lakefs:
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
-    databaseConnectionString: postgres://texera:password@texera-postgresql:5432/texera_lakefs?sslmode=disable
+    databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
   service:
     port: 8000
   lakefsConfig: |
@@ -130,9 +127,9 @@ texeraEnvVars:
   - name: STORAGE_JDBC_URL
     value: jdbc:postgresql://texera-postgresql:5432/texera_db?currentSchema=texera_db,public
   - name: STORAGE_JDBC_USERNAME
-    value: texera
+    value: postgres
   - name: STORAGE_JDBC_PASSWORD
-    value: password
+    value: root_password
   - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
     value: http://texera-file-service:9092/api/dataset/presign-download
   - name: USER_SYS_ENABLED
@@ -142,9 +139,9 @@ texeraEnvVars:
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
     value: texera-postgresql:5432/texera_iceberg_catalog
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
-    value: texera
+    value: postgres
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
-    value: password
+    value: root_password
 
 # Ingress dependency configs
 ingress-nginx:
