@@ -54,7 +54,7 @@ lakefs:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:dynamic-computing # image name of the texera
+  imageName: texera/texera-web-application:latest # image name of the texera
   service:
     type: NodePort # for testing purpose, NodePort mode is fine
     port: 8080 # port of the pod
@@ -64,7 +64,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/computing-unit-managing-service:test
+  imageName: texera/workflow-computing-unit-managing-service:latest
   service:
     type: NodePort # for testing purpose, NodePort mode is fine
     port: 8888 # port of the pod
@@ -73,7 +73,7 @@ workflowComputingUnitManager:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:test
+  imageName: texera/workflow-compiling-service:latest
   service:
     type: NodePort
     port: 9090
@@ -82,7 +82,7 @@ workflowCompilingService:
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: texera/file-service:test
+  imageName: texera/file-service:latest
   service:
     type: NodePort
     port: 9092
@@ -108,7 +108,7 @@ workflowComputingUnitPool:
   createNamespaces: true
   name: workflow-computing-unit
   namespace: workflow-computing-unit-pool
-  imageName: texera/computing-unit-master:test
+  imageName: texera/computing-unit-master:latest
   service:
     port: 8085
     targetPort: 8085
