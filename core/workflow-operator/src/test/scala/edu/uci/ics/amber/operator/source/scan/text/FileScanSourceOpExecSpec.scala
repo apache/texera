@@ -10,22 +10,19 @@ import scala.util.{Failure, Try}
 
 class FileScanSourceOpExecSpec extends AnyFlatSpec with Matchers {
 
-  // Create an instance using reflection to access private method
-  private val fileScanSourceOpExec = new FileScanSourceOpExec(null)
-  private val readToByteBuffersMethod = {
-    val method =
-      classOf[FileScanSourceOpExec].getDeclaredMethod("readToByteBuffers", classOf[InputStream])
-    method.setAccessible(true)
-    method
+  // Create a mock subclass to test just the readToByteBuffers method
+  private class TestableFileScanSourceOpExec
+      extends FileScanSourceOpExec("""{"someRequiredField":"dummyValue"}""") {
+    def exposedReadToByteBuffers(input: InputStream): List[ByteBuffer] = {
+      readToByteBuffers(input)
+    }
   }
 
-  private def invokeReadToByteBuffers(input: InputStream): List[ByteBuffer] = {
-    readToByteBuffersMethod.invoke(fileScanSourceOpExec, input).asInstanceOf[List[ByteBuffer]]
-  }
+  private val testableExec = new TestableFileScanSourceOpExec()
 
   "readToByteBuffers" should "handle empty input stream" in {
     val emptyStream = new ByteArrayInputStream(Array.emptyByteArray)
-    val result = invokeReadToByteBuffers(emptyStream)
+    val result = testableExec.exposedReadToByteBuffers(emptyStream)
 
     result shouldBe empty
   }
@@ -34,7 +31,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with Matchers {
     val testData = "Hello, World!".getBytes(StandardCharsets.UTF_8)
     val inputStream = new ByteArrayInputStream(testData)
 
-    val result = invokeReadToByteBuffers(inputStream)
+    val result = testableExec.exposedReadToByteBuffers(inputStream)
 
     result should have size 1
     val buffer = result.head
@@ -89,7 +86,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with Matchers {
       }
     }
 
-    val result = invokeReadToByteBuffers(mockLargeData)
+    val result = testableExec.exposedReadToByteBuffers(mockLargeData)
 
     result should have size 3
 
@@ -115,7 +112,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with Matchers {
       }
     }
 
-    invokeReadToByteBuffers(mockStream)
+    testableExec.exposedReadToByteBuffers(mockStream)
     streamClosed shouldBe true
   }
 
@@ -126,7 +123,7 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with Matchers {
         throw new IOException("Simulated failure")
     }
 
-    val result = Try(invokeReadToByteBuffers(failingStream))
+    val result = Try(testableExec.exposedReadToByteBuffers(failingStream))
     result shouldBe a[Failure[_]]
     result.failed.get shouldBe an[IOException]
   }

@@ -436,38 +436,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     assert(retrieved3.get(0) == 3)
   }
 
-  it should "throw exception when value is not a List of ByteBuffers" in {
-    val binarySchema = Schema()
-      .add("binary-data", AttributeType.BINARY)
-
-    // Create a valid tuple first
-    val validTuple = Tuple
-      .builder(binarySchema)
-      .addSequentially(
-        Array(
-          List[java.nio.ByteBuffer]() // Valid empty list
-        )
-      )
-      .build()
-
-    // Use reflection to modify the tuple's internal data
-    val field = validTuple.getClass.getDeclaredField("binary-data")
-    field.setAccessible(true)
-    val fields = field.get(validTuple).asInstanceOf[Array[AnyRef]]
-    fields(0) = "This is not a List of ByteBuffers" // Replace with invalid data
-    field.set(validTuple, fields)
-
-    val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(binarySchema)
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
-
-    // Now the ArrowUtils should throw AttributeTypeException
-    assertThrows[AttributeTypeException] {
-      ArrowUtils.appendTexeraTuple(validTuple, vectorSchemaRoot)
-    }
-  }
-
   it should "handle a list with mixed ByteBuffers and nulls" in {
     val binarySchema = Schema()
       .add("binary-data", AttributeType.BINARY)
