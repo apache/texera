@@ -2,7 +2,7 @@ FROM bitnami/postgresql:17.4.0-debian-12-r11
 
 USER root
 
-# Install build dependencies
+# Install required packages for building PGroonga
 RUN install_packages \
     build-essential \
     git \
@@ -14,10 +14,10 @@ RUN install_packages \
     libmecab-dev \
     mecab \
     groonga-tokenizer-mecab \
-    postgresql-server-dev-all \
+    libpq-dev \
     gnupg
 
-# Clone and build PGroonga
+# Build PGroonga from source using Bitnami's PostgreSQL pg_config
 RUN git clone --depth 1 https://github.com/pgroonga/pgroonga.git /tmp/pgroonga && \
     cd /tmp/pgroonga && \
     PG_CONFIG=/opt/bitnami/postgresql/bin/pg_config make && \
