@@ -1,7 +1,6 @@
 global:
   security:
-    allowedImages:
-      - texera/postgres17-pgroonga:latest
+    allowInsecureImages: true
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
