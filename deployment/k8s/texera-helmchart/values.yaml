@@ -1,6 +1,6 @@
 global:
   security:
-    allowInsecureImages: true
+    allowInsecureImages: true # for custom postgres image
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -9,8 +9,8 @@ postgresql:
     tag: latest
     debug: true
   auth:
-    enablePostgresUser: true
-    postgresPassword: password
+    enablePostgresUser: true # for executing init script with superuser
+    postgresPassword: root_password 
     username: texera
     password: password
   primary:
@@ -52,7 +52,7 @@ lakefs:
     blockstore:
       type: s3
       s3:
-        endpoint: texera-minio:9000
+        endpoint: http://texera-minio:9000
         pre_signed_expiry: 15m
         pre_signed_endpoint: http://localhost:9000
         force_path_style: true
