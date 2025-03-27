@@ -115,11 +115,11 @@ workflowComputingUnitPool:
 
 texeraEnvVars:
   - name: STORAGE_S3_ENDPOINT
-    value: http://texera-minio.texera-dev.svc.cluster.local:9000
+    value: http://texera-minio:9000
   - name: STORAGE_LAKEFS_ENDPOINT
-    value: http://texera-lakefs.texera-dev.svc.cluster.local:8000/api/v1
+    value: http://texera-lakefs:8000/api/v1
   - name: STORAGE_JDBC_URL
-    value: jdbc:postgresql://texera-postgresql.texera-dev.svc.cluster.local:5432/texera_db?currentSchema=texera_db,public
+    value: jdbc:postgresql://texera-postgresql:5432/texera_db?currentSchema=texera_db,public
   - name: STORAGE_JDBC_USERNAME
     value: texera
   - name: STORAGE_JDBC_PASSWORD
@@ -131,7 +131,7 @@ texeraEnvVars:
   - name: STORAGE_ICEBERG_CATALOG_TYPE
     value: postgres
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
-    value: texera-postgresql.texera-dev.svc.cluster.local:5432/texera_iceberg_catalog
+    value: texera-postgresql:5432/texera_iceberg_catalog
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
     value: texera
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
