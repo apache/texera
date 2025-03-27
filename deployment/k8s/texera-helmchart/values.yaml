@@ -1,5 +1,8 @@
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
+  image:
+    repository: texera/postgres17-pgroonga
+    tag: latest
   auth:
     username: texera
     password: password
