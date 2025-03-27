@@ -31,7 +31,7 @@ class FileScanSourceOpExec private[scan] (
     * @param input the input stream to read
     * @return a List of ByteBuffers containing the data
     */
-  def readToByteBuffers(input: InputStream): List[ByteBuffer] = {
+  private def readToByteBuffers(input: InputStream): List[ByteBuffer] = {
     Using.resource(input) { inputStream =>
       val buffers = ArrayBuffer.empty[ByteBuffer]
       val buffer = new Array[Byte](BufferSizeBytes)
