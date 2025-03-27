@@ -6,7 +6,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
-    nginx.ingress.kubernetes.io/ssl-redirect: {{ (or .Values.minio.ingress.tlsSecretName .Values.minio.ingress.issuer) | ternary "true" "false" | quote }}
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ quote ((or .Values.minio.ingress.tlsSecretName .Values.minio.ingress.issuer) | ternary "true" "false") }}
     {{- if .Values.minio.ingress.issuer }}
     cert-manager.io/issuer: {{ .Values.minio.ingress.issuer | quote }}
     {{- end }}
