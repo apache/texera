@@ -14,6 +14,10 @@ postgresql:
 
 minio:
   mode: standalone
+  ingress:
+    hostname: "localhost"
+    tlsSecretName: ""        # or "texera-tls"
+    issuer: ""               # or "letsencrypt-prod"
   auth:
     rootUser: texera_minio
     rootPassword: password
@@ -43,7 +47,7 @@ lakefs:
     blockstore:
       type: s3
       s3:
-        endpoint: http://texera-minio:9000
+        endpoint: texera-minio:31000
         pre_signed_expiry: 15m
         pre_signed_endpoint: http://localhost:31000
         force_path_style: true
@@ -115,7 +119,7 @@ workflowComputingUnitPool:
 
 texeraEnvVars:
   - name: STORAGE_S3_ENDPOINT
-    value: http://texera-minio:9000
+    value: texera-minio:31000
   - name: STORAGE_LAKEFS_ENDPOINT
     value: texera-lakefs:8000/api/v1
   - name: STORAGE_JDBC_URL

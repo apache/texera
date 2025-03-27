@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-minio-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/ssl-redirect: "{{ .Values.minio.ingress.tlsSecretName | or .Values.minio.ingress.issuer | ternary "true" "false" }}"
+    {{- if .Values.minio.ingress.issuer }}
+    cert-manager.io/issuer: {{ .Values.minio.ingress.issuer | quote }}
+    {{- end }}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.minio.ingress.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-minio
+                port:
+                  number: 31000
+  {{- if or .Values.minio.ingress.tlsSecretName .Values.minio.ingress.issuer }}
+  tls:
+    - hosts:
+        - {{ .Values.minio.ingress.hostname }}
+      secretName: {{ .Values.minio.ingress.tlsSecretName | default (printf "%s-minio-tls" .Release.Name) }}
+  {{- end }}
