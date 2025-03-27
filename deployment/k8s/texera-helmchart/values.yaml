@@ -30,7 +30,7 @@ minio:
 lakefs:
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
-    databaseConnectionString: postgres://texera:password@texera-postgresql.texera-dev.svc.cluster.local:5432/texera_lakefs?sslmode=disable
+    databaseConnectionString: postgres://texera:password@texera-postgresql:5432/texera_lakefs?sslmode=disable
   service:
     port: 8000
   lakefsConfig: |
@@ -43,7 +43,7 @@ lakefs:
     blockstore:
       type: s3
       s3:
-        endpoint: http://texera-minio.texera-dev.svc.cluster.local:9000
+        endpoint: http://texera-minio:9000
         pre_signed_expiry: 15m
         pre_signed_endpoint: http://localhost:31000
         force_path_style: true
@@ -117,7 +117,7 @@ texeraEnvVars:
   - name: STORAGE_S3_ENDPOINT
     value: http://texera-minio:9000
   - name: STORAGE_LAKEFS_ENDPOINT
-    value: http://texera-lakefs:8000/api/v1
+    value: texera-lakefs:8000/api/v1
   - name: STORAGE_JDBC_URL
     value: jdbc:postgresql://texera-postgresql:5432/texera_db?currentSchema=texera_db,public
   - name: STORAGE_JDBC_USERNAME
