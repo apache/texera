@@ -89,6 +89,9 @@ object ExecutionResultService {
                           firstElement
                         }
 
+                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
+                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
+                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
                         if (firstElement.length < 39) {
                           s"bytes'$firstElement' (length: $totalSize)"
                         } else {

@@ -261,7 +261,7 @@ object ArrowUtils extends LazyLogging {
                         val bytes = Array.ofDim[Byte](buffer.remaining())
                         buffer.duplicate().get(bytes)
 
-                        // Use loan pattern for resource management
+                        // Create temporary Arrow buffer to hold binary data
                         val arrowBuf = allocator.buffer(bytes.length)
                         try {
                           arrowBuf.writeBytes(bytes)

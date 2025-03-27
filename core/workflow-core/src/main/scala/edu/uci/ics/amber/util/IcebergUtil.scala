@@ -208,7 +208,8 @@ object IcebergUtil {
       case AttributeType.DOUBLE    => Types.DoubleType.get()
       case AttributeType.BOOLEAN   => Types.BooleanType.get()
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
-      case AttributeType.BINARY =>
+      case AttributeType.BINARY    =>
+        // Multiply fieldId by -1 to ensure element IDs are unique and don't conflict with parent field IDs
         val elementId = -1 * fieldId
         Types.ListType.ofRequired(elementId, Types.BinaryType.get())
       case AttributeType.ANY =>
