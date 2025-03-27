@@ -10,8 +10,8 @@ data:
     #!/bin/bash
     echo "Running Texera schema initialization..."
     export PGPASSWORD=$POSTGRES_PASSWORD
-    psql -U postgres <<EOF
+    cat <<'EOF' > /tmp/init.sql
 {{ .Files.Get "files/texera_ddl.sql" | indent 6 }}
     EOF
-
+    psql -U postgres -f /tmp/init.sql
     echo "Schema initialization complete."
