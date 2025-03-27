@@ -484,6 +484,15 @@ class WorkflowExecutionsResource {
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
+
+    // Clear runtime statistics documents for each execution
+    request.eIds.foreach { eid =>
+      WorkflowExecutionsResource
+        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
+        .foreach { uri =>
+          DocumentFactory.openDocument(uri)._1.clear()
+        }
+    }
   }
 
   /** Name a single execution * */
