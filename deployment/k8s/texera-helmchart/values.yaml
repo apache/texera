@@ -207,7 +207,7 @@ ingressPaths:
       serviceName: y-websocket-server-svc
       servicePort: 1234
     - path: /python-language-server
-      servuceName: python-language-server-svc
+      serviceName: python-language-server-svc
       servicePort: 3000
     - path: /
       serviceName: webserver-svc
