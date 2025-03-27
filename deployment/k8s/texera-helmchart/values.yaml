@@ -7,6 +7,7 @@ postgresql:
   image:
     repository: texera/postgres17-pgroonga
     tag: latest
+    debug: true
   auth:
     enablePostgresUser: true
     postgresPassword: password
