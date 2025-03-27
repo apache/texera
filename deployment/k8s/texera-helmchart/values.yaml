@@ -116,7 +116,7 @@ texeraEnvVars:
   - name: STORAGE_S3_ENDPOINT
     value: http://texera-minio:9000
   - name: STORAGE_LAKEFS_ENDPOINT
-    value: texera-lakefs:8000/api/v1
+    value: http://texera-lakefs:8000/api/v1
   - name: STORAGE_JDBC_URL
     value: jdbc:postgresql://texera-postgresql:5432/texera_db?currentSchema=texera_db,public
   - name: STORAGE_JDBC_USERNAME
