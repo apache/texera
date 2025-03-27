@@ -11,10 +11,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Namespace }}-postgres
+  name: {{ .Release.Name }}-postgres
   namespace: {{ .Values.workflowComputingUnitPool.namespace }}
 spec:
   type: ExternalName
-  externalName: {{ .Release.Namespace }}-postgres.{{ .Release.Namespace }}.svc.cluster.local
+  externalName: {{ .Release.Name }}-postgres.{{ .Release.Namespace }}.svc.cluster.local
 
 
