@@ -93,6 +93,7 @@ class WorkflowService(
         .foreach(eid => {
           val uris = WorkflowExecutionsResource
             .getResultUrisByExecutionId(eid)
+          val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
           WorkflowExecutionsResource.clearUris(eid)
           uris.foreach(uri =>
             try {
@@ -101,7 +102,13 @@ class WorkflowService(
               case _: Throwable => // exception can be raised if the document is already cleared
             }
           )
-
+          consoleMessagesUris.foreach(uri =>
+            try {
+              DocumentFactory.openDocument(uri)._1.clear()
+            } catch {
+              case _: Throwable => // exception can be raised if the document is already cleared
+            }
+          )
           expireSnapshotsForExecution(eid)
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
@@ -187,8 +194,16 @@ class WorkflowService(
     previousExecutionId.foreach(eid => {
       val uris = WorkflowExecutionsResource
         .getResultUrisByExecutionId(eid)
+      val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
       WorkflowExecutionsResource.clearUris(eid)
       uris.foreach(uri =>
+        try {
+          DocumentFactory.openDocument(uri)._1.clear()
+        } catch { // exception can happen if the resource is already cleared
+          case _: Throwable =>
+        }
+      )
+      consoleMessagesUris.foreach(uri =>
         try {
           DocumentFactory.openDocument(uri)._1.clear()
         } catch { // exception can happen if the resource is already cleared
@@ -317,7 +332,6 @@ class WorkflowService(
   }
 
   private def expireSnapshotsForExecution(eid: ExecutionIdentity): Unit = {
-    WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid).foreach(expireSnapshots)
     WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach(expireSnapshots)
   }
 

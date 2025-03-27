@@ -169,6 +169,11 @@ object WorkflowExecutionsResource {
         .delete(OPERATOR_PORT_EXECUTIONS)
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
+      context
+        .update(OPERATOR_EXECUTIONS)
+        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI, null)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .execute()
     } else {
       ExecutionResourcesMapping.removeExecutionResources(eid)
     }
