@@ -8,6 +8,8 @@ postgresql:
     repository: texera/postgres17-pgroonga
     tag: latest
   auth:
+    enablePostgresUser: true
+    postgresPassword: password
     username: texera
     password: password
   primary:
