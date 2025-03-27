@@ -6,5 +6,12 @@ metadata:
   labels:
     app: {{ .Release.Name }}
 data:
-  init.sql: |
-{{ .Files.Get "files/texera_ddl.sql" | indent 4 }}
+  init.sh: |
+    #!/bin/bash
+    echo "Running Texera schema initialization..."
+
+    psql -U postgres <<EOF
+{{ .Files.Get "files/texera_ddl.sql" | indent 6 }}
+    EOF
+
+    echo "Schema initialization complete."
