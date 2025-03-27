@@ -1,3 +1,8 @@
+global:
+  security:
+    allowedImages:
+      - texera/postgres17-pgroonga:latest
+
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
