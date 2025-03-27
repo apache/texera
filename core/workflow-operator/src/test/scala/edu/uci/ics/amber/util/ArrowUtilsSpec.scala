@@ -440,11 +440,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val binarySchema = Schema()
       .add("binary-data", AttributeType.BINARY)
 
-    val allocator: BufferAllocator = new RootAllocator()
-    val arrowSchema = ArrowUtils.fromTexeraSchema(binarySchema)
-    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-    vectorSchemaRoot.allocateNew()
-
     // Create a valid tuple first
     val validTuple = Tuple
       .builder(binarySchema)
@@ -455,22 +450,21 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       )
       .build()
 
-    // This should succeed
-    ArrowUtils.appendTexeraTuple(validTuple, vectorSchemaRoot)
+    // Use reflection to modify the tuple's internal data
+    val field = validTuple.getClass.getDeclaredField("fields")
+    field.setAccessible(true)
+    val fields = field.get(validTuple).asInstanceOf[Array[AnyRef]]
+    fields(0) = "This is not a List of ByteBuffers" // Replace with invalid data
+    field.set(validTuple, fields)
 
-    // Create an invalid tuple directly using addSequentially with a String instead of a List[ByteBuffer]
-    val invalidTuple = Tuple
-      .builder(binarySchema)
-      .addSequentially(
-        Array(
-          "This is not a List of ByteBuffers" // Invalid type
-        )
-      )
-      .build()
+    val allocator: BufferAllocator = new RootAllocator()
+    val arrowSchema = ArrowUtils.fromTexeraSchema(binarySchema)
+    val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
+    vectorSchemaRoot.allocateNew()
 
-    // The ArrowUtils should throw AttributeTypeException for this malformed tuple
+    // Now the ArrowUtils should throw AttributeTypeException
     assertThrows[AttributeTypeException] {
-      ArrowUtils.appendTexeraTuple(invalidTuple, vectorSchemaRoot)
+      ArrowUtils.appendTexeraTuple(validTuple, vectorSchemaRoot)
     }
   }
 
