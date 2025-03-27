@@ -171,7 +171,7 @@ object WorkflowExecutionsResource {
         .execute()
       context
         .update(OPERATOR_EXECUTIONS)
-        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI, null)
+        .setNull(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
         .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
     } else {
