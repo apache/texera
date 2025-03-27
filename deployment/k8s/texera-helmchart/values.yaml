@@ -160,6 +160,22 @@ ingress-nginx:
     create: true
 
 
+yWebsocketServer:
+  name: y-websocket-server
+  replicaCount: 1
+  image: jxzliu/y-websocket-server:latest
+
+
+pythonLanguageServer:
+  name: python-language-server
+  replicaCount: 8
+  image: jxzliu/pylsp:latest
+  imagePullSecret: regcred
+  resources:
+    limits:
+      cpu: "1"
+      memory: "200Mi"
+
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
@@ -187,6 +203,12 @@ ingressPaths:
     - path: /api
       serviceName: webserver-svc
       servicePort: 8080
+    - path: /rtc
+      serviceName: y-websocket-server-svc
+      servicePort: 1234
+    - path: /python-language-server
+      servuceName: python-language-server-svc
+      servicePort: 3000
     - path: /
       serviceName: webserver-svc
       servicePort: 8080
