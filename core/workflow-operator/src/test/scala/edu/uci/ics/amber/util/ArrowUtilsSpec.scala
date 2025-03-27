@@ -451,7 +451,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       .build()
 
     // Use reflection to modify the tuple's internal data
-    val field = validTuple.getClass.getDeclaredField("fields")
+    val field = validTuple.getClass.getDeclaredField("binary-data")
     field.setAccessible(true)
     val fields = field.get(validTuple).asInstanceOf[Array[AnyRef]]
     fields(0) = "This is not a List of ByteBuffers" // Replace with invalid data
