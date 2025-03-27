@@ -10,11 +10,11 @@ postgresql:
     debug: true
   auth:
     postgresPassword: root_password  # for executing init script with superuser
-  resources:
-    requests:
-      cpu: "4"
-      memory: "4Gi"
   primary:
+    resources:
+      requests:
+        cpu: "4"
+        memory: "4Gi"
     persistence:
       enabled: true
       size: 10Gi
