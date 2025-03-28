@@ -299,34 +299,30 @@ class WorkflowService(
     // Remove references from registry first
     WorkflowExecutionsResource.clearUris(eid)
 
-    // Helper function for safe document operations with proper error handling
-    def safeDocumentOperation(uri: URI, operation: URI => Unit): Unit =
-      try operation(uri)
+    // Clean up all result and console message documents
+    (resultUris ++ consoleMessagesUris).foreach { uri =>
+      try DocumentFactory.openDocument(uri)._1.clear()
       catch {
         case error: Throwable =>
           logger.debug(s"Error processing document at $uri: ${error.getMessage}")
       }
-
-    // Clean up all result and console message documents
-    (resultUris ++ consoleMessagesUris).foreach { uri =>
-      safeDocumentOperation(uri, u => DocumentFactory.openDocument(u)._1.clear())
     }
 
     // Expire any Iceberg snapshots for runtime statistics
     WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach { uri =>
-      safeDocumentOperation(
-        uri,
-        u => {
-          DocumentFactory.openDocument(u)._1 match {
-            case iceberg: OnIceberg => iceberg.expireSnapshots()
-            case other =>
-              logger.error(
-                s"Cannot expire snapshots: document from URI [$u] is of type ${other.getClass.getName}. " +
-                  s"Expected an instance of ${classOf[OnIceberg].getName}."
-              )
-          }
+      try {
+        DocumentFactory.openDocument(uri)._1 match {
+          case iceberg: OnIceberg => iceberg.expireSnapshots()
+          case other =>
+            logger.error(
+              s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. " +
+                s"Expected an instance of ${classOf[OnIceberg].getName}."
+            )
         }
-      )
+      } catch {
+        case error: Throwable =>
+          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+      }
     }
   }
 
