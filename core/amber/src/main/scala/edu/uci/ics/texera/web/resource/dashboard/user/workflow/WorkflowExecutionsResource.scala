@@ -172,8 +172,7 @@ object WorkflowExecutionsResource {
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
       context
-        .update(OPERATOR_EXECUTIONS)
-        .setNull(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+        .delete(OPERATOR_EXECUTIONS)
         .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
     } else {
