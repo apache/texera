@@ -612,7 +612,6 @@ class WorkflowResource extends LazyLogging {
             document.clear()
           } catch {
             case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
-              // Storage doesn't exist for this URI, we can safely ignore this
               logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
             case NonFatal(e) =>
               logger.error(s"Failed to clear document for URI $uri", e)
@@ -621,10 +620,9 @@ class WorkflowResource extends LazyLogging {
       } catch {
         case NonFatal(e) =>
           logger.error("Failed to clean up execution results", e)
-        // Continue with deletion even if cleaning up results fails
       }
     } catch {
-      case _: BadRequestException => // Propagate BadRequestException
+      case _: BadRequestException =>
       case NonFatal(exception)    => throw new WebApplicationException(exception)
     }
   }
