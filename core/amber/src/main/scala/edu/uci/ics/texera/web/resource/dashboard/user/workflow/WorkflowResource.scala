@@ -579,40 +579,23 @@ class WorkflowResource extends LazyLogging {
         .asScala
         .toList
 
-      // Clean up execution results
-      eids.foreach { eid =>
+      // Collect all URIs related to executions for cleanup
+      val uris = eids.flatMap { eid =>
         val executionId = ExecutionIdentity(eid.longValue())
 
-        try {
-          // Collect all URIs related to this execution
-          val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(executionId)
-          val consoleMessagesUris =
-            WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(executionId)
-          val runtimeStatsUrisOpt =
-            WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(executionId)
+        // Gather URIs from all execution resources
+        val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(executionId)
+        val consoleMessagesUris =
+          WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(executionId)
+        val runtimeStatsUris =
+          WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(executionId).toList
 
-          // Clean up each URI
-          (resultUris ++ consoleMessagesUris ++ runtimeStatsUrisOpt).foreach { uri =>
-            try {
-              val (document, _) = DocumentFactory.openDocument(uri)
-              document.clear()
-            } catch {
-              case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
-                // Storage doesn't exist for this URI, we can safely ignore this
-                logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
-              case NonFatal(e) =>
-                logger.error(s"Failed to clear document for URI $uri", e)
-            }
-          }
-        } catch {
-          case NonFatal(e) =>
-            logger.error(s"Failed to clean up execution results for execution ID $executionId", e)
-          // Continue with deletion even if cleaning up results fails
-        }
+        resultUris ++ consoleMessagesUris ++ runtimeStatsUris
       }
 
+      // Delete workflows in a transaction
       context.transaction { _ =>
-        for (wid <- workflowIDs.wids) {
+        workflowIDs.wids.foreach { wid =>
           if (workflowOfUserExists(wid, user.getUid)) {
             workflowDao.deleteById(wid)
           } else {
@@ -620,10 +603,29 @@ class WorkflowResource extends LazyLogging {
           }
         }
       }
+
+      // Clean up document storage
+      try {
+        uris.foreach { uri =>
+          try {
+            val (document, _) = DocumentFactory.openDocument(uri)
+            document.clear()
+          } catch {
+            case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
+              // Storage doesn't exist for this URI, we can safely ignore this
+              logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
+            case NonFatal(e) =>
+              logger.error(s"Failed to clear document for URI $uri", e)
+          }
+        }
+      } catch {
+        case NonFatal(e) =>
+          logger.error("Failed to clean up execution results", e)
+        // Continue with deletion even if cleaning up results fails
+      }
     } catch {
-      case _: BadRequestException =>
-      case NonFatal(exception) =>
-        throw new WebApplicationException(exception)
+      case _: BadRequestException => // Propagate BadRequestException
+      case NonFatal(exception)    => throw new WebApplicationException(exception)
     }
   }
 
