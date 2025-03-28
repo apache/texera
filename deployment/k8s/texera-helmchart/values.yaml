@@ -32,7 +32,7 @@ minio:
     annotations:
       cert-manager.io/issuer: ""
       nginx.ingress.kubernetes.io/enable-cors: "true"
-      nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.texera.io"
+      nginx.ingress.kubernetes.io/cors-allow-origin: "" # replace it with texera hostname
       nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
       nginx.ingress.kubernetes.io/cors-allow-headers: "*"
       nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
