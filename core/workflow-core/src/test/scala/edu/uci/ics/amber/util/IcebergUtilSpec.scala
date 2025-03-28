@@ -31,7 +31,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
       Types.NestedField.optional(4, "test-4", Types.DoubleType.get()),
       Types.NestedField.optional(5, "test-5", Types.TimestampType.withoutZone()),
       Types.NestedField.optional(6, "test-6", Types.StringType.get()),
-      Types.NestedField.optional(7, "test-7", Types.BinaryType.get())
+      Types.NestedField.optional(7, "test-7", Types.ListType.ofRequired(-7, Types.BinaryType.get()))
     ).asJava
   )
 
@@ -44,7 +44,10 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.toIcebergType(AttributeType.DOUBLE) == Types.DoubleType.get())
     assert(IcebergUtil.toIcebergType(AttributeType.TIMESTAMP) == Types.TimestampType.withoutZone())
     assert(IcebergUtil.toIcebergType(AttributeType.STRING) == Types.StringType.get())
-    assert(IcebergUtil.toIcebergType(AttributeType.BINARY) == Types.BinaryType.get())
+    assert(
+      IcebergUtil.toIcebergType(AttributeType.BINARY) == Types.ListType
+        .ofRequired(0, Types.BinaryType.get())
+    )
   }
 
   it should "convert from Iceberg Type to AttributeType correctly" in {
@@ -56,7 +59,11 @@ class IcebergUtilSpec extends AnyFlatSpec {
       IcebergUtil.fromIcebergType(Types.TimestampType.withoutZone()) == AttributeType.TIMESTAMP
     )
     assert(IcebergUtil.fromIcebergType(Types.StringType.get()) == AttributeType.STRING)
-    assert(IcebergUtil.fromIcebergType(Types.BinaryType.get()) == AttributeType.BINARY)
+    assert(
+      IcebergUtil.fromIcebergType(
+        Types.ListType.ofRequired(0, Types.BinaryType.get())
+      ) == AttributeType.BINARY
+    )
   }
 
   it should "convert from Texera Schema to Iceberg Schema correctly" in {
@@ -78,7 +85,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
           Double.box(3.14),
           new Timestamp(10000L),
           "hello world",
-          Array[Byte](1, 2, 3, 4)
+          List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
         )
       )
       .build()
@@ -91,7 +98,10 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(record.getField("test-4") == 3.14)
     assert(record.getField("test-5") == new Timestamp(10000L).toLocalDateTime)
     assert(record.getField("test-6") == "hello world")
-    assert(record.getField("test-7") == ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
+    assert(
+      record.getField("test-7").asInstanceOf[java.util.List[ByteBuffer]].asScala.toList ==
+        List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
+    )
 
     val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
     assert(tupleFromRecord == tuple)
@@ -168,7 +178,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
       LocalDateTime.ofInstant(new Timestamp(10000L).toInstant, ZoneId.systemDefault())
     )
     record.setField("test-6", "hello world")
-    record.setField("test-7", ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
+    record.setField("test-7", List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4))))
 
     val tuple = IcebergUtil.fromRecord(record, texeraSchema)
 
@@ -178,6 +188,8 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(tuple.getField[Double]("test-4") == 3.14)
     assert(tuple.getField[Timestamp]("test-5") == new Timestamp(10000L))
     assert(tuple.getField[String]("test-6") == "hello world")
-    assert(tuple.getField[Array[Byte]]("test-7") sameElements Array[Byte](1, 2, 3, 4))
+    assert(
+      tuple.getField[List[ByteBuffer]]("test-7") == List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4)))
+    )
   }
 }

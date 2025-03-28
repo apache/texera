@@ -78,6 +78,16 @@ class ArrowTableTupleProvider:
                 and value[:6] == b"pickle"
             ):
                 value = pickle.loads(value[10:])
+
+            # Handle ListType<Binary> as BINARY type (List[ByteBuffer] from Scala)
+            elif (
+                isinstance(field_type, pyarrow.LargeListType)
+            ) and field_type.value_type == pyarrow.binary():
+                # value is already a list of bytes objects, which is correct
+                # Handle special case for pickled list items
+                if value and isinstance(value[0], bytes) and value[0][:6] == b"pickle":
+                    value = [pickle.loads(item[10:]) for item in value]
+
             return value
 
         self._current_idx += 1
@@ -124,18 +134,36 @@ def java_hash_long(value: int) -> int:
     return int_32(value ^ (value >> 32))
 
 
-def java_hash_bytes(bytes: Iterator[int], init: int, salt: int):
+def java_hash_bytes(
+    byte_data: typing.Union[List[typing.Union[bytes, bytearray]], Iterator[int]],
+    init: int,
+    salt: int,
+):
     """
     Java's hash function for an array of bytes.
-    :param bytes: An iterator of int (byte) values.
+    :param byte_data: Either a list of bytes/bytearray objects
+                      or iterator of int (byte) values.
     :param init: An init hash value.
     :param salt: A hash salt value.
     :return: Java's hash value in a 32-bit integer.
     """
-    h = init
-    for b in bytes:
-        h = int_32(salt * h + b)
-    return h
+    hash_value = init
+
+    # Case 1: Input is a non-empty list of bytes/bytearray objects
+    if (
+        isinstance(byte_data, list)
+        and byte_data
+        and isinstance(byte_data[0], (bytes, bytearray))
+    ):
+        for byte_obj in byte_data:
+            for byte in byte_obj:
+                hash_value = int_32(salt * hash_value + byte)
+    # Case 2: Input is an iterator of integers or other iterable
+    else:
+        for byte in byte_data:
+            hash_value = int_32(salt * hash_value + byte)
+
+    return hash_value
 
 
 class Tuple:
@@ -249,35 +277,84 @@ class Tuple:
     def cast_to_schema(self, schema: Schema) -> None:
         """
         Safely cast each field value to match the target schema.
-        If failed, the value will stay not changed.
 
-        This current conducts two kinds of casts:
-            1. cast NaN to None;
-            2. cast any object to bytes (using pickle).
-        :param schema: The target Schema that describes the target AttributeType to
-            cast.
-        :return:
+        This currently conducts two kinds of casts:
+            1. cast NaN to None
+            2. cast any object to bytes (using pickle)
+
+        Args:
+            schema: The target Schema that describes the AttributeType to cast to
         """
+        MAX_CHUNK_SIZE = 1 * 1024 * 1024 * 1024  # 1GB in bytes
+        PICKLE_PREFIX = b"pickle    "
+
         for field_name in self.get_field_names():
             try:
                 field_value: Field = self[field_name]
 
-                # convert NaN to None to support null value conversion
+                # Convert NaN to None to support null value conversion
                 if checknull(field_value):
                     self[field_name] = None
+                    continue
 
-                if field_value is not None:
-                    field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY and not isinstance(
-                        field_value, bytes
-                    ):
-                        self[field_name] = b"pickle    " + pickle.dumps(field_value)
+                if field_value is None:
+                    continue
+
+                field_type = schema.get_attr_type(field_name)
+
+                # Handle BINARY type - expected to be a list of byte arrays
+                if field_type == AttributeType.BINARY:
+                    self._process_binary_field(
+                        field_name, field_value, MAX_CHUNK_SIZE, PICKLE_PREFIX
+                    )
+
             except Exception as err:
-                # Surpass exceptions during cast.
-                # Keep the value as it is if the cast fails, and continue to attempt
-                # on the next one.
-                logger.warning(err)
-                continue
+                # Suppress exceptions during cast.
+                # Keep the value as it is if the cast fails,
+                # and continue to the next one.
+                logger.warning(f"Failed to cast field '{field_name}': {err}")
+
+    def _process_binary_field(
+        self,
+        field_name: str,
+        field_value: Any,
+        max_chunk_size: int,
+        pickle_prefix: bytes,
+    ) -> None:
+        """
+        Process a field with BINARY type, converting it to the expected format.
+
+        Args:
+            field_name: Name of the field being processed
+            field_value: Value to convert to binary format
+            max_chunk_size: Maximum size of each binary chunk
+            pickle_prefix: Prefix to add to pickled data
+        """
+        # If it's already a list, make sure all items are bytes
+        if isinstance(field_value, list):
+            self[field_name] = [
+                item if isinstance(item, bytes) else bytes(item) for item in field_value
+            ]
+        # If it's a single bytes object, convert to list with one item
+        elif isinstance(field_value, bytes):
+            if len(field_value) > max_chunk_size:
+                self[field_name] = [
+                    field_value[i : i + max_chunk_size]
+                    for i in range(0, len(field_value), max_chunk_size)
+                ]
+            else:
+                self[field_name] = [field_value]
+        # For other types, pickle them
+        else:
+            pickled_data = pickle.dumps(field_value)
+
+            if len(pickled_data) > max_chunk_size:
+                self[field_name] = [
+                    pickle_prefix + pickled_data[i : i + max_chunk_size]
+                    for i in range(0, len(pickled_data), max_chunk_size)
+                ]
+            else:
+                self[field_name] = [pickle_prefix + pickled_data]
 
     def validate_schema(self, schema: Schema) -> None:
         """
@@ -307,12 +384,40 @@ class Tuple:
 
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
-            if not isinstance(
-                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
-            ):
+            expected_type = TO_PYOBJECT_MAPPING.get(expected)
+
+            if field_value is None:
+                continue
+
+            # Special handling for BINARY type
+            if expected == AttributeType.BINARY:
+                if not isinstance(field_value, list):
+                    raise TypeError(
+                        f"Type mismatch for field '{field_name}': "
+                        f"expected {expected} (list), "
+                        f"got {type(field_value).__name__} instead."
+                    )
+
+                # Verify all items are bytes objects
+                non_bytes_items = [
+                    (i, type(item).__name__)
+                    for i, item in enumerate(field_value)
+                    if not isinstance(item, bytes)
+                ]
+
+                if non_bytes_items:
+                    index, type_name = non_bytes_items[0]  # Report first error
+                    raise TypeError(
+                        f"Type mismatch in BINARY list field '{field_name}' "
+                        f"at index {index}: "
+                        f"expected 'bytes', got '{type_name}' instead."
+                    )
+            # For other types, use the standard type check
+            elif not isinstance(field_value, expected_type):
                 raise TypeError(
-                    f"Unmatched type for field '{field_name}', expected {expected}, "
-                    f"got {field_value} ({type(field_value)}) instead."
+                    f"Type mismatch for field '{field_name}': "
+                    f"expected {expected} ({expected_type.__name__}), "
+                    f"got {type(field_value).__name__} instead."
                 )
 
     def get_partial_tuple(self, attribute_names: List[str]) -> "Tuple":

@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtil
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 import org.apache.arrow.vector.{
   BigIntVector,
   BitVector,
@@ -14,17 +14,22 @@ import org.apache.arrow.vector.{
   Float8Vector,
   IntVector,
   TimeStampVector,
-  VarBinaryVector,
   VarCharVector,
   VectorSchemaRoot
 }
+import org.apache.arrow.vector.complex.LargeListVector
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 
 import java.nio.charset.StandardCharsets
 import java.util
+import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
+
+  // Create a single allocator for the entire utility
+  private val allocator: BufferAllocator = new RootAllocator()
 
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
 
@@ -47,28 +52,61 @@ object ArrowUtils extends LazyLogging {
     val arrowSchema = vectorSchemaRoot.getSchema
     val schema = toTexeraSchema(arrowSchema)
 
-    Tuple
-      .builder(schema)
-      .addSequentially(
-        vectorSchemaRoot.getFieldVectors.asScala
-          .map((fieldVector: FieldVector) => {
-            val value: AnyRef = fieldVector.getObject(rowIndex)
-            try {
-              val arrowType = fieldVector.getField.getFieldType.getType
-              val attributeType = toAttributeType(arrowType)
-              AttributeTypeUtils.parseField(value, attributeType)
+    val builder = Tuple.builder(schema)
+    val fieldVectors = vectorSchemaRoot.getFieldVectors
 
-            } catch {
-              case e: Exception =>
-                logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+    (0 until fieldVectors.size()).foreach { i =>
+      val fieldVector = fieldVectors.get(i)
+      val arrowType = fieldVector.getField.getFieldType.getType
+      val attribute = schema.getAttributes.get(i)
+
+      try {
+        val value = arrowType match {
+          case _: ArrowType.LargeList =>
+            fieldVector match {
+              case largeListVector: LargeListVector =>
+                if (largeListVector.isNull(rowIndex)) {
+                  null
+                } else {
+                  // Get the inner value vector (should be binary type for BINARY AttributeType)
+                  val innerVector = largeListVector.getDataVector
+
+                  // Get start/end indexes for this row's list - LargeListVector uses Long offsets
+                  val startIdx = largeListVector.getOffsetBuffer.getLong(rowIndex * 8).toInt
+                  val endIdx = largeListVector.getOffsetBuffer.getLong((rowIndex + 1) * 8).toInt
+
+                  // Convert to List[ByteBuffer]
+                  (startIdx until endIdx).map { j =>
+                    if (innerVector.isNull(j)) {
+                      java.nio.ByteBuffer.allocate(0)
+                    } else {
+                      val bytes = innerVector.getObject(j).asInstanceOf[Array[Byte]]
+                      java.nio.ByteBuffer.wrap(bytes)
+                    }
+                  }.toList
+                }
+
+              case _ =>
+                logger.warn(s"Unsupported list vector type: ${fieldVector.getClass.getName}")
                 null
             }
 
-          })
-          .toArray
-      )
-      .build()
+          case _ =>
+            // For other types, get the object and parse it using the AttributeType
+            val rawValue = fieldVector.getObject(rowIndex)
+            val attributeType = toAttributeType(arrowType)
+            AttributeTypeUtils.parseField(rawValue, attributeType)
+        }
 
+        builder.add(attribute, value)
+      } catch {
+        case e: Exception =>
+          logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+          builder.add(attribute, null)
+      }
+    }
+
+    builder.build()
   }
 
   /**
@@ -114,7 +152,7 @@ object ArrowUtils extends LazyLogging {
       case _: ArrowType.Utf8 =>
         AttributeType.STRING
 
-      case _: ArrowType.Binary =>
+      case _: ArrowType.LargeList =>
         AttributeType.BINARY
 
       case _ =>
@@ -190,13 +228,65 @@ object ArrowUtils extends LazyLogging {
             vector
               .asInstanceOf[VarCharVector]
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
-        case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
-          if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
-          else
-            vector
-              .asInstanceOf[VarBinaryVector]
-              .setSafe(index, value.asInstanceOf[Array[Byte]])
+        case _: ArrowType.LargeList =>
+          (isNull, vector) match {
+            case (true, largeListVector: LargeListVector) =>
+              largeListVector.setNull(index)
 
+            case (true, _) =>
+              logger.warn(
+                s"Unsupported list vector type for null value: ${vector.getClass.getName}"
+              )
+
+            case (false, largeListVector: LargeListVector) =>
+              value match {
+                case bufferList: List[_]
+                    if bufferList.isEmpty || bufferList.head.isInstanceOf[java.nio.ByteBuffer] =>
+                  val writer = largeListVector.getWriter
+                  writer.setPosition(index)
+                  writer.startList()
+
+                  // Process ByteBuffers in a more functional way
+                  if (bufferList.nonEmpty) {
+                    bufferList.asInstanceOf[List[java.nio.ByteBuffer]].foreach { buffer =>
+                      if (buffer == null) {
+                        // For null elements, write an empty byte array
+                        val arrowBuf = allocator.buffer(0)
+                        try {
+                          writer.writeVarBinary(0, 0, arrowBuf)
+                        } finally {
+                          arrowBuf.close() // Ensure buffer is released
+                        }
+                      } else {
+                        val bytes = Array.ofDim[Byte](buffer.remaining())
+                        buffer.duplicate().get(bytes)
+
+                        // Create temporary Arrow buffer to hold binary data
+                        val arrowBuf = allocator.buffer(bytes.length)
+                        try {
+                          arrowBuf.writeBytes(bytes)
+                          writer.writeVarBinary(0, bytes.length, arrowBuf)
+                        } finally {
+                          arrowBuf.close() // Ensure buffer is released
+                        }
+                      }
+                    }
+                  }
+
+                  writer.endList()
+
+                case other =>
+                  throw new AttributeTypeUtils.AttributeTypeException(
+                    s"Cannot convert ${other.getClass.getName} to list of binary data"
+                  )
+              }
+
+            case (false, _) =>
+              logger.warn(s"Unsupported list vector type: ${vector.getClass.getName}")
+              throw new AttributeTypeUtils.AttributeTypeException(
+                s"Cannot write to unsupported list vector type: ${vector.getClass.getName}"
+              )
+          }
       }
     }
 
@@ -214,21 +304,35 @@ object ArrowUtils extends LazyLogging {
 
     for (amberAttribute <- schema.getAttributes) {
       val name = amberAttribute.getName
-      val field = Field.nullablePrimitive(name, fromAttributeType(amberAttribute.getType))
+      val attributeType = amberAttribute.getType
+
+      val field = attributeType match {
+        case AttributeType.BINARY =>
+          // For BINARY type, create a LargeList field with Binary element type
+          val childField = Field.nullablePrimitive("element", new ArrowType.Binary())
+          new Field(
+            name,
+            FieldType.nullable(new ArrowType.LargeList()),
+            util.Arrays.asList(childField)
+          )
+        case _ =>
+          Field.nullablePrimitive(name, fromAttributeTypeToPrimitive(attributeType))
+      }
+
       arrowFields.add(field)
     }
     new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
   }
 
   /**
-    * Converts an AttributeType into an ArrowType (PrimitiveType).
+    * Converts an AttributeType into a primitive ArrowType.
     *
     * @param srcType The AttributeType to be converted.
-    * @throws AttributeTypeException if the type cannot be converted.
-    * @return A PrimitiveType, a type of ArrowType, does not handle complex data.
+    * @throws AttributeTypeException if the type cannot be converted to a primitive type.
+    * @return A PrimitiveType (a subtype of ArrowType)
     */
   @throws[AttributeTypeException]
-  def fromAttributeType(srcType: AttributeType): PrimitiveType = {
+  def fromAttributeTypeToPrimitive(srcType: AttributeType): PrimitiveType = {
     srcType match {
       case AttributeType.INTEGER =>
         new ArrowType.Int(32, true)
@@ -245,14 +349,11 @@ object ArrowUtils extends LazyLogging {
       case AttributeType.TIMESTAMP =>
         new ArrowType.Timestamp(MILLISECOND, "UTC")
 
-      case AttributeType.BINARY =>
-        new ArrowType.Binary
-
       case AttributeType.STRING | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE
+
       case _ =>
         throw new AttributeTypeUtils.AttributeTypeException("Unexpected value: " + srcType)
     }
   }
-
 }
