@@ -4,12 +4,24 @@ package edu.uci.ics.amber.core.storage
 // TODO: currently these values are hard-coded, it would be good to have a way to dynamically load these names to avoid 2-copy
 object EnvironmentalVariable {
 
+  // utility function to load the env var
+  def get(name: String): Option[String] = {
+    Option(System.getenv(name))
+  }
+
+  /**
+    * FileService related endpoint
+    */
+  val ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT = "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT"
+  val ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT =
+    "FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT"
+
   /**
     * Variables in storage.conf
     */
   val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
 
-  // MongoDB
+  // MongoDB, DEPRECATED
   val ENV_MONGODB_URL = "STORAGE_MONGODB_URL"
   val ENV_MONGODB_DATABASE = "STORAGE_MONGODB_DATABASE"
   val ENV_MONGODB_COMMIT_BATCH_SIZE = "STORAGE_MONGODB_COMMIT_BATCH_SIZE"

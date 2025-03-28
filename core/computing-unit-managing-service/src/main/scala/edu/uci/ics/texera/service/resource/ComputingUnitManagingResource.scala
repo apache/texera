@@ -39,6 +39,12 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
+    EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
+      .get,
+    EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
+      .get,
     // TODO: use AmberConfig for this item. Currently AmberConfig is only accessible in workflow-executing-service
     EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true
   )

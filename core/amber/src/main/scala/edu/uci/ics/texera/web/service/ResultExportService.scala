@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.github.tototoshi.csv.CSVWriter
-import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.{DocumentFactory, EnvironmentalVariable}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
@@ -30,6 +30,7 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
+
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.StreamingOutput
 import edu.uci.ics.texera.web.auth.JwtAuth
@@ -59,7 +60,7 @@ object ResultExportService {
   lazy val fileServiceUploadOneFileToDatasetEndpoint: String =
     sys.env
       .getOrElse(
-        "FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT",
+        EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT,
         "http://localhost:9092/api/dataset/did/upload"
       )
       .trim

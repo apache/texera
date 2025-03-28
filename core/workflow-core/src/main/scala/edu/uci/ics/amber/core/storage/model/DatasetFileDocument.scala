@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken
@@ -25,7 +26,7 @@ object DatasetFileDocument {
   lazy val fileServiceGetPresignURLEndpoint: String =
     sys.env
       .getOrElse(
-        "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT",
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT,
         "http://localhost:9092/api/dataset/presign-download"
       )
       .trim
