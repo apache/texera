@@ -28,8 +28,8 @@ minio:
   ingress:
     enabled: false
     hostname: "localhost"
-    tlsSecretName: ""        # or "texera-tls"
-    issuer: ""               # or "letsencrypt-prod"
+    tls: false
+    selfSigned: true
   auth:
     rootUser: texera_minio
     rootPassword: password
