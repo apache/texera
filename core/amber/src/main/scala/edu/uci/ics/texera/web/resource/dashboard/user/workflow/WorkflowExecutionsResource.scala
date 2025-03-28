@@ -133,6 +133,7 @@ object WorkflowExecutionsResource {
         .fetchInto(classOf[String])
         .asScala
         .toList
+        .filter(uri => uri != null && uri.nonEmpty)
         .map(URI.create)
     } else {
       ExecutionResourcesMapping.getResourceURIs(eid)
@@ -148,6 +149,7 @@ object WorkflowExecutionsResource {
         .fetchInto(classOf[String])
         .asScala
         .toList
+        .filter(uri => uri != null && uri.nonEmpty)
         .map(URI.create)
     else Nil
 
