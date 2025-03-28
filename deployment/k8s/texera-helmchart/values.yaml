@@ -137,6 +137,8 @@ texeraEnvVars:
     value: root_password
   - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
     value: http://texera-file-service:9092/api/dataset/presign-download
+  - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
+    value: http://texera-file-service:9092/api/dataset/did/upload
   - name: USER_SYS_ENABLED
     value: "true"
   - name: STORAGE_ICEBERG_CATALOG_TYPE
