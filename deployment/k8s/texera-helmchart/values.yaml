@@ -26,12 +26,17 @@ postgresql:
 minio:
   mode: standalone
   ingress:
+    enabled: false
     hostname: "localhost"
     tlsSecretName: ""        # or "texera-tls"
     issuer: ""               # or "letsencrypt-prod"
   auth:
     rootUser: texera_minio
     rootPassword: password
+  service:
+    type: NodePort
+    nodePorts:
+      api: 31000
   persistence:
     enabled: true
     size: 20Gi
@@ -46,16 +51,12 @@ lakefs:
   lakefsConfig: |
     database:
       type: postgres
-    installation:
-      user_name: texera-admin
-      access_key_id: AKIAIOSFOLKFSSAMPLES
-      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     blockstore:
       type: s3
       s3:
         endpoint: http://texera-minio:9000
         pre_signed_expiry: 15m
-        pre_signed_endpoint: http://localhost:9000
+        pre_signed_endpoint: http://localhost:31000
         force_path_style: true
         credentials:
           access_key_id: texera_minio
@@ -146,10 +147,16 @@ texeraEnvVars:
     value: postgres
   - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
     value: root_password
+  - name: STORAGE_LAKEFS_AUTH_API_SECRET
+    value: random_string_for_lakefs
+  - name: STORAGE_LAKEFS_AUTH_USERNAME
+    value: AKIAIOSFOLKFSSAMPLES
+  - name: STORAGE_LAKEFS_AUTH_PASSWORD
+    value: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: false # set to true if k8s does not have nginx installed.
+  enabled: true # set to true if k8s does not have nginx installed.
   controller:
     replicaCount: 1
     service:
