@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -34,6 +34,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
@@ -46,13 +47,113 @@ object ExecutionResultService {
   private val defaultPageSize: Int = 5
 
   /**
+    * Converts a collection of Tuples to a list of JSON ObjectNodes.
+    *
+    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
+    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For string values longer than maxStringLength (100), it truncates them.
+    * NULL values are converted to the string "NULL".
+    *
+    * @param tuples The collection of Tuples to convert
+    * @return A List of ObjectNodes containing the JSON representation of the tuples
+    */
+  def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
+    val maxStringLength = 100
+
+    tuples.map { tuple =>
+      val processedFields = tuple.schema.getAttributes.zipWithIndex
+        .map {
+          case (attr, idx) =>
+            val fieldValue = tuple.getField[AnyRef](idx)
+
+            Option(fieldValue) match {
+              case None => "NULL"
+              case Some(value) =>
+                attr.getType match {
+                  case AttributeType.BINARY =>
+                    value match {
+                      case binaryList: List[_] if binaryList.nonEmpty =>
+                        val totalSize = binaryList.foldLeft(0) {
+                          case (sum, buffer: java.nio.ByteBuffer) => sum + buffer.remaining()
+                          case (_, other) =>
+                            throw new RuntimeException(
+                              s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+                            )
+                        }
+
+                        val firstElement = getByteBufferHexString(binaryList.head)
+
+                        val lastElement = if (binaryList.size > 1) {
+                          getByteBufferHexString(binaryList.last)
+                        } else {
+                          firstElement
+                        }
+
+                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
+                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
+                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
+                        if (firstElement.length < 39) {
+                          s"bytes'$firstElement' (length: $totalSize)"
+                        } else {
+                          val leadingBytes = firstElement.take(30)
+                          val trailingBytes = lastElement.takeRight(9)
+                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                        }
+
+                      case _ =>
+                        throw new RuntimeException(
+                          s"Expected a List for binary type field, but got: ${value.getClass.getName}"
+                        )
+                    }
+                  case AttributeType.STRING =>
+                    val stringValue = value.asInstanceOf[String]
+                    if (stringValue.length > maxStringLength)
+                      stringValue.take(maxStringLength) + "..."
+                    else
+                      stringValue
+                  case _ => value
+                }
+            }
+        }
+        .toArray[Any]
+
+      TupleUtils.tuple2json(tuple.schema, processedFields)
+    }.toList
+  }
+
+  /**
+    * Converts a ByteBuffer value to a hex string representation.
+    *
+    * This helper function takes a ByteBuffer value and converts its contents to a space-separated
+    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
+    * If the input is not a ByteBuffer, it throws a RuntimeException.
+    *
+    * @param value The value to convert, expected to be a ByteBuffer
+    * @return A string containing the hex representation of the ByteBuffer's contents
+    * @throws RuntimeException if the input value is not a ByteBuffer
+    */
+  private def getByteBufferHexString(value: Any): String = {
+    value match {
+      case buffer: java.nio.ByteBuffer =>
+        val bytes = new Array[Byte](buffer.remaining())
+        val dupBuffer = buffer.duplicate()
+        dupBuffer.get(bytes)
+        bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+      case other =>
+        throw new RuntimeException(
+          s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+        )
+    }
+  }
+
+  /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
       table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
+    val tableInJson = convertTuplesToJson(table)
     WebDataUpdate(mode, tableInJson)
   }
 
@@ -336,9 +437,7 @@ class ExecutionResultService(
             .getRange(from, from + request.pageSize)
             .to(Iterable)
         }
-        val mappedResults = paginationIterable
-          .map(tuple => tuple.asKeyValuePairJson())
-          .toList
+        val mappedResults = convertTuplesToJson(paginationIterable)
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
           .getOrElse(List.empty)
