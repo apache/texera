@@ -595,7 +595,7 @@ class WorkflowResource extends LazyLogging {
 
       // Delete workflows in a transaction
       context.transaction { _ =>
-        workflowIDs.wids.foreach { wid =>
+        for (wid <- workflowIDs.wids) {
           if (workflowOfUserExists(wid, user.getUid)) {
             workflowDao.deleteById(wid)
           } else {
