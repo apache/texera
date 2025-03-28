@@ -124,19 +124,6 @@ services:
     volumes:
       - computing_unit_data:/core/amber/user-resources
 
-  # a status checker to show that all texera containers are running
-  texera-status-checker:
-    image: busybox
-    container_name: texera-status-checker
-    depends_on:
-      computing-unit-master:
-        condition: service_started
-    command: >
-      sh -c '
-        echo "All Texera services are up and running!";
-        tail -f /dev/null
-      '
-
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:alpine
