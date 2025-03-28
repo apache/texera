@@ -133,6 +133,7 @@ object WorkflowExecutionsResource {
         .fetchInto(classOf[String])
         .asScala
         .toList
+        .filter(uri => uri != null && uri.nonEmpty)
         .map(URI.create)
     } else {
       ExecutionResourcesMapping.getResourceURIs(eid)
@@ -148,6 +149,7 @@ object WorkflowExecutionsResource {
         .fetchInto(classOf[String])
         .asScala
         .toList
+        .filter(uri => uri != null && uri.nonEmpty)
         .map(URI.create)
     else Nil
 
@@ -168,6 +170,10 @@ object WorkflowExecutionsResource {
       context
         .delete(OPERATOR_PORT_EXECUTIONS)
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .execute()
+      context
+        .delete(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .execute()
     } else {
       ExecutionResourcesMapping.removeExecutionResources(eid)
@@ -479,6 +485,15 @@ class WorkflowExecutionsResource {
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
+
+    // Clear runtime statistics documents for each execution
+    request.eIds.foreach { eid =>
+      WorkflowExecutionsResource
+        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
+        .foreach { uri =>
+          DocumentFactory.openDocument(uri)._1.clear()
+        }
+    }
   }
 
   /** Name a single execution * */
