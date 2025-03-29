@@ -77,6 +77,10 @@ lakefs:
           access_key_id: texera_minio
           secret_access_key: password
 
+# Part2: configurations of Texera-related micro services
+texeraImages:
+  pullPolicy: Always
+
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
@@ -114,7 +118,7 @@ fileService:
     port: 9092
     nodePort: 30084
 
-# Config required for envoy and workflow pods
+# Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
   replicas: 1
   image:
@@ -128,8 +132,7 @@ envoy:
     port: 10000
     nodePort: 31002
 
-# headless service
-# each pod's url is: computing-unit-%cuid.workflow-computing-unit.workflow-computing-unit-pool.svc.cluster.local
+# headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
   name: workflow-computing-unit

@@ -18,6 +18,7 @@ spec:
       containers:
         - name: {{ .Values.webserver.name }}
           image: {{ .Values.webserver.imageName }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.webserver.service.port }}
           env:

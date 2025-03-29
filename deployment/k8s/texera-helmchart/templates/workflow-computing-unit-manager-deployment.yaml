@@ -19,6 +19,7 @@ spec:
       containers:
         - name: {{ .Values.workflowComputingUnitManager.name }}
           image: {{ .Values.workflowComputingUnitManager.imageName }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           ports:
             - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
           env:
