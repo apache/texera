@@ -25,8 +25,9 @@ postgresql:
 
 minio:
   mode: standalone
-  apiIngress:
+  ingress:
     enabled: false
+    servicePort: 9000
     hostname: "localhost"
     tls: false
     annotations:
