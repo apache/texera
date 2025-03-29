@@ -39,6 +39,7 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
+    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
