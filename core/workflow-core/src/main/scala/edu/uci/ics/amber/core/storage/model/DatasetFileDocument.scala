@@ -20,7 +20,8 @@ object DatasetFileDocument {
   // Since requests need to be sent to the FileService in order to read the file, we store USER_JWT_TOKEN in the environment vars
   // This variable should be NON-EMPTY in the dynamic-computing-unit architecture, i.e. each user-created computing unit should store user's jwt token.
   // In the local development or other architectures, this token can be empty.
-  lazy val userJwtToken: String = sys.env.getOrElse("USER_JWT_TOKEN", "").trim
+  lazy val userJwtToken: String =
+    sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
 
   // The endpoint of getting presigned url from the file service, also stored in the environment vars.
   lazy val fileServiceGetPresignURLEndpoint: String =

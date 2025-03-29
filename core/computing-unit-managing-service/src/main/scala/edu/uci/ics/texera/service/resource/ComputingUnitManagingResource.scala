@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.core.storage.{EnvironmentalVariable, StorageConfig}
-import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
@@ -124,7 +125,7 @@ class ComputingUnitManagingResource {
         val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
         val computingUnit = new WorkflowComputingUnit()
-
+        val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
         computingUnit.setUid(user.getUid)
         computingUnit.setName(param.name)
         computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -141,7 +142,9 @@ class ComputingUnitManagingResource {
           cuid,
           param.cpuLimit,
           param.memoryLimit,
-          computingUnitEnvironmentVariables
+          computingUnitEnvironmentVariables ++ Map(
+            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken
+          )
         )
 
         // Return the dashboard response

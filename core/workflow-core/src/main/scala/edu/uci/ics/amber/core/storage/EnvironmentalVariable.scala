@@ -17,6 +17,11 @@ object EnvironmentalVariable {
     "FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT"
 
   /**
+    * Auth related vars
+    */
+  val ENV_USER_JWT_TOKEN = "USER_JWT_TOKEN"
+
+  /**
     * Variables in storage.conf
     */
   val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
