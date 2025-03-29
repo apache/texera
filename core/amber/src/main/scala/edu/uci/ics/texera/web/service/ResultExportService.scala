@@ -7,6 +7,8 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.texera.auth.JwtAuth
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -33,9 +35,6 @@ import org.apache.commons.lang3.StringUtils
 
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.StreamingOutput
-import edu.uci.ics.texera.web.auth.JwtAuth
-import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
-
 import java.net.{HttpURLConnection, URL, URLEncoder}
 
 /**
