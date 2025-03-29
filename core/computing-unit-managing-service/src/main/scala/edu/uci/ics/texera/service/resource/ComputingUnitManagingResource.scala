@@ -23,21 +23,28 @@ object ComputingUnitManagingResource {
     .getInstance()
     .createDSLContext()
 
-  // the environment variables passed to the created computing unit(pod)
+  // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] = Map(
+    // Variables for saving results to Iceberg
+    EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME -> StorageConfig.icebergPostgresCatalogUriWithoutScheme,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_USERNAME -> StorageConfig.icebergPostgresCatalogUsername,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD -> StorageConfig.icebergPostgresCatalogPassword,
+    // Variables for saving the metadata of the results, i.e. URIs of results/stats
     EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
-    EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
+    // Variables for reading files & exporting results
+    // LakeFS endpoint is passed to CU to make CU work in dev mode(using localhost & using default LakeFS credentials)
+    // LakeFS credentials should NOT be passed to CU
+    EnvironmentalVariable.ENV_LAKEFS_ENDPOINT -> StorageConfig.lakefsEndpoint,
     EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
       .get,
     EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
       .get,
+    // Variables for amber setting
     // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
     EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
     EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true,
