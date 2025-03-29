@@ -7,7 +7,6 @@ import edu.uci.ics.texera.auth.SessionUser
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.setup.Environment
 
-
 // TODO: move this logic to Auth
 @Deprecated
 object JwtAuth {
