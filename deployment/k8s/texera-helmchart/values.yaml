@@ -25,18 +25,26 @@ postgresql:
 
 minio:
   mode: standalone
-  ingress:
+  apiIngress:
     enabled: false
     hostname: "localhost"
     tls: false
     annotations:
       cert-manager.io/issuer: "" # your issuer
-      nginx.ingress.kubernetes.io/enable-cors: "true"
-      nginx.ingress.kubernetes.io/cors-allow-origin: "" # texera hostname
-      nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
-      nginx.ingress.kubernetes.io/cors-allow-headers: "*"
-      nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
-      nginx.ingress.kubernetes.io/cors-max-age: "86400"  # Optional: Increase for better caching
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+      nginx.ingress.kubernetes.io/cors-allow-headers: '*'
+      nginx.ingress.kubernetes.io/cors-allow-methods: GET, PUT, POST, DELETE, OPTIONS
+      nginx.ingress.kubernetes.io/cors-allow-origin: 'https://texera.example.com' # texera hostname
+      nginx.ingress.kubernetes.io/cors-expose-headers: ETag, x-amz-meta-custom-header
+      nginx.ingress.kubernetes.io/cors-max-age: '86400'
+      nginx.ingress.kubernetes.io/enable-cors: 'true'
+      nginx.ingress.kubernetes.io/proxy-body-size: '0'
+      nginx.ingress.kubernetes.io/proxy-buffering: 'off'
+      nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+      nginx.ingress.kubernetes.io/proxy-request-buffering: 'off'
+      nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+      nginx.ingress.kubernetes.io/use-regex: 'true'
+      nginx.ingress.kubernetes.io/x-forwarded-proto: https
   auth:
     rootUser: texera_minio
     rootPassword: password
