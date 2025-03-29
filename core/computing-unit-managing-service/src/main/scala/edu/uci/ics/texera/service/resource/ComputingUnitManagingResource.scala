@@ -7,15 +7,7 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitCreationParams,
-  WorkflowComputingUnitMetrics,
-  WorkflowComputingUnitResourceLimit,
-  computingUnitEnvironmentVariables,
-  context,
-  userOwnComputingUnit
-}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
@@ -39,7 +31,6 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_JDBC_URL -> StorageConfig.jdbcUrl,
     EnvironmentalVariable.ENV_JDBC_USERNAME -> StorageConfig.jdbcUsername,
     EnvironmentalVariable.ENV_JDBC_PASSWORD -> StorageConfig.jdbcPassword,
-    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true,
     EnvironmentalVariable.ENV_ICEBERG_CATALOG_TYPE -> StorageConfig.icebergCatalogType,
     EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT)
@@ -47,8 +38,9 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT)
       .get,
-    // TODO: use AmberConfig for this item. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true
+    // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
+    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
+    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true,
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
