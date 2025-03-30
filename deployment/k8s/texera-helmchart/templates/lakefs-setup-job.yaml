@@ -14,10 +14,18 @@ spec:
         - name: setup-lakefs
           image: curlimages/curl:latest
           env:
-            {{- range .Values.texeraEnvVars }}
-            - name: {{ .name }}
-              value: "{{ .value }}"
-            {{- end }}
+            - name: STORAGE_LAKEFS_ENDPOINT
+              value: http://{{ .Release.Name }}-lakefs:8000/api/v1
+            - name: STORAGE_LAKEFS_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: access_key
+            - name: STORAGE_LAKEFS_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: secret_key
           command:
             - /bin/sh
             - -c

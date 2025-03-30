@@ -22,6 +22,14 @@ spec:
           ports:
             - containerPort: {{ .Values.webserver.service.port }}
           env:
+            # TexeraDB Access
+            - name: STORAGE_JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
           {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"

@@ -61,6 +61,10 @@ lakefs:
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
     databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
+  auth:
+    username: texera-admin
+    accessKey: AKIAIOSFOLKFSSAMPLES
+    secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   service:
     port: 8000
   lakefsConfig: |
@@ -143,36 +147,10 @@ workflowComputingUnitPool:
     targetPort: 8085
 
 texeraEnvVars:
-  - name: STORAGE_S3_ENDPOINT
-    value: http://texera-minio:9000
-  - name: STORAGE_LAKEFS_ENDPOINT
-    value: http://texera-lakefs:8000/api/v1
-  - name: STORAGE_JDBC_URL
-    value: jdbc:postgresql://texera-postgresql:5432/texera_db?currentSchema=texera_db,public
   - name: STORAGE_JDBC_USERNAME
     value: postgres
-  - name: STORAGE_JDBC_PASSWORD
-    value: root_password
-  - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
-    value: http://file-service-svc:9092/api/dataset/presign-download
-  - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
-    value: http://file-service-svc:9092/api/dataset/did/upload
   - name: USER_SYS_ENABLED
     value: "true"
-  - name: STORAGE_ICEBERG_CATALOG_TYPE
-    value: postgres
-  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
-    value: texera-postgresql:5432/texera_iceberg_catalog
-  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
-    value: postgres
-  - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
-    value: root_password
-  - name: STORAGE_LAKEFS_AUTH_API_SECRET
-    value: random_string_for_lakefs
-  - name: STORAGE_LAKEFS_AUTH_USERNAME
-    value: AKIAIOSFOLKFSSAMPLES
-  - name: STORAGE_LAKEFS_AUTH_PASSWORD
-    value: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 # Ingress dependency configs
 ingress-nginx:
