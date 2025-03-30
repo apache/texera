@@ -85,6 +85,14 @@
   align-items: start;
 }
 
+.select-unit.name-field {
+  grid-column: span 2;
+}
+
+.unit-name-input {
+  width: 440px;
+}
+
 .metrics-container {
   display: grid;
   align-items: center;

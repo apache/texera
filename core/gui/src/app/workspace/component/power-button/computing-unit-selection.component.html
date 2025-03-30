@@ -48,6 +48,7 @@
     class="computing-units-dropdown-button">
     <nz-badge
       [nzStatus]="computeStatus()"
+      [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
       [nzText]="''"></nz-badge>
     <span
       *ngIf="selectedComputingUnit"
@@ -78,7 +79,7 @@
           <div class="computing-unit-name">
             <nz-badge
               [nzColor]="getBadgeColor(unit.status)"
-              [nzText]="''"></nz-badge>
+              [nz-tooltip]="unit.status"></nz-badge>
             <span
               nz-tooltip
               [nzTooltipTitle]="unit.computingUnit.name">
@@ -122,6 +123,15 @@
   <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
   <ng-template #addComputeUnitModalContent>
     <div class="create-compute-unit-container">
+      <div class="select-unit name-field">
+        <span>Computing Unit Name</span>
+        <input
+          [required]="true"
+          nz-input
+          placeholder="Enter the name of your computing unit (required)"
+          [(ngModel)]="newComputingUnitName"
+          class="unit-name-input" />
+      </div>
       <div class="select-unit">
         <span>Select Memory</span>
         <nz-select

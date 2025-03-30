@@ -24,7 +24,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   computingUnits: DashboardWorkflowComputingUnit[] = [];
   private readonly REFRESH_INTERVAL_MS = 2000;
 
+  // variables for creating a computing unit
   addComputeUnitModalVisible = false;
+  newComputingUnitName: string = "";
   selectedMemory: string = "2Gi";
   selectedCpu: string = "2";
 
@@ -95,7 +97,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Start a new computing unit.
    */
   startComputingUnit(): void {
-    const computeUnitName = `Compute for Workflow ${this.workflowId}`;
+    if (this.newComputingUnitName.trim() == "") {
+      this.notificationService.error("Name of the computing unit cannot be empty");
+      return;
+    }
+    const computeUnitName = this.newComputingUnitName;
     const computeCPU = this.selectedCpu;
     const computeMemory = this.selectedMemory;
     this.computingUnitService
