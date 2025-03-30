@@ -120,6 +120,15 @@ class ComputingUnitManagingResource {
       param: WorkflowComputingUnitCreationParams,
       @Auth user: SessionUser
   ): DashboardWorkflowComputingUnit = {
+    if (param.name.trim.isEmpty) {
+      throw new ForbiddenException("Computing unit name cannot be empty.")
+    }
+    if (!KubernetesClient.isValidQuantity(param.cpuLimit)) {
+      throw new ForbiddenException(s"Invalid CPU quantity: '${param.cpuLimit}'")
+    }
+    if (!KubernetesClient.isValidQuantity(param.memoryLimit)) {
+      throw new ForbiddenException(s"Invalid memory quantity: '${param.memoryLimit}'")
+    }
     try {
       withTransaction(context) { ctx =>
         val wcDao = new WorkflowComputingUnitDao(ctx.configuration())

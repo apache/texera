@@ -14,6 +14,15 @@ object KubernetesClient {
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 
+  def isValidQuantity(q: String): Boolean = {
+    try {
+      new Quantity(q)
+      true
+    } catch {
+      case _: Exception => false
+    }
+  }
+
   def generatePodURI(cuid: Int): String = {
     s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local"
   }
