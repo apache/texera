@@ -189,6 +189,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                             payload=batch,
                         )
                     )
+                self.context.output_manager.save_tuple_to_storage_if_needed(
+                    output_tuple
+                )
 
     def process_input_state(self) -> None:
         self._switch_context()
@@ -288,6 +291,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
+        self.context.output_manager.close_port_storage_writers()
+
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(
                 DataElement(
@@ -299,10 +304,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
             self._check_and_process_control()
 
+        # Need to send port completed even if there is no downstream link
+        for port_id in self.context.output_manager.get_port_ids():
             self._async_rpc_client.controller_stub().port_completed(
-                PortCompletedRequest(port_id=PortIdentity(0), input=False)
+                PortCompletedRequest(port_id=port_id, input=False)
             )
-
         self.complete()
 
     def _process_channel_marker_payload(self, marker_elem: ChannelMarkerElement):

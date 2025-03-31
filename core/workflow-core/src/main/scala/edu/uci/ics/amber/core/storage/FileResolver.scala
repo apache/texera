@@ -117,13 +117,13 @@ object FileResolver {
       }
       .toArray
 
-    // Prepend did and versionHash to the encoded path segments
+    // Prepend dataset name and versionHash to the encoded path segments
     val allPathSegments = Array(
-      dataset.getDid.intValue().toString,
+      datasetName,
       datasetVersion.getVersionHash
     ) ++ encodedFileRelativePath
 
-    // Build the the format /{did}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    // Build the format /{datasetName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
     val uriSplitter = "/"
     val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
 

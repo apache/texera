@@ -3,10 +3,7 @@ package edu.uci.ics.amber.core.tuple
 import Tuple.checkSchemaMatchesFields
 import TupleUtils.document2Tuple
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.amber.util.JSONUtils
 import org.ehcache.sizeof.SizeOf
 import org.bson.Document
 
@@ -95,16 +92,6 @@ case class Tuple @JsonCreator() (
   override def toString: String =
     s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
 
-  def asKeyValuePairJson(): ObjectNode = {
-    val objectNode = JSONUtils.objectMapper.createObjectNode()
-    this.schema.getAttributeNames.foreach { attrName =>
-      val valueNode =
-        JSONUtils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
-      objectNode.set[ObjectNode](attrName, valueNode)
-    }
-    objectNode
-  }
-
   def asDocument(): Document = {
     val doc = new Document()
     this.schema.getAttributeNames.foreach { attrName =>
@@ -163,9 +150,9 @@ object Tuple {
     */
   private def checkAttributeMatchesField(attribute: Attribute, field: Any): Unit = {
     if (
-      field != null && attribute.getType != AttributeType.ANY && !field.getClass.equals(
-        attribute.getType.getFieldClass
-      )
+      field != null && attribute.getType != AttributeType.ANY &&
+      !(field.getClass.equals(attribute.getType.getFieldClass) ||
+        (attribute.getType == AttributeType.BINARY && field.isInstanceOf[List[_]]))
     ) {
       throw new RuntimeException(
         s"edu.ics.uci.amber.model.tuple.model.Attribute ${attribute.getName}'s type (${attribute.getType}) is different from field's type (${AttributeType

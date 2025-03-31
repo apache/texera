@@ -9,13 +9,9 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
-import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
-
-export const TABLE_COLUMN_TEXT_LIMIT = 100;
-export const PRETTY_JSON_TEXT_LIMIT = 50000;
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -355,20 +351,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] === null) {
-          return "NULL"; // Explicitly show NULL for null values
-        } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey], this.schema[index].attributeType);
-        } else {
-          return ""; // Keep empty string for undefined values
-        }
-      },
+      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
-  }
-
-  trimTableCell(cellContent: any, attributeType: AttributeType): string {
-    return trimAndFormatData(cellContent, attributeType, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {

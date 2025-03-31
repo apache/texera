@@ -1,13 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.core.marker.Marker
-import edu.uci.ics.amber.core.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  Schema,
-  SchemaEnforceable,
-  TupleLike
-}
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
+import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
   DPOutputIterator,
   getBatchSize,
@@ -15,10 +13,14 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.engine.architecture.worker.managers.{
+  OutputPortResultWriterThread,
+  PortStorageWriterTerminateSignal
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
+import java.net.URI
 import scala.collection.mutable
 
 object OutputManager {
@@ -99,6 +101,10 @@ class OutputManager(
   private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
+  private val outputPortResultWriterThreads
+      : mutable.HashMap[PortIdentity, OutputPortResultWriterThread] =
+    mutable.HashMap()
+
   /**
     * Add down stream operator and its corresponding Partitioner.
     *
@@ -121,12 +127,12 @@ class OutputManager(
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     *
-    * @param tupleLike    TupleLike to be passed.
+    * @param tuple    TupleLike to be passed.
     * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
     *                     If None, the tuple is broadcast to all output ports.
     */
   def passTupleToDownstream(
-      tupleLike: SchemaEnforceable,
+      tuple: Tuple,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
     (outputPortId match {
@@ -134,8 +140,6 @@ class OutputManager(
       case None         => partitioners // send to all ports
     }).foreach {
       case (link, partitioner) =>
-        // Enforce schema based on the port's schema
-        val tuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
         partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
           networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
         }
@@ -170,12 +174,58 @@ class OutputManager(
     networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
   }
 
-  def addPort(portId: PortIdentity, schema: Schema): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
     this.ports(portId) = WorkerPort(schema)
+
+    // if a storage URI is provided, set up a storage writer thread
+    storageURIOption match {
+      case Some(storageUri) => setupOutputStorageWriterThread(portId, storageUri)
+      case None             => // No need to add a writer
+    }
+  }
+
+  /**
+    * Optionally write the tuple to storage if the specified output port is determined by the scheduler to need storage.
+    * This method is not blocking because a separate thread is used to flush the tuple to storage in batch.
+    *
+    * @param tuple TupleLike to be written to storage.
+    * @param outputPortId If not specified, the tuple will be written to all output ports that need storage.
+    */
+  def saveTupleToStorageIfNeeded(
+      tuple: Tuple,
+      outputPortId: Option[PortIdentity] = None
+  ): Unit = {
+    (outputPortId match {
+      case Some(portId) =>
+        this.outputPortResultWriterThreads.get(portId) match {
+          case Some(_) => this.outputPortResultWriterThreads.filter(_._1 == portId)
+          case None    => Map.empty
+        }
+      case None => this.outputPortResultWriterThreads
+    }).foreach({
+      case (portId, writerThread) =>
+        // write to storage in a separate thread
+        writerThread.queue.put(Left(tuple))
+    })
+  }
+
+  /**
+    * Singal the port storage writer to flush the remaining buffer and wait for commits to finish so that
+    * the output port is properly completed. If the output port does not need storage, no action will be done.
+    */
+  def closeOutputStorageWriterIfNeeded(outputPortId: PortIdentity): Unit = {
+    this.outputPortResultWriterThreads.get(outputPortId) match {
+      case Some(writerThread) =>
+        // Non-blocking call
+        writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
+        // Blocking call
+        this.outputPortResultWriterThreads.values.foreach(writerThread => writerThread.join())
+      case None =>
+    }
 
   }
 
@@ -194,6 +244,17 @@ class OutputManager(
   def getSingleOutputPortIdentity: PortIdentity = {
     assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
+  }
+
+  private def setupOutputStorageWriterThread(portId: PortIdentity, storageUri: URI): Unit = {
+    val bufferedItemWriter = DocumentFactory
+      .openDocument(storageUri)
+      ._1
+      .writer(VirtualIdentityUtils.getWorkerIndex(actorId).toString)
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    val writerThread = new OutputPortResultWriterThread(bufferedItemWriter)
+    this.outputPortResultWriterThreads(portId) = writerThread
+    writerThread.start()
   }
 
 }

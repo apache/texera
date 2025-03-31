@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
-import edu.uci.ics.amber.core.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
@@ -8,10 +9,9 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.gene
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
+  PortConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 
@@ -22,7 +22,7 @@ trait ResourceAllocator {
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo,
-    dataTransferBatchSize: Int
+    workflowSettings: WorkflowSettings
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -70,14 +70,25 @@ class DefaultResourceAllocator(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink),
-          this.dataTransferBatchSize
+          workflowSettings.dataTransferBatchSize
         )
       )
     }.toMap
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val resourceConfig = ResourceConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
+    val portConfigs = region.resourceConfig match {
+      case Some(existingResourceConfig) => existingResourceConfig.portConfigs
+      case None =>
+        val newPortConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
+        newPortConfigs
+    }
+
+    val resourceConfig = ResourceConfig(
+      opToOperatorConfigMapping,
+      linkToLinkConfigMapping,
+      portConfigs
+    )
 
     (region.copy(resourceConfig = Some(resourceConfig)), 0)
   }

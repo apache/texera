@@ -46,13 +46,13 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, _, resourceType) = decodeURI(uri)
+        val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {
-          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case RESULT             => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }
@@ -100,13 +100,13 @@ object DocumentFactory {
     uri.getScheme match {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, _, resourceType) = decodeURI(uri)
+        val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {
-          case RESULT | MATERIALIZED_RESULT => StorageConfig.icebergTableResultNamespace
-          case CONSOLE_MESSAGES             => StorageConfig.icebergTableConsoleMessagesNamespace
-          case RUNTIME_STATISTICS           => StorageConfig.icebergTableRuntimeStatisticsNamespace
+          case RESULT             => StorageConfig.icebergTableResultNamespace
+          case CONSOLE_MESSAGES   => StorageConfig.icebergTableConsoleMessagesNamespace
+          case RUNTIME_STATISTICS => StorageConfig.icebergTableRuntimeStatisticsNamespace
           case _ =>
             throw new IllegalArgumentException(s"Resource type $resourceType is not supported")
         }

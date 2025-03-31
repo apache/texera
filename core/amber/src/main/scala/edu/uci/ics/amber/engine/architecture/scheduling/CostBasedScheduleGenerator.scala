@@ -1,9 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -83,16 +89,43 @@ class CostBasedScheduleGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
-        val materializedPortIds: Set[GlobalPortIdentity] = matEdges.flatMap(link =>
-          List(
-            GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
+        val portIdsToViewResult: Set[GlobalPortIdentity] =
+          workflowContext.workflowSettings.outputPortsNeedingStorage
+            .filter(outputPort => operatorIds.contains(outputPort.opId))
+        val portIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
+          .diff(physicalPlan.getDependeeLinks)
+          .filter(matLink => operatorIds.contains(matLink.fromOpId))
+          .flatMap(link =>
+            List(
+              GlobalPortIdentity(link.fromOpId, link.fromPortId)
+            )
+          ) ++ portIdsToViewResult
+        val portConfigs = portIdsNeedingStorage
+          .map(outputPortId =>
+            outputPortId -> {
+              val uri = createResultURI(
+                workflowId = workflowContext.workflowId,
+                executionId = workflowContext.executionId,
+                globalPortId = outputPortId
+              )
+              PortConfig(storageURI = uri)
+            }
           )
+          .toMap
+        val resourceConfig = ResourceConfig(portConfigs = portConfigs)
+        val ports = operators.flatMap(op =>
+          op.inputPorts.keys
+            .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+            .toSet ++ op.outputPorts.keys
+            .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+            .toSet
         )
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
           physicalLinks = links,
-          materializedPortIds = materializedPortIds
+          ports = ports,
+          resourceConfig = Some(resourceConfig)
         )
     }
   }
@@ -169,7 +202,7 @@ class CostBasedScheduleGenerator(
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
     val linksToMaterialize =
-      (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
+      (searchResult.state ++ physicalPlan.getBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks
       )
     if (linksToMaterialize.nonEmpty) {
@@ -181,10 +214,24 @@ class CostBasedScheduleGenerator(
         )
       )
     }
-    // Since the plan is now schedulable, calling the search directly returns a region DAG.
+    // Calling the search again to include cache read ops in the regions.
+    // This new search is only needed because of additional cache read operators which alters the physical plan.
+    // However, as the new physical plan is already schedulable, the original materialized ports of each region will not
+    // be included in the new region DAG.
+    // TODO: remove this step after cache read is removed.
     val regionDAG = bottomUpSearch().regionDAG
+
     addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     populateDependeeLinks(regionDAG)
+    // The materialized ports of each region are already decided by the first RPG search
+    // However they will be lost after the second search as a consequence of the modified physical plan.
+    // The second search is only needed because of additional cache read operators.
+    // Need to add the original materialized ports back. This will not be needed after removal of cache read ops.
+    // TODO: remove this step after cache read is removed.
+    val outputPortsToMaterialize = linksToMaterialize.map(link =>
+      GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
+    )
+    updateRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
     allocateResource(regionDAG)
     regionDAG
   }
@@ -235,7 +282,7 @@ class CostBasedScheduleGenerator(
         physicalPlan.getNonBridgeNonBlockingLinks
       } else {
         physicalPlan.links.diff(
-          physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+          physicalPlan.getBlockingAndDependeeLinks
         )
       }
     // Queue to hold states to be explored, starting with the empty set
@@ -266,7 +313,7 @@ class CostBasedScheduleGenerator(
         }
         visited.add(currentState)
         tryConnectRegionDAG(
-          physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+          physicalPlan.getBlockingAndDependeeLinks ++ currentState
         ) match {
           case Left(regionDAG) =>
             updateOptimumIfApplicable(regionDAG)
@@ -300,7 +347,7 @@ class CostBasedScheduleGenerator(
         */
       def addNeighborStatesToFrontier(): Unit = {
         val allCurrentMaterializedEdges =
-          currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+          currentState ++ physicalPlan.getBlockingAndDependeeLinks
         // Generate and enqueue all neighbour states that haven't been visited
         var candidateEdges = originalNonBlockingEdges
           .diff(currentState)
@@ -336,7 +383,7 @@ class CostBasedScheduleGenerator(
           if (filteredNeighborStates.nonEmpty) {
             val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   evaluate(
@@ -379,15 +426,13 @@ class CostBasedScheduleGenerator(
     val startTime = System.nanoTime()
     // Starting from a state where all non-blocking edges are materialized
     val originalSeedState = physicalPlan.links.diff(
-      physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+      physicalPlan.getBlockingAndDependeeLinks
     )
 
     // Chain optimization: an edge in the same chain as a blocking edge should not be materialized
     val seedStateOptimizedByChainsIfApplicable = if (oChains) {
       val edgesInChainWithBlockingEdge = physicalPlan.maxChains
-        .filter(chain =>
-          chain.intersect(physicalPlan.getNonMaterializedBlockingAndDependeeLinks).nonEmpty
-        )
+        .filter(chain => chain.intersect(physicalPlan.getBlockingAndDependeeLinks).nonEmpty)
         .flatten
       originalSeedState.diff(edgesInChainWithBlockingEdge)
     } else {
@@ -416,7 +461,7 @@ class CostBasedScheduleGenerator(
       val currentState = queue.dequeue()
       visited.add(currentState)
       tryConnectRegionDAG(
-        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+        physicalPlan.getBlockingAndDependeeLinks ++ currentState
       ) match {
         case Left(regionDAG) =>
           updateOptimumIfApplicable(regionDAG)
@@ -462,7 +507,7 @@ class CostBasedScheduleGenerator(
           if (unvisitedNeighborStates.nonEmpty) {
             val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   evaluate(

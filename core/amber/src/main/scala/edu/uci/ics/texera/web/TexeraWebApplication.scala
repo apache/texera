@@ -1,30 +1,19 @@
 package edu.uci.ics.texera.web
 
-import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.engine.common.Utils
-import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  DatasetFileNodeSerializer
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
-  DatasetAccessResource,
-  DatasetResource
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -43,21 +32,11 @@ import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
-import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.time.Duration
 
 object TexeraWebApplication {
-
-  // this method is used to abort uncommitted changes for every dataset
-  def discardUncommittedChangesOfAllDatasets(): Unit = {
-    val datasetPaths = PathUtils.getAllDatasetDirectories()
-
-    datasetPaths.foreach(path => {
-      GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
-    })
-  }
 
   def main(args: Array[String]): Unit = {
 
@@ -89,11 +68,6 @@ class TexeraWebApplication
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    // register a new custom module and add the custom serializer into it
-    val customSerializerModule = new SimpleModule("CustomSerializers")
-    customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
-    bootstrap.getObjectMapper.registerModule(customSerializerModule)
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
@@ -123,9 +97,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
-    // register MultiPartFeature
-    environment.jersey.register(classOf[MultiPartFeature])
-
     environment.jersey.register(classOf[SystemMetadataResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
@@ -146,8 +117,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[ResultResource])
     environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
-    environment.jersey.register(classOf[DatasetResource])
-    environment.jersey.register(classOf[DatasetAccessResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])

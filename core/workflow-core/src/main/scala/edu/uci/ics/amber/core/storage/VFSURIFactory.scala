@@ -5,13 +5,14 @@ import edu.uci.ics.amber.core.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.GlobalPortIdentity
+import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde
+import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 
 import java.net.URI
 
 object VFSResourceType extends Enumeration {
   val RESULT: Value = Value("result")
-  val MATERIALIZED_RESULT: Value = Value("materializedResult")
   val RUNTIME_STATISTICS: Value = Value("runtimeStatistics")
   val CONSOLE_MESSAGES: Value = Value("consoleMessages")
 }
@@ -29,9 +30,7 @@ object VFSURIFactory {
   def decodeURI(uri: URI): (
       WorkflowIdentity,
       ExecutionIdentity,
-      Option[OperatorIdentity],
-      Option[String],
-      Option[PortIdentity],
+      Option[GlobalPortIdentity],
       VFSResourceType.Value
   ) = {
     if (uri.getScheme != VFS_FILE_URI_SCHEME) {
@@ -51,29 +50,9 @@ object VFSURIFactory {
     val workflowId = WorkflowIdentity(extractValue("wid").toLong)
     val executionId = ExecutionIdentity(extractValue("eid").toLong)
 
-    val operatorId = segments.indexOf("opid") match {
-      case -1  => None
-      case idx => Some(OperatorIdentity(extractValue("opid")))
-    }
-
-    val layerName = segments.indexOf("layername") match {
-      case -1  => None
-      case idx => Some(extractValue("layername"))
-    }
-
-    val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
+    val globalPortIdOption = segments.indexOf("globalportid") match {
       case -1 => None
-      case idx if idx + 1 < segments.length =>
-        val Array(portIdStr, portType) = segments(idx + 1).split("_")
-        val portId = portIdStr.toInt
-        val isInternal = portType match {
-          case "I" => true
-          case "E" => false
-          case _   => throw new IllegalArgumentException(s"Invalid port type: $portType in URI: $uri")
-        }
-        Some(PortIdentity(portId, isInternal))
-      case _ =>
-        throw new IllegalArgumentException(s"Invalid port information in URI: $uri")
+      case _  => Some(GlobalPortIdentitySerde.deserializeFromString(extractValue("globalportid")))
     }
 
     val resourceTypeStr = segments.last.toLowerCase
@@ -81,7 +60,7 @@ object VFSURIFactory {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    (workflowId, executionId, operatorId, layerName, portIdentity, resourceType)
+    (workflowId, executionId, globalPortIdOption, resourceType)
   }
 
   /**
@@ -90,38 +69,12 @@ object VFSURIFactory {
   def createResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
-      layerName: Option[String],
-      portIdentity: PortIdentity
+      globalPortId: GlobalPortIdentity
   ): URI = {
-    createVFSURI(
-      VFSResourceType.RESULT,
-      workflowId,
-      executionId,
-      Some(operatorId),
-      layerName,
-      Some(portIdentity)
-    )
-  }
+    val baseUri =
+      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/globalportid/${globalPortId.serializeAsString}"
 
-  /**
-    * Create a URI pointing to a materialized storage
-    */
-  def createMaterializedResultURI(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorId: OperatorIdentity,
-      layerName: String,
-      portIdentity: PortIdentity
-  ): URI = {
-    createVFSURI(
-      VFSResourceType.MATERIALIZED_RESULT,
-      workflowId,
-      executionId,
-      Some(operatorId),
-      Some(layerName),
-      Some(portIdentity)
-    )
+    new URI(s"$baseUri/${VFSResourceType.RESULT.toString.toLowerCase}")
   }
 
   /**
@@ -131,7 +84,7 @@ object VFSURIFactory {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): URI = {
-    createVFSURI(
+    createNonResultVFSURI(
       VFSResourceType.RUNTIME_STATISTICS,
       workflowId,
       executionId
@@ -146,7 +99,7 @@ object VFSURIFactory {
       executionId: ExecutionIdentity,
       operatorId: OperatorIdentity
   ): URI = {
-    createVFSURI(
+    createNonResultVFSURI(
       VFSResourceType.CONSOLE_MESSAGES,
       workflowId,
       executionId,
@@ -155,44 +108,37 @@ object VFSURIFactory {
   }
 
   /**
-    * Internal helper to create URI pointing to a VFS resource. The URI can be used by the DocumentFactory to create resource or open resource
+    * Internal helper to create URI pointing to a VFS resource for resource types other than `RESULT`.
+    * The URI can be used by the DocumentFactory to create resource or open resource.
     *
     * @param resourceType   The type of the VFS resource.
     * @param workflowId     Workflow identifier.
     * @param executionId    Execution identifier.
     * @param operatorId     Operator identifier.
-    * @param portIdentity   Optional port identifier. **Required** if `resourceType` is `RESULT` or `MATERIALIZED_RESULT`.
     * @return A VFS URI
-    * @throws IllegalArgumentException if `resourceType` is `RESULT` but `portIdentity` is missing.
+    * @throws IllegalArgumentException if `resourceType` is `RESULT`, if `operatorId` is provided for
+    *                                  `RUNTIME_STATISTICS`, or if `operatorId` is not provided for `CONSOLE_MESSAGES`.
     */
-  private def createVFSURI(
+  private def createNonResultVFSURI(
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      operatorId: Option[OperatorIdentity] = None,
-      layerName: Option[String] = None,
-      portIdentity: Option[PortIdentity] = None
+      operatorId: Option[OperatorIdentity] = None
   ): URI = {
 
-    if (
-      (resourceType == VFSResourceType.RESULT || resourceType == VFSResourceType.MATERIALIZED_RESULT) && (portIdentity.isEmpty || operatorId.isEmpty)
-    ) {
+    if (resourceType == VFSResourceType.RESULT) {
       throw new IllegalArgumentException(
-        "PortIdentity must be provided when resourceType is RESULT or MATERIALIZED_RESULT."
+        "resourceType cannot be RESULT when using createOtherVFSURI."
       )
     }
 
-    if (
-      resourceType == VFSResourceType.RUNTIME_STATISTICS && (operatorId.isDefined || portIdentity.isDefined)
-    ) {
+    if (resourceType == VFSResourceType.RUNTIME_STATISTICS && operatorId.isDefined) {
       throw new IllegalArgumentException(
-        "Runtime statistics URI should not contain operatorId or portIdentity."
+        "Runtime statistics URI should not contain operatorId."
       )
     }
 
-    if (
-      resourceType == VFSResourceType.CONSOLE_MESSAGES && (operatorId.isEmpty || portIdentity.isDefined)
-    ) {
+    if (resourceType == VFSResourceType.CONSOLE_MESSAGES && operatorId.isEmpty) {
       throw new IllegalArgumentException(
         "Console messages URI should contain operatorId."
       )
@@ -204,20 +150,6 @@ object VFSURIFactory {
       case None => s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}"
     }
 
-    val uriWithLayer = layerName match {
-      case Some(layer) =>
-        s"$baseUri/layername/$layer"
-      case None => baseUri
-    }
-
-    val uriWithPort = portIdentity match {
-      case Some(port) =>
-        val portType = if (port.internal) "I" else "E"
-        s"$uriWithLayer/pid/${port.id}_$portType"
-      case None =>
-        uriWithLayer
-    }
-
-    new URI(s"$uriWithPort/${resourceType.toString.toLowerCase}")
+    new URI(s"$baseUri/${resourceType.toString.toLowerCase}")
   }
 }

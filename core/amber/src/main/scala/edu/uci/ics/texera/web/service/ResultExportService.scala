@@ -6,18 +6,17 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.util.{ArrowUtils, PathUtils}
+import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowExecutionsResource,
   WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
-import java.io.{FilterOutputStream, IOException, OutputStream, PipedInputStream, PipedOutputStream}
+import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
@@ -33,6 +32,10 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.StreamingOutput
+import edu.uci.ics.texera.web.auth.JwtAuth
+import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+
+import java.net.{HttpURLConnection, URL, URLEncoder}
 
 /**
   * A simple wrapper that ignores 'close()' calls on the underlying stream.
@@ -52,6 +55,14 @@ object ResultExportService {
   // Matches the remote's approach for a thread pool
   final private val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
+
+  lazy val fileServiceUploadOneFileToDatasetEndpoint: String =
+    sys.env
+      .getOrElse(
+        "FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT",
+        "http://localhost:9092/api/dataset/did/upload"
+      )
+      .trim
 }
 
 class ResultExportService(workflowIdentity: WorkflowIdentity) {
@@ -65,11 +76,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   private def generateOneOperatorResult(operatorId: String): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
-    val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUri = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       getLatestExecutionId(workflowIdentity).get,
       OperatorIdentity(operatorId),
-      None, // from remote code
       PortIdentity()
     )
 
@@ -156,28 +165,49 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       results: Iterable[Tuple],
       headers: List[String]
   ): (Option[String], Option[String]) = {
+    val fileName = generateFileName(request, operatorId, "csv")
     try {
-      val pipedOutputStream = new PipedOutputStream()
-      val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-      pool.submit(new Runnable {
-        override def run(): Unit = {
-          val writer = CSVWriter.open(pipedOutputStream)
+      saveToDatasets(
+        request,
+        user,
+        outputStream => {
+          val writer = CSVWriter.open(outputStream)
           writer.writeRow(headers)
           results.foreach { tuple =>
             writer.writeRow(tuple.getFields.toIndexedSeq)
           }
           writer.close()
-        }
-      })
-
-      val fileName = generateFileName(request, operatorId, "csv")
-      saveToDatasets(request, user, pipedInputStream, fileName)
+        },
+        fileName
+      )
       (Some(s"CSV export done for operator $operatorId -> file: $fileName"), None)
     } catch {
       case ex: Exception =>
         (None, Some(s"CSV export failed for operator $operatorId: ${ex.getMessage}"))
     }
+  }
+
+  /*
+   * Handle streaming a single (row, column) from an operator's result.
+   * This is used for the "data" export type, which exports a single field value.
+   */
+  private def writeData(
+      out: OutputStream,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): Unit = {
+    val rowIndex = request.rowIndex
+    val columnIndex = request.columnIndex
+
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
+      -1
+    }
+
+    val selectedRow = results.toSeq(rowIndex)
+    val field: Any = selectedRow.getField(columnIndex)
+    val dataBytes = convertFieldToBytes(field)
+    out.write(dataBytes)
   }
 
   /**
@@ -199,20 +229,18 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       }
 
       val selectedRow = results.toSeq(rowIndex)
-      val field = selectedRow.getField(columnIndex)
+      val field: Any = selectedRow.getField(columnIndex)
       val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
-      val pipedOutputStream = new PipedOutputStream()
-      val pipedInputStream = new PipedInputStream(pipedOutputStream)
-
-      pool.submit(new Runnable {
-        override def run(): Unit = {
-          pipedOutputStream.write(dataBytes)
-          pipedOutputStream.close()
-        }
-      })
-
-      saveToDatasets(request, user, pipedInputStream, fileName)
+      saveToDatasets(
+        request,
+        user,
+        outputStream => {
+          outputStream.write(dataBytes)
+          outputStream.close()
+        },
+        fileName
+      )
       (Some(s"Data export done for operator $operatorId -> file: $fileName"), None)
     } catch {
       case ex: Exception =>
@@ -242,24 +270,24 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     try {
-      val pipedOutputStream = new PipedOutputStream()
-      val pipedInputStream = new PipedInputStream(pipedOutputStream)
-      val allocator = new RootAllocator()
-
-      pool.submit(() => {
-        Using.Manager { use =>
-          val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
-          use(writer)
-          use(root)
-          use(allocator)
-          use(pipedOutputStream)
-
-          writeArrowData(writer, root, results)
-        }
-      })
-
       val fileName = generateFileName(request, operatorId, "arrow")
-      saveToDatasets(request, user, pipedInputStream, fileName)
+
+      saveToDatasets(
+        request,
+        user,
+        outputStream => {
+          val allocator = new RootAllocator()
+          Using.Manager { use =>
+            val (writer, root) = createArrowWriter(results, allocator, outputStream)
+            use(writer)
+            use(root)
+            use(allocator)
+
+            writeArrowData(writer, root, results)
+          }
+        },
+        fileName
+      )
 
       (Some(s"Arrow file export done for operator $operatorId -> file: $fileName"), None)
     } catch {
@@ -333,17 +361,47 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   private def saveToDatasets(
       request: ResultExportRequest,
       user: User,
-      pipedInputStream: PipedInputStream,
+      fileWriter: OutputStream => Unit, // Pass function that writes data
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(did)
-      val filePath = datasetPath.resolve(fileName)
-      createNewDatasetVersionByAddingFiles(
-        did,
-        user,
-        Map(filePath -> pipedInputStream)
+      val encodedFilePath = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name())
+      val message = URLEncoder.encode(
+        s"Export from workflow ${request.workflowName}",
+        StandardCharsets.UTF_8.name()
       )
+
+      val uploadUrl = s"$fileServiceUploadOneFileToDatasetEndpoint"
+        .replace("did", did.toString) + s"?filePath=$encodedFilePath&message=$message"
+
+      var connection: HttpURLConnection = null
+      try {
+        val url = new URL(uploadUrl)
+        connection = url.openConnection().asInstanceOf[HttpURLConnection]
+        connection.setDoOutput(true)
+        connection.setRequestMethod("POST")
+        connection.setRequestProperty("Content-Type", "application/octet-stream")
+        connection.setRequestProperty(
+          "Authorization",
+          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))}"
+        )
+
+        // Get output stream from connection
+        val outputStream = connection.getOutputStream
+        fileWriter(outputStream) // Write directly to HTTP request output stream
+        outputStream.close()
+
+        // Check response
+        val responseCode = connection.getResponseCode
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+          throw new RuntimeException(s"Failed to upload file. Server responded with: $responseCode")
+        }
+      } catch {
+        case e: Exception =>
+          throw new RuntimeException(s"Error uploading file to dataset $did: ${e.getMessage}", e)
+      } finally {
+        if (connection != null) connection.disconnect()
+      }
     }
   }
 
@@ -379,6 +437,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
         request.exportType match {
           case "csv"   => writeCsv(out, results)
           case "arrow" => writeArrow(out, results)
+          case "data"  => writeData(out, request, results) // handle single cell export
           case _       => writeCsv(out, results) // fallback
         }
       }
@@ -479,7 +538,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               request.exportType match {
                 case "csv"   => writeCsv(nonClosingStream, results)
                 case "arrow" => writeArrow(nonClosingStream, results)
-                case _       => writeCsv(nonClosingStream, results)
+                case "data" =>
+                  writeData(nonClosingStream, request, results) // handle single cell export
+                case _ => writeCsv(nonClosingStream, results)
               }
               zipOut.closeEntry()
             }

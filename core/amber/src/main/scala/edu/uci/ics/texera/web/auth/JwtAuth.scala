@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.web.auth
 
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import com.typesafe.config.Config
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.texera.auth.{AuthConfig, SessionUser}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.setup.Environment
@@ -14,13 +14,13 @@ import org.jose4j.keys.HmacKey
 
 import java.util.Random
 
+// TODO: move this logic to Auth
 object JwtAuth {
 
-  final val jwtConfig: Config = AmberConfig.jWTConfig
-  final val TOKEN_EXPIRE_TIME_IN_DAYS = jwtConfig.getString("exp-in-days").toInt
-  final val TOKEN_SECRET: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
+  final val TOKEN_EXPIRE_TIME_IN_DAYS = AuthConfig.jwtExpirationDays
+  final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey.toLowerCase() match {
     case "random" => getRandomHexString
-    case _        => jwtConfig.getString("256-bit-secret")
+    case _        => AuthConfig.jwtSecretKey
   }
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()

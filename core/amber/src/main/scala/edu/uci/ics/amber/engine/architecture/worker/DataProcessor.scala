@@ -180,6 +180,7 @@ class DataProcessor(
           asyncRPCClient.mkContext(CONTROLLER)
         )
       case FinalizePort(portId, input) =>
+        outputManager.closeOutputStorageWriterIfNeeded(portId)
         asyncRPCClient.controllerInterface.portCompleted(
           PortCompletedRequest(portId, input),
           asyncRPCClient.mkContext(CONTROLLER)
@@ -188,7 +189,8 @@ class DataProcessor(
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
         val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
         statisticsManager.increaseOutputStatistics(portIdentity, tuple.inMemSize)
-        outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
+        outputManager.passTupleToDownstream(tuple, outputPortOpt)
+        outputManager.saveTupleToStorageIfNeeded(tuple, outputPortOpt)
 
       case other => // skip for now
     }
