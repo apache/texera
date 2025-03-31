@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
@@ -11,7 +12,6 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables.{
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectAccessResource.userHasWriteAccess
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
