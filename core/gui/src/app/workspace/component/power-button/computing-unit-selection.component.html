@@ -53,8 +53,8 @@
     <span
       *ngIf="selectedComputingUnit"
       nz-tooltip
-      [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
-      {{getComputingUnitName(selectedComputingUnit.uri)}}
+      [nzTooltipTitle]="getComputingUnitId(selectedComputingUnit.uri)">
+      {{selectedComputingUnit.computingUnit.name}}
     </span>
     <span *ngIf="!selectedComputingUnit">Connect</span>
     <i
@@ -82,8 +82,8 @@
               [nz-tooltip]="unit.status"></nz-badge>
             <span
               nz-tooltip
-              [nzTooltipTitle]="unit.computingUnit.name">
-              {{ getComputingUnitName(unit.uri) }}
+              [nzTooltipTitle]="getComputingUnitId(unit.uri)">
+              {{ unit.computingUnit.name }}
             </span>
           </div>
           <i
@@ -91,7 +91,7 @@
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
-            [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
+            [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
             (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()">
           </i>
         </div>

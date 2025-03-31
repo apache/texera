@@ -133,7 +133,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (res: Response) => {
-          this.notificationService.success(`Terminated ${this.getComputingUnitName(uri)}`);
+          this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
           this.refreshComputingUnits();
         },
         error: (err: unknown) => this.notificationService.error("Failed to terminate computing unit"),
@@ -216,7 +216,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
    * @return "Computing unit 85"
    */
-  getComputingUnitName(unitURI: string): string {
+  getComputingUnitId(unitURI: string): string {
     const computingUnit = unitURI.split(".")[0];
     return computingUnit
       .split("-")
