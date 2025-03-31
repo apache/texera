@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.storage.result.ResultSchema
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
@@ -114,11 +114,19 @@ class DefaultCostEstimatorSpec
       workflow.context,
       CONTROLLER
     )
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
 
     val region = Region(
       id = RegionIdentity(0),
       physicalOps = workflow.physicalPlan.operators,
-      physicalLinks = workflow.physicalPlan.links
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
     )
 
     val costOfRegion = costEstimator.estimate(region, 1)
@@ -193,10 +201,19 @@ class DefaultCostEstimatorSpec
       CONTROLLER
     )
 
+    val ports = workflow.physicalPlan.operators.flatMap(op =>
+      op.inputPorts.keys
+        .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
+        .toSet ++ op.outputPorts.keys
+        .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
+        .toSet
+    )
+
     val region = Region(
       id = RegionIdentity(0),
       physicalOps = workflow.physicalPlan.operators,
-      physicalLinks = workflow.physicalPlan.links
+      physicalLinks = workflow.physicalPlan.links,
+      ports = ports
     )
 
     val costOfRegion = costEstimator.estimate(region, 1)
@@ -289,7 +306,7 @@ class DefaultCostEstimatorSpec
     writer.putOne(keywordOpRuntimeStatistics)
     writer.close()
 
-    // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
+    // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword
     val searchResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
@@ -299,7 +316,7 @@ class DefaultCostEstimatorSpec
     val groupByRegion =
       searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 3).head
     val keywordRegion =
-      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 2).head
+      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 1).head
 
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
@@ -321,8 +338,7 @@ class DefaultCostEstimatorSpec
     val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
       keywordOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
 
-    // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
-    // logical operator as the keyword operator.
+    // The cost of the second region should be the cost of the keyword operator.
     assert(keywordRegionCost == keywordOperatorCost)
 
     // The cost of the region plan should be the sum of region costs

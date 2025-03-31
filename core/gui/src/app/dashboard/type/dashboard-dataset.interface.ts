@@ -6,9 +6,5 @@ export interface DashboardDataset {
   ownerEmail: string;
   dataset: Dataset;
   accessPrivilege: "READ" | "WRITE" | "NONE";
-  versions: {
-    datasetVersion: DatasetVersion;
-    fileNodes: DatasetFileNode[];
-  }[];
-  size?: number;
+  size: number;
 }

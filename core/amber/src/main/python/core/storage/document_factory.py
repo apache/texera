@@ -1,3 +1,5 @@
+import typing
+import urllib
 from urllib.parse import urlparse
 
 from typing import Optional
@@ -26,18 +28,23 @@ class DocumentFactory:
 
     @staticmethod
     def sanitize_uri_path(uri):
-        return uri.path.lstrip("/").replace("/", "_")
+        """
+        Matches the same implementation in our Scala codebase.
+        urllib.parse.urlparse does not automatically unquote the URI, while
+        java.net.URI.getPath does. Hence we need to explicitly
+        unquote to decode percent-encoded characters, then sanitize.
+        :param uri: Result of urllib.parse.urlparse(). Could be quoted.
+        :return: Unquoted and sanitized format of uri.
+        """
+        return urllib.parse.unquote(uri.path).lstrip("/").replace("/", "_")
 
     @staticmethod
     def create_document(uri: str, schema: Schema) -> VirtualDocument:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
-            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {
-                VFSResourceType.RESULT,
-                VFSResourceType.MATERIALIZED_RESULT,
-            }:
+            if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 iceberg_schema = Schema.as_arrow_schema(schema)
@@ -65,15 +72,12 @@ class DocumentFactory:
             )
 
     @staticmethod
-    def open_document(uri: str) -> (VirtualDocument, Optional[Schema]):
+    def open_document(uri: str) -> typing.Tuple[VirtualDocument, Optional[Schema]]:
         parsed_uri = urlparse(uri)
         if parsed_uri.scheme == "vfs":
-            _, _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
+            _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {
-                VFSResourceType.RESULT,
-                VFSResourceType.MATERIALIZED_RESULT,
-            }:
+            if resource_type in {VFSResourceType.RESULT}:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 table = load_table_metadata(

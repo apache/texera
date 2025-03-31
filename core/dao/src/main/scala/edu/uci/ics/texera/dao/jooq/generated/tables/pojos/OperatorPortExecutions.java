@@ -16,32 +16,24 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     private static final long serialVersionUID = 1L;
 
     private Integer workflowExecutionId;
-    private String  operatorId;
-    private String  layerName;
-    private Integer portId;
+    private String  globalPortId;
     private String  resultUri;
 
     public OperatorPortExecutions() {}
 
     public OperatorPortExecutions(IOperatorPortExecutions value) {
         this.workflowExecutionId = value.getWorkflowExecutionId();
-        this.operatorId = value.getOperatorId();
-        this.layerName = value.getLayerName();
-        this.portId = value.getPortId();
+        this.globalPortId = value.getGlobalPortId();
         this.resultUri = value.getResultUri();
     }
 
     public OperatorPortExecutions(
         Integer workflowExecutionId,
-        String  operatorId,
-        String  layerName,
-        Integer portId,
+        String  globalPortId,
         String  resultUri
     ) {
         this.workflowExecutionId = workflowExecutionId;
-        this.operatorId = operatorId;
-        this.layerName = layerName;
-        this.portId = portId;
+        this.globalPortId = globalPortId;
         this.resultUri = resultUri;
     }
 
@@ -64,51 +56,21 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     }
 
     /**
-     * Getter for <code>texera_db.operator_port_executions.operator_id</code>.
+     * Getter for
+     * <code>texera_db.operator_port_executions.global_port_id</code>.
      */
     @Override
-    public String getOperatorId() {
-        return this.operatorId;
+    public String getGlobalPortId() {
+        return this.globalPortId;
     }
 
     /**
-     * Setter for <code>texera_db.operator_port_executions.operator_id</code>.
+     * Setter for
+     * <code>texera_db.operator_port_executions.global_port_id</code>.
      */
     @Override
-    public void setOperatorId(String operatorId) {
-        this.operatorId = operatorId;
-    }
-
-    /**
-     * Getter for <code>texera_db.operator_port_executions.layer_name</code>.
-     */
-    @Override
-    public String getLayerName() {
-        return this.layerName;
-    }
-
-    /**
-     * Setter for <code>texera_db.operator_port_executions.layer_name</code>.
-     */
-    @Override
-    public void setLayerName(String layerName) {
-        this.layerName = layerName;
-    }
-
-    /**
-     * Getter for <code>texera_db.operator_port_executions.port_id</code>.
-     */
-    @Override
-    public Integer getPortId() {
-        return this.portId;
-    }
-
-    /**
-     * Setter for <code>texera_db.operator_port_executions.port_id</code>.
-     */
-    @Override
-    public void setPortId(Integer portId) {
-        this.portId = portId;
+    public void setGlobalPortId(String globalPortId) {
+        this.globalPortId = globalPortId;
     }
 
     /**
@@ -132,9 +94,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         StringBuilder sb = new StringBuilder("OperatorPortExecutions (");
 
         sb.append(workflowExecutionId);
-        sb.append(", ").append(operatorId);
-        sb.append(", ").append(layerName);
-        sb.append(", ").append(portId);
+        sb.append(", ").append(globalPortId);
         sb.append(", ").append(resultUri);
 
         sb.append(")");
@@ -148,9 +108,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     @Override
     public void from(IOperatorPortExecutions from) {
         setWorkflowExecutionId(from.getWorkflowExecutionId());
-        setOperatorId(from.getOperatorId());
-        setLayerName(from.getLayerName());
-        setPortId(from.getPortId());
+        setGlobalPortId(from.getGlobalPortId());
         setResultUri(from.getResultUri());
     }
 

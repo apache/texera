@@ -9,7 +9,12 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
-import { DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
+import { DASHBOARD_USER_DATASET, DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { FileSelectionComponent } from "../../../../workspace/component/file-selection/file-selection.component";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
+import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 
 @UntilDestroy()
 @Component({
@@ -50,6 +55,7 @@ export class UserDatasetComponent implements AfterViewInit {
   private masterFilterList: ReadonlyArray<string> | null = null;
 
   constructor(
+    private modalService: NzModalService,
     private userService: UserService,
     private router: Router,
     private searchService: SearchService,
@@ -152,7 +158,30 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   public onClickOpenDatasetAddComponent(): void {
-    this.router.navigate([DASHBOARD_USER_DATASET_CREATE]);
+    const modal = this.modalService.create({
+      nzTitle: "Create New Dataset",
+      nzContent: UserDatasetVersionCreatorComponent,
+      nzFooter: null,
+      nzData: {
+        isCreatingVersion: false,
+      },
+      nzBodyStyle: {
+        resize: "both",
+        overflow: "auto",
+        minHeight: "200px",
+        minWidth: "550px",
+        maxWidth: "90vw",
+        maxHeight: "80vh",
+      },
+      nzWidth: "fit-content",
+    });
+    // Handle the selection from the modal
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result != null) {
+        const dashboardDataset: DashboardDataset = result as DashboardDataset;
+        this.router.navigate([`${DASHBOARD_USER_DATASET}/${dashboardDataset.dataset.did}`]);
+      }
+    });
   }
 
   public deleteDataset(entry: DashboardEntry): void {
@@ -160,7 +189,7 @@ export class UserDatasetComponent implements AfterViewInit {
       return;
     }
     this.datasetService
-      .deleteDatasets([entry.dataset.dataset.did])
+      .deleteDatasets(entry.dataset.dataset.did)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(

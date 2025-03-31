@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.e2e
 
 import akka.actor.{ActorSystem, Props}
-import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
@@ -20,11 +20,10 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
@@ -41,7 +40,6 @@ class DataProcessingSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    AmberRuntime.serde = SerializationExtension(system)
   }
 
   override def afterAll(): Unit = {
@@ -71,9 +69,10 @@ class DataProcessingSpec
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
-                terminalOpId,
-                Some("main"),
-                PortIdentity()
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
               )
               // expecting the first output port only.
               ExecutionResourcesMapping
@@ -86,9 +85,10 @@ class DataProcessingSpec
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
-                terminalOpId,
-                Some("main"),
-                PortIdentity()
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
               )
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
@@ -222,7 +222,7 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->keyword->count->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->count workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =

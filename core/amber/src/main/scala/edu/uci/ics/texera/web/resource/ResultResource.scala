@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.service.ResultExportService
 import io.dropwizard.auth.Auth
@@ -54,7 +54,7 @@ class ResultResource extends LazyLogging {
             return Response
               .status(Response.Status.BAD_REQUEST)
               .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Local download supports no operator or many.").asJava)
+              .entity(Map("error" -> "Local download does not support no operator.").asJava)
               .build()
           }
           val singleOpId = request.operatorIds.head

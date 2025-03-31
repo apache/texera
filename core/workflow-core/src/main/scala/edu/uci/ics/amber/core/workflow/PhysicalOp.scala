@@ -2,7 +2,7 @@ package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.executor.{OpExecWithCode, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -198,14 +198,6 @@ case class PhysicalOp(
   @JsonIgnore
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
-  }
-
-  /**
-    * Helper function used to determine whether the input link is a materialized link.
-    */
-  @JsonIgnore
-  def isSinkOperator: Boolean = {
-    outputPorts.forall(port => port._2._2.isEmpty)
   }
 
   @JsonIgnore // this is needed to prevent the serialization issue

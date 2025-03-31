@@ -1,17 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.executor.OpExecSink
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.storage.VFSURIFactory
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.core.workflow.PhysicalLink
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -75,10 +74,13 @@ abstract class ScheduleGenerator(
   def allocateResource(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
-    val dataTransferBatchSize = workflowContext.workflowSettings.dataTransferBatchSize
 
     val resourceAllocator =
-      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, dataTransferBatchSize)
+      new DefaultResourceAllocator(
+        physicalPlan,
+        executionClusterInfo,
+        workflowContext.workflowSettings
+      )
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
@@ -114,7 +116,7 @@ abstract class ScheduleGenerator(
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
             .filter(link =>
-              !physicalPlan.getOperator(physicalOpId).isSinkOperator && physicalPlan
+              physicalPlan
                 .getOperator(physicalOpId)
                 .isInputLinkDependee(link)
             )
@@ -132,7 +134,10 @@ abstract class ScheduleGenerator(
           val newRegion = region.copy(
             physicalLinks = region.physicalLinks ++ links,
             physicalOps =
-              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id))
+              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id)),
+            ports = region.getPorts ++ links.map(dependeeLink =>
+              GlobalPortIdentity(dependeeLink.toOpId, dependeeLink.toPortId, input = true)
+            )
           )
           replaceVertex(regionDAG, region, newRegion)
       }
@@ -149,71 +154,37 @@ abstract class ScheduleGenerator(
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
-    var newPhysicalPlan = physicalPlan
+    val newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
 
-    // create the uri of the materialization storage
-    val storageUri = VFSURIFactory.createMaterializedResultURI(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      physicalLink.fromOpId.logicalOpId,
-      s"${physicalLink.fromOpId.layerName}_materialization",
+    val globalPortId = GlobalPortIdentity(
+      physicalLink.fromOpId,
       physicalLink.fromPortId
     )
 
-    val fromPortOutputMode =
-      physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
-    val matWriterPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-      storageUri,
-      fromPortOutputMode
+    // create the uri of the materialization storage
+    val storageURI = VFSURIFactory.createResultURI(
+      workflowContext.workflowId,
+      workflowContext.executionId,
+      globalPortId
     )
 
-    // Check if an operator with the same storageUri already exists
-    val existingOperator = newPhysicalPlan.operators.find {
-      case op if op.opExecInitInfo.isInstanceOf[OpExecSink] =>
-        val OpExecSink(uri, _, _) = op.opExecInitInfo
-        uri == storageUri.toString
-      case _ => false
-    }
-
-    if (existingOperator.isEmpty) {
-      // create cache writer and link
-      val sourceToWriterLink =
-        PhysicalLink(
-          fromOp.id,
-          fromPortId,
-          matWriterPhysicalOp.id,
-          matWriterPhysicalOp.inputPorts.keys.head
-        )
-      newPhysicalPlan = newPhysicalPlan
-        .addOperator(matWriterPhysicalOp)
-        .addLink(sourceToWriterLink)
-
-      // sink has exactly one input port and one output port
-      val schema = newPhysicalPlan
-        .getOperator(matWriterPhysicalOp.id)
-        .outputPorts(matWriterPhysicalOp.outputPorts.keys.head)
-        ._3
-        .toOption
-        .get
-      // create the document
-      DocumentFactory.createDocument(storageUri, schema)
-      WorkflowExecutionsResource.insertOperatorPortResultUri(
-        workflowContext.executionId,
-        physicalLink.fromOpId.logicalOpId,
-        s"${physicalLink.fromOpId.layerName}_materialization",
-        physicalLink.fromPortId,
-        storageUri
-      )
-    }
-
     // create cache reader and link
+
+    val schema = newPhysicalPlan
+      .getOperator(fromOp.id)
+      .outputPorts(fromPortId)
+      ._3
+      .toOption
+      .get
+
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
-      storageUri,
+      storageURI,
       toOp.id,
-      toPortId
+      toPortId,
+      schema
     )
     val readerToDestLink =
       PhysicalLink(
@@ -223,9 +194,35 @@ abstract class ScheduleGenerator(
         toPortId
       )
     // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
+    writerReaderPairs(fromOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
+  }
+
+  def updateRegionsWithOutputPortStorage(
+      outputPortsToMaterialize: Set[GlobalPortIdentity],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
+      .foreach(outputPortId => {
+        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+          val portConfigToAdd = outputPortId -> {
+            val uriToAdd = createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              globalPortId = outputPortId
+            )
+            PortConfig(storageURI = uriToAdd)
+          }
+          val newResourceConfig = fromRegion.resourceConfig match {
+            case Some(existingConfig) =>
+              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+          }
+          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
+          replaceVertex(regionDAG, fromRegion, newFromRegion)
+        })
+      })
   }
 }

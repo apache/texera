@@ -7,9 +7,10 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
+  PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
@@ -17,6 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import java.net.URI
+import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.time.{LocalDate, ZoneId}
 import java.time.format.DateTimeFormatter
@@ -33,9 +35,14 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
   var uri: URI = VFSURIFactory.createResultURI(
     WorkflowIdentity(0),
     ExecutionIdentity(0),
-    OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
-    None,
-    PortIdentity()
+    GlobalPortIdentity(
+      PhysicalOpIdentity(
+        logicalOpId =
+          OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+        layerName = "main"
+      ),
+      PortIdentity()
+    )
   )
 
   override def beforeAll(): Unit = {
@@ -77,7 +84,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(100L),
           Some(3.14),
           Some(10000L),
-          Some(Array[Byte](1, 2, 3))
+          Some(List(ByteBuffer.wrap(Array[Byte](1, 2, 3))))
         ),
         (
           "second",
@@ -86,7 +93,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(200L),
           Some(2.71),
           Some(20000L),
-          Some(Array[Byte](4, 5, 6))
+          Some(List(ByteBuffer.wrap(Array[Byte](4, 5, 6))))
         ),
         (
           "third",
@@ -95,7 +102,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(150L),
           Some(1.41),
           Some(15000L),
-          Some(Array[Byte](7, 8, 9))
+          Some(List(ByteBuffer.wrap(Array[Byte](7, 8, 9))))
         )
       )
     )
@@ -136,7 +143,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(300L),
           Some(4.56),
           Some(30000L),
-          Some(Array[Byte](10, 11, 12))
+          Some(List(ByteBuffer.wrap(Array[Byte](10, 11, 12))))
         ),
         (
           "new-second",
@@ -145,7 +152,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(400L),
           Some(5.67),
           Some(40000L),
-          Some(Array[Byte](13, 14, 15))
+          Some(List(ByteBuffer.wrap(Array[Byte](13, 14, 15))))
         )
       )
     )
@@ -178,7 +185,15 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
   it should "correctly count non-null values in the presence of null values" in {
     val tuplesWithNulls = generateSampleItems(
       List(
-        ("first", Some(42), None, Some(100L), Some(3.14), Some(10000L), Some(Array[Byte](1, 2, 3))),
+        (
+          "first",
+          Some(42),
+          None,
+          Some(100L),
+          Some(3.14),
+          Some(10000L),
+          Some(List(ByteBuffer.wrap(Array[Byte](1, 2, 3))))
+        ),
         (
           "second",
           None,
@@ -186,7 +201,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
           Some(200L),
           Some(2.71),
           Some(20000L),
-          Some(Array[Byte](4, 5, 6))
+          Some(List(ByteBuffer.wrap(Array[Byte](4, 5, 6))))
         ),
         ("third", Some(30), Some(true), None, Some(1.41), Some(15000L), None)
       )
@@ -206,7 +221,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
     assert(stats("col-long")("not_null_count") == 7L)
     assert(stats("col-double")("not_null_count") == 8L)
     assert(stats("col-timestamp")("not_null_count") == 8L)
-    assert(stats("col-binary")("not_null_count") == 7L)
+    assert(stats("col-binary")("not_null_count") == 8L)
   }
 
   def generateSampleItems(
@@ -218,7 +233,7 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
             Option[Long],
             Option[Double],
             Option[Long],
-            Option[Array[Byte]]
+            Option[List[ByteBuffer]]
         )
       ]
   ): List[Tuple] = {
