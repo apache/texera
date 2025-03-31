@@ -1,0 +1,48 @@
+FROM node:18 AS build-gui
+
+WORKDIR /gui
+COPY core/gui /gui
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path 4.5.1
+
+WORKDIR /gui
+RUN yarn install && yarn run build
+
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
+
+# Set working directory
+WORKDIR /core
+
+# Copy all projects under core to /core
+COPY core/ .
+
+# Update system and install dependencies
+RUN apt-get update && apt-get install -y \
+    netcat \
+    unzip \
+    libpq-dev \
+    && apt-get clean
+
+WORKDIR /core
+# Add .git for runtime calls to jgit from OPversion
+COPY .git ../.git
+
+RUN sbt clean WorkflowExecutionService/dist
+
+# Unzip the texera binary
+RUN unzip amber/target/universal/texera-0.1-SNAPSHOT.zip -d amber/target/
+
+FROM eclipse-temurin:11-jre-jammy AS runtime
+
+WORKDIR /core/amber
+# Copy built GUI files from the build-gui stage
+COPY --from=build-gui /gui/dist /core/gui/dist
+# Copy the built texera binary from the build phase
+COPY --from=build /core/amber/target/texera-0.1-SNAPSHOT /core/amber
+# Copy resources directories under /core from build phase
+COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
+COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
+COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
+
+CMD ["bin/texera-web-application"]
+
+EXPOSE 8080

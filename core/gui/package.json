@@ -80,7 +80,6 @@
     "read-excel-file": "5.7.1",
     "ring-buffer-ts": "1.0.3",
     "rxjs": "7.8.1",
-    "sanitize-filename": "1.6.3",
     "tinyqueue": "2.0.3",
     "ts-proto": "2.2.0",
     "tslib": "2.3.1",

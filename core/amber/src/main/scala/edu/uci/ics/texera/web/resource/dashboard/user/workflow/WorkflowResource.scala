@@ -3,6 +3,8 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -13,7 +15,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -551,16 +553,47 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method deletes the workflow from database
+    * Deletes workflows from the database and cleans up associated resources.
     *
-    * @return Response, deleted - 200, not exists - 400
+    * @param workflowIDs The IDs of workflows to delete
+    * @param sessionUser Current authenticated user
+    * @return Unit, with appropriate HTTP status: 200 if deleted, 400 if not exists
     */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
+
     try {
+      // Find all execution IDs related to these workflows
+      val eids = context
+        .select(WORKFLOW_EXECUTIONS.EID)
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+        .join(WORKFLOW)
+        .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+        .where(WORKFLOW.WID.in(workflowIDs.wids.asJava))
+        .fetchInto(classOf[Integer])
+        .asScala
+        .toList
+
+      // Collect all URIs related to executions for cleanup
+      val uris = eids.flatMap { eid =>
+        val executionId = ExecutionIdentity(eid.longValue())
+
+        // Gather URIs from all execution resources
+        val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(executionId)
+        val consoleMessagesUris =
+          WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(executionId)
+        val runtimeStatsUris =
+          WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(executionId).toList
+
+        resultUris ++ consoleMessagesUris ++ runtimeStatsUris
+      }
+
+      // Delete workflows in a transaction
       context.transaction { _ =>
         for (wid <- workflowIDs.wids) {
           if (workflowOfUserExists(wid, user.getUid)) {
@@ -570,10 +603,27 @@ class WorkflowResource extends LazyLogging {
           }
         }
       }
+
+      // Clean up document storage
+      try {
+        uris.foreach { uri =>
+          try {
+            val (document, _) = DocumentFactory.openDocument(uri)
+            document.clear()
+          } catch {
+            case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
+              logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
+            case NonFatal(e) =>
+              logger.error(s"Failed to clear document for URI $uri", e)
+          }
+        }
+      } catch {
+        case NonFatal(e) =>
+          logger.error("Failed to clean up execution results", e)
+      }
     } catch {
       case _: BadRequestException =>
-      case NonFatal(exception) =>
-        throw new WebApplicationException(exception)
+      case NonFatal(exception)    => throw new WebApplicationException(exception)
     }
   }
 

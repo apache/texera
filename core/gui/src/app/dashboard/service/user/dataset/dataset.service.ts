@@ -1,12 +1,13 @@
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpParams } from "@angular/common/http";
-import { map } from "rxjs/operators";
+import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
+import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { Observable } from "rxjs";
+import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
-import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
+import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
+import { environment } from "../../../../../environments/environment";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -26,28 +27,26 @@ export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
 export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
 
+export interface MultipartUploadProgress {
+  filePath: string;
+  percentage: number;
+  status: "initializing" | "uploading" | "finished" | "aborted";
+  uploadId: string;
+  physicalAddress: string;
+}
+
 @Injectable({
   providedIn: "root",
 })
 export class DatasetService {
   constructor(private http: HttpClient) {}
 
-  public createDataset(
-    dataset: Dataset,
-    initialVersionName: string,
-    filesToBeUploaded: FileUploadItem[]
-  ): Observable<DashboardDataset> {
-    const formData = new FormData();
-    formData.append("datasetName", dataset.name);
-    formData.append("datasetDescription", dataset.description);
-    formData.append("isDatasetPublic", dataset.isPublic.toString());
-    formData.append("initialVersionName", initialVersionName);
-
-    filesToBeUploaded.forEach(file => {
-      formData.append(`file:upload:${file.name}`, file.file);
+  public createDataset(dataset: Dataset): Observable<DashboardDataset> {
+    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, {
+      datasetName: dataset.name,
+      datasetDescription: dataset.description,
+      isDatasetPublic: dataset.isPublic,
     });
-
-    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
   }
 
   public getDataset(did: number, isLogin: boolean = true): Observable<DashboardDataset> {
@@ -57,65 +56,250 @@ export class DatasetService {
     return this.http.get<DashboardDataset>(apiUrl);
   }
 
-  public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
-    const encodedPath = encodeURIComponent(path);
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`, {
-      responseType: "blob",
-    });
+  /**
+   * Retrieves a single file from a dataset version using a pre-signed URL.
+   * @param filePath Relative file path within the dataset.
+   * @returns Observable<Blob>
+   */
+  public retrieveDatasetVersionSingleFile(filePath: string): Observable<Blob> {
+    return this.http
+      .get<{
+        presignedUrl: string;
+      }>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/presign-download?filePath=${encodeURIComponent(filePath)}`
+      )
+      .pipe(
+        switchMap(({ presignedUrl }) => {
+          return this.http.get(presignedUrl, { responseType: "blob" });
+        })
+      );
   }
 
   /**
-   * Retrieves a zip file of a dataset or a specific path within a dataset.
-   * @param options An object containing optional parameters:
-   *   - path: A string representing a specific file or directory path within the dataset
-   *   - did: A number representing the dataset ID
-   * @returns An Observable that emits a Blob containing the zip file
+   * Retrieves a zip file of a dataset version.
+   * @param did Dataset ID
+   * @param dvid (Optional) Dataset version ID. If omitted, the latest version is downloaded.
+   * @returns An Observable that emits a Blob containing the zip file.
    */
-  public retrieveDatasetZip(options: { did: number; dvid?: number }): Observable<Blob> {
+  public retrieveDatasetVersionZip(did: number, dvid?: number): Observable<Blob> {
     let params = new HttpParams();
-    params = params.set("did", options.did.toString());
-    if (options.dvid) {
-      params = params.set("dvid", options.dvid.toString());
+
+    if (dvid !== undefined && dvid !== null) {
+      params = params.set("dvid", dvid.toString());
+    } else {
+      params = params.set("latest", "true");
     }
 
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/dataset/${did}/versionZip`, {
       params,
       responseType: "blob",
     });
   }
 
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_LIST_URL}`);
   }
-  public createDatasetVersion(
-    did: number,
-    newVersion: string,
-    removedFilePaths: string[],
-    filesToBeUploaded: FileUploadItem[]
-  ): Observable<DatasetVersion> {
-    const formData = new FormData();
-    formData.append("versionName", newVersion);
-
-    if (removedFilePaths.length > 0) {
-      const removedFilesString = JSON.stringify(removedFilePaths);
-      formData.append("file:remove", removedFilesString);
-    }
-
-    filesToBeUploaded.forEach(file => {
-      formData.append(`file:upload:${file.name}`, file.file);
-    });
-
+  public createDatasetVersion(did: number, newVersion: string): Observable<DatasetVersion> {
     return this.http
       .post<{
         datasetVersion: DatasetVersion;
         fileNodes: DatasetFileNode[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, newVersion, {
+        headers: { "Content-Type": "text/plain" },
+      })
       .pipe(
         map(response => {
           response.datasetVersion.fileNodes = response.fileNodes;
           return response.datasetVersion;
         })
       );
+  }
+
+  /**
+   * Handles multipart upload for large files using RxJS,
+   * with a concurrency limit on how many parts we process in parallel.
+   */
+  public multipartUpload(datasetName: string, filePath: string, file: File): Observable<MultipartUploadProgress> {
+    const partCount = Math.ceil(file.size / environment.multipartUploadChunkSizeByte);
+    const concurrencyLimit = environment.maxNumberOfConcurrentUploadingFileChunks;
+
+    return new Observable(observer => {
+      this.initiateMultipartUpload(datasetName, filePath, partCount)
+        .pipe(
+          switchMap(initiateResponse => {
+            const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
+            if (!uploadId) {
+              observer.error(new Error("Failed to initiate multipart upload"));
+              return EMPTY;
+            }
+            observer.next({
+              filePath: filePath,
+              percentage: 0,
+              status: "initializing",
+              uploadId: uploadId,
+              physicalAddress: physicalAddress,
+            });
+
+            // Keep track of all uploaded parts
+            const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+            let uploadedCount = 0;
+
+            // 1) Convert presignedUrls into a stream of URLs
+            return from(presignedUrls).pipe(
+              // 2) Use mergeMap with concurrency limit to upload chunk by chunk
+              mergeMap((url, index) => {
+                const start = index * environment.multipartUploadChunkSizeByte;
+                const end = Math.min(start + environment.multipartUploadChunkSizeByte, file.size);
+                const chunk = file.slice(start, end);
+
+                // Upload the chunk
+                return from(fetch(url, { method: "PUT", body: chunk })).pipe(
+                  switchMap(response => {
+                    if (!response.ok) {
+                      return throwError(() => new Error(`Failed to upload part ${index + 1}`));
+                    }
+                    const etag = response.headers.get("ETag")?.replace(/"/g, "");
+                    if (!etag) {
+                      return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
+                    }
+
+                    // Record the uploaded part
+                    uploadedParts.push({ PartNumber: index + 1, ETag: etag });
+                    uploadedCount++;
+
+                    // Emit progress after each part
+                    observer.next({
+                      filePath,
+                      percentage: Math.round((uploadedCount / partCount) * 100),
+                      status: "uploading",
+                      uploadId: uploadId,
+                      physicalAddress: physicalAddress,
+                    });
+
+                    return of(null); // indicate success
+                  })
+                );
+              }, concurrencyLimit),
+              // 3) Collect results from all uploads (like forkJoin, but respects concurrency)
+              toArray(),
+              // 4) Finalize if all parts succeeded
+              switchMap(() =>
+                this.finalizeMultipartUpload(datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
+              ),
+              tap(() => {
+                observer.next({
+                  filePath,
+                  percentage: 100,
+                  status: "finished",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
+                });
+                observer.complete();
+              }),
+              catchError((error: unknown) => {
+                // If an error occurred, abort the upload
+                observer.next({
+                  filePath,
+                  percentage: Math.round((uploadedCount / partCount) * 100),
+                  status: "aborted",
+                  uploadId: uploadId,
+                  physicalAddress: physicalAddress,
+                });
+
+                return this.finalizeMultipartUpload(
+                  datasetName,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  physicalAddress,
+                  true
+                ).pipe(switchMap(() => throwError(() => error)));
+              })
+            );
+          })
+        )
+        .subscribe({
+          error: (err: unknown) => observer.error(err),
+        });
+    });
+  }
+
+  /**
+   * Initiates a multipart upload and retrieves presigned URLs for each part.
+   * @param datasetName Dataset Name
+   * @param filePath File path within the dataset
+   * @param numParts Number of parts for the multipart upload
+   */
+  private initiateMultipartUpload(
+    datasetName: string,
+    filePath: string,
+    numParts: number
+  ): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
+    const params = new HttpParams()
+      .set("type", "init")
+      .set("datasetName", datasetName)
+      .set("filePath", encodeURIComponent(filePath))
+      .set("numParts", numParts.toString());
+
+    return this.http.post<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
+      {},
+      { params }
+    );
+  }
+
+  /**
+   * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
+   */
+  public finalizeMultipartUpload(
+    datasetName: string,
+    filePath: string,
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+    physicalAddress: string,
+    isAbort: boolean
+  ): Observable<Response> {
+    const params = new HttpParams()
+      .set("type", isAbort ? "abort" : "finish")
+      .set("datasetName", datasetName)
+      .set("filePath", encodeURIComponent(filePath))
+      .set("uploadId", uploadId);
+
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/multipart-upload`,
+      { parts, physicalAddress },
+      { params }
+    );
+  }
+
+  /**
+   * Resets a dataset file difference in LakeFS.
+   * @param did Dataset ID
+   * @param filePath File path to reset
+   */
+  public resetDatasetFileDiff(did: number, filePath: string): Observable<Response> {
+    const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
+
+    return this.http.put<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`, {}, { params });
+  }
+
+  /**
+   * Deletes a dataset file from LakeFS.
+   * @param did Dataset ID
+   * @param filePath File path to delete
+   */
+  public deleteDatasetFile(did: number, filePath: string): Observable<Response> {
+    const params = new HttpParams().set("filePath", encodeURIComponent(filePath));
+
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/file`, { params });
+  }
+
+  /**
+   * Retrieves the list of uncommitted dataset changes (diffs).
+   * @param did Dataset ID
+   */
+  public getDatasetDiff(did: number): Observable<DatasetStagedObject[]> {
+    return this.http.get<DatasetStagedObject[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/diff`);
   }
 
   /**
@@ -165,10 +349,8 @@ export class DatasetService {
     return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(apiUrl);
   }
 
-  public deleteDatasets(dids: number[]): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_DELETE_URL}`, {
-      dids: dids,
-    });
+  public deleteDatasets(did: number): Observable<Response> {
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`);
   }
 
   public updateDatasetName(did: number, name: string): Observable<Response> {

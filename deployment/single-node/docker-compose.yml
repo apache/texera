@@ -1,0 +1,158 @@
+name: texera-single-node
+services:
+  # Part1: Specification of the storage services used by Texera
+  # MinIO is an S3-compatible object storage used to store datasets and files.
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: texera-minio
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+
+  # PostgreSQL with PGroonga extension for full-text search.
+  # Used by lakeFS and Texera's metadata storage.
+  postgres:
+    image: groonga/pgroonga:4.0.1-debian-15
+    container_name: texera-postgres
+    restart: always
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "texera", "-d", "texera_db"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # mount the sql files for initializing the postgres
+      - ../../core/scripts/sql:/docker-entrypoint-initdb.d
+
+  # lakeFS is the underlying storage of Texera's dataset service
+  lakefs:
+    image: treeverse/lakefs:1.51
+    container_name: texera-lakefs
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      - LAKEFS_BLOCKSTORE_TYPE=s3
+      - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
+      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://texera-minio:9000
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=http://localhost:9000
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password
+      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs
+      - LAKEFS_LOGGING_LEVEL=INFO
+      - LAKEFS_STATS_ENABLED=1
+      - LAKEFS_DATABASE_TYPE=postgres
+      - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://texera:password@texera-postgres:5432/texera_lakefs?sslmode=disable
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        lakefs setup --user-name "$LAKEFS_INSTALLATION_USER_NAME" --access-key-id "$LAKEFS_INSTALLATION_ACCESS_KEY_ID" --secret-access-key "$LAKEFS_INSTALLATION_SECRET_ACCESS_KEY" || true
+        lakefs run &
+        echo "---- lakeFS Web UI ----"
+        echo "http://127.0.0.1:8000/"
+        echo ""
+        echo "Access Key ID    : $LAKEFS_INSTALLATION_ACCESS_KEY_ID"
+        echo "Secret Access Key: $LAKEFS_INSTALLATION_SECRET_ACCESS_KEY"
+        echo ""
+        wait
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/api/v1/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Part2: Specification of Texera's micro-services
+  # FileService provides endpoints for Texera's dataset management
+  file-service:
+    image: texera/file-service:test
+    container_name: texera-file-service
+    restart: always
+    depends_on:
+      minio:
+        condition: service_started
+      lakefs:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
+  workflow-compiling-service:
+    image: texera/workflow-compiling-service:test
+    container_name: texera-workflow-compiling-service
+    restart: always
+    depends_on:
+      file-service:
+        condition: service_started
+    env_file:
+      - .env
+
+  # TexeraWebApplication provides endpoints for hub resource management.
+  texera-web-application:
+    image: texera/texera-web-application:test
+    container_name: texera-web-application
+    restart: always
+    depends_on:
+      file-service:
+        condition: service_started
+      workflow-compiling-service:
+        condition: service_started
+    env_file:
+      - .env
+
+  # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
+  computing-unit-master:
+    image: texera/computing-unit-master:test
+    container_name: texera-computing-unit-master
+    restart: always
+    depends_on:
+      texera-web-application:
+        condition: service_started
+    env_file:
+      - .env
+    volumes:
+      - computing_unit_data:/core/amber/user-resources
+
+  # Part 3: reverse proxy service for Texera's micro services
+  nginx:
+    image: nginx:alpine
+    container_name: texera-nginx
+    depends_on:
+      - workflow-compiling-service
+      - file-service
+      - texera-web-application
+      - computing-unit-master
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:8080"
+
+# This section creates the named volumes for postgres, minio and workflow results, making sure data of these three
+#   services are persisted across containers terminations
+volumes:
+  postgres_data:
+  minio_data:
+  computing_unit_data:
+  # By default, Docker assigns host locations for the above volumes.
+  # To bind them to specific local folders, configure each volume like below:
+  #   postgres_data:
+  #     driver: local
+  #     driver_opts:
+  #       type: none
+  #       o: bind
+  #       device: /absolute/path/to/your/local/folder
+
+networks:
+  default:
+    name: texera-single-node

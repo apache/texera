@@ -1,9 +1,14 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, EventEmitter, OnInit, Output } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { DatasetService, MultipartUploadProgress } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
+import {
+  DatasetFileNode,
+  getFullPathFromDatasetFileNode,
+  getPathsUnderOrEqualDatasetFileNode,
+  getRelativePathFromDatasetFileNode,
+} from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap, throttleTime } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -13,6 +18,12 @@ import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
 import { HubService } from "../../../../../hub/service/hub.service";
+import { FileUploadItem } from "../../../../type/dashboard-file.interface";
+import { file } from "jszip";
+import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
+import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -40,8 +51,6 @@ export class DatasetDetailComponent implements OnInit {
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
 
-  public isCreatingVersion: boolean = false;
-  public isCreatingDataset: boolean = false;
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
 
@@ -51,9 +60,14 @@ export class DatasetDetailComponent implements OnInit {
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
 
+  userHasPendingChanges: boolean = false;
+  public uploadProgress: MultipartUploadProgress | null = null;
+
+  @Output() userMakeChanges = new EventEmitter<void>();
+
   constructor(
     private route: ActivatedRoute,
-    private router: Router,
+    private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
     private downloadService: DownloadService,
@@ -72,7 +86,7 @@ export class DatasetDetailComponent implements OnInit {
   // item for control the resizeable sider
   MAX_SIDER_WIDTH = 600;
   MIN_SIDER_WIDTH = 150;
-  siderWidth = 200;
+  siderWidth = 400;
   id = -1;
   onSideResize({ width }: NzResizeEvent): void {
     cancelAnimationFrame(this.id);
@@ -85,15 +99,9 @@ export class DatasetDetailComponent implements OnInit {
     this.route.params
       .pipe(
         switchMap(params => {
-          const param = params["did"];
-          if (param !== "create") {
-            this.did = param;
-            this.renderDatasetViewSider();
-            this.retrieveDatasetInfo();
-            this.retrieveDatasetVersionList();
-          } else {
-            this.renderDatasetCreatorSider();
-          }
+          this.did = params["did"];
+          this.retrieveDatasetInfo();
+          this.retrieveDatasetVersionList();
           return this.route.data; // or some other observable
         }),
         untilDestroyed(this)
@@ -131,53 +139,42 @@ export class DatasetDetailComponent implements OnInit {
       });
   }
 
-  renderDatasetViewSider() {
-    this.isCreatingVersion = false;
-    this.isCreatingDataset = false;
-  }
-  renderDatasetCreatorSider() {
-    this.isCreatingVersion = false;
-    this.isCreatingDataset = true;
-    this.siderWidth = this.MAX_SIDER_WIDTH;
-  }
-
-  renderVersionCreatorSider() {
-    if (this.did) {
-      this.datasetService
-        .retrieveDatasetLatestVersion(this.did)
-        .pipe(untilDestroyed(this))
-        .subscribe(latestVersion => {
-          this.versionCreatorBaseVersion = latestVersion;
-          this.isCreatingDataset = false;
-          this.isCreatingVersion = true;
-          this.siderWidth = this.MAX_SIDER_WIDTH;
-        });
-    }
-  }
-
-  public onCreationFinished(creationID: number) {
-    if (creationID != 0) {
-      // creation succeed
-      if (this.isCreatingVersion) {
-        this.retrieveDatasetVersionList();
-        this.renderDatasetViewSider();
-      } else {
-        this.router.navigate([`${DASHBOARD_USER_DATASET}/${creationID}`]);
-      }
-    } else {
-      // creation failed
-      if (this.isCreatingVersion) {
-        this.isCreatingVersion = false;
-        this.isCreatingDataset = false;
-        this.retrieveDatasetVersionList();
-      } else {
-        this.router.navigate([DASHBOARD_USER_DATASET]);
-      }
-    }
-  }
-
   public onClickOpenVersionCreator() {
-    this.renderVersionCreatorSider();
+    if (this.did) {
+      const modal = this.modalService.create({
+        nzTitle: "Create New Dataset Version",
+        nzContent: UserDatasetVersionCreatorComponent,
+        nzFooter: null,
+        nzData: {
+          isCreatingVersion: true,
+          did: this.did,
+        },
+        nzBodyStyle: {
+          resize: "both",
+          overflow: "auto",
+          minHeight: "200px",
+          minWidth: "550px",
+          maxWidth: "90vw",
+          maxHeight: "80vh",
+        },
+        nzWidth: "fit-content",
+      });
+      modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+        if (result != null) {
+          this.retrieveDatasetVersionList();
+          this.userMakeChanges.emit();
+        }
+      });
+    }
+  }
+
+  public onClickDownloadVersionAsZip() {
+    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      this.downloadService
+        .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
+        .pipe(untilDestroyed(this))
+        .subscribe();
+    }
   }
 
   onPublicStatusChange(checked: boolean): void {
@@ -212,7 +209,7 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
-          this.datasetIsPublic = dataset.isPublic === 1;
+          this.datasetIsPublic = dataset.isPublic;
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }
@@ -229,8 +226,10 @@ export class DatasetDetailComponent implements OnInit {
           this.versions = versionNames;
           // by default, the selected version is the 1st element in the retrieved list
           // which is guaranteed(by the backend) to be the latest created version.
-          this.selectedVersion = this.versions[0];
-          this.onVersionSelected(this.selectedVersion);
+          if (this.versions.length > 0) {
+            this.selectedVersion = this.versions[0];
+            this.onVersionSelected(this.selectedVersion);
+          }
         });
     }
   }
@@ -246,21 +245,16 @@ export class DatasetDetailComponent implements OnInit {
     this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
   };
 
-  onClickDownloadVersionAsZip = (): void => {
-    if (!this.did || !this.selectedVersion?.dvid) return;
-
-    this.downloadService
-      .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
-      .pipe(untilDestroyed(this))
-      .subscribe();
-  };
-
   onClickScaleTheView() {
     this.isMaximized = !this.isMaximized;
   }
 
   onClickHideRightBar() {
     this.isRightBarCollapsed = !this.isRightBarCollapsed;
+  }
+
+  onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
+    this.userHasPendingChanges = stagedObjects.length > 0;
   }
 
   onVersionSelected(version: DatasetVersion): void {
@@ -284,12 +278,91 @@ export class DatasetDetailComponent implements OnInit {
     this.loadFileContent(node);
   }
 
-  isDisplayingDataset(): boolean {
-    return !this.isCreatingDataset && !this.isCreatingVersion;
-  }
-
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
+  }
+
+  onNewUploadFilesChanged(files: FileUploadItem[]) {
+    if (this.did) {
+      const did = this.did;
+      files.forEach(file => {
+        this.datasetService
+          .multipartUpload(this.datasetName, file.name, file.file)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: res => {
+              this.uploadProgress = res; // Update the progress UI
+            },
+            error: () => {
+              this.uploadProgress = {
+                filePath: file.name,
+                percentage: 100,
+                status: "aborted",
+                physicalAddress: "",
+                uploadId: "",
+              };
+              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+            },
+            complete: () => {
+              this.uploadProgress = {
+                filePath: file.name,
+                percentage: 100,
+                status: "finished",
+                uploadId: "",
+                physicalAddress: "",
+              };
+              this.userMakeChanges.emit();
+              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+            },
+          });
+      });
+    }
+  }
+
+  onClickAbortUploadProgress() {
+    if (this.uploadProgress) {
+      this.datasetService
+        .finalizeMultipartUpload(
+          this.datasetName,
+          this.uploadProgress.filePath,
+          this.uploadProgress.uploadId,
+          [],
+          this.uploadProgress.physicalAddress,
+          true
+        )
+        .pipe(untilDestroyed(this))
+        .subscribe(res => {
+          this.notificationService.info(`${this.uploadProgress?.filePath} uploading has been terminated`);
+        });
+    }
+    this.uploadProgress = null;
+  }
+
+  getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
+    return status === "uploading" || status === "initializing"
+      ? "active"
+      : status === "aborted"
+        ? "exception"
+        : "success";
+  }
+
+  onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
+    if (this.did) {
+      this.datasetService
+        .deleteDatasetFile(this.did, getRelativePathFromDatasetFileNode(node))
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.notificationService.success(
+              `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
+            );
+            this.userMakeChanges.emit();
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to delete the file");
+          },
+        });
+    }
   }
 
   // alias for formatSize

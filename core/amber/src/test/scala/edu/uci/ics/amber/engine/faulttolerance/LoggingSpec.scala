@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
-import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import edu.uci.ics.amber.core.virtualidentity.{
@@ -48,10 +47,6 @@ class LoggingSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with TimeLimitedTests {
-
-  override def beforeAll(): Unit = {
-    AmberRuntime.serde = SerializationExtension(system)
-  }
 
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")

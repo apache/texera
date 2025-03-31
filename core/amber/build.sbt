@@ -57,8 +57,6 @@ val akkaDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // DropWizard server related
 val dropwizardVersion = "1.3.23"
-// jersey version should be the same as jersey-server that is contained in dropwizard
-val jerseyMultipartVersion = "2.25.1"
 
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -69,7 +67,6 @@ val dropwizardDependencies = Seq(
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
-  "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
 )

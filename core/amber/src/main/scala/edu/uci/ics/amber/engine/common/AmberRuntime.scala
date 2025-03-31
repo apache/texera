@@ -14,8 +14,19 @@ import scala.concurrent.duration.FiniteDuration
 
 object AmberRuntime {
 
-  var serde: Serialization = _
+  private var _serde: Serialization = _
   private var _actorSystem: ActorSystem = _
+
+  def serde: Serialization = {
+    if (_serde == null) {
+      if (_actorSystem == null) {
+        _serde = SerializationExtension(ActorSystem("Amber", akkaConfig))
+      } else {
+        _serde = SerializationExtension(_actorSystem)
+      }
+    }
+    _serde
+  }
 
   def actorSystem: ActorSystem = {
     _actorSystem
@@ -54,11 +65,13 @@ object AmberRuntime {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
+      .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(defaultApplication())
+  def akkaConfig: Config =
+    ConfigFactory.load("cluster").withFallback(defaultApplication()).resolve()
 
   private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
@@ -75,6 +88,7 @@ object AmberRuntime {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
+      .resolve()
     AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)
   }
@@ -85,6 +99,6 @@ object AmberRuntime {
     val deadLetterMonitorActor =
       _actorSystem.actorOf(Props[DeadLetterMonitorActor](), name = "dead-letter-monitor-actor")
     _actorSystem.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
-    serde = SerializationExtension(_actorSystem)
+    _serde = SerializationExtension(_actorSystem)
   }
 }
