@@ -30,6 +30,19 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
                   key: postgres-password
+            # LakeFS Access (should be removed in production environment)
+            - name: STORAGE_LAKEFS_ENDPOINT
+              value: http://{{ .Release.Name }}-lakefs.{{ .Release.Namespace }}:8000/api/v1
+            - name: STORAGE_LAKEFS_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: access_key
+            - name: STORAGE_LAKEFS_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: secret_key
           {{- range .Values.texeraEnvVars }}
             - name: {{ .name }}
               value: "{{ .value }}"
