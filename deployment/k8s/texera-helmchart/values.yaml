@@ -151,6 +151,8 @@ texeraEnvVars:
     value: postgres
   - name: USER_SYS_ENABLED
     value: "true"
+  - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
+    value: "10"
 
 # Ingress dependency configs
 ingress-nginx:
