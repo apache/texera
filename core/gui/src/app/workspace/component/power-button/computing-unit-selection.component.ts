@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { interval } from "rxjs";
 import { switchMap } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -9,6 +9,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { environment } from "../../../../environments/environment";
+import { extractErrorMessage } from "../../../common/util/error";
 
 @UntilDestroy()
 @Component({
@@ -51,7 +52,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.updateComputingUnits(units);
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+        error: (err: unknown) => console.error("Failed to fetch computing units:", extractErrorMessage(err)),
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -68,7 +69,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       )
       .subscribe({
         next: (units: DashboardWorkflowComputingUnit[]) => this.updateComputingUnits(units),
-        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+        error: (err: unknown) => console.error("Failed to fetch computing units:", extractErrorMessage(err)),
       });
   }
 
@@ -76,6 +77,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Update the computing units list, maintaining object references for the same CUID.
    */
   private updateComputingUnits(newUnits: DashboardWorkflowComputingUnit[]): void {
+    const newCUIDs = new Set(newUnits.map(unit => unit.computingUnit.cuid));
+    // Filter out old units that are not in the new list
+    this.computingUnits = this.computingUnits.filter(unit => newCUIDs.has(unit.computingUnit.cuid));
     const unitMap = new Map(this.computingUnits.map(unit => [unit.computingUnit.cuid, unit]));
 
     this.computingUnits = newUnits.map(newUnit =>
@@ -84,7 +88,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         : newUnit
     );
 
-    // If selected computing unit is removed, deselect it
     if (
       this.selectedComputingUnit &&
       !this.computingUnits.some(unit => unit.computingUnit.cuid === this.selectedComputingUnit!.computingUnit.cuid)
@@ -112,7 +115,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.notificationService.success("Successfully created the new compute unit");
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => this.notificationService.error("Failed to start computing unit"),
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
       });
   }
 
@@ -136,7 +140,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => this.notificationService.error("Failed to terminate computing unit"),
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`),
       });
   }
 
