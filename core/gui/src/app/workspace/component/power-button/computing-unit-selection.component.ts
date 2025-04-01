@@ -28,8 +28,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
   newComputingUnitName: string = "";
-  selectedMemory: string = "2Gi";
-  selectedCpu: string = "2";
+  selectedMemory: string = "";
+  selectedCpu: string = "";
+
+  // cpu&memory limit options from backend
+  cpuOptions: string[] = [];
+  memoryOptions: string[] = [];
+
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -39,6 +44,24 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.computingUnitService
+      .getComputingUnitLimitOptions()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ cpuLimitOptions, memoryLimitOptions }) => {
+          this.cpuOptions = cpuLimitOptions;
+          this.memoryOptions = memoryLimitOptions;
+
+          // fallback defaults
+          this.selectedCpu = this.cpuOptions[0] ?? "1";
+          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+        },
+        error: err =>
+          this.notificationService.error(
+            `Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`
+          ),
+      });
+
     this.computingUnitService
       .listComputingUnits()
       .pipe(untilDestroyed(this))

@@ -133,36 +133,24 @@
           class="unit-name-input" />
       </div>
       <div class="select-unit">
-        <span>Select Memory</span>
-        <nz-select
-          class="memory-selection"
-          [(ngModel)]="selectedMemory">
+        <span>Select Memory Size</span>
+        <nz-select class="memory-selection" [(ngModel)]="selectedMemory">
           <nz-option
-            nzValue="1Gi"
-            nzLabel="Lowest Memory (1Gi)"></nz-option>
-          <nz-option
-            nzValue="2Gi"
-            nzLabel="Standard Memory (2Gi)"></nz-option>
-          <nz-option
-            nzValue="4Gi"
-            nzLabel="High Memory (4Gi)"></nz-option>
+            *ngFor="let option of memoryOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
       </div>
 
       <div class="select-unit">
-        <span>Select CPU</span>
-        <nz-select
-          class="cpu-selection"
-          [(ngModel)]="selectedCpu">
+        <span>Select #CPU Core(s)</span>
+        <nz-select class="cpu-selection" [(ngModel)]="selectedCpu">
           <nz-option
-            nzValue="1"
-            nzLabel="Lowest CPU (1 Core)"></nz-option>
-          <nz-option
-            nzValue="2"
-            nzLabel="Standard CPU (2 Core)"></nz-option>
-          <nz-option
-            nzValue="4"
-            nzLabel="High CPU (4 Core)"></nz-option>
+            *ngFor="let option of cpuOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
       </div>
     </div>

@@ -50,6 +50,20 @@ export class WorkflowComputingUnitManagingService {
   }
 
   /**
+   * Fetch the list of available CPU and memory limit options.
+   * @returns An Observable containing both CPU and memory limit options.
+   */
+  public getComputingUnitLimitOptions(): Observable<{
+    cpuLimitOptions: string[];
+    memoryLimitOptions: string[];
+  }> {
+    return this.http.get<{
+      cpuLimitOptions: string[];
+      memoryLimitOptions: string[];
+    }>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/limits`);
+  }
+
+  /**
    * List all active computing units.
    * @returns An Observable of a list of WorkflowComputingUnit.
    */
