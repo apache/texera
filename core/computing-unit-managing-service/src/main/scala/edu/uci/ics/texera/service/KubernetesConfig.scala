@@ -11,4 +11,7 @@ object KubernetesConfig {
   val computeUnitPoolNamespace: String = conf.getString("kubernetes.compute-unit-pool-namespace")
   val computeUnitImageName: String = conf.getString("kubernetes.image-name")
   val computeUnitPortNumber: Int = conf.getInt("kubernetes.port-num")
+
+  val maxNumOfRunningComputingUnitsPerUser: Int =
+    conf.getInt("kubernetes.max-num-of-running-computing-units-per-user")
 }

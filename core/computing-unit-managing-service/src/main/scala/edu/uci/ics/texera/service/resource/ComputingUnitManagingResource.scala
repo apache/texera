@@ -7,6 +7,7 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import edu.uci.ics.texera.service.KubernetesConfig.maxNumOfRunningComputingUnitsPerUser
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
@@ -47,7 +48,7 @@ object ComputingUnitManagingResource {
     // Variables for amber setting
     // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
     EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
-    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true,
+    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
@@ -132,6 +133,16 @@ class ComputingUnitManagingResource {
     try {
       withTransaction(context) { ctx =>
         val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
+
+        val units = wcDao
+          .fetchByUid(user.getUid)
+          .filter(_.getTerminateTime == null) // Filter out terminated units
+
+        if (units.size > maxNumOfRunningComputingUnitsPerUser) {
+          throw new BadRequestException(
+            s"You can only have at most ${maxNumOfRunningComputingUnitsPerUser} running at the same time"
+          )
+        }
 
         val computingUnit = new WorkflowComputingUnit()
         val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
