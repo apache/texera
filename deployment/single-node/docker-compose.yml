@@ -60,7 +60,7 @@ services:
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
   file-service:
-    image: texera/file-service:test
+    image: texera/file-service:single-node
     container_name: texera-file-service
     restart: always
     depends_on:
@@ -73,7 +73,7 @@ services:
 
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
-    image: texera/workflow-compiling-service:test
+    image: texera/workflow-compiling-service:single-node
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
@@ -84,7 +84,7 @@ services:
 
   # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
-    image: texera/texera-web-application:test
+    image: texera/texera-web-application:single-node
     container_name: texera-web-application
     restart: always
     depends_on:
@@ -97,7 +97,7 @@ services:
 
   # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
   computing-unit-master:
-    image: texera/computing-unit-master:test
+    image: texera/computing-unit-master:single-node
     container_name: texera-computing-unit-master
     restart: always
     depends_on:
