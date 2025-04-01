@@ -44,28 +44,12 @@ services:
     env_file:
       - .env
     environment:
-      - LAKEFS_BLOCKSTORE_TYPE=s3
-      - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
-      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://texera-minio:9000
-      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=http://localhost:9000
-      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio
-      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password
-      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs
-      - LAKEFS_LOGGING_LEVEL=INFO
-      - LAKEFS_STATS_ENABLED=1
-      - LAKEFS_DATABASE_TYPE=postgres
-      - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://texera:password@texera-postgres:5432/texera_lakefs?sslmode=disable
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:9000
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         lakefs setup --user-name "$LAKEFS_INSTALLATION_USER_NAME" --access-key-id "$LAKEFS_INSTALLATION_ACCESS_KEY_ID" --secret-access-key "$LAKEFS_INSTALLATION_SECRET_ACCESS_KEY" || true
         lakefs run &
-        echo "---- lakeFS Web UI ----"
-        echo "http://127.0.0.1:8000/"
-        echo ""
-        echo "Access Key ID    : $LAKEFS_INSTALLATION_ACCESS_KEY_ID"
-        echo "Secret Access Key: $LAKEFS_INSTALLATION_SECRET_ACCESS_KEY"
-        echo ""
         wait
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/api/v1/healthcheck"]
@@ -76,7 +60,7 @@ services:
   # Part2: Specification of Texera's micro-services
   # FileService provides endpoints for Texera's dataset management
   file-service:
-    image: texera/file-service:test
+    image: texera/file-service:single-node
     container_name: texera-file-service
     restart: always
     depends_on:
@@ -89,7 +73,7 @@ services:
 
   # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
   workflow-compiling-service:
-    image: texera/workflow-compiling-service:test
+    image: texera/workflow-compiling-service:single-node
     container_name: texera-workflow-compiling-service
     restart: always
     depends_on:
@@ -100,7 +84,7 @@ services:
 
   # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
-    image: texera/texera-web-application:test
+    image: texera/texera-web-application:single-node
     container_name: texera-web-application
     restart: always
     depends_on:
@@ -113,7 +97,7 @@ services:
 
   # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
   computing-unit-master:
-    image: texera/computing-unit-master:test
+    image: texera/computing-unit-master:single-node
     container_name: texera-computing-unit-master
     restart: always
     depends_on:
