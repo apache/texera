@@ -2,6 +2,8 @@ package edu.uci.ics.texera.service
 
 import com.typesafe.config.{Config, ConfigFactory}
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 object KubernetesConfig {
 
   private val conf: Config = ConfigFactory.parseResources("kubernetes.conf").resolve()
@@ -14,4 +16,20 @@ object KubernetesConfig {
 
   val maxNumOfRunningComputingUnitsPerUser: Int =
     conf.getInt("kubernetes.max-num-of-running-computing-units-per-user")
+
+  val cpuLimitOptions: List[String] =
+    conf
+      .getString("kubernetes.computing-unit-cpu-limit-options")
+      .split(",")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toList
+
+  val memoryLimitOptions: List[String] =
+    conf
+      .getString("kubernetes.computing-unit-memory-limit-options")
+      .split(",")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toList
 }

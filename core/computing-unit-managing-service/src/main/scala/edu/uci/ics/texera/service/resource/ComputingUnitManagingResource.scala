@@ -7,7 +7,11 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.KubernetesConfig.maxNumOfRunningComputingUnitsPerUser
+import edu.uci.ics.texera.service.KubernetesConfig.{
+  cpuLimitOptions,
+  maxNumOfRunningComputingUnitsPerUser,
+  memoryLimitOptions
+}
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
@@ -82,6 +86,11 @@ object ComputingUnitManagingResource {
       metrics: WorkflowComputingUnitMetrics,
       resourceLimits: WorkflowComputingUnitResourceLimit
   )
+
+  case class ComputingUnitLimitOptionsResponse(
+      cpuLimitOptions: List[String],
+      memoryLimitOptions: List[String]
+  )
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -106,6 +115,16 @@ class ComputingUnitManagingResource {
     )
   }
 
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/limits")
+  def getComputingUnitLimitOptions(
+      @Auth user: SessionUser
+  ): ComputingUnitLimitOptionsResponse = {
+    ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions)
+  }
+
   /**
     * Create a new pod for the given user ID.
     *
@@ -124,11 +143,16 @@ class ComputingUnitManagingResource {
     if (param.name.trim.isEmpty) {
       throw new ForbiddenException("Computing unit name cannot be empty.")
     }
-    if (!KubernetesClient.isValidQuantity(param.cpuLimit)) {
-      throw new ForbiddenException(s"Invalid CPU quantity: '${param.cpuLimit}'")
+    if (!cpuLimitOptions.contains(param.cpuLimit)) {
+      throw new ForbiddenException(
+        s"CPU quantity '${param.cpuLimit}' is not allowed. Valid options: ${cpuLimitOptions.mkString(", ")}"
+      )
     }
-    if (!KubernetesClient.isValidQuantity(param.memoryLimit)) {
-      throw new ForbiddenException(s"Invalid memory quantity: '${param.memoryLimit}'")
+    if (!memoryLimitOptions.contains(param.memoryLimit)) {
+      throw new ForbiddenException(
+        s"Memory quantity '${param.memoryLimit}' is not allowed. Valid options: ${memoryLimitOptions
+          .mkString(", ")}"
+      )
     }
     try {
       withTransaction(context) { ctx =>
