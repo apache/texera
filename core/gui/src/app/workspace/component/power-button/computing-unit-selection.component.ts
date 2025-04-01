@@ -88,11 +88,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
         : newUnit
     );
 
-    if (
-      this.selectedComputingUnit &&
-      !this.computingUnits.some(unit => unit.computingUnit.cuid === this.selectedComputingUnit!.computingUnit.cuid)
-    ) {
-      this.selectedComputingUnit = null;
+    // sync the current selection with the latest status
+    if (this.selectedComputingUnit) {
+      const matchingUnit = this.computingUnits.find(
+        unit => unit.computingUnit.cuid === this.selectedComputingUnit!.computingUnit.cuid
+      );
+      if (matchingUnit) {
+        Object.assign(this.selectedComputingUnit, matchingUnit);
+      } else {
+        this.selectedComputingUnit = null;
+      }
     }
   }
 
@@ -258,11 +263,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
   cpuResourceConversion(from: string, toUnit: string): string {
     // CPU conversion constants (base unit: nanocores)
     type CpuUnit = "n" | "u" | "m" | "";
-    const cpuUnits: Record<CpuUnit, number> = {
+    const cpuUnits: Record<string, number> = {
       n: 1, // nanocores
-      u: 10 ** 3, // microcores
-      m: 10 ** 6, // millicores
-      "": 10 ** 9, // cores
+      u: 1e3, // microcores
+      m: 1e6, // millicores
+      "": 1e9, // cores
+      Core: 1e9, // full core
+      Cores: 1e9, // plural alias
     };
 
     const fromNumber: number = this.parseResourceNumber(from);
@@ -331,7 +338,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (!unit) {
       return this.getCpuLimit() == 1 ? "Core" : "Cores";
     }
-    return this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
+    return unit === "Core" || unit === "Cores" ? "Cores" : unit;
   }
 
   getMemoryLimit(): number {

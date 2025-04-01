@@ -188,14 +188,14 @@
     <div class="cpu-metric general-metric">
       <p class="metric-name">CPU</p>
       <p class="metric-value">
-        {{getCpuValue() | number:'1.2-2' || '0.00'}}
+        {{getCpuValue() | number:'1.4-4' || '0.0000'}}
         <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
       </p>
     </div>
     <div class="memory-metric general-metric">
       <p class="metric-name">Memory</p>
       <p class="metric-value">
-        {{getMemoryValue() | number:'1.2-2' || '0.00'}}
+        {{getMemoryValue() | number:'1.4-4' || '0.0000'}}
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
       </p>
     </div>
