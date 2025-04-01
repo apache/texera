@@ -17,6 +17,7 @@ import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 
 import java.net.URI
+import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.util.UUID
 
@@ -90,7 +91,11 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         .add("col-long", AttributeType.LONG, 12345678901234L)
         .add("col-double", AttributeType.DOUBLE, 3.14159)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(System.currentTimeMillis()))
-        .add("col-binary", AttributeType.BINARY, Array[Byte](0, 1, 2, 3, 4, 5, 6, 7))
+        .add(
+          "col-binary",
+          AttributeType.BINARY,
+          List(ByteBuffer.wrap(Array[Byte](0, 1, 2, 3, 4, 5, 6, 7)))
+        )
         .build(),
       Tuple
         .builder(amberSchema)
@@ -100,7 +105,11 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         .add("col-long", AttributeType.LONG, -98765432109876L)
         .add("col-double", AttributeType.DOUBLE, -0.001)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(0L))
-        .add("col-binary", AttributeType.BINARY, Array[Byte](127, -128, 0, 64))
+        .add(
+          "col-binary",
+          AttributeType.BINARY,
+          List(ByteBuffer.wrap(Array[Byte](127, -128, 0, 64)))
+        )
         .build(),
       Tuple
         .builder(amberSchema)
@@ -110,14 +119,14 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         .add("col-long", AttributeType.LONG, Long.MaxValue)
         .add("col-double", AttributeType.DOUBLE, Double.MaxValue)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(1234567890L))
-        .add("col-binary", AttributeType.BINARY, Array[Byte](1, 2, 3, 4, 5))
+        .add("col-binary", AttributeType.BINARY, List(ByteBuffer.wrap(Array[Byte](1, 2, 3, 4, 5))))
         .build()
     )
 
-    def generateRandomBinary(size: Int): Array[Byte] = {
+    def generateRandomBinary(size: Int): List[ByteBuffer] = {
       val array = new Array[Byte](size)
       scala.util.Random.nextBytes(array)
-      array
+      List(ByteBuffer.wrap(array))
     }
 
     val additionalTuples = (1 to 20000).map { i =>

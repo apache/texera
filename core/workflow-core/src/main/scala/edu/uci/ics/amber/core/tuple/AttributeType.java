@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.List;
 
 public enum AttributeType implements Serializable {
 
@@ -50,7 +51,7 @@ public enum AttributeType implements Serializable {
     DOUBLE("double", Double.class),
     BOOLEAN("boolean", Boolean.class),
     TIMESTAMP("timestamp", Timestamp.class),
-    BINARY("binary", byte[].class),
+    BINARY("binary", List.class),
     ANY("ANY", Object.class);
 
     private final String name;
@@ -88,7 +89,7 @@ public enum AttributeType implements Serializable {
             return BOOLEAN;
         } else if (fieldClass.equals(Timestamp.class)) {
             return TIMESTAMP;
-        } else if (fieldClass.equals(byte[].class)) {
+        } else if (fieldClass.equals(List.class)) {
             return BINARY;
         } else {
             return ANY;
