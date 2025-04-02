@@ -109,6 +109,11 @@ export const defaultEnvironment = {
    * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
+
+  /**
+   * whether hub feature is enabled
+   */
+  hubEnabled: true,
 };
 
 export type AppEnv = typeof defaultEnvironment;
