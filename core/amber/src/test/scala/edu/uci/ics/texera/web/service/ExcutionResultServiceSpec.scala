@@ -251,4 +251,214 @@ class ExcutionResultServiceSpec extends AnyFlatSpec with Matchers {
         include("(length: 3)")
     )
   }
+
+  it should "not truncate long strings when isVisualization is true" in {
+    val attributes = List(
+      new Attribute("longStringCol", AttributeType.STRING)
+    )
+    val schema = new Schema(attributes)
+
+    // Create a string longer than maxStringLength (100)
+    val longString = "a" * 150
+    val htmlVisualizationString = """
+      <head>
+        <meta charset="utf-8" />
+      </head>
+      <body>
+        <div>
+          <script type="text/javascript">
+            window.PlotlyConfig = {MathJaxConfig: 'local'};
+          </script>
+          <script charset="utf-8" src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+          <div id="740a52d7-d771-417c-a197-28a29a048f95" class="plotly-graph-div" style="height:100%; width:100%;"></div>
+          <script type="text/javascript">
+            window.PLOTLYENV=window.PLOTLYENV || {};
+            if (document.getElementById("740a52d7-d771-417c-a197-28a29a048f95")) {
+              Plotly.newPlot(
+                "740a52d7-d771-417c-a197-28a29a048f95",
+                [
+                  {
+                    "alignmentgroup": "True",
+                    "hovertemplate": "Item Type=%{x}<br>units-sold-per-type=%{y}<extra></extra>",
+                    "legendgroup": "",
+                    "marker": {"color": "#636efa", "pattern": {"shape": ""}},
+                    "name": "",
+                    "offsetgroup": "",
+                    "orientation": "v",
+                    "showlegend": false,
+                    "textposition": "auto",
+                    "x": [
+                      "Vegetables", 
+                      "Office Supplies", 
+                      "Baby Food", 
+                      "Household", 
+                      "Cosmetics", 
+                      "Beverages", 
+                      "Personal Care", 
+                      "Clothes"
+                    ],
+                    "xaxis": "x",
+                    "y": [171.0, 3958.0, 6552.5, 2397.5, 6414.75, 4892.0, 2671.5, 3513.25],
+                    "yaxis": "y",
+                    "type": "bar"
+                  }
+                ],
+                {
+                  "barmode": "relative",
+                  "legend": {"tracegroupgap": 0},
+                  "margin": {"t": 0, "l": 0, "r": 0, "b": 0},
+                  "template": {
+                    "data": {
+                      "barpolar": [
+                        {
+                          "marker": {
+                            "line": {"color": "#E5ECF6", "width": 0.5},
+                            "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}
+                          },
+                          "type": "barpolar"
+                        }
+                      ],
+                      "bar": [
+                        {
+                          "error_x": {"color": "#2a3f5f"},
+                          "error_y": {"color": "#2a3f5f"},
+                          "marker": {
+                            "line": {"color": "#E5ECF6", "width": 0.5},
+                            "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}
+                          },
+                          "type": "bar"
+                        }
+                      ],
+                      // Additional template data omitted for brevity
+                    },
+                    "layout": {
+                      // Layout configuration omitted for brevity
+                    }
+                  },
+                  "xaxis": {"anchor": "y", "domain": [0.0, 1.0], "title": {"text": "Item Type"}},
+                  "yaxis": {"anchor": "x", "domain": [0.0, 1.0], "title": {"text": "units-sold-per-type"}}
+                },
+                {"responsive": true}
+              )
+            };
+          </script>
+        </div>
+      </body>
+    </html>"""
+
+    // Test case 1: With a simple long string
+    val tuple1 = Tuple
+      .builder(schema)
+      .add("longStringCol", AttributeType.STRING, longString)
+      .build()
+
+    // Test case 2: With HTML visualization content
+    val tuple2 = Tuple
+      .builder(schema)
+      .add("longStringCol", AttributeType.STRING, htmlVisualizationString)
+      .build()
+
+    // When isVisualization is false (default)
+    val resultsDefault = ExecutionResultService.convertTuplesToJson(List(tuple1, tuple2))
+
+    // Verify truncation happens
+    resultsDefault(0).get("longStringCol").asText() should (
+      have length 103 and // 100 chars + "..."
+        startWith("a" * 100) and
+        endWith("...")
+    )
+
+    resultsDefault(1).get("longStringCol").asText() should (
+      have length 103 and
+        endWith("...")
+    )
+
+    // When isVisualization is true
+    val resultsVisualization =
+      ExecutionResultService.convertTuplesToJson(List(tuple1, tuple2), true)
+
+    // Verify no truncation happens
+    resultsVisualization(0).get("longStringCol").asText() shouldBe longString
+    resultsVisualization(0).get("longStringCol").asText() should have length 150
+
+    resultsVisualization(1).get("longStringCol").asText() shouldBe htmlVisualizationString
+    resultsVisualization(1)
+      .get("longStringCol")
+      .asText() should have length htmlVisualizationString.length
+  }
+
+  it should "handle direct comparison between non-visualization and visualization mode" in {
+    val attributes = List(
+      new Attribute("col1", AttributeType.STRING),
+      new Attribute("col2", AttributeType.STRING),
+      new Attribute("col3", AttributeType.STRING)
+    )
+    val schema = new Schema(attributes)
+
+    // Create strings of various lengths
+    val shortString = "short string" // under maxStringLength
+    val exactLengthString = "x" * 100 // exactly maxStringLength
+    val longString = "y" * 200 // over maxStringLength
+
+    val tuple = Tuple
+      .builder(schema)
+      .add("col1", AttributeType.STRING, shortString)
+      .add("col2", AttributeType.STRING, exactLengthString)
+      .add("col3", AttributeType.STRING, longString)
+      .build()
+
+    // Convert with both modes
+    val resultDefault = ExecutionResultService.convertTuplesToJson(List(tuple), false)
+    val resultVisualization = ExecutionResultService.convertTuplesToJson(List(tuple), true)
+
+    // Short strings should be the same in both modes
+    resultDefault(0).get("col1").asText() shouldBe shortString
+    resultVisualization(0).get("col1").asText() shouldBe shortString
+
+    // Exact length strings should be the same in both modes
+    resultDefault(0).get("col2").asText() shouldBe exactLengthString
+    resultVisualization(0).get("col2").asText() shouldBe exactLengthString
+
+    // Long strings should be truncated in default mode but not in visualization mode
+    resultDefault(0).get("col3").asText() should (
+      have length 103 and // 100 chars + "..."
+        startWith("y" * 100) and
+        endWith("...")
+    )
+    resultVisualization(0).get("col3").asText() shouldBe longString
+    resultVisualization(0).get("col3").asText() should have length 200
+  }
+
+  it should "apply visualization flag correctly to mixed collections" in {
+    val attributes = List(
+      new Attribute("value", AttributeType.STRING)
+    )
+    val schema = new Schema(attributes)
+
+    // Create a collection with both short and long strings
+    val tuples = List(
+      Tuple.builder(schema).add("value", AttributeType.STRING, "short").build(),
+      Tuple.builder(schema).add("value", AttributeType.STRING, "a" * 150).build(),
+      Tuple.builder(schema).add("value", AttributeType.STRING, "medium length").build(),
+      Tuple.builder(schema).add("value", AttributeType.STRING, "b" * 200).build()
+    )
+
+    // Test with visualization flag true
+    val resultsVisualization = ExecutionResultService.convertTuplesToJson(tuples, true)
+
+    // All strings should remain intact
+    resultsVisualization(0).get("value").asText() shouldBe "short"
+    resultsVisualization(1).get("value").asText() shouldBe "a" * 150
+    resultsVisualization(2).get("value").asText() shouldBe "medium length"
+    resultsVisualization(3).get("value").asText() shouldBe "b" * 200
+
+    // Test with visualization flag false (default)
+    val resultsDefault = ExecutionResultService.convertTuplesToJson(tuples)
+
+    // Short strings unchanged, long strings truncated
+    resultsDefault(0).get("value").asText() shouldBe "short"
+    resultsDefault(1).get("value").asText() should endWith("...")
+    resultsDefault(2).get("value").asText() shouldBe "medium length"
+    resultsDefault(3).get("value").asText() should endWith("...")
+  }
 }
