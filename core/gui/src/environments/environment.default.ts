@@ -114,6 +114,16 @@ export const defaultEnvironment = {
    * whether hub feature is enabled
    */
   hubEnabled: true,
+
+  /**
+   * whether forum feature is enabled
+   */
+  forumEnabled: false,
+
+  /**
+   * whether project feature is enabled
+   */
+  projectEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;
