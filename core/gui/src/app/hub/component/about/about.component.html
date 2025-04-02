@@ -43,7 +43,7 @@
       </p>
     </div>
     <texera-local-login
-      *ngIf="localLogin"
+      *ngIf="localLogin && !(isLogin$ | async)"
       class="login-container"
       nz-col
       nzFlex="300px"></texera-local-login>
