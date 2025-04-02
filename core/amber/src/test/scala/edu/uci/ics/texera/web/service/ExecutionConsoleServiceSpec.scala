@@ -22,6 +22,9 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
       ) {
     override val bufferSize: Int = 100
     override val consoleMessageDisplayLength: Int = 100
+
+    // Override to prevent null pointer exceptions during testing
+    override protected def registerCallbackOnPythonConsoleMessage(): Unit = {}
   }
 
   class SmallBufferExecutionConsoleService
@@ -33,6 +36,9 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
       ) {
     override val bufferSize: Int = 2
     override val consoleMessageDisplayLength: Int = 100
+
+    // Override to prevent null pointer exceptions during testing
+    override protected def registerCallbackOnPythonConsoleMessage(): Unit = {}
   }
 
   "processConsoleMessage" should "truncate message title when it exceeds display length" in {

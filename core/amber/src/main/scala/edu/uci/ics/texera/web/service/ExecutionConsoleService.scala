@@ -53,6 +53,7 @@ class ExecutionConsoleService(
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
+
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
@@ -107,7 +108,7 @@ class ExecutionConsoleService(
     })
   )
 
-  private[this] def registerCallbackOnPythonConsoleMessage(): Unit = {
+  protected def registerCallbackOnPythonConsoleMessage(): Unit = {
     addSubscription(
       client
         .registerCallback[ConsoleMessage]((evt: ConsoleMessage) => {
