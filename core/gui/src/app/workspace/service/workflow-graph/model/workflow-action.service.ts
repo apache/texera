@@ -73,6 +73,7 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private highlightingEnabled = false;
+  private centerPoint: Point = {x: 0, y: 0};
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
@@ -155,6 +156,10 @@ export class WorkflowActionService {
    */
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getCenterPoint(): Point{
+    return this.centerPoint
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -347,6 +352,39 @@ export class WorkflowActionService {
           this.texeraGraph.sharedModel.elementPositionMap.set(commentBoxID, newPosition);
         }
       }
+      this.undoRedoService.setListenJointCommand(true);
+    });
+  }
+
+  public centerPaperContent(): void {
+    this.texeraGraph.bundleActions(() => {
+      this.undoRedoService.setListenJointCommand(false);
+      const allOperators = this.getTexeraGraph().getAllOperators();
+      if (allOperators.length === 0) return;
+
+      let topLeftPosition: Point | null = null;
+
+      for (const operator of allOperators) {
+        const operatorID = operator.operatorID;
+        const position = this.jointGraphWrapper.getElementPosition(operatorID);
+        console.log("operator id " + operatorID)
+        console.log("location: ", position)
+        if (!topLeftPosition) {
+          topLeftPosition = position;
+        } else {
+          if (
+            position.x < topLeftPosition.x ||
+            (position.x === topLeftPosition.x && position.y < topLeftPosition.y)
+          ) {
+            topLeftPosition = position;
+          }
+        }
+      }
+
+      if (topLeftPosition) {
+        this.centerPoint = { x: topLeftPosition.x, y: topLeftPosition.y };
+      }
+
       this.undoRedoService.setListenJointCommand(true);
     });
   }
