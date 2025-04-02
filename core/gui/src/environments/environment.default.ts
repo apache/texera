@@ -124,6 +124,12 @@ export const defaultEnvironment = {
    * whether project feature is enabled
    */
   projectEnabled: false,
+
+  /**
+   * Can be configured as { username: "texera", password: "password" }
+   * If configured, this will be automatically filled into the local login input box
+   */
+  defaultLocalUser: {} as { username?: string; password?: string },
 };
 
 export type AppEnv = typeof defaultEnvironment;
