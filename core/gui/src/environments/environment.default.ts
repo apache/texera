@@ -109,6 +109,11 @@ export const defaultEnvironment = {
    * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
+
+  /**
+   * maximum number of console messages to store per operator
+   */
+  consoleBufferSize: 100,
 };
 
 export type AppEnv = typeof defaultEnvironment;
