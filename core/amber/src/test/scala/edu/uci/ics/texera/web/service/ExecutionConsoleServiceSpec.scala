@@ -12,34 +12,27 @@ import java.time.Instant
 class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
 
   // Create test services with different configurations
-  // Instead of mocking, we pass null for dependencies we don't use in our tests
-  class TestExecutionConsoleService
+  // Create a base test service that doesn't call registerCallbackOnPythonConsoleMessage
+  class BaseTestExecutionConsoleService(bufferSizeValue: Int, displayLengthValue: Int)
       extends ExecutionConsoleService(
         null,
         null,
         null,
         null
       ) {
-    override val bufferSize: Int = 100
-    override val consoleMessageDisplayLength: Int = 100
-
-    // Override to prevent null pointer exceptions during testing
+    // Override registerCallbackOnPythonConsoleMessage before super constructor calls it
     override protected def registerCallbackOnPythonConsoleMessage(): Unit = {}
+
+    // Override these values after construction
+    override val bufferSize: Int = bufferSizeValue
+    override val consoleMessageDisplayLength: Int = displayLengthValue
   }
 
-  class SmallBufferExecutionConsoleService
-      extends ExecutionConsoleService(
-        null,
-        null,
-        null,
-        null
-      ) {
-    override val bufferSize: Int = 2
-    override val consoleMessageDisplayLength: Int = 100
+  // Using the base test service with standard configuration
+  class TestExecutionConsoleService extends BaseTestExecutionConsoleService(100, 100)
 
-    // Override to prevent null pointer exceptions during testing
-    override protected def registerCallbackOnPythonConsoleMessage(): Unit = {}
-  }
+  // Using the base test service with small buffer configuration
+  class SmallBufferExecutionConsoleService extends BaseTestExecutionConsoleService(2, 100)
 
   "processConsoleMessage" should "truncate message title when it exceeds display length" in {
     val service = new TestExecutionConsoleService
