@@ -140,6 +140,51 @@ class ExecutionConsoleService(
     }
   )
 
+  /**
+    * Processes a console message for display, performing truncation if needed.
+    * This public method is provided for testing purposes.
+    *
+    * @param consoleMessage The original console message to process
+    * @return The truncated console message
+    */
+  def processConsoleMessage(consoleMessage: ConsoleMessage): ConsoleMessage = {
+    // Truncate message title if it exceeds the display length
+    val title = consoleMessage.title
+    if (title.getBytes.length > consoleMessageDisplayLength) {
+      val truncateIndicator = "..."
+      val truncatedTitle = title
+        .take(consoleMessageDisplayLength - truncateIndicator.length) + truncateIndicator
+      consoleMessage.copy(title = truncatedTitle)
+    } else {
+      consoleMessage
+    }
+  }
+
+  /**
+    * Updates the console store by adding a console message to an operator's console.
+    * This public method is provided for testing purposes.
+    *
+    * @param consoleStore The console store to update
+    * @param opId The operator ID
+    * @param processedMessage The processed console message
+    * @return The updated console store
+    */
+  def updateConsoleStore(
+      consoleStore: ExecutionConsoleStore,
+      opId: String,
+      processedMessage: ConsoleMessage
+  ): ExecutionConsoleStore = {
+    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
+
+    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
+      opInfo.addConsoleMessages(processedMessage)
+    } else {
+      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ processedMessage)
+    }
+
+    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
+  }
+
   private[this] def addConsoleMessage(
       consoleStore: ExecutionConsoleStore,
       opId: String,
@@ -162,28 +207,9 @@ class ExecutionConsoleService(
       })
     }
 
-    // Truncate message title if it exceeds the display length
-    val truncatedMessage = {
-      val title = consoleMessage.title
-      if (title.getBytes.length > consoleMessageDisplayLength) {
-        val truncateIndicator = "..."
-        val truncatedTitle = title
-          .take(consoleMessageDisplayLength - truncateIndicator.length) + truncateIndicator
-        consoleMessage.copy(title = truncatedTitle)
-      } else {
-        consoleMessage
-      }
-    }
-
-    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
-    
-    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
-      opInfo.addConsoleMessages(truncatedMessage)
-    } else {
-      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ truncatedMessage)
-    }
-    
-    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
+    // Process the message (truncate if needed) and update store
+    val truncatedMessage = processConsoleMessage(consoleMessage)
+    updateConsoleStore(consoleStore, opId, truncatedMessage)
   }
 
   //Receive retry request
