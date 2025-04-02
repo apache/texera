@@ -86,6 +86,7 @@ object AmberConfig {
 
   // Web server
   val operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
+  val consoleMessageDisplayLength: Int = getConfSource.getInt("web-server.console-message-display-length")
   val executionResultPollingInSecs: Int =
     getConfSource.getInt("web-server.workflow-result-pulling-in-seconds")
   val executionStateCleanUpInSecs: Int =

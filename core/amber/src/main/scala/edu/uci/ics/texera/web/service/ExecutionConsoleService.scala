@@ -56,6 +56,7 @@ class ExecutionConsoleService(
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
+  val consoleMessageDisplayLength: Int = AmberConfig.consoleMessageDisplayLength
 
   private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
     mutable.Map()
@@ -144,6 +145,7 @@ class ExecutionConsoleService(
       opId: String,
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
+    // Write the original full message to the database
     consoleWriterThread.foreach { thread =>
       thread.execute(() => {
         val writer = getOrCreateWriter(OperatorIdentity(opId))
@@ -160,23 +162,28 @@ class ExecutionConsoleService(
       })
     }
 
-    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
-
-    if (opInfo.consoleMessages.size < bufferSize) {
-      consoleStore.addOperatorConsole(
-        (
-          opId,
-          opInfo.addConsoleMessages(consoleMessage)
-        )
-      )
-    } else {
-      consoleStore.addOperatorConsole(
-        (
-          opId,
-          opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ consoleMessage)
-        )
-      )
+    // Truncate message title if it exceeds the display length
+    val truncatedMessage = {
+      val title = consoleMessage.title
+      if (title.getBytes.length > consoleMessageDisplayLength) {
+        val truncateIndicator = "..."
+        val truncatedTitle = title
+          .take(consoleMessageDisplayLength - truncateIndicator.length) + truncateIndicator
+        consoleMessage.copy(title = truncatedTitle)
+      } else {
+        consoleMessage
+      }
     }
+
+    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
+    
+    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
+      opInfo.addConsoleMessages(truncatedMessage)
+    } else {
+      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ truncatedMessage)
+    }
+    
+    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
   }
 
   //Receive retry request
