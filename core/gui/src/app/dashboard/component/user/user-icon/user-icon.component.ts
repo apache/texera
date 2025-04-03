@@ -3,7 +3,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
-import { DASHBOARD_HOME } from "../../../../app-routing.constant";
+import { DASHBOARD_ABOUT } from "../../../../app-routing.constant";
 
 /**
  * UserIconComponent is used to control user system on the top right corner
@@ -32,6 +32,6 @@ export class UserIconComponent {
   public onClickLogout(): void {
     this.userService.logout();
     document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    this.router.navigate([DASHBOARD_HOME]);
+    this.router.navigate([DASHBOARD_ABOUT]);
   }
 }

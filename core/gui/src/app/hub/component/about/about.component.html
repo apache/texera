@@ -42,10 +42,13 @@
         .
       </p>
     </div>
-    <texera-local-login
-      *ngIf="localLogin"
-      class="login-container"
-      nz-col
-      nzFlex="300px"></texera-local-login>
+    <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
+      <texera-local-login
+        *ngIf="localLogin"
+        class="login-container"
+        nz-col
+        nzFlex="300px">
+      </texera-local-login>
+    </ng-container>
   </div>
 </div>
