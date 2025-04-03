@@ -46,6 +46,62 @@ import java.util.concurrent.{ExecutorService, Executors}
 import java.time.Instant
 import scala.collection.mutable
 
+/**
+  * Utility object for processing console messages
+  * This is extracted to allow for easier testing and reuse
+  */
+object ConsoleMessageProcessor {
+
+  /**
+    * Processes a console message for display, performing truncation if needed.
+    *
+    * @param consoleMessage The original console message to process
+    * @param displayLength The maximum display length for the message title
+    * @return The truncated console message
+    */
+  def processConsoleMessage(
+      consoleMessage: ConsoleMessage,
+      displayLength: Int
+  ): ConsoleMessage = {
+    // Truncate message title if it exceeds the display length
+    val title = consoleMessage.title
+    if (title.getBytes.length > displayLength) {
+      val truncateIndicator = "..."
+      val truncatedTitle = title
+        .take(displayLength - truncateIndicator.length) + truncateIndicator
+      consoleMessage.copy(title = truncatedTitle)
+    } else {
+      consoleMessage
+    }
+  }
+
+  /**
+    * Updates the console store by adding a console message to an operator's console.
+    *
+    * @param consoleStore The console store to update
+    * @param opId The operator ID
+    * @param processedMessage The processed console message
+    * @param bufferSize The maximum number of messages to keep in the buffer
+    * @return The updated console store
+    */
+  def updateConsoleStore(
+      consoleStore: ExecutionConsoleStore,
+      opId: String,
+      processedMessage: ConsoleMessage,
+      bufferSize: Int
+  ): ExecutionConsoleStore = {
+    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
+
+    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
+      opInfo.addConsoleMessages(processedMessage)
+    } else {
+      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ processedMessage)
+    }
+
+    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
+  }
+}
+
 class ExecutionConsoleService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
@@ -143,27 +199,18 @@ class ExecutionConsoleService(
 
   /**
     * Processes a console message for display, performing truncation if needed.
-    * This public method is provided for testing purposes.
+    * This method uses the shared implementation in ConsoleMessageProcessor.
     *
     * @param consoleMessage The original console message to process
     * @return The truncated console message
     */
   def processConsoleMessage(consoleMessage: ConsoleMessage): ConsoleMessage = {
-    // Truncate message title if it exceeds the display length
-    val title = consoleMessage.title
-    if (title.getBytes.length > consoleMessageDisplayLength) {
-      val truncateIndicator = "..."
-      val truncatedTitle = title
-        .take(consoleMessageDisplayLength - truncateIndicator.length) + truncateIndicator
-      consoleMessage.copy(title = truncatedTitle)
-    } else {
-      consoleMessage
-    }
+    ConsoleMessageProcessor.processConsoleMessage(consoleMessage, consoleMessageDisplayLength)
   }
 
   /**
     * Updates the console store by adding a console message to an operator's console.
-    * This public method is provided for testing purposes.
+    * This method uses the shared implementation in ConsoleMessageProcessor.
     *
     * @param consoleStore The console store to update
     * @param opId The operator ID
@@ -175,15 +222,7 @@ class ExecutionConsoleService(
       opId: String,
       processedMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
-    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
-
-    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
-      opInfo.addConsoleMessages(processedMessage)
-    } else {
-      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ processedMessage)
-    }
-
-    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
+    ConsoleMessageProcessor.updateConsoleStore(consoleStore, opId, processedMessage, bufferSize)
   }
 
   private[this] def addConsoleMessage(
