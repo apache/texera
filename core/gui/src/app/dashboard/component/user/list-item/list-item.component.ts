@@ -201,6 +201,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           writeAccess: this.entry.accessLevel === "WRITE",
           type: "dataset",
           id: this.entry.id,
+          allOwners: await firstValueFrom(this.datasetService.retrieveOwners()),
         },
         nzFooter: null,
         nzTitle: "Share this dataset with others",
