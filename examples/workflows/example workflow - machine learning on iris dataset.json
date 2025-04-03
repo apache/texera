@@ -1,0 +1,692 @@
+{
+  "operators": [
+    {
+      "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+      "operatorType": "CSVFileScan",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "fileEncoding": "UTF_8",
+        "customDelimiter": ",",
+        "hasHeader": true,
+        "fileName": "/texera/iris-species/v1/Iris.csv"
+      },
+      "inputPorts": [],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Read Iris Dataset",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": true
+    },
+    {
+      "operatorID": "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887",
+      "operatorType": "ScatterMatrixChart",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "Color": "Species",
+        "Selected Attributes": [
+          "SepalLengthCm",
+          "SepalWidthCm",
+          "PetalLengthCm",
+          "PetalWidthCm"
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Compare features",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false,
+      "viewResult": false
+    },
+    {
+      "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+      "operatorType": "Projection",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "isDrop": false,
+        "attributes": [
+          {
+            "originalAttribute": "SepalWidthCm"
+          },
+          {
+            "originalAttribute": "PetalWidthCm"
+          },
+          {
+            "alias": "",
+            "originalAttribute": "Species"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Use SepalWidth + PedalWidth as training features",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+      "operatorType": "Projection",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "isDrop": false,
+        "attributes": [
+          {
+            "originalAttribute": "PetalLengthCm"
+          },
+          {
+            "originalAttribute": "PetalWidthCm"
+          },
+          {
+            "alias": "",
+            "originalAttribute": "Species"
+          }
+        ]
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Use PedalWidth+PedalLength as training features",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
+      "operatorType": "Split",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "k": 80,
+        "random": true,
+        "seed": 1
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        },
+        {
+          "portID": "output-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Split",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+      "operatorType": "Split",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "k": 80,
+        "random": true,
+        "seed": 1
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        },
+        {
+          "portID": "output-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Split",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
+      "operatorType": "SklearnPerceptron",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "countVectorizer": false,
+        "tfidfTransformer": false,
+        "target": "Species"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "training",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "testing",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Linear Perceptron",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
+      "operatorType": "SklearnPerceptron",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "countVectorizer": false,
+        "tfidfTransformer": false,
+        "target": "Species"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "training",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "testing",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Linear Perceptron",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
+      "operatorType": "SklearnPrediction",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "Model Attribute": "model",
+        "Output Attribute Name": "prediction",
+        "Ground Truth Attribute Name to Ignore": "Species"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "model",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Sklearn Prediction",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+      "operatorType": "SklearnPrediction",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "Model Attribute": "model",
+        "Output Attribute Name": "prediction",
+        "Ground Truth Attribute Name to Ignore": "Species"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "model",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Sklearn Prediction",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "Scatterplot-operator-d3688238-2bd8-4aec-bec8-c5b0c9c5c566",
+      "operatorType": "Scatterplot",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "xLogScale": false,
+        "yLogScale": false,
+        "xColumn": "SepalWidthCm",
+        "yColumn": "PetalWidthCm",
+        "colorColumn": "prediction"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Scatterplot",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "Scatterplot-operator-de9d36ca-1219-4cbc-a7fc-6ae203c8b003",
+      "operatorType": "Scatterplot",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "xLogScale": false,
+        "yLogScale": false,
+        "xColumn": "PetalLengthCm",
+        "yColumn": "PetalWidthCm",
+        "colorColumn": "prediction"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Scatterplot",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    }
+  ],
+  "operatorPositions": {
+    "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9": {
+      "x": -120,
+      "y": 162
+    },
+    "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887": {
+      "x": 108,
+      "y": -49
+    },
+    "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de": {
+      "x": 109,
+      "y": 160
+    },
+    "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8": {
+      "x": 107,
+      "y": 491.5
+    },
+    "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996": {
+      "x": 284,
+      "y": 59
+    },
+    "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0": {
+      "x": 286,
+      "y": 366
+    },
+    "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e": {
+      "x": 474,
+      "y": 59
+    },
+    "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4": {
+      "x": 471,
+      "y": 366
+    },
+    "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa": {
+      "x": 634,
+      "y": 144
+    },
+    "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b": {
+      "x": 636,
+      "y": 456
+    },
+    "Scatterplot-operator-d3688238-2bd8-4aec-bec8-c5b0c9c5c566": {
+      "x": 840,
+      "y": 144
+    },
+    "Scatterplot-operator-de9d36ca-1219-4cbc-a7fc-6ae203c8b003": {
+      "x": 848,
+      "y": 456
+    }
+  },
+  "links": [
+    {
+      "linkID": "9cf4870d-df84-48eb-8caf-196567873758",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "5a6c10f5-c093-41b8-bc3c-2a9337fcf1bc",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "e6f17244-d9b4-4051-a956-87a680f51130",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "0c69d964-52e3-4270-adb1-89f533067654",
+      "source": {
+        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "93a8d9cf-d9e2-423e-a589-fcc40892bd26",
+      "source": {
+        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-560a8dc4-b2c8-4575-abd8-2924b58f4a54",
+      "source": {
+        "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "3d479ba9-824c-4c63-a556-1ac678d0345d",
+      "source": {
+        "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
+        "portID": "output-1"
+      },
+      "target": {
+        "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "270e4287-5754-4330-8aa1-acc06d042515",
+      "source": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "9d05c77b-5f7c-4ef1-b6c5-d6e48a380f06",
+      "source": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "output-1"
+      },
+      "target": {
+        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "link-7fe7b7d2-cd88-4d15-bb4c-2ead085cc5a6",
+      "source": {
+        "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "5cfdfb86-9149-4e02-be01-bcad9a9133ce",
+      "source": {
+        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "47b08704-43ef-4e95-9bf2-8644279c6bc2",
+      "source": {
+        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "967149d0-ffbd-491d-ba50-47ea590ec2bf",
+      "source": {
+        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "6b8a5349-88ba-4e4f-9fee-79a086a70545",
+      "source": {
+        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Scatterplot-operator-de9d36ca-1219-4cbc-a7fc-6ae203c8b003",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "38c7e897-0380-4963-aa18-93ef8b8149a5",
+      "source": {
+        "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Scatterplot-operator-d3688238-2bd8-4aec-bec8-c5b0c9c5c566",
+        "portID": "input-0"
+      }
+    }
+  ],
+  "commentBoxes": [],
+  "settings": {
+    "dataTransferBatchSize": 400
+  }
+}
