@@ -25,6 +25,7 @@ export class SearchResultsComponent {
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
   @Output() notifyWorkflow = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
 
   constructor(private userService: UserService) {}
 

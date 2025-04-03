@@ -13,6 +13,7 @@
         <texera-list-item
           (deleted)="deleted.emit(entry)"
           (duplicated)="duplicated.emit(entry)"
+          (refresh)="refresh.emit()"
           [isPrivateSearch]="isPrivateSearch"
           [editable]="editable"
           [entry]="entry"

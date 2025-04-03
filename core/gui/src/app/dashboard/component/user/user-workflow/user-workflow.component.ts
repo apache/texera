@@ -563,4 +563,8 @@ export class UserWorkflowComponent implements AfterViewInit {
       this.updateTooltip();
     }
   }
+
+  public refreshSearchResult() {
+    void this.search(true);
+  }
 }

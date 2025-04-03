@@ -1,17 +1,49 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{
+  DATASET_USER_ACCESS,
+  PROJECT_USER_ACCESS,
+  USER,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectAccessResource.userHasWriteAccess
+import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+
+object ProjectAccessResource {
+  final private val context: DSLContext = SqlServer
+    .getInstance()
+    .createDSLContext()
+
+  def userHasWriteAccess(pid: Integer, uid: Integer): Boolean = {
+    getProjectAccessPrivilege(pid, uid) == PrivilegeEnum.WRITE
+  }
+
+  def getProjectAccessPrivilege(pid: Integer, uid: Integer): PrivilegeEnum = {
+    Option(
+      context
+        .select(PROJECT_USER_ACCESS.PRIVILEGE)
+        .from(WORKFLOW_USER_ACCESS)
+        .where(
+          PROJECT_USER_ACCESS.PID
+            .eq(pid)
+            .and(DATASET_USER_ACCESS.UID.eq(uid))
+        )
+        .fetchOneInto(classOf[PrivilegeEnum])
+    ).getOrElse(PrivilegeEnum.NONE)
+  }
+}
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -77,8 +109,13 @@ class ProjectAccessResource() {
   def grantAccess(
       @PathParam("pid") pid: Integer,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!userHasWriteAccess(pid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify project $pid")
+    }
+
     projectUserAccessDao.merge(
       new ProjectUserAccess(
         userDao.fetchOneByEmail(email).getUid,
@@ -99,8 +136,13 @@ class ProjectAccessResource() {
   @Path("/revoke/{pid}/{email}")
   def revokeAccess(
       @PathParam("pid") pid: Integer,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!userHasWriteAccess(pid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify project $pid")
+    }
+
     context
       .delete(PROJECT_USER_ACCESS)
       .where(

@@ -41,5 +41,6 @@
     [editable]="true"
     [isPrivateSearch]="true"
     (deleted)="deleteDataset($event)"
+    (refresh)="ngAfterViewInit()"
     [currentUid]="currentUid"></texera-search-results>
 </div>
