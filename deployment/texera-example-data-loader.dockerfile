@@ -15,7 +15,7 @@ COPY examples/datasets/ ./datasets/
 COPY examples/workflows/ ./workflows/
 
 # Make the scripts executable
-RUN chmod +x setup_example_dataset.sh setup_example_workflows.sh
+RUN chmod +x setup_example_datasets.sh setup_example_workflows.sh
 
 # Expose all configurable environment variables
 ENV TEXERA_EXAMPLE_USERNAME=texera
