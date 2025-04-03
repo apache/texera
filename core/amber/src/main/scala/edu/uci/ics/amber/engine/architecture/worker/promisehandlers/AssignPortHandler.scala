@@ -17,7 +17,8 @@ trait AssignPortHandler {
   override def assignPort(msg: AssignPortRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     val schema = Schema.fromRawSchema(msg.schema)
     if (msg.input) {
-      dp.inputManager.addPort(msg.portId, schema)
+      val inputPortURIs = msg.storageUris.map(uriStr=>URI.create(uriStr)).toList
+      dp.inputManager.addPort(msg.portId, schema, inputPortURIs)
     } else {
       val storageURIOption: Option[URI] = msg.storageUris.head match {
         case ""        => None
