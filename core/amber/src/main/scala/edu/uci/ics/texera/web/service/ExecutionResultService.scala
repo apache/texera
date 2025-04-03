@@ -55,9 +55,13 @@ object ExecutionResultService {
     * NULL values are converted to the string "NULL".
     *
     * @param tuples The collection of Tuples to convert
+    * @param isVisualization Whether this is for visualization rendering (affects string truncation)
     * @return A List of ObjectNodes containing the JSON representation of the tuples
     */
-  def convertTuplesToJson(tuples: Iterable[Tuple]): List[ObjectNode] = {
+  def convertTuplesToJson(
+      tuples: Iterable[Tuple],
+      isVisualization: Boolean = false
+  ): List[ObjectNode] = {
     val maxStringLength = 100
 
     tuples.map { tuple =>
@@ -107,7 +111,7 @@ object ExecutionResultService {
                     }
                   case AttributeType.STRING =>
                     val stringValue = value.asInstanceOf[String]
-                    if (stringValue.length > maxStringLength)
+                    if (stringValue.length > maxStringLength && !isVisualization)
                       stringValue.take(maxStringLength) + "..."
                     else
                       stringValue
@@ -153,7 +157,7 @@ object ExecutionResultService {
       mode: WebOutputMode,
       table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = convertTuplesToJson(table)
+    val tableInJson = convertTuplesToJson(table, mode == SetSnapshotMode())
     WebDataUpdate(mode, tableInJson)
   }
 
