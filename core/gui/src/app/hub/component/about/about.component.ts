@@ -1,4 +1,4 @@
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, OnInit } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "src/app/common/service/user/user.service";
@@ -19,8 +19,11 @@ export class AboutComponent implements OnInit {
   ngOnInit() {
     this.isLogin$.next(this.userService.isLogin());
     // Subscribe to user changes
-    this.userService.userChanged().subscribe(user => {
-      this.isLogin$.next(user !== undefined);
-    });
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(user => {
+        this.isLogin$.next(user !== undefined);
+      });
   }
 }
