@@ -44,24 +44,25 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.computingUnitService
-      .getComputingUnitLimitOptions()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ cpuLimitOptions, memoryLimitOptions }) => {
-          this.cpuOptions = cpuLimitOptions;
-          this.memoryOptions = memoryLimitOptions;
+    if (environment.computingUnitManagerEnabled) {
+      this.computingUnitService
+        .getComputingUnitLimitOptions()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: ({ cpuLimitOptions, memoryLimitOptions }) => {
+            this.cpuOptions = cpuLimitOptions;
+            this.memoryOptions = memoryLimitOptions;
 
-          // fallback defaults
-          this.selectedCpu = this.cpuOptions[0] ?? "1";
-          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-        },
-        error: err =>
-          this.notificationService.error(
-            `Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`
-          ),
-      });
-
+            // fallback defaults
+            this.selectedCpu = this.cpuOptions[0] ?? "1";
+            this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+          },
+          error: err =>
+            this.notificationService.error(
+              `Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`
+            ),
+        });
+    }
     this.computingUnitService
       .listComputingUnits()
       .pipe(untilDestroyed(this))
