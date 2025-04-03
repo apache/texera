@@ -41,7 +41,7 @@ export class LocalLoginComponent implements OnInit {
     if (environment.defaultLocalUser && Object.keys(environment.defaultLocalUser).length > 0) {
       this.allForms.patchValue({
         loginUsername: environment.defaultLocalUser.username,
-        loginPassword: environment.defaultLocalUser.password
+        loginPassword: environment.defaultLocalUser.password,
       });
     }
   }
