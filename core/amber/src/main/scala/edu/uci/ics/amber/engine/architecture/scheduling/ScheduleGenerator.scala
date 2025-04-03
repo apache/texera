@@ -213,7 +213,7 @@ abstract class ScheduleGenerator(
               executionId = workflowContext.executionId,
               globalPortId = outputPortId
             )
-            PortConfig(storageURI = uriToAdd)
+            PortConfig(storageURIs = List(uriToAdd))
           }
           val newResourceConfig = fromRegion.resourceConfig match {
             case Some(existingConfig) =>

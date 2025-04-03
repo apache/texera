@@ -161,8 +161,10 @@ class RegionExecutionCoordinator(
               case (inputPortId, (_, _, Right(schema))) =>
                 // Currently input ports do not have URIs associated with them because
                 // we are using cache read operators to read materialized port storage.
-                // TODO: also add storageURI for input ports when cache read ops are removed.
-                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
+                // TODO: also add storageURIs for input ports when cache read ops are removed.
+                Some(
+                  GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> (List(""), schema)
+                )
               case _ => None
             }
           val outputPortMapping = physicalOp.outputPorts
@@ -171,18 +173,18 @@ class RegionExecutionCoordinator(
                 val storageURI = resourceConfig.portConfigs.get(
                   GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
                 ) match {
-                  case Some(portConfig) => portConfig.storageURI.toString
+                  case Some(portConfig) => portConfig.storageURIs.head.toString
                   case None             => ""
                 }
                 Some(
-                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (storageURI, schema)
+                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(storageURI), schema)
                 )
               case _ => None
             }
           inputPortMapping ++ outputPortMapping
         }
         .flatMap {
-          case (globalPortId, (storageUri, schema)) =>
+          case (globalPortId, (storageUris, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
                 asyncRPCClient.workerInterface.assignPort(
@@ -190,7 +192,7 @@ class RegionExecutionCoordinator(
                     globalPortId.portId,
                     globalPortId.input,
                     schema.toRawSchema,
-                    storageUri
+                    storageUris
                   ),
                   asyncRPCClient.mkContext(workerId)
                 )
@@ -263,7 +265,7 @@ class RegionExecutionCoordinator(
   ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig: PortConfig) =>
-        val storageUriToAdd = portConfig.storageURI
+        val storageUriToAdd = portConfig.storageURIs.head
         val (_, eid, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
           WorkflowExecutionsResource.getResultUriByGlobalPortId(

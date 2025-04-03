@@ -108,7 +108,7 @@ class CostBasedScheduleGenerator(
                 executionId = workflowContext.executionId,
                 globalPortId = outputPortId
               )
-              PortConfig(storageURI = uri)
+              PortConfig(storageURIs = List(uri))
             }
           )
           .toMap
