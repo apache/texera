@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource
+import edu.uci.ics.texera.service.resource.{ComputingUnitManagingResource, HealthCheckResource}
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.core.Application
@@ -29,6 +29,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     )
     // Register http resources
     environment.jersey.setUrlPattern("/api/*")
+    environment.jersey.register(classOf[HealthCheckResource])
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))

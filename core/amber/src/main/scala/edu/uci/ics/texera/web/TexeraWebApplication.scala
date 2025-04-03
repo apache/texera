@@ -100,6 +100,8 @@ class TexeraWebApplication
     environment.jersey.register(classOf[SystemMetadataResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
+    environment.jersey.register(classOf[HealthCheckResource])
+
     setupJwtAuth(environment)
 
     environment.jersey.register(
