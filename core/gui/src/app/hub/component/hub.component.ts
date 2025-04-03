@@ -5,6 +5,7 @@ import {
   DASHBOARD_HUB_DATASET_RESULT,
   DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../app-routing.constant";
+import { environment } from "../../../environments/environment";
 
 @Component({
   selector: "texera-hub",
@@ -16,4 +17,5 @@ export class HubComponent {
   protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
   protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
   protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;
+  protected readonly environment = environment;
 }

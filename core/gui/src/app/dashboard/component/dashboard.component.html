@@ -21,6 +21,7 @@
       </li>
 
       <li
+        *ngIf="environment.hubEnabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
@@ -36,6 +37,7 @@
         nzOpen="true">
         <ul>
           <li
+            *ngIf="environment.projectEnabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
@@ -82,7 +84,7 @@
             <span>Quota</span>
           </li>
           <li
-            *ngIf="displayForum"
+            *ngIf="environment.forumEnabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
