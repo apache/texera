@@ -7,7 +7,7 @@ RUN apk add --no-cache bash curl jq coreutils
 WORKDIR /example_data
 
 # Copy setup scripts
-COPY examples/setup_example_dataset.sh .
+COPY examples/setup_example_datasets.sh .
 COPY examples/setup_example_workflows.sh .
 
 # Copy example data directories
@@ -29,4 +29,4 @@ ENV TEXERA_WEB_APPLICATION_URL=http://texera-web-application:8080/api
 ENV TEXERA_FILE_SERVICE_URL=http://file-service:9092/api
 
 # Default command to run both scripts
-CMD ["sh", "-c", "./setup_example_dataset.sh && ./setup_example_workflows.sh && echo 'Texera Example Data has been loaded successfully!'"]
+CMD ["sh", "-c", "./setup_example_datasets.sh && ./setup_example_workflows.sh && echo 'Texera Example Data has been loaded successfully!'"]
