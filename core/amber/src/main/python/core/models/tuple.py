@@ -86,7 +86,9 @@ class ArrowTableTupleProvider:
                 # value is already a list of bytes objects, which is correct
                 # Handle special case for pickled list items
                 if value and isinstance(value[0], bytes) and value[0][:6] == b"pickle":
-                    value = [pickle.loads(item[10:]) for item in value]
+                    # Remove prefix from first chunk, then combine all chunks
+                    reconstructed = value[0][10:] + b"".join(value[1:])
+                    value = pickle.loads(reconstructed)
 
             return value
 
@@ -349,10 +351,13 @@ class Tuple:
             pickled_data = pickle.dumps(field_value)
 
             if len(pickled_data) > max_chunk_size:
-                self[field_name] = [
-                    pickle_prefix + pickled_data[i : i + max_chunk_size]
+                chunks = [
+                    pickled_data[i : i + max_chunk_size]
                     for i in range(0, len(pickled_data), max_chunk_size)
                 ]
+                # Prepend pickle_prefix only to the first chunk
+                chunks[0] = pickle_prefix + chunks[0]
+                self[field_name] = chunks
             else:
                 self[field_name] = [pickle_prefix + pickled_data]
 
