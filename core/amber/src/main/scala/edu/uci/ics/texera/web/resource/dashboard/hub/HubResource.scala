@@ -285,18 +285,21 @@ object HubResource {
       )
       .fetch()
 
-    records.asScala.map { record =>
-      val dataset = record.into(DATASET).into(classOf[Dataset])
-      val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-      val ownerEmail = record.into(USER).getEmail
-      DashboardDataset(
-        isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
-        dataset = dataset,
-        accessPrivilege = datasetAccess.getPrivilege,
-        ownerEmail = ownerEmail,
-        size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
-      )
-    }.toList
+    records.asScala
+      .map { record =>
+        val dataset = record.into(DATASET).into(classOf[Dataset])
+        val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
+        val ownerEmail = record.into(USER).getEmail
+        DashboardDataset(
+          isOwner = if (uid == null) false else dataset.getOwnerUid == uid,
+          dataset = dataset,
+          accessPrivilege = datasetAccess.getPrivilege,
+          ownerEmail = ownerEmail,
+          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+        )
+      }
+      .toList
+      .distinctBy(_.dataset.getDid)
   }
 }
 
