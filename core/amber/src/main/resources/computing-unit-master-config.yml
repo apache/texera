@@ -16,9 +16,9 @@ server:
         threshold: ERROR  # Only log errors in console for simplicity
 
 logging:
-  level: INFO
+  level: ERROR
   loggers:
-    "io.dropwizard": INFO
+    "io.dropwizard": ERROR
   appenders:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"

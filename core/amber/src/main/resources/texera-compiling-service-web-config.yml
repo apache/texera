@@ -24,9 +24,9 @@ server:
         bufferSize: 8KiB
         immediateFlush: true
 logging:
-  level: INFO
+  level: ERROR
   loggers:
-    "io.dropwizard": INFO
+    "io.dropwizard": ERROR
   appenders:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
