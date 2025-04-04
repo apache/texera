@@ -362,28 +362,24 @@ export class WorkflowActionService {
       const allOperators = this.getTexeraGraph().getAllOperators();
       if (allOperators.length === 0) return;
 
-      let topLeftPosition: Point | null = null;
+      let minX = Infinity;
+      let minY = Infinity;
 
       for (const operator of allOperators) {
         const operatorID = operator.operatorID;
         const position = this.jointGraphWrapper.getElementPosition(operatorID);
-        console.log("operator id " + operatorID)
-        console.log("location: ", position)
-        if (!topLeftPosition) {
-          topLeftPosition = position;
-        } else {
-          if (
-            position.x < topLeftPosition.x ||
-            (position.x === topLeftPosition.x && position.y < topLeftPosition.y)
-          ) {
-            topLeftPosition = position;
-          }
+        console.log("operator id " + operatorID);
+        console.log("location: ", position);
+
+        if (position.x < minX) {
+          minX = position.x;
+        }
+        if (position.y < minY) {
+          minY = position.y;
         }
       }
 
-      if (topLeftPosition) {
-        this.centerPoint = { x: topLeftPosition.x, y: topLeftPosition.y };
-      }
+      this.centerPoint = { x: minX, y: minY };
 
       this.undoRedoService.setListenJointCommand(true);
     });
