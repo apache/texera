@@ -152,7 +152,7 @@
       "operatorType": "Split",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "k": 80,
+        "k": 70,
         "random": true,
         "seed": 1
       },
@@ -190,7 +190,7 @@
       "operatorType": "Split",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "k": 80,
+        "k": 70,
         "random": true,
         "seed": 1
       },
@@ -225,50 +225,6 @@
     },
     {
       "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
-      "operatorType": "SklearnPerceptron",
-      "operatorVersion": "N/A",
-      "operatorProperties": {
-        "countVectorizer": false,
-        "tfidfTransformer": false,
-        "target": "Species"
-      },
-      "inputPorts": [
-        {
-          "portID": "input-0",
-          "displayName": "training",
-          "allowMultiInputs": false,
-          "isDynamicPort": false,
-          "dependencies": []
-        },
-        {
-          "portID": "input-1",
-          "displayName": "testing",
-          "allowMultiInputs": false,
-          "isDynamicPort": false,
-          "dependencies": [
-            {
-              "id": 0,
-              "internal": false
-            }
-          ]
-        }
-      ],
-      "outputPorts": [
-        {
-          "portID": "output-0",
-          "displayName": "",
-          "allowMultiInputs": false,
-          "isDynamicPort": false
-        }
-      ],
-      "showAdvanced": false,
-      "isDisabled": false,
-      "customDisplayName": "Linear Perceptron",
-      "dynamicInputPorts": false,
-      "dynamicOutputPorts": false
-    },
-    {
-      "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
       "operatorType": "SklearnPerceptron",
       "operatorVersion": "N/A",
       "operatorProperties": {
@@ -466,11 +422,131 @@
       "customDisplayName": "Scatterplot",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "Split-operator-fb8bfb7e-a5af-4b25-8579-de02ae834f9f",
+      "operatorType": "Split",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "k": 70,
+        "random": true,
+        "seed": 1
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        },
+        {
+          "portID": "output-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Split",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "Split-operator-de75a27b-fc0f-4e62-ad6e-80a32f1d20d3",
+      "operatorType": "Split",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "k": 70,
+        "random": true,
+        "seed": 1
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        },
+        {
+          "portID": "output-1",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Split",
+      "dynamicInputPorts": true,
+      "dynamicOutputPorts": true
+    },
+    {
+      "operatorID": "SklearnDecisionTree-operator-065511ba-f6e2-4e62-ae31-183c07986c27",
+      "operatorType": "SklearnDecisionTree",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "countVectorizer": false,
+        "tfidfTransformer": false,
+        "target": "Species"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "training",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        },
+        {
+          "portID": "input-1",
+          "displayName": "testing",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": [
+            {
+              "id": 0,
+              "internal": false
+            }
+          ]
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Decision Tree",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
     }
   ],
   "operatorPositions": {
     "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9": {
-      "x": -120,
+      "x": -239,
       "y": 162
     },
     "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887": {
@@ -478,15 +554,15 @@
       "y": -49
     },
     "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de": {
-      "x": 109,
-      "y": 160
+      "x": 28,
+      "y": 162
     },
     "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8": {
-      "x": 107,
-      "y": 491.5
+      "x": 24,
+      "y": 458
     },
     "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996": {
-      "x": 284,
+      "x": 283,
       "y": 59
     },
     "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0": {
@@ -497,83 +573,36 @@
       "x": 474,
       "y": 59
     },
-    "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4": {
-      "x": 471,
-      "y": 366
-    },
     "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa": {
       "x": 634,
-      "y": 144
+      "y": 140
     },
     "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b": {
-      "x": 636,
-      "y": 456
+      "x": 635,
+      "y": 432
     },
     "Scatterplot-operator-d3688238-2bd8-4aec-bec8-c5b0c9c5c566": {
-      "x": 840,
-      "y": 144
+      "x": 762,
+      "y": 140
     },
     "Scatterplot-operator-de9d36ca-1219-4cbc-a7fc-6ae203c8b003": {
-      "x": 848,
-      "y": 456
+      "x": 764,
+      "y": 432
+    },
+    "Split-operator-fb8bfb7e-a5af-4b25-8579-de02ae834f9f": {
+      "x": 176,
+      "y": 140
+    },
+    "Split-operator-de75a27b-fc0f-4e62-ad6e-80a32f1d20d3": {
+      "x": 173,
+      "y": 432
+    },
+    "SklearnDecisionTree-operator-065511ba-f6e2-4e62-ae31-183c07986c27": {
+      "x": 463,
+      "y": 366
     }
   },
   "links": [
-    {
-      "linkID": "9cf4870d-df84-48eb-8caf-196567873758",
-      "source": {
-        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "5a6c10f5-c093-41b8-bc3c-2a9337fcf1bc",
-      "source": {
-        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "e6f17244-d9b4-4051-a956-87a680f51130",
-      "source": {
-        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "0c69d964-52e3-4270-adb1-89f533067654",
-      "source": {
-        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "93a8d9cf-d9e2-423e-a589-fcc40892bd26",
-      "source": {
-        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
-        "portID": "input-0"
-      }
-    },
     {
       "linkID": "link-560a8dc4-b2c8-4575-abd8-2924b58f4a54",
       "source": {
@@ -597,28 +626,6 @@
       }
     },
     {
-      "linkID": "270e4287-5754-4330-8aa1-acc06d042515",
-      "source": {
-        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "9d05c77b-5f7c-4ef1-b6c5-d6e48a380f06",
-      "source": {
-        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
-        "portID": "output-1"
-      },
-      "target": {
-        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
-        "portID": "input-1"
-      }
-    },
-    {
       "linkID": "link-7fe7b7d2-cd88-4d15-bb4c-2ead085cc5a6",
       "source": {
         "operatorID": "SklearnPerceptron-operator-a7b059fb-1e65-4b80-8d26-7c9aa64b4b1e",
@@ -627,39 +634,6 @@
       "target": {
         "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
         "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "5cfdfb86-9149-4e02-be01-bcad9a9133ce",
-      "source": {
-        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
-        "portID": "input-1"
-      }
-    },
-    {
-      "linkID": "47b08704-43ef-4e95-9bf2-8644279c6bc2",
-      "source": {
-        "operatorID": "SklearnPerceptron-operator-f10a9fde-7eec-4146-a207-4fc93d70ade4",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "967149d0-ffbd-491d-ba50-47ea590ec2bf",
-      "source": {
-        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
-        "portID": "input-1"
       }
     },
     {
@@ -682,6 +656,138 @@
       "target": {
         "operatorID": "Scatterplot-operator-d3688238-2bd8-4aec-bec8-c5b0c9c5c566",
         "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "237de7f7-a798-423b-bc90-317dc0ba959a",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "487111f2-76d9-4488-84d0-d4504249306e",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "ScatterMatrixChart-operator-eb2b95c3-3fc1-4a6a-9a46-c3cee793e887",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "3e013e60-8068-46a2-bbb5-246d2990b60c",
+      "source": {
+        "operatorID": "Projection-operator-f333f5a9-2894-428b-a51b-f90fa4b5d2de",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-fb8bfb7e-a5af-4b25-8579-de02ae834f9f",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "d50fab28-ba45-4464-a69f-de48231a0d40",
+      "source": {
+        "operatorID": "Split-operator-fb8bfb7e-a5af-4b25-8579-de02ae834f9f",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-ad9de8f5-6a3f-4737-8870-7f9dbb75c996",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "9740eafa-415a-465d-8764-cf60077394ff",
+      "source": {
+        "operatorID": "Split-operator-fb8bfb7e-a5af-4b25-8579-de02ae834f9f",
+        "portID": "output-1"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-a6479757-22d1-4138-ade3-4a09675633fa",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "59aaf03f-0863-4fa8-9b4b-57493c37117f",
+      "source": {
+        "operatorID": "CSVFileScan-operator-e6f7be3d-492b-4cd1-8d74-dafa9fab94e9",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "85a6bfff-d491-4ff7-8283-7c096528fb2f",
+      "source": {
+        "operatorID": "Projection-operator-70298736-c5ee-4223-9e4d-79cbd3cf6fa8",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-de75a27b-fc0f-4e62-ad6e-80a32f1d20d3",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "a561e5b7-a6bb-4f6a-a380-c3e2de46a871",
+      "source": {
+        "operatorID": "Split-operator-de75a27b-fc0f-4e62-ad6e-80a32f1d20d3",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "9d484f60-934d-4366-ada4-daa616b5b8a9",
+      "source": {
+        "operatorID": "Split-operator-de75a27b-fc0f-4e62-ad6e-80a32f1d20d3",
+        "portID": "output-1"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+        "portID": "input-1"
+      }
+    },
+    {
+      "linkID": "link-17c55116-912e-42bd-a639-e62dd9a58f0a",
+      "source": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnDecisionTree-operator-065511ba-f6e2-4e62-ae31-183c07986c27",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-9cf6df5f-ac1c-48cb-9ef9-98ddf640c389",
+      "source": {
+        "operatorID": "SklearnDecisionTree-operator-065511ba-f6e2-4e62-ae31-183c07986c27",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "SklearnPrediction-operator-f0009a16-2033-4ff3-9736-6f858b93244b",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "211feb88-6e03-4db0-b453-946f1fdbeb90",
+      "source": {
+        "operatorID": "Split-operator-f7bebe72-aeb1-45ca-9b06-8d46d0c9d6b0",
+        "portID": "output-1"
+      },
+      "target": {
+        "operatorID": "SklearnDecisionTree-operator-065511ba-f6e2-4e62-ae31-183c07986c27",
+        "portID": "input-1"
       }
     }
   ],

@@ -23,7 +23,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Read movie dataset",
+      "customDisplayName": "Read Movie Dataset",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false,
       "viewResult": true
@@ -94,7 +94,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "count # of movies per language",
+      "customDisplayName": "Count # of Movies Per Language",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
     },
@@ -130,7 +130,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Keep English movies",
+      "customDisplayName": "Keep English Movies",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false,
       "viewResult": true
@@ -198,7 +198,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Keep French movies",
+      "customDisplayName": "Keep French Movies",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false,
       "viewResult": true
@@ -265,7 +265,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "Remove unwanted column",
+      "customDisplayName": "Remove One Column",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
     },
@@ -274,7 +274,7 @@
       "operatorType": "PythonUDFV2",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "code": "from pytexera import *\n\nclass ProcessTupleOperator(UDFOperatorV2):\n    \n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        vote_count = tuple_[\"vote_count\"]\n        vote_avg = tuple_[\"vote_average\"]\n        \n        # Normalize vote_count to a 0–1 scale, capped at 1,000 votes\n        # This gives us a weight factor indicating how \"trusted\" the average is\n        # Example: 200 votes → 0.2 ; 1,500 votes → 1.0 (capped at 1.0)\n        weight = min(vote_count, 1000) / 1000\n\n        # Final score is vote_average scaled by vote_count weight\n        # A movie with low votes will have a reduced impact\n        normalized_score = vote_avg * weight\n        \n        # Assign to buckets\n        if normalized_score < 2.0:\n            bucket = \"Disaster\"\n        elif normalized_score < 4.0:\n            bucket = \"Flop\"\n        elif normalized_score < 6.0:\n            bucket = \"Average\"\n        elif normalized_score < 8.0:\n            bucket = \"Hit\"\n        else:\n            bucket = \"Legendary\"\n    \n        tuple_[\"custom_score\"] = round(normalized_score, 2)\n        tuple_[\"custom_rating\"] = bucket\n\n        yield tuple_\n\n",
+        "code": "from pytexera import *\n\nclass ProcessTupleOperator(UDFOperatorV2):\n    \n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        vote_count = tuple_[\"vote_count\"]\n        vote_average = tuple_[\"vote_average\"]\n        \n        # Normalize vote_count to a 0–1 scale, capped at 1,000 votes\n        # This gives us a weight factor indicating how trust-worthy the \"vote_average\" field is\n        # Example: 200 votes → 0.2 ; 1,500 votes → 1.0\n        weight = min(vote_count, 1000) / 1000\n\n        # Final score is vote_average scaled by vote_count weight\n        # A movie with a lower \"vote_count\" will be impacted more\n        custom_score = vote_average * weight\n        \n        # Give a rating label based on the \"custom_score\"\n        if custom_score < 2.0:\n            label = \"Disaster\"\n        elif custom_score < 4.0:\n            label = \"Flop\"\n        elif custom_score < 6.0:\n            label = \"Average\"\n        elif custom_score < 8.0:\n            label = \"Hit\"\n        else:\n            label = \"Legendary\"\n    \n        # Assign \"custom_score\" and \"custom_rating\" to the tuple as new fields\n        tuple_[\"custom_score\"] = round(custom_score, 2)\n        tuple_[\"custom_rating\"] = label\n\n        # Output the tuple\n        yield tuple_\n\n",
         "workers": 2,
         "retainInputColumns": true,
         "outputColumns": [
@@ -347,38 +347,7 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "count # of rated movies ",
-      "dynamicInputPorts": false,
-      "dynamicOutputPorts": false
-    },
-    {
-      "operatorID": "PieChart-operator-c68734fb-bced-426f-90e0-219f1c0ab76f",
-      "operatorType": "PieChart",
-      "operatorVersion": "N/A",
-      "operatorProperties": {
-        "value": "#ratings",
-        "name": "custom_rating"
-      },
-      "inputPorts": [
-        {
-          "portID": "input-0",
-          "displayName": "",
-          "allowMultiInputs": false,
-          "isDynamicPort": false,
-          "dependencies": []
-        }
-      ],
-      "outputPorts": [
-        {
-          "portID": "output-0",
-          "displayName": "",
-          "allowMultiInputs": false,
-          "isDynamicPort": false
-        }
-      ],
-      "showAdvanced": false,
-      "isDisabled": false,
-      "customDisplayName": "PieChart",
+      "customDisplayName": "Count # of Rated Movies ",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
     },
@@ -417,17 +386,19 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "count # of rated movies ",
+      "customDisplayName": "Count # of Rated Movies ",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
     },
     {
-      "operatorID": "PieChart-operator-fe9d3d89-f1ac-48e5-be1f-a8354678b843",
-      "operatorType": "PieChart",
+      "operatorID": "BarChart-operator-beb55708-e8d1-4e65-9b66-ace428e52f63",
+      "operatorType": "BarChart",
       "operatorVersion": "N/A",
       "operatorProperties": {
-        "value": "#ratings",
-        "name": "custom_rating"
+        "categoryColumn": "custom_rating",
+        "horizontalOrientation": false,
+        "fields": "custom_rating",
+        "value": "#ratings"
       },
       "inputPorts": [
         {
@@ -448,7 +419,40 @@
       ],
       "showAdvanced": false,
       "isDisabled": false,
-      "customDisplayName": "PieChart",
+      "customDisplayName": "Bar Chart",
+      "dynamicInputPorts": false,
+      "dynamicOutputPorts": false
+    },
+    {
+      "operatorID": "BarChart-operator-e38a512a-a74e-4f86-85ad-67c5c2cb0620",
+      "operatorType": "BarChart",
+      "operatorVersion": "N/A",
+      "operatorProperties": {
+        "categoryColumn": "custom_rating",
+        "horizontalOrientation": false,
+        "fields": "custom_rating",
+        "value": "#ratings"
+      },
+      "inputPorts": [
+        {
+          "portID": "input-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false,
+          "dependencies": []
+        }
+      ],
+      "outputPorts": [
+        {
+          "portID": "output-0",
+          "displayName": "",
+          "allowMultiInputs": false,
+          "isDynamicPort": false
+        }
+      ],
+      "showAdvanced": false,
+      "isDisabled": false,
+      "customDisplayName": "Bar Chart",
       "dynamicInputPorts": false,
       "dynamicOutputPorts": false
     }
@@ -471,7 +475,7 @@
       "y": 240
     },
     "WordCloud-operator-fdc7b86b-3bc2-44db-9334-d6767e30186d": {
-      "x": 638,
+      "x": 639,
       "y": 159
     },
     "Filter-operator-428eb866-abfb-4f7f-9d4f-5aeebd6d778b": {
@@ -480,7 +484,7 @@
     },
     "WordCloud-operator-0526bc0b-66fe-48d8-aa41-67be71f98401": {
       "x": 636,
-      "y": 511
+      "y": 512
     },
     "Projection-operator-9144f57d-0229-4afb-8a18-64e4d9ba8aa7": {
       "x": 66,
@@ -494,17 +498,17 @@
       "x": 636,
       "y": 671
     },
-    "PieChart-operator-c68734fb-bced-426f-90e0-219f1c0ab76f": {
-      "x": 777,
-      "y": 672
-    },
     "Aggregate-operator-ea972a84-7fca-499c-83f2-75f0bef56900": {
       "x": 638,
       "y": 320
     },
-    "PieChart-operator-fe9d3d89-f1ac-48e5-be1f-a8354678b843": {
-      "x": 785,
+    "BarChart-operator-beb55708-e8d1-4e65-9b66-ace428e52f63": {
+      "x": 786,
       "y": 320
+    },
+    "BarChart-operator-e38a512a-a74e-4f86-85ad-67c5c2cb0620": {
+      "x": 770,
+      "y": 671
     }
   },
   "links": [
@@ -608,28 +612,6 @@
       }
     },
     {
-      "linkID": "642ca5c2-dc4d-4d81-9e67-7f61dc6373aa",
-      "source": {
-        "operatorID": "Aggregate-operator-671f7e75-6477-46bd-be40-484d3c496eb7",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "PieChart-operator-c68734fb-bced-426f-90e0-219f1c0ab76f",
-        "portID": "input-0"
-      }
-    },
-    {
-      "linkID": "link-e5c446f9-6bbb-41b3-8ff2-d255df3d4089",
-      "source": {
-        "operatorID": "Aggregate-operator-ea972a84-7fca-499c-83f2-75f0bef56900",
-        "portID": "output-0"
-      },
-      "target": {
-        "operatorID": "PieChart-operator-fe9d3d89-f1ac-48e5-be1f-a8354678b843",
-        "portID": "input-0"
-      }
-    },
-    {
       "linkID": "bd807bb1-10f0-4d9e-b837-27a005e1d433",
       "source": {
         "operatorID": "Filter-operator-4ecc80e6-3840-46ff-afed-2ee638693a60",
@@ -637,6 +619,28 @@
       },
       "target": {
         "operatorID": "Aggregate-operator-ea972a84-7fca-499c-83f2-75f0bef56900",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "link-2c07dc92-b0d9-495a-9620-1d893f8bb87c",
+      "source": {
+        "operatorID": "Aggregate-operator-ea972a84-7fca-499c-83f2-75f0bef56900",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "BarChart-operator-beb55708-e8d1-4e65-9b66-ace428e52f63",
+        "portID": "input-0"
+      }
+    },
+    {
+      "linkID": "853cf538-ed67-489b-b279-3b3cd447a1fc",
+      "source": {
+        "operatorID": "Aggregate-operator-671f7e75-6477-46bd-be40-484d3c496eb7",
+        "portID": "output-0"
+      },
+      "target": {
+        "operatorID": "BarChart-operator-e38a512a-a74e-4f86-85ad-67c5c2cb0620",
         "portID": "input-0"
       }
     }
