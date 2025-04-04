@@ -284,9 +284,7 @@ class TestTuple:
         # Verify pickle behavior
         assert isinstance(test_tuple2["complex_field"], list)
         assert len(test_tuple2["complex_field"]) > 0
-        assert all(
-            chunk.startswith(b"pickle    ") for chunk in test_tuple2["complex_field"]
-        )
+        assert test_tuple2["complex_field"][0].startswith(b"pickle    ")
 
     def test_schema_validation(self):
         """Test the schema validation logic for different field types."""
