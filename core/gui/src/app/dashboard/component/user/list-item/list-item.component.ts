@@ -11,7 +11,7 @@ import {
   ViewChild,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzModalService } from "ng-zorro-antd/modal";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import {
@@ -73,8 +73,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   @Output() checkboxChanged = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
-  @Output()
-  refresh = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
 
   constructor(
     private modalService: NzModalService,
@@ -178,8 +177,10 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
+    let modal: NzModalRef<ShareAccessComponent> | undefined;
+
     if (this.entry.type === "workflow") {
-      this.modalService.create({
+      modal = this.modalService.create({
         nzContent: ShareAccessComponent,
         nzData: {
           writeAccess: this.entry.workflow.accessLevel === "WRITE",
@@ -194,17 +195,23 @@ export class ListItemComponent implements OnInit, OnChanges {
         nzWidth: "700px",
       });
     } else if (this.entry.type === "dataset") {
-      this.modalService.create({
+      modal = this.modalService.create({
         nzContent: ShareAccessComponent,
         nzData: {
           writeAccess: this.entry.accessLevel === "WRITE",
           type: "dataset",
           id: this.entry.id,
+          allOwners: await firstValueFrom(this.datasetService.retrieveOwners()),
         },
         nzFooter: null,
         nzTitle: "Share this dataset with others",
         nzCentered: true,
         nzWidth: "700px",
+      });
+    }
+    if (modal) {
+      modal.componentInstance?.refresh.pipe(untilDestroyed(this)).subscribe(() => {
+        this.refresh.emit();
       });
     }
   }
