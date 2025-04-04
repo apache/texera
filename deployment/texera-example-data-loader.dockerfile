@@ -20,13 +20,10 @@ RUN chmod +x setup_example_datasets.sh setup_example_workflows.sh
 # Expose all configurable environment variables
 ENV TEXERA_EXAMPLE_USERNAME=texera
 ENV TEXERA_EXAMPLE_PASSWORD=texera
-ENV TEXERA_EXAMPLE_DATASET_NAME=texera-example-dataset
-ENV TEXERA_EXAMPLE_DATASET_DESCRIPTION="Example data for users to use Texera"
-ENV TEXERA_EXAMPLE_IS_PUBLIC=true
 ENV TEXERA_EXAMPLE_DATASET_DIR=datasets
 ENV TEXERA_EXAMPLE_WORKFLOW_DIR=workflows
 ENV TEXERA_WEB_APPLICATION_URL=http://texera-web-application:8080/api
 ENV TEXERA_FILE_SERVICE_URL=http://file-service:9092/api
 
 # Default command to run both scripts
-CMD ["sh", "-c", "./setup_example_datasets.sh && ./setup_example_workflows.sh && echo 'Texera Service is ready now!'"]
+CMD ["sh", "-c", "./setup_example_datasets.sh && ./setup_example_workflows.sh"]
