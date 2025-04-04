@@ -12,7 +12,6 @@ server:
     type: classic
     timeZone: UTC
     appenders:
-      - type: console
       - type: file
         currentLogFilename: ../log/access.log
         threshold: ALL
@@ -27,16 +26,4 @@ logging:
   level: ERROR
   loggers:
     "io.dropwizard": ERROR
-  appenders:
-    - type: console
-      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
-    - type: file
-      currentLogFilename: ../log/texera-workflow-compiling-service.log
-      threshold: ALL
-      queueSize: 512
-      discardingThreshold: 0
-      archive: false
-      timeZone: UTC
-      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
-      bufferSize: 8KiB
-      immediateFlush: true
+  appenders: []

@@ -11,17 +11,12 @@ server:
   requestLog:
     type: classic
     timeZone: UTC
-    appenders:
-      - type: console
-        threshold: ERROR  # Only log errors in console for simplicity
-
+    appenders: []
 logging:
   level: ERROR
   loggers:
     "io.dropwizard": ERROR
   appenders:
-    - type: console
-      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
     - type: file
       currentLogFilename: ../log/computing-unit-master.log
       threshold: ALL
