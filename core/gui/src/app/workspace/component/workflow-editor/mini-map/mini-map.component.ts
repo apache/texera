@@ -60,8 +60,8 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   onDrag(event: any) {
     this.paper.translate(
-      this.paper.translate().tx + -event.event.movementX / this.scale,
-      this.paper.translate().ty + -event.event.movementY / this.scale
+      this.paper.translate().tx - event.event.movementX / this.scale,
+      this.paper.translate().ty - event.event.movementY / this.scale
     );
   }
 
@@ -110,5 +110,9 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .setZoomProperty(
         this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF
       );
+  }
+
+  public triggerCenter(): void {
+    this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
 }

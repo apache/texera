@@ -8,25 +8,53 @@
 #minimap-zoom-out-button {
   position: absolute;
   bottom: 0;
-  right: 30px;
+  right: 60px;
   z-index: 4;
 }
 
 #minimap-zoom-in-button {
   position: absolute;
   bottom: 0;
-  right: 60px;
+  right: 90px;
   z-index: 4;
 }
 
-#mini-map {
-  height: 200px;
+#minimap-center-button {
+  position: absolute;
+  bottom: 0;
+  right: 30px;
+  z-index: 4;
+}
+//
+//#mini-map {
+//  height: 200px;
+//  width: 300px;
+//}
+//
+//#mini-map-navigator {
+//  border: 1px solid #797a79;
+//  position: absolute;
+//  cursor: move;
+//  z-index: 1;
+//}
+
+#mini-map-container {
+  position: relative;
+  overflow: hidden;
   width: 300px;
+  height: 200px;
+}
+
+#mini-map {
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 #mini-map-navigator {
-  border: 1px solid #797a79;
   position: absolute;
+  border: 2px solid #797a79;
+  //background: rgba(0, 123, 255, 0.1);
   cursor: move;
   z-index: 1;
 }
