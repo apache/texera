@@ -5,9 +5,9 @@ server:
   adminConnectors: []
 
 logging:
-  level: ERROR
+  level: INFO
   loggers:
-    "io.dropwizard": ERROR
+    "io.dropwizard": INFO
   appenders:
     - type: console
     - type: file

@@ -8,6 +8,6 @@ server:
       port: 8082
 
 logging:
-  level: ERROR
+  level: INFO
   loggers:
-    "io.dropwizard": ERROR
+    "com.example": DEBUG
