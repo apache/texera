@@ -3,11 +3,20 @@ server:
     - type: http
       port: 9090
   adminConnectors: []
-  requestLog:
-    appenders: []
 
 logging:
   level: ERROR
   loggers:
     "io.dropwizard": ERROR
-  appenders: []
+  appenders:
+    - type: console
+    - type: file
+      currentLogFilename: log/workflow-compiling-service.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: true
+      archivedLogFilenamePattern: log/workflow-compiling-service-%d{yyyy-MM-dd}.log.gz
+      archivedFileCount: 7
+      bufferSize: 8KiB
+      immediateFlush: true

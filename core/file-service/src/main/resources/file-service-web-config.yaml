@@ -3,14 +3,13 @@ server:
     - type: http
       port: 9092
   adminConnectors: []
-  requestLog:
-    appenders: []
 
 logging:
   level: ERROR
   loggers:
     "io.dropwizard": ERROR
   appenders:
+    - type: console
     - type: file
       currentLogFilename: log/file-service.log
       threshold: ALL

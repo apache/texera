@@ -12,6 +12,7 @@ server:
     type: classic
     timeZone: UTC
     appenders:
+      - type: console
       - type: file
         currentLogFilename: ../log/access.log
         threshold: ALL
@@ -27,6 +28,8 @@ logging:
   loggers:
     "io.dropwizard": ERROR
   appenders:
+    - type: console
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
     - type: file
       currentLogFilename: ../log/amber-server.log
       threshold: ALL
