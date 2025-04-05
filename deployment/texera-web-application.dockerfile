@@ -39,6 +39,7 @@ WORKDIR /core/amber
 # Copy built GUI files from the build-gui stage
 COPY --from=build-gui /gui/dist /core/gui/dist
 # Copy the built texera binary from the build phase
+COPY --from=build /.git /.git
 COPY --from=build /core/amber/target/texera-0.1-SNAPSHOT /core/amber
 # Copy resources directories under /core from build phase
 COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
