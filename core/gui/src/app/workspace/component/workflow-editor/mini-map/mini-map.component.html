@@ -76,6 +76,7 @@
     <div id="mini-map"></div>
     <div
       id="mini-map-navigator"
+      #navigatorDrag="cdkDrag"
       cdkDrag
       (cdkDragMoved)="onDrag($event)"
       (cdkDragStarted)="dragging = true"

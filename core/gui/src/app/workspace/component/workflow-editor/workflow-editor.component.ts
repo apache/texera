@@ -1308,6 +1308,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         };
 
         console.log("target coord:", JSON.stringify(targetCoord));
+        console.log("translate for center")
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }

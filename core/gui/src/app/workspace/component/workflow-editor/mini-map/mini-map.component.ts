@@ -1,10 +1,11 @@
-import { AfterViewInit, Component, HostListener, OnDestroy } from "@angular/core";
+import { AfterViewInit, Component, HostListener, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 import { PanelService } from "../../../service/panel/panel.service";
+import { CdkDrag } from "@angular/cdk/drag-drop";
 
 @UntilDestroy()
 @Component({
@@ -13,6 +14,8 @@ import { PanelService } from "../../../service/panel/panel.service";
   styleUrls: ["mini-map.component.scss"],
 })
 export class MiniMapComponent implements AfterViewInit, OnDestroy {
+  @ViewChild("navigatorDrag", { static: false }) navigatorDrag!: CdkDrag;
+
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
@@ -36,17 +39,41 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     })
       .scale(this.scale)
       .translate(-MAIN_CANVAS.xMin * this.scale, -MAIN_CANVAS.yMin * this.scale);
+    // this.workflowActionService
+    //   .getJointGraphWrapper()
+    //   .getMainJointPaperAttachedStream()
+    //   .pipe(untilDestroyed(this))
+    //   .subscribe(mainPaper => {
+    //     this.paper = mainPaper;
+    //     this.updateNavigator();
+    //     mainPaper.on("translate", () => this.updateNavigator());
+    //     mainPaper.on("scale", () => this.updateNavigator());
+    //     mainPaper.on("resize", () => this.updateNavigator());
+    //   });
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        console.log("Main joint paper attached:", mainPaper);
         this.paper = mainPaper;
         this.updateNavigator();
-        mainPaper.on("translate", () => this.updateNavigator());
-        mainPaper.on("scale", () => this.updateNavigator());
-        mainPaper.on("resize", () => this.updateNavigator());
-      });
+
+        mainPaper.on("translate", () => {
+          console.log("Translate event triggered on main paper");
+          this.updateNavigator();
+        });
+
+        mainPaper.on("scale", () => {
+          console.log("Scale event triggered on main paper");
+          this.updateNavigator();
+        });
+
+        mainPaper.on("resize", () => {
+          console.log("Resize event triggered on main paper");
+          this.updateNavigator();
+        });
+      })
     this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
 
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = true));
@@ -60,8 +87,8 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   onDrag(event: any) {
     this.paper.translate(
-      this.paper.translate().tx - event.event.movementX / this.scale,
-      this.paper.translate().ty - event.event.movementY / this.scale
+      this.paper.translate().tx + -event.event.movementX / this.scale,
+      this.paper.translate().ty + -event.event.movementY / this.scale
     );
   }
 
@@ -70,6 +97,7 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       const point = this.paper.pageToLocalPoint({ x: 0, y: 0 });
       const editor = document.getElementById("workflow-editor")!;
       const navigator = document.getElementById("mini-map-navigator")!;
+      navigator.style.transform = "";
       navigator.style.left = (point.x - MAIN_CANVAS.xMin) * this.scale + "px";
       navigator.style.top = (point.y - MAIN_CANVAS.yMin) * this.scale + "px";
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
@@ -114,5 +142,6 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+    if (this.navigatorDrag) this.navigatorDrag.reset();
   }
 }
