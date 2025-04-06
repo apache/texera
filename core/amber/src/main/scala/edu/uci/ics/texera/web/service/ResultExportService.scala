@@ -179,6 +179,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
           while (offset < totalCount) {
             val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
+            // TODO: getRange reset the seek pointer, replace it with direct full streaming from Iceberg
             val chunk = doc.getRange(offset, endOffset)
             writer.writeRow(headers)
             chunk.foreach { tuple =>
@@ -471,6 +472,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     var offset = 0
     while (offset < totalCount) {
       val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
+      // TODO: getRange reset the seek pointer, replace it with direct full streaming from Iceberg
       val chunk = doc.getRange(offset, endOffset)
       chunk.foreach { tuple =>
         csvWriter.writeRow(tuple.getFields.toIndexedSeq)
