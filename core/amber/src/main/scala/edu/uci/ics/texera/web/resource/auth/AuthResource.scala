@@ -1,8 +1,14 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.texera.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  dayToMin,
+  jwtClaims,
+  jwtConsumer,
+  jwtToken
+}
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
   UserLoginRequest,

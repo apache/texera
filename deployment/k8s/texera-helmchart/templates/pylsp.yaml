@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+spec:
+  replicas: {{ .Values.pythonLanguageServer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+    spec:
+      containers:
+        - name: {{ .Values.pythonLanguageServer.name }}
+          image: {{ .Values.pythonLanguageServer.image | quote }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          resources:
+            limits:
+              cpu: {{ .Values.pythonLanguageServer.resources.limits.cpu | quote }}
+              memory: {{ .Values.pythonLanguageServer.resources.limits.memory | quote }}
+      imagePullSecrets:
+        - name: {{ .Values.pythonLanguageServer.imagePullSecret }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.pythonLanguageServer.name }}-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000

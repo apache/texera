@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.webserver.name }}-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.webserver.service.type }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.webserver.name }}
+  ports:
+    - name: api-port
+      protocol: TCP
+      port: {{ .Values.webserver.service.port }}
+      targetPort: {{ .Values.webserver.service.port }}
+      # if service type is set to NodePort, include nodePort attribute
+      {{- if eq .Values.webserver.service.type "NodePort" }}
+      nodePort: {{ .Values.webserver.service.nodePort }}
+      {{- end }}

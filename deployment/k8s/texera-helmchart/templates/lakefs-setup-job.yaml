@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-lakefs-setup-job
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ .Release.Name }}-lakefs-setup-job
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: setup-lakefs
+          image: curlimages/curl:latest
+          env:
+            - name: STORAGE_LAKEFS_ENDPOINT
+              value: http://{{ .Release.Name }}-lakefs:8000/api/v1
+            - name: STORAGE_LAKEFS_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: access_key
+            - name: STORAGE_LAKEFS_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: secret_key
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for LakeFS healthcheck..."
+              for i in $(seq 1 60); do
+                code=$(curl -s -o /dev/null -w "%{http_code}" "$STORAGE_LAKEFS_ENDPOINT/healthcheck") || true
+                echo "Healthcheck attempt $i -> status: $code"
+                if [ "$code" = "200" ] || [ "$code" = "204" ]; then
+                  echo "LakeFS is healthy!"
+                  break
+                fi
+                sleep 5
+              done
+
+              if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+                echo "LakeFS healthcheck failed. Exiting."
+                exit 1
+              fi
+
+              echo "Sending GET /setup_lakefs to check existing state..."
+              curl -s -w "\nStatus: %{http_code}\n" "$STORAGE_LAKEFS_ENDPOINT/setup_lakefs" || echo "GET failed"
+
+              echo "Sending POST /setup_lakefs..."
+              curl -s -w "\nStatus: %{http_code}\n" -X POST \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "username": "texera-admin",
+                  "key": {
+                    "access_key_id": "'"${STORAGE_LAKEFS_AUTH_USERNAME}"'",
+                    "secret_access_key": "'"${STORAGE_LAKEFS_AUTH_PASSWORD}"'"
+                  }
+                }' \
+                "${STORAGE_LAKEFS_ENDPOINT}/setup_lakefs"

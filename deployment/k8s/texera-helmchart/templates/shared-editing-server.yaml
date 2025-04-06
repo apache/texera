@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+spec:
+  replicas: {{ .Values.yWebsocketServer.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+    spec:
+      containers:
+        - name: {{ .Values.yWebsocketServer.name }}
+          image: {{ .Values.yWebsocketServer.image | quote }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 1234
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.yWebsocketServer.name }}-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+  ports:
+    - protocol: TCP
+      port: 1234
+      targetPort: 1234

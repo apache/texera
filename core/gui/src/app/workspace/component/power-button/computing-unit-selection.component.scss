@@ -17,7 +17,7 @@
 
 .computing-units-dropdown {
   min-width: 250px;
-  max-width: 350px;
+  max-width: 400px;
 }
 
 #computing-unit-option.unit-selected {
@@ -31,14 +31,37 @@
   align-items: center;
 }
 
+.computing-unit-option {
+  padding: 0 !important;
+  display: block;
+  width: 100%;
+}
+
+.computing-unit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 5px 12px; /* match nz-menu-item padding */
+  box-sizing: border-box;
+  gap: 10px;
+}
+
 .computing-unit-name {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-grow: 1;
 }
 
-.terminate-icon:hover {
-  opacity: 0.8;
+.computing-unit-terminate-icon {
+  flex-shrink: 0;
+  color: #ff4d4f;
+  cursor: pointer;
+  margin-left: auto;
 }
 
 .memory-selection,
@@ -62,28 +85,53 @@
   align-items: start;
 }
 
+.select-unit.name-field {
+  grid-column: span 2;
+}
+
+.unit-name-input {
+  width: 440px;
+}
+
 .metrics-container {
   display: grid;
   align-items: center;
   grid-template-rows: repeat(2, 1fr);
   gap: 3px;
   height: 32px;
-  width: 100%;
+  width: 80%;
   padding: 0;
   border: none;
 }
 
 .metric-item {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  width: 100%;
-  height: 16px;
+  display: flex;
   align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.metric-label {
+  font-size: 10px;
+  width: 45px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.metric-bar-wrapper {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  height: 8px; /* tightly fits the bar */
 }
 
 #cpu-progress-bar,
 #memory-progress-bar {
-  height: 16px;
+  width: 100%;
+  margin-top: 0 !important; /* 💡 override if nz-progress adds vertical spacing */
+  vertical-align: middle;
 }
 
 .metric-label {

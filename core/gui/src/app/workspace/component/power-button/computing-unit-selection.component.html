@@ -12,26 +12,30 @@
     class="metrics-container">
     <div class="metric-item">
       <span class="metric-label">CPU</span>
-      <nz-progress
-        id="cpu-progress-bar"
-        [nzPercent]="(getCpuPercentage() | number:'1.0-0')"
-        [nzStrokeColor]="'#52c41a'"
-        [nzStatus]="getCpuStatus()"
-        nzType="line"
-        [nzStrokeWidth]="8"
-        [nzShowInfo]="false"></nz-progress>
+      <div class="metric-bar-wrapper">
+        <nz-progress
+          id="cpu-progress-bar"
+          [nzPercent]="(getCpuPercentage() | number:'1.0-0')"
+          [nzStrokeColor]="'#52c41a'"
+          [nzStatus]="getCpuStatus()"
+          nzType="line"
+          [nzStrokeWidth]="8"
+          [nzShowInfo]="false"></nz-progress>
+      </div>
     </div>
 
     <div class="metric-item">
       <span class="metric-label">Memory</span>
-      <nz-progress
-        id="memory-progress-bar"
-        [nzPercent]="(getMemoryPercentage() | number:'1.0-0')"
-        [nzStrokeColor]="'#1890ff'"
-        [nzStatus]="getMemoryStatus()"
-        nzType="line"
-        [nzStrokeWidth]="8"
-        [nzShowInfo]="false"></nz-progress>
+      <div class="metric-bar-wrapper">
+        <nz-progress
+          id="memory-progress-bar"
+          [nzPercent]="(getMemoryPercentage() | number:'1.0-0')"
+          [nzStrokeColor]="'#1890ff'"
+          [nzStatus]="getMemoryStatus()"
+          nzType="line"
+          [nzStrokeWidth]="8"
+          [nzShowInfo]="false"></nz-progress>
+      </div>
     </div>
   </div>
 
@@ -44,11 +48,12 @@
     class="computing-units-dropdown-button">
     <nz-badge
       [nzStatus]="computeStatus()"
+      [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
       [nzText]="''"></nz-badge>
     <span
       *ngIf="selectedComputingUnit"
       nz-tooltip
-      [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
+      [nzTooltipTitle]="getComputingUnitId(selectedComputingUnit.uri)">
       {{selectedComputingUnit.computingUnit.name}}
     </span>
     <span *ngIf="!selectedComputingUnit">Connect</span>
@@ -66,26 +71,30 @@
         nz-menu-item
         *ngFor="let unit of computingUnits"
         id="computing-unit-option"
+        class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
         [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
         (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
-        <div class="computing-unit-name">
-          <nz-badge
-            [nzColor]="getBadgeColor(unit.status)"
-            [nzText]="''"></nz-badge>
-          <span
+        <div class="computing-unit-row">
+          <div class="computing-unit-name">
+            <nz-badge
+              [nzColor]="getBadgeColor(unit.status)"
+              [nz-tooltip]="unit.status"></nz-badge>
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="getComputingUnitId(unit.uri)">
+              {{ unit.computingUnit.name }}
+            </span>
+          </div>
+          <i
+            nz-icon
+            nzType="delete"
+            class="computing-unit-terminate-icon"
             nz-tooltip
-            [nzTooltipTitle]="unit.computingUnit.name">
-            {{ getComputingUnitName(unit.uri) }}
-          </span>
+            [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()">
+          </i>
         </div>
-        <div
-          class="terminate-icon"
-          nz-icon
-          nzType="delete"
-          nz-tooltip
-          [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
-          (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
       <li
         *ngIf="computingUnits.length > 0"
@@ -114,37 +123,38 @@
   <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
   <ng-template #addComputeUnitModalContent>
     <div class="create-compute-unit-container">
+      <div class="select-unit name-field">
+        <span>Computing Unit Name</span>
+        <input
+          [required]="true"
+          nz-input
+          placeholder="Enter the name of your computing unit (required)"
+          [(ngModel)]="newComputingUnitName"
+          class="unit-name-input" />
+      </div>
       <div class="select-unit">
-        <span>Select Memory</span>
+        <span>Select Memory Size</span>
         <nz-select
           class="memory-selection"
           [(ngModel)]="selectedMemory">
           <nz-option
-            nzValue="1Gi"
-            nzLabel="Lowest Memory (1Gi)"></nz-option>
-          <nz-option
-            nzValue="2Gi"
-            nzLabel="Standard Memory (2Gi)"></nz-option>
-          <nz-option
-            nzValue="4Gi"
-            nzLabel="High Memory (4Gi)"></nz-option>
+            *ngFor="let option of memoryOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
       </div>
 
       <div class="select-unit">
-        <span>Select CPU</span>
+        <span>Select #CPU Core(s)</span>
         <nz-select
           class="cpu-selection"
           [(ngModel)]="selectedCpu">
           <nz-option
-            nzValue="1"
-            nzLabel="Lowest CPU (1 Core)"></nz-option>
-          <nz-option
-            nzValue="2"
-            nzLabel="Standard CPU (2 Core)"></nz-option>
-          <nz-option
-            nzValue="4"
-            nzLabel="High CPU (4 Core)"></nz-option>
+            *ngFor="let option of cpuOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
       </div>
     </div>
@@ -170,14 +180,14 @@
     <div class="cpu-metric general-metric">
       <p class="metric-name">CPU</p>
       <p class="metric-value">
-        {{getCpuValue() | number:'1.2-2' || '0.00'}}
+        {{getCpuValue() | number:'1.4-4' || '0.0000'}}
         <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
       </p>
     </div>
     <div class="memory-metric general-metric">
       <p class="metric-name">Memory</p>
       <p class="metric-value">
-        {{getMemoryValue() | number:'1.2-2' || '0.00'}}
+        {{getMemoryValue() | number:'1.4-4' || '0.0000'}}
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
       </p>
     </div>

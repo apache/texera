@@ -7,6 +7,7 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.resource.WorkflowCompilationResource
+import edu.uci.ics.texera.service.resource.HealthCheckResource
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -26,6 +27,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )
+
+    environment.jersey.register(classOf[HealthCheckResource])
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
