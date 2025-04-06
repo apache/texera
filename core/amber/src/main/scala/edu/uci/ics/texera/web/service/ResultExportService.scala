@@ -38,6 +38,7 @@ import javax.ws.rs.core.StreamingOutput
 import java.net.{HttpURLConnection, URL, URLEncoder}
 
 object Constants {
+  // Specifies number of rows to be written on the output stream in each chunk
   val CHUNK_SIZE = 500
 }
 
