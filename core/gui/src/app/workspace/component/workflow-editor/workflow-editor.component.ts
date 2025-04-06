@@ -1299,8 +1299,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const centerCoord = this.workflowActionService.getCenterPoint();
         console.log("center coord:", JSON.stringify(centerCoord));
 
-        const offsetX = 100;
-        const offsetY = 150;
+        const offsetX = this.editor.offsetWidth * 0.15;
+        const offsetY = this.editor.offsetHeight * 0.15;
 
         const targetCoord = {
           x: centerCoord.x - offsetX,
