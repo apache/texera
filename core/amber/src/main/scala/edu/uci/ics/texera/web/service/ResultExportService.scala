@@ -168,28 +168,28 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   ): (Option[String], Option[String]) = {
     val fileName = generateFileName(request, operatorId, "csv")
     try {
-        saveToDatasets(
-          request,
-          user,
-          outputStream => {
-            val totalCount = doc.getCount
-            var offset = 0
-            val writer = CSVWriter.open(outputStream)
+      saveToDatasets(
+        request,
+        user,
+        outputStream => {
+          val totalCount = doc.getCount
+          var offset = 0
+          val writer = CSVWriter.open(outputStream)
 
-            while (offset < totalCount) {
-              val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
-              val chunk = doc.getRange(offset, endOffset)
-              writer.writeRow(headers)
-              chunk.foreach { tuple =>
-                writer.writeRow(tuple.getFields.toIndexedSeq)
-              }
-              writer.flush()
-              offset = endOffset
+          while (offset < totalCount) {
+            val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
+            val chunk = doc.getRange(offset, endOffset)
+            writer.writeRow(headers)
+            chunk.foreach { tuple =>
+              writer.writeRow(tuple.getFields.toIndexedSeq)
             }
-            writer.close()
-          },
-          fileName
-        )
+            writer.flush()
+            offset = endOffset
+          }
+          writer.close()
+        },
+        fileName
+      )
       (Some(s"CSV export done for operator $operatorId -> file: $fileName"), None)
     } catch {
       case ex: Exception =>
@@ -439,7 +439,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       case _       => "dat"
     }
 
-    val fileName = if (request.filename.isEmpty) generateFileName(request, operatorId, extension) else request.filename
+    val fileName =
+      if (request.filename.isEmpty) generateFileName(request, operatorId, extension)
+      else request.filename
 
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
       request.exportType match {
@@ -477,7 +479,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
     csvWriter.close()
   }
-
 
   private def writeArrowLocal(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
     if (results.isEmpty) return
