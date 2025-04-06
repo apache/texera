@@ -8,4 +8,4 @@ import jakarta.ws.rs.{GET, Path, Produces}
 class HealthCheckResource {
   @GET
   def healthCheck: Map[String, String] = Map("status" -> "ok")
-} 
+}

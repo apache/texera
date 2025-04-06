@@ -35,7 +35,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   cpuOptions: string[] = [];
   memoryOptions: string[] = [];
 
-
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
@@ -57,10 +56,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
             this.selectedCpu = this.cpuOptions[0] ?? "1";
             this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
           },
-          error: err =>
-            this.notificationService.error(
-              `Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`
-            ),
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`),
         });
     }
     this.computingUnitService

@@ -134,7 +134,9 @@
       </div>
       <div class="select-unit">
         <span>Select Memory Size</span>
-        <nz-select class="memory-selection" [(ngModel)]="selectedMemory">
+        <nz-select
+          class="memory-selection"
+          [(ngModel)]="selectedMemory">
           <nz-option
             *ngFor="let option of memoryOptions"
             [nzValue]="option"
@@ -145,7 +147,9 @@
 
       <div class="select-unit">
         <span>Select #CPU Core(s)</span>
-        <nz-select class="cpu-selection" [(ngModel)]="selectedCpu">
+        <nz-select
+          class="cpu-selection"
+          [(ngModel)]="selectedCpu">
           <nz-option
             *ngFor="let option of cpuOptions"
             [nzValue]="option"
