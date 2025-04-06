@@ -516,9 +516,9 @@ class WorkflowExecutionsResource {
   @Path("/result/export")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResult(
-                    request: ResultExportRequest,
-                    @Auth user: SessionUser
-                  ): Response = {
+      request: ResultExportRequest,
+      @Auth user: SessionUser
+  ): Response = {
 
     if (request.operatorIds.size <= 0)
       Response
