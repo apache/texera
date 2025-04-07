@@ -20,7 +20,7 @@ export class ResultExportationComponent implements OnInit {
    */
   sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
-  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
+  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
