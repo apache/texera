@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { interval } from "rxjs";
 import { switchMap } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
@@ -9,6 +9,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { environment } from "../../../../environments/environment";
+import { extractErrorMessage } from "../../../common/util/error";
 
 @UntilDestroy()
 @Component({
@@ -24,9 +25,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
   computingUnits: DashboardWorkflowComputingUnit[] = [];
   private readonly REFRESH_INTERVAL_MS = 2000;
 
+  // variables for creating a computing unit
   addComputeUnitModalVisible = false;
-  selectedMemory: string = "2Gi";
-  selectedCpu: string = "2";
+  newComputingUnitName: string = "";
+  selectedMemory: string = "";
+  selectedCpu: string = "";
+
+  // cpu&memory limit options from backend
+  cpuOptions: string[] = [];
+  memoryOptions: string[] = [];
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -36,6 +43,23 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (environment.computingUnitManagerEnabled) {
+      this.computingUnitService
+        .getComputingUnitLimitOptions()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: ({ cpuLimitOptions, memoryLimitOptions }) => {
+            this.cpuOptions = cpuLimitOptions;
+            this.memoryOptions = memoryLimitOptions;
+
+            // fallback defaults
+            this.selectedCpu = this.cpuOptions[0] ?? "1";
+            this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+          },
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`),
+        });
+    }
     this.computingUnitService
       .listComputingUnits()
       .pipe(untilDestroyed(this))
@@ -49,7 +73,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.updateComputingUnits(units);
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+        error: (err: unknown) => console.error("Failed to fetch computing units:", extractErrorMessage(err)),
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -66,7 +90,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       )
       .subscribe({
         next: (units: DashboardWorkflowComputingUnit[]) => this.updateComputingUnits(units),
-        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+        error: (err: unknown) => console.error("Failed to fetch computing units:", extractErrorMessage(err)),
       });
   }
 
@@ -74,6 +98,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Update the computing units list, maintaining object references for the same CUID.
    */
   private updateComputingUnits(newUnits: DashboardWorkflowComputingUnit[]): void {
+    const newCUIDs = new Set(newUnits.map(unit => unit.computingUnit.cuid));
+    // Filter out old units that are not in the new list
+    this.computingUnits = this.computingUnits.filter(unit => newCUIDs.has(unit.computingUnit.cuid));
     const unitMap = new Map(this.computingUnits.map(unit => [unit.computingUnit.cuid, unit]));
 
     this.computingUnits = newUnits.map(newUnit =>
@@ -82,12 +109,16 @@ export class ComputingUnitSelectionComponent implements OnInit {
         : newUnit
     );
 
-    // If selected computing unit is removed, deselect it
-    if (
-      this.selectedComputingUnit &&
-      !this.computingUnits.some(unit => unit.computingUnit.cuid === this.selectedComputingUnit!.computingUnit.cuid)
-    ) {
-      this.selectedComputingUnit = null;
+    // sync the current selection with the latest status
+    if (this.selectedComputingUnit) {
+      const matchingUnit = this.computingUnits.find(
+        unit => unit.computingUnit.cuid === this.selectedComputingUnit!.computingUnit.cuid
+      );
+      if (matchingUnit) {
+        Object.assign(this.selectedComputingUnit, matchingUnit);
+      } else {
+        this.selectedComputingUnit = null;
+      }
     }
   }
 
@@ -95,7 +126,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Start a new computing unit.
    */
   startComputingUnit(): void {
-    const computeUnitName = `Compute for Workflow ${this.workflowId}`;
+    if (this.newComputingUnitName.trim() == "") {
+      this.notificationService.error("Name of the computing unit cannot be empty");
+      return;
+    }
+    const computeUnitName = this.newComputingUnitName;
     const computeCPU = this.selectedCpu;
     const computeMemory = this.selectedMemory;
     this.computingUnitService
@@ -106,7 +141,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.notificationService.success("Successfully created the new compute unit");
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => this.notificationService.error("Failed to start computing unit"),
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
       });
   }
 
@@ -123,14 +159,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     this.computingUnitService
-      .terminateComputingUnit(uri)
+      .terminateComputingUnit(cuid)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (res: Response) => {
-          this.notificationService.success(`Terminated ${this.getComputingUnitName(uri)}`);
+          this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
           this.refreshComputingUnits();
         },
-        error: (err: unknown) => this.notificationService.error("Failed to terminate computing unit"),
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`),
       });
   }
 
@@ -210,7 +247,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
    * @return "Computing unit 85"
    */
-  getComputingUnitName(unitURI: string): string {
+  getComputingUnitId(unitURI: string): string {
     const computingUnit = unitURI.split(".")[0];
     return computingUnit
       .split("-")
@@ -247,11 +284,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
   cpuResourceConversion(from: string, toUnit: string): string {
     // CPU conversion constants (base unit: nanocores)
     type CpuUnit = "n" | "u" | "m" | "";
-    const cpuUnits: Record<CpuUnit, number> = {
+    const cpuUnits: Record<string, number> = {
       n: 1, // nanocores
-      u: 10 ** 3, // microcores
-      m: 10 ** 6, // millicores
-      "": 10 ** 9, // cores
+      u: 1e3, // microcores
+      m: 1e6, // millicores
+      "": 1e9, // cores
+      Core: 1e9, // full core
+      Cores: 1e9, // plural alias
     };
 
     const fromNumber: number = this.parseResourceNumber(from);
@@ -320,7 +359,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     if (!unit) {
       return this.getCpuLimit() == 1 ? "Core" : "Cores";
     }
-    return this.parseResourceUnit(this.getCurrentComputingUnitCpuLimit());
+    return unit === "Core" || unit === "Cores" ? "Cores" : unit;
   }
 
   getMemoryLimit(): number {
