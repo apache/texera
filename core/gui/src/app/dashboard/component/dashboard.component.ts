@@ -47,6 +47,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
+  protected readonly environment = environment;
 
   constructor(
     private userService: UserService,

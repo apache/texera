@@ -53,7 +53,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
-    private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private location: Location,
     private route: ActivatedRoute,
@@ -107,11 +106,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.workflowActionService.resetAsNewWorkflow();
 
     if (this.userSystemEnabled) {
-      this.registerReEstablishWebsocketUponWIdChange();
+      this.onWIDChange();
       this.updateViewCount();
-    } else {
-      let wid = this.route.snapshot.params.id ?? 0;
-      this.workflowWebsocketService.openWebsocket(wid);
     }
 
     this.registerLoadOperatorMetadata();
@@ -126,7 +122,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     }
 
     this.codeEditorViewRef.clear();
-    this.workflowWebsocketService.closeWebsocket();
     this.workflowActionService.clearWorkflow();
   }
 
@@ -267,7 +262,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       });
   }
 
-  registerReEstablishWebsocketUponWIdChange() {
+  onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
       .pipe(
@@ -278,7 +273,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe((metadata: WorkflowMetadata) => {
         this.writeAccess = !metadata.readonly;
-        this.workflowWebsocketService.reopenWebsocket(metadata.wid as number);
       });
   }
 

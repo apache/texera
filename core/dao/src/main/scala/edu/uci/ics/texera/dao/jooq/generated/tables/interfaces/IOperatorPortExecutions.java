@@ -26,34 +26,16 @@ public interface IOperatorPortExecutions extends Serializable {
     public Integer getWorkflowExecutionId();
 
     /**
-     * Setter for <code>texera_db.operator_port_executions.operator_id</code>.
+     * Setter for
+     * <code>texera_db.operator_port_executions.global_port_id</code>.
      */
-    public void setOperatorId(String value);
+    public void setGlobalPortId(String value);
 
     /**
-     * Getter for <code>texera_db.operator_port_executions.operator_id</code>.
+     * Getter for
+     * <code>texera_db.operator_port_executions.global_port_id</code>.
      */
-    public String getOperatorId();
-
-    /**
-     * Setter for <code>texera_db.operator_port_executions.layer_name</code>.
-     */
-    public void setLayerName(String value);
-
-    /**
-     * Getter for <code>texera_db.operator_port_executions.layer_name</code>.
-     */
-    public String getLayerName();
-
-    /**
-     * Setter for <code>texera_db.operator_port_executions.port_id</code>.
-     */
-    public void setPortId(Integer value);
-
-    /**
-     * Getter for <code>texera_db.operator_port_executions.port_id</code>.
-     */
-    public Integer getPortId();
+    public String getGlobalPortId();
 
     /**
      * Setter for <code>texera_db.operator_port_executions.result_uri</code>.

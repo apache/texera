@@ -1,0 +1,37 @@
+<div class="staged-object-list-container">
+  <nz-list
+    nzBordered
+    nzSize="small"
+    *ngIf="datasetStagedObjects.length > 0">
+    <nz-list-item *ngFor="let obj of datasetStagedObjects">
+      <span>
+        <nz-tag [nzColor]="obj.diffType === 'added' ? 'green' : 'red'"> {{ obj.diffType }} </nz-tag>
+      </span>
+      <span
+        class="truncate-file-path"
+        [attr.data-fullpath]="obj.path"
+        nz-tooltip
+        [nzTooltipTitle]="obj.path">
+        {{ obj.path }}
+      </span>
+
+      <!-- Small delete button with tooltip -->
+      <button
+        nz-button
+        nzType="link"
+        class="delete-button"
+        nz-tooltip
+        [nzTooltipTitle]="'Revert the change'"
+        (click)="onObjectReverted(obj)">
+        <i
+          nz-icon
+          nzType="delete"
+          nzTheme="outline"></i>
+      </button>
+    </nz-list-item>
+  </nz-list>
+
+  <nz-empty
+    *ngIf="datasetStagedObjects.length === 0"
+    nzNotFoundContent="No pending changes"></nz-empty>
+</div>

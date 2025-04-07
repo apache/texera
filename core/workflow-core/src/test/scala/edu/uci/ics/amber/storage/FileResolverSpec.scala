@@ -91,10 +91,10 @@ class FileResolverSpec
     val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
 
     assert(
-      datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getDid}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
+      datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getName}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
     )
     assert(
-      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getDid}/${testDatasetVersion1.getVersionHash}/1.txt"
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getName}/${testDatasetVersion1.getVersionHash}/1.txt"
     )
   }
 

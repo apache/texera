@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9500:9000"   # MinIO API
+      - "9501:9001"   # MinIO Console UI
+    environment:
+      - MINIO_ROOT_USER=texera_minio
+      - MINIO_ROOT_PASSWORD=password
+    volumes:
+      - /Users/baijiadong/Desktop/chenlab/texera/core/file-service/src/main/user-resources/minio:/data
+    command: server --console-address ":9001" /data

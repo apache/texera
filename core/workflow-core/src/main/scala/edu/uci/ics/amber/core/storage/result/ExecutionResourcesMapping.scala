@@ -11,12 +11,12 @@ import scala.collection.mutable
   *
   * Currently, this mapping is only used during the resource clean-up phase.
   *
-  * This design has one limitation: the singleton is only accessible on the master node. Consequently, all sink executors
-  * must execute on the master node. While this aligns with the current system design, improvements are needed in the
+  * This design has one limitation: the singleton is only accessible on the master node.
+  * While this aligns with the current system design, improvements are needed in the
   * future to enhance scalability and flexibility.
   *
   * TODO: Move the mappings to an external, distributed, and persistent location to eliminate the master-node
-  *   dependency and enable sink executors to run on other nodes.
+  *   dependency.
   */
 object ExecutionResourcesMapping {
 

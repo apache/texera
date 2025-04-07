@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail}
 import io.dropwizard.auth.Auth
+
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}

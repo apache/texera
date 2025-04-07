@@ -13,7 +13,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
@@ -199,14 +198,6 @@ case class PhysicalOp(
   @JsonIgnore
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
-  }
-
-  /**
-    * Helper function used to determine whether the input link is a materialized link.
-    */
-  @JsonIgnore
-  def isSinkOperator: Boolean = {
-    outputPorts.forall(port => port._2._2.isEmpty)
   }
 
   @JsonIgnore // this is needed to prevent the serialization issue
