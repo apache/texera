@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.StreamingOutput
 import java.net.{HttpURLConnection, URL, URLEncoder}
+import scala.collection.mutable.ArrayBuffer
 
 object Constants {
   val CHUNK_SIZE = 500
@@ -166,33 +167,29 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       doc: VirtualDocument[Tuple],
       headers: List[String]
   ): (Option[String], Option[String]) = {
+
     val fileName = generateFileName(request, operatorId, "csv")
+
     try {
       saveToDatasets(
         request,
         user,
         outputStream => {
-          val totalCount = doc.getCount
-          var offset = 0
-          val writer = CSVWriter.open(outputStream)
-
-          while (offset < totalCount) {
-            val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
-            val chunk = doc.getRange(offset, endOffset)
-            writer.writeRow(headers)
-            chunk.foreach { tuple =>
-              writer.writeRow(tuple.getFields.toIndexedSeq)
-            }
-            writer.flush()
-            offset = endOffset
-          }
-          writer.close()
+          streamDocumentAsCSV(
+            doc = doc,
+            outputStream = outputStream,
+            maybeHeaders = Some(headers)
+          )
         },
         fileName
       )
+
+      // Success
       (Some(s"CSV export done for operator $operatorId -> file: $fileName"), None)
+
     } catch {
       case ex: Exception =>
+        // Error
         (None, Some(s"CSV export failed for operator $operatorId: ${ex.getMessage}"))
     }
   }
@@ -459,25 +456,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     (streamingOutput, Some(fileName))
   }
 
-  private def writeCSVLocal(outputStream: OutputStream, doc: VirtualDocument[Tuple]): Unit = {
-    val totalCount = doc.getCount
-    if (totalCount == 0) {
-      return
-    }
-
-    val csvWriter = CSVWriter.open(outputStream)
-
-    var offset = 0
-    while (offset < totalCount) {
-      val endOffset = math.min(offset + Constants.CHUNK_SIZE, totalCount).toInt
-      val chunk = doc.getRange(offset, endOffset)
-      chunk.foreach { tuple =>
-        csvWriter.writeRow(tuple.getFields.toIndexedSeq)
-      }
-      csvWriter.flush()
-      offset = endOffset
-    }
-    csvWriter.close()
+  def writeCSVLocal(
+      outputStream: OutputStream,
+      doc: VirtualDocument[Tuple]
+  ): Unit = {
+    streamDocumentAsCSV(
+      doc = doc,
+      outputStream = outputStream,
+      maybeHeaders = None
+    )
   }
 
   private def writeArrowLocal(outputStream: OutputStream, results: Iterable[Tuple]): Unit = {
@@ -573,5 +560,61 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     (streamingOutput, Some(zipFileName))
+  }
+
+  /**
+    * Streams the entire content of `VirtualDocument` as CSV into `outputStream` in a single pass.
+    */
+  private def streamDocumentAsCSV(
+      doc: VirtualDocument[Tuple],
+      outputStream: OutputStream,
+      maybeHeaders: Option[List[String]]
+  ): Unit = {
+    val totalCount = doc.getCount
+    if (totalCount == 0) {
+      return
+    }
+
+    val iterator = doc.get()
+    if (!iterator.hasNext) {
+      return
+    }
+
+    val csvWriter = CSVWriter.open(outputStream)
+
+    val headers: List[String] = maybeHeaders match {
+      case Some(hdrs) =>
+        hdrs
+      case None =>
+        val firstRow = iterator.next()
+        val inferredHeaders = firstRow.getSchema.getAttributeNames
+
+        csvWriter.writeRow(inferredHeaders)
+        csvWriter.writeRow(firstRow.getFields.toIndexedSeq)
+
+        inferredHeaders
+    }
+
+    if (maybeHeaders.isDefined) {
+      csvWriter.writeRow(headers)
+    }
+
+    val buffer = new ArrayBuffer[Tuple](Constants.CHUNK_SIZE)
+
+    while (iterator.hasNext) {
+      buffer.clear()
+      var count = 0
+
+      while (count < Constants.CHUNK_SIZE && iterator.hasNext) {
+        buffer += iterator.next()
+        count += 1
+      }
+      buffer.foreach { t =>
+        csvWriter.writeRow(t.getFields.toIndexedSeq)
+      }
+      csvWriter.flush()
+    }
+
+    csvWriter.close()
   }
 }
