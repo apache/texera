@@ -3,13 +3,16 @@ server:
     - type: http
       port: 9092
   adminConnectors: []
+  requestLog:
+    type: classic
+    timeZone: UTC
+    appenders: []
 
 logging:
   level: INFO
   loggers:
     "io.dropwizard": INFO
   appenders:
-    - type: console
     - type: file
       currentLogFilename: log/file-service.log
       threshold: ALL
