@@ -30,7 +30,7 @@ class DendrogramOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(defaultValue = "", required = false)
   @JsonSchemaTitle("Color Threshold")
-  @JsonPropertyDescription("Value at which seperation of clusters will be made")
+  @JsonPropertyDescription("Value at which separation of clusters will be made")
   var threshold: String = ""
 
   override def getOutputSchemas(
@@ -38,7 +38,6 @@ class DendrogramOpDesc extends PythonOperatorDescriptor {
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
