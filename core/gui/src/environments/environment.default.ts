@@ -109,7 +109,7 @@ export const defaultEnvironment = {
    * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
-  
+
   /**
    * whether hub feature is enabled
    */
@@ -130,7 +130,7 @@ export const defaultEnvironment = {
    * If configured, this will be automatically filled into the local login input box
    */
   defaultLocalUser: {} as { username?: string; password?: string },
-  
+
   /**
    * maximum number of console messages to store per operator
    */
