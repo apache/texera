@@ -113,7 +113,7 @@ export const defaultEnvironment = {
   /**
    * maximum number of console messages to store per operator
    */
-  consoleBufferSize: 100,
+  operatorConsoleMessageBufferSize: 100,
 };
 
 export type AppEnv = typeof defaultEnvironment;

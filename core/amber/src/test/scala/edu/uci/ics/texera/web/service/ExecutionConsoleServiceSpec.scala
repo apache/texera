@@ -61,7 +61,7 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
     processedMessage.title shouldBe shortTitle
   }
 
-  "updateConsoleStore" should "add message to buffer when buffer is not full" in {
+  "addMessageToOperatorConsole" should "add message to buffer when buffer is not full" in {
     // Create a test console store
     val consoleStore = new ExecutionConsoleStore()
     val opId = "op1"
@@ -87,10 +87,15 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
 
     // Add first message
     val storeWithMessage1 =
-      ConsoleMessageProcessor.updateConsoleStore(consoleStore, opId, message1, standardBufferSize)
+      ConsoleMessageProcessor.addMessageToOperatorConsole(
+        consoleStore,
+        opId,
+        message1,
+        standardBufferSize
+      )
 
     // Add second message
-    val storeWithMessage2 = ConsoleMessageProcessor.updateConsoleStore(
+    val storeWithMessage2 = ConsoleMessageProcessor.addMessageToOperatorConsole(
       storeWithMessage1,
       opId,
       message2,
@@ -139,13 +144,28 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
 
     // Fill the buffer
     val storeWithMessage1 =
-      ConsoleMessageProcessor.updateConsoleStore(consoleStore, opId, message1, smallBufferSize)
+      ConsoleMessageProcessor.addMessageToOperatorConsole(
+        consoleStore,
+        opId,
+        message1,
+        smallBufferSize
+      )
     val storeWithMessage2 =
-      ConsoleMessageProcessor.updateConsoleStore(storeWithMessage1, opId, message2, smallBufferSize)
+      ConsoleMessageProcessor.addMessageToOperatorConsole(
+        storeWithMessage1,
+        opId,
+        message2,
+        smallBufferSize
+      )
 
     // Add one more message which should remove the oldest
     val storeWithMessage3 =
-      ConsoleMessageProcessor.updateConsoleStore(storeWithMessage2, opId, message3, smallBufferSize)
+      ConsoleMessageProcessor.addMessageToOperatorConsole(
+        storeWithMessage2,
+        opId,
+        message3,
+        smallBufferSize
+      )
 
     // Verify the first message was removed and only the second and third remain
     val opInfo = storeWithMessage3.operatorConsole(opId)
@@ -175,7 +195,7 @@ class ExecutionConsoleServiceSpec extends AnyFlatSpec with Matchers {
       ConsoleMessageProcessor.processConsoleMessage(consoleMessage, messageDisplayLength)
 
     // Then update the store
-    val updatedStore = ConsoleMessageProcessor.updateConsoleStore(
+    val updatedStore = ConsoleMessageProcessor.addMessageToOperatorConsole(
       consoleStore,
       opId,
       processedMessage,

@@ -84,7 +84,7 @@ object ConsoleMessageProcessor {
     * @param bufferSize The maximum number of messages to keep in the buffer
     * @return The updated console store
     */
-  def updateConsoleStore(
+  def addMessageToOperatorConsole(
       consoleStore: ExecutionConsoleStore,
       opId: String,
       processedMessage: ConsoleMessage,
@@ -217,12 +217,17 @@ class ExecutionConsoleService(
     * @param processedMessage The processed console message
     * @return The updated console store
     */
-  def updateConsoleStore(
+  def addMessageToOperatorConsole(
       consoleStore: ExecutionConsoleStore,
       opId: String,
       processedMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
-    ConsoleMessageProcessor.updateConsoleStore(consoleStore, opId, processedMessage, bufferSize)
+    ConsoleMessageProcessor.addMessageToOperatorConsole(
+      consoleStore,
+      opId,
+      processedMessage,
+      bufferSize
+    )
   }
 
   private[this] def addConsoleMessage(
@@ -249,7 +254,7 @@ class ExecutionConsoleService(
 
     // Process the message (truncate if needed) and update store
     val truncatedMessage = processConsoleMessage(consoleMessage)
-    updateConsoleStore(consoleStore, opId, truncatedMessage)
+    addMessageToOperatorConsole(consoleStore, opId, truncatedMessage)
   }
 
   //Receive retry request
