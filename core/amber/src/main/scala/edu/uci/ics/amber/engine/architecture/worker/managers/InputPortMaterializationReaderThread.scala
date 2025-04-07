@@ -8,10 +8,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.DataFrame
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable.ArrayBuffer
 
-// Termination signal for the reader thread.
-sealed trait TerminateSignalInput
-case object InputPortMaterializationReaderTerminateSignal extends TerminateSignalInput
-
 // Reader thread that reads tuples from a storage iterator and enqueues them.
 class InputPortMaterializationReaderThread(
     storageReadIterator: Iterator[Tuple],
@@ -20,9 +16,6 @@ class InputPortMaterializationReaderThread(
 ) extends Thread {
 
   // TODO: use inputMessageQueue
-  // Internal queue used to communicate with the calling thread.
-  val queue: LinkedBlockingQueue[Either[DataFrame, TerminateSignalInput]] =
-    new LinkedBlockingQueue[Either[DataFrame, TerminateSignalInput]]()
 
   override def run(): Unit = {
     // Buffer to accumulate tuples.
@@ -38,14 +31,14 @@ class InputPortMaterializationReaderThread(
       if (buffer.nonEmpty) flush(buffer)
     } finally {
       // Signal termination once all tuples have been processed.
-      queue.put(Right(InputPortMaterializationReaderTerminateSignal))
+      inputMessageQueue.put()
     }
   }
 
   // Flush the current batch into a DataFrame and enqueue it.
   private def flush(buffer: ArrayBuffer[Tuple]): Unit = {
     val batch = DataFrame(buffer.toArray) // Mimics flush logic in NetworkOutputBuffer.
-    queue.put(Left(batch))
+    inputMessageQueue.put(Left(batch))
     buffer.clear()
   }
 }
