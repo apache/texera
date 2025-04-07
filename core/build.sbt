@@ -5,6 +5,14 @@ lazy val WorkflowCore = (project in file("workflow-core"))
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val Auth = (project in file("auth"))
   .dependsOn(DAO)
+lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
+  .dependsOn(WorkflowCore, Auth)
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0",
+    )
+  )
 lazy val FileService = (project in file("file-service"))
   .dependsOn(WorkflowCore, Auth)
   .settings(
@@ -49,7 +57,7 @@ lazy val WorkflowExecutionService = (project in file("amber"))
 
 // root project definition
 lazy val CoreProject = (project in file("."))
-  .aggregate(DAO, Auth, WorkflowCore, FileService, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
+  .aggregate(DAO, Auth, WorkflowCore, ComputingUnitManagingService, FileService, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
   .settings(
     name := "core",
     version := "0.1.0",

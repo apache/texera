@@ -1,0 +1,235 @@
+global:
+  security:
+    allowInsecureImages: true # for custom postgres image
+
+# Part 1: the configuration of Postgres, Minio and LakeFS
+postgresql:
+  image:
+    repository: texera/postgres17-pgroonga
+    tag: latest
+    debug: true
+  auth:
+    postgresPassword: root_password  # for executing init script with superuser
+  primary:
+    resources:
+      requests:
+        cpu: "4"
+        memory: "4Gi"
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: local-path # change to specific storageClass if needed.
+
+    initdb:
+      scriptsConfigMap: texera-postgresql-init-script
+
+minio:
+  mode: standalone
+  apiIngress:
+    enabled: false
+    hostname: "localhost"
+    tls: false
+    annotations:
+      cert-manager.io/issuer: "" # your issuer
+      nginx.ingress.kubernetes.io/cors-allow-origin: 'https://texera.example.com' # texera hostname
+      nginx.ingress.kubernetes.io/enable-cors: 'true'
+      nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
+      nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+      nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
+      nginx.ingress.kubernetes.io/cors-max-age: "86400"  # Optional: Increase for better caching
+      nginx.ingress.kubernetes.io/proxy-body-size: '0'
+      nginx.ingress.kubernetes.io/proxy-buffering: 'off'
+      nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+      nginx.ingress.kubernetes.io/proxy-request-buffering: 'off'
+      nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+      nginx.ingress.kubernetes.io/use-regex: 'true'
+      nginx.ingress.kubernetes.io/x-forwarded-proto: https
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+  auth:
+    rootUser: texera_minio
+    rootPassword: password
+  service:
+    type: NodePort
+    nodePorts:
+      api: 31000
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: local-path # change to specific storageClass if needed.
+
+lakefs:
+  secrets:
+    authEncryptSecretKey: random_string_for_lakefs
+    databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
+  auth:
+    username: texera-admin
+    accessKey: AKIAIOSFOLKFSSAMPLES
+    secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  service:
+    port: 8000
+  lakefsConfig: |
+    database:
+      type: postgres
+    blockstore:
+      type: s3
+      s3:
+        endpoint: http://texera-minio:9000
+        pre_signed_expiry: 15m
+        pre_signed_endpoint: http://localhost:31000
+        force_path_style: true
+        credentials:
+          access_key_id: texera_minio
+          secret_access_key: password
+
+# Part2: configurations of Texera-related micro services
+texeraImages:
+  pullPolicy: Always
+
+webserver:
+  name: webserver
+  numOfPods: 1  # Number of pods for the Texera deployment
+  imageName: texera/texera-web-application:latest # image name of the texera
+  service:
+    type: NodePort # for testing purpose, NodePort mode is fine
+    port: 8080 # port of the pod
+    nodePort: 30081 # exposed port
+
+workflowComputingUnitManager:
+  name: workflow-computing-unit-manager
+  numOfPods: 1
+  serviceAccountName: workflow-computing-unit-manager-service-account
+  imageName: texera/workflow-computing-unit-managing-service:latest
+  service:
+    type: NodePort # for testing purpose, NodePort mode is fine
+    port: 8888 # port of the pod
+    nodePort: 30082 # exposed port
+
+workflowCompilingService:
+  name: workflow-compiling-service
+  numOfPods: 1
+  imageName: texera/workflow-compiling-service:latest
+  service:
+    type: NodePort
+    port: 9090
+    nodePort: 30083
+
+fileService:
+  name: file-service
+  numOfPods: 1
+  imageName: texera/file-service:latest
+  service:
+    type: NodePort
+    port: 9092
+    nodePort: 30084
+
+# Configs of the envoy proxy, used to routerequests to the computing units
+envoy:
+  replicas: 1
+  image:
+    repository: envoyproxy/envoy
+    tag: v1.31-latest
+  port:
+    10000
+  debug: false
+  service:
+    type: NodePort
+    port: 10000
+    nodePort: 31002
+
+# headless service for the access of computing units
+workflowComputingUnitPool:
+  createNamespaces: true
+  name: workflow-computing-unit
+  namespace: workflow-computing-unit-pool
+  imageName: texera/computing-unit-master:latest
+  service:
+    port: 8085
+    targetPort: 8085
+
+texeraEnvVars:
+  - name: STORAGE_JDBC_USERNAME
+    value: postgres
+  - name: USER_SYS_ENABLED
+    value: "true"
+  - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
+    value: "10"
+  - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS
+    value: "1,2"
+  - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
+    value: "1Gi,2Gi"
+
+# Ingress dependency configs
+ingress-nginx:
+  enabled: true # set to true if k8s does not have nginx installed.
+  controller:
+    replicaCount: 1
+    service:
+      type: NodePort
+      nodePorts:
+        http: 30080
+    ingressClassResource:
+      name: nginx
+      enabled: true
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  rbac:
+    create: true
+
+
+yWebsocketServer:
+  name: y-websocket-server
+  replicaCount: 1
+  image: jxzliu/y-websocket-server:latest
+
+
+pythonLanguageServer:
+  name: python-language-server
+  replicaCount: 8
+  image: jxzliu/pylsp:latest
+  imagePullSecret: regcred
+  resources:
+    limits:
+      cpu: "1"
+      memory: "200Mi"
+
+# Custom Ingress resource configs
+ingressPaths:
+  enabled: true
+  hostname: "localhost"
+  # Optional TLS secret (manually created)
+  tlsSecretName: ""  # e.g., "texera-tls"
+  # Optional Issuer name for cert-manager
+  issuer: ""  # e.g., "letsencrypt-prod"
+  paths:
+    - path: /api/computing-unit
+      serviceName: workflow-computing-unit-manager-svc
+      servicePort: 8888
+    - path: /api/compile
+      serviceName: workflow-compiling-service-svc
+      servicePort: 9090
+    - path: /api/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /api/access/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api
+      serviceName: webserver-svc
+      servicePort: 8080
+    - path: /rtc
+      serviceName: y-websocket-server-svc
+      servicePort: 1234
+    - path: /python-language-server
+      serviceName: python-language-server-svc
+      servicePort: 3000
+    - path: /
+      serviceName: webserver-svc
+      servicePort: 8080
