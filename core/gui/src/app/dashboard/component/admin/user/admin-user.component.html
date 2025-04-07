@@ -191,14 +191,16 @@
       <td (click)="startEdit(user, 'comment')">
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">
-            {{user.comment}}</ng-container
-          >
+            <div class="limited-comment">
+              {{ user.comment }}
+            </div>
+          </ng-container>
           <ng-template #editCommentTemplate>
-            <textarea
-              [(ngModel)]="editComment"
-              (keydown.enter)="saveEdit()"
-              nz-input
-              type="text"></textarea>
+      <textarea
+        [(ngModel)]="editComment"
+        (keydown.enter)="saveEdit()"
+        nz-input
+        type="text"></textarea>
           </ng-template>
         </div>
       </td>

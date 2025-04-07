@@ -74,6 +74,20 @@ export class AdminUserComponent implements OnInit {
   }
 
   saveEdit(): void {
+    const originalUser = this.userList.find(u => u.uid === this.editUid);
+    if (
+      !originalUser ||
+      (
+        originalUser.name === this.editName &&
+        originalUser.email === this.editEmail &&
+        originalUser.comment === this.editComment &&
+        originalUser.role === this.editRole
+      )
+    ) {
+      this.stopEdit();
+      return;
+    }
+
     const currentUid = this.editUid;
     this.stopEdit();
     this.adminUserService
