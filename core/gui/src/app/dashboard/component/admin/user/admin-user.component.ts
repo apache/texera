@@ -77,12 +77,10 @@ export class AdminUserComponent implements OnInit {
     const originalUser = this.userList.find(u => u.uid === this.editUid);
     if (
       !originalUser ||
-      (
-        originalUser.name === this.editName &&
+      (originalUser.name === this.editName &&
         originalUser.email === this.editEmail &&
         originalUser.comment === this.editComment &&
-        originalUser.role === this.editRole
-      )
+        originalUser.role === this.editRole)
     ) {
       this.stopEdit();
       return;
