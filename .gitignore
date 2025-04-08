@@ -1,4 +1,3 @@
-
 # Ignoring binary/output
 target/
 out/
@@ -109,3 +108,10 @@ Composer-Setup.exe
 .bloop/
 .ammonite/
 metals.sbt
+
+# Ignoring Helm related files
+**/charts/*.tgz
+**/charts/*/charts
+**/charts/*/requirements.lock
+**/charts/*/Chart.lock
+**/.helm/
