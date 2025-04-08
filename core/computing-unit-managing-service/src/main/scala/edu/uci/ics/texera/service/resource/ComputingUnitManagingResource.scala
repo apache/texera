@@ -51,7 +51,7 @@ object ComputingUnitManagingResource {
       .get,
     // Variables for amber setting
     // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
+//    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
     EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true
   )
 
