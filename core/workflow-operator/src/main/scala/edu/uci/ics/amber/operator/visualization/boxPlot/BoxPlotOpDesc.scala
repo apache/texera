@@ -32,7 +32,7 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Violin Plot")
-  @JsonPropertyDescription("Switch to Violin Plot")
+  @JsonPropertyDescription("Use Violin Plot")
   var violinplot: Boolean = _
 
   @JsonProperty(
@@ -75,9 +75,9 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
     s"""
        |        if($violin):
        |            if ($horizontal):
-       |                fig = px.violin(table, x='$value', box=show_box, points='all')
+       |                fig = px.violin(table, x='$value', box=True, points='all')
        |            else:
-       |                fig = px.violin(table, y='$value', box=show_box, points='all')
+       |                fig = px.violin(table, y='$value', box=True, points='all')
        |        else:
        |            if($horizontal):
        |                fig = px.box(table, x='$value',boxmode="overlay", points='all')
