@@ -27,6 +27,7 @@ FROM eclipse-temurin:11-jre-jammy AS runtime
 WORKDIR /core
 
 # Copy the built texera binary from the build phase
+COPY --from=build /.git /.git
 COPY --from=build /core/target/workflow-compiling-service-0.1.0 /core/
 # Copy resources directories under /core from build phase
 COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
