@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -7,8 +7,6 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
-import { Subject } from "rxjs";
-import { debounceTime } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -31,6 +29,10 @@ export class AdminUserComponent implements OnInit {
   commentSearchVisible = false;
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
+
+  @ViewChild("nameInput") nameInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild("emailInput") emailInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild("commentTextarea") commentTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
   constructor(
     private adminUserService: AdminUserService,
@@ -71,6 +73,22 @@ export class AdminUserComponent implements OnInit {
     this.editEmail = user.email;
     this.editRole = user.role;
     this.editComment = user.comment;
+
+    setTimeout(() => {
+      if (attribute === "name" && this.nameInputRef) {
+        const input = this.nameInputRef.nativeElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      } else if (attribute === "email" && this.emailInputRef) {
+        const input = this.emailInputRef.nativeElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      } else if (attribute === "comment" && this.commentTextareaRef) {
+        const textarea = this.commentTextareaRef.nativeElement;
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      }
+    }, 0);
   }
 
   saveEdit(): void {

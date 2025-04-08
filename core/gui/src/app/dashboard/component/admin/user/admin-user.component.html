@@ -162,10 +162,11 @@
       <td (click)="startEdit(user, 'name')">
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'name'; else editNameTemplate">
-            {{user.name}}
+            <div class="container">{{user.name}}</div>
           </ng-container>
           <ng-template #editNameTemplate>
             <input
+              #nameInput
               [(ngModel)]="editName"
               (keydown.enter)="saveEdit()"
               nz-input
@@ -176,10 +177,11 @@
       <td (click)="startEdit(user, 'email')">
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
-            {{user.email}}</ng-container
-          >
+            <div class="container">{{user.email}}</div>
+          </ng-container>
           <ng-template #editEmailTemplate>
             <input
+              #emailInput
               [(ngModel)]="editEmail"
               (keydown.enter)="saveEdit()"
               [email]="true"
@@ -191,10 +193,11 @@
       <td (click)="startEdit(user, 'comment')">
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">
-            <div class="limited-comment">{{ user.comment }}</div>
+            <div class="limited-comment container">{{ user.comment }}</div>
           </ng-container>
           <ng-template #editCommentTemplate>
             <textarea
+              #commentTextarea
               [(ngModel)]="editComment"
               (keydown.enter)="saveEdit()"
               nz-input
