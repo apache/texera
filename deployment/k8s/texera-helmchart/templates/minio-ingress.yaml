@@ -23,10 +23,13 @@ metadata:
 spec:
   ingressClassName: {{ .Values.minio.customIngress.ingressClassName }}
   rules:
+    {{- if .Values.minio.customIngress.minioHostname }}
+    - host: {{ .Values.minio.customIngress.minioHostname }}
+    {{- end}}
     - http:
         paths:
           - path: /
-            pathType: ImplementationSpecific
+            pathType: Prefix
             backend:
               service:
                 name: texera-minio

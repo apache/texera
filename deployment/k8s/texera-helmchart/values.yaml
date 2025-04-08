@@ -29,6 +29,7 @@ minio:
     enabled: false
     ingressClassName: ""
     texeraHostname: ""
+    minioHostname: ""
   auth:
     rootUser: texera_minio
     rootPassword: password
