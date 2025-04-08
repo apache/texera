@@ -29,12 +29,13 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<User>>(`${USER_LIST_URL}`);
   }
 
-  public updateUser(uid: number, name: string, email: string, role: Role): Observable<void> {
+  public updateUser(uid: number, name: string, email: string, role: Role, comment: string): Observable<void> {
     return this.http.put<void>(`${USER_UPDATE_URL}`, {
       uid: uid,
       name: name,
       email: email,
       role: role,
+      comment: comment,
     });
   }
 
