@@ -1,15 +1,17 @@
-.rounded-button {
-  display: inline-flex; /* Use flexbox for alignment */
+.create-dataset-version-button {
+  display: flex; /* Use flexbox for centering */
   align-items: center; /* Center vertically */
   justify-content: center; /* Center horizontally */
   color: white;
   border: none;
-  padding: 10px 20px; /* Adjust padding as needed */
+  padding: 12px 40px; /* Increase padding for a wider button */
   border-radius: 25px;
   cursor: pointer;
   transition: background-color 0.3s;
-  margin-top: 50px;
-  margin-left: 20px;
+  margin: 50px auto 0 auto; /* Auto margins for horizontal centering */
+  width: 200px; /* Adjust width as needed */
+  font-size: 18px; /* Make text slightly bigger */
+  font-weight: bold; /* Optional: Make text bold */
 }
 
 .version-storage {
@@ -138,4 +140,12 @@ nz-select {
 
 .liked {
   color: red;
+}
+
+.empty-version-indicator {
+  margin-top: 15%;
+}
+
+.upload-progress-container {
+  margin-left: 20px;
 }

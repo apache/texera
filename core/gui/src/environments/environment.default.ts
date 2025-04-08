@@ -29,6 +29,17 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
+   * whether workflow computing unit manager is enabled (requires k8s)
+   */
+  computingUnitManagerEnabled: false,
+
+  /**
+   * whether selecting files from datasets instead of the local file system.
+   * The user system must be enabled to make this flag work!
+   */
+  selectingFilesFromDatasetsEnabled: true,
+
+  /**
    * whether local login is enabled
    */
   localLogin: true,
@@ -79,6 +90,17 @@ export const defaultEnvironment = {
   singleFileUploadMaximumSizeMB: 20,
 
   /**
+   * the maximum number of file chunks that can be held in the memory;
+   * you may increase this number if your deployment environment has enough memory resource.
+   */
+  maxNumberOfConcurrentUploadingFileChunks: 10,
+
+  /**
+   * the size of each chunk during the multipart upload of file
+   */
+  multipartUploadChunkSizeByte: 50 * 1024 * 1024, // 50 MB
+
+  /**
    * default data transfer batch size for workflows
    */
   defaultDataTransferBatchSize: 400,
@@ -87,6 +109,27 @@ export const defaultEnvironment = {
    * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
+
+  /**
+   * whether hub feature is enabled
+   */
+  hubEnabled: true,
+
+  /**
+   * whether forum feature is enabled
+   */
+  forumEnabled: false,
+
+  /**
+   * whether project feature is enabled
+   */
+  projectEnabled: false,
+
+  /**
+   * Can be configured as { username: "texera", password: "password" }
+   * If configured, this will be automatically filled into the local login input box
+   */
+  defaultLocalUser: {} as { username?: string; password?: string },
 };
 
 export type AppEnv = typeof defaultEnvironment;

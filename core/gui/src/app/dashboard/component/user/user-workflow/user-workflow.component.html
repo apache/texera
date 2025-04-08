@@ -139,6 +139,7 @@
     [editable]="true"
     [isPrivateSearch]="true"
     (deleted)="deleteWorkflow($event)"
+    (refresh)="refreshSearchResult()"
     (duplicated)="onClickDuplicateWorkflow($event)"
     [currentUid]="currentUid"
     (notifyWorkflow)="updateTooltip()"></texera-search-results>

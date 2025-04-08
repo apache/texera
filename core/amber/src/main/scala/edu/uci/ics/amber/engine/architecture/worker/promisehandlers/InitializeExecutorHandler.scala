@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.operator.sink.ProgressiveSinkOpExec
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
@@ -28,12 +27,6 @@ trait InitializeExecutorHandler {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
       case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
-      case OpExecSink(storageUri, workflowIdentity, outputMode) =>
-        new ProgressiveSinkOpExec(
-          workerIdx,
-          outputMode,
-          URI.create(storageUri)
-        )
       case OpExecSource(storageUri, _) =>
         new CacheSourceOpExec(URI.create(storageUri))
     }

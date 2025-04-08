@@ -1,172 +1,119 @@
 package edu.uci.ics.amber.core.storage
 
+import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.util.PathUtils.corePath
-import org.yaml.snakeyaml.Yaml
 
 import java.nio.file.Path
-import java.util.{Map => JMap}
-import scala.jdk.CollectionConverters._
 
 object StorageConfig {
-  private val conf: Map[String, Any] = {
-    val yaml = new Yaml()
-    val inputStream = getClass.getClassLoader.getResourceAsStream("storage-config.yaml")
-    val javaConf = yaml.load(inputStream).asInstanceOf[JMap[String, Any]].asScala.toMap
 
-    val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergMap = storageMap("iceberg").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergCatalogMap = icebergMap("catalog").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergPostgresMap =
-      icebergCatalogMap("postgres").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergTableMap = icebergMap("table").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val jdbcMap = storageMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("storage.conf").resolve()
 
-    javaConf.updated(
-      "storage",
-      storageMap
-        .updated("mongodb", mongodbMap)
-        .updated(
-          "iceberg",
-          icebergMap
-            .updated(
-              "table",
-              icebergTableMap.updated(
-                "commit",
-                icebergCommitMap.updated("retry", icebergRetryMap)
-              )
-            )
-            .updated(
-              "catalog",
-              icebergCatalogMap.updated("postgres", icebergPostgresMap)
-            )
-        )
-        .updated("jdbc", jdbcMap)
-    )
-  }
+  // General storage settings
+  val resultStorageMode: String = conf.getString("storage.result-storage-mode")
 
-  // Result storage mode
-  val resultStorageMode: String =
-    conf("storage").asInstanceOf[Map[String, Any]]("result-storage-mode").asInstanceOf[String]
+  // MongoDB specifics
+  val mongodbUrl: String = conf.getString("storage.mongodb.url")
+  val mongodbDatabaseName: String = conf.getString("storage.mongodb.database")
+  val mongodbBatchSize: Int = conf.getInt("storage.mongodb.commit-batch-size")
 
-  // MongoDB configurations
-  val mongodbUrl: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("mongodb")
-    .asInstanceOf[Map[String, Any]]("url")
-    .asInstanceOf[String]
+  // JDBC specifics
+  val jdbcUrl: String = conf.getString("storage.jdbc.url")
+  val jdbcUsername: String = conf.getString("storage.jdbc.username")
+  val jdbcPassword: String = conf.getString("storage.jdbc.password")
 
-  val mongodbDatabaseName: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("mongodb")
-    .asInstanceOf[Map[String, Any]]("database")
-    .asInstanceOf[String]
+  // Iceberg specifics
+  val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
+  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest-uri")
 
-  val mongodbBatchSize: Int = conf("storage")
-    .asInstanceOf[Map[String, Any]]("mongodb")
-    .asInstanceOf[Map[String, Any]]("commit-batch-size")
-    .asInstanceOf[Int]
+  // Iceberg Postgres specifics
+  val icebergPostgresCatalogUriWithoutScheme: String =
+    conf.getString("storage.iceberg.catalog.postgres.uri-without-scheme")
+  val icebergPostgresCatalogUsername: String =
+    conf.getString("storage.iceberg.catalog.postgres.username")
+  val icebergPostgresCatalogPassword: String =
+    conf.getString("storage.iceberg.catalog.postgres.password")
 
-  val icebergTableResultNamespace: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("result-namespace")
-    .asInstanceOf[String]
+  // Iceberg Table specifics
+  val icebergTableResultNamespace: String = conf.getString("storage.iceberg.table.result-namespace")
+  val icebergTableConsoleMessagesNamespace: String =
+    conf.getString("storage.iceberg.table.console-messages-namespace")
+  val icebergTableRuntimeStatisticsNamespace: String =
+    conf.getString("storage.iceberg.table.runtime-statistics-namespace")
+  val icebergTableCommitBatchSize: Int =
+    conf.getInt("storage.iceberg.table.commit.batch-size")
+  val icebergTableCommitNumRetries: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.num-retries")
+  val icebergTableCommitMinRetryWaitMs: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.min-wait-ms")
+  val icebergTableCommitMaxRetryWaitMs: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.max-wait-ms")
 
-  val icebergTableConsoleMessagesNamespace: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("console-messages-namespace")
-    .asInstanceOf[String]
+  // LakeFS specifics
+  val lakefsEndpoint: String = conf.getString("storage.lakefs.endpoint")
+  val lakefsApiSecret: String = conf.getString("storage.lakefs.auth.api-secret")
+  val lakefsUsername: String = conf.getString("storage.lakefs.auth.username")
+  val lakefsPassword: String = conf.getString("storage.lakefs.auth.password")
+  val lakefsBlockStorageType: String = conf.getString("storage.lakefs.block-storage.type")
+  val lakefsBucketName: String = conf.getString("storage.lakefs.block-storage.bucket-name")
 
-  val icebergTableRuntimeStatisticsNamespace: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("runtime-statistics-namespace")
-    .asInstanceOf[String]
-
-  val icebergTableCommitBatchSize: Int = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("commit")
-    .asInstanceOf[Map[String, Any]]("batch-size")
-    .asInstanceOf[Int]
-
-  val icebergTableCommitNumRetries: Int = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("commit")
-    .asInstanceOf[Map[String, Any]]("retry")
-    .asInstanceOf[Map[String, Any]]("num-retries")
-    .asInstanceOf[Int]
-
-  val icebergTableCommitMinRetryWaitMs: Int = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("commit")
-    .asInstanceOf[Map[String, Any]]("retry")
-    .asInstanceOf[Map[String, Any]]("min-wait-ms")
-    .asInstanceOf[Int]
-
-  val icebergTableCommitMaxRetryWaitMs: Int = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("table")
-    .asInstanceOf[Map[String, Any]]("commit")
-    .asInstanceOf[Map[String, Any]]("retry")
-    .asInstanceOf[Map[String, Any]]("max-wait-ms")
-    .asInstanceOf[Int]
-
-  // Iceberg catalog configurations
-  val icebergCatalogType: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("type")
-    .asInstanceOf[String]
-
-  val icebergRESTCatalogUri: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("rest-uri")
-    .asInstanceOf[String]
-
-  val icebergPostgresCatalogUriWithoutScheme: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("postgres")
-    .asInstanceOf[Map[String, Any]]("uri-without-scheme")
-    .asInstanceOf[String]
-
-  val icebergPostgresCatalogUsername: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("postgres")
-    .asInstanceOf[Map[String, Any]]("username")
-    .asInstanceOf[String]
-
-  val icebergPostgresCatalogPassword: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("postgres")
-    .asInstanceOf[Map[String, Any]]("password")
-    .asInstanceOf[String]
-
-  // JDBC configurations
-  val jdbcUrl: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("url")
-    .asInstanceOf[String]
-
-  val jdbcUsername: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("username")
-    .asInstanceOf[String]
-
-  val jdbcPassword: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("password")
-    .asInstanceOf[String]
+  // S3 specifics
+  val s3Endpoint: String = conf.getString("storage.s3.endpoint")
+  val s3Region: String = conf.getString("storage.s3.region")
+  val s3Username: String = conf.getString("storage.s3.auth.username")
+  val s3Password: String = conf.getString("storage.s3.auth.password")
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
+
+  // Environment variable names for overriding storage config values
+  // When you change
+  val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
+
+  // MongoDB
+  val ENV_MONGODB_URL = "STORAGE_MONGODB_URL"
+  val ENV_MONGODB_DATABASE = "STORAGE_MONGODB_DATABASE"
+  val ENV_MONGODB_COMMIT_BATCH_SIZE = "STORAGE_MONGODB_COMMIT_BATCH_SIZE"
+
+  // JDBC
+  val ENV_JDBC_URL = "STORAGE_JDBC_URL"
+  val ENV_JDBC_USERNAME = "STORAGE_JDBC_USERNAME"
+  val ENV_JDBC_PASSWORD = "STORAGE_JDBC_PASSWORD"
+
+  // Iceberg Catalog
+  val ENV_ICEBERG_CATALOG_TYPE = "STORAGE_ICEBERG_CATALOG_TYPE"
+  val ENV_ICEBERG_CATALOG_REST_URI = "STORAGE_ICEBERG_CATALOG_REST_URI"
+
+  // Iceberg Postgres Catalog
+  val ENV_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME =
+    "STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME"
+  val ENV_ICEBERG_CATALOG_POSTGRES_USERNAME = "STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME"
+  val ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD = "STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD"
+
+  // Iceberg Table
+  val ENV_ICEBERG_TABLE_RESULT_NAMESPACE = "STORAGE_ICEBERG_TABLE_RESULT_NAMESPACE"
+  val ENV_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE =
+    "STORAGE_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE"
+  val ENV_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE =
+    "STORAGE_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE"
+  val ENV_ICEBERG_TABLE_COMMIT_BATCH_SIZE = "STORAGE_ICEBERG_TABLE_COMMIT_BATCH_SIZE"
+  val ENV_ICEBERG_TABLE_COMMIT_NUM_RETRIES = "STORAGE_ICEBERG_TABLE_COMMIT_NUM_RETRIES"
+  val ENV_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS"
+  val ENV_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS"
+
+  // LakeFS
+  val ENV_LAKEFS_ENDPOINT = "STORAGE_LAKEFS_ENDPOINT"
+  val ENV_LAKEFS_AUTH_API_SECRET = "STORAGE_LAKEFS_AUTH_API_SECRET"
+  val ENV_LAKEFS_AUTH_USERNAME = "STORAGE_LAKEFS_AUTH_USERNAME"
+  val ENV_LAKEFS_AUTH_PASSWORD = "STORAGE_LAKEFS_AUTH_PASSWORD"
+  val ENV_LAKEFS_BLOCK_STORAGE_TYPE = "STORAGE_LAKEFS_BLOCK_STORAGE_TYPE"
+  val ENV_LAKEFS_BLOCK_STORAGE_BUCKET_NAME = "STORAGE_LAKEFS_BLOCK_STORAGE_BUCKET_NAME"
+
+  // S3
+  val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"
+  val ENV_S3_REGION = "STORAGE_S3_REGION"
+  val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
+  val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 }
