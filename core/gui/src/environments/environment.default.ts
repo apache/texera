@@ -15,7 +15,7 @@ export const defaultEnvironment = {
   /**
    * whether export execution result is supported
    */
-  exportExecutionResultEnabled: false,
+  exportExecutionResultEnabled: true,
 
   /**
    * whether automatically correcting attribute name on change is enabled
@@ -26,12 +26,12 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: false,
+  userSystemEnabled: true,
 
   /**
    * whether workflow computing unit manager is enabled (requires k8s)
    */
-  computingUnitManagerEnabled: false,
+  computingUnitManagerEnabled: true,
 
   /**
    * whether selecting files from datasets instead of the local file system.
@@ -47,7 +47,7 @@ export const defaultEnvironment = {
   /**
    * whether google login is enabled
    */
-  googleLogin: true,
+  googleLogin: false,
   /**
    * whether invite only is enabled
    */
@@ -61,7 +61,7 @@ export const defaultEnvironment = {
   /**
    * whether workflow executions tracking feature is enabled
    */
-  workflowExecutionsTrackingEnabled: false,
+  workflowExecutionsTrackingEnabled: true,
 
   /**
    * whether linkBreakpoint is supported
@@ -87,7 +87,7 @@ export const defaultEnvironment = {
   /**
    * the file size limit for dataset upload
    */
-  singleFileUploadMaximumSizeMB: 20,
+  singleFileUploadMaximumSizeMB: 2000000,
 
   /**
    * the maximum number of file chunks that can be held in the memory;
@@ -129,7 +129,7 @@ export const defaultEnvironment = {
    * Can be configured as { username: "texera", password: "password" }
    * If configured, this will be automatically filled into the local login input box
    */
-  defaultLocalUser: {} as { username?: string; password?: string },
+  defaultLocalUser: { username: "texera", password: "texera" },
 
   /**
    * maximum number of console messages to store per operator
