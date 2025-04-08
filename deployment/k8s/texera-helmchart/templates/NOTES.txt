@@ -1,0 +1,28 @@
+Texera Helm Chart has been installed!
+
+{{- if .Values.persistence.enabled }}
+PERSISTENCE CONFIGURATION:
+This deployment uses persistent volumes for PostgreSQL and MinIO data.
+
+{{- if .Values.persistence.removeAfterUninstall }}
+- PVs and PVCs will be automatically deleted by Helm during uninstall
+{{- else }}
+- PVs and PVCs have the "helm.sh/resource-policy: keep" annotation
+- They will NOT be automatically deleted during helm uninstall
+- Data will be preserved between installations
+- The volumes are stored at: /mnt/data/{{ .Release.Name }}/ on the host
+
+If you want to completely remove the persistent data:
+1. Uninstall the helm chart: helm uninstall {{ .Release.Name }}
+2. Manually delete the PVs and PVCs:
+   kubectl delete pvc postgresql-data-pvc -n {{ .Release.Namespace }}
+   kubectl delete pvc minio-data-pvc -n {{ .Release.Namespace }}
+   kubectl delete pv postgresql-data-pv
+   kubectl delete pv minio-data-pv
+
+Alternatively, you can set persistence.removeAfterUninstall=true in values.yaml to let Helm delete them.
+{{- end }}
+{{- end }}
+
+Access the Texera UI by navigating to:
+  http://localhost:{{ .Values.webserver.service.nodePort }}/ 

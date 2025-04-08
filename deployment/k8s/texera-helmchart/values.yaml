@@ -2,6 +2,13 @@ global:
   security:
     allowInsecureImages: true # for custom postgres image
 
+# Global persistence configuration to control PV/PVC creation
+persistence:
+  enabled: true
+  # When enabled, pre-provision PVs and PVCs
+  # The PVs and PVCs will be reused if they already exist
+  removeAfterUninstall: true  # Set to true to allow Helm to delete PVs/PVCs during uninstall
+
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
@@ -19,6 +26,8 @@ postgresql:
       enabled: true
       size: 10Gi
       storageClass: local-path # change to specific storageClass if needed.
+      # Use pre-provisioned PVC if available
+      existingClaim: "postgresql-data-pvc"
 
     initdb:
       scriptsConfigMap: texera-postgresql-init-script
@@ -41,6 +50,8 @@ minio:
     enabled: true
     size: 20Gi
     storageClass: local-path # change to specific storageClass if needed.
+    # Use pre-provisioned PVC if available
+    existingClaim: "minio-data-pvc"
 
 lakefs:
   secrets:
