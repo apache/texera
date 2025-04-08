@@ -162,7 +162,7 @@ class ComputingUnitManagingResource {
           .fetchByUid(user.getUid)
           .filter(_.getTerminateTime == null) // Filter out terminated units
 
-        if (units.size > maxNumOfRunningComputingUnitsPerUser) {
+        if (units.size >= maxNumOfRunningComputingUnitsPerUser) {
           throw new BadRequestException(
             s"You can only have at most ${maxNumOfRunningComputingUnitsPerUser} running at the same time"
           )
