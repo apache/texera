@@ -130,6 +130,11 @@ export const defaultEnvironment = {
    * If configured, this will be automatically filled into the local login input box
    */
   defaultLocalUser: {} as { username?: string; password?: string },
+
+  /**
+   * maximum number of console messages to store per operator
+   */
+  operatorConsoleMessageBufferSize: 100,
 };
 
 export type AppEnv = typeof defaultEnvironment;
