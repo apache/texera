@@ -1,0 +1,61 @@
+{{- if .Values.persistence.enabled }}
+
+{{- $storageNames := list "postgresql" "minio" }}
+{{- range $name := $storageNames }}
+{{- $storageConfig := index $.Values $name }}
+{{- $primaryConfig := $storageConfig.primary | default $storageConfig }}
+{{- $persistence := $primaryConfig.persistence | default dict }}
+{{- if $persistence.enabled }}
+{{- $volumeName := printf "%s-data-pv" $name }}
+{{- $claimName := printf "%s-data-pvc" $name }}
+{{- $storageClass := $persistence.storageClass | default "local-path" }}
+{{- $size := $persistence.size | default "10Gi" }}
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $volumeName }}
+  {{- if not $.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    type: local
+    app: {{ $.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  capacity:
+    storage: {{ $size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/mac/Users/baijiadong/Desktop/kube-test/{{ $.Release.Name }}/{{ $name }}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $claimName }}
+  namespace: {{ $.Release.Namespace }}
+  {{- if not $.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app: {{ $.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $size }}
+  volumeName: {{ $volumeName }}
+---
+
+{{- end }}
+{{- end }}
+{{- end }} 
