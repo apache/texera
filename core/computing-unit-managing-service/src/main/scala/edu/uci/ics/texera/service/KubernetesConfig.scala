@@ -2,7 +2,6 @@ package edu.uci.ics.texera.service
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object KubernetesConfig {
 

@@ -7,7 +7,6 @@ import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 
-import java.util.Random
 import java.nio.charset.StandardCharsets
 
 // TODO: move this logic to Auth

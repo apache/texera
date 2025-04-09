@@ -18,7 +18,7 @@ object AuthConfig {
     if (secretKey == null) {
       secretKey = conf.getString("auth.jwt.256-bit-secret").toLowerCase() match {
         case "random" => getRandomHexString
-        case key => key
+        case key      => key
       }
     }
     secretKey
