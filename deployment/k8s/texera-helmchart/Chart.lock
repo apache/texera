@@ -1,0 +1,18 @@
+dependencies:
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.11.3
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.5.6
+- name: minio
+  repository: https://charts.bitnami.com/bitnami
+  version: 15.0.7
+- name: lakefs
+  repository: https://charts.lakefs.io
+  version: 1.4.5
+- name: metrics-server
+  repository: https://kubernetes-sigs.github.io/metrics-server/
+  version: 3.12.2
+digest: sha256:c8ca4d4b82ac0f9b04bccf32e2525bfe03bc723df9d14227bc589483451ed0f0
+generated: "2025-04-08T21:05:25.594293-07:00"

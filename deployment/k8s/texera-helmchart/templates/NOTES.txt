@@ -1,4 +1,0 @@
-Texera Helm Chart has been installed!
-
-Access the Texera UI by navigating to:
-  http://localhost:{{ .Values.webserver.service.nodePort }}/ 

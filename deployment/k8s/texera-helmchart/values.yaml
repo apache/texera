@@ -2,12 +2,14 @@ global:
   security:
     allowInsecureImages: true # for custom postgres image
 
-# Global persistence configuration to control PV/PVC creation
+# Persistence Configuration
+# This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
+# 
+# removeAfterUninstall: 
+#   - true: PVCs will be deleted when helm uninstalls the chart
+#   - false: PVCs will remain after uninstall to preserve the data
 persistence:
-  enabled: true
-  # When enabled, pre-provision PVs and PVCs
-  # The PVs and PVCs will be reused if they already exist
-  removeAfterUninstall: true  # Set to true to allow Helm to delete PVs/PVCs during uninstall
+  removeAfterUninstall: false
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -25,8 +27,7 @@ postgresql:
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: local-path # change to specific storageClass if needed.
-      # Use pre-provisioned PVC if available
+      storageClass: local-path
       existingClaim: "postgresql-data-pvc"
 
     initdb:
@@ -50,7 +51,6 @@ minio:
     enabled: true
     size: 20Gi
     storageClass: local-path # change to specific storageClass if needed.
-    # Use pre-provisioned PVC if available
     existingClaim: "minio-data-pvc"
 
 lakefs:
@@ -165,7 +165,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: false # set to true if nginx is not installed.
+  enabled: true # set to true if nginx is not installed.
   controller:
     replicaCount: 1
     service:
@@ -202,9 +202,28 @@ pythonLanguageServer:
       cpu: "100m"
       memory: "100Mi"
 
+# Metrics Server configuration
+# IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
+# If metrics-server is already installed, set enabled: false to avoid conflicts
+metrics-server:
+  enabled: true
+  args:
+    - --kubelet-insecure-tls
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --metric-resolution=10s
+  resources:
+    requests:
+      cpu: 200m
+      memory: 400Mi
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+  priorityClassName: system-cluster-critical
+
 # Custom Ingress resource configs
 ingressPaths:
-  enabled: true
+  enabled: false
   hostname: "localhost"
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"

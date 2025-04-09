@@ -1,17 +1,17 @@
-{{- if .Values.persistence.enabled }}
+{{/* Define storage path configuration */}}
+{{- $hostBasePath := "/mnt/mac/Users/baijiadong/Desktop/kube-test" }}
 
-{{- $storageNames := list "postgresql" "minio" }}
-{{- range $name := $storageNames }}
-{{- $storageConfig := index $.Values $name }}
-{{- $primaryConfig := $storageConfig.primary | default $storageConfig }}
-{{- $persistence := $primaryConfig.persistence | default dict }}
-{{- if $persistence.enabled }}
+{{- if .Values.postgresql.primary.persistence.enabled }}
+{{- $name := "postgresql" }}
+{{- $persistence := .Values.postgresql.primary.persistence }}
 {{- $volumeName := printf "%s-data-pv" $name }}
 {{- $claimName := printf "%s-data-pvc" $name }}
 {{- $storageClass := $persistence.storageClass | default "local-path" }}
 {{- $size := $persistence.size | default "10Gi" }}
+{{- $hostPath := printf "%s/%s/%s" $hostBasePath $.Release.Name $name }}
 
----
+{{/* Only create PV for local-path storage class */}}
+{{- if eq $storageClass "local-path" }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -32,8 +32,9 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   hostPath:
-    path: "/mnt/mac/Users/baijiadong/Desktop/kube-test/{{ $.Release.Name }}/{{ $name }}"
+    path: {{ $hostPath }}
 ---
+{{- end }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -53,9 +54,7 @@ spec:
   resources:
     requests:
       storage: {{ $size }}
+  {{- if eq $storageClass "local-path" }}
   volumeName: {{ $volumeName }}
----
-
-{{- end }}
-{{- end }}
+  {{- end }}
 {{- end }} 
