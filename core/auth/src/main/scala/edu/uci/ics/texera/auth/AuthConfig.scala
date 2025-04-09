@@ -15,12 +15,14 @@ object AuthConfig {
 
   // Read JWT secret key with support for random generation
   def jwtSecretKey: String = {
+synchronized{
     if (secretKey == null) {
       secretKey = conf.getString("auth.jwt.256-bit-secret").toLowerCase() match {
         case "random" => getRandomHexString
         case key      => key
       }
     }
+  }
     secretKey
   }
 
