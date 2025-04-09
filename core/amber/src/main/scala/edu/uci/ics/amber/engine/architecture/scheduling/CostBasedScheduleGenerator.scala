@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
@@ -112,14 +117,19 @@ class CostBasedScheduleGenerator(
 
         // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
         val inputPortConfigs =
-          matEdges.foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
-            val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
-            val uri = outputPortConfigs(globalOutputPortId).storageURIs.head
-            val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
-            acc.updated(globalInputPortId, acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri)
-          }.map {
-            case (inputPortId, uris) => inputPortId -> PortConfig(storageURIs = uris)
-          }
+          matEdges
+            .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
+              val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
+              val uri = outputPortConfigs(globalOutputPortId).storageURIs.head
+              val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+              acc.updated(
+                globalInputPortId,
+                acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
+              )
+            }
+            .map {
+              case (inputPortId, uris) => inputPortId -> PortConfig(storageURIs = uris)
+            }
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs ++ inputPortConfigs)
         val ports = operators.flatMap(op =>

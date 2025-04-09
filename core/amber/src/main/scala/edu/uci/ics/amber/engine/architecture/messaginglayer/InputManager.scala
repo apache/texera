@@ -22,7 +22,7 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
   private val inputPortMaterializationReaderThreads
-  : mutable.HashMap[PortIdentity, List[InputPortMaterializationReaderThread]] =
+      : mutable.HashMap[PortIdentity, List[InputPortMaterializationReaderThread]] =
     mutable.HashMap()
 
   def getAllPorts: Set[PortIdentity] = {
@@ -40,17 +40,21 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
     setupInputPortMaterializationReaderThreads(portId, urisToRead)
   }
 
-  private def setupInputPortMaterializationReaderThreads(portId: PortIdentity, uris: List[URI]): Unit = {
-    val readerThreads = uris.map {
-      uri => {
+  private def setupInputPortMaterializationReaderThreads(
+      portId: PortIdentity,
+      uris: List[URI]
+  ): Unit = {
+    val readerThreads = uris.map { uri =>
+      {
         val materializationDocument = DocumentFactory
           .openDocument(uri)
           ._1
           .asInstanceOf[VirtualDocument[Tuple]]
 
         new InputPortMaterializationReaderThread(
-          storageReadIterator = materializationDocument.get(),
-          inputMessageQueue = this.inputMessageQueue
+          materialization = materializationDocument,
+          inputMessageQueue = this.inputMessageQueue,
+          workerActorId = this.actorId
         )
       }
     }
@@ -58,11 +62,16 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
     inputPortMaterializationReaderThreads(portId) = readerThreads
   }
 
+  def getInputPortReaderThreads: Map[PortIdentity, List[InputPortMaterializationReaderThread]] = {
+    this.inputPortMaterializationReaderThreads.toMap
+  }
+
   def startInputPortReaderThreads(): Unit = {
-    this.inputPortMaterializationReaderThreads.values.foreach(threadList=>threadList.foreach(readerThread=>{
-      readerThread.start()
-      // TODO: where to direct the queue
-    }))
+    this.inputPortMaterializationReaderThreads.values.foreach(threadList =>
+      threadList.foreach(readerThread => {
+        readerThread.start()
+      })
+    )
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)

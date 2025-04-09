@@ -164,8 +164,8 @@ class RegionExecutionCoordinator(
                 // we are using cache read operators to read materialized port storage.
                 // TODO: also add storageURIs for input ports when cache read ops are removed.
                 val storageURIs = resourceConfig.portConfigs.get(globalInputPortId) match {
-                  case Some(config) => config.storageURIs.map(uri=>uri.toString)
-                  case None => List.empty[String]
+                  case Some(config) => config.storageURIs.map(uri => uri.toString)
+                  case None         => List.empty[String]
                 }
                 Some(
                   globalInputPortId -> (storageURIs, schema)
@@ -242,7 +242,7 @@ class RegionExecutionCoordinator(
       )
     )
     Future.collect(
-      region.getSourceOperators
+      region.getStarterOperators
         .map(_.id)
         .flatMap { opId =>
           workflowExecution

@@ -16,4 +16,6 @@ object util {
   lazy val SOURCE_STARTER_OP: PhysicalOpIdentity =
     PhysicalOpIdentity(OperatorIdentity("SOURCE_STARTER"), "SOURCE_STARTER")
 
+  lazy val MATERIALIZATION_READER_ACTOR_PREFIX: String = "MATERIALIZATION_READER_"
+
 }
