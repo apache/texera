@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.visualization.boxPlot
+package edu.uci.ics.amber.operator.visualization.boxViolinPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -17,7 +17,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class BoxPlotOpDesc extends PythonOperatorDescriptor {
+class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
