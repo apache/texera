@@ -344,11 +344,14 @@
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
-          nzType="primary">
+          nzType="primary"
+          [class.computing-unit-status]="environment.computingUnitManagerEnabled && computingUnitStatus !== 'Running'"
+          [class.creating-unit]="isCreatingComputingUnit"
+          [class.connecting-unit]="isConnectingToComputingUnit">
           <i
             nz-icon
             nzType="{{ runIcon }}"></i>
-          <span> {{ runButtonText }} </span>
+          <span> {{ runButtonText }} <span *ngIf="isCreatingComputingUnit || isConnectingToComputingUnit" class="dots-animation"></span></span>
         </button>
         <button
           *ngIf="userSystemEnabled && environment.timetravelEnabled"
