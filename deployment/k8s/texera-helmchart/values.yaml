@@ -95,9 +95,8 @@ webserver:
   numOfPods: 1  # Number of pods for the Texera deployment
   imageName: texera/texera-web-application:cluster # image name of the texera
   service:
-    type: NodePort # for testing purpose, NodePort mode is fine
+    type: ClusterIP
     port: 8080 # port of the pod
-    nodePort: 30081 # exposed port
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
@@ -105,27 +104,24 @@ workflowComputingUnitManager:
   serviceAccountName: workflow-computing-unit-manager-service-account
   imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
-    type: NodePort # for testing purpose, NodePort mode is fine
+    type: ClusterIP
     port: 8888 # port of the pod
-    nodePort: 30082 # exposed port
 
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
   imageName: texera/workflow-compiling-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9090
-    nodePort: 30083
 
 fileService:
   name: file-service
   numOfPods: 1
   imageName: texera/file-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9092
-    nodePort: 30084
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -137,9 +133,8 @@ envoy:
     10000
   debug: false
   service:
-    type: NodePort
+    type: ClusterIP
     port: 10000
-    nodePort: 31002
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
