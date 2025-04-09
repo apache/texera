@@ -533,7 +533,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               zipOut.write(msg.getBytes(StandardCharsets.UTF_8))
               zipOut.closeEntry()
             } else {
-              val results = operatorDocument.get().to(Iterable)
               val extension = request.exportType match {
                 case "csv"   => "csv"
                 case "arrow" => "arrow"
@@ -547,8 +546,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
               request.exportType match {
                 case "csv"   => writeCSVLocal(nonClosingStream, operatorDocument)
-                case "arrow" => writeArrowLocal(nonClosingStream, results)
+                case "arrow" =>
+                  val results = operatorDocument.get().to(Iterable)
+                  writeArrowLocal(nonClosingStream, results)
                 case "data" =>
+                  val results = operatorDocument.get().to(Iterable)
                   writeDataLocal(nonClosingStream, request, results) // handle single cell export
                 case _ => writeCSVLocal(nonClosingStream, operatorDocument)
               }
