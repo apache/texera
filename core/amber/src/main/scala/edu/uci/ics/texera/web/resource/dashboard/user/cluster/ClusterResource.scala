@@ -1,18 +1,16 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.cluster
 
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.ClusterDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Cluster
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
   ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
   clusterDao,
   context
 }
 import io.dropwizard.auth.Auth
-import org.glassfish.jersey.media.multipart.FormDataParam
 import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
   callCreateClusterAPI,
   callDeleteClusterAPI,
@@ -45,30 +43,30 @@ class ClusterResource {
     * Launchs a new cluster and records the start time in cluster_activity.
     *
     * @param user The authenticated user creating the cluster.
-    * @param name The name of the cluster.
-    * @param machineType The type of machines in the cluster.
-    * @param numberOfMachines The number of machines in the cluster.
+    * @param launchRequest The launch request containing cluster configuration.
     * @return The created Cluster object.
     */
   @POST
   @Path("/launch")
-  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
   def launchCluster(
       @Auth user: SessionUser,
-      @FormDataParam("Name") name: String,
-      @FormDataParam("machineType") machineType: String,
-      @FormDataParam("numberOfMachines") numberOfMachines: Integer
+      launchRequest: ClusterLaunchRequest
   ): Response = {
     val cluster = new Cluster()
-    cluster.setName(name)
+    cluster.setName(launchRequest.name)
     cluster.setOwnerId(user.getUid)
-    cluster.setMachineType(machineType)
-    cluster.setNumberOfMachines(numberOfMachines)
+    cluster.setMachineType(launchRequest.machineType)
+    cluster.setNumberOfMachines(launchRequest.numberOfMachines)
     cluster.setStatus(ClusterStatus.LAUNCH_RECEIVED)
     clusterDao.insert(cluster)
 
     // Call Go microservice to actually create the cluster
-    callCreateClusterAPI(cluster.getCid, machineType, numberOfMachines) match {
+    callCreateClusterAPI(
+      cluster.getCid,
+      launchRequest.machineType,
+      launchRequest.numberOfMachines
+    ) match {
       case Right(goResponse) =>
         updateClusterStatus(cluster.getCid, ClusterStatus.PENDING, context)
         Response.ok(clusterDao.fetchOneByCid(cluster.getCid)).build()
@@ -245,3 +243,12 @@ class ClusterResource {
     }
   }
 }
+
+/**
+  * Request object for launching a cluster.
+  */
+case class ClusterLaunchRequest(
+    name: String,
+    machineType: String,
+    numberOfMachines: Integer
+)

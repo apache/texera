@@ -44,9 +44,14 @@ export class DirectorySelectionComponent {
               .pipe(untilDestroyed(this))
               .subscribe(versions => {
                 this.datasetVersions = versions;
-                const versionDvid = prevDataset.versions[0].datasetVersion.dvid;
-                this.selectedVersion = this.datasetVersions.find(v => v.dvid === versionDvid);
-                this.onVersionChange();
+                if (this.datasetVersions && this.datasetVersions.length > 0) {
+                  // Find the version with the maximum dvid
+                  this.selectedVersion = this.datasetVersions.reduce((max, version) => 
+                    (!max.dvid || (version.dvid !== undefined && version.dvid > max.dvid)) ? version : max, 
+                    this.datasetVersions[0]
+                  );
+                  this.onVersionChange();
+                }
               });
           }
         });
@@ -64,7 +69,11 @@ export class DirectorySelectionComponent {
         .subscribe(versions => {
           this.datasetVersions = versions;
           if (this.datasetVersions && this.datasetVersions.length > 0) {
-            this.selectedVersion = this.datasetVersions[0];
+            // Find the version with the maximum dvid
+            this.selectedVersion = this.datasetVersions.reduce((max, version) => 
+              (!max.dvid || (version.dvid !== undefined && version.dvid > max.dvid)) ? version : max, 
+              this.datasetVersions[0]
+            );
             this.onVersionChange();
           }
         });

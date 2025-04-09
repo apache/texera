@@ -45,19 +45,6 @@ export class ClusterComponent implements OnInit, OnDestroy {
     this.refreshTrigger.next();
   }
 
-  launchCluster(formData: FormData) {
-    this.clusterService
-      .launchCluster(formData)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        response => {
-          console.log("Response: ", response);
-          this.refreshClusters();
-        },
-        (error: HttpErrorResponse) => console.error("Error launching cluster", error)
-      );
-  }
-
   terminateCluster(cluster: Clusters): void {
     this.clusterService
       .terminateCluster(cluster)
@@ -107,11 +94,22 @@ export class ClusterComponent implements OnInit, OnDestroy {
   }
 
   submitCluster(clusterForm: FormGroup): void {
-    const formData = new FormData();
-    formData.append("Name", clusterForm.value.Name);
-    formData.append("machineType", clusterForm.value.machineType);
-    formData.append("numberOfMachines", clusterForm.value.numberOfMachines);
-    this.launchCluster(formData);
+    const clusterConfig = {
+      name: clusterForm.value.Name,
+      machineType: clusterForm.value.machineType,
+      numberOfMachines: clusterForm.value.numberOfMachines,
+    };
+
+    this.clusterService
+      .launchCluster(clusterConfig)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        response => {
+          console.log("Response: ", response);
+          this.refreshClusters();
+        },
+        (error: HttpErrorResponse) => console.error("Error launching cluster", error)
+      );
     this.closeClusterManagementModal();
   }
 

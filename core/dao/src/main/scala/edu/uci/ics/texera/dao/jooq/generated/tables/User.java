@@ -77,14 +77,14 @@ public class User extends TableImpl<UserRecord> {
     public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), SQLDataType.VARCHAR(256), this, "");
 
     /**
-     * The column <code>texera_db.user.role</code>.
-     */
-    public final TableField<UserRecord, UserRoleEnum> ROLE = createField(DSL.name("role"), SQLDataType.VARCHAR.nullable(false).defaultValue(DSL.field("'INACTIVE'::texera_db.user_role_enum", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum.class), this, "");
-
-    /**
      * The column <code>texera_db.user.google_avatar</code>.
      */
     public final TableField<UserRecord, String> GOOGLE_AVATAR = createField(DSL.name("google_avatar"), SQLDataType.VARCHAR(100), this, "");
+
+    /**
+     * The column <code>texera_db.user.role</code>.
+     */
+    public final TableField<UserRecord, UserRoleEnum> ROLE = createField(DSL.name("role"), SQLDataType.VARCHAR.nullable(false).defaultValue(DSL.field("'INACTIVE'::texera_db.user_role_enum", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum.class), this, "");
 
     private User(Name alias, Table<UserRecord> aliased) {
         this(alias, aliased, null);
@@ -177,7 +177,7 @@ public class User extends TableImpl<UserRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<Integer, String, String, String, String, UserRoleEnum, String> fieldsRow() {
+    public Row7<Integer, String, String, String, String, String, UserRoleEnum> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

@@ -20,7 +20,7 @@ object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with Laz
       val role =
         UserRoleEnum.valueOf(context.getJwtClaims.getClaimValue("role").asInstanceOf[String])
       val googleId = context.getJwtClaims.getClaimValue("googleId").asInstanceOf[String]
-      val user = new User(userId, userName, email, null, googleId, role, null)
+      val user = new User(userId, userName, email, null, googleId, null, role)
       Optional.of(new SessionUser(user))
     } catch {
       case e: Exception =>

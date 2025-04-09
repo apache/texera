@@ -137,7 +137,6 @@ import { SearchBarComponent } from "./dashboard/component/user/search-bar/search
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { ClusterSelectionComponent } from "./workspace/component/cluster-selection/cluster-selection.component";
 import { ClusterAutoCompleteComponent } from "./workspace/component/cluster-autocomplete/cluster-autocomplete.component";
-import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -309,7 +308,6 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
-    NzEmptyModule,
     SocialLoginModule,
     GoogleSigninButtonModule,
     NzEmptyModule,
