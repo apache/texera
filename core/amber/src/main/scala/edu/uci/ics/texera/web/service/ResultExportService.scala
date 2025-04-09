@@ -545,7 +545,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               val nonClosingStream = new NonClosingOutputStream(zipOut)
 
               request.exportType match {
-                case "csv"   => writeCSVLocal(nonClosingStream, operatorDocument)
+                case "csv" => writeCSVLocal(nonClosingStream, operatorDocument)
                 case "arrow" =>
                   val results = operatorDocument.get().to(Iterable)
                   writeArrowLocal(nonClosingStream, results)
