@@ -13,8 +13,8 @@ postgresql:
   primary:
     resources:
       requests:
-        cpu: "4"
-        memory: "4Gi"
+        cpu: "1"
+        memory: "1Gi"
     persistence:
       enabled: true
       size: 10Gi
@@ -25,26 +25,11 @@ postgresql:
 
 minio:
   mode: standalone
-  apiIngress:
+  customIngress:
     enabled: false
-    hostname: "localhost"
-    tls: false
-    annotations:
-      cert-manager.io/issuer: "" # your issuer
-      nginx.ingress.kubernetes.io/cors-allow-origin: 'https://texera.example.com' # texera hostname
-      nginx.ingress.kubernetes.io/enable-cors: 'true'
-      nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
-      nginx.ingress.kubernetes.io/cors-allow-headers: "*"
-      nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
-      nginx.ingress.kubernetes.io/cors-max-age: "86400"  # Optional: Increase for better caching
-      nginx.ingress.kubernetes.io/proxy-body-size: '0'
-      nginx.ingress.kubernetes.io/proxy-buffering: 'off'
-      nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
-      nginx.ingress.kubernetes.io/proxy-request-buffering: 'off'
-      nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
-      nginx.ingress.kubernetes.io/use-regex: 'true'
-      nginx.ingress.kubernetes.io/x-forwarded-proto: https
-      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    ingressClassName: ""
+    texeraHostname: ""
+    minioHostname: ""
   auth:
     rootUser: texera_minio
     rootPassword: password
@@ -160,7 +145,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: true # set to true if k8s does not have nginx installed.
+  enabled: false # set to true if nginx is not installed.
   controller:
     replicaCount: 1
     service:
@@ -189,13 +174,13 @@ yWebsocketServer:
 
 pythonLanguageServer:
   name: python-language-server
-  replicaCount: 8
+  replicaCount: 1
   image: jxzliu/pylsp:latest
   imagePullSecret: regcred
   resources:
     limits:
-      cpu: "1"
-      memory: "200Mi"
+      cpu: "100m"
+      memory: "100Mi"
 
 # Custom Ingress resource configs
 ingressPaths:
