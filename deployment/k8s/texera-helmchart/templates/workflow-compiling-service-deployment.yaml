@@ -24,7 +24,7 @@ spec:
           env:
             # FileService Access
             - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
-              value: http://file-service-svc:9092/api/dataset/presign-download
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             # LakeFS Access
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs:8000/api/v1

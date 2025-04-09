@@ -1,0 +1,30 @@
+{{- if .Values.exampleDataLoader.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-example-data-loader
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ .Release.Name }}-example-data-loader
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: example-data-loader
+          image: {{ .Values.exampleDataLoader.image }}
+          env:
+            - name: TEXERA_EXAMPLE_USERNAME
+              value: {{ .Values.exampleDataLoader.username }}
+            - name: TEXERA_EXAMPLE_PASSWORD
+              value: {{ .Values.exampleDataLoader.password }}
+            - name: TEXERA_EXAMPLE_DATASET_DIR
+              value: {{ .Values.exampleDataLoader.datasetDir }}
+            - name: TEXERA_EXAMPLE_WORKFLOW_DIR
+              value: {{ .Values.exampleDataLoader.workflowDir }}
+            - name: TEXERA_WEB_APPLICATION_URL
+              value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}/api
+            - name: TEXERA_FILE_SERVICE_URL
+              value: http://{{ .Values.fileService.name }}-svc:{{ .Values.fileService.service.port }}/api
+{{- end }} 

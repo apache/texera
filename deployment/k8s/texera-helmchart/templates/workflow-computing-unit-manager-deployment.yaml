@@ -40,9 +40,9 @@ spec:
                   key: postgres-password
             # FileService Access
             - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
-              value: http://file-service-svc:9092/api/dataset/presign-download
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
             - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
-              value: http://file-service-svc:9092/api/dataset/did/upload
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/did/upload
             # LakeFS Access (should be removed in production environment)
             - name: STORAGE_LAKEFS_ENDPOINT
               value: http://{{ .Release.Name }}-lakefs.{{ .Release.Namespace }}:8000/api/v1

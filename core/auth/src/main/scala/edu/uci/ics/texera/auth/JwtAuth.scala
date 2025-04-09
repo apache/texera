@@ -7,22 +7,19 @@ import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 
-import java.util.Random
+import java.nio.charset.StandardCharsets
 
 // TODO: move this logic to Auth
 object JwtAuth {
 
   final val TOKEN_EXPIRE_TIME_IN_DAYS = AuthConfig.jwtExpirationDays
-  final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey.toLowerCase() match {
-    case "random" => getRandomHexString
-    case _        => AuthConfig.jwtSecretKey
-  }
+  final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
     .setAllowedClockSkewInSeconds(30)
     .setRequireExpirationTime()
     .setRequireSubject()
-    .setVerificationKey(new HmacKey(TOKEN_SECRET.getBytes))
+    .setVerificationKey(new HmacKey(TOKEN_SECRET.getBytes(StandardCharsets.UTF_8)))
     .setRelaxVerificationKeyValidation()
     .build
 
@@ -30,7 +27,7 @@ object JwtAuth {
     val jws = new JsonWebSignature()
     jws.setPayload(claims.toJson)
     jws.setAlgorithmHeaderValue(HMAC_SHA256)
-    jws.setKey(new HmacKey(TOKEN_SECRET.getBytes))
+    jws.setKey(new HmacKey(TOKEN_SECRET.getBytes(StandardCharsets.UTF_8)))
     jws.getCompactSerialization
   }
 
@@ -48,14 +45,5 @@ object JwtAuth {
 
   def dayToMin(days: Int): Int = {
     days * 24 * 60
-  }
-
-  private def getRandomHexString: String = {
-    val bytes = 32
-    val r = new Random()
-    val sb = new StringBuffer
-    while (sb.length < bytes)
-      sb.append(Integer.toHexString(r.nextInt()))
-    sb.toString.substring(0, bytes)
   }
 }

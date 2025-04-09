@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.fileService.name }}-svc
   namespace: {{ .Release.Namespace }}
 spec:
-  type: {{ .Values.workflowCompilingService.service.type }}
+  type: {{ .Values.fileService.service.type }}
   selector:
     app: {{ .Release.Name }}-{{ .Values.fileService.name }}
   ports:
