@@ -37,17 +37,17 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 1)
 
-    regionList.zip(Iterator(3)).foreach {
+    regionList.zip(Iterator(2)).foreach {
       case (region, opCount) =>
         assert(region.getOperators.size == opCount)
     }
 
-    regionList.zip(Iterator(2)).foreach {
+    regionList.zip(Iterator(1)).foreach {
       case (region, linkCount) =>
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(4)).foreach {
+    regionList.zip(Iterator(3)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -89,12 +89,12 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
 
-    regionList.zip(Iterator(3, 3)).foreach {
+    regionList.zip(Iterator(3, 2)).foreach {
       case (region, opCount) =>
         assert(region.getOperators.size == opCount)
     }
 
-    regionList.zip(Iterator(2, 2)).foreach {
+    regionList.zip(Iterator(2, 1)).foreach {
       case (region, linkCount) =>
         assert(region.getLinks.size == linkCount)
     }
@@ -166,17 +166,17 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
 
-    regionList.zip(Iterator(5, 3)).foreach {
+    regionList.zip(Iterator(4, 2)).foreach {
       case (region, opCount) =>
         assert(region.getOperators.size == opCount)
     }
 
-    regionList.zip(Iterator(4, 2)).foreach {
+    regionList.zip(Iterator(3, 1)).foreach {
       case (region, linkCount) =>
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(7, 4)).foreach {
+    regionList.zip(Iterator(6, 4)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -231,17 +231,17 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     // Assuming each level only has one region
     val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
-    regionList.zip(Iterator(5, 4)).foreach {
+    regionList.zip(Iterator(5, 3)).foreach {
       case (region, opCount) =>
         assert(region.getOperators.size == opCount)
     }
 
-    regionList.zip(Iterator(4, 3)).foreach {
+    regionList.zip(Iterator(4, 2)).foreach {
       case (region, linkCount) =>
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(7, 6)).foreach {
+    regionList.zip(Iterator(7, 7)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }
@@ -295,17 +295,17 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
 
     val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
-    regionList.zip(Iterator(5, 3)).foreach {
+    regionList.zip(Iterator(4, 2)).foreach {
       case (region, opCount) =>
         assert(region.getOperators.size == opCount)
     }
 
-    regionList.zip(Iterator(4, 2)).foreach {
+    regionList.zip(Iterator(3, 1)).foreach {
       case (region, linkCount) =>
         assert(region.getLinks.size == linkCount)
     }
 
-    regionList.zip(Iterator(8, 4)).foreach {
+    regionList.zip(Iterator(7, 4)).foreach {
       case (region, portCount) =>
         assert(region.getPorts.size == portCount)
     }

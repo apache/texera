@@ -137,7 +137,6 @@ import { SearchBarComponent } from "./dashboard/component/user/search-bar/search
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { ClusterSelectionComponent } from "./workspace/component/cluster-selection/cluster-selection.component";
 import { ClusterAutoCompleteComponent } from "./workspace/component/cluster-autocomplete/cluster-autocomplete.component";
-import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -149,6 +148,11 @@ import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } 
 import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
 import { lastValueFrom } from "rxjs";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzDividerModule } from "ng-zorro-antd/divider";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 
 registerLocaleData(en);
 
@@ -208,6 +212,7 @@ registerLocaleData(en);
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
+    UserDatasetStagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     LocalLoginComponent,
@@ -243,6 +248,7 @@ registerLocaleData(en);
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
     HubSearchResultComponent,
+    ComputingUnitSelectionComponent,
   ],
   imports: [
     BrowserModule,
@@ -302,9 +308,11 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
-    NzEmptyModule,
     SocialLoginModule,
     GoogleSigninButtonModule,
+    NzEmptyModule,
+    NzDividerModule,
+    NzProgressModule,
   ],
   providers: [
     provideNzI18n(en_US),

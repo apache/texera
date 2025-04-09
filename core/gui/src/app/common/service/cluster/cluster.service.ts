@@ -23,8 +23,8 @@ export class ClusterService {
     });
   }
 
-  launchCluster(formData: FormData): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_LAUNCH_URL}`, formData);
+  launchCluster(clusterConfig: { name: string; machineType: string; numberOfMachines: number }): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_LAUNCH_URL}`, clusterConfig);
   }
 
   terminateCluster(cluster: Clusters): Observable<any> {

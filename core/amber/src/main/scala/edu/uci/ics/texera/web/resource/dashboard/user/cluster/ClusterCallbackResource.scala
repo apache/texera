@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.cluster
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ClusterActivityDao, ClusterDao}

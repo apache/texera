@@ -9,11 +9,19 @@ import org.bson.Document
 import org.bson.types.Binary
 
 import scala.collection.mutable.ArrayBuffer
+import com.fasterxml.jackson.databind.node.ObjectNode
+import edu.uci.ics.amber.util.JSONUtils
 
 object TupleUtils {
 
-  def tuple2json(tuple: Tuple): String = {
-    tuple.asKeyValuePairJson().toString
+  def tuple2json(schema: Schema, fieldVals: Array[Any]): ObjectNode = {
+    val objectNode = JSONUtils.objectMapper.createObjectNode()
+    schema.getAttributeNames.foreach { attrName =>
+      val valueNode =
+        JSONUtils.objectMapper.convertValue(fieldVals(schema.getIndex(attrName)), classOf[JsonNode])
+      objectNode.set[ObjectNode](attrName, valueNode)
+    }
+    objectNode
   }
 
   def json2tuple(json: String): Tuple = {

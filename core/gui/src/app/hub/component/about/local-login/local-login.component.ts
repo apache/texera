@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -7,13 +7,15 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { environment } from "../../../../../environments/environment";
+
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
   templateUrl: "./local-login.component.html",
   styleUrls: ["./local-login.component.scss"],
 })
-export class LocalLoginComponent {
+export class LocalLoginComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
@@ -32,6 +34,16 @@ export class LocalLoginComponent {
       registerPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
       registerConfirmationPassword: new FormControl("", [Validators.required, this.confirmationValidator]),
     });
+  }
+
+  ngOnInit() {
+    // Set default credentials if provided
+    if (environment.defaultLocalUser && Object.keys(environment.defaultLocalUser).length > 0) {
+      this.allForms.patchValue({
+        loginUsername: environment.defaultLocalUser.username,
+        loginPassword: environment.defaultLocalUser.password,
+      });
+    }
   }
 
   public updateConfirmValidator(): void {

@@ -165,7 +165,6 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        outputManager.closeOutputStorageWriters()
         outputManager.emitMarker(EndOfInputChannel())
         // Send Completed signal to worker actor.
         executor.close()
@@ -181,6 +180,7 @@ class DataProcessor(
           asyncRPCClient.mkContext(CONTROLLER)
         )
       case FinalizePort(portId, input) =>
+        outputManager.closeOutputStorageWriterIfNeeded(portId)
         asyncRPCClient.controllerInterface.portCompleted(
           PortCompletedRequest(portId, input),
           asyncRPCClient.mkContext(CONTROLLER)

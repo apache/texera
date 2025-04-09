@@ -66,6 +66,16 @@ public interface IUser extends Serializable {
     public String getGoogleId();
 
     /**
+     * Setter for <code>texera_db.user.google_avatar</code>.
+     */
+    public void setGoogleAvatar(String value);
+
+    /**
+     * Getter for <code>texera_db.user.google_avatar</code>.
+     */
+    public String getGoogleAvatar();
+
+    /**
      * Setter for <code>texera_db.user.role</code>.
      */
     public void setRole(UserRoleEnum value);
@@ -76,14 +86,14 @@ public interface IUser extends Serializable {
     public UserRoleEnum getRole();
 
     /**
-     * Setter for <code>texera_db.user.google_avatar</code>.
+     * Setter for <code>texera_db.user.comment</code>.
      */
-    public void setGoogleAvatar(String value);
+    public void setComment(String value);
 
     /**
-     * Getter for <code>texera_db.user.google_avatar</code>.
+     * Getter for <code>texera_db.user.comment</code>.
      */
-    public String getGoogleAvatar();
+    public String getComment();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

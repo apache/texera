@@ -105,8 +105,8 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     @Override
-    public List<UniqueKey<OperatorExecutionsRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID_OPERATOR_ID_KEY);
+    public UniqueKey<OperatorExecutionsRecord> getPrimaryKey() {
+        return Keys.OPERATOR_EXECUTIONS_PKEY;
     }
 
     @Override

@@ -9,6 +9,7 @@ import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
+import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
@@ -49,7 +50,7 @@ export class DownloadService {
 
   downloadDataset(id: number, name: string): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: id }),
+      () => this.datasetService.retrieveDatasetVersionZip(id),
       `${name}.zip`,
       "Starting to download the latest version of the dataset as ZIP",
       "The latest version of the dataset has been downloaded as ZIP",
@@ -64,7 +65,7 @@ export class DownloadService {
     versionName: string
   ): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
+      () => this.datasetService.retrieveDatasetVersionZip(datasetId, datasetVersionId),
       `${datasetName}-${versionName}.zip`,
       `Starting to download version ${versionName} as ZIP`,
       `Version ${versionName} has been downloaded as ZIP`,
@@ -121,7 +122,7 @@ export class DownloadService {
       destination,
     };
     if (destination === "local") {
-      return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+      return this.http.post(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`, requestBody, {
         responseType: "blob",
         observe: "response",
         headers: {
@@ -132,7 +133,7 @@ export class DownloadService {
     } else {
       // dataset => return JSON
       return this.http.post<ExportWorkflowJsonResponse>(
-        `${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`,
+        `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`,
         requestBody,
         {
           responseType: "json",

@@ -21,8 +21,9 @@ public class User implements IUser {
     private String       email;
     private String       password;
     private String       googleId;
-    private UserRoleEnum role;
     private String       googleAvatar;
+    private UserRoleEnum role;
+    private String       comment;
 
     public User() {}
 
@@ -32,8 +33,9 @@ public class User implements IUser {
         this.email = value.getEmail();
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
-        this.role = value.getRole();
         this.googleAvatar = value.getGoogleAvatar();
+        this.role = value.getRole();
+        this.comment = value.getComment();
     }
 
     public User(
@@ -42,16 +44,18 @@ public class User implements IUser {
         String       email,
         String       password,
         String       googleId,
+        String       googleAvatar,
         UserRoleEnum role,
-        String       googleAvatar
+        String       comment
     ) {
         this.uid = uid;
         this.name = name;
         this.email = email;
         this.password = password;
         this.googleId = googleId;
-        this.role = role;
         this.googleAvatar = googleAvatar;
+        this.role = role;
+        this.comment = comment;
     }
 
     /**
@@ -135,6 +139,22 @@ public class User implements IUser {
     }
 
     /**
+     * Getter for <code>texera_db.user.google_avatar</code>.
+     */
+    @Override
+    public String getGoogleAvatar() {
+        return this.googleAvatar;
+    }
+
+    /**
+     * Setter for <code>texera_db.user.google_avatar</code>.
+     */
+    @Override
+    public void setGoogleAvatar(String googleAvatar) {
+        this.googleAvatar = googleAvatar;
+    }
+
+    /**
      * Getter for <code>texera_db.user.role</code>.
      */
     @Override
@@ -151,19 +171,19 @@ public class User implements IUser {
     }
 
     /**
-     * Getter for <code>texera_db.user.google_avatar</code>.
+     * Getter for <code>texera_db.user.comment</code>.
      */
     @Override
-    public String getGoogleAvatar() {
-        return this.googleAvatar;
+    public String getComment() {
+        return this.comment;
     }
 
     /**
-     * Setter for <code>texera_db.user.google_avatar</code>.
+     * Setter for <code>texera_db.user.comment</code>.
      */
     @Override
-    public void setGoogleAvatar(String googleAvatar) {
-        this.googleAvatar = googleAvatar;
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 
     @Override
@@ -175,8 +195,9 @@ public class User implements IUser {
         sb.append(", ").append(email);
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
-        sb.append(", ").append(role);
         sb.append(", ").append(googleAvatar);
+        sb.append(", ").append(role);
+        sb.append(", ").append(comment);
 
         sb.append(")");
         return sb.toString();
@@ -193,8 +214,9 @@ public class User implements IUser {
         setEmail(from.getEmail());
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
-        setRole(from.getRole());
         setGoogleAvatar(from.getGoogleAvatar());
+        setRole(from.getRole());
+        setComment(from.getComment());
     }
 
     @Override
