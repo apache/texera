@@ -111,7 +111,13 @@ metals.sbt
 
 # Ignoring Helm related files
 **/charts/*.tgz
-**/charts/*/charts
-**/charts/*/requirements.lock
-**/charts/*/Chart.lock
+**/texera-helmchart/charts/
+**/texera-helmchart/*/requirements.lock
+**/texera-helmchart/Chart.lock
 **/.helm/
+
+# Additional Helm/Kubernetes related files
+.kubeconfig
+*.kubeconfig
+**/.kube/
+values-*.yaml    # Any environment-specific value overrides
