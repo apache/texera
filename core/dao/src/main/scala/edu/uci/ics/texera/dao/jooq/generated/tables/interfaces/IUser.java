@@ -85,6 +85,16 @@ public interface IUser extends Serializable {
      */
     public UserRoleEnum getRole();
 
+    /**
+     * Setter for <code>texera_db.user.comment</code>.
+     */
+    public void setComment(String value);
+
+    /**
+     * Getter for <code>texera_db.user.comment</code>.
+     */
+    public String getComment();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

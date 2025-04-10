@@ -1,4 +1,3 @@
-
 # Ignoring binary/output
 target/
 out/
@@ -109,3 +108,16 @@ Composer-Setup.exe
 .bloop/
 .ammonite/
 metals.sbt
+
+# Ignoring Helm related files
+**/charts/*.tgz
+**/texera-helmchart/charts/
+**/texera-helmchart/*/requirements.lock
+**/texera-helmchart/Chart.lock
+**/.helm/
+
+# Additional Helm/Kubernetes related files
+.kubeconfig
+*.kubeconfig
+**/.kube/
+values-*.yaml    # Any environment-specific value overrides
