@@ -176,10 +176,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     const input = this.nameInputBox?.nativeElement;
     if (!input) return;
 
-    const tempSpan = document.createElement('span');
-    tempSpan.style.visibility = 'hidden';
-    tempSpan.style.position = 'absolute';
-    tempSpan.style.whiteSpace = 'pre';
+    const tempSpan = document.createElement("span");
+    tempSpan.style.visibility = "hidden";
+    tempSpan.style.position = "absolute";
+    tempSpan.style.whiteSpace = "pre";
     tempSpan.style.font = getComputedStyle(input).font;
     tempSpan.textContent = input.value || input.placeholder;
 
