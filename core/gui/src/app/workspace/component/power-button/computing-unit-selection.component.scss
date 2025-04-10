@@ -7,10 +7,9 @@
 }
 
 .computing-units-selection.metrics-visible {
-  grid-template-columns: repeat(2, 1fr);
-  justify-content: center;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-items: end;
   width: 100%;
   gap: 10px;
 }
@@ -93,15 +92,54 @@
   width: 440px;
 }
 
-.metrics-container {
-  display: grid;
+.computing-units-dropdown-button {
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.button-content {
+  display: flex;
   align-items: center;
-  grid-template-rows: repeat(2, 1fr);
+  width: 100%;
+  height: 100%;
+}
+
+.unit-name-text, .connect-text {
+  margin-left: 4px;
+  margin-right: 4px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Ensure the dropdown icon is aligned properly */
+.button-content i.ant-dropdown-trigger {
+  margin-left: auto;
+}
+
+/* Badge alignment fix */
+:host ::ng-deep .ant-badge-status-dot {
+  position: relative;
+  top: -1px;
+  vertical-align: middle;
+}
+
+.metrics-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 3px;
   height: 32px;
-  width: 80%;
+  width: 150px; /* Match button width */
+  min-width: 150px; /* Ensure minimum width */
   padding: 0;
   border: none;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .metric-item {
@@ -109,6 +147,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: 12px;
 }
 
 .metric-label {
@@ -120,7 +159,8 @@
 
 .metric-bar-wrapper {
   flex-grow: 1;
-  min-width: 0;
+  width: 90px; /* Fixed width for consistent bar size */
+  min-width: 60px; /* Ensure minimum width for the bar */
   display: flex;
   align-items: center;
   padding: 0;
@@ -130,12 +170,18 @@
 #cpu-progress-bar,
 #memory-progress-bar {
   width: 100%;
-  margin-top: 0 !important; /* 💡 override if nz-progress adds vertical spacing */
+  margin: 0 !important; /* Remove any margins */
+  padding: 0 !important; /* Remove any padding */
   vertical-align: middle;
 }
 
-.metric-label {
-  font-size: 10px;
+/* Override any Ant Design styles that might affect the progress bar */
+:host ::ng-deep .ant-progress {
+  width: 100%;
+}
+
+:host ::ng-deep .ant-progress-inner {
+  width: 100% !important;
 }
 
 .resource-metrics {
@@ -159,7 +205,16 @@
 }
 
 .metric-unit {
-  font-size: 8px;
+  color: #888;
+  font-size: 0.9em;
+  margin-left: 4px;
+}
+
+.metric-percentage {
+  color: #555;
+  font-size: 0.9em;
+  margin-left: 6px;
+  font-weight: 500;
 }
 
 .metric-name {

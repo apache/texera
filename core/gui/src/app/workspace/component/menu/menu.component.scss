@@ -115,6 +115,19 @@ i {
     }
   }
   
+  // Connecting state style
+  &.connecting-unit {
+    background-color: #fffbe6;
+    border-color: #faad14;
+    color: #faad14;
+    
+    &:hover, &:focus {
+      background-color: #fff7cc;
+      border-color: #d48806;
+      color: #d48806;
+    }
+  }
+  
   // Special icon styles
   .anticon-cloud-server {
     color: #1890ff;

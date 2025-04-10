@@ -342,4 +342,12 @@ export class ComputingUnitStatusService implements OnDestroy {
   public isCuManagerEnabled(): boolean {
     return environment.computingUnitManagerEnabled;
   }
+  
+  /**
+   * Clear the currently selected computing unit and update connection status
+   */
+  public clearSelectedComputingUnit(): void {
+    this.selectedUnitSubject.next(null);
+    this.connectedSubject.next(false);
+  }
 } 
