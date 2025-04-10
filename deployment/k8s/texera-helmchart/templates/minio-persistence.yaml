@@ -1,6 +1,6 @@
 {{/* Define storage path configuration, please change it to your own path and make sure the path exists with the right permission*/}}
 {{/* This path only works for local-path storage class */}}
-{{- $hostBasePath := "/path/to/your/host/directory" }}
+{{- $hostBasePath := "/mnt/mac/Users/baijiadong/Desktop/kube-test" }}
 
 {{- if .Values.minio.persistence.enabled }}
 {{- $name := "minio" }}
