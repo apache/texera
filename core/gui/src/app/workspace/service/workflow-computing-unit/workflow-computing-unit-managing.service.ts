@@ -78,7 +78,7 @@ export class WorkflowComputingUnitManagingService {
         computingUnit: {
           cuid: 1,
           uid: 1,
-          name: "Local Computing Unit",
+          name: "Local Compute",
           creationTime: Date.now(),
           terminateTime: undefined,
         },
