@@ -32,7 +32,7 @@ import { ResultExportationComponent } from "../result-exportation/result-exporta
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
-import { PanelService } from "../../service/panel/panel.service";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import mapping from "../../../../assets/migration_tool/mapping";
 
 /**
@@ -107,7 +107,7 @@ export class MenuComponent implements OnInit {
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
-    private panelService: PanelService
+    private jupyterPanelService: JupyterPanelService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -469,7 +469,7 @@ export class MenuComponent implements OnInit {
 
   private openJupyterNotebookPanel(): void {
     // Assuming you have a service that handles the state of various panels
-    this.panelService.openPanel("JupyterNotebookPanel");
+    this.jupyterPanelService.openPanel("JupyterNotebookPanel");
   }
 
   private async sendToAIGenerateWorkflow() {

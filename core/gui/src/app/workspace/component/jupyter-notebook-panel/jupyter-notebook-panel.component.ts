@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit } from "@angular/core";
-import { PanelService } from "../../service/panel/panel.service";
+import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 
@@ -15,11 +15,11 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
   notebookUrl: string = ""; // Store the notebook URL dynamically
   private destroy$ = new Subject<void>();
 
-  constructor(private panelService: PanelService) {}
+  constructor(private jupyterPanelService: JupyterPanelService) {}
 
   ngOnInit(): void {
     // Subscribe to the visibility state of the panel
-    this.panelService.jupyterNotebookPanelVisible$
+    this.jupyterPanelService.jupyterNotebookPanelVisible$
       .pipe(takeUntil(this.destroy$))
       .subscribe((visible: boolean) => {
         this.isVisible = visible;
@@ -41,7 +41,7 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
     setTimeout(() => {
       if (this.isVisible && this.iframeRef?.nativeElement) {
         console.log("Iframe reference found:", this.iframeRef.nativeElement);
-        this.panelService.setIframeRef(this.iframeRef.nativeElement);
+        this.jupyterPanelService.setIframeRef(this.iframeRef.nativeElement);
       } else {
         console.error("Iframe reference not found yet.");
       }
@@ -55,6 +55,6 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
 
   // Close the panel by invoking the service method
   closePanel(): void {
-    this.panelService.closeJupyterNotebookPanel();
+    this.jupyterPanelService.closeJupyterNotebookPanel();
   }
 }

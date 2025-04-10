@@ -24,7 +24,7 @@ import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
-import { PanelService } from "../service/panel/panel.service";
+import { JupyterPanelService } from "../service/jupyter-panel/jupyter-panel.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -65,7 +65,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubWorkflowService: HubWorkflowService,
     private codeEditorService: CodeEditorService,
-    private panelService: PanelService
+    private panelService: JupyterPanelService
   ) {}
 
   ngOnInit() {

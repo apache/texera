@@ -7,7 +7,7 @@ import { OperatorLink } from "../../types/workflow-common.interface";
 @Injectable({
   providedIn: "root",
 })
-export class PanelService {
+export class JupyterPanelService {
   private jupyterNotebookPanelVisible = new BehaviorSubject<boolean>(false);
   public jupyterNotebookPanelVisible$ = this.jupyterNotebookPanelVisible.asObservable();
 
