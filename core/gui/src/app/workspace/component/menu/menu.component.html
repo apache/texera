@@ -351,7 +351,12 @@
           <i
             nz-icon
             nzType="{{ runIcon }}"></i>
-          <span> {{ runButtonText }} <span *ngIf="isCreatingComputingUnit || isConnectingToComputingUnit" class="dots-animation"></span></span>
+          <span>
+            {{ runButtonText }}
+            <span
+              *ngIf="isCreatingComputingUnit || isConnectingToComputingUnit"
+              class="dots-animation"></span
+          ></span>
         </button>
         <button
           *ngIf="userSystemEnabled && environment.timetravelEnabled"
@@ -389,7 +394,11 @@
             [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === 'Running' || !environment.computingUnitManagerEnabled))?'green':'red'">
           </nz-badge>
           <ng-template #clusterInfo>
-            <b>{{(workflowWebsocketService.isConnected && (computingUnitStatus === 'Running' || !environment.computingUnitManagerEnabled))?"Connected":"Disconnected"}} to {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b>
+            <b
+              >{{(workflowWebsocketService.isConnected && (computingUnitStatus === 'Running' ||
+              !environment.computingUnitManagerEnabled))?"Connected":"Disconnected"}} to
+              {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b
+            >
             <div *ngIf="workflowWebsocketService.isConnected">
               <div *ngIf="environment.computingUnitManagerEnabled">Computing Unit Status: {{computingUnitStatus}}</div>
               <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>

@@ -58,7 +58,11 @@
         [nzTooltipTitle]="selectedComputingUnit.computingUnit.name">
         {{selectedComputingUnit.computingUnit.name}}
       </span>
-      <span *ngIf="!selectedComputingUnit" class="connect-text">Connect</span>
+      <span
+        *ngIf="!selectedComputingUnit"
+        class="connect-text"
+        >Connect</span
+      >
       <i
         nz-icon
         *ngIf="environment.computingUnitManagerEnabled"

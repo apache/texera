@@ -62,7 +62,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
             this.notificationService.error(`Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`),
         });
     }
-    
+
     // Subscribe to the current selected unit from the status service
     this.computingUnitStatusService
       .getSelectedComputingUnit()
@@ -70,7 +70,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
       .subscribe(unit => {
         this.selectedComputingUnit = unit;
       });
-    
+
     // Subscribe to all available units from the status service
     this.computingUnitStatusService
       .getAllComputingUnits()
@@ -83,7 +83,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['workflowId'] && isDefined(this.workflowId)) {
+    if (changes["workflowId"] && isDefined(this.workflowId)) {
       // Connecting to the workflowWebsocketService with the workflowId will trigger the computing unit service
       if (this.selectedComputingUnit) {
         this.connectToComputingUnit(this.selectedComputingUnit);
@@ -116,7 +116,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     if (computingUnit && isDefined(this.workflowId)) {
       // First update the selection in the status service
       this.computingUnitStatusService.selectComputingUnit(computingUnit);
-      
+
       // Then open the websocket connection
       this.workflowWebsocketService.closeWebsocket();
       this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, computingUnit.computingUnit.cuid);
@@ -139,7 +139,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     if (!this.selectedComputingUnit) {
       return "processing";
     }
-    
+
     const status = this.selectedComputingUnit.status;
     if (status === "Running") {
       return "success";
@@ -226,7 +226,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     // If we're terminating the currently selected unit, close the WebSocket connection first
     if (this.selectedComputingUnit?.computingUnit.cuid === cuid) {
       this.workflowWebsocketService.closeWebsocket();
-      
+
       // Update the selected unit to null in the status service before terminating
       this.computingUnitStatusService.clearSelectedComputingUnit();
       this.selectedComputingUnit = null;
@@ -238,13 +238,13 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
       .subscribe({
         next: (res: Response) => {
           this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
-          
+
           // Find another running unit to select if we terminated the current one
           if (this.selectedComputingUnit === null) {
-            const runningUnit = this.computingUnits.find(unit => 
-              unit.computingUnit.cuid !== cuid && unit.status === "Running"
+            const runningUnit = this.computingUnits.find(
+              unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
             );
-            
+
             if (runningUnit) {
               this.connectToComputingUnit(runningUnit);
             }
@@ -288,14 +288,14 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     };
     const fromUnit = this.parseResourceUnit(from) as CpuUnit;
     const fromNumber = this.parseResourceNumber(from);
-    
+
     // Handle empty unit in input (means cores)
     const effectiveFromUnit = (fromUnit || "") as CpuUnit;
     const effectiveToUnit = (toUnit || "") as CpuUnit;
-    
+
     // Convert to base units (nanocores) then to target unit
-    const fromScaled = fromNumber * (cpuScales[effectiveFromUnit] || cpuScales["m"]); 
-    const toScaled = fromScaled / (cpuScales[effectiveToUnit] || cpuScales[""]); 
+    const fromScaled = fromNumber * (cpuScales[effectiveFromUnit] || cpuScales["m"]);
+    const toScaled = fromScaled / (cpuScales[effectiveToUnit] || cpuScales[""]);
 
     // For display purposes, use appropriate precision
     if (effectiveToUnit === "") {
@@ -318,15 +318,15 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     };
     const fromUnit = this.parseResourceUnit(from) as MemoryUnit;
     const fromNumber = this.parseResourceNumber(from);
-    
+
     // Handle empty unit in input (means bytes)
     const effectiveFromUnit = (fromUnit || "") as MemoryUnit;
     const effectiveToUnit = (toUnit || "") as MemoryUnit;
-    
+
     // Convert to base units (bytes) then to target unit
     const fromScaled = fromNumber * (memoryScales[effectiveFromUnit] || 1);
     const toScaled = fromScaled / (memoryScales[effectiveToUnit] || 1);
-    
+
     // For memory, we want to show in the same format as the limit (typically X.XXX Gi)
     return toScaled.toFixed(4);
   }
@@ -403,19 +403,19 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     const usage = this.getCurrentComputingUnitCpuUsage();
     const limit = this.getCurrentComputingUnitCpuLimit();
     if (usage === "N/A" || limit === "N/A") return 0;
-    
+
     // Convert to the same unit for comparison
-    const displayUnit = "";  // Convert to cores for percentage calculation
-    
+    const displayUnit = ""; // Convert to cores for percentage calculation
+
     // Use our existing conversion method to get values in the same unit
     const usageValue = parseFloat(this.cpuResourceConversion(usage, displayUnit));
     const limitValue = parseFloat(this.cpuResourceConversion(limit, displayUnit));
-    
+
     if (limitValue <= 0) return 0;
-    
+
     // Calculate percentage and ensure it doesn't exceed 100%
     const percentage = (usageValue / limitValue) * 100;
-    
+
     return Math.min(percentage, 100);
   }
 
@@ -423,19 +423,19 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     const usage = this.getCurrentComputingUnitMemoryUsage();
     const limit = this.getCurrentComputingUnitMemoryLimit();
     if (usage === "N/A" || limit === "N/A") return 0;
-    
+
     // Convert to the same unit for comparison
-    const displayUnit = "Gi";  // Convert to GiB for percentage calculation
-    
+    const displayUnit = "Gi"; // Convert to GiB for percentage calculation
+
     // Use our existing conversion method to get values in the same unit
     const usageValue = parseFloat(this.memoryResourceConversion(usage, displayUnit));
     const limitValue = parseFloat(this.memoryResourceConversion(limit, displayUnit));
-    
+
     if (limitValue <= 0) return 0;
-    
+
     // Calculate percentage and ensure it doesn't exceed 100%
     const percentage = (usageValue / limitValue) * 100;
-    
+
     return Math.min(percentage, 100);
   }
 
