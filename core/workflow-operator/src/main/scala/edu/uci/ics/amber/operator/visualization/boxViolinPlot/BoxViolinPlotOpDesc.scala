@@ -40,7 +40,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
     required = true,
     defaultValue = "linear"
   )
-  var quertiletype: BoxViolinPlotQuartileFunction = _
+  var quertileType: BoxViolinPlotQuartileFunction = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -83,7 +83,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
        |                fig = px.box(table, x='$value',boxmode="overlay", points='all')
        |            else:
        |                fig = px.box(table, y='$value',boxmode="overlay", points='all')
-       |        fig.update_traces(quartilemethod="${quertiletype.getQuartiletype}", col=1)
+       |        fig.update_traces(quartilemethod="${quertileType.getQuartiletype}", col=1)
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
