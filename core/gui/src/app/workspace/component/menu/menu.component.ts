@@ -36,6 +36,7 @@ import { WorkflowComputingUnitManagingService } from "../../service/workflow-com
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
+import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -97,6 +98,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   private computingUnitStatusSubscription: Subscription = new Subscription();
   public computingUnitStatus: ComputingUnitConnectionState = ComputingUnitConnectionState.NoComputingUnit;
   private computingUnitConnected: boolean = false;
+
+  @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -323,13 +326,13 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // In cuManager mode with no computing unit, show "Create Compute" button
+    // In cuManager mode with no computing unit, show "Connect" button
     if (
       environment.computingUnitManagerEnabled &&
       this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
       return {
-        text: "Create Compute",
+        text: "Connect",
         icon: "plus-circle",
         disable: false,
         onClick: () => this.runWorkflow(),
@@ -389,6 +392,13 @@ export class MenuComponent implements OnInit, OnDestroy {
       case ExecutionState.Resuming:
         return {
           text: "Resuming",
+          icon: "loading",
+          disable: true,
+          onClick: () => {},
+        };
+      case ExecutionState.Recovering:
+        return {
+          text: "Recovering",
           icon: "loading",
           disable: true,
           onClick: () => {},
@@ -737,13 +747,26 @@ export class MenuComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // If computing unit manager is enabled and either:
-    // 1. No computing unit is selected
-    // 2. The computing unit is not connected
+    // If computing unit manager is enabled and no computing unit is selected
     if (
       environment.computingUnitManagerEnabled &&
-      (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit || !this.computingUnitConnected)
+      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
+      // Create a default name based on the workflow name
+      const defaultName = this.currentWorkflowName
+        ? `${this.currentWorkflowName}'s Computing Unit`
+        : "New Computing Unit";
+
+      // Set the default name in the computing unit selection component
+      this.computingUnitSelectionComponent.newComputingUnitName = defaultName;
+
+      // Show the existing modal in the ComputingUnitSelectionComponent
+      this.computingUnitSelectionComponent.showAddComputeUnitModalVisible();
+      return;
+    }
+
+    // If computing unit manager is enabled and the computing unit is not connected
+    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
       // Update button immediately to show connecting
       this.applyRunButtonBehavior({
         text: "Connecting",
