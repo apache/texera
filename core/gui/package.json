@@ -6,7 +6,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve --proxy-config proxy.config.json --ssl false\"",
+    "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
     "build": "ng build --configuration=production --progress=false --source-map=false",
     "build:ci": "nx build --configuration=production --progress=false --source-map=false",
     "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
