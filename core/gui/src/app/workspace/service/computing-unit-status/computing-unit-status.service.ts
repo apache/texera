@@ -6,6 +6,7 @@ import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -229,9 +230,27 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   // Get the current status of the selected computing unit as string
-  public getStatus(): Observable<string> {
+  public getStatus(): Observable<ComputingUnitConnectionState> {
     return this.selectedUnitSubject.pipe(
-      map((unit: DashboardWorkflowComputingUnit | null) => unit?.status || "No Computing Unit")
+      map((unit: DashboardWorkflowComputingUnit | null) => {
+        if (!unit) {
+          return ComputingUnitConnectionState.NoComputingUnit;
+        }
+        
+        // Convert string status to enum
+        switch (unit.status) {
+          case "Running":
+            return ComputingUnitConnectionState.Running;
+          case "Pending":
+            return ComputingUnitConnectionState.Pending;
+          case "Disconnected":
+            return ComputingUnitConnectionState.Disconnected;
+          case "Terminating":
+            return ComputingUnitConnectionState.Terminating;
+          default:
+            return ComputingUnitConnectionState.Disconnected;
+        }
+      })
     );
   }
 

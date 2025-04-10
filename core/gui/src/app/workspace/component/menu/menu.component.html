@@ -383,15 +383,12 @@
             nz-tooltip=""
             nzTooltipPlacement="bottom"
             [nzTooltipTitle]="clusterInfo"
-            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === 'Running' || !environment.computingUnitManagerEnabled))?'green':'red'">
+            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running || !environment.computingUnitManagerEnabled))?'green':'red'">
           </nz-badge>
           <ng-template #clusterInfo>
-            <b
-              >{{(workflowWebsocketService.isConnected && (computingUnitStatus === 'Running' ||
-              !environment.computingUnitManagerEnabled))?"Connected":"Disconnected"}} to
-              {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b
-            >
+            <b>{{(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running || !environment.computingUnitManagerEnabled))?"Connected":"Disconnected"}} to {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b>
             <div *ngIf="workflowWebsocketService.isConnected">
+              <div *ngIf="environment.computingUnitManagerEnabled">Computing Unit Status: {{computingUnitStatus}}</div>
               <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>
             </div>
           </ng-template>
