@@ -32,7 +32,9 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Violin Plot")
-  @JsonPropertyDescription("Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot")
+  @JsonPropertyDescription(
+    "Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot"
+  )
   var violinPlot: Boolean = _
 
   @JsonProperty(
