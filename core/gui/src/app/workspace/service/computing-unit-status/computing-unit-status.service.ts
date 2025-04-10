@@ -126,8 +126,6 @@ export class ComputingUnitStatusService implements OnDestroy {
 
         // Only update when connection status actually changes
         if (previousConnected !== isConnected) {
-          console.log(`Connection status changed: ${previousConnected} -> ${isConnected}`);
-
           // Update the connection status
           this.connectedSubject.next(isConnected);
 
@@ -147,8 +145,6 @@ export class ComputingUnitStatusService implements OnDestroy {
 
             // Only update if status changed
             if (currentStatus !== newStatus) {
-              console.log(`Updating selected unit status: ${currentStatus} -> ${newStatus}`);
-
               const updatedUnit = {
                 ...this.selectedUnitSubject.value,
                 status: newStatus,
@@ -452,13 +448,11 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public createAndConnectComputingUnit(): Observable<boolean> {
     if (!environment.computingUnitManagerEnabled || !this.workflowIdSubject.value) {
-      console.log("Cannot create computing unit: either environment not enabled or workflow ID is missing");
       return of(false);
     }
 
     // Set to creating state
     this.isCreatingUnitSubject.next(true);
-    console.log("Setting creating unit state to true");
 
     // Create response subject to track overall process success
     const processCompleteSubject = new Subject<boolean>();
@@ -467,25 +461,22 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.computingUnitService
       .getComputingUnitLimitOptions()
       .pipe(
-        untilDestroyed(this),
         mergeMap(({ cpuLimitOptions, memoryLimitOptions }) => {
           const defaultCpu = cpuLimitOptions[0] || "1";
           const defaultMemory = memoryLimitOptions[0] || "1Gi";
           const workflowId = this.workflowIdSubject.value;
           const unitName = workflowId ? `Workflow ${workflowId} Unit` : "Default Unit";
 
-          console.log(`Creating computing unit: ${unitName} with CPU: ${defaultCpu}, Memory: ${defaultMemory}`);
-
           // Create the computing unit
           return this.computingUnitService.createComputingUnit(unitName, defaultCpu, defaultMemory);
         }),
-        catchError((err: Error) => {
-          console.error("Failed to create computing unit:", err);
+        catchError((err: unknown) => {
           this.isCreatingUnitSubject.next(false);
           this.notificationService.error(`Failed to create computing unit: ${err}`);
           processCompleteSubject.next(false);
           return of(null);
-        })
+        }),
+        untilDestroyed(this)
       )
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit | null) => {
@@ -493,24 +484,17 @@ export class ComputingUnitStatusService implements OnDestroy {
           this.isCreatingUnitSubject.next(false);
 
           if (unit) {
-            console.log(
-              `Computing unit created successfully: ${unit.computingUnit.name} (cuid: ${unit.computingUnit.cuid})`
-            );
-
             // Connect to the newly created unit
             this.connectToComputingUnit(unit)
               .pipe(untilDestroyed(this))
               .subscribe(connected => {
-                console.log(`Connection result: ${connected ? "connected" : "failed"}`);
                 processCompleteSubject.next(connected);
               });
           } else {
-            console.error("Unit creation returned null");
             processCompleteSubject.next(false);
           }
         },
         error: (err: unknown) => {
-          console.error("Error creating computing unit:", err);
           this.isCreatingUnitSubject.next(false);
           this.notificationService.error(`Failed to create computing unit: ${err}`);
           processCompleteSubject.next(false);
@@ -546,9 +530,9 @@ export class ComputingUnitStatusService implements OnDestroy {
     // Check connection status more frequently
     const connectionCheck = interval(200)
       .pipe(
-        untilDestroyed(this),
         filter(() => this.workflowWebsocketService.isConnected),
-        take(1) // Take only the first connection event
+        take(1), // Take only the first connection event
+        untilDestroyed(this)
       )
       .subscribe(() => {
         // Update connection status
@@ -575,14 +559,11 @@ export class ComputingUnitStatusService implements OnDestroy {
           this.connectionTimeoutTimer.unsubscribe();
           this.connectionTimeoutTimer = null;
         }
-
-        console.log("Connection established successfully");
       });
 
     // Set connection timeout
     this.connectionTimeoutTimer = timer(this.CONNECTION_TIMEOUT_MS).subscribe(() => {
       if (connectionCheck && !connectionCheck.closed) {
-        console.log("Connection timeout reached, cleaning up");
         connectionCheck.unsubscribe();
         this.isConnectingUnitSubject.next(false);
         this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
@@ -609,8 +590,6 @@ export class ComputingUnitStatusService implements OnDestroy {
    * @returns Observable<boolean> that emits true when the unit is connected and ready
    */
   public createAndConnect(): Observable<boolean> {
-    console.log("Creating and connecting to a computing unit");
-
     // Create and connect to a computing unit
     return this.createAndConnectComputingUnit();
   }
@@ -650,12 +629,12 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.computingUnitService
       .terminateComputingUnit(cuid)
       .pipe(
-        untilDestroyed(this),
-        catchError((err: Error) => {
+        catchError((err: unknown) => {
           this.notificationService.error(`Failed to terminate computing unit: ${err}`);
           terminationSubject.next(false);
           return of(null);
-        })
+        }),
+        untilDestroyed(this)
       )
       .subscribe({
         next: () => {
