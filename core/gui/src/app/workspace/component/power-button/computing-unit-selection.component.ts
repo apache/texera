@@ -11,6 +11,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { environment } from "../../../../environments/environment";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -36,12 +37,16 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   cpuOptions: string[] = [];
   memoryOptions: string[] = [];
 
+  // Add property to track user-initiated termination
+  private isUserTerminatingUnit = false;
+
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    private modalService: NzModalService
   ) {}
 
   ngOnInit(): void {
@@ -63,11 +68,31 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
         });
     }
 
+    // Track if user is intentionally terminating a unit
+    this.isUserTerminatingUnit = false;
+
     // Subscribe to the current selected unit from the status service
     this.computingUnitStatusService
       .getSelectedComputingUnit()
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
+        // Check if the status changed from Running to something else
+        if (
+          this.selectedComputingUnit?.status === "Running" &&
+          unit?.status &&
+          unit.status !== "Running" &&
+          !this.isUserTerminatingUnit
+        ) {
+          // Only show notification for unexpected status changes
+          if (unit.status === "Disconnected") {
+            this.notificationService.info(`Connecting to computing unit "${unit.computingUnit.name}"...`);
+          } else if (unit.status === "Terminating") {
+            this.notificationService.error(
+              `Computing unit "${unit.computingUnit.name}" is being terminated. Please select another unit to continue.`
+            );
+          }
+        }
+
         this.selectedComputingUnit = unit;
       });
 
@@ -150,7 +175,11 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     }
   }
 
+  /**
+   * Determines if a unit cannot be selected (disabled in the dropdown)
+   */
   cannotSelectUnit(unit: DashboardWorkflowComputingUnit): boolean {
+    // Only allow selecting units that are in the Running state
     return unit.status !== "Running";
   }
 
@@ -216,42 +245,74 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
    * @param cuid The CUID of the unit to terminate.
    */
   terminateComputingUnit(cuid: number): void {
-    const uri = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid)?.uri;
+    const unit = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid);
 
-    if (!uri) {
-      this.notificationService.error("Invalid computing unit URI.");
+    if (!unit || !unit.uri) {
+      this.notificationService.error("Invalid computing unit.");
       return;
     }
 
-    // Use the ComputingUnitStatusService to handle termination
-    // This will properly close the websocket before terminating the unit
-    this.computingUnitStatusService
-      .terminateComputingUnit(cuid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (success: boolean) => {
-          if (success) {
-            this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
+    const unitName = unit.computingUnit.name;
+    const unitId = this.getComputingUnitId(unit.uri);
+    const isTerminatingSelectedUnit = this.selectedComputingUnit?.computingUnit.cuid === cuid;
 
-            // Find another running unit to select if needed
-            if (this.selectedComputingUnit === null || this.selectedComputingUnit.computingUnit.cuid === cuid) {
-              const runningUnit = this.computingUnits.find(
-                unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
-              );
+    // Show confirmation modal
+    this.modalService.confirm({
+      nzTitle: "Terminate Computing Unit",
+      nzContent: `
+        <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
+        <p style="color: #ff4d4f;"><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>
+      `,
+      nzOkText: "Terminate",
+      nzOkType: "primary",
+      nzOnOk: () => {
+        // Set flag to avoid showing disconnection errors during intentional termination
+        if (isTerminatingSelectedUnit) {
+          this.isUserTerminatingUnit = true;
+        }
 
-              if (runningUnit) {
-                this.connectToComputingUnit(runningUnit);
-              } else {
-                this.selectedComputingUnit = null;
+        // Use the ComputingUnitStatusService to handle termination
+        // This will properly close the websocket before terminating the unit
+        this.computingUnitStatusService
+          .terminateComputingUnit(cuid)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: (success: boolean) => {
+              // Reset the termination flag regardless of result
+              if (isTerminatingSelectedUnit) {
+                this.isUserTerminatingUnit = false;
               }
-            }
-          } else {
-            this.notificationService.error("Failed to terminate computing unit");
-          }
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`),
-      });
+
+              if (success) {
+                this.notificationService.success(`Terminated ${unitId}`);
+
+                // Find another running unit to select if needed
+                if (this.selectedComputingUnit === null || isTerminatingSelectedUnit) {
+                  const runningUnit = this.computingUnits.find(
+                    unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
+                  );
+
+                  if (runningUnit) {
+                    this.connectToComputingUnit(runningUnit);
+                  } else {
+                    this.selectedComputingUnit = null;
+                  }
+                }
+              } else {
+                this.notificationService.error("Failed to terminate computing unit");
+              }
+            },
+            error: (err: unknown) => {
+              // Reset the termination flag on error
+              if (isTerminatingSelectedUnit) {
+                this.isUserTerminatingUnit = false;
+              }
+              this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`);
+            },
+          });
+      },
+      nzCancelText: "Cancel",
+    });
   }
 
   parseResourceUnit(resource: string): string {
@@ -458,6 +519,24 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
 
   getMemoryUnit(): string {
     return this.getMemoryLimitUnit() === "" ? "B" : this.getMemoryLimitUnit();
+  }
+
+  /**
+   * Returns a descriptive tooltip for a specific unit's status
+   */
+  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
+    switch (unit.status) {
+      case "Running":
+        return "Ready to use";
+      case "Pending":
+        return "Computing unit is starting up";
+      case "Disconnected":
+        return "Computing unit is not connected";
+      case "Terminating":
+        return "Computing unit is being terminated";
+      default:
+        return unit.status;
+    }
   }
 
   protected readonly environment = environment;

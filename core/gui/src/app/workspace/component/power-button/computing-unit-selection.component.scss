@@ -15,12 +15,87 @@
 }
 
 .computing-units-dropdown {
-  min-width: 250px;
-  max-width: 400px;
-}
+  min-width: 15rem;
+  max-width: 30rem;
+  max-height: 50vh;
+  overflow-y: auto;
 
-#computing-unit-option.unit-selected {
-  background-color: #f1eeee;
+  .computing-unit-option {
+    .computing-unit-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .computing-unit-name {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        max-width: calc(100% - 20px);
+
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .unit-status-indicator {
+          font-size: 0.85em;
+          margin-left: 4px;
+          opacity: 0.8;
+          font-style: italic;
+        }
+      }
+
+      .computing-unit-terminate-icon {
+        visibility: visible;
+      }
+    }
+
+    &:hover {
+      .computing-unit-terminate-icon {
+        visibility: visible;
+      }
+    }
+
+    &.unit-connecting {
+      color: #1890ff; // Blue
+    }
+
+    &.unit-disconnected {
+      color: #ff4d4f; // Red
+    }
+
+    &.unit-terminating {
+      color: #faad14; // Yellow/Orange
+    }
+
+    // Make disabled units visually distinct
+    &[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed !important;
+
+      .unit-status-indicator {
+        opacity: 1;
+        font-weight: 500;
+      }
+
+      // Still allow termination of non-running units
+      .computing-unit-terminate-icon {
+        opacity: 1;
+        cursor: pointer !important;
+
+        &:hover {
+          color: #ff4d4f;
+        }
+      }
+    }
+  }
+
+  .create-computing-unit {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
 }
 
 .create-computing-unit {
@@ -61,6 +136,12 @@
   color: #ff4d4f;
   cursor: pointer;
   margin-left: auto;
+  opacity: 0.85;
+}
+
+.computing-unit-terminate-icon:hover {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 .memory-selection,

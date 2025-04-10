@@ -80,17 +80,38 @@
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
-        [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
+        [ngClass]="{
+          'unit-selected': isSelectedUnit(unit),
+          'unit-connecting': unit.status === 'Pending',
+          'unit-disconnected': unit.status === 'Disconnected',
+          'unit-terminating': unit.status === 'Terminating'
+        }"
+        [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
         (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
         <div class="computing-unit-row">
           <div class="computing-unit-name">
             <nz-badge
               [nzColor]="getBadgeColor(unit.status)"
-              [nz-tooltip]="unit.status"></nz-badge>
+              [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
               nz-tooltip
               [nzTooltipTitle]="unit.computingUnit.name">
               {{ unit.computingUnit.name }}
+              <span
+                *ngIf="unit.status === 'Pending'"
+                class="unit-status-indicator"
+                >(Connecting)</span
+              >
+              <span
+                *ngIf="unit.status === 'Disconnected'"
+                class="unit-status-indicator"
+                >(Disconnected)</span
+              >
+              <span
+                *ngIf="unit.status === 'Terminating'"
+                class="unit-status-indicator"
+                >(Terminating)</span
+              >
             </span>
           </div>
           <i
@@ -99,7 +120,9 @@
             class="computing-unit-terminate-icon"
             nz-tooltip
             [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
-            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()">
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
+            role="button"
+            aria-label="Terminate computing unit">
           </i>
         </div>
       </li>

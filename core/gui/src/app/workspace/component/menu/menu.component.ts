@@ -276,38 +276,31 @@ export class MenuComponent implements OnInit, OnDestroy {
     disable: boolean;
     onClick: () => void;
   } {
-    // Check for empty workflow first
-    if (this.isWorkflowEmpty) {
-      return {
-        text: "Empty",
-        icon: "exclamation-circle",
-        disable: true,
-        onClick: () => {},
-      };
-    }
-
-    // Then check for validation errors
+    // If workflow is invalid, always disable and show "Invalid Workflow"
     if (!this.isWorkflowValid) {
       return {
-        text: "Error",
-        icon: "exclamation-circle",
+        text: "Invalid Workflow",
+        icon: "warning",
         disable: true,
         onClick: () => {},
       };
     }
 
-    // Check execution state flags from the Computing Unit Status Service
-    if (this.computingUnitStatusService.isCreatingUnitValue) {
+    // If workflow is empty, always disable and show "Empty Workflow"
+    if (this.isWorkflowEmpty) {
       return {
-        text: "Creating Unit",
-        icon: "loading",
+        text: "Empty Workflow",
+        icon: "info-circle",
         disable: true,
         onClick: () => {},
       };
     }
 
-    // Explicitly check for connecting state
-    if (this.computingUnitStatusService.isConnectingToUnitValue) {
+    // Check for creating/connecting states
+    if (
+      this.computingUnitStatusService.isCreatingUnitValue ||
+      this.computingUnitStatusService.isConnectingToUnitValue
+    ) {
       return {
         text: "Connecting",
         icon: "loading",
@@ -316,7 +309,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // When computing unit is selected but websocket is not connected, show "Connecting"
     // This handles the case where a unit exists but we're not connected to it
     if (
       environment.computingUnitManagerEnabled &&
@@ -331,23 +323,24 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    if (this.computingUnitStatusService.isAutoRunAfterConnectValue && this.computingUnitConnected) {
+    // In cuManager mode with no computing unit, show "Create Compute" button
+    if (
+      environment.computingUnitManagerEnabled &&
+      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
+    ) {
       return {
-        text: "Submitting",
-        icon: "loading",
-        disable: true,
-        onClick: () => {},
+        text: "Create Compute",
+        icon: "plus-circle",
+        disable: false,
+        onClick: () => this.runWorkflow(),
       };
     }
 
-    // In cuManager mode with no computing unit, always allow running which will create one
-    if (
-      environment.computingUnitManagerEnabled &&
-      (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit || !this.computingUnitConnected)
-    ) {
+    // In cuManager mode with disconnected computing unit, show "Connect" button
+    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
       return {
-        text: "Run",
-        icon: "play-circle",
+        text: "Connect",
+        icon: "link",
         disable: false,
         onClick: () => this.runWorkflow(),
       };
@@ -759,12 +752,9 @@ export class MenuComponent implements OnInit, OnDestroy {
         onClick: () => {},
       });
 
-      // Use the service to handle creation, connection, and auto-run
+      // Create and connect to a computing unit (no auto-run)
       this.computingUnitStatusService
-        .createConnectAndPrepareRun(
-          this.currentExecutionName || "Untitled Execution",
-          this.emailNotificationEnabled && environment.userSystemEnabled
-        )
+        .createAndConnect()
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           // Update the button state after request is initiated

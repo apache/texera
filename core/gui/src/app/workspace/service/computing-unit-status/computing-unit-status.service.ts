@@ -31,7 +31,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   // New behavior subjects for tracking connection process
   private isCreatingUnitSubject = new BehaviorSubject<boolean>(false);
   private isConnectingUnitSubject = new BehaviorSubject<boolean>(false);
-  private autoRunAfterConnectSubject = new BehaviorSubject<boolean>(false);
   private workflowIdSubject = new BehaviorSubject<number | undefined>(undefined);
 
   // Connection timeout values
@@ -47,24 +46,17 @@ export class ComputingUnitStatusService implements OnDestroy {
   // Flag to track if we're using a local computing unit
   private isUsingLocalComputingUnit: boolean = false;
 
-  // Variables to store auto-run parameters
-  private autoRunExecutionName = "";
-  private autoRunEnableEmailNotification = false;
-
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService, // Added for auto-run
-    private notificationService: NotificationService // Added for error notifications
+    private executeWorkflowService: ExecuteWorkflowService,
+    private notificationService: NotificationService
   ) {
     // Initialize the service by loading computing units
     this.initializeService();
 
     // Monitor websocket connection status
     this.monitorConnectionStatus();
-
-    // Monitor auto-run execution state transitions
-    this.monitorExecutionStateForAutoRun();
   }
 
   // Initialize the service with available computing units
@@ -130,35 +122,42 @@ export class ComputingUnitStatusService implements OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         const isConnected = this.workflowWebsocketService.isConnected;
+        const previousConnected = this.connectedSubject.value;
 
-        // Always update connection status and computing unit status together
-        this.connectedSubject.next(isConnected);
+        // Only update when connection status actually changes
+        if (previousConnected !== isConnected) {
+          console.log(`Connection status changed: ${previousConnected} -> ${isConnected}`);
 
-        // Always update the status of the computing unit based on connection
-        if (this.selectedUnitSubject.value) {
-          // If we have a selected unit but connection is lost, update its status
-          const currentStatus = this.selectedUnitSubject.value.status;
-          const newStatus = isConnected
-            ? // If the unit was previously in disconnected state but we're now connected,
-              // set it to Running, otherwise keep the current status
-              currentStatus === "Disconnected"
-              ? "Running"
-              : currentStatus
-            : // If we lost connection, always set to Disconnected
-              "Disconnected";
+          // Update the connection status
+          this.connectedSubject.next(isConnected);
 
-          if (currentStatus !== newStatus) {
-            const updatedUnit = {
-              ...this.selectedUnitSubject.value,
-              status: newStatus,
-            };
-            this.selectedUnitSubject.next(updatedUnit);
+          // Update the selected computing unit status based on connection
+          if (this.selectedUnitSubject.value) {
+            const currentStatus = this.selectedUnitSubject.value.status;
+            let newStatus = currentStatus;
 
-            // Update the units list as well
-            const updatedUnitsList = this.allUnitsSubject.value.map(unit =>
-              unit.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : unit
-            );
-            this.allUnitsSubject.next(updatedUnitsList);
+            // Determine the new status based on connection change
+            if (isConnected) {
+              // If we just connected and unit was disconnected, mark as Running
+              newStatus = currentStatus === "Disconnected" ? "Running" : currentStatus;
+            } else {
+              // If we just disconnected, mark as Disconnected
+              newStatus = "Disconnected";
+            }
+
+            // Only update if status changed
+            if (currentStatus !== newStatus) {
+              console.log(`Updating selected unit status: ${currentStatus} -> ${newStatus}`);
+
+              const updatedUnit = {
+                ...this.selectedUnitSubject.value,
+                status: newStatus,
+              };
+              this.selectedUnitSubject.next(updatedUnit);
+
+              // Update only this unit in the list
+              this.updateUnitInList(updatedUnit);
+            }
           }
         }
       });
@@ -180,26 +179,37 @@ export class ComputingUnitStatusService implements OnDestroy {
           // Check the connection status
           const isConnected = this.workflowWebsocketService.isConnected;
 
-          // If we're not connected, ensure all units show as disconnected
-          if (!isConnected) {
-            const disconnectedUnits = units.map(unit => ({
+          // Get current selected unit's CUID
+          const selectedCuid = this.selectedUnitSubject.value?.computingUnit.cuid;
+
+          if (this.isUsingLocalComputingUnit) {
+            // In local mode, ensure units show correct status based on connection
+            const modifiedUnits = units.map(unit => ({
               ...unit,
-              status: "Disconnected",
+              status: isConnected ? "Running" : "Disconnected",
             }));
-            this.updateComputingUnits(disconnectedUnits);
+            this.updateComputingUnits(modifiedUnits);
           } else {
-            // In local mode with connection, ensure unit shows as Running
-            if (this.isUsingLocalComputingUnit) {
-              const modifiedUnits = units.map(unit => ({
-                ...unit,
-                // Local units should always be Running when connected
-                status: "Running",
-              }));
-              this.updateComputingUnits(modifiedUnits);
-            } else {
-              // In cuManager mode with connection, use the units as is
-              this.updateComputingUnits(units);
+            // In cuManager mode, handle each unit individually:
+            // - Only mark the selected unit as disconnected when websocket is disconnected
+            // - Keep other units' status as reported by the backend
+            let modifiedUnits = [...units];
+
+            // If there's a selected unit and we're not connected
+            if (selectedCuid && !isConnected) {
+              // Only mark the currently selected unit as disconnected
+              modifiedUnits = modifiedUnits.map(unit => {
+                if (unit.computingUnit.cuid === selectedCuid) {
+                  return {
+                    ...unit,
+                    status: "Disconnected",
+                  };
+                }
+                return unit;
+              });
             }
+
+            this.updateComputingUnits(modifiedUnits);
           }
         },
         error: (err: unknown) => console.error("Failed to refresh computing units:", err),
@@ -383,7 +393,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.connectedSubject.complete();
     this.isCreatingUnitSubject.complete();
     this.isConnectingUnitSubject.complete();
-    this.autoRunAfterConnectSubject.complete();
     this.workflowIdSubject.complete();
   }
 
@@ -400,7 +409,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.connectedSubject.next(false);
     this.isConnectingUnitSubject.next(false);
     this.isCreatingUnitSubject.next(false);
-    this.autoRunAfterConnectSubject.next(false);
   }
 
   /**
@@ -426,13 +434,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Get whether the service is waiting to auto-run after connection as observable
-   */
-  public isAutoRunAfterConnect(): Observable<boolean> {
-    return this.autoRunAfterConnectSubject.asObservable();
-  }
-
-  /**
    * Get the current state of the unit creation process synchronously
    */
   public get isCreatingUnitValue(): boolean {
@@ -447,22 +448,17 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Get whether the service is waiting to auto-run after connection synchronously
-   */
-  public get isAutoRunAfterConnectValue(): boolean {
-    return this.autoRunAfterConnectSubject.value;
-  }
-
-  /**
    * Create a new computing unit with default settings and connect to it
    */
   public createAndConnectComputingUnit(): Observable<boolean> {
     if (!environment.computingUnitManagerEnabled || !this.workflowIdSubject.value) {
+      console.log("Cannot create computing unit: either environment not enabled or workflow ID is missing");
       return of(false);
     }
 
     // Set to creating state
     this.isCreatingUnitSubject.next(true);
+    console.log("Setting creating unit state to true");
 
     // Create response subject to track overall process success
     const processCompleteSubject = new Subject<boolean>();
@@ -478,10 +474,13 @@ export class ComputingUnitStatusService implements OnDestroy {
           const workflowId = this.workflowIdSubject.value;
           const unitName = workflowId ? `Workflow ${workflowId} Unit` : "Default Unit";
 
+          console.log(`Creating computing unit: ${unitName} with CPU: ${defaultCpu}, Memory: ${defaultMemory}`);
+
           // Create the computing unit
           return this.computingUnitService.createComputingUnit(unitName, defaultCpu, defaultMemory);
         }),
         catchError((err: Error) => {
+          console.error("Failed to create computing unit:", err);
           this.isCreatingUnitSubject.next(false);
           this.notificationService.error(`Failed to create computing unit: ${err}`);
           processCompleteSubject.next(false);
@@ -494,15 +493,24 @@ export class ComputingUnitStatusService implements OnDestroy {
           this.isCreatingUnitSubject.next(false);
 
           if (unit) {
+            console.log(
+              `Computing unit created successfully: ${unit.computingUnit.name} (cuid: ${unit.computingUnit.cuid})`
+            );
+
             // Connect to the newly created unit
             this.connectToComputingUnit(unit)
               .pipe(untilDestroyed(this))
               .subscribe(connected => {
+                console.log(`Connection result: ${connected ? "connected" : "failed"}`);
                 processCompleteSubject.next(connected);
               });
+          } else {
+            console.error("Unit creation returned null");
+            processCompleteSubject.next(false);
           }
         },
         error: (err: unknown) => {
+          console.error("Error creating computing unit:", err);
           this.isCreatingUnitSubject.next(false);
           this.notificationService.error(`Failed to create computing unit: ${err}`);
           processCompleteSubject.next(false);
@@ -535,11 +543,12 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.workflowWebsocketService.closeWebsocket();
     this.workflowWebsocketService.openWebsocket(this.workflowIdSubject.value, undefined, unit.computingUnit.cuid);
 
-    // Check connection status frequently
+    // Check connection status more frequently
     const connectionCheck = interval(200)
       .pipe(
         untilDestroyed(this),
-        filter(() => this.workflowWebsocketService.isConnected)
+        filter(() => this.workflowWebsocketService.isConnected),
+        take(1) // Take only the first connection event
       )
       .subscribe(() => {
         // Update connection status
@@ -560,18 +569,20 @@ export class ComputingUnitStatusService implements OnDestroy {
         // Complete the connection process
         this.isConnectingUnitSubject.next(false);
         connectedSubject.next(true);
-        connectionCheck.unsubscribe();
 
         // Clear any timeout
         if (this.connectionTimeoutTimer) {
           this.connectionTimeoutTimer.unsubscribe();
           this.connectionTimeoutTimer = null;
         }
+
+        console.log("Connection established successfully");
       });
 
     // Set connection timeout
     this.connectionTimeoutTimer = timer(this.CONNECTION_TIMEOUT_MS).subscribe(() => {
       if (connectionCheck && !connectionCheck.closed) {
+        console.log("Connection timeout reached, cleaning up");
         connectionCheck.unsubscribe();
         this.isConnectingUnitSubject.next(false);
         this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
@@ -584,118 +595,24 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Helper method to update a unit in the all units list
+   * Helper method to update a single unit in the units list
    */
-  private updateUnitInList(unit: DashboardWorkflowComputingUnit): void {
-    const updatedList = this.allUnitsSubject.value.map(existingUnit =>
-      existingUnit.computingUnit.cuid === unit.computingUnit.cuid ? unit : existingUnit
+  private updateUnitInList(updatedUnit: DashboardWorkflowComputingUnit): void {
+    const updatedUnitsList = this.allUnitsSubject.value.map(unit =>
+      unit.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : unit
     );
-    this.allUnitsSubject.next(updatedList);
+    this.allUnitsSubject.next(updatedUnitsList);
   }
 
   /**
-   * Create a computing unit, connect to it, and prepare to run the workflow
-   * @param executionName The name to use for the execution
-   * @param enableEmailNotification Whether to enable email notifications
+   * Create a computing unit and connect to it (no auto-run)
    * @returns Observable<boolean> that emits true when the unit is connected and ready
    */
-  public createConnectAndPrepareRun(executionName: string, enableEmailNotification: boolean): Observable<boolean> {
-    // Check if already connected to a running computing unit
-    if (
-      this.workflowWebsocketService.isConnected &&
-      this.selectedUnitSubject.value &&
-      this.selectedUnitSubject.value.status === "Running"
-    ) {
-      // Set execution parameters
-      this.setAutoRunParameters(executionName, enableEmailNotification);
-
-      // Already connected, return immediately
-      return of(true);
-    }
-
-    // Set auto-run flag and parameters
-    this.setAutoRunParameters(executionName, enableEmailNotification);
+  public createAndConnect(): Observable<boolean> {
+    console.log("Creating and connecting to a computing unit");
 
     // Create and connect to a computing unit
     return this.createAndConnectComputingUnit();
-  }
-
-  /**
-   * Set parameters for auto-run after connection
-   */
-  private setAutoRunParameters(executionName: string, enableEmailNotification: boolean): void {
-    // Store these in instance variables for the monitoring method to use
-    this.autoRunExecutionName = executionName;
-    this.autoRunEnableEmailNotification = enableEmailNotification;
-    this.autoRunAfterConnectSubject.next(true);
-  }
-
-  /**
-   * Monitor execution state changes for auto-run workflow
-   */
-  private monitorExecutionStateForAutoRun(): void {
-    // Subscribe to connection status
-    this.connectedSubject
-      .pipe(
-        untilDestroyed(this),
-        filter(connected => connected && this.autoRunAfterConnectSubject.value)
-      )
-      .subscribe(() => {
-        // Execute the workflow with the stored parameters
-        this.executeWorkflowService.executeWorkflowWithEmailNotification(
-          this.autoRunExecutionName,
-          this.autoRunEnableEmailNotification
-        );
-
-        // Set a timeout to clear the flag if execution doesn't start quickly
-        // This prevents the button from staying in "Submitting" state indefinitely
-        setTimeout(() => {
-          if (this.autoRunAfterConnectSubject.value) {
-            console.warn("Auto-run flag not cleared by execution, resetting manually");
-            this.autoRunAfterConnectSubject.next(false);
-          }
-        }, 5000);
-      });
-
-    // Monitor execution state changes to clear auto-run flag
-    this.executeWorkflowService
-      .getExecutionStateStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        // Clear the autoRunAfterConnect flag when execution starts or completes
-        if (
-          event.current.state === ExecutionState.Initializing ||
-          event.current.state === ExecutionState.Running ||
-          event.current.state === ExecutionState.Failed ||
-          event.current.state === ExecutionState.Killed ||
-          event.current.state === ExecutionState.Completed
-        ) {
-          this.autoRunAfterConnectSubject.next(false);
-        }
-      });
-
-    // Also monitor websocket connection changes
-    interval(1000)
-      .pipe(
-        untilDestroyed(this),
-        filter(() => this.isConnectingUnitSubject.value)
-      )
-      .subscribe(() => {
-        // If we're in connecting state but websocket connects, update connection status
-        if (this.workflowWebsocketService.isConnected) {
-          this.connectedSubject.next(true);
-
-          // If we have a selected unit, update its status to Running
-          if (this.selectedUnitSubject.value) {
-            const updatedUnit = {
-              ...this.selectedUnitSubject.value,
-              status: "Running",
-            };
-            this.selectedUnitSubject.next(updatedUnit);
-            this.updateUnitInList(updatedUnit);
-          }
-        }
-      });
   }
 
   /**
