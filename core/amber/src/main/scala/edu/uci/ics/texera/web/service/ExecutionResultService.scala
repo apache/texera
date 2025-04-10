@@ -4,39 +4,39 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ExecutionStateUpdate,
-  FatalError
+import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.result._
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
+import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, IncrementalOutputMode}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
+import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
   TexeraWebSocketEvent,
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
-import edu.uci.ics.texera.web.storage.{
-  ExecutionStateStore,
-  OperatorResultMetadata,
-  WorkflowResultStore,
-  WorkflowStateStore
-}
-import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
-import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
+import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
+import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
 import java.util.UUID
 import scala.collection.mutable
@@ -44,28 +44,121 @@ import scala.concurrent.duration.DurationInt
 
 object ExecutionResultService {
 
-  val defaultPageSize: Int = 5
+  private val defaultPageSize: Int = 5
 
-  // convert Tuple from engine's format to JSON format
-  def webDataFromTuple(
-      mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
-  ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
+  /**
+    * Converts a collection of Tuples to a list of JSON ObjectNodes.
+    *
+    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
+    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For string values longer than maxStringLength (100), it truncates them.
+    * NULL values are converted to the string "NULL".
+    *
+    * @param tuples The collection of Tuples to convert
+    * @param isVisualization Whether this is for visualization rendering (affects string truncation)
+    * @return A List of ObjectNodes containing the JSON representation of the tuples
+    */
+  def convertTuplesToJson(
+      tuples: Iterable[Tuple],
+      isVisualization: Boolean = false
+  ): List[ObjectNode] = {
+    val maxStringLength = 100
+
+    tuples.map { tuple =>
+      val processedFields = tuple.schema.getAttributes.zipWithIndex
+        .map {
+          case (attr, idx) =>
+            val fieldValue = tuple.getField[AnyRef](idx)
+
+            Option(fieldValue) match {
+              case None => "NULL"
+              case Some(value) =>
+                attr.getType match {
+                  case AttributeType.BINARY =>
+                    value match {
+                      case binaryList: List[_] if binaryList.nonEmpty =>
+                        val totalSize = binaryList.foldLeft(0) {
+                          case (sum, buffer: java.nio.ByteBuffer) => sum + buffer.remaining()
+                          case (_, other) =>
+                            throw new RuntimeException(
+                              s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+                            )
+                        }
+
+                        val firstElement = getByteBufferHexString(binaryList.head)
+
+                        val lastElement = if (binaryList.size > 1) {
+                          getByteBufferHexString(binaryList.last)
+                        } else {
+                          firstElement
+                        }
+
+                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
+                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
+                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
+                        if (firstElement.length < 39) {
+                          s"bytes'$firstElement' (length: $totalSize)"
+                        } else {
+                          val leadingBytes = firstElement.take(30)
+                          val trailingBytes = lastElement.takeRight(9)
+                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                        }
+
+                      case _ =>
+                        throw new RuntimeException(
+                          s"Expected a List for binary type field, but got: ${value.getClass.getName}"
+                        )
+                    }
+                  case AttributeType.STRING =>
+                    val stringValue = value.asInstanceOf[String]
+                    if (stringValue.length > maxStringLength && !isVisualization)
+                      stringValue.take(maxStringLength) + "..."
+                    else
+                      stringValue
+                  case _ => value
+                }
+            }
+        }
+        .toArray[Any]
+
+      TupleUtils.tuple2json(tuple.schema, processedFields)
+    }.toList
   }
 
   /**
-    *  convert Tuple from engine's format to JSON format
+    * Converts a ByteBuffer value to a hex string representation.
+    *
+    * This helper function takes a ByteBuffer value and converts its contents to a space-separated
+    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
+    * If the input is not a ByteBuffer, it throws a RuntimeException.
+    *
+    * @param value The value to convert, expected to be a ByteBuffer
+    * @return A string containing the hex representation of the ByteBuffer's contents
+    * @throws RuntimeException if the input value is not a ByteBuffer
+    */
+  private def getByteBufferHexString(value: Any): String = {
+    value match {
+      case buffer: java.nio.ByteBuffer =>
+        val bytes = new Array[Byte](buffer.remaining())
+        val dupBuffer = buffer.duplicate()
+        dupBuffer.get(bytes)
+        bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+      case other =>
+        throw new RuntimeException(
+          s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+        )
+    }
+  }
+
+  /**
+    * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
+      table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
+    val tableInJson = convertTuplesToJson(table, mode == SetSnapshotMode())
+    WebDataUpdate(mode, tableInJson)
   }
 
   /**
@@ -76,46 +169,77 @@ object ExecutionResultService {
     *
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
-  def convertWebResultUpdate(
-      sink: ProgressiveSinkOpDesc,
+  private def convertWebResultUpdate(
+      workflowIdentity: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      physicalOps: List[PhysicalOp],
       oldTupleCount: Int,
       newTupleCount: Int
   ): WebResultUpdate = {
+    val outputMode = physicalOps
+      .flatMap(op => op.outputPorts)
+      .filter({
+        case (portId, (port, links, schema)) => !portId.internal
+      })
+      .map({
+        case (portId, (port, links, schema)) => port.mode
+      })
+      .head
+
     val webOutputMode: WebOutputMode = {
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
+      outputMode match {
+        // currently, only table outputs are using these modes
+        case OutputMode.SET_DELTA    => SetDeltaMode()
+        case OutputMode.SET_SNAPSHOT => PaginationMode()
+
+        // currently, only visualizations are using single snapshot mode
+        case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
 
-    val storage = sink.getStorage
-    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-      case (PaginationMode(), SET_SNAPSHOT) =>
-        val numTuples = storage.getCount
-        val maxPageIndex =
-          Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
+    // Cannot assume the storage is available at this point. The storage object is only available
+    // after a region is scheduled to execute.
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      executionId,
+      physicalOps.head.id.logicalOpId,
+      PortIdentity()
+    )
+    storageUriOption match {
+      case Some(storageUri) =>
+        val storage: VirtualDocument[Tuple] =
+          DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+        val webUpdate = webOutputMode match {
+          case PaginationMode() =>
+            val numTuples = storage.getCount
+            val maxPageIndex =
+              Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+            // This can be extremly expensive when we have a lot of pages.
+            // It causes delays in some obseved cases.
+            // TODO: try to optimize this.
+            WebPaginationUpdate(
+              PaginationMode(),
+              newTupleCount,
+              (1 to maxPageIndex).toList
+            )
+          case SetSnapshotMode() =>
+            tuplesToWebData(webOutputMode, storage.get().toList)
+          case SetDeltaMode() =>
+            val deltaList = storage.getAfter(oldTupleCount).toList
+            tuplesToWebData(webOutputMode, deltaList)
+
+          case _ =>
+            throw new RuntimeException(
+              "update mode combination not supported: " + (webOutputMode, outputMode)
+            )
+        }
+        webUpdate
+      case None =>
         WebPaginationUpdate(
           PaginationMode(),
-          newTupleCount,
-          (1 to maxPageIndex).toList
-        )
-      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.getAll.toList, sink.getChartType)
-      case (SetDeltaMode(), SET_DELTA) =>
-        val deltaList = storage.getAllAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
-
-      // currently not supported mode combinations
-      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
-      case _ =>
-        throw new RuntimeException(
-          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
+          0,
+          List.empty
         )
     }
-    webUpdate
   }
 
   /**
@@ -152,35 +276,31 @@ object ExecutionResultService {
       dirtyPageIndices: List[Int]
   ) extends WebResultUpdate
 
-  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdate
+  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode]) extends WebResultUpdate
+
 }
 
 /**
-  * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
+  * ExecutionResultService manages all operator output ports that have storage in one workflow execution.
   *
   * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
 class ExecutionResultService(
-    val opResultStorage: OpResultStorage,
+    workflowIdentity: WorkflowIdentity,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
-
-  var sinkOperators: mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc] =
-    mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
-  var tableFields: mutable.Map[String, Map[String, Iterable[String]]] = mutable.Map()
 
   def attachToExecution(
+      executionId: ExecutionIdentity,
       stateStore: ExecutionStateStore,
-      logicalPlan: LogicalPlan,
+      physicalPlan: PhysicalPlan,
       client: AmberClient
   ): Unit = {
-
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
       resultUpdateCancellable.cancel()
     }
@@ -197,7 +317,7 @@ class ExecutionResultService(
                   2.seconds,
                   resultPullingFrequency.seconds
                 ) {
-                  onResultUpdate()
+                  onResultUpdate(executionId, physicalPlan)
                 }
             }
           } else {
@@ -213,7 +333,7 @@ class ExecutionResultService(
             logger.info("Workflow execution terminated. Stop update results.")
             if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
               // immediately perform final update
-              onResultUpdate()
+              onResultUpdate(executionId, physicalPlan)
             }
           }
         })
@@ -229,7 +349,7 @@ class ExecutionResultService(
 
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
-        val buf = mutable.HashMap[String, WebResultUpdate]()
+        val buf = mutable.HashMap[String, ExecutionResultService.WebResultUpdate]()
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
@@ -241,51 +361,43 @@ class ExecutionResultService(
             case (opId, info) =>
               val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
               buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
-                sinkOperators(opId),
+                workflowIdentity,
+                executionId,
+                physicalPlan.getPhysicalOpsOfLogicalOp(opId),
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (
-                AmberConfig.sinkStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
-              ) {
-                val sinkMgr = sinkOperators(opId).getStorage
-                if (oldState.resultInfo.isEmpty) {
-                  val fields = sinkMgr.getAllFields()
-                  if (fields.length >= 3) {
-                    // The fields array for MongoDB operators should contain three arrays:
-                    // 1. numericFields: An array of numeric field names
-                    // 2. catFields: An array of categorical field names
-                    // 3. dateFields: An array of date field names
-                    val NumericFieldsNamesArray = "numericFields"
-                    val CategoricalFieldsNamesArray = "catFields"
-                    val DateFieldsNamesArray = "dateFields"
+              // using the first port for now. TODO: support multiple ports
+              val outputPortsMap = physicalPlan
+                .getPhysicalOpsOfLogicalOp(opId)
+                .headOption
+                .map(_.outputPorts)
+                .getOrElse(Map.empty)
+              val hasSingleSnapshot = outputPortsMap.values.exists {
+                case (outputPort, _, _) =>
+                  // SINGLE_SNAPSHOT is used for HTML content
+                  outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+              }
 
-                    // Update tableFields with extracted fields
-                    tableFields.update(
-                      opId.id,
-                      Map(
-                        NumericFieldsNamesArray -> fields(0),
-                        CategoricalFieldsNamesArray -> fields(1),
-                        DateFieldsNamesArray -> fields(2)
-                      )
-                    )
-                  }
+              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+                val layerName = physicalPlan.operators
+                  .filter(physicalOp =>
+                    physicalOp.id.logicalOpId == opId &&
+                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
+                  ) // TODO: Remove layerName and use GlobalPortIdentity for storage URIs
+                  .headOption match {
+                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
+                  case None                         => "main"
                 }
-                if (
-                  tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
-                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
-                    .contains("numericFields")
-                ) {
-                  val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
-                  val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
-                  val tableNumericStats =
-                    sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
-                  val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
-                  if (
-                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                  ) {
-                    allTableStats(opId.id) = allStats
-                  }
+                val storageUri = WorkflowExecutionsResource
+                  .getResultUriByLogicalPortId(
+                    executionId,
+                    opId,
+                    PortIdentity()
+                  )
+                if (storageUri.nonEmpty) {
+                  val opStorage = DocumentFactory.openDocument(storageUri.get)._1
+                  allTableStats(opId.id) = opStorage.getTableStatistics
                 }
               }
           }
@@ -293,61 +405,79 @@ class ExecutionResultService(
           WebResultUpdateEvent(
             buf.toMap,
             allTableStats.toMap,
-            AmberConfig.sinkStorageMode.toLowerCase
+            StorageConfig.resultStorageMode.toLowerCase
           )
         )
       })
     )
 
-    // first clear all the results
-    sinkOperators.clear()
+    // clear all the result metadata
     workflowStateStore.resultStore.updateState { _ =>
       WorkflowResultStore() // empty result store
     }
 
-    // For operators connected to a sink and sinks,
-    // create result service so that the results can be displayed.
-    logicalPlan.getTerminalOperatorIds.map(sink => {
-      logicalPlan.getOperator(sink) match {
-        case sinkOp: ProgressiveSinkOpDesc =>
-          sinkOperators += ((sinkOp.getUpstreamId.get, sinkOp))
-          sinkOperators += ((sink, sinkOp))
-        case other => // skip other non-texera-managed sinks, if any
-      }
-    })
   }
 
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = OperatorIdentity(request.operatorID)
-    val paginationIterable =
-      if (sinkOperators.contains(opId)) {
-        sinkOperators(opId).getStorage.getRange(from, from + request.pageSize)
-      } else {
-        Iterable.empty
-      }
-    val mappedResults = paginationIterable
-      .map(tuple => tuple.asKeyValuePairJson())
-      .toList
-    val attributes = paginationIterable.headOption
-      .map(_.getSchema.getAttributes)
-      .getOrElse(List.empty)
-    PaginatedResultEvent.apply(request, mappedResults, attributes)
+    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
+      throw new IllegalStateException("No execution is recorded")
+    )
+
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      latestExecutionId,
+      OperatorIdentity(request.operatorID),
+      PortIdentity()
+    )
+
+    storageUriOption match {
+      case Some(storageUri) =>
+        val paginationIterable = {
+          DocumentFactory
+            .openDocument(storageUri)
+            ._1
+            .asInstanceOf[VirtualDocument[Tuple]]
+            .getRange(from, from + request.pageSize)
+            .to(Iterable)
+        }
+        val mappedResults = convertTuplesToJson(paginationIterable)
+        val attributes = paginationIterable.headOption
+          .map(_.getSchema.getAttributes)
+          .getOrElse(List.empty)
+        PaginatedResultEvent.apply(request, mappedResults, attributes)
+
+      case None =>
+        // Handle the case when storageUri is empty
+        PaginatedResultEvent.apply(request, List.empty, List.empty)
+    }
   }
 
-  private def onResultUpdate(): Unit = {
+  private def onResultUpdate(executionId: ExecutionIdentity, physicalPlan: PhysicalPlan): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
-      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
-        case (id, sink) =>
-          val count = sink.getStorage.getCount.toInt
-          val mode = sink.getOutputMode
-          val changeDetector =
-            if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
-              UUID.randomUUID.toString
-            } else ""
-          (id, OperatorResultMetadata(count, changeDetector))
-      }.toMap
+      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
+        WorkflowExecutionsResource
+          .getResultUrisByExecutionId(executionId)
+          .map(uri => {
+            val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
+
+            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
+
+            // Retrieve the mode of the specified output port
+            val mode = physicalPlan
+              .getPhysicalOpsOfLogicalOp(globalPortIdOption.get.opId.logicalOpId)
+              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
+              .map(_._1.mode)
+              .head
+
+            val changeDetector =
+              if (mode == OutputMode.SET_SNAPSHOT) {
+                UUID.randomUUID.toString
+              } else ""
+            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
+          })
+          .toMap
+      }
       WorkflowResultStore(newInfo)
     }
   }

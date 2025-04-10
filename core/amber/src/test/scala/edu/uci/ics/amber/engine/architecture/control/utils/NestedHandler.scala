@@ -1,24 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.{Nested, Pass}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object NestedHandler {
-  case class Nested(k: Int) extends ControlCommand[String]
-
-  case class Pass(value: String) extends ControlCommand[String]
-}
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
 
 trait NestedHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { (n: Nested, sender) =>
-    send(Pass("Hello"), myID)
-      .flatMap(ret => send(Pass(ret + " "), myID))
-      .flatMap(ret => send(Pass(ret + "World!"), myID))
+  override def sendNested(request: Nested, ctx: AsyncRPCContext): Future[StringResponse] = {
+    getProxy
+      .sendPass(Pass("Hello"), myID)
+      .flatMap(ret => getProxy.sendPass(Pass(ret.value + " "), myID))
+      .flatMap(ret => getProxy.sendPass(Pass(ret.value + "World!"), myID))
   }
 
-  registerHandler { (p: Pass, sender) =>
-    p.value
+  override def sendPass(request: Pass, ctx: AsyncRPCContext): Future[StringResponse] = {
+    StringResponse(request.value)
   }
+
 }

@@ -2,31 +2,23 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
 }
-import edu.uci.ics.amber.engine.architecture.controller.Controller.{
-  ReplayStatusUpdate,
-  WorkflowRecoveryStatus
-}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  ControlPayload,
-  WorkflowFIFOMessage
-}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import scala.concurrent.duration.DurationInt
 
@@ -50,26 +42,20 @@ object Controller {
   def props(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig = ControllerConfig.default
   ): Props =
     Props(
       new Controller(
         workflowContext,
         physicalPlan,
-        opResultStorage,
         controllerConfig
       )
     )
-
-  final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean)
-  final case class WorkflowRecoveryStatus(isRecovering: Boolean)
 }
 
 class Controller(
     workflowContext: WorkflowContext,
     physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig
 ) extends WorkflowActor(
       controllerConfig.faultToleranceConfOpt,
@@ -80,7 +66,6 @@ class Controller(
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
   var cp = new ControllerProcessor(
     workflowContext,
-    opResultStorage,
     controllerConfig,
     actorId,
     logManager.sendCommitted
@@ -173,7 +158,9 @@ class Controller(
   override def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
+
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
   // adopted solution from
   // https://stackoverflow.com/questions/54228901/right-way-of-exception-handling-when-using-akka-actors
   override val supervisorStrategy: SupervisorStrategy =
@@ -206,7 +193,8 @@ class Controller(
       regionExecution.getAllOperatorExecutions.foreach {
         case (opId, opExecution) =>
           val op = physicalPlan.getOperator(opId)
-          op.build(
+          ExecutorDeployment.createWorkers(
+            op,
             actorService,
             OperatorExecution(), //use dummy value here
             regionExecution.region.resourceConfig.get.operatorConfigs(opId),

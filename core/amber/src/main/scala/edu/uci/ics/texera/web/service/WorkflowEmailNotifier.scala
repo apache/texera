@@ -1,46 +1,38 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  PAUSED,
-  RUNNING
-}
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
-import org.jooq.types.UInteger
 
 import java.net.URI
-import java.time.{Instant, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, ZoneOffset}
 
 class WorkflowEmailNotifier(
     workflowId: Long,
     userEmail: String,
     sessionUri: URI
-) extends EmailNotifier {
-  private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
+) extends EmailNotifier
+    with LazyLogging {
+  private val workflowName = WorkflowResource.getWorkflowName(workflowId.toInt)
   private val emailValidator = new EmailValidator()
-  private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
+
+  private val TerminalStates: Set[WorkflowAggregatedState] = Set(
     COMPLETED,
     PAUSED,
     FAILED,
     KILLED
   )
 
-  override def shouldSendEmail(
-      oldState: WorkflowAggregatedState,
-      newState: WorkflowAggregatedState
-  ): Boolean = {
-    oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
-  }
+  override def shouldSendEmail(workflowState: WorkflowAggregatedState): Boolean =
+    TerminalStates.contains(workflowState)
 
   override def sendStatusEmail(state: WorkflowAggregatedState): Unit = {
     if (!isValidEmail(userEmail)) {
-      println(s"Invalid email address: $userEmail")
+      logger.warn(s"Invalid email address: $userEmail")
       return
     }
 
@@ -71,19 +63,19 @@ class WorkflowEmailNotifier(
     val dashboardUrl = createDashboardUrl()
 
     s"""
-      |Hello,
-      |
-      |The workflow with the following details has changed its state:
-      |
-      |- Workflow ID: $workflowId
-      |- Workflow Name: $workflowName
-      |- State: $state
-      |- Timestamp: $timestamp
-      |
-      |You can view more details by visiting: $dashboardUrl
-      |
-      |Regards,
-      |Texera Team
+       |Hello,
+       |
+       |The workflow with the following details has changed its state:
+       |
+       |- Workflow ID: $workflowId
+       |- Workflow Name: $workflowName
+       |- State: $state
+       |- Timestamp: $timestamp
+       |
+       |You can view more details by visiting: $dashboardUrl
+       |
+       |Regards,
+       |Texera Team
     """.stripMargin.trim
   }
 

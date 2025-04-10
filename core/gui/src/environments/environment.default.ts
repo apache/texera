@@ -13,30 +13,13 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
-   * whether fetching available source tables is enabled
-   * see SourceTablesService for details
-   */
-  sourceTableEnabled: false,
-
-  /**
-   * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropagationService for details
-   */
-  schemaPropagationEnabled: true,
-
-  /**
-   * whether the backend supports checking execution status
-   */
-  executionStatusEnabled: true,
-
-  /**
    * whether export execution result is supported
    */
   exportExecutionResultEnabled: false,
 
   /**
-   * Whether automatically correcting attribute name on change is enabled
-   * See AutoAttributeCorrectionService for more details
+   * whether automatically correcting attribute name on change is enabled
+   * see AutoAttributeCorrectionService for more details
    */
   autoAttributeCorrectionEnabled: true,
 
@@ -46,10 +29,25 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
+   * whether workflow computing unit manager is enabled (requires k8s)
+   */
+  computingUnitManagerEnabled: false,
+
+  /**
+   * whether selecting files from datasets instead of the local file system.
+   * The user system must be enabled to make this flag work!
+   */
+  selectingFilesFromDatasetsEnabled: true,
+
+  /**
    * whether local login is enabled
    */
   localLogin: true,
 
+  /**
+   * whether google login is enabled
+   */
+  googleLogin: true,
   /**
    * whether invite only is enabled
    */
@@ -71,21 +69,15 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
-   * whether operator caching is enabled
+   * whether rendering jointjs components asynchronously
    */
-  operatorCacheEnabled: false,
-
-  /**
-   * whether debugger is enabled
-   */
-  debuggerEnabled: false,
-
   asyncRenderingEnabled: false,
 
   /**
    * whether time-travel is enabled
    */
   timetravelEnabled: false,
+
   /**
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
@@ -93,8 +85,20 @@ export const defaultEnvironment = {
   productionSharedEditingServer: false,
 
   /**
+   * the file size limit for dataset upload
    */
   singleFileUploadMaximumSizeMB: 20,
+
+  /**
+   * the maximum number of file chunks that can be held in the memory;
+   * you may increase this number if your deployment environment has enough memory resource.
+   */
+  maxNumberOfConcurrentUploadingFileChunks: 10,
+
+  /**
+   * the size of each chunk during the multipart upload of file
+   */
+  multipartUploadChunkSizeByte: 50 * 1024 * 1024, // 50 MB
 
   /**
    * default data transfer batch size for workflows
@@ -102,9 +106,35 @@ export const defaultEnvironment = {
   defaultDataTransferBatchSize: 400,
 
   /**
-   * Whether to send email notification when workflow execution is completed/failed/paused/killed
+   * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
+
+  /**
+   * whether hub feature is enabled
+   */
+  hubEnabled: true,
+
+  /**
+   * whether forum feature is enabled
+   */
+  forumEnabled: false,
+
+  /**
+   * whether project feature is enabled
+   */
+  projectEnabled: false,
+
+  /**
+   * Can be configured as { username: "texera", password: "password" }
+   * If configured, this will be automatically filled into the local login input box
+   */
+  defaultLocalUser: {} as { username?: string; password?: string },
+
+  /**
+   * maximum number of console messages to store per operator
+   */
+  operatorConsoleMessageBufferSize: 100,
 };
 
 export type AppEnv = typeof defaultEnvironment;

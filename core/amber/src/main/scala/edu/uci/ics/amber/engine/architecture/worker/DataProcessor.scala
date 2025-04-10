@@ -1,20 +1,26 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.tuple.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortCompletedHandler.PortCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerStateUpdatedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   InputManager,
   OutputManager,
   WorkerTimerService
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
   READY,
@@ -22,20 +28,11 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -59,6 +56,7 @@ class DataProcessor(
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
   val serializationManager: SerializationManager = new SerializationManager(actorId)
+
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
@@ -84,7 +82,7 @@ class DataProcessor(
         )
       )
 
-      statisticsManager.increaseInputTupleCount(portIdentity)
+      statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
 
     } catch safely {
       case e =>
@@ -177,16 +175,22 @@ class DataProcessor(
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
-        asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+        asyncRPCClient.controllerInterface.workerExecutionCompleted(
+          EmptyRequest(),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
       case FinalizePort(portId, input) =>
-        asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
+        outputManager.closeOutputStorageWriterIfNeeded(portId)
+        asyncRPCClient.controllerInterface.portCompleted(
+          PortCompletedRequest(portId, input),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
       case schemaEnforceable: SchemaEnforceable =>
-        if (outputPortOpt.isEmpty) {
-          statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)
-        } else {
-          statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
-        }
-        outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
+        val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
+        val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
+        statisticsManager.increaseOutputStatistics(portIdentity, tuple.inMemSize)
+        outputManager.passTupleToDownstream(tuple, outputPortOpt)
+        outputManager.saveTupleToStorageIfNeeded(tuple, outputPortOpt)
 
       case other => // skip for now
     }
@@ -214,9 +218,9 @@ class DataProcessor(
           READY,
           RUNNING,
           () => {
-            asyncRPCClient.send(
-              WorkerStateUpdated(stateManager.getCurrentState),
-              CONTROLLER
+            asyncRPCClient.controllerInterface.workerStateUpdated(
+              WorkerStateUpdatedRequest(stateManager.getCurrentState),
+              asyncRPCClient.mkContext(CONTROLLER)
             )
           }
         )
@@ -252,9 +256,9 @@ class DataProcessor(
       logManager: ReplayLogManager
   ): Unit = {
     val markerId = marker.id
-    val command = marker.commandMapping.get(actorId)
+    val command = marker.commandMapping.get(actorId.name)
     logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = ${command}")
-    if (marker.markerType == RequireAlignment) {
+    if (marker.markerType == REQUIRE_ALIGNMENT) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
@@ -265,7 +269,7 @@ class DataProcessor(
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
       // if this worker is not the final destination of the marker, pass it downstream
-      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId)
+      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
       if (downstreamChannelsInScope.nonEmpty) {
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
@@ -278,19 +282,19 @@ class DataProcessor(
         }
       }
       // unblock input channels
-      if (marker.markerType == RequireAlignment) {
+      if (marker.markerType == REQUIRE_ALIGNMENT) {
         pauseManager.resume(EpochMarkerPause(markerId))
       }
     }
   }
 
   private[this] def handleExecutorException(e: Throwable): Unit = {
-    asyncRPCClient.send(
-      ConsoleMessageTriggered(mkConsoleMessage(actorId, e)),
-      CONTROLLER
+    asyncRPCClient.controllerInterface.consoleMessageTriggered(
+      ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
+      asyncRPCClient.mkContext(CONTROLLER)
     )
     logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place
-    asyncRPCServer.execute(PauseWorker(), SELF)
+    pauseManager.pause(OperatorLogicPause)
   }
 }

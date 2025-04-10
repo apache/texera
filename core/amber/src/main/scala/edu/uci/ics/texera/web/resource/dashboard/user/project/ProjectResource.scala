@@ -1,15 +1,15 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   ProjectDao,
   ProjectUserAccessDao,
   WorkflowOfProjectDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
@@ -17,7 +17,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessRes
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
@@ -34,7 +33,9 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   */
 
 object ProjectResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance()
+    .createDSLContext()
   final private lazy val userProjectDao = new ProjectDao(context.configuration)
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private lazy val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
@@ -45,12 +46,12 @@ object ProjectResource {
     *
     * No insertion occurs if the workflow does not belong to any projects.
     *
-    * @param uid user ID
-    * @param wid workflow ID
+    * @param uid      user ID
+    * @param wid      workflow ID
     * @param fileName name of exported file
     * @return String containing status of adding exported file to project(s)
     */
-  def addExportedFileToProject(uid: UInteger, wid: UInteger, fileName: String): String = {
+  def addExportedFileToProject(uid: Integer, wid: Integer, fileName: String): String = {
     // get map of PIDs and project names
     val pidMap = context
       .select(WORKFLOW_OF_PROJECT.PID, PROJECT.NAME)
@@ -73,18 +74,19 @@ object ProjectResource {
     }
   }
 
-  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+  private def workflowOfProjectExists(wid: Integer, pid: Integer): Boolean = {
     workflowOfProjectDao.existsById(
       context
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
         .values(wid, pid)
     )
   }
+
   case class DashboardProject(
-      pid: UInteger,
+      pid: Integer,
       name: String,
       description: String,
-      ownerID: UInteger,
+      ownerID: Integer,
       creationTime: Timestamp,
       color: String,
       accessLevel: String
@@ -98,17 +100,19 @@ class ProjectResource {
 
   /**
     * This method returns the specified project
+    *
     * @param pid project id
     * @return project specified by the project id
     */
   @GET
   @Path("/{pid}")
-  def getProject(@PathParam("pid") pid: UInteger): Project = {
+  def getProject(@PathParam("pid") pid: Integer): Project = {
     userProjectDao.fetchOneByPid(pid)
   }
 
   /**
     * This method returns the list of projects owned by the session user.
+    *
     * @param user the session user
     * @return a list of projects belonging to owner
     */
@@ -129,7 +133,6 @@ class ProjectResource {
       .join(PROJECT)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
       .where(PROJECT.OWNER_ID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid)))
-      .groupBy(PROJECT.PID)
       .fetchInto(classOf[DashboardProject])
   }
 
@@ -144,7 +147,7 @@ class ProjectResource {
   @GET
   @Path("/{pid}/workflows")
   def listProjectWorkflows(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
     val result = DashboardResource.searchAllResources(
@@ -157,6 +160,7 @@ class ProjectResource {
   /**
     * This method inserts a new project into the database belonging to the session user
     * and with the specified name.
+    *
     * @param user the session user
     * @param name project name
     */
@@ -170,7 +174,7 @@ class ProjectResource {
     try {
       userProjectDao.insert(project)
       projectUserAccessDao.merge(
-        new ProjectUserAccess(user.getUid, project.getPid, ProjectUserAccessPrivilege.WRITE)
+        new ProjectUserAccess(user.getUid, project.getPid, PrivilegeEnum.WRITE)
       )
     } catch {
       case _: Throwable =>
@@ -181,14 +185,15 @@ class ProjectResource {
 
   /**
     * This method adds a mapping between the specified workflow to the specified project into the database.
+    *
     * @param pid project ID
     * @param wid workflow ID
     */
   @POST
   @Path("/{pid}/workflow/{wid}/add")
   def addWorkflowToProject(
-      @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger,
+      @PathParam("pid") pid: Integer,
+      @PathParam("wid") wid: Integer,
       @Auth user: SessionUser
   ): Unit = {
     if (!hasReadAccess(wid, user.getUid)) {
@@ -202,13 +207,14 @@ class ProjectResource {
 
   /**
     * This method updates the project name of the specified, existing project
-    * @param pid project ID
+    *
+    * @param pid  project ID
     * @param name new name
     */
   @POST
   @Path("/{pid}/rename/{name}")
   def updateProjectName(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("name") name: String
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
@@ -226,13 +232,14 @@ class ProjectResource {
 
   /**
     * This method updates the description of a specified, existing project
+    *
     * @param pid project ID
     */
   @POST
   @Path("/{pid}/update/description")
   @Consumes(Array(MediaType.TEXT_PLAIN))
   def updateProjectDescription(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       description: String
   ): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
@@ -248,13 +255,13 @@ class ProjectResource {
   /**
     * This method updates a project's color.
     *
-    * @param pid id of project to be updated
+    * @param pid      id of project to be updated
     * @param colorHex new HEX formatted color to be set
     */
   @POST
   @Path("/{pid}/color/{colorHex}/add")
   def updateProjectColor(
-      @PathParam("pid") pid: UInteger,
+      @PathParam("pid") pid: Integer,
       @PathParam("colorHex") colorHex: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
@@ -273,7 +280,7 @@ class ProjectResource {
 
   @POST
   @Path("/{pid}/color/delete")
-  def deleteProjectColor(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProjectColor(@PathParam("pid") pid: Integer): Unit = {
     val userProject: Project = userProjectDao.fetchOneByPid(pid)
     userProject.setColor(null)
     userProjectDao.update(userProject)
@@ -286,7 +293,7 @@ class ProjectResource {
     */
   @DELETE
   @Path("/delete/{pid}")
-  def deleteProject(@PathParam("pid") pid: UInteger): Unit = {
+  def deleteProject(@PathParam("pid") pid: Integer): Unit = {
     userProjectDao.deleteById(pid)
   }
 
@@ -300,8 +307,8 @@ class ProjectResource {
   @DELETE
   @Path("/{pid}/workflow/{wid}/delete")
   def deleteWorkflowFromProject(
-      @PathParam("pid") pid: UInteger,
-      @PathParam("wid") wid: UInteger
+      @PathParam("pid") pid: Integer,
+      @PathParam("wid") wid: Integer
   ): Unit = {
     workflowOfProjectDao.deleteById(
       context.newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID).values(wid, pid)

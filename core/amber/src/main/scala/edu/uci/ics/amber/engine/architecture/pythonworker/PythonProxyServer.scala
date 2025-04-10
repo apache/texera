@@ -1,28 +1,29 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
+import com.twitter.util.Promise
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV1,
-  returnInvocationToV1
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
-import java.nio.{ByteBuffer, ByteOrder}
 import java.io.IOException
 import java.net.ServerSocket
+import java.nio.charset.Charset
+import java.nio.{ByteBuffer, ByteOrder}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import com.twitter.util.Promise
-import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-
-import java.nio.charset.Charset
 
 private class AmberProducer(
     actorId: ActorVirtualIdentity,
@@ -32,6 +33,7 @@ private class AmberProducer(
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
+
   override def doAction(
       context: FlightProducer.CallContext,
       action: Action,
@@ -40,17 +42,17 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        pythonControlMessage.payload match {
-          case returnInvocation: ReturnInvocationV2 =>
+        pythonControlMessage.payload.value match {
+          case r: ReturnInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
-              payload = returnInvocationToV1(actorId, returnInvocation)
+              to = pythonControlMessage.tag.toWorkerId,
+              payload = r.value
             )
 
-          case controlInvocation: ControlInvocationV2 =>
+          case c: ControlInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
-              payload = controlInvocationToV1(controlInvocation)
+              to = pythonControlMessage.tag.toWorkerId,
+              payload = c.value
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
@@ -83,7 +85,7 @@ private class AmberProducer(
   ): Runnable = { () =>
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
-    val to: ActorVirtualIdentity = dataHeader.tag
+    val to: ChannelIdentity = dataHeader.tag
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream
@@ -113,6 +115,14 @@ private class AmberProducer(
       case "State" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case "ChannelMarker" =>
+        assert(root.getRowCount == 1)
+        outputPort.sendTo(
+          to,
+          ChannelMarkerPayload.parseFrom(
+            ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")
+          )
+        )
       case _ => // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)
@@ -130,6 +140,7 @@ class PythonProxyServer(
     with AutoCloseable
     with AmberLogging {
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
+
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
@@ -156,7 +167,7 @@ class PythonProxyServer(
     * Get a random free port.
     *
     * @return The port number.
-    * @throws IOException  , might happen when getting a free port.
+    * @throws IOException , might happen when getting a free port.
     */
   @throws[IOException]
   private def getFreeLocalPort: Int = {

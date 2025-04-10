@@ -14,7 +14,7 @@ import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, Behav
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
-import { AttributeType, SchemaAttribute } from "../dynamic-schema/schema-propagation/schema-propagation.service";
+import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -172,6 +172,38 @@ export class WorkflowResultService {
       this.resultInitiateStream.next(operatorID);
     }
     return service;
+  }
+
+  public determineOutputTypes(operatorId: string): {
+    hasAnyResult: boolean;
+    isTableOutput: boolean;
+    isVisualizationOutput: boolean;
+    containsBinaryData: boolean;
+  } {
+    const resultService = this.getResultService(operatorId);
+    const paginatedResultService = this.getPaginatedResultService(operatorId);
+
+    return {
+      hasAnyResult: this.hasAnyResult(operatorId),
+      isTableOutput: this.hasTableOutput(paginatedResultService),
+      containsBinaryData: this.hasBinaryData(paginatedResultService),
+      isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
+    };
+  }
+
+  private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService !== undefined;
+  }
+
+  private hasBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
+  }
+
+  private hasVisualizationOutput(
+    resultService?: OperatorResultService,
+    paginatedResultService?: OperatorPaginationResultService
+  ): boolean {
+    return resultService !== undefined && paginatedResultService === undefined;
   }
 }
 

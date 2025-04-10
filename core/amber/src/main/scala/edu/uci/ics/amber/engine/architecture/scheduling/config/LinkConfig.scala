@@ -1,14 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  BroadcastPartitioning,
-  HashBasedShufflePartitioning,
-  OneToOnePartitioning,
-  Partitioning,
-  RangeBasedShufflePartitioning,
-  RoundRobinPartitioning
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{
+
+import edu.uci.ics.amber.core.workflow.{
   BroadcastPartition,
   HashPartition,
   OneToOnePartition,
@@ -17,6 +9,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   SinglePartition,
   UnknownPartition
 }
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 case object LinkConfig {
   def toPartitioning(

@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+spec:
+  replicas: {{ .Values.workflowComputingUnitManager.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
+    spec:
+      serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
+      containers:
+        - name: {{ .Values.workflowComputingUnitManager.name }}
+          image: {{ .Values.workflowComputingUnitManager.imageName }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.workflowComputingUnitManager.service.port }}
+          env:
+            # Kubernetes related variables
+            - name: KUBERNETES_COMPUTE_UNIT_POOL_NAMESPACE
+              value: {{ .Values.workflowComputingUnitPool.namespace }}
+            - name: KUBERNETES_COMPUTE_UNIT_SERVICE_NAME
+              value: {{ .Values.workflowComputingUnitPool.name }}-svc
+            - name: KUBERNETES_IMAGE_NAME
+              value: {{ .Values.workflowComputingUnitPool.imageName }}
+            # TexeraDB Access
+            - name: STORAGE_JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
+            # FileService Access
+            - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
+            - name: FILE_SERVICE_UPLOAD_ONE_FILE_TO_DATASET_ENDPOINT
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/did/upload
+            # LakeFS Access (should be removed in production environment)
+            - name: STORAGE_LAKEFS_ENDPOINT
+              value: http://{{ .Release.Name }}-lakefs.{{ .Release.Namespace }}:8000/api/v1
+            - name: STORAGE_LAKEFS_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: access_key
+            - name: STORAGE_LAKEFS_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: secret_key
+            # Workflow Result
+            - name: STORAGE_ICEBERG_CATALOG_TYPE
+              value: postgres
+            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_URI_WITHOUT_SCHEME
+              value: {{ .Release.Name }}-postgresql:5432/texera_iceberg_catalog
+            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME
+              value: postgres
+            - name: STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}

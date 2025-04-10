@@ -1,17 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.{
-  CostBasedRegionPlanGenerator,
-  ExpansionGreedyRegionPlanGenerator,
+  CostBasedScheduleGenerator,
+  ExpansionGreedyScheduleGenerator,
   Region,
   Schedule
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
-class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
-    extends java.io.Serializable {
+class WorkflowScheduler(
+    workflowContext: WorkflowContext,
+    actorId: ActorVirtualIdentity
+) extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
   private var schedule: Schedule = _
 
@@ -19,24 +21,24 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
     * Update the schedule to be executed, based on the given physicalPlan.
     */
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
-    // generate an RegionPlan with regions using a region plan generator.
-    val (regionPlan, updatedPhysicalPlan) = if (AmberConfig.enableCostBasedRegionPlanGenerator) {
-      // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
-      new CostBasedRegionPlanGenerator(
-        workflowContext,
-        physicalPlan,
-        opResultStorage
-      ).generate()
-    } else {
-      // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
-      new ExpansionGreedyRegionPlanGenerator(
-        workflowContext,
-        physicalPlan,
-        opResultStorage
-      ).generate()
-    }
+    // generate a schedule using a region plan generator.
+    val (generatedSchedule, updatedPhysicalPlan) =
+      if (AmberConfig.enableCostBasedScheduleGenerator) {
+        // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
+        new CostBasedScheduleGenerator(
+          workflowContext,
+          physicalPlan,
+          actorId
+        ).generate()
+      } else {
+        // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
+        new ExpansionGreedyScheduleGenerator(
+          workflowContext,
+          physicalPlan
+        ).generate()
+      }
+    this.schedule = generatedSchedule
     this.physicalPlan = updatedPhysicalPlan
-    this.schedule = Schedule.apply(regionPlan)
   }
 
   def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.next()

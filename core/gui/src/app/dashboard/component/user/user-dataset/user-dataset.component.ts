@@ -9,6 +9,12 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
+import { DASHBOARD_USER_DATASET, DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { FileSelectionComponent } from "../../../../workspace/component/file-selection/file-selection.component";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
+import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 
 @UntilDestroy()
 @Component({
@@ -20,7 +26,6 @@ export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
-  private includePublic = false;
   public currentUid = this.userService.getCurrentUser()?.uid;
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
@@ -50,6 +55,7 @@ export class UserDatasetComponent implements AfterViewInit {
   private masterFilterList: ReadonlyArray<string> | null = null;
 
   constructor(
+    private modalService: NzModalService,
     private userService: UserService,
     private router: Router,
     private searchService: SearchService,
@@ -71,7 +77,16 @@ export class UserDatasetComponent implements AfterViewInit {
       .subscribe(() => this.search());
   }
 
-  async search(forced: Boolean = false): Promise<void> {
+  /*
+   * Executes a dataset search with filtering, sorting.
+   *
+   * Parameters:
+   * - filterScope = "all" | "public" | "private" - Determines visibility scope for search:
+   *  - "all": includes all datasets, public and private
+   *  - "public": limits the search to public datasets
+   *  - "private": limits the search to dataset where the user has direct access rights.
+   */
+  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -86,6 +101,12 @@ export class UserDatasetComponent implements AfterViewInit {
       throw new Error("searchResultsComponent is undefined.");
     }
     let filterParams = this.filters.getSearchFilterParameters();
+
+    // if the filter requires only public datasets, the public search should be invoked, and the search method should
+    // set the isLogin parameter to false in this case
+    const isLogin = filterScope === "public" ? false : this.isLogin;
+    const includePublic = filterScope === "all" || filterScope === "public";
+
     this.searchResultsComponent.reset(async (start, count) => {
       const results = await firstValueFrom(
         this.searchService.search(
@@ -95,8 +116,8 @@ export class UserDatasetComponent implements AfterViewInit {
           count,
           "dataset",
           this.sortMethod,
-          this.isLogin,
-          this.includePublic
+          isLogin,
+          includePublic
         )
       );
 
@@ -137,7 +158,30 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   public onClickOpenDatasetAddComponent(): void {
-    this.router.navigate(["/dashboard/user/dataset/create"]);
+    const modal = this.modalService.create({
+      nzTitle: "Create New Dataset",
+      nzContent: UserDatasetVersionCreatorComponent,
+      nzFooter: null,
+      nzData: {
+        isCreatingVersion: false,
+      },
+      nzBodyStyle: {
+        resize: "both",
+        overflow: "auto",
+        minHeight: "200px",
+        minWidth: "550px",
+        maxWidth: "90vw",
+        maxHeight: "80vh",
+      },
+      nzWidth: "fit-content",
+    });
+    // Handle the selection from the modal
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+      if (result != null) {
+        const dashboardDataset: DashboardDataset = result as DashboardDataset;
+        this.router.navigate([`${DASHBOARD_USER_DATASET}/${dashboardDataset.dataset.did}`]);
+      }
+    });
   }
 
   public deleteDataset(entry: DashboardEntry): void {
@@ -145,7 +189,7 @@ export class UserDatasetComponent implements AfterViewInit {
       return;
     }
     this.datasetService
-      .deleteDatasets([entry.dataset.dataset.did])
+      .deleteDatasets(entry.dataset.dataset.did)
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(

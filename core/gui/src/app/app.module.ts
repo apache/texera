@@ -83,10 +83,10 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
-import { HomeComponent } from "./hub/component/home/home.component";
+import { AboutComponent } from "./hub/component/about/about.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./hub/component/home/local-login/local-login.component";
+import { LocalLoginComponent } from "./hub/component/about/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
@@ -116,7 +116,7 @@ import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
-import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -132,14 +132,21 @@ import { ReportGenerationService } from "./workspace/service/report-generation/r
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
-import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-workflow-result.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
-import { HubWorkflowSearchBarComponent } from "./hub/component/workflow/search-bar/hub-workflow-search-bar.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { GoogleAuthService } from "./common/service/user/google-auth.service";
+import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
+import { lastValueFrom } from "rxjs";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzDividerModule } from "ng-zorro-antd/divider";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { JupyterUploadSuccessComponent } from "./dashboard/component/user/user-workflow/notebook-migration-tool/notebook-migration.component";
 import { JupyterNotebookPanelComponent } from "./workspace/component/jupyter-notebook-panel/jupyter-notebook-panel.component";
 
@@ -198,10 +205,11 @@ registerLocaleData(en);
     FilesUploaderComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
-    UserDatasetExplorerComponent,
+    DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
+    UserDatasetStagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     LocalLoginComponent,
@@ -210,7 +218,7 @@ registerLocaleData(en);
     InputAutoCompleteComponent,
     FileSelectionComponent,
     CollabWrapperComponent,
-    HomeComponent,
+    AboutComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
     SortButtonComponent,
@@ -225,14 +233,13 @@ registerLocaleData(en);
     SearchBarComponent,
     ListItemComponent,
     HubComponent,
-    HubWorkflowComponent,
-    HubWorkflowSearchComponent,
-    HubWorkflowSearchBarComponent,
     HubWorkflowDetailComponent,
-    HubWorkflowResultComponent,
-    GoogleLoginComponent,
+    LandingPageComponent,
+    BrowseSectionComponent,
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
+    HubSearchResultComponent,
+    ComputingUnitSelectionComponent,
     JupyterNotebookPanelComponent,
   ],
   imports: [
@@ -245,6 +252,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
+        disallowedRoutes: ["forum/api/users"],
       },
     }),
     BrowserAnimationsModule,
@@ -293,6 +301,11 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
+    SocialLoginModule,
+    GoogleSigninButtonModule,
+    NzEmptyModule,
+    NzDividerModule,
+    NzProgressModule,
   ],
   providers: [
     provideNzI18n(en_US),
@@ -306,6 +319,20 @@ registerLocaleData(en);
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
       multi: true,
+    },
+    {
+      provide: "SocialAuthServiceConfig",
+      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
+        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+          providers: [
+            {
+              id: GoogleLoginProvider.PROVIDER_ID,
+              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
+            },
+          ],
+        })) as Promise<SocialAuthServiceConfig>;
+      },
+      deps: [GoogleAuthService, UserService],
     },
   ],
   bootstrap: [AppComponent],

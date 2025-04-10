@@ -9,14 +9,16 @@
     itemSize="70"
     class="virtual-scroll-container">
     <nz-list>
-      <ng-container *cdkVirtualFor="let entry of entries">
+      <ng-container *ngFor="let entry of entries">
         <texera-list-item
           (deleted)="deleted.emit(entry)"
           (duplicated)="duplicated.emit(entry)"
+          (refresh)="refresh.emit()"
           [isPrivateSearch]="isPrivateSearch"
           [editable]="editable"
           [entry]="entry"
-          [currentUid]="this.currentUid">
+          [currentUid]="this.currentUid"
+          (checkboxChanged)="onEntryCheckboxChange()">
         </texera-list-item>
       </ng-container>
     </nz-list>

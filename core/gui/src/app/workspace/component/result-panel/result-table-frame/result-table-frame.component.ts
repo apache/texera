@@ -1,7 +1,6 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
@@ -10,18 +9,9 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { style } from "@angular/animations";
-import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { ChangeDetectorRef } from "@angular/core";
-import {
-  AttributeType,
-  SchemaAttribute,
-} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
-
-export const TABLE_COLUMN_TEXT_LIMIT = 100;
-export const PRETTY_JSON_TEXT_LIMIT = 50000;
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -61,18 +51,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
-  hasBinaryData: boolean = false;
-  binaryDataColumns: Set<string> = new Set();
   private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
-    private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private sanitizer: DomSanitizer,
-    private workflowResultExportService: WorkflowResultExportService,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
 
@@ -89,7 +75,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
         this.schema = paginatedResultService.getSchema();
-        this.updateBinaryDataInfo();
       }
     }
   }
@@ -155,7 +140,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.schema = paginatedResultService.getSchema();
-        this.updateBinaryDataInfo();
       }
     }
   }
@@ -317,7 +301,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
           this.schema = pageData.schema;
-          this.updateBinaryDataInfo();
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -368,20 +351,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] === null) {
-          return "NULL"; // Explicitly show NULL for null values
-        } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey], this.schema[index].attributeType);
-        } else {
-          return ""; // Keep empty string for undefined values
-        }
-      },
+      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
-  }
-
-  trimTableCell(cellContent: any, attributeType: AttributeType): string {
-    return trimAndFormatData(cellContent, attributeType, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
@@ -399,25 +370,5 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
-  }
-
-  downloadAllBinaryData(): void {
-    if (!this.operatorId) {
-      return;
-    }
-    this.workflowResultExportService.exportAllBinaryDataAsZIP(this.binaryDataColumns, this.operatorId);
-  }
-
-  private updateBinaryDataInfo(): void {
-    if (this.hasBinaryData) {
-      return;
-    }
-
-    for (const attribute of this.schema) {
-      if (attribute.attributeType === "binary") {
-        this.binaryDataColumns.add(attribute.attributeName);
-        this.hasBinaryData = true;
-      }
-    }
   }
 }

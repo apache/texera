@@ -18,7 +18,7 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Result Panel: {{operatorTitle}}">
+      nz-tooltip="Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
       <span
         nz-icon
         nzType="border"></span>
@@ -38,7 +38,9 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
-  [cdkDragFreeDragPosition]="dragPosition">
+  [cdkDragFreeDragPosition]="dragPosition"
+  (cdkDragStarted)="handleStartDrag()"
+  (cdkDragEnded)="handleEndDrag($event)">
   <ul
     nz-menu
     id="panel-button"
@@ -63,12 +65,9 @@
   </ul>
   <div
     id="content"
-    *ngIf="width">
-    <h4
-      id="title"
-      cdkDragHandle>
-      Result Panel: {{operatorTitle}}
-    </h4>
+    *ngIf="width"
+    cdkDragHandle>
+    <h4 id="title">Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}</h4>
     <nz-tabset
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
@@ -81,12 +80,15 @@
       </div>
       <div *ngFor="let config of frameComponentConfigs | keyvalue">
         <nz-tab nzTitle="{{config.key}}">
-          <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
+          <div #dynamicComponent>
+            <ng-container
+              *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
+          </div>
         </nz-tab>
       </div>
     </nz-tabset>
   </div>
   <nz-resize-handles
     *ngIf="width"
-    [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+    [nzDirections]="isPanelDocked() ? ['right'] : ['right', 'bottom', 'bottomRight']"></nz-resize-handles>
 </div>

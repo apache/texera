@@ -1,0 +1,39 @@
+<div
+  *ngIf="entities && entities.length > 0"
+  class="results-container">
+  <h2 class="results-title">{{ sectionTitle }}</h2>
+  <div class="entity-cards">
+    <nz-card
+      nzHoverable
+      [routerLink]="entity.id !== undefined ? entityRoutes[entity.id] : []"
+      [nzCover]="coverTemplate"
+      class="entity-card"
+      *ngFor="let entity of entities">
+      <h1 class="card-title">{{ entity.name }}</h1>
+      <p class="card-description">{{ entity.description || 'No description available' }}</p>
+      <div class="footer">
+        <span class="footer-text">Edited: {{ entity.lastModifiedTime | date }}</span>
+        <texera-user-avatar
+          [googleAvatar]="entity.ownerGoogleAvatar"
+          userColor="grey"
+          [userName]="entity.ownerName || ''"
+          nz-button>
+        </texera-user-avatar>
+      </div>
+      <ng-template #coverTemplate>
+        <div class="cover-container">
+          <img
+            alt="example"
+            class="card-cover-image"
+            [src]="defaultBackground" />
+          <nz-avatar
+            class="entity-avatar"
+            [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
+            [nzGap]="4"
+            [nzText]="'' + entity.id"
+            nzSize="default"></nz-avatar>
+        </div>
+      </ng-template>
+    </nz-card>
+  </div>
+</div>

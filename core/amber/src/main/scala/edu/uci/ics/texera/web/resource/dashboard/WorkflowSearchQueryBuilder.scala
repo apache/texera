@@ -1,27 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT_USER_ACCESS,
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getFullTextSearchFilter,
-  getSubstringSearchFilter,
-  getContainsFilter,
-  getDateFilter,
-  getOperatorsFilter
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.groupConcatDistinct
-import org.jooq.types.UInteger
+import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -44,7 +30,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructFromClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
@@ -62,12 +48,12 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
     var condition: Condition = DSL.trueCondition()
     if (uid == null) {
-      condition = WORKFLOW.IS_PUBLISHED.eq(1.toByte)
+      condition = WORKFLOW.IS_PUBLIC.eq(true)
     } else {
       val privateAccessCondition =
         WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
       if (includePublic) {
-        condition = privateAccessCondition.or(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+        condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
       } else {
         condition = privateAccessCondition
       }
@@ -77,7 +63,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -110,21 +96,25 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
         getFullTextSearchFilter(
           splitKeywords,
           List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
-        ).or(
-          getSubstringSearchFilter(
-            splitKeywords,
-            List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
-          )
         )
       )
   }
 
   override protected def getGroupByFields: Seq[GroupField] = {
-    Seq(WORKFLOW.WID)
+    Seq(
+      WORKFLOW.NAME,
+      WORKFLOW.DESCRIPTION,
+      WORKFLOW.CREATION_TIME,
+      WORKFLOW.WID,
+      WORKFLOW.LAST_MODIFIED_TIME,
+      WORKFLOW_USER_ACCESS.PRIVILEGE,
+      WORKFLOW_OF_USER.UID,
+      USER.NAME
+    )
   }
 
   override def toEntryImpl(
-      uid: UInteger,
+      uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
@@ -136,13 +126,13 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       record.into(USER).getName,
       record.into(WORKFLOW).into(classOf[Workflow]),
       if (record.get(pidField) == null) {
-        List[UInteger]()
+        List[Integer]()
       } else {
         record
           .get(pidField)
           .asInstanceOf[String]
           .split(',')
-          .map(number => UInteger.valueOf(number))
+          .map(number => Integer.valueOf(number))
           .toList
       },
       record.into(USER).getUid

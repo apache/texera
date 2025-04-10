@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             core/gui/node_modules
@@ -53,11 +53,10 @@ jobs:
       - name: Prod build
         run: yarn --cwd core/gui run build:ci
 
-  amber:
+  core:
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
+        os: [ ubuntu-22.04 ]
         java-version: [ 11 ]
     runs-on: ${{ matrix.os }}
     env:
@@ -75,37 +74,13 @@ jobs:
           java-version: ${{ matrix.java-version }}
       - uses: coursier/cache-action@v6
         with:
-          extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
-      - name: Lint with scalafix & scalafmt
-        run: cd core/amber && sbt "scalafixAll --check" && sbt scalafmtCheckAll
-      - name: Compile with sbt
-        run: cd core/amber && sbt clean package
-      - name: Run backend tests
-        run: cd core/amber && sbt -v -J-Xmx2G test
-
-  micro-services:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
-        java-version: [ 11 ]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout Texera
-        uses: actions/checkout@v2
-      - name: Setup Java
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
-      - uses: coursier/cache-action@v6
-        with:
-          extraSbtFiles: '["core/micro-services/*.sbt", "core/micro-services/project/**.{scala,sbt}", "core/micro-services/project/build.properties" ]'
+          extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
-        run: cd core/micro-services && sbt scalafmtCheckAll
+        run: cd core && sbt scalafmtCheckAll
       - name: Compile with sbt
-        run: cd core/micro-services && sbt clean package
+        run: cd core && sbt clean package
       - name: Run backend tests
-        run: cd core/micro-services && sbt test
+        run: cd core && sbt test
 
   python_udf:
     runs-on: ${{ matrix.os }}
@@ -136,6 +111,13 @@ jobs:
           if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
           if [ -f core/amber/r-requirements.txt ]; then pip install -r core/amber/r-requirements.txt; fi
           if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
+      - name: Install PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql
+      - name: Start PostgreSQL Service
+        run: sudo systemctl start postgresql
+      - name: Create Database and User
+        run: |
+          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
           cd core/amber/src/main/python && flake8 && black . --check

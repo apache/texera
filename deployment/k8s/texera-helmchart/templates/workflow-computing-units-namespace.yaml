@@ -1,0 +1,6 @@
+{{- if .Values.workflowComputingUnitPool.createNamespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.workflowComputingUnitPool.namespace }}
+{{- end }}

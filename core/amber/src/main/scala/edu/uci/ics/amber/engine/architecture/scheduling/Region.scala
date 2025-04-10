@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -12,12 +11,11 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
-
-case class GlobalPortIdentity(opId: PhysicalOpIdentity, portId: PortIdentity, input: Boolean)
 case class Region(
     id: RegionIdentity,
     physicalOps: Set[PhysicalOp],
     physicalLinks: Set[PhysicalLink],
+    ports: Set[GlobalPortIdentity] = Set.empty,
     resourceConfig: Option[ResourceConfig] = None
 ) {
 
@@ -30,21 +28,22 @@ case class Region(
     getLinks.foreach(link => jgraphtDag.addEdge(link.fromOpId, link.toOpId))
     jgraphtDag
   }
+
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
+
   def getOperators: Set[PhysicalOp] = physicalOps
 
   def getLinks: Set[PhysicalLink] = physicalLinks
 
-  def getPorts: Set[GlobalPortIdentity] =
-    getLinks
-      .flatMap(link =>
-        List(
-          GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false),
-          GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
-        )
-      )
+  /**
+    * Ideally ports should be derived from operators. However, as we are including an operator with a dependee input
+    * link in the previous region, such operator's other ports should not belong to the previous region. As a result
+    * ports of a regioin are saved separately.
+    * TODO: Improve this design once we have clean separation of regions.
+    */
+  def getPorts: Set[GlobalPortIdentity] = ports
 
   def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = {
     operators(physicalOpId)

@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.error
 
 import com.google.protobuf.timestamp.Timestamp
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
+import edu.uci.ics.amber.util.VirtualIdentityUtils
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.time.Instant
 import scala.util.control.ControlThrowable
@@ -13,6 +14,7 @@ object ErrorUtils {
 
   /** A helper function for catching all throwable except some special scala internal throwable.
     * reference: https://www.sumologic.com/blog/why-you-should-never-catch-throwable-in-scala/
+    *
     * @param handler
     * @tparam T
     * @return
@@ -34,6 +36,39 @@ object ErrorUtils {
     val title = err.toString
     val message = err.getStackTrace.mkString("\n")
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
+  }
+
+  def mkControlError(err: Throwable): ControlError = {
+    // Format each stack trace element with "at " prefix
+    val stacktrace = err.getStackTrace.map(element => s"at ${element}").mkString("\n")
+    if (err.getCause != null) {
+      ControlError(err.toString, err.getCause.toString, stacktrace, ErrorLanguage.SCALA)
+    } else {
+      ControlError(err.toString, "", stacktrace, ErrorLanguage.SCALA)
+    }
+  }
+
+  def reconstructThrowable(controlError: ControlError): Throwable = {
+    if (controlError.language == ErrorLanguage.PYTHON) {
+      return new Throwable(controlError.errorMessage)
+    } else {
+      val reconstructedThrowable = new Throwable(controlError.errorMessage)
+      if (controlError.errorDetails.nonEmpty) {
+        val causeThrowable = new Throwable(controlError.errorDetails)
+        reconstructedThrowable.initCause(causeThrowable)
+      }
+
+      val stackTracePattern = """\s*at\s+(.+)\((.*)\)""".r
+      val stackTraceElements = controlError.stackTrace.split("\n").flatMap { line =>
+        line match {
+          case stackTracePattern(className, location) =>
+            Some(new StackTraceElement(className, "", location, -1))
+          case _ => None
+        }
+      }
+      reconstructedThrowable.setStackTrace(stackTraceElements)
+      reconstructedThrowable
+    }
   }
 
   def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {

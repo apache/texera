@@ -1,30 +1,32 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
+  ChannelMarkerElement,
   ControlElement,
-  ControlElementV2,
   DataElement
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.model.State
-import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -71,7 +73,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           logger.warn(
             s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
-          flightClient.close()
+          if (flightClient != null) flightClient.close()
           Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
@@ -83,25 +85,25 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def mainLoop(): Unit = {
+  private def mainLoop(): Unit = {
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
-          sendData(dataPayload, channel.fromWorkerId)
+          sendData(dataPayload, channel)
         case ControlElement(cmd, channel) =>
-          sendControlV1(channel.fromWorkerId, cmd)
-        case ControlElementV2(cmd, channel) =>
-          sendControlV2(channel.fromWorkerId, cmd)
+          sendControl(channel, cmd)
+        case ChannelMarkerElement(cmd, channel) =>
+          sendChannelMarker(cmd, channel)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
-
       }
     }
   }
 
-  def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+  private def sendData(dataPayload: DataPayload, from: ChannelIdentity): Unit = {
     dataPayload match {
-      case DataFrame(frame) => writeArrowStream(mutable.Queue(frame: _*), from, "Data")
+      case DataFrame(frame) =>
+        writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case MarkerFrame(marker) =>
         marker match {
           case state: State =>
@@ -111,16 +113,35 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def sendControlV2(
-      from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
+  private def sendChannelMarker(
+      markerPayload: ChannelMarkerPayload,
+      from: ChannelIdentity
+  ): Unit = {
+    val t = Tuple
+      .builder(Schema().add("payload", AttributeType.BINARY))
+      .add("payload", AttributeType.BINARY, markerPayload.toByteArray)
+      .build()
+    writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
+  }
+
+  private def sendControl(
+      from: ChannelIdentity,
+      payload: ControlPayload
   ): Result = {
-    val controlMessage = PythonControlMessage(from, payload)
+    var payloadV2 = ControlPayloadV2.defaultInstance
+    payloadV2 = payload match {
+      case c: ControlInvocation =>
+        payloadV2.withControlInvocation(c)
+      case r: ReturnInvocation =>
+        payloadV2.withReturnInvocation(r)
+      case _ => ???
+    }
+    val controlMessage = PythonControlMessage(from, payloadV2)
     val action: Action = new Action("control", controlMessage.toByteArray)
     sendCreditedAction(action)
   }
 
-  def sendActorCommand(
+  private def sendActorCommand(
       command: ActorCommand
   ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
@@ -146,20 +167,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     result
   }
 
-  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
-    payload match {
-      case controlInvocation: ControlInvocation =>
-        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
-        sendControlV2(from, controlInvocationV2)
-      case returnInvocation: ReturnInvocation =>
-        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
-        sendControlV2(from, returnInvocationV2)
-    }
-  }
-
   private def writeArrowStream(
       tuples: mutable.Queue[Tuple],
-      from: ActorVirtualIdentity,
+      from: ChannelIdentity,
       payloadType: String
   ): Unit = {
 

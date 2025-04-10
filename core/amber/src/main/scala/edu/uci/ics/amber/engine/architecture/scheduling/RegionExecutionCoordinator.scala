@@ -1,29 +1,38 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
   WorkflowExecution
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkflowAggregatedState
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  PortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import scala.collection.Seq
 class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,
@@ -34,6 +43,9 @@ class RegionExecutionCoordinator(
 
     // fetch resource config
     val resourceConfig = region.resourceConfig.get
+
+    // Create storage objects for output ports of the region
+    createOutputPortStorageObjects(resourceConfig.portConfigs)
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
@@ -98,13 +110,15 @@ class RegionExecutionCoordinator(
       .flatMap(_ => sendStarts(region))
       .unit
   }
+
   private def buildOperator(
       actorService: AkkaActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
   ): Unit = {
-    physicalOp.build(
+    ExecutorDeployment.createWorkers(
+      physicalOp,
       actorService,
       operatorExecution,
       operatorConfig,
@@ -112,31 +126,32 @@ class RegionExecutionCoordinator(
       controllerConfig.faultToleranceConfOpt
     )
   }
+
   private def initExecutors(
       operators: Set[PhysicalOp],
       resourceConfig: ResourceConfig
-  ): Future[Seq[Unit]] = {
+  ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
           .flatMap(physicalOp => {
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
             workerConfigs.map(_.workerId).map { workerId =>
-              asyncRPCClient
-                .send(
-                  InitializeExecutor(
-                    workerConfigs.length,
-                    physicalOp.opExecInitInfo,
-                    physicalOp.isSourceOperator
-                  ),
-                  workerId
-                )
+              asyncRPCClient.workerInterface.initializeExecutor(
+                InitializeExecutorRequest(
+                  workerConfigs.length,
+                  physicalOp.opExecInitInfo,
+                  physicalOp.isSourceOperator
+                ),
+                asyncRPCClient.mkContext(workerId)
+              )
             }
           })
           .toSeq
       )
   }
-  private def assignPorts(region: Region): Future[Seq[Unit]] = {
+
+  private def assignPorts(region: Region): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
       region.getOperators
@@ -144,36 +159,59 @@ class RegionExecutionCoordinator(
           val inputPortMapping = physicalOp.inputPorts
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
-                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> schema)
+                // Currently input ports do not have URIs associated with them because
+                // we are using cache read operators to read materialized port storage.
+                // TODO: also add storageURI for input ports when cache read ops are removed.
+                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
               case _ => None
             }
           val outputPortMapping = physicalOp.outputPorts
             .flatMap {
               case (outputPortId, (_, _, Right(schema))) =>
-                Some(GlobalPortIdentity(physicalOp.id, outputPortId, input = false) -> schema)
+                val storageURI = resourceConfig.portConfigs.get(
+                  GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
+                ) match {
+                  case Some(portConfig) => portConfig.storageURI.toString
+                  case None             => ""
+                }
+                Some(
+                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (storageURI, schema)
+                )
               case _ => None
             }
           inputPortMapping ++ outputPortMapping
         }
         .flatMap {
-          case (globalPortId, schema) =>
+          case (globalPortId, (storageUri, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient
-                  .send(AssignPort(globalPortId.portId, globalPortId.input, schema), workerId)
+                asyncRPCClient.workerInterface.assignPort(
+                  AssignPortRequest(
+                    globalPortId.portId,
+                    globalPortId.input,
+                    schema.toRawSchema,
+                    storageUri
+                  ),
+                  asyncRPCClient.mkContext(workerId)
+                )
             }
         }
         .toSeq
     )
   }
 
-  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[Unit]] = {
+  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[EmptyReturn]] = {
     Future.collect(
-      links.map { link: PhysicalLink => asyncRPCClient.send(LinkWorkers(link), CONTROLLER) }.toSeq
+      links.map { link: PhysicalLink =>
+        asyncRPCClient.controllerInterface.linkWorkers(
+          LinkWorkersRequest(link),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
+      }.toSeq
     )
   }
 
-  private def openOperators(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
+  private def openOperators(operators: Set[PhysicalOp]): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -182,7 +220,8 @@ class RegionExecutionCoordinator(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.send(OpenExecutor(), workerId)
+            asyncRPCClient.workerInterface
+              .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
           }
           .toSeq
       )
@@ -203,20 +242,48 @@ class RegionExecutionCoordinator(
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
-              asyncRPCClient
-                .send(StartWorker(), workerId)
-                .map(state =>
+              asyncRPCClient.workerInterface
+                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+                .map(resp =>
                   // update worker state
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .setState(state)
+                    .setState(resp.state)
                 )
             }
         }
         .toSeq
     )
+  }
+
+  private def createOutputPortStorageObjects(
+      portConfigs: Map[GlobalPortIdentity, PortConfig]
+  ): Unit = {
+    portConfigs.foreach {
+      case (outputPortId, portConfig: PortConfig) =>
+        val storageUriToAdd = portConfig.storageURI
+        val (_, eid, _, _) = decodeURI(storageUriToAdd)
+        val existingStorageUri =
+          WorkflowExecutionsResource.getResultUriByGlobalPortId(
+            eid = eid,
+            globalPortId = outputPortId
+          )
+        if (existingStorageUri.isEmpty) {
+          // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
+          val schemaOptional =
+            region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
+          val schema =
+            schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+          DocumentFactory.createDocument(storageUriToAdd, schema)
+          WorkflowExecutionsResource.insertOperatorPortResultUri(
+            eid = eid,
+            globalPortId = outputPortId,
+            uri = storageUriToAdd
+          )
+        }
+    }
   }
 
 }

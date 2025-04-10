@@ -1,6 +1,5 @@
 import { WebDataUpdate, WebPaginationUpdate } from "../../types/execute-workflow.interface";
 import { Point, OperatorPredicate } from "../../types/workflow-common.interface";
-import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { IndexableObject } from "ng-zorro-antd/core/types";
 
 export const mockData: IndexableObject[] = [
@@ -44,7 +43,6 @@ export const mockData: IndexableObject[] = [
 
 export const mockResultSnapshotUpdate: WebDataUpdate = {
   mode: { type: "SetSnapshotMode" },
-  chartType: undefined,
   table: mockData,
 };
 
@@ -52,13 +50,6 @@ export const mockResultPaginationUpdate: WebPaginationUpdate = {
   mode: { type: "PaginationMode" },
   dirtyPageIndices: [1],
   totalNumTuples: mockData.length,
-};
-
-export const paginationResponse: PaginatedResultEvent = {
-  requestID: "requestID",
-  operatorID: "operator-sink",
-  pageIndex: 1,
-  table: mockData,
 };
 
 export const mockResultOperator: OperatorPredicate = {

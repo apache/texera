@@ -1,30 +1,30 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.web.MockTexeraDB
-import edu.uci.ics.texera.web.auth.SessionUser
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, User, Workflow}
-import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.MockTexeraDB
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   WorkflowIDs
 }
+import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 
-import java.util.concurrent.TimeUnit
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -34,19 +34,21 @@ class WorkflowResourceSpec
 
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment")
     user
   }
 
   private val testUser2: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(2))
+    user.setUid(Integer.valueOf(2))
     user.setName("test_user2")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment2")
     user
   }
 
@@ -124,7 +126,7 @@ class WorkflowResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-
+    FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
@@ -175,6 +177,7 @@ class WorkflowResourceSpec
     }
     keywordsList
   }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
   }
@@ -324,27 +327,9 @@ class WorkflowResourceSpec
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
       assertSameWorkflow(workflow, DashboardWorkflowEntryList.head.workflow.get)
     }
+
     test(sessionUser1, testWorkflow1)
     test(sessionUser2, testWorkflow2)
-  }
-
-  it should "search for keywords containing special characters" in {
-    // testWorkflow1: {name: test_name, description: test_description, content: "key@gmail.com"}
-    // search "key@gmail.com" should return testWorkflow1
-    workflowResource.persistWorkflow(testWorkflowWithSpecialCharacters, sessionUser1)
-    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList =
-      dashboardResource
-        .searchAllResourcesCall(
-          sessionUser1,
-          SearchQueryParams(getKeywordsArray(exampleEmailAddress))
-        )
-        .results
-    assert(DashboardWorkflowEntryList.size == 1)
-    assertSameWorkflow(
-      testWorkflowWithSpecialCharacters,
-      DashboardWorkflowEntryList.head.workflow.get
-    )
   }
 
   it should "return a proper condition for a single owner" in {
@@ -362,43 +347,43 @@ class WorkflowResourceSpec
   }
 
   it should "return a proper condition for a single projectId" in {
-    val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val projectIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
+    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple projectIds" in {
-    val projectIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val projectIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(2)))
         .toString
     )
   }
 
   it should "return a proper condition for a single workflowID" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val workflowIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
-    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
+    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple workflowIDs" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val workflowIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW.WID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW.WID.eq(Integer.valueOf(2)))
         .toString
     )
   }

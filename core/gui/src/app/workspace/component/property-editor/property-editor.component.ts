@@ -7,6 +7,7 @@ import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  * Depending on the highlighted operator or link, it displays OperatorPropertyEditFrameComponent
@@ -30,7 +31,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   returnPosition = { x: 0, y: 0 };
   constructor(
     public workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private panelService: PanelService
   ) {
     const width = localStorage.getItem("right-panel-width");
     if (width) this.width = Number(width);
@@ -44,6 +46,11 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerHighlightEventsHandler();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
   }
 
   @HostListener("window:beforeunload")
@@ -85,20 +92,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
 
-        if (
-          highlightedOperators.length === 1 &&
-          highlightedGroups.length === 0 &&
-          highlightLinks.length === 0 &&
-          highlightedPorts.length === 0
-        ) {
+        if (highlightedOperators.length === 1 && highlightLinks.length === 0 && highlightedPorts.length === 0) {
           this.currentComponent = OperatorPropertyEditFrameComponent;
           this.componentInputs = { currentOperatorId: highlightedOperators[0] };
-        } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {
           this.currentComponent = PortPropertyEditFrameComponent;
           this.componentInputs = { currentPortID: highlightedPorts[0] };
         } else {
@@ -115,6 +116,11 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.width = width!;
       this.height = height!;
     });
+  }
+
+  openPanel() {
+    this.width = 280;
+    this.height = 300;
   }
 
   closePanel() {

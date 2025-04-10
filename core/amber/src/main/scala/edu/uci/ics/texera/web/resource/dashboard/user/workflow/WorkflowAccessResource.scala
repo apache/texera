@@ -1,26 +1,22 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT_USER_ACCESS,
-  USER,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_USER_ACCESS,
-  WORKFLOW
-}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -28,16 +24,19 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object WorkflowAccessResource {
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance()
+    .createDSLContext()
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
+    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    isPublic(wid) || getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(
+  def hasReadAccess(wid: Integer, uid: Integer): Boolean = {
+    isPublic(wid) || getPrivilege(wid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
       wid,
       uid
     )
@@ -45,20 +44,21 @@ object WorkflowAccessResource {
 
   /**
     * Identifies whether the given user has write access over the given workflow
+    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
     */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.WRITE)
+  def hasWriteAccess(wid: Integer, uid: Integer): Boolean = {
+    getPrivilege(wid, uid).eq(PrivilegeEnum.WRITE)
   }
 
   /**
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
-    * @return WorkflowUserAccessPrivilege value indicating NONE/READ/WRITE
+    * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: UInteger, uid: UInteger): WorkflowUserAccessPrivilege = {
+  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
     val access = context
       .select()
       .from(WORKFLOW_USER_ACCESS)
@@ -73,7 +73,7 @@ object WorkflowAccessResource {
         .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
         .fetchOneInto(classOf[WorkflowUserAccess])
       if (projectAccess == null) {
-        WorkflowUserAccessPrivilege.NONE
+        PrivilegeEnum.NONE
       } else {
         projectAccess.getPrivilege
       }
@@ -82,9 +82,9 @@ object WorkflowAccessResource {
     }
   }
 
-  def isPublic(wid: UInteger): Boolean = {
+  def isPublic(wid: Integer): Boolean = {
     context
-      .select(WORKFLOW.IS_PUBLISHED)
+      .select(WORKFLOW.IS_PUBLIC)
       .from(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
       .fetchOneInto(classOf[Boolean])
@@ -101,12 +101,13 @@ class WorkflowAccessResource() {
 
   /**
     * This method returns the owner of a workflow
-    * @param wid,  workflow id
+    *
+    * @param wid ,  workflow id
     * @return ownerEmail,  the owner's email
     */
   @GET
   @Path("/owner/{wid}")
-  def getOwner(@PathParam("wid") wid: UInteger): String = {
+  def getOwner(@PathParam("wid") wid: Integer): String = {
     userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
   }
 
@@ -119,7 +120,7 @@ class WorkflowAccessResource() {
   @GET
   @Path("/list/{wid}")
   def getAccessList(
-      @PathParam("wid") wid: UInteger
+      @PathParam("wid") wid: Integer
   ): util.List[AccessEntry] = {
     context
       .select(
@@ -149,7 +150,7 @@ class WorkflowAccessResource() {
   @PUT
   @Path("/grant/{wid}/{email}/{privilege}")
   def grantAccess(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String,
       @Auth user: SessionUser
@@ -157,19 +158,33 @@ class WorkflowAccessResource() {
     if (email.equals(user.getEmail)) {
       throw new BadRequestException("You cannot grant access to yourself!")
     }
+
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
+    val userUid = userDao.fetchOneByEmail(email).getUid
+    val workflowOwnerUid = context
+      .select(WORKFLOW_OF_USER.UID)
+      .from(WORKFLOW_OF_USER)
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetchOneInto(classOf[Integer])
+    if (userUid == workflowOwnerUid) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
+
     try {
       workflowUserAccessDao.merge(
         new WorkflowUserAccess(
-          userDao.fetchOneByEmail(email).getUid,
+          userUid,
           wid,
-          WorkflowUserAccessPrivilege.valueOf(privilege)
+          PrivilegeEnum.valueOf(privilege)
         )
       )
     } catch {
       case _: NullPointerException =>
         throw new BadRequestException(s"User $email Not Found!")
     }
-
   }
 
   /**
@@ -182,9 +197,14 @@ class WorkflowAccessResource() {
   @DELETE
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("email") email: String
+      @PathParam("wid") wid: Integer,
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(

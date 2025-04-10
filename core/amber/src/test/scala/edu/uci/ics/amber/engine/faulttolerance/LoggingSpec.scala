@@ -2,40 +2,52 @@ package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  DataFrame,
-  WorkflowFIFOMessage,
-  WorkflowFIFOMessagePayload
-}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, TupleLike}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AddPartitioningRequest,
+  AsyncRPCContext,
+  EmptyRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_ADD_PARTITIONING,
+  METHOD_PAUSE_WORKER,
+  METHOD_RESUME_WORKER,
+  METHOD_START_WORKER
+}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.common.AmberRuntime
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  DataFrame,
+  WorkflowFIFOMessage,
+  WorkflowFIFOMessagePayload
+}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.time.Span
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import java.net.URI
 
 class LoggingSpec
-    extends TestKit(ActorSystem("LoggingSpec"))
+    extends TestKit(ActorSystem("LoggingSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with TimeLimitedTests {
+
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
@@ -46,29 +58,58 @@ class LoggingSpec
   private val mockPolicy =
     OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
-    ControlInvocation(0, StartWorker()),
-    ControlInvocation(0, AddPartitioning(mockLink, mockPolicy)),
-    ControlInvocation(0, PauseWorker()),
-    ControlInvocation(0, ResumeWorker()),
+    ControlInvocation(
+      METHOD_START_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_ADD_PARTITIONING,
+      AddPartitioningRequest(mockLink, mockPolicy),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_PAUSE_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_RESUME_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
     DataFrame(
       (0 to 400)
         .map(i =>
           TupleLike(i, i.toString, i.toDouble).enforceSchema(
-            Schema
-              .builder()
+            Schema()
               .add("field1", AttributeType.INTEGER)
               .add("field2", AttributeType.STRING)
               .add("field3", AttributeType.DOUBLE)
-              .build()
           )
         )
         .toArray
     ),
-    ControlInvocation(0, StartWorkflow()),
-    ControlInvocation(0, WorkerExecutionCompleted())
+    ControlInvocation(
+      METHOD_START_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_WORKER_EXECUTION_COMPLETED,
+      EmptyRequest(),
+      AsyncRPCContext(identifier1, CONTROLLER),
+      0
+    )
   )
 
   "determinant logger" should "log processing steps in local storage" in {
+    Thread.sleep(1000) // wait for serializer to be registered
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
       Some(new URI("ram:///recovery-logs/tmp"))
     )
@@ -88,4 +129,5 @@ class LoggingSpec
     assert(logRecords.length == 15)
   }
 
+  override def timeLimit: Span = 30.seconds
 }

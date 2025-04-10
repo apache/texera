@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.sendsemantics;
 
+import "edu/uci/ics/amber/core/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -9,8 +10,6 @@ option (scalapb.options) = {
   preserve_unknown_fields: false
   no_default_values_in_constructor: true
 };
-
-import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 
 message Partitioning{
   oneof sealed_value{
@@ -24,23 +23,23 @@ message Partitioning{
 
 message OneToOnePartitioning{
   int32 batchSize = 1;
-  repeated edu.uci.ics.amber.engine.common.ChannelIdentity channels = 2;
+  repeated core.ChannelIdentity channels = 2;
 }
 
 message RoundRobinPartitioning{
   int32 batchSize = 1;
-  repeated edu.uci.ics.amber.engine.common.ChannelIdentity channels = 2;
+  repeated core.ChannelIdentity channels = 2;
 }
 
 message HashBasedShufflePartitioning{
   int32 batchSize = 1;
-  repeated edu.uci.ics.amber.engine.common.ChannelIdentity channels = 2;
+  repeated core.ChannelIdentity channels = 2;
   repeated string hashAttributeNames = 3;
 }
 
 message RangeBasedShufflePartitioning {
   int32 batchSize = 1;
-  repeated edu.uci.ics.amber.engine.common.ChannelIdentity channels = 2;
+  repeated core.ChannelIdentity channels = 2;
   repeated string rangeAttributeNames = 3;
   int64 rangeMin = 4;
   int64 rangeMax = 5;
@@ -48,5 +47,5 @@ message RangeBasedShufflePartitioning {
 
 message BroadcastPartitioning{
   int32 batchSize = 1;
-  repeated edu.uci.ics.amber.engine.common.ChannelIdentity channels = 2;
+  repeated core.ChannelIdentity channels = 2;
 }

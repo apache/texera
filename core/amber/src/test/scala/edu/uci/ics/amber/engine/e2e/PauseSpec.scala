@@ -6,24 +6,21 @@ import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.COMPLETED
-import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
+import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
+import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
 class PauseSpec
-    extends TestKit(ActorSystem("PauseSpec"))
+    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
@@ -44,14 +41,13 @@ class PauseSpec
       operators: List[LogicalOp],
       links: List[LogicalLink]
   ): Unit = {
-    val resultStorage = new OpResultStorage()
-    val workflow = TestUtils.buildWorkflow(operators, links, resultStorage)
+    val workflow =
+      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
     val client =
       new AmberClient(
         system,
         workflow.context,
         workflow.physicalPlan,
-        resultStorage,
         ControllerConfig.default,
         error => {}
       )
@@ -62,54 +58,39 @@ class PauseSpec
           completion.setDone()
         }
       })
-    Await.result(client.sendAsync(StartWorkflow()))
-    Await.result(client.sendAsync(PauseWorkflow()))
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Thread.sleep(4000)
-    Await.result(client.sendAsync(ResumeWorkflow()))
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     Thread.sleep(400)
-    Await.result(client.sendAsync(PauseWorkflow()))
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Thread.sleep(4000)
-    Await.result(client.sendAsync(ResumeWorkflow()))
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     Await.result(completion)
   }
 
-  "Engine" should "be able to pause csv->sink workflow" in {
+  "Engine" should "be able to pause csv workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
-    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}")
+    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}")
     shouldPause(
-      List(csvOpDesc, sink),
-      List(
-        LogicalLink(
-          csvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      )
+      List(csvOpDesc),
+      List()
     )
   }
 
-  "Engine" should "be able to pause csv->keyword->sink workflow" in {
+  "Engine" should "be able to pause csv->keyword workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val sink = TestOperators.sinkOpDesc()
     logger.info(
-      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}"
+      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}"
     )
     shouldPause(
-      List(csvOpDesc, keywordOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
           PortIdentity(),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
           PortIdentity()
         )
       )

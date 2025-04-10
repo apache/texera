@@ -14,12 +14,17 @@ import { ActivatedRoute } from "@angular/router";
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
+  public selectedRowIndex: number | null = null;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     public workflowVersionService: WorkflowVersionService,
     public route: ActivatedRoute
   ) {}
+
+  public getDisplayedVersionId(index: number, count: number) {
+    return count - index;
+  }
 
   collapse(index: number, $event: boolean): void {
     if (this.versionsList == undefined) {
@@ -59,12 +64,14 @@ export class VersionsListComponent implements OnInit {
       });
   }
 
-  getVersion(vid: number) {
+  getVersion(vid: number, displayedVersionId: number, index: number) {
+    this.selectedRowIndex = index;
+
     this.workflowVersionService
       .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
-        this.workflowVersionService.displayParticularVersion(workflow);
+        this.workflowVersionService.displayParticularVersion(workflow, vid, displayedVersionId);
       });
   }
 }

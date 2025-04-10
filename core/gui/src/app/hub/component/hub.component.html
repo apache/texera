@@ -1,25 +1,38 @@
 <ul>
   <li
-    *ngIf="!isLogin"
+    *ngIf="environment.hubEnabled"
     nz-menu-item
-    nz-tooltip="Home page"
+    nz-tooltip="Home Page"
     nzMatchRouter="true"
     nzTooltipPlacement="right"
-    routerLink="/dashboard/home">
+    [routerLink]="DASHBOARD_HOME">
     <span
       nz-icon
       nzType="home"></span>
-    <span>Home</span>
+    <span> Home </span>
   </li>
   <li
+    *ngIf="environment.hubEnabled"
     nz-menu-item
     nz-tooltip="Search public workflows"
     nzMatchRouter="true"
     nzTooltipPlacement="right"
-    routerLink="/dashboard/hub/workflow/search">
+    [routerLink]="DASHBOARD_HUB_WORKFLOW_RESULT">
     <span
       nz-icon
       nzType="project"></span>
     <span>Workflows</span>
+  </li>
+  <li
+    *ngIf="environment.hubEnabled"
+    nz-menu-item
+    nz-tooltip="Search public dataset"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="DASHBOARD_HUB_DATASET_RESULT">
+    <span
+      nz-icon
+      nzType="database"></span>
+    <span>Datasets</span>
   </li>
 </ul>

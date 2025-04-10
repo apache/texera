@@ -10,7 +10,7 @@ pytest==7.4.0
 python-dateutil==2.8.2
 pytest-timeout==2.2.0
 protobuf==3.20.3
-betterproto==2.0.0b3
+betterproto==2.0.0b7
 typing==3.7.4.3
 pampy==0.3.0
 overrides==7.4.0
@@ -27,3 +27,9 @@ cached_property==1.5.2
 psutil==5.9.0
 transformers==4.44.2
 tzlocal==2.1
+pyiceberg==0.8.1
+readerwriterlock==1.0.9
+tenacity==8.5.0
+SQLAlchemy==2.0.37
+pg8000==1.31.2
+pympler==1.1

@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -10,12 +10,11 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -25,13 +24,15 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, Subscription, timer } from "rxjs";
+import { firstValueFrom, of, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
-import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
+import { PanelService } from "../../service/panel/panel.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
+import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
 import mapping from "../../../../assets/migration_tool/mapping";
 
@@ -56,7 +57,7 @@ import mapping from "../../../../assets/migration_tool/mapping";
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
@@ -65,6 +66,8 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public isExportDeactivate: boolean = false;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
@@ -107,6 +110,7 @@ export class MenuComponent implements OnInit {
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
+    private panelService: PanelService,
     private jupyterPanelService: JupyterPanelService
   ) {
     workflowWebsocketService
@@ -155,8 +159,20 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
+    // Subscribe to WorkflowResultExportService observable
+    this.workflowResultExportService
+      .getExportOnAllOperatorsStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(hasResultToExport => {
+        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+      });
+
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  ngOnDestroy(): void {
+    this.workflowResultExportService.resetFlags();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -269,12 +285,30 @@ export class MenuComponent implements OnInit {
     this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
   }
 
+  private async waitForConditions(): Promise<void> {
+    const checkConditions = () => {
+      return this.workflowWebsocketService.isConnected && !this.displayParticularWorkflowVersion;
+    };
+
+    while (!checkConditions()) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
   public handleKill(): void {
     this.executeWorkflowService.killWorkflow();
   }
 
   public handleCheckpoint(): void {
     this.executeWorkflowService.takeGlobalCheckpoint();
+  }
+
+  public onClickClosePanels(): void {
+    this.panelService.closePanels();
+  }
+
+  public onClickResetPanels(): void {
+    this.panelService.resetPanels();
   }
 
   /**
@@ -349,13 +383,13 @@ export class MenuComponent implements OnInit {
    * This is the handler for the execution result export button.
    *
    */
-  public onClickExportExecutionResult(exportType: string): void {
+  public onClickExportExecutionResult(): void {
     this.modalService.create({
-      nzTitle: "Export Result and Save to a Dataset",
+      nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: exportType,
         workflowName: this.currentWorkflowName,
+        sourceTriggered: "menu",
       },
       nzFooter: null,
     });
@@ -376,7 +410,7 @@ export class MenuComponent implements OnInit {
       .getTexeraGraph()
       .getAllOperators()
       .map(op => op.operatorID);
-    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
   public onClickImportNotebook = (file: NzUploadFile): boolean => {
@@ -691,6 +725,24 @@ export class MenuComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  cloneVersion() {
+    this.workflowVersionService
+      .cloneWorkflowVersion()
+      .pipe(
+        catchError(() => {
+          this.notificationService.error("Failed to clone workflow. Please try again.");
+          return of(null);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(new_wid => {
+        if (new_wid) {
+          this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+          this.closeParticularVersionDisplay();
+        }
+      });
   }
 
   private registerWorkflowModifiableChangedHandler(): void {

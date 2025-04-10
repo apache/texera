@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import scala.collection.mutable
 
@@ -20,7 +20,7 @@ class ReplayLoggerImpl extends ReplayLogger {
     * and there is no associated message for this step, the logging operation is bypassed.
     * Otherwise, it appends a ProcessingStep log record with the message content, provided the message exists.
     *
-    * @param step The current processing step.
+    * @param step    The current processing step.
     * @param channel The channel ID associated with the processing step.
     * @param message An optional message associated with the processing step.
     */

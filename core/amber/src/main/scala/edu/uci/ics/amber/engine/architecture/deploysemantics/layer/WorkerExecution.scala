@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkerPortExecution
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -15,7 +15,8 @@ case class WorkerExecution() extends Serializable {
     mutable.HashMap()
 
   private var state: WorkerState = UNINITIALIZED
-  private var stats: WorkerStatistics = WorkerStatistics(Seq(), Seq(), 0, 0, 0)
+  private var stats: WorkerStatistics =
+    WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
 
   def getState: WorkerState = state
 

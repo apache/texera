@@ -6,7 +6,8 @@
     nzTheme="light">
     <ul
       nz-menu
-      nzMode="inline">
+      nzMode="inline"
+      nzSelectable="false">
       <li class="logo-section">
         <img
           *ngIf="isCollpased"
@@ -20,8 +21,9 @@
       </li>
 
       <li
+        *ngIf="environment.hubEnabled"
         nz-submenu
-        nzTitle="Community"
+        nzTitle="Hub"
         nzIcon="usergroup-add"
         nzOpen="true">
         <texera-hub [isLogin]="isLogin"></texera-hub>
@@ -35,11 +37,12 @@
         nzOpen="true">
         <ul>
           <li
+            *ngIf="environment.projectEnabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/user/project">
+            [routerLink]="DASHBOARD_USER_PROJECT">
             <span
               nz-icon
               nzType="container"></span>
@@ -51,7 +54,7 @@
             nz-tooltip="Open the saved workflows"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/user/workflow">
+            [routerLink]="DASHBOARD_USER_WORKFLOW">
             <span
               nz-icon
               nzType="project"></span>
@@ -63,7 +66,7 @@
             nz-tooltip="Look up for datasets"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/user/dataset">
+            [routerLink]="DASHBOARD_USER_DATASET">
             <span
               nz-icon
               nzType="database"></span>
@@ -74,19 +77,19 @@
             nz-tooltip="Quota information"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/user/quota">
+            [routerLink]="DASHBOARD_USER_QUOTA">
             <span
               nz-icon
               nzType="dashboard"></span>
             <span>Quota</span>
           </li>
           <li
-            *ngIf="displayForum"
+            *ngIf="environment.forumEnabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/user/discussion">
+            [routerLink]="DASHBOARD_USER_DISCUSSION">
             <span
               nz-icon
               nzType="comment"></span>
@@ -103,7 +106,7 @@
                 nz-tooltip="Look up the users"
                 nzMatchRouter="true"
                 nzTooltipPlacement="right"
-                routerLink="/dashboard/admin/user">
+                [routerLink]="DASHBOARD_ADMIN_USER">
                 <span
                   nz-icon
                   nzType="user"></span>
@@ -114,7 +117,7 @@
                 nz-tooltip="View statistics"
                 nzMatchRouter="true"
                 nzTooltipPlacement="right"
-                routerLink="/dashboard/admin/execution">
+                [routerLink]="DASHBOARD_ADMIN_EXECUTION">
                 <span
                   nz-icon
                   nzType="setting"></span>
@@ -125,7 +128,7 @@
                 nz-tooltip="Setup gmail"
                 nzMatchRouter="true"
                 nzTooltipPlacement="right"
-                routerLink="/dashboard/admin/gmail">
+                [routerLink]="DASHBOARD_ADMIN_GMAIL">
                 <span
                   nz-icon
                   nzType="mail"></span>
@@ -135,48 +138,35 @@
           </li>
         </ul>
       </li>
+
+      <li
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT">
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
+      </li>
     </ul>
+    <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
   </nz-sider>
 
   <div class="page-container">
-    <ul
-      class="nav-links"
-      [ngClass]="{ 'hidden': isLogin }">
-      <li class="nav-item">
-        <a
-          class="nav-link"
-          href="https://github.com/Texera/texera/wiki/Getting-Started"
-          >Getting Started</a
-        >
-      </li>
-      <li class="nav-item">
-        <a
-          class="nav-link"
-          href="https://texera.github.io/blog/"
-          >Blogs</a
-        >
-      </li>
-      <li class="nav-item">
-        <iframe
-          style="margin-top: 2px"
-          src="https://ghbtns.com/github-btn.html?user=Texera&repo=texera&type=star&count=true"
-          frameborder="0"
-          scrolling="0"
-          width="90"
-          height="20"
-          title="GitHub"></iframe>
-      </li>
-      <li
-        class="nav-item"
-        id="googleButton"></li>
-    </ul>
-
     <nz-layout>
       <div
-        *ngIf="displayNavbar"
+        [hidden]="!displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
-        <texera-user-icon *ngIf="isLogin"></texera-user-icon>
+        <ng-container *ngIf="isLogin">
+          <texera-user-icon></texera-user-icon>
+        </ng-container>
+        <asl-google-signin-button
+          *ngIf="!isLogin && googleLogin"
+          type="standard"
+          size="large"
+          [width]="200"></asl-google-signin-button>
       </div>
 
       <nz-content>

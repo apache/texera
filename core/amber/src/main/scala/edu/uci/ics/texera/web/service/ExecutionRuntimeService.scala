@@ -1,25 +1,21 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
+import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  TakeGlobalCheckpointRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  SkipTupleRequest,
-  WorkflowCheckpointRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState._
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
+import java.net.URI
 import java.util.UUID
 
 class ExecutionRuntimeService(
@@ -27,9 +23,24 @@ class ExecutionRuntimeService(
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
     reconfigurationService: ExecutionReconfigurationService,
-    logConf: Option[FaultToleranceConfig]
+    logConf: Option[FaultToleranceConfig],
+    workflowId: Long,
+    emailNotificationEnabled: Boolean,
+    userEmailOpt: Option[String],
+    sessionUri: URI
 ) extends SubscriptionManager
     with LazyLogging {
+
+  private val emailNotificationService = for {
+    email <- userEmailOpt
+    if emailNotificationEnabled
+  } yield new EmailNotificationService(
+    new WorkflowEmailNotifier(
+      workflowId,
+      email,
+      sessionUri
+    )
+  )
 
   //Receive skip tuple
   addSubscription(wsInput.subscribe((req: SkipTupleRequest, uidOpt) => {
@@ -41,6 +52,9 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(evt.state, metadataStore)
     )
+
+    emailNotificationService.foreach(_.processEmailNotificationIfNeeded(evt.state))
+
     if (evt.state == COMPLETED) {
       client.shutdown()
       stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
@@ -52,7 +66,7 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(PAUSING, metadataStore)
     )
-    client.sendAsync(PauseWorkflow())
+    client.controllerInterface.pauseWorkflow(EmptyRequest(), ())
   }))
 
   // Receive Resume
@@ -61,13 +75,13 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(RESUMING, metadataStore)
     )
-    client.sendAsyncWithCallback[Unit](
-      ResumeWorkflow(),
-      _ =>
+    client.controllerInterface
+      .resumeWorkflow(EmptyRequest(), ())
+      .onSuccess(_ =>
         stateStore.metadataStore.updateState(metadataStore =>
           updateWorkflowState(RUNNING, metadataStore)
         )
-    )
+      )
   }))
 
   // Receive Kill
@@ -87,7 +101,15 @@ class ExecutionRuntimeService(
     )
     val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
     val uri = logConf.get.writeTo.resolve(checkpointId.toString)
-    client.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri))
+    client.controllerInterface.takeGlobalCheckpoint(
+      TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
+      ()
+    )
   }))
+
+  override def unsubscribeAll(): Unit = {
+    super.unsubscribeAll()
+    emailNotificationService.foreach(_.shutdown())
+  }
 
 }

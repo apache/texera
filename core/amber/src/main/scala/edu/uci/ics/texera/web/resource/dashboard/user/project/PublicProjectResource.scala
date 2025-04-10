@@ -1,17 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectUserAccessDao,
-  PublicProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
@@ -19,21 +15,25 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
 case class DashboardPublicProject(
-    pid: UInteger,
+    pid: Integer,
     name: String,
     owner: String,
     creationTime: Timestamp
 ) {}
+
 @Path("/public/project")
 class PublicProjectResource {
 
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance()
+    .createDSLContext()
   final private lazy val publicProjectDao = new PublicProjectDao(context.configuration)
   final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
+
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/type/{pid}")
-  def getType(@PathParam("pid") pid: UInteger): String = {
+  def getType(@PathParam("pid") pid: Integer): String = {
     if (publicProjectDao.fetchOneByPid(pid) == null)
       "Private"
     else
@@ -43,27 +43,27 @@ class PublicProjectResource {
   @PUT
   @RolesAllowed(Array("ADMIN"))
   @Path("/public/{pid}")
-  def makePublic(@PathParam("pid") pid: UInteger, @Auth user: SessionUser): Unit = {
+  def makePublic(@PathParam("pid") pid: Integer, @Auth user: SessionUser): Unit = {
     publicProjectDao.insert(new PublicProject(pid, user.getUid))
   }
 
   @PUT
   @RolesAllowed(Array("ADMIN"))
   @Path("/private/{pid}")
-  def makePrivate(@PathParam("pid") pid: UInteger): Unit = {
+  def makePrivate(@PathParam("pid") pid: Integer): Unit = {
     publicProjectDao.deleteById(pid)
   }
 
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/add")
-  def addPublicProjects(checkedList: util.List[UInteger], @Auth user: SessionUser): Unit = {
+  def addPublicProjects(checkedList: util.List[Integer], @Auth user: SessionUser): Unit = {
     checkedList.forEach(pid => {
       projectUserAccessDao.merge(
         new ProjectUserAccess(
           user.getUid,
           pid,
-          ProjectUserAccessPrivilege.READ
+          PrivilegeEnum.READ
         )
       )
     })
