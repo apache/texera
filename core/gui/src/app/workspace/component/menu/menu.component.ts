@@ -14,7 +14,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, filter, mergeMap, tap, takeUntil } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap, takeUntil, take } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -240,19 +240,17 @@ export class MenuComponent implements OnInit, OnDestroy {
           .subscribe(status => {
             this.computingUnitStatus = status;
 
-            // If status indicates the unit is in a connecting state, update the UI
-            if (status === "Pending" || status === "Disconnected") {
-              this.isConnectingToComputingUnit = true;
-            } else if (status === "Running") {
-              // Only clear connecting flag if we're not auto-running
-              if (!this.autoRunAfterConnect) {
-                this.isConnectingToComputingUnit = false;
-              }
+            // If we're auto-running, don't make UI state changes based on unit status
+            if (this.autoRunAfterConnect) {
+              return;
             }
 
-            // If status indicates no unit or disconnected, update connection status too
+            // If status indicates no unit or disconnected, update connection status
             if (status === "No Computing Unit" || status === "Disconnected" || status === "Terminating") {
               this.computingUnitConnected = false;
+            } else if (status === "Running") {
+              this.computingUnitConnected = true;
+              this.isConnectingToComputingUnit = false;
             }
 
             this.applyRunButtonBehavior(this.getRunButtonBehavior());
@@ -367,70 +365,77 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowWebsocketService.closeWebsocket();
     this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, unit.computingUnit.cuid);
 
-    // Start polling for connection status
-    const connectionCheck = interval(500)
+    // Check more frequently to ensure we catch the connection as soon as it's established
+    const connectionCheck = interval(200)
       .pipe(
         takeUntil(this.destroy$),
-        filter(() => this.workflowWebsocketService.isConnected && unit.status === "Running")
+        filter(() => this.workflowWebsocketService.isConnected)
       )
       .subscribe(() => {
         // Update connection status
         this.computingUnitConnected = true;
         this.computingUnitStatus = "Running";
 
-        // Only clear connecting state if we're not auto-running
-        if (!this.autoRunAfterConnect) {
-          this.isConnectingToComputingUnit = false;
-        }
-
-        // Immediately update the button to show "Submitting" if we're auto-running
+        // Apply button behavior immediately to update UI
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
         connectionCheck.unsubscribe();
 
         // If we were waiting to run the workflow after connecting, do it now
         if (this.autoRunAfterConnect) {
-          // Do not clear the flag yet, it will be cleared in the execution
-          // Short delay to ensure everything is ready
-          setTimeout(() => {
-            // Execute workflow
-            this.executeWorkflowService.executeWorkflowWithEmailNotification(
-              this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled
-            );
+          // Execute workflow immediately without delay
+          this.executeWorkflowService.executeWorkflowWithEmailNotification(
+            this.currentExecutionName,
+            this.emailNotificationEnabled && environment.userSystemEnabled
+          );
 
-            // Only clear the flag once execution has started
-            this.executeWorkflowService
-              .getExecutionStateStream()
-              .pipe(
-                filter(
-                  event =>
-                    event.current.state === ExecutionState.Initializing ||
-                    event.current.state === ExecutionState.Running
-                ),
-                takeUntil(this.destroy$)
-              )
-              .subscribe(() => {
-                this.autoRunAfterConnect = false;
-                this.isConnectingToComputingUnit = false;
-              });
-          }, 500);
+          // Add subscription to detect when execution has started
+          this.executeWorkflowService
+            .getExecutionStateStream()
+            .pipe(
+              filter(
+                event =>
+                  event.current.state === ExecutionState.Initializing || event.current.state === ExecutionState.Running
+              ),
+              takeUntil(this.destroy$),
+              take(1) // Only take the first matching event
+            )
+            .subscribe(() => {
+              this.autoRunAfterConnect = false;
+              this.isConnectingToComputingUnit = false;
+              this.applyRunButtonBehavior(this.getRunButtonBehavior());
+            });
+        } else {
+          this.isConnectingToComputingUnit = false;
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
         }
       });
 
-    // Timeout after 15 seconds of waiting
+    // Timeout after 20 seconds of waiting
     setTimeout(() => {
-      if (this.isConnectingToComputingUnit && !this.autoRunAfterConnect) {
+      if (this.isConnectingToComputingUnit) {
+        connectionCheck.unsubscribe();
         this.isConnectingToComputingUnit = false;
-        this.notificationService.warning("Connection to computing unit is taking longer than expected");
+        this.autoRunAfterConnect = false; // Reset auto-run flag
+        this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       }
-    }, 15000);
+    }, 20000);
   }
 
   /**
    * Create a computing unit, connect to it, and run the workflow
    */
   private createConnectAndRun(): void {
+    // First check if already connected to a running computing unit
+    if (this.workflowWebsocketService.isConnected && this.computingUnitStatus === "Running") {
+      // Already connected, execute workflow immediately
+      this.executeWorkflowService.executeWorkflowWithEmailNotification(
+        this.currentExecutionName,
+        this.emailNotificationEnabled && environment.userSystemEnabled
+      );
+      return;
+    }
+
     // Set autoRunAfterConnect first, before any async operations
     this.autoRunAfterConnect = true;
 
@@ -439,6 +444,14 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // Then create the computing unit
     this.createAndConnectComputingUnit();
+
+    // Add a fallback in case we're stuck in connecting status
+    setTimeout(() => {
+      if (this.autoRunAfterConnect && this.executionState === ExecutionState.Uninitialized) {
+        console.warn("Execution not started after computing unit connection - forcing state update");
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      }
+    }, 5000);
   }
 
   public async onClickOpenShareAccess(): Promise<void> {

@@ -344,19 +344,11 @@
           [disabled]="runDisable || (!workflowWebsocketService.isConnected && !environment.computingUnitManagerEnabled) || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
-          nzType="primary"
-          [class.computing-unit-status]="environment.computingUnitManagerEnabled && computingUnitStatus !== 'Running'"
-          [class.creating-unit]="isCreatingComputingUnit"
-          [class.connecting-unit]="isConnectingToComputingUnit">
+          nzType="primary">
           <i
             nz-icon
             nzType="{{ runIcon }}"></i>
-          <span>
-            {{ runButtonText }}
-            <span
-              *ngIf="isCreatingComputingUnit || isConnectingToComputingUnit"
-              class="dots-animation"></span
-          ></span>
+          <span> {{ runButtonText }}</span>
         </button>
         <button
           *ngIf="userSystemEnabled && environment.timetravelEnabled"
@@ -400,7 +392,6 @@
               {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b
             >
             <div *ngIf="workflowWebsocketService.isConnected">
-              <div *ngIf="environment.computingUnitManagerEnabled">Computing Unit Status: {{computingUnitStatus}}</div>
               <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>
             </div>
           </ng-template>

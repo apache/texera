@@ -107,29 +107,6 @@ i {
     animation: loading 1.4s infinite linear;
   }
 
-  // Animation dots for creating/connecting
-  &.creating-unit,
-  &.connecting-unit {
-    .dots-animation::after {
-      content: "";
-      animation: dots 1.5s infinite;
-    }
-  }
-
-  // Connecting state style
-  &.connecting-unit {
-    background-color: #fffbe6;
-    border-color: #faad14;
-    color: #faad14;
-
-    &:hover,
-    &:focus {
-      background-color: #fff7cc;
-      border-color: #d48806;
-      color: #d48806;
-    }
-  }
-
   // Special icon styles
   .anticon-cloud-server {
     color: #1890ff;
@@ -150,21 +127,6 @@ i {
   }
   100% {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes dots {
-  0% {
-    content: ".";
-  }
-  33% {
-    content: "..";
-  }
-  66% {
-    content: "...";
-  }
-  100% {
-    content: "";
   }
 }
 
