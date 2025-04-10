@@ -1,34 +1,46 @@
 {
   "/api/compile": {
-    "target": "http://localhost:9090",
+    "target": "http://127.0.0.1:30083",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "logLevel": "debug"
   },
   "/api/dataset": {
-    "target": "http://localhost:9092",
+    "target": "http://127.0.0.1:30084",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "logLevel": "debug"
   },
   "/api/access/dataset/**": {
-    "target": "http://localhost:9092",
+    "target": "http://127.0.0.1:30084",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/api/computing-unit": {
+    "target": "http://127.0.0.1:30082",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
   },
   "/api": {
-    "target": "http://localhost:8080",
+    "target": "http://127.0.0.1:30081",
     "secure": false,
-    "changeOrigin": false
+    "changeOrigin": true,
+    "logLevel": "debug"
   },
   "/wsapi": {
-    "target": "http://localhost:8085",
+    "target": "http://127.0.0.1:30085",
     "secure": false,
-    "changeOrigin": false,
-    "ws": true
+    "changeOrigin": true,
+    "ws": true,
+    "logLevel": "debug"
   },
   "/rtc": {
-    "target": "http://localhost:1234",
+    "target": "http://127.0.0.1:30080",
     "ws": true,
     "secure": false,
-    "changeOrigin": false
+    "changeOrigin": true,
+    "logLevel": "debug"
   }
 }
