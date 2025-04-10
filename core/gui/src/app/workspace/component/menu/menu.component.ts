@@ -98,11 +98,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public computingUnitStatus: ComputingUnitConnectionState = ComputingUnitConnectionState.NoComputingUnit;
   private computingUnitConnected: boolean = false;
 
-  // Auto-create computing unit variables
-  public isCreatingComputingUnit = false;
-  public isConnectingToComputingUnit = false;
-  private autoRunAfterConnect = false;
-
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public workflowActionService: WorkflowActionService,
@@ -148,7 +143,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
-    // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
     this.registerWorkflowModifiableChangedHandler();
     this.registerWorkflowIdUpdateHandler();
 
@@ -162,12 +156,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         this.executionState = event.current.state;
-
-        // Clear the autoRunAfterConnect flag when execution has started or when it completes
-        if (event.current.state === ExecutionState.Initializing || event.current.state === ExecutionState.Running) {
-          this.autoRunAfterConnect = false;
-        }
-
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
@@ -202,281 +190,33 @@ export class MenuComponent implements OnInit, OnDestroy {
    * Subscribe to computing unit status changes from the ComputingUnitStatusService
    */
   private subscribeToComputingUnitStatus(): void {
-    // First ensure we have the correct connection status
+    // Initial state is disconnected until subscriptions update
     this.computingUnitConnected = this.workflowWebsocketService.isConnected;
+    this.computingUnitStatus = this.workflowWebsocketService.isConnected
+      ? ComputingUnitConnectionState.Running
+      : ComputingUnitConnectionState.Disconnected;
 
-    // Default to "Running" if websocket is connected
-    if (this.workflowWebsocketService.isConnected) {
-      this.computingUnitStatus = ComputingUnitConnectionState.Running;
-    } else {
-      this.computingUnitStatus = ComputingUnitConnectionState.Disconnected;
-    }
-
-    // Update the button UI initially
-    this.applyRunButtonBehavior(this.getRunButtonBehavior());
-
-    // Subscribe to websocket connection changes directly
+    // Subscribe to get the computing unit status
     this.computingUnitStatusSubscription.add(
-      interval(1000)
+      this.computingUnitStatusService
+        .getStatus()
         .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          const isConnected = this.workflowWebsocketService.isConnected;
-          if (this.computingUnitConnected !== isConnected) {
-            this.computingUnitConnected = isConnected;
-            
-            // If we were connected but lost connection, show Connecting state
-            if (!isConnected && this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit) {
-              this.isConnectingToComputingUnit = true;
-              this.computingUnitStatus = ComputingUnitConnectionState.Disconnected;
-            } else if (isConnected && this.computingUnitStatus === ComputingUnitConnectionState.Disconnected) {
-              // If connection restored, update status
-              this.computingUnitStatus = ComputingUnitConnectionState.Running;
-              this.isConnectingToComputingUnit = false;
-            }
-            
-            this.applyRunButtonBehavior(this.getRunButtonBehavior());
-          }
+        .subscribe(status => {
+          this.computingUnitStatus = status;
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
         })
     );
 
-    // Subscribe to computing unit status changes if needed
-    if (environment.computingUnitManagerEnabled) {
-      // Subscribe to status changes
-      this.computingUnitStatusSubscription.add(
-        this.computingUnitStatusService
-          .getStatus()
-          .pipe(untilDestroyed(this))
-          .subscribe(status => {
-            this.computingUnitStatus = status;
-
-            // If we're auto-running, don't make UI state changes based on unit status
-            if (this.autoRunAfterConnect) {
-              return;
-            }
-
-            // If status indicates no unit or disconnected, update connection status
-            if (status === ComputingUnitConnectionState.NoComputingUnit || status === ComputingUnitConnectionState.Disconnected || status === ComputingUnitConnectionState.Terminating) {
-              this.computingUnitConnected = false;
-              // If a unit is selected but in a non-connected state, show connecting
-              if (status !== ComputingUnitConnectionState.NoComputingUnit) {
-                this.isConnectingToComputingUnit = true;
-              }
-            } else if (status === ComputingUnitConnectionState.Running) {
-              if (this.workflowWebsocketService.isConnected) {
-                this.computingUnitConnected = true;
-                this.isConnectingToComputingUnit = false;
-              } else {
-                // If unit is Running but websocket is not connected, we're still connecting
-                this.computingUnitConnected = false;
-                this.isConnectingToComputingUnit = true;
-              }
-            } else if (status === ComputingUnitConnectionState.Pending) {
-              // Always show connecting for Pending units
-              this.computingUnitConnected = false;
-              this.isConnectingToComputingUnit = true;
-            }
-
-            this.applyRunButtonBehavior(this.getRunButtonBehavior());
-          })
-      );
-
-      // Subscribe to the selected unit for auto-run functionality
-      this.computingUnitStatusSubscription.add(
-        this.computingUnitStatusService
-          .getSelectedComputingUnit()
-          .pipe(untilDestroyed(this))
-          .subscribe(unit => {
-            // If we're in the execution state, don't allow status to change
-            if (this.executionState === ExecutionState.Initializing || this.executionState === ExecutionState.Running) {
-              return;
-            }
-            
-            // If we're not auto-running, update to remove previous auto-run state
-            if (!this.autoRunAfterConnect && unit && unit.status === ComputingUnitConnectionState.Running && this.workflowWebsocketService.isConnected) {
-              this.isConnectingToComputingUnit = false;
-              this.computingUnitConnected = true;
-              this.applyRunButtonBehavior(this.getRunButtonBehavior());
-            }
-
-            // If computing unit is selected but not ready or not connected, update connection status
-            if (unit) {
-              if (unit.status !== ComputingUnitConnectionState.Running || !this.workflowWebsocketService.isConnected) {
-                this.computingUnitConnected = false;
-                this.isConnectingToComputingUnit = true;
-                this.applyRunButtonBehavior(this.getRunButtonBehavior());
-              }
-            } else {
-              // No unit selected
-              this.isConnectingToComputingUnit = false;
-            }
-          })
-      );
-
-      // Subscribe directly to the connection status
-      this.computingUnitStatusSubscription.add(
-        this.computingUnitStatusService
-          .getConnectionStatus()
-          .pipe(untilDestroyed(this))
-          .subscribe(connected => {
-            this.computingUnitConnected = connected;
-            if (!connected) {
-              this.computingUnitStatus = ComputingUnitConnectionState.Disconnected;
-            }
-            this.applyRunButtonBehavior(this.getRunButtonBehavior());
-          })
-      );
-    }
-  }
-
-  /**
-   * Create a new computing unit and connect to it
-   */
-  private createAndConnectComputingUnit(): void {
-    if (!environment.computingUnitManagerEnabled || !this.workflowId) {
-      return;
-    }
-
-    this.isCreatingComputingUnit = true;
-    this.applyRunButtonBehavior(this.getRunButtonBehavior());
-
-    // Get the available configurations
-    this.computingUnitService
-      .getComputingUnitLimitOptions()
-      .pipe(
-        untilDestroyed(this),
-        mergeMap(({ cpuLimitOptions, memoryLimitOptions }) => {
-          const defaultCpu = cpuLimitOptions[0] || "1";
-          const defaultMemory = memoryLimitOptions[0] || "1Gi";
-          const unitName = `Workflow ${this.workflowId} Unit`;
-
-          // Create the computing unit
-          return this.computingUnitService.createComputingUnit(unitName, defaultCpu, defaultMemory);
+    // Subscribe to connection status
+    this.computingUnitStatusSubscription.add(
+      this.computingUnitStatusService
+        .getConnectionStatus()
+        .pipe(untilDestroyed(this))
+        .subscribe(connected => {
+          this.computingUnitConnected = connected;
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
         })
-      )
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit) => {
-          this.isCreatingComputingUnit = false;
-          this.isConnectingToComputingUnit = true;
-          this.applyRunButtonBehavior(this.getRunButtonBehavior());
-
-          // Connect to the unit
-          this.connectToComputingUnit(unit);
-        },
-        error: (err: unknown) => {
-          this.isCreatingComputingUnit = false;
-          this.isConnectingToComputingUnit = false;
-          this.notificationService.error(`Failed to create computing unit: ${err}`);
-          this.applyRunButtonBehavior(this.getRunButtonBehavior());
-        },
-      });
-  }
-
-  /**
-   * Connect to a computing unit
-   */
-  private connectToComputingUnit(unit: DashboardWorkflowComputingUnit): void {
-    if (!this.workflowId) {
-      return;
-    }
-
-    // Set the connecting state
-    this.isConnectingToComputingUnit = true;
-    this.applyRunButtonBehavior(this.getRunButtonBehavior());
-
-    // Select the unit in the service
-    this.computingUnitStatusService.selectComputingUnit(unit);
-
-    // Connect to the unit's websocket
-    this.workflowWebsocketService.closeWebsocket();
-    this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, unit.computingUnit.cuid);
-
-    // Check more frequently to ensure we catch the connection as soon as it's established
-    const connectionCheck = interval(200)
-      .pipe(
-        untilDestroyed(this),
-        filter(() => this.workflowWebsocketService.isConnected)
-      )
-      .subscribe(() => {
-        // Update connection status
-        this.computingUnitConnected = true;
-        this.computingUnitStatus = ComputingUnitConnectionState.Running;
-
-        // Apply button behavior immediately to update UI
-        this.applyRunButtonBehavior(this.getRunButtonBehavior());
-        connectionCheck.unsubscribe();
-
-        // If we were waiting to run the workflow after connecting, do it now
-        if (this.autoRunAfterConnect) {
-          // Execute workflow immediately without delay
-          this.executeWorkflowService.executeWorkflowWithEmailNotification(
-            this.currentExecutionName,
-            this.emailNotificationEnabled && environment.userSystemEnabled
-          );
-
-          // Add subscription to detect when execution has started
-          this.executeWorkflowService
-            .getExecutionStateStream()
-            .pipe(
-              filter(
-                event =>
-                  event.current.state === ExecutionState.Initializing || event.current.state === ExecutionState.Running
-              ),
-              untilDestroyed(this),
-              take(1) // Only take the first matching event
-            )
-            .subscribe(() => {
-              this.autoRunAfterConnect = false;
-              this.isConnectingToComputingUnit = false;
-              this.applyRunButtonBehavior(this.getRunButtonBehavior());
-            });
-        } else {
-          this.isConnectingToComputingUnit = false;
-          this.applyRunButtonBehavior(this.getRunButtonBehavior());
-        }
-      });
-
-    // Timeout after 20 seconds of waiting
-    setTimeout(() => {
-      if (this.isConnectingToComputingUnit) {
-        connectionCheck.unsubscribe();
-        this.isConnectingToComputingUnit = false;
-        this.autoRunAfterConnect = false; // Reset auto-run flag
-        this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
-        this.applyRunButtonBehavior(this.getRunButtonBehavior());
-      }
-    }, 20000);
-  }
-
-  /**
-   * Create a computing unit, connect to it, and run the workflow
-   */
-  private createConnectAndRun(): void {
-    // First check if already connected to a running computing unit
-    if (this.workflowWebsocketService.isConnected && this.computingUnitStatus === ComputingUnitConnectionState.Running) {
-      // Already connected, execute workflow immediately
-      this.executeWorkflowService.executeWorkflowWithEmailNotification(
-        this.currentExecutionName,
-        this.emailNotificationEnabled && environment.userSystemEnabled
-      );
-      return;
-    }
-
-    // Set autoRunAfterConnect first, before any async operations
-    this.autoRunAfterConnect = true;
-
-    // Update button immediately to show connecting state
-    this.applyRunButtonBehavior(this.getRunButtonBehavior());
-
-    // Then create the computing unit
-    this.createAndConnectComputingUnit();
-
-    // Add a fallback in case we're stuck in connecting status
-    setTimeout(() => {
-      if (this.autoRunAfterConnect && this.executionState === ExecutionState.Uninitialized) {
-        console.warn("Execution not started after computing unit connection - forcing state update");
-        this.applyRunButtonBehavior(this.getRunButtonBehavior());
-      }
-    }, 5000);
+    );
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -530,8 +270,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // Check if we're in the process of creating or connecting to a computing unit
-    if (this.isCreatingComputingUnit) {
+    // Check execution state flags from the Computing Unit Status Service
+    // Note: We need to use BehaviorSubject.value directly rather than async subscriptions
+    // to ensure the button state is determined synchronously
+    if (this.computingUnitStatusService.isCreatingUnitValue) {
       return {
         text: "Creating Unit",
         icon: "loading",
@@ -540,11 +282,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // If we're explicitly in connecting state or a unit is selected but not connected, show Connecting
-    if (this.isConnectingToComputingUnit || 
-        (environment.computingUnitManagerEnabled && 
-         this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit && 
-         !this.computingUnitConnected)) {
+    if (this.computingUnitStatusService.isConnectingToUnitValue) {
       return {
         text: "Connecting",
         icon: "loading",
@@ -553,8 +291,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // If we're connected and waiting to auto-run, show "Submitting..." instead of "Connecting"
-    if (this.autoRunAfterConnect && this.computingUnitConnected && this.computingUnitStatus === ComputingUnitConnectionState.Running) {
+    if (this.computingUnitStatusService.isAutoRunAfterConnectValue && this.computingUnitConnected) {
       return {
         text: "Submitting",
         icon: "loading",
@@ -563,7 +300,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // In cuManager mode, if no computing unit, always allow running which will create one
+    // In cuManager mode, if no computing unit or not connected, allow running which will create one
     if (
       environment.computingUnitManagerEnabled &&
       (!this.workflowWebsocketService.isConnected || this.computingUnitStatus !== ComputingUnitConnectionState.Running)
@@ -572,7 +309,7 @@ export class MenuComponent implements OnInit, OnDestroy {
         text: "Run",
         icon: "play-circle",
         disable: false,
-        onClick: () => this.createConnectAndRun(),
+        onClick: () => this.runWorkflow(),
       };
     }
 
@@ -586,11 +323,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () =>
-            this.executeWorkflowService.executeWorkflowWithEmailNotification(
-              this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled
-            ),
+          onClick: () => this.runWorkflow(),
         };
       case ExecutionState.Initializing:
         return {
@@ -632,11 +365,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () =>
-            this.executeWorkflowService.executeWorkflowWithEmailNotification(
-              this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled
-            ),
+          onClick: () => this.runWorkflow(),
         };
     }
   }
@@ -954,7 +683,14 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .workflowMetaDataChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(metadata => (this.workflowId = metadata.wid));
+      .subscribe(metadata => {
+        this.workflowId = metadata.wid;
+
+        // Pass the workflow ID to the computing unit status service
+        if (this.workflowId) {
+          this.computingUnitStatusService.setWorkflowId(this.workflowId);
+        }
+      });
   }
 
   /**
@@ -970,14 +706,21 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // If computing unit manager is enabled but no unit is selected/connected
     if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
-      // First create a computing unit
-      this.autoRunAfterConnect = true;
-      this.currentExecutionName = this.currentExecutionName || "Untitled Execution";
-      this.createAndConnectComputingUnit();
+      // Use the service to handle creation, connection, and auto-run
+      this.computingUnitStatusService
+        .createConnectAndPrepareRun(
+          this.currentExecutionName || "Untitled Execution",
+          this.emailNotificationEnabled && environment.userSystemEnabled
+        )
+        .pipe(untilDestroyed(this))
+        .subscribe(() => {
+          // Update the button state after request is initiated
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
+        });
       return;
     }
 
-    // Regular workflow execution
+    // Regular workflow execution - already connected
     this.executeWorkflowService.executeWorkflowWithEmailNotification(
       this.currentExecutionName || "Untitled Execution",
       this.emailNotificationEnabled && environment.userSystemEnabled

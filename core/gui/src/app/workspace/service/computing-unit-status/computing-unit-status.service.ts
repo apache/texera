@@ -1,12 +1,15 @@
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, Observable, interval, Subscription } from "rxjs";
-import { filter, map, switchMap, tap } from "rxjs/operators";
+import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of } from "rxjs";
+import { filter, map, switchMap, tap, take, mergeMap, catchError } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -25,24 +28,43 @@ export class ComputingUnitStatusService implements OnDestroy {
   private allUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
   private connectedSubject = new BehaviorSubject<boolean>(false);
 
+  // New behavior subjects for tracking connection process
+  private isCreatingUnitSubject = new BehaviorSubject<boolean>(false);
+  private isConnectingUnitSubject = new BehaviorSubject<boolean>(false);
+  private autoRunAfterConnectSubject = new BehaviorSubject<boolean>(false);
+  private workflowIdSubject = new BehaviorSubject<number | undefined>(undefined);
+
+  // Connection timeout values
+  private readonly CONNECTION_TIMEOUT_MS = 20000;
+
   // Refresh interval in milliseconds
   private readonly REFRESH_INTERVAL_MS = 2000;
   private readonly CONNECTION_CHECK_INTERVAL_MS = 1000;
   private refreshSubscription: Subscription | null = null;
   private connectionCheckSubscription: Subscription | null = null;
+  private connectionTimeoutTimer: Subscription | null = null;
 
   // Flag to track if we're using a local computing unit
   private isUsingLocalComputingUnit: boolean = false;
 
+  // Variables to store auto-run parameters
+  private autoRunExecutionName = "";
+  private autoRunEnableEmailNotification = false;
+
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private executeWorkflowService: ExecuteWorkflowService, // Added for auto-run
+    private notificationService: NotificationService // Added for error notifications
   ) {
     // Initialize the service by loading computing units
     this.initializeService();
 
     // Monitor websocket connection status
     this.monitorConnectionStatus();
+
+    // Monitor auto-run execution state transitions
+    this.monitorExecutionStateForAutoRun();
   }
 
   // Initialize the service with available computing units
@@ -236,7 +258,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         if (!unit) {
           return ComputingUnitConnectionState.NoComputingUnit;
         }
-        
+
         // Convert string status to enum
         switch (unit.status) {
           case "Running":
@@ -352,9 +374,17 @@ export class ComputingUnitStatusService implements OnDestroy {
       this.connectionCheckSubscription = null;
     }
 
+    if (this.connectionTimeoutTimer) {
+      this.connectionTimeoutTimer.unsubscribe();
+    }
+
     this.selectedUnitSubject.complete();
     this.allUnitsSubject.complete();
     this.connectedSubject.complete();
+    this.isCreatingUnitSubject.complete();
+    this.isConnectingUnitSubject.complete();
+    this.autoRunAfterConnectSubject.complete();
+    this.workflowIdSubject.complete();
   }
 
   // Public API to check if computing unit manager is enabled
@@ -368,5 +398,262 @@ export class ComputingUnitStatusService implements OnDestroy {
   public clearSelectedComputingUnit(): void {
     this.selectedUnitSubject.next(null);
     this.connectedSubject.next(false);
+  }
+
+  /**
+   * Sets the current workflow ID for the service to use when connecting
+   * @param workflowId The ID of the current workflow
+   */
+  public setWorkflowId(workflowId: number | undefined): void {
+    this.workflowIdSubject.next(workflowId);
+  }
+
+  /**
+   * Get the current state of the unit creation process as observable
+   */
+  public isCreatingUnit(): Observable<boolean> {
+    return this.isCreatingUnitSubject.asObservable();
+  }
+
+  /**
+   * Get the current state of the unit connection process as observable
+   */
+  public isConnectingToUnit(): Observable<boolean> {
+    return this.isConnectingUnitSubject.asObservable();
+  }
+
+  /**
+   * Get whether the service is waiting to auto-run after connection as observable
+   */
+  public isAutoRunAfterConnect(): Observable<boolean> {
+    return this.autoRunAfterConnectSubject.asObservable();
+  }
+
+  /**
+   * Get the current state of the unit creation process synchronously
+   */
+  public get isCreatingUnitValue(): boolean {
+    return this.isCreatingUnitSubject.value;
+  }
+
+  /**
+   * Get the current state of the unit connection process synchronously
+   */
+  public get isConnectingToUnitValue(): boolean {
+    return this.isConnectingUnitSubject.value;
+  }
+
+  /**
+   * Get whether the service is waiting to auto-run after connection synchronously
+   */
+  public get isAutoRunAfterConnectValue(): boolean {
+    return this.autoRunAfterConnectSubject.value;
+  }
+
+  /**
+   * Create a new computing unit with default settings and connect to it
+   */
+  public createAndConnectComputingUnit(): Observable<boolean> {
+    if (!environment.computingUnitManagerEnabled || !this.workflowIdSubject.value) {
+      return of(false);
+    }
+
+    // Set to creating state
+    this.isCreatingUnitSubject.next(true);
+
+    // Create response subject to track overall process success
+    const processCompleteSubject = new Subject<boolean>();
+
+    // Get the available configurations
+    this.computingUnitService
+      .getComputingUnitLimitOptions()
+      .pipe(
+        untilDestroyed(this),
+        mergeMap(({ cpuLimitOptions, memoryLimitOptions }) => {
+          const defaultCpu = cpuLimitOptions[0] || "1";
+          const defaultMemory = memoryLimitOptions[0] || "1Gi";
+          const workflowId = this.workflowIdSubject.value;
+          const unitName = workflowId ? `Workflow ${workflowId} Unit` : "Default Unit";
+
+          // Create the computing unit
+          return this.computingUnitService.createComputingUnit(unitName, defaultCpu, defaultMemory);
+        }),
+        catchError((err: Error) => {
+          this.isCreatingUnitSubject.next(false);
+          this.notificationService.error(`Failed to create computing unit: ${err}`);
+          processCompleteSubject.next(false);
+          return of(null);
+        })
+      )
+      .subscribe({
+        next: (unit: DashboardWorkflowComputingUnit | null) => {
+          // Reset creation state
+          this.isCreatingUnitSubject.next(false);
+
+          if (unit) {
+            // Connect to the newly created unit
+            this.connectToComputingUnit(unit)
+              .pipe(untilDestroyed(this))
+              .subscribe(connected => {
+                processCompleteSubject.next(connected);
+              });
+          }
+        },
+        error: (err: unknown) => {
+          this.isCreatingUnitSubject.next(false);
+          this.notificationService.error(`Failed to create computing unit: ${err}`);
+          processCompleteSubject.next(false);
+        },
+      });
+
+    return processCompleteSubject.asObservable();
+  }
+
+  /**
+   * Connect to a specific computing unit
+   * @param unit The computing unit to connect to
+   * @returns An observable that emits true when connected, false on failure
+   */
+  public connectToComputingUnit(unit: DashboardWorkflowComputingUnit): Observable<boolean> {
+    if (!this.workflowIdSubject.value) {
+      return of(false);
+    }
+
+    // Create response subject to track connection success
+    const connectedSubject = new Subject<boolean>();
+
+    // Set the connecting state
+    this.isConnectingUnitSubject.next(true);
+
+    // Select the unit in the service
+    this.selectComputingUnit(unit);
+
+    // Connect to the unit's websocket
+    this.workflowWebsocketService.closeWebsocket();
+    this.workflowWebsocketService.openWebsocket(this.workflowIdSubject.value, undefined, unit.computingUnit.cuid);
+
+    // Check connection status frequently
+    const connectionCheck = interval(200)
+      .pipe(
+        untilDestroyed(this),
+        filter(() => this.workflowWebsocketService.isConnected)
+      )
+      .subscribe(() => {
+        // Update connection status
+        this.connectedSubject.next(true);
+
+        // Update the unit status if needed
+        if (this.selectedUnitSubject.value && this.selectedUnitSubject.value.status !== "Running") {
+          const updatedUnit = {
+            ...this.selectedUnitSubject.value,
+            status: "Running",
+          };
+          this.selectedUnitSubject.next(updatedUnit);
+
+          // Update the list as well
+          this.updateUnitInList(updatedUnit);
+        }
+
+        // Complete the connection process
+        this.isConnectingUnitSubject.next(false);
+        connectedSubject.next(true);
+        connectionCheck.unsubscribe();
+
+        // Clear any timeout
+        if (this.connectionTimeoutTimer) {
+          this.connectionTimeoutTimer.unsubscribe();
+          this.connectionTimeoutTimer = null;
+        }
+      });
+
+    // Set connection timeout
+    this.connectionTimeoutTimer = timer(this.CONNECTION_TIMEOUT_MS).subscribe(() => {
+      if (connectionCheck && !connectionCheck.closed) {
+        connectionCheck.unsubscribe();
+        this.isConnectingUnitSubject.next(false);
+        this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
+        connectedSubject.next(false);
+        this.connectionTimeoutTimer = null;
+      }
+    });
+
+    return connectedSubject.asObservable();
+  }
+
+  /**
+   * Helper method to update a unit in the all units list
+   */
+  private updateUnitInList(unit: DashboardWorkflowComputingUnit): void {
+    const updatedList = this.allUnitsSubject.value.map(existingUnit =>
+      existingUnit.computingUnit.cuid === unit.computingUnit.cuid ? unit : existingUnit
+    );
+    this.allUnitsSubject.next(updatedList);
+  }
+
+  /**
+   * Create a computing unit, connect to it, and prepare to run the workflow
+   * @param executionName The name to use for the execution
+   * @param enableEmailNotification Whether to enable email notifications
+   * @returns Observable<boolean> that emits true when the unit is connected and ready
+   */
+  public createConnectAndPrepareRun(executionName: string, enableEmailNotification: boolean): Observable<boolean> {
+    // Check if already connected to a running computing unit
+    if (
+      this.workflowWebsocketService.isConnected &&
+      this.selectedUnitSubject.value &&
+      this.selectedUnitSubject.value.status === "Running"
+    ) {
+      // Set execution parameters
+      this.setAutoRunParameters(executionName, enableEmailNotification);
+
+      // Already connected, return immediately
+      return of(true);
+    }
+
+    // Set auto-run flag and parameters
+    this.setAutoRunParameters(executionName, enableEmailNotification);
+
+    // Create and connect to a computing unit
+    return this.createAndConnectComputingUnit();
+  }
+
+  /**
+   * Set parameters for auto-run after connection
+   */
+  private setAutoRunParameters(executionName: string, enableEmailNotification: boolean): void {
+    // Store these in instance variables for the monitoring method to use
+    this.autoRunExecutionName = executionName;
+    this.autoRunEnableEmailNotification = enableEmailNotification;
+    this.autoRunAfterConnectSubject.next(true);
+  }
+
+  /**
+   * Monitor execution state changes for auto-run workflow
+   */
+  private monitorExecutionStateForAutoRun(): void {
+    // Subscribe to connection status
+    this.connectedSubject
+      .pipe(
+        untilDestroyed(this),
+        filter(connected => connected && this.autoRunAfterConnectSubject.value)
+      )
+      .subscribe(() => {
+        // Execute the workflow with the stored parameters
+        this.executeWorkflowService.executeWorkflowWithEmailNotification(
+          this.autoRunExecutionName,
+          this.autoRunEnableEmailNotification
+        );
+      });
+
+    // Also monitor execution state changes to clear auto-run flag
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        // Clear the autoRunAfterConnect flag when execution starts or completes
+        if (event.current.state === ExecutionState.Initializing || event.current.state === ExecutionState.Running) {
+          this.autoRunAfterConnectSubject.next(false);
+        }
+      });
   }
 }

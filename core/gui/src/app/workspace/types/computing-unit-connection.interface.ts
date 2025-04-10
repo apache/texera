@@ -7,5 +7,5 @@ export enum ComputingUnitConnectionState {
   Pending = "Pending",
   Disconnected = "Disconnected",
   Terminating = "Terminating",
-  NoComputingUnit = "No Computing Unit"
-} 
+  NoComputingUnit = "No Computing Unit",
+}
