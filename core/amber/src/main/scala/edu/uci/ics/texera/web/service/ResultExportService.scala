@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
 import scala.util.Using

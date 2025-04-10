@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.visualization.boxPlot;
+package edu.uci.ics.amber.operator.visualization.boxViolinPlot;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

@@ -26,7 +26,7 @@ class DatasetFileDocument:
         self.file_relative_path = "/".join(parts[3:])
 
         self.jwt_token = os.getenv("USER_JWT_TOKEN")
-        self.presign_endpoint = os.getenv("PRESIGN_API_ENDPOINT")
+        self.presign_endpoint = os.getenv("FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT")
 
         if not self.jwt_token:
             raise ValueError(

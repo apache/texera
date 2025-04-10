@@ -2,6 +2,15 @@ global:
   security:
     allowInsecureImages: true # for custom postgres image
 
+# Persistence Configuration
+# This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
+# 
+# removeAfterUninstall: 
+#   - true: PVCs will be deleted when helm uninstalls the chart
+#   - false: PVCs will remain after uninstall to preserve the data
+persistence:
+  removeAfterUninstall: false
+
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
   image:
@@ -18,7 +27,8 @@ postgresql:
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: local-path # change to specific storageClass if needed.
+      storageClass: local-path
+      existingClaim: "postgresql-data-pvc"
 
     initdb:
       scriptsConfigMap: texera-postgresql-init-script
@@ -41,6 +51,7 @@ minio:
     enabled: true
     size: 20Gi
     storageClass: local-path # change to specific storageClass if needed.
+    existingClaim: "minio-data-pvc"
 
 lakefs:
   secrets:
@@ -70,42 +81,47 @@ lakefs:
 texeraImages:
   pullPolicy: Always
 
+# Example data loader configuration
+exampleDataLoader:
+  enabled: true
+  image: texera/texera-example-data-loader:cluster
+  username: texera
+  password: texera
+  datasetDir: datasets
+  workflowDir: workflows
+
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:latest # image name of the texera
+  imageName: texera/texera-web-application:cluster # image name of the texera
   service:
-    type: NodePort # for testing purpose, NodePort mode is fine
+    type: ClusterIP
     port: 8080 # port of the pod
-    nodePort: 30081 # exposed port
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/workflow-computing-unit-managing-service:latest
+  imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
-    type: NodePort # for testing purpose, NodePort mode is fine
+    type: ClusterIP
     port: 8888 # port of the pod
-    nodePort: 30082 # exposed port
 
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:latest
+  imageName: texera/workflow-compiling-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9090
-    nodePort: 30083
 
 fileService:
   name: file-service
   numOfPods: 1
-  imageName: texera/file-service:latest
+  imageName: texera/file-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9092
-    nodePort: 30084
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -117,16 +133,15 @@ envoy:
     10000
   debug: false
   service:
-    type: NodePort
+    type: ClusterIP
     port: 10000
-    nodePort: 31002
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
   name: workflow-computing-unit
   namespace: workflow-computing-unit-pool
-  imageName: texera/computing-unit-master:latest
+  imageName: texera/computing-unit-master:cluster
   service:
     port: 8085
     targetPort: 8085
@@ -145,7 +160,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: false # set to true if nginx is not installed.
+  enabled: true # set to true if nginx is not installed.
   controller:
     replicaCount: 1
     service:
@@ -182,9 +197,28 @@ pythonLanguageServer:
       cpu: "100m"
       memory: "100Mi"
 
+# Metrics Server configuration
+# IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
+# If metrics-server is already installed, set enabled: false to avoid conflicts
+metrics-server:
+  enabled: true
+  args:
+    - --kubelet-insecure-tls
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --metric-resolution=10s
+  resources:
+    requests:
+      cpu: 200m
+      memory: 400Mi
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+  priorityClassName: system-cluster-critical
+
 # Custom Ingress resource configs
 ingressPaths:
-  enabled: true
+  enabled: false
   hostname: "localhost"
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
