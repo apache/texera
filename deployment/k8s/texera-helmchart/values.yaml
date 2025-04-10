@@ -9,7 +9,7 @@ global:
 #   - true: PVCs will be deleted when helm uninstalls the chart
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
-  removeAfterUninstall: false
+  removeAfterUninstall: true
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -31,7 +31,7 @@ postgresql:
       existingClaim: "postgresql-data-pvc"
 
     initdb:
-      scriptsConfigMap: texera-postgresql-init-script
+      scriptsConfigMap: "postgresql-init-script"
 
 minio:
   mode: standalone
@@ -40,13 +40,15 @@ minio:
     ingressClassName: ""
     texeraHostname: ""
     minioHostname: ""
+    issuer: "" # e.g., "letsencrypt-prod"
   auth:
     rootUser: texera_minio
     rootPassword: password
   service:
-    type: NodePort
-    nodePorts:
-      api: 31000
+    type: ClusterIP
+    #  type: NodePort
+    #  nodePorts:
+    #   api: 31000
   persistence:
     enabled: true
     size: 20Gi
@@ -95,8 +97,9 @@ webserver:
   numOfPods: 1  # Number of pods for the Texera deployment
   imageName: texera/texera-web-application:cluster # image name of the texera
   service:
-    type: ClusterIP
+    type: NodePort
     port: 8080 # port of the pod
+    nodePort: 30081 # exposed port
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
@@ -104,24 +107,27 @@ workflowComputingUnitManager:
   serviceAccountName: workflow-computing-unit-manager-service-account
   imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
-    type: ClusterIP
+    type: NodePort
     port: 8888 # port of the pod
+    nodePort: 30082 # exposed port
 
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
   imageName: texera/workflow-compiling-service:cluster
   service:
-    type: ClusterIP
+    type: NodePort
     port: 9090
+    nodePort: 30083 # exposed port
 
 fileService:
   name: file-service
   numOfPods: 1
   imageName: texera/file-service:cluster
   service:
-    type: ClusterIP
+    type: NodePort
     port: 9092
+    nodePort: 30084 # exposed port
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -133,14 +139,17 @@ envoy:
     10000
   debug: false
   service:
-    type: ClusterIP
+    type: NodePort
     port: 10000
+    nodePort: 30085
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
-  name: workflow-computing-unit
-  namespace: workflow-computing-unit-pool
+  # The name of the workflow computing unit pool
+  name: texera-workflow-computing-unit
+  # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
+  namespace: texera-workflow-computing-unit-pool
   imageName: texera/computing-unit-master:cluster
   service:
     port: 8085
@@ -201,7 +210,7 @@ pythonLanguageServer:
 # IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
 # If metrics-server is already installed, set enabled: false to avoid conflicts
 metrics-server:
-  enabled: true
+  enabled: false
   args:
     - --kubelet-insecure-tls
     - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
@@ -218,7 +227,7 @@ metrics-server:
 
 # Custom Ingress resource configs
 ingressPaths:
-  enabled: false
+  enabled: true
   hostname: "localhost"
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
