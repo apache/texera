@@ -223,31 +223,30 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
       return;
     }
 
-    // If we're terminating the currently selected unit, close the WebSocket connection first
-    if (this.selectedComputingUnit?.computingUnit.cuid === cuid) {
-      this.workflowWebsocketService.closeWebsocket();
-
-      // Update the selected unit to null in the status service before terminating
-      this.computingUnitStatusService.clearSelectedComputingUnit();
-      this.selectedComputingUnit = null;
-    }
-
-    this.computingUnitService
+    // Use the ComputingUnitStatusService to handle termination
+    // This will properly close the websocket before terminating the unit
+    this.computingUnitStatusService
       .terminateComputingUnit(cuid)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (res: Response) => {
-          this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
+        next: (success: boolean) => {
+          if (success) {
+            this.notificationService.success(`Terminated ${this.getComputingUnitId(uri)}`);
 
-          // Find another running unit to select if we terminated the current one
-          if (this.selectedComputingUnit === null) {
-            const runningUnit = this.computingUnits.find(
-              unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
-            );
+            // Find another running unit to select if needed
+            if (this.selectedComputingUnit === null || this.selectedComputingUnit.computingUnit.cuid === cuid) {
+              const runningUnit = this.computingUnits.find(
+                unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
+              );
 
-            if (runningUnit) {
-              this.connectToComputingUnit(runningUnit);
+              if (runningUnit) {
+                this.connectToComputingUnit(runningUnit);
+              } else {
+                this.selectedComputingUnit = null;
+              }
             }
+          } else {
+            this.notificationService.error("Failed to terminate computing unit");
           }
         },
         error: (err: unknown) =>

@@ -340,10 +340,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // In cuManager mode, if no computing unit, always allow running which will create one
+    // In cuManager mode with no computing unit, always allow running which will create one
     if (
       environment.computingUnitManagerEnabled &&
-      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
+      (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit || !this.computingUnitConnected)
     ) {
       return {
         text: "Run",
@@ -744,8 +744,13 @@ export class MenuComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // If computing unit manager is enabled but no unit is selected/connected
-    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+    // If computing unit manager is enabled and either:
+    // 1. No computing unit is selected
+    // 2. The computing unit is not connected
+    if (
+      environment.computingUnitManagerEnabled &&
+      (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit || !this.computingUnitConnected)
+    ) {
       // Update button immediately to show connecting
       this.applyRunButtonBehavior({
         text: "Connecting",

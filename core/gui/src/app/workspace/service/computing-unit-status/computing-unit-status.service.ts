@@ -398,6 +398,9 @@ export class ComputingUnitStatusService implements OnDestroy {
   public clearSelectedComputingUnit(): void {
     this.selectedUnitSubject.next(null);
     this.connectedSubject.next(false);
+    this.isConnectingUnitSubject.next(false);
+    this.isCreatingUnitSubject.next(false);
+    this.autoRunAfterConnectSubject.next(false);
   }
 
   /**
@@ -693,5 +696,82 @@ export class ComputingUnitStatusService implements OnDestroy {
           }
         }
       });
+  }
+
+  /**
+   * Terminate a computing unit, ensuring websocket is closed first
+   * @param cuid The ID of the computing unit to terminate
+   * @returns Observable that completes when the termination process is done
+   */
+  public terminateComputingUnit(cuid: number): Observable<boolean> {
+    // Create a subject to track the termination process
+    const terminationSubject = new Subject<boolean>();
+
+    // First check if this is the currently selected unit
+    const isSelectedUnit = this.selectedUnitSubject.value?.computingUnit.cuid === cuid;
+
+    // If this is the selected unit, close the websocket first
+    if (isSelectedUnit && this.workflowWebsocketService.isConnected) {
+      // Close the websocket connection
+      this.workflowWebsocketService.closeWebsocket();
+
+      // Clear the selected unit or mark as terminating
+      if (this.selectedUnitSubject.value) {
+        const updatedUnit = {
+          ...this.selectedUnitSubject.value,
+          status: "Terminating",
+        };
+        this.selectedUnitSubject.next(updatedUnit);
+        this.updateUnitInList(updatedUnit);
+      }
+
+      // Update connection status
+      this.connectedSubject.next(false);
+    }
+
+    // Now terminate the unit
+    this.computingUnitService
+      .terminateComputingUnit(cuid)
+      .pipe(
+        untilDestroyed(this),
+        catchError((err: Error) => {
+          this.notificationService.error(`Failed to terminate computing unit: ${err}`);
+          terminationSubject.next(false);
+          return of(null);
+        })
+      )
+      .subscribe({
+        next: () => {
+          // Successfully terminated, refresh the list
+          this.computingUnitService
+            .listComputingUnits()
+            .pipe(untilDestroyed(this))
+            .subscribe(units => {
+              this.updateComputingUnits(units);
+
+              // If the terminated unit was selected and there are no running units,
+              // set to null to trigger "NoComputingUnit" state
+              if (isSelectedUnit) {
+                const runningUnit = units.find(u => u.status === "Running");
+                if (!runningUnit) {
+                  this.selectedUnitSubject.next(null);
+                  this.connectedSubject.next(false);
+
+                  // Also ensure connecting flags are reset
+                  this.isConnectingUnitSubject.next(false);
+                  this.isCreatingUnitSubject.next(false);
+                }
+              }
+
+              terminationSubject.next(true);
+            });
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(`Failed to terminate computing unit: ${err}`);
+          terminationSubject.next(false);
+        },
+      });
+
+    return terminationSubject.asObservable();
   }
 }
