@@ -643,16 +643,54 @@ export class ComputingUnitStatusService implements OnDestroy {
           this.autoRunExecutionName,
           this.autoRunEnableEmailNotification
         );
+
+        // Set a timeout to clear the flag if execution doesn't start quickly
+        // This prevents the button from staying in "Submitting" state indefinitely
+        setTimeout(() => {
+          if (this.autoRunAfterConnectSubject.value) {
+            console.warn("Auto-run flag not cleared by execution, resetting manually");
+            this.autoRunAfterConnectSubject.next(false);
+          }
+        }, 5000);
       });
 
-    // Also monitor execution state changes to clear auto-run flag
+    // Monitor execution state changes to clear auto-run flag
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         // Clear the autoRunAfterConnect flag when execution starts or completes
-        if (event.current.state === ExecutionState.Initializing || event.current.state === ExecutionState.Running) {
+        if (
+          event.current.state === ExecutionState.Initializing ||
+          event.current.state === ExecutionState.Running ||
+          event.current.state === ExecutionState.Failed ||
+          event.current.state === ExecutionState.Killed ||
+          event.current.state === ExecutionState.Completed
+        ) {
           this.autoRunAfterConnectSubject.next(false);
+        }
+      });
+
+    // Also monitor websocket connection changes
+    interval(1000)
+      .pipe(
+        untilDestroyed(this),
+        filter(() => this.isConnectingUnitSubject.value)
+      )
+      .subscribe(() => {
+        // If we're in connecting state but websocket connects, update connection status
+        if (this.workflowWebsocketService.isConnected) {
+          this.connectedSubject.next(true);
+
+          // If we have a selected unit, update its status to Running
+          if (this.selectedUnitSubject.value) {
+            const updatedUnit = {
+              ...this.selectedUnitSubject.value,
+              status: "Running",
+            };
+            this.selectedUnitSubject.next(updatedUnit);
+            this.updateUnitInList(updatedUnit);
+          }
         }
       });
   }

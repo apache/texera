@@ -118,8 +118,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
-    private computingUnitStatusService: ComputingUnitStatusService,
-    private computingUnitService: WorkflowComputingUnitManagingService
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -203,6 +202,18 @@ export class MenuComponent implements OnInit, OnDestroy {
         .pipe(untilDestroyed(this))
         .subscribe(status => {
           this.computingUnitStatus = status;
+
+          // If we have a computing unit but it's in a non-connected state,
+          // make sure the button reflects this
+          if (
+            status !== ComputingUnitConnectionState.NoComputingUnit &&
+            status !== ComputingUnitConnectionState.Running &&
+            !this.computingUnitStatusService.isConnectingToUnitValue
+          ) {
+            // Set connecting state in the service to reflect correct button state
+            this.computingUnitConnected = false;
+          }
+
           this.applyRunButtonBehavior(this.getRunButtonBehavior());
         })
     );
@@ -215,6 +226,21 @@ export class MenuComponent implements OnInit, OnDestroy {
         .subscribe(connected => {
           this.computingUnitConnected = connected;
           this.applyRunButtonBehavior(this.getRunButtonBehavior());
+        })
+    );
+
+    // Add a periodic check of websocket connection status
+    // to detect disconnections more quickly
+    this.computingUnitStatusSubscription.add(
+      interval(1000)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => {
+          // Only update if there's a change in connection status
+          const isConnected = this.workflowWebsocketService.isConnected;
+          if (this.computingUnitConnected !== isConnected) {
+            this.computingUnitConnected = isConnected;
+            this.applyRunButtonBehavior(this.getRunButtonBehavior());
+          }
         })
     );
   }
@@ -271,8 +297,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // Check execution state flags from the Computing Unit Status Service
-    // Note: We need to use BehaviorSubject.value directly rather than async subscriptions
-    // to ensure the button state is determined synchronously
     if (this.computingUnitStatusService.isCreatingUnitValue) {
       return {
         text: "Creating Unit",
@@ -282,7 +306,23 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
+    // Explicitly check for connecting state
     if (this.computingUnitStatusService.isConnectingToUnitValue) {
+      return {
+        text: "Connecting",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
+    // When computing unit is selected but websocket is not connected, show "Connecting"
+    // This handles the case where a unit exists but we're not connected to it
+    if (
+      environment.computingUnitManagerEnabled &&
+      this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
+      !this.computingUnitConnected
+    ) {
       return {
         text: "Connecting",
         icon: "loading",
@@ -300,10 +340,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // In cuManager mode, if no computing unit or not connected, allow running which will create one
+    // In cuManager mode, if no computing unit, always allow running which will create one
     if (
       environment.computingUnitManagerEnabled &&
-      (!this.workflowWebsocketService.isConnected || this.computingUnitStatus !== ComputingUnitConnectionState.Running)
+      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
       return {
         text: "Run",
@@ -706,6 +746,14 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // If computing unit manager is enabled but no unit is selected/connected
     if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+      // Update button immediately to show connecting
+      this.applyRunButtonBehavior({
+        text: "Connecting",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      });
+
       // Use the service to handle creation, connection, and auto-run
       this.computingUnitStatusService
         .createConnectAndPrepareRun(
