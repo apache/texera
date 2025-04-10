@@ -32,13 +32,14 @@
 </ul>
 
 <div
+  #leftContainer
   cdkDrag
   cdkDragBoundary="texera-workspace"
   id="left-container"
   class="box"
   nz-resizable
   [nzMinWidth]="230"
-  [nzMinHeight]="300"
+  [nzMinHeight]="400"
   [nzMaxWidth]="window.innerWidth*0.9"
   [nzMaxHeight]="window.innerHeight*0.85"
   [style.width.px]="width"
@@ -102,7 +103,8 @@
   </ul>
   <div
     id="content"
-    [hidden]="!currentComponent">
+    [hidden]="!currentComponent"
+    (click)="resizeToFitContent()">
     <h4
       id="title"
       cdkDragHandle>

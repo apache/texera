@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
+import { Component, HostListener, OnDestroy, OnInit, Type, ViewChild, ElementRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
@@ -17,11 +17,12 @@ import { PanelService } from "../../service/panel/panel.service";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnDestroy, OnInit {
+  @ViewChild("leftContainer") leftContainer!: ElementRef;
   protected readonly window = window;
   currentComponent: Type<any> | null = null;
   title = "Operators";
   width = 300;
-  height = Math.max(300, window.innerHeight * 0.6);
+  height = Math.max(400, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
   items = [
@@ -52,6 +53,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
   isDocked = true;
+  hasManuallyResized = false;
 
   constructor(private panelService: PanelService) {
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
@@ -97,7 +99,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       this.height = 65;
     } else if (!this.width) {
       this.width = 230;
-      this.height = 300;
+      this.height = 400;
     }
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
@@ -111,7 +113,39 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
+      this.hasManuallyResized = true;
     });
+  }
+
+  resizeToFitContent() {
+    setTimeout(() => {
+      if (this.hasManuallyResized) {
+        this.hasManuallyResized = false;
+        return;
+      }
+
+      // Clone the element to measure it without affecting the layout
+      const element = this.leftContainer.nativeElement as HTMLElement;
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.position = "absolute";
+      clone.style.visibility = "hidden";
+      clone.style.height = "auto";
+      clone.style.width = `${element.offsetWidth}px`;
+      clone.style.top = "0"; // Reset the top position
+      clone.style.left = "0"; // Reset the left position
+      document.body.appendChild(clone);
+      const naturalHeight = clone.offsetHeight;
+      document.body.removeChild(clone);
+
+      element.style.transition = "height 0.3s ease";
+      const maxHeight = window.innerHeight * 0.85;
+      if (this.height < naturalHeight) {
+        this.height = Math.min(naturalHeight, maxHeight);
+      }
+      setTimeout(() => {
+        element.style.transition = "none"; // Disable the transition after the animation completes
+      }, 300);
+    }, 175);
   }
 
   resetPanelPosition() {
