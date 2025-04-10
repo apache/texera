@@ -10,6 +10,7 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params, UrlSegment } from "@angular/router";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -45,8 +46,12 @@ describe("PowerButtonComponent", () => {
         NzButtonModule,
         NzIconModule,
         NzDropDownModule,
+        NzModalModule, // Add NzModalModule for the NzModalService
       ],
-      providers: [{ provide: ActivatedRoute, useValue: activatedRouteMock }],
+      providers: [
+        { provide: ActivatedRoute, useValue: activatedRouteMock },
+        NzModalService, // Add NzModalService provider
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ComputingUnitSelectionComponent);
