@@ -30,7 +30,9 @@
             *ngIf="workflowId"
             [nzText]="workflowId.toString() || ''"></nz-avatar>
           <input
+            #nameInput
             *ngIf="!displayParticularWorkflowVersion"
+            (input)="adjustWorkflowNameWidth()"
             (change)="onWorkflowNameChange()"
             [(ngModel)]="currentWorkflowName"
             class="workflow-name"
