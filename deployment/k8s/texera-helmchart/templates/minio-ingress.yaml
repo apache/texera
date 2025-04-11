@@ -6,7 +6,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.minio.customIngress.ingressClassName }}
+    {{- if .Values.minio.customIngress.issuer }}
     cert-manager.io/issuer: {{ .Values.minio.customIngress.issuer }}
+    {{- end }}
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "{{ .Values.minio.customIngress.texeraHostname }}"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
@@ -21,24 +23,22 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    nginx.ingress.kubernetes.io/ssl-redirect: {{ or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer | quote}}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: {{ .Values.minio.customIngress.ingressClassName }}
   tls:
     - hosts:
-        - {{ .Values.ingressPaths.hostname }}
-      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
+        - {{ .Values.minio.customIngress.minioHostname }}
+      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-minio-tls" .Release.Name) }}
   rules:
-    {{- if .Values.minio.customIngress.minioHostname }}
     - host: {{ .Values.minio.customIngress.minioHostname }}
-    {{- end}}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: texera-minio
+                name: {{ .Release.Name }}-minio
                 port:
                   number: 9000
 {{- end }}
