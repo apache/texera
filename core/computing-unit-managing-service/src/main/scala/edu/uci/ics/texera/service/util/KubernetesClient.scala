@@ -73,7 +73,7 @@ object KubernetesClient {
           val limitsMap = container.getResources.getLimits.asScala.map {
             case (key, value) => key -> value.toString
           }.toMap
-          
+
           limitsMap
         }
       }
@@ -107,7 +107,7 @@ object KubernetesClient {
     val resourceBuilder = new ResourceRequirementsBuilder()
       .addToLimits("cpu", new Quantity(cpuLimit))
       .addToLimits("memory", new Quantity(memoryLimit))
-    
+
     // Only add GPU resources if the requested amount is greater than 0
     if (gpuLimit != "0") {
       // Use the configured GPU resource key directly
@@ -122,14 +122,9 @@ object KubernetesClient {
       .addToLabels("type", "computing-unit")
       .addToLabels("cuid", cuid.toString)
       .addToLabels("name", podName)
-      
-    // Add GPU-specific labels if GPU is requested
-    if (gpuLimit != "0") {
-      podBuilder.addToLabels("gpu-enabled", "true")
-      podBuilder.addToLabels("gpu-resource", KubernetesConfig.gpuResourceKey)
-    }
-      
-    val pod = podBuilder.endMetadata()
+
+    val pod = podBuilder
+      .endMetadata()
       .withNewSpec()
       .addNewContainer()
       .withName("computing-unit-master")

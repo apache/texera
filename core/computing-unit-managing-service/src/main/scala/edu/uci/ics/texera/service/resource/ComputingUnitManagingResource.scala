@@ -8,7 +8,12 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.service.KubernetesConfig
-import edu.uci.ics.texera.service.KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
+import edu.uci.ics.texera.service.KubernetesConfig.{
+  cpuLimitOptions,
+  gpuLimitOptions,
+  maxNumOfRunningComputingUnitsPerUser,
+  memoryLimitOptions
+}
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
@@ -48,8 +53,12 @@ object ComputingUnitManagingResource {
       .get,
     // Variables for amber setting
     // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
-    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true
+    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
+      .get,
+    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
+      .get
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
@@ -198,7 +207,8 @@ class ComputingUnitManagingResource {
           param.memoryLimit,
           param.gpuLimit,
           computingUnitEnvironmentVariables ++ Map(
-            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken
+            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
+            EnvironmentalVariable.ENV_JAVA_OPTS -> "-Xmx2G"
           )
         )
 

@@ -191,6 +191,12 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     return unit.uri === this.selectedComputingUnit?.uri;
   }
 
+  // Determines if the GPU selection dropdown should be shown
+  showGpuSelection(): boolean {
+    // Don't show GPU selection if there are no options or only "0" option
+    return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
+  }
+
   showAddComputeUnitModalVisible(): void {
     this.addComputeUnitModalVisible = true;
   }
@@ -231,7 +237,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     const computeCPU = this.selectedCpu;
     const computeMemory = this.selectedMemory;
     const computeGPU = this.selectedGpu;
-    
+
     this.computingUnitService
       .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU)
       .pipe(untilDestroyed(this))

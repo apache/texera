@@ -95,7 +95,7 @@ export class WorkflowComputingUnitManagingService {
         resourceLimits: {
           cpuLimit: "NaN",
           memoryLimit: "NaN",
-          gpuLimit: "0"
+          gpuLimit: "0",
         },
       };
 
