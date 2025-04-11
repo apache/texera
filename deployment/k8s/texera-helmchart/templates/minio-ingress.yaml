@@ -28,7 +28,6 @@ spec:
     - hosts:
         - {{ .Values.ingressPaths.hostname }}
       secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
-    {{- end }}
   rules:
     {{- if .Values.minio.customIngress.minioHostname }}
     - host: {{ .Values.minio.customIngress.minioHostname }}
