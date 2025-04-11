@@ -27,7 +27,7 @@ spec:
     {{- if .Values.minio.customIngress.minioHostname }}
     - host: {{ .Values.minio.customIngress.minioHostname }}
     {{- end}}
-    - http:
+      http:
         paths:
           - path: /
             pathType: Prefix

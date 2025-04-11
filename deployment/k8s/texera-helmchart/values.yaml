@@ -37,22 +37,23 @@ minio:
   mode: standalone
   customIngress:
     enabled: false
-    ingressClassName: ""
-    texeraHostname: ""
-    minioHostname: ""
+    ingressClassName: "" # e.g., "nginx"
+    texeraHostname: "" # the url for the texera
+    minioHostname: "" # the url for the minio
     issuer: "" # e.g., "letsencrypt-prod"
   auth:
     rootUser: texera_minio
     rootPassword: password
   service:
-    type: ClusterIP
-    #  type: NodePort
-    #  nodePorts:
-    #   api: 31000
+    # In production, use ClusterIP to avoid exposing the minio to the internet
+    # type: ClusterIP
+    type: NodePort
+    nodePorts:
+      api: 31000
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: local-path # change to specific storageClass if needed.
+    storageClass: local-path
     existingClaim: "minio-data-pvc"
 
 lakefs:
@@ -97,9 +98,8 @@ webserver:
   numOfPods: 1  # Number of pods for the Texera deployment
   imageName: texera/texera-web-application:cluster # image name of the texera
   service:
-    type: NodePort
-    port: 8080 # port of the pod
-    nodePort: 30081 # exposed port
+    type: ClusterIP
+    port: 8080
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
@@ -107,27 +107,24 @@ workflowComputingUnitManager:
   serviceAccountName: workflow-computing-unit-manager-service-account
   imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
-    type: NodePort
-    port: 8888 # port of the pod
-    nodePort: 30082 # exposed port
+    type: ClusterIP
+    port: 8888
 
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
   imageName: texera/workflow-compiling-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9090
-    nodePort: 30083 # exposed port
 
 fileService:
   name: file-service
   numOfPods: 1
   imageName: texera/file-service:cluster
   service:
-    type: NodePort
+    type: ClusterIP
     port: 9092
-    nodePort: 30084 # exposed port
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -139,9 +136,8 @@ envoy:
     10000
   debug: false
   service:
-    type: NodePort
+    type: ClusterIP
     port: 10000
-    nodePort: 30085
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -169,7 +165,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: true # set to true if nginx is not installed.
+  enabled: true # set to true if nginx is not installed, should be false in production
   controller:
     replicaCount: 1
     service:
@@ -207,10 +203,8 @@ pythonLanguageServer:
       memory: "100Mi"
 
 # Metrics Server configuration
-# IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
-# If metrics-server is already installed, set enabled: false to avoid conflicts
 metrics-server:
-  enabled: false
+  enabled: true # set to false if metrics-server is already installed
   args:
     - --kubelet-insecure-tls
     - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
