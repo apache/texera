@@ -25,6 +25,13 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var value: String = ""
 
+  @JsonProperty(
+    value = "Quartile Method",
+    required = true,
+    defaultValue = "linear"
+  )
+  var quartileType: BoxViolinPlotQuartileFunction = _
+
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation style")
@@ -36,13 +43,6 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
     "Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot"
   )
   var violinPlot: Boolean = _
-
-  @JsonProperty(
-    value = "Quartile Method",
-    required = true,
-    defaultValue = "linear"
-  )
-  var quartileType: BoxViolinPlotQuartileFunction = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
