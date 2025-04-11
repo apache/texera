@@ -21,11 +21,17 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer | quote}}
 spec:
   ingressClassName: {{ .Values.minio.customIngress.ingressClassName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingressPaths.hostname }}
+      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
+    {{- end }}
   rules:
     {{- if .Values.minio.customIngress.minioHostname }}
-    - host: https://{{ .Values.minio.customIngress.minioHostname }}
+    - host: {{ .Values.minio.customIngress.minioHostname }}
     {{- end}}
       http:
         paths:
