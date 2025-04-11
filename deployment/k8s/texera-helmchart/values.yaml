@@ -73,7 +73,7 @@ lakefs:
       s3:
         endpoint: http://texera-minio:9000
         pre_signed_expiry: 15m
-        pre_signed_endpoint: http://minio-staging.texera.io
+        pre_signed_endpoint: https://minio-staging.texera.io
         force_path_style: true
         credentials:
           access_key_id: texera_minio
