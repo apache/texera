@@ -27,8 +27,22 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
       skippedSeq.add(msg.sequenceNumber)
       fifoQueue.prepend(msg)
     }else{
-      enforceFIFO(msg)
+      holdCredit.getAndAdd(getInMemSize(msg))
+      current += 1
+      while (ofoMap.contains(current) || skippedSeq.contains(current)) {
+        if(skippedSeq.contains(current)){
+          skippedSeq.remove(current)
+          current += 1
+        }else{
+          val msg = ofoMap(current)
+          fifoQueue.append(msg)
+          holdCredit.getAndAdd(getInMemSize(msg))
+          ofoMap.remove(current)
+          current += 1
+        }
+      }
     }
+    fifoQueue.prepend(msg)
   }
 
   def acceptMessage(msg: WorkflowFIFOMessage): Unit = {

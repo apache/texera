@@ -99,3 +99,13 @@ libraryDependencies ++= Seq(
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
   "io.github.redouane59.twitter" % "twittered" % "2.21"
 )
+
+libraryDependencies ++= Seq(
+  "ai.djl" % "api" % "0.32.0",
+  "ai.djl.pytorch" % "pytorch-engine" % "0.32.0",         // or "tensorflow-engine"
+  "ai.djl.pytorch" % "pytorch-model-zoo" % "0.32.0",
+  "ai.djl.huggingface" % "tokenizers" % "0.32.0",         // tokenizer support
+)
+
+// https://mvnrepository.com/artifact/com.github.haifengl/smile-core
+libraryDependencies += "com.github.haifengl" % "smile-core" % "3.1.1"

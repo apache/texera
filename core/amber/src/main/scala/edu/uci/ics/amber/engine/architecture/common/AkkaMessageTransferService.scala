@@ -65,6 +65,7 @@ class AkkaMessageTransferService(
     networkMessageID += 1
     msg.payload match {
       case payload: ChannelMarkerPayload if payload.id.id.contains("FlinkAsync") =>
+          logger.info(s"forward marker $msg")
           refService.forwardToActor(networkMessage)
       case _ =>
         forwardToFlowControl(

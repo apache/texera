@@ -1,22 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  MainThreadDelegateMessage
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import java.util.concurrent._
 
@@ -109,6 +102,7 @@ class DPThread(
     //
     var waitingForInput = false
     while (!stopped) {
+      var bufferJumping: ChannelIdentity = null
       while (internalQueue.size > 0 || waitingForInput) {
         val elem = internalQueue.take
         waitingForInput = false
@@ -116,8 +110,10 @@ class DPThread(
           case WorkflowWorker.FIFOMessageElement(msg) =>
             msg.payload match {
               case payload: ChannelMarkerPayload if payload.id.id.contains("FlinkAsync") || payload.id.id.contains("CL") =>
+                logger.info(s"input marker to gateway $msg")
                 val channel = dp.inputGateway.getChannel(msg.channelId)
                 channel.forcedAccept(msg)
+                bufferJumping = msg.channelId
               case other =>
                 val channel = dp.inputGateway.getChannel(msg.channelId)
                 channel.acceptMessage(msg)
@@ -142,41 +138,48 @@ class DPThread(
       var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
       var disableFT = false
-      if (
-        dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused
-      ) {
-        val (channelOpt, ft) =
-          if(!dp.pauseManager.debuggingMode){
+      if(bufferJumping != null){
+        channelId = bufferJumping
+        val msg = dp.inputGateway.getChannel(channelId).take
+        msgOpt = Some(msg)
+        bufferJumping = null
+      }else{
+        if (
+          (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused)
+        ) {
+          val (channelOpt, ft) =
+            if(!dp.pauseManager.debuggingMode){
+              dp.inputGateway.tryPickControlChannel
+            }else{
+              dp.inputGateway.tryPickChannel
+            }
+          disableFT = ft
+          channelOpt match {
+            case Some(channel) =>
+              channelId = channel.channelId
+              msgOpt = Some(channel.take)
+            case None =>
+              // continue processing
+              if (!dp.pauseManager.isPaused && !backpressureStatus) {
+                channelId = dp.inputManager.currentChannelId
+              } else {
+                waitingForInput = true
+              }
+          }
+        } else {
+          // take from input port
+          val (channelOpt, ft) = if (backpressureStatus) {
             dp.inputGateway.tryPickControlChannel
-          }else{
+          } else {
             dp.inputGateway.tryPickChannel
           }
-        disableFT = ft
-        channelOpt match {
-          case Some(channel) =>
-            channelId = channel.channelId
-            msgOpt = Some(channel.take)
-          case None =>
-            // continue processing
-            if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelId = dp.inputManager.currentChannelId
-            } else {
-              waitingForInput = true
-            }
-        }
-      } else {
-        // take from input port
-        val (channelOpt, ft) = if (backpressureStatus) {
-          dp.inputGateway.tryPickControlChannel
-        } else {
-          dp.inputGateway.tryPickChannel
-        }
-        disableFT = ft
-        channelOpt match {
-          case Some(channel) =>
-            channelId = channel.channelId
-            msgOpt = Some(channel.take)
-          case None => waitingForInput = true
+          disableFT = ft
+          channelOpt match {
+            case Some(channel) =>
+              channelId = channel.channelId
+              msgOpt = Some(channel.take)
+            case None => waitingForInput = true
+          }
         }
       }
 

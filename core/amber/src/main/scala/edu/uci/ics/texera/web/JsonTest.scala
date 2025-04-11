@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import edu.uci.ics.amber.engine.architecture.logreplay._
 import edu.uci.ics.amber.engine.common.AmberRuntime
-import edu.uci.ics.texera.ExpUtils.runExp
+import edu.uci.ics.texera.ExpUtils._
 
 import scala.collection.mutable
 
@@ -46,15 +46,34 @@ object JsonTest {
 
   def doExperiment(): Unit = {
     val result = mutable.ArrayBuffer[String]()
-    List(2, 10, 50, 100).foreach{
+    List(20).foreach{
       udf =>
-        List(true,false).foreach{
-          scatter =>
-            List("flink-async").foreach{
-              method =>
-                (0 until 3).foreach{
-                  repeat =>
-                    result.append(runExp(AmberRuntime.actorSystem, udf, scatter, method, 2))
+        List(1,10,100,1000).foreach {
+          slow =>
+            List(true).foreach {
+              scatter =>
+                List("flink-async").foreach {
+                  method =>
+                    (0 until 3).foreach {
+                      repeat =>
+                        result.append(runExp5(AmberRuntime.actorSystem, udf, scatter, method, 1, slow))
+                    }
+                }
+            }
+        }
+    }
+    List(20).foreach{
+      udf =>
+        List(1,10,100,1000).foreach {
+          slow =>
+            List(true).foreach {
+              scatter =>
+                List("flink-async").foreach {
+                  method =>
+                    (0 until 3).foreach {
+                      repeat =>
+                        result.append(runExp6(AmberRuntime.actorSystem, udf, scatter, method, 1, slow))
+                    }
                 }
             }
         }
@@ -90,6 +109,7 @@ object JsonTest {
     AmberRuntime.startActorMaster(false)
     // Call the function
     waitForS()
+    // runExp3(AmberRuntime.actorSystem, 5, isScattered = false, "flink-sync", 1000)
 
   }
 }

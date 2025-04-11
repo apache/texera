@@ -16,6 +16,8 @@ object TestOperators {
 
   val parentDir = PathUtils.corePath.resolve("workflow-operator").toRealPath().toString
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"
+  val EshopCsvPath = s"$parentDir/src/test/resources/e-shop clothing 2008.csv"
+  val SNLICsvPath = s"$parentDir/src/test/resources/snli_1.0_test.csv"
   val CountrySalesMediumCsvPath = s"$parentDir/src/test/resources/country_sales_medium.csv"
   val CountrySalesHeaderlessSmallCsvPath =
     s"$parentDir/src/test/resources/country_sales_headerless_small.csv"
@@ -136,7 +138,7 @@ object TestOperators {
     udf.retainInputColumns = true
 
     val delayCode =
-      if (delayInMs > 0) s"Thread.sleep($delayInMs)" else ""
+      if (delayInMs > 0) s"Thread.sleep(scala.util.Random.nextInt($delayInMs) + 1)" else ""
 
     udf.code =
       s"""import edu.uci.ics.amber.core.executor.OperatorExecutor;

@@ -30,6 +30,9 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
       }
 
       override def next(): Array[String] = {
+        if(desc.ingestionDelayInMS > 0){
+          Thread.sleep(desc.ingestionDelayInMS)
+        }
         val ret = nextRow
         numRowGenerated += 1
         nextRow = null

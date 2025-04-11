@@ -28,6 +28,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
 
+  var ingestionDelayInMS: Long = 0
+
   fileTypeName = Option("CSV")
 
   @throws[IOException]

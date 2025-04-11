@@ -271,5 +271,3 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % 
 // For supporting deepcopy
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
 libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
-
-

@@ -126,6 +126,7 @@ class WorkflowWorker(
     timerService.stopAdaptiveBatching()
     dpThread.stop()
     logManager.terminate()
+    dp.executor.close()
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
