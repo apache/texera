@@ -38,7 +38,7 @@ minio:
   customIngress:
     enabled: false
     ingressClassName: "" # e.g., "nginx"
-    texeraHostname: "" # the url for the texera
+    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
     minioHostname: "" # the url for the minio
     issuer: "" # e.g., "letsencrypt-prod"
   auth:
