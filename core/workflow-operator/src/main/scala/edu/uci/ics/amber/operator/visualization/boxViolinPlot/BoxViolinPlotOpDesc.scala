@@ -8,6 +8,9 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
+
+@JsonPropertyOrder(Array("value", "quartileType", "horizontalOrientation", "violinPlot"))
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
