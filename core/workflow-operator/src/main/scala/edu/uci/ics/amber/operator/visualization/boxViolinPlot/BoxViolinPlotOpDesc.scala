@@ -55,7 +55,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Box/Violin Plot",
       "Visualize data using either a Box Plot or a Violin Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”). Violin plots are similar to box plots, but with a rotated kernel density plot on each side, providing more insight into the distribution shape.",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

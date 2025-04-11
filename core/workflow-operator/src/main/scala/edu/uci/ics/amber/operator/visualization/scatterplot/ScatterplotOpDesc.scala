@@ -71,9 +71,9 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Scatterplot",
+      "Scatter Plot",
       "View the result in a scatterplot",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

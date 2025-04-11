@@ -37,7 +37,7 @@ class WordCloudOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Word Cloud",
       "Generate word cloud for result texts",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_MEDIA,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

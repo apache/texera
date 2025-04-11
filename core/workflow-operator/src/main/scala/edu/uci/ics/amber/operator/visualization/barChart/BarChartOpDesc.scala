@@ -63,7 +63,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Bar Chart",
       "Visualize data in a Bar Chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

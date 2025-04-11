@@ -47,7 +47,7 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Scatter Matrix Chart",
       "Visualize datasets in a Scatter Matrix",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -55,7 +55,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Quiver Plot",
       "Visualize vector data in a Quiver Plot",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
