@@ -9,11 +9,12 @@ import org.apache.commons.io.IOUtils.toByteArray
 import java.io._
 import java.net.URI
 import java.nio.ByteBuffer
-import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.Using
 import scala.collection.mutable.ArrayBuffer
+import org.apache.commons.compress.archivers.ArchiveStreamFactory
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 
 class FileScanSourceOpExec private[scan] (
     descString: String
@@ -57,7 +58,10 @@ class FileScanSourceOpExec private[scan] (
     val fileEntries: Iterator[InputStream] = {
       val is = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
       if (desc.extract) {
-        val inputStream = new ZipInputStream(new BufferedInputStream(is))
+        val inputStream: ZipArchiveInputStream =
+          new ArchiveStreamFactory().createArchiveInputStream(
+            new BufferedInputStream(is)
+          )
         val (it1, it2) = Iterator
           .continually(inputStream.getNextEntry)
           .takeWhile(_ != null)
