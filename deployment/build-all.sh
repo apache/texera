@@ -29,7 +29,7 @@ docker buildx create --name texera-builder --use --bootstrap > /dev/null 2>&1 ||
 cd "$(dirname "$0")"
 
 # Auto-detect Dockerfiles in current directory
-dockerfiles=( *.dockerfile )
+dockerfiles=( workflow-computing-unit-managing-service.dockerfile texera-web-application.dockerfile )
 
 if [[ ${#dockerfiles[@]} -eq 0 ]]; then
   echo "❌ No Dockerfiles found (*.dockerfile) in the current directory."
