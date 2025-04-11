@@ -118,7 +118,6 @@ workflowCompilingService:
   service:
     type: ClusterIP
     port: 9090
-    nodePort: 30083 # exposed port
 
 fileService:
   name: file-service
@@ -127,7 +126,6 @@ fileService:
   service:
     type: ClusterIP
     port: 9092
-    nodePort: 30084 # exposed port
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -141,7 +139,6 @@ envoy:
   service:
     type: ClusterIP
     port: 10000
-    nodePort: 30085
 
 # headless service for the access of computing units
 workflowComputingUnitPool:
@@ -160,12 +157,16 @@ texeraEnvVars:
     value: postgres
   - name: USER_SYS_ENABLED
     value: "true"
+  - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
+    value: "true"
   - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
     value: "10"
   - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS
-    value: "1,2,4,8"
+    value: "2,4,8"
   - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
-    value: "1Gi,2Gi,4Gi,8Gi"
+    value: "2Gi,4Gi,8Gi"
+  - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
+    value: "0,1,2,7"
 
 # Ingress dependency configs
 ingress-nginx:
@@ -207,8 +208,6 @@ pythonLanguageServer:
       memory: "100Mi"
 
 # Metrics Server configuration
-# IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
-# If metrics-server is already installed, set enabled: false to avoid conflicts
 metrics-server:
   enabled: false
   args:
