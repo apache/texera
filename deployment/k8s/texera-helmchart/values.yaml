@@ -38,7 +38,7 @@ minio:
   customIngress:
     enabled: true
     ingressClassName: "nginx"
-    texeraHostname: "staging.texera.io"
+    texeraHostname: "https://staging.texera.io"
     minioHostname: "minio-staging.texera.io"
     issuer: "letsencrypt-prod" # e.g., "letsencrypt-prod"
   auth:

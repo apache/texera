@@ -8,7 +8,7 @@ metadata:
     kubernetes.io/ingress.class: {{ .Values.minio.customIngress.ingressClassName }}
     cert-manager.io/issuer: {{ .Values.minio.customIngress.issuer }}
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "http://{{ .Values.minio.customIngress.texeraHostname }}"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "{{ .Values.minio.customIngress.texeraHostname }}"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "*"
     nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
