@@ -94,7 +94,7 @@ exampleDataLoader:
 
 webserver:
   name: webserver
-  numOfPods: 1  # Number of pods for the Texera deployment
+  numOfPods: 3  # Number of pods for the Texera deployment
   imageName: texera/texera-web-application:cluster # image name of the texera
   service:
     type: ClusterIP
@@ -103,7 +103,7 @@ webserver:
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
-  numOfPods: 1
+  numOfPods: 3
   serviceAccountName: workflow-computing-unit-manager-service-account
   imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
@@ -113,7 +113,7 @@ workflowComputingUnitManager:
 
 workflowCompilingService:
   name: workflow-compiling-service
-  numOfPods: 1
+  numOfPods: 3
   imageName: texera/workflow-compiling-service:cluster
   service:
     type: ClusterIP
@@ -121,7 +121,7 @@ workflowCompilingService:
 
 fileService:
   name: file-service
-  numOfPods: 1
+  numOfPods: 3
   imageName: texera/file-service:cluster
   service:
     type: ClusterIP
