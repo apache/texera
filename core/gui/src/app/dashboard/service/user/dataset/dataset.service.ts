@@ -66,7 +66,7 @@ export class DatasetService {
       .get<{
         presignedUrl: string;
       }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/presign-download?filePath=${encodeURIComponent(filePath)}`
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/public-presign-download?filePath=${encodeURIComponent(filePath)}`
       )
       .pipe(
         switchMap(({ presignedUrl }) => {
