@@ -90,6 +90,44 @@ i {
   padding-left: 10px;
   width: 140px;
   text-align: left;
+
+  &[disabled] {
+    // Styles for computing unit status display when disabled
+    &.computing-unit-status {
+      color: rgba(0, 0, 0, 0.5);
+      border-color: #d9d9d9;
+      background-color: #f5f5f5;
+      text-shadow: none;
+      box-shadow: none;
+    }
+  }
+
+  // Animation for loading states
+  .anticon-loading {
+    animation: loading 1.4s infinite linear;
+  }
+
+  // Special icon styles
+  .anticon-cloud-server {
+    color: #1890ff;
+  }
+
+  .anticon-disconnect {
+    color: #ff4d4f;
+  }
+
+  .anticon-exclamation-circle {
+    color: #faad14;
+  }
+}
+
+@keyframes loading {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 #expanded-utilities {

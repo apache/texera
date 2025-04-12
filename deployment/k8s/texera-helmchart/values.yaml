@@ -9,7 +9,7 @@ global:
 #   - true: PVCs will be deleted when helm uninstalls the chart
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
-  removeAfterUninstall: false
+  removeAfterUninstall: true
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -31,26 +31,29 @@ postgresql:
       existingClaim: "postgresql-data-pvc"
 
     initdb:
-      scriptsConfigMap: texera-postgresql-init-script
+      scriptsConfigMap: "postgresql-init-script"
 
 minio:
   mode: standalone
   customIngress:
     enabled: false
-    ingressClassName: ""
-    texeraHostname: ""
-    minioHostname: ""
+    ingressClassName: "" # e.g., "nginx"
+    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
+    minioHostname: "" # the url for the minio
+    issuer: "" # e.g., "letsencrypt-prod"
   auth:
     rootUser: texera_minio
     rootPassword: password
   service:
+    # In production, use ClusterIP to avoid exposing the minio to the internet
+    # type: ClusterIP
     type: NodePort
     nodePorts:
       api: 31000
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: local-path # change to specific storageClass if needed.
+    storageClass: local-path
     existingClaim: "minio-data-pvc"
 
 lakefs:
@@ -96,7 +99,7 @@ webserver:
   imageName: texera/texera-web-application:cluster # image name of the texera
   service:
     type: ClusterIP
-    port: 8080 # port of the pod
+    port: 8080
 
 workflowComputingUnitManager:
   name: workflow-computing-unit-manager
@@ -105,7 +108,7 @@ workflowComputingUnitManager:
   imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
     type: ClusterIP
-    port: 8888 # port of the pod
+    port: 8888
 
 workflowCompilingService:
   name: workflow-compiling-service
@@ -139,8 +142,10 @@ envoy:
 # headless service for the access of computing units
 workflowComputingUnitPool:
   createNamespaces: true
-  name: workflow-computing-unit
-  namespace: workflow-computing-unit-pool
+  # The name of the workflow computing unit pool
+  name: texera-workflow-computing-unit
+  # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
+  namespace: texera-workflow-computing-unit-pool
   imageName: texera/computing-unit-master:cluster
   service:
     port: 8085
@@ -160,7 +165,7 @@ texeraEnvVars:
 
 # Ingress dependency configs
 ingress-nginx:
-  enabled: true # set to true if nginx is not installed.
+  enabled: true # set to true if nginx is not installed, should be false in production
   controller:
     replicaCount: 1
     service:
@@ -198,10 +203,8 @@ pythonLanguageServer:
       memory: "100Mi"
 
 # Metrics Server configuration
-# IMPORTANT: If metrics-server is not installed in your cluster, set enabled: true
-# If metrics-server is already installed, set enabled: false to avoid conflicts
 metrics-server:
-  enabled: true
+  enabled: true # set to false if metrics-server is already installed
   args:
     - --kubelet-insecure-tls
     - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
@@ -218,7 +221,7 @@ metrics-server:
 
 # Custom Ingress resource configs
 ingressPaths:
-  enabled: false
+  enabled: true
   hostname: "localhost"
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"

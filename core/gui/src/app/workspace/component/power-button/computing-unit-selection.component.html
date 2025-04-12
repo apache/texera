@@ -15,7 +15,7 @@
       <div class="metric-bar-wrapper">
         <nz-progress
           id="cpu-progress-bar"
-          [nzPercent]="(getCpuPercentage() | number:'1.0-0')"
+          [nzPercent]="getCpuPercentage()"
           [nzStrokeColor]="'#52c41a'"
           [nzStatus]="getCpuStatus()"
           nzType="line"
@@ -29,7 +29,7 @@
       <div class="metric-bar-wrapper">
         <nz-progress
           id="memory-progress-bar"
-          [nzPercent]="(getMemoryPercentage() | number:'1.0-0')"
+          [nzPercent]="getMemoryPercentage()"
           [nzStrokeColor]="'#1890ff'"
           [nzStatus]="getMemoryStatus()"
           nzType="line"
@@ -46,21 +46,28 @@
     [nzDropdownMenu]="environment.computingUnitManagerEnabled ? menu : null"
     [nzPlacement]="'bottomRight'"
     class="computing-units-dropdown-button">
-    <nz-badge
-      [nzStatus]="computeStatus()"
-      [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
-      [nzText]="''"></nz-badge>
-    <span
-      *ngIf="selectedComputingUnit"
-      nz-tooltip
-      [nzTooltipTitle]="getComputingUnitId(selectedComputingUnit.uri)">
-      {{selectedComputingUnit.computingUnit.name}}
-    </span>
-    <span *ngIf="!selectedComputingUnit">Connect</span>
-    <i
-      nz-icon
-      *ngIf="environment.computingUnitManagerEnabled"
-      nzType="down"></i>
+    <div class="button-content">
+      <nz-badge
+        [nzStatus]="computeStatus()"
+        [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
+        [nzText]="''"></nz-badge>
+      <span
+        *ngIf="selectedComputingUnit"
+        nz-tooltip
+        class="unit-name-text"
+        [nzTooltipTitle]="selectedComputingUnit.computingUnit.name">
+        {{selectedComputingUnit.computingUnit.name}}
+      </span>
+      <span
+        *ngIf="!selectedComputingUnit"
+        class="connect-text"
+        >Connect</span
+      >
+      <i
+        nz-icon
+        *ngIf="environment.computingUnitManagerEnabled"
+        nzType="down"></i>
+    </div>
   </button>
 
   <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -73,17 +80,38 @@
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
-        [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
+        [ngClass]="{
+          'unit-selected': isSelectedUnit(unit),
+          'unit-connecting': unit.status === 'Pending',
+          'unit-disconnected': unit.status === 'Disconnected',
+          'unit-terminating': unit.status === 'Terminating'
+        }"
+        [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
         (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
         <div class="computing-unit-row">
           <div class="computing-unit-name">
             <nz-badge
               [nzColor]="getBadgeColor(unit.status)"
-              [nz-tooltip]="unit.status"></nz-badge>
+              [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
               nz-tooltip
-              [nzTooltipTitle]="getComputingUnitId(unit.uri)">
+              [nzTooltipTitle]="unit.computingUnit.name">
               {{ unit.computingUnit.name }}
+              <span
+                *ngIf="unit.status === 'Pending'"
+                class="unit-status-indicator"
+                >(Connecting)</span
+              >
+              <span
+                *ngIf="unit.status === 'Disconnected'"
+                class="unit-status-indicator"
+                >(Disconnected)</span
+              >
+              <span
+                *ngIf="unit.status === 'Terminating'"
+                class="unit-status-indicator"
+                >(Terminating)</span
+              >
             </span>
           </div>
           <i
@@ -92,7 +120,9 @@
             class="computing-unit-terminate-icon"
             nz-tooltip
             [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
-            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()">
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
+            role="button"
+            aria-label="Terminate computing unit">
           </i>
         </div>
       </li>
@@ -115,7 +145,7 @@
 
 <!-- Panel for creating the computing unit -->
 <nz-modal
-  [(nzVisible)]="environment.computingUnitManagerEnabled && addComputeUnitModalVisible"
+  [nzVisible]="addComputeUnitModalVisible && environment.computingUnitManagerEnabled"
   [nzTitle]="addComputeUnitModalTitle"
   [nzContent]="addComputeUnitModalContent"
   [nzFooter]="addComputeUnitModalFooter"
@@ -180,15 +210,17 @@
     <div class="cpu-metric general-metric">
       <p class="metric-name">CPU</p>
       <p class="metric-value">
-        {{getCpuValue() | number:'1.4-4' || '0.0000'}}
+        {{getCpuValue() | number:'1.4-4'}}
         <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
+        <span class="metric-percentage">({{getCpuPercentage() | number:'1.1-1'}}%)</span>
       </p>
     </div>
     <div class="memory-metric general-metric">
       <p class="metric-name">Memory</p>
       <p class="metric-value">
-        {{getMemoryValue() | number:'1.4-4' || '0.0000'}}
+        {{getMemoryValue() | number:'1.4-4'}}
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
+        <span class="metric-percentage">({{getMemoryPercentage() | number:'1.1-1'}}%)</span>
       </p>
     </div>
   </div>

@@ -7,21 +7,100 @@
 }
 
 .computing-units-selection.metrics-visible {
-  grid-template-columns: repeat(2, 1fr);
-  justify-content: center;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-items: end;
   width: 100%;
   gap: 10px;
 }
 
-.computing-units-dropdown {
-  min-width: 250px;
-  max-width: 400px;
+/* Add specific styling for the dropdown button when metrics are visible */
+.metrics-visible .computing-units-dropdown-button {
+  margin-left: auto;
 }
 
-#computing-unit-option.unit-selected {
-  background-color: #f1eeee;
+.computing-units-dropdown {
+  min-width: 350px;
+  max-width: 350px;
+  max-height: 50vh;
+  overflow-y: auto;
+
+  .computing-unit-option {
+    .computing-unit-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .computing-unit-name {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        max-width: calc(100% - 20px);
+
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .unit-status-indicator {
+          font-size: 0.85em;
+          margin-left: 4px;
+          opacity: 0.8;
+          font-style: italic;
+        }
+      }
+
+      .computing-unit-terminate-icon {
+        visibility: visible;
+      }
+    }
+
+    &:hover {
+      .computing-unit-terminate-icon {
+        visibility: visible;
+      }
+    }
+
+    &.unit-connecting {
+      color: #1890ff; // Blue
+    }
+
+    &.unit-disconnected {
+      color: #ff4d4f; // Red
+    }
+
+    &.unit-terminating {
+      color: #faad14; // Yellow/Orange
+    }
+
+    // Make disabled units visually distinct
+    &[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed !important;
+
+      .unit-status-indicator {
+        opacity: 1;
+        font-weight: 500;
+      }
+
+      // Still allow termination of non-running units
+      .computing-unit-terminate-icon {
+        opacity: 1;
+        cursor: pointer !important;
+
+        &:hover {
+          color: #ff4d4f;
+        }
+      }
+    }
+  }
+
+  .create-computing-unit {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
 }
 
 .create-computing-unit {
@@ -62,11 +141,17 @@
   color: #ff4d4f;
   cursor: pointer;
   margin-left: auto;
+  opacity: 0.85;
+}
+
+.computing-unit-terminate-icon:hover {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 .memory-selection,
 .cpu-selection {
-  width: 200px;
+  width: 100%;
 }
 
 .create-compute-unit-container {
@@ -90,18 +175,58 @@
 }
 
 .unit-name-input {
-  width: 440px;
+  width: 100%;
+}
+
+.computing-units-dropdown-button {
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.unit-name-text,
+.connect-text {
+  margin-left: 4px;
+  margin-right: 4px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Ensure the dropdown icon is aligned properly */
+.button-content i.ant-dropdown-trigger {
+  margin-left: auto;
+}
+
+/* Badge alignment fix */
+:host ::ng-deep .ant-badge-status-dot {
+  position: relative;
+  top: -1px;
+  vertical-align: middle;
 }
 
 .metrics-container {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  grid-template-rows: repeat(2, 1fr);
+  justify-content: center;
   gap: 3px;
   height: 32px;
-  width: 80%;
+  width: 120px;
+  min-width: 120px;
   padding: 0;
   border: none;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .metric-item {
@@ -109,6 +234,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: 12px;
 }
 
 .metric-label {
@@ -120,7 +246,8 @@
 
 .metric-bar-wrapper {
   flex-grow: 1;
-  min-width: 0;
+  width: 90px; /* Fixed width for consistent bar size */
+  min-width: 60px; /* Ensure minimum width for the bar */
   display: flex;
   align-items: center;
   padding: 0;
@@ -130,12 +257,18 @@
 #cpu-progress-bar,
 #memory-progress-bar {
   width: 100%;
-  margin-top: 0 !important; /* 💡 override if nz-progress adds vertical spacing */
+  margin: 0 !important; /* Remove any margins */
+  padding: 0 !important; /* Remove any padding */
   vertical-align: middle;
 }
 
-.metric-label {
-  font-size: 10px;
+/* Override any Ant Design styles that might affect the progress bar */
+:host ::ng-deep .ant-progress {
+  width: 100%;
+}
+
+:host ::ng-deep .ant-progress-inner {
+  width: 100% !important;
 }
 
 .resource-metrics {
@@ -159,7 +292,16 @@
 }
 
 .metric-unit {
-  font-size: 8px;
+  color: #888;
+  font-size: 0.9em;
+  margin-left: 4px;
+}
+
+.metric-percentage {
+  color: #555;
+  font-size: 0.9em;
+  margin-left: 6px;
+  font-weight: 500;
 }
 
 .metric-name {
