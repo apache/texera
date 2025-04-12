@@ -172,8 +172,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowResultExportService.resetFlags();
   }
 
-  // Dynamically adjusts the width of the workflow name input field
-  //  by creating a hidden span element to measure the text width.
+  /**
+   * Dynamically adjusts the width of the workflow name input field
+   * by creating a hidden span element to measure the text width.
+   */
   public adjustWorkflowNameWidth(): void {
     const input = this.workflowNameInput?.nativeElement;
     if (!input) return;
