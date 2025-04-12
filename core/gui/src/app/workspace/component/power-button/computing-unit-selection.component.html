@@ -187,6 +187,21 @@
           </nz-option>
         </nz-select>
       </div>
+
+      <div
+        *ngIf="showGpuSelection()"
+        class="select-unit">
+        <span>Select #GPU(s)</span>
+        <nz-select
+          class="gpu-selection"
+          [(ngModel)]="selectedGpu">
+          <nz-option
+            *ngFor="let option of gpuOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
+        </nz-select>
+      </div>
     </div>
   </ng-template>
   <ng-template #addComputeUnitModalFooter>
@@ -222,6 +237,12 @@
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
         <span class="metric-percentage">({{getMemoryPercentage() | number:'1.1-1'}}%)</span>
       </p>
+    </div>
+    <div
+      *ngIf="getGpuLimit() !== '0' && getGpuLimit() !== 'N/A' && showGpuSelection()"
+      class="gpu-metric general-metric">
+      <p class="metric-name">GPU</p>
+      <p class="metric-value">{{getGpuLimit()}} GPU(s)</p>
     </div>
   </div>
 </ng-template>

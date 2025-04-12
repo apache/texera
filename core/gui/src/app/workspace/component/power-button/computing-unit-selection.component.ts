@@ -32,10 +32,12 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   newComputingUnitName: string = "";
   selectedMemory: string = "";
   selectedCpu: string = "";
+  selectedGpu: string = "0"; // Default to no GPU
 
   // cpu&memory limit options from backend
   cpuOptions: string[] = [];
   memoryOptions: string[] = [];
+  gpuOptions: string[] = []; // Add GPU options array
 
   // Add property to track user-initiated termination
   private isUserTerminatingUnit = false;
@@ -55,16 +57,18 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
         .getComputingUnitLimitOptions()
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: ({ cpuLimitOptions, memoryLimitOptions }) => {
+          next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
             this.cpuOptions = cpuLimitOptions;
             this.memoryOptions = memoryLimitOptions;
+            this.gpuOptions = gpuLimitOptions;
 
             // fallback defaults
             this.selectedCpu = this.cpuOptions[0] ?? "1";
             this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+            this.selectedGpu = this.gpuOptions[0] ?? "0";
           },
           error: (err: unknown) =>
-            this.notificationService.error(`Failed to fetch CPU/memory options: ${extractErrorMessage(err)}`),
+            this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
         });
     }
 
@@ -187,6 +191,12 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     return unit.uri === this.selectedComputingUnit?.uri;
   }
 
+  // Determines if the GPU selection dropdown should be shown
+  showGpuSelection(): boolean {
+    // Don't show GPU selection if there are no options or only "0" option
+    return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
+  }
+
   showAddComputeUnitModalVisible(): void {
     this.addComputeUnitModalVisible = true;
   }
@@ -226,8 +236,10 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     const computeUnitName = this.newComputingUnitName;
     const computeCPU = this.selectedCpu;
     const computeMemory = this.selectedMemory;
+    const computeGPU = this.selectedGpu;
+
     this.computingUnitService
-      .createComputingUnit(computeUnitName, computeCPU, computeMemory)
+      .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit) => {
@@ -407,6 +419,10 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.memoryLimit : "N/A";
   }
 
+  getCurrentComputingUnitGpuLimit(): string {
+    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.gpuLimit : "0";
+  }
+
   /**
    * Returns the badge color based on computing unit status
    */
@@ -423,6 +439,10 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
 
   getCpuLimit(): number {
     return this.parseResourceNumber(this.getCurrentComputingUnitCpuLimit());
+  }
+
+  getGpuLimit(): string {
+    return this.getCurrentComputingUnitGpuLimit();
   }
 
   getCpuLimitUnit(): string {
