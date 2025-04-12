@@ -54,7 +54,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Candlestick Chart",
       "Visualize data in a Candlestick Chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

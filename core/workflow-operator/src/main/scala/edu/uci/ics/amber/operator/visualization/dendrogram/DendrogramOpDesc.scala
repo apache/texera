@@ -45,7 +45,7 @@ class DendrogramOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Dendrogram",
       "Visualize data in a Dendrogram",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -24,22 +24,22 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
-  @JsonPropertyDescription("column for the x-coordinate of the starting point")
+  @JsonPropertyDescription("Column for the x-coordinate of the starting point")
   @AutofillAttributeName var x: String = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("y")
-  @JsonPropertyDescription("column for the y-coordinate of the starting point")
+  @JsonPropertyDescription("Column for the y-coordinate of the starting point")
   @AutofillAttributeName var y: String = ""
 
   @JsonProperty(value = "u", required = true)
   @JsonSchemaTitle("u")
-  @JsonPropertyDescription("column for the vector component in the x-direction")
+  @JsonPropertyDescription("Column for the vector component in the x-direction")
   @AutofillAttributeName var u: String = ""
 
   @JsonProperty(value = "v", required = true)
   @JsonSchemaTitle("v")
-  @JsonPropertyDescription("column for the vector component in the y-direction")
+  @JsonPropertyDescription("Column for the vector component in the y-direction")
   @AutofillAttributeName var v: String = ""
 
   override def getOutputSchemas(
@@ -55,7 +55,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Quiver Plot",
       "Visualize vector data in a Quiver Plot",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

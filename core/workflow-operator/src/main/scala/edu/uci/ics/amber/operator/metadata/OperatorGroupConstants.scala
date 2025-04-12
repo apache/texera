@@ -12,6 +12,12 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val API_GROUP = "External API"
   final val VISUALIZATION_GROUP = "Visualization"
+  final val VISUALIZATION_BASIC_GROUP = "Basic"
+  final val VISUALIZATION_STATISTICAL_GROUP = "Statistical"
+  final val VISUALIZATION_SCIENTIFIC_GROUP = "Scientific"
+  final val VISUALIZATION_FINANCIAL_GROUP = "Financial"
+  final val VISUALIZATION_MEDIA_GROUP = "Media"
+  final val VISUALIZATION_ADVANCED_GROUP = "Advanced"
   final val MACHINE_LEARNING_GROUP = "Machine Learning"
   final val ADVANCED_SKLEARN_GROUP = "Advanced Sklearn"
   final val HUGGINGFACE_GROUP = "Hugging Face"
@@ -47,7 +53,17 @@ object OperatorGroupConstants {
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
     GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
-    GroupInfo(VISUALIZATION_GROUP),
+    GroupInfo(
+      VISUALIZATION_GROUP,
+      List(
+        GroupInfo(VISUALIZATION_BASIC_GROUP),
+        GroupInfo(VISUALIZATION_STATISTICAL_GROUP),
+        GroupInfo(VISUALIZATION_SCIENTIFIC_GROUP),
+        GroupInfo(VISUALIZATION_FINANCIAL_GROUP),
+        GroupInfo(VISUALIZATION_MEDIA_GROUP),
+        GroupInfo(VISUALIZATION_ADVANCED_GROUP)
+      )
+    ),
     GroupInfo(CONTROL_GROUP)
   )
 }

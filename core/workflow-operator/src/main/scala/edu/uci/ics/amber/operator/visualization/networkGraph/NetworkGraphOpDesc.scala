@@ -39,7 +39,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Network Graph",
       "Visualize data in a network graph",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

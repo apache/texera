@@ -29,7 +29,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Image Visualizer",
       "visualize image content",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

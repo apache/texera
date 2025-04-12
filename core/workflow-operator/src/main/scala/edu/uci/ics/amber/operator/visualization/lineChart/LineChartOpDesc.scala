@@ -39,7 +39,7 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Line Chart",
       "View the result in line chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
