@@ -73,7 +73,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
-  @ViewChild("workflowNameInput") workflowNameInputBox: ElementRef<HTMLInputElement> | undefined;
+  @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -175,7 +175,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   // Dynamically adjusts the width of the workflow name input field
   //  by creating a hidden span element to measure the text width.
   public adjustWorkflowNameWidth(): void {
-    const input = this.workflowNameInputBox?.nativeElement;
+    const input = this.workflowNameInput?.nativeElement;
     if (!input) return;
 
     const tempSpan = document.createElement("span");
