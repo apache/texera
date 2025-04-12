@@ -8,7 +8,6 @@ import { assert } from "../../../common/util/assert";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
-export const COMPUTING_UNIT_TERMINATE_URL = `${COMPUTING_UNIT_BASE_URL}/terminate`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
 
 @Injectable({
@@ -42,13 +41,26 @@ export class WorkflowComputingUnitManagingService {
   /**
    * Terminate a computing unit (pod) by its URI.
    * @returns An Observable of the server response.
-   * @param uri
+   * @param cuid
    */
-  public terminateComputingUnit(uri: string): Observable<Response> {
+  public terminateComputingUnit(cuid: number): Observable<Response> {
     assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.");
-    const body = { uri: uri, name: "dummy" };
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_TERMINATE_URL}`, body);
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/terminate`);
+  }
+
+  /**
+   * Fetch the list of available CPU and memory limit options.
+   * @returns An Observable containing both CPU and memory limit options.
+   */
+  public getComputingUnitLimitOptions(): Observable<{
+    cpuLimitOptions: string[];
+    memoryLimitOptions: string[];
+  }> {
+    return this.http.get<{
+      cpuLimitOptions: string[];
+      memoryLimitOptions: string[];
+    }>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/limits`);
   }
 
   /**

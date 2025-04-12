@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.fileService.name }}-svc
+  namespace: {{ .Values.workflowComputingUnitPool.namespace }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.fileService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgresql
+  namespace: {{ .Values.workflowComputingUnitPool.namespace }}
+spec:
+  type: ExternalName
+  externalName: {{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local
+
+

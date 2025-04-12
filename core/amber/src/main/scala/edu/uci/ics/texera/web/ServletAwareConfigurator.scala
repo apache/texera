@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
+import edu.uci.ics.texera.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 
@@ -41,6 +41,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
               claims.getClaimValue("userId").asInstanceOf[Long].toInt,
               claims.getSubject,
               String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
+              null,
               null,
               null,
               null,

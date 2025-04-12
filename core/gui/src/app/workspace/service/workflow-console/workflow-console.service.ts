@@ -5,8 +5,7 @@ import { Subject } from "rxjs";
 import { Observable } from "rxjs";
 import { RingBuffer } from "ring-buffer-ts";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-
-export const CONSOLE_BUFFER_SIZE = 100;
+import { environment } from "../../../../environments/environment";
 
 @Injectable({
   providedIn: "root",
@@ -25,7 +24,9 @@ export class WorkflowConsoleService {
       .subscribeToEvent("ConsoleUpdateEvent")
       .subscribe((pythonConsoleUpdateEvent: ConsoleUpdateEvent) => {
         const operatorId = pythonConsoleUpdateEvent.operatorId;
-        const messages = this.consoleMessages.get(operatorId) || new RingBuffer<ConsoleMessage>(CONSOLE_BUFFER_SIZE);
+        const messages =
+          this.consoleMessages.get(operatorId) ||
+          new RingBuffer<ConsoleMessage>(environment.operatorConsoleMessageBufferSize);
         messages.add(...pythonConsoleUpdateEvent.messages);
         this.consoleMessages.set(operatorId, messages);
         this.consoleMessagesUpdateStream.next();
