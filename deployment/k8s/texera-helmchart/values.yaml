@@ -162,6 +162,8 @@ texeraEnvVars:
     value: "1,2"
   - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
     value: "1Gi,2Gi"
+  - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
+    value: "0"
 
 # Ingress dependency configs
 ingress-nginx:
