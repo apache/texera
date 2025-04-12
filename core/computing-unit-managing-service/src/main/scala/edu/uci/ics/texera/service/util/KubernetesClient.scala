@@ -127,12 +127,12 @@ object KubernetesClient {
     val specBuilder = podBuilder
       .endMetadata()
       .withNewSpec()
-      
+
     // Only add runtimeClassName when using NVIDIA GPU
     if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
       specBuilder.withRuntimeClassName("nvidia")
     }
-    
+
     // Complete the pod spec
     val pod = specBuilder
       .addNewContainer()
