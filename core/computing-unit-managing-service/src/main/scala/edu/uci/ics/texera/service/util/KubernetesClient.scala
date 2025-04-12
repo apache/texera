@@ -123,9 +123,18 @@ object KubernetesClient {
       .addToLabels("cuid", cuid.toString)
       .addToLabels("name", podName)
 
-    val pod = podBuilder
+    // Start building the pod spec
+    val specBuilder = podBuilder
       .endMetadata()
       .withNewSpec()
+      
+    // Only add runtimeClassName when using NVIDIA GPU
+    if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
+      specBuilder.withRuntimeClassName("nvidia")
+    }
+    
+    // Complete the pod spec
+    val pod = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
