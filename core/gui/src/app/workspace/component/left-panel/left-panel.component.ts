@@ -20,7 +20,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   protected readonly window = window;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  width = 300;
+  width = 230;
   height = Math.max(395, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
