@@ -537,6 +537,9 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+        // Use timeout to make sure this.adjustWorkflowNameWidth() runs
+        // after currentWorkflowName is set. Otherwise, the input width may not match
+        // the latest name right after refresh.
         setTimeout(() => this.adjustWorkflowNameWidth(), 0);
         this.autoSaveState =
           this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined
