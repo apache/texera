@@ -10,6 +10,11 @@ object EnvironmentalVariable {
   }
 
   /**
+    * JVM related opts
+    */
+  val ENV_JAVA_OPTS = "JAVA_OPTS"
+
+  /**
     * FileService related endpoint
     */
   val ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT = "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT"

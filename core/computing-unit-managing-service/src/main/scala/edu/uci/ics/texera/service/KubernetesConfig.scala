@@ -30,4 +30,15 @@ object KubernetesConfig {
       .map(_.trim)
       .filter(_.nonEmpty)
       .toList
+
+  val gpuLimitOptions: List[String] =
+    conf
+      .getString("kubernetes.computing-unit-gpu-limit-options")
+      .split(",")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toList
+
+  // GPU resource key used directly in Kubernetes resource specifications
+  val gpuResourceKey: String = conf.getString("kubernetes.computing-unit-gpu-resource-key")
 }

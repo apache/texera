@@ -70,9 +70,11 @@ object KubernetesClient {
     getPodByName(generatePodName(cuid))
       .flatMap { pod =>
         pod.getSpec.getContainers.asScala.headOption.map { container =>
-          container.getResources.getLimits.asScala.map {
+          val limitsMap = container.getResources.getLimits.asScala.map {
             case (key, value) => key -> value.toString
           }.toMap
+
+          limitsMap
         }
       }
       .getOrElse(Map.empty[String, String])
@@ -82,6 +84,7 @@ object KubernetesClient {
       cuid: Int,
       cpuLimit: String,
       memoryLimit: String,
+      gpuLimit: String,
       envVars: Map[String, Any]
   ): Pod = {
     val podName = generatePodName(cuid)
@@ -100,15 +103,38 @@ object KubernetesClient {
       .toList
       .asJava
 
-    val pod = new PodBuilder()
+    // Setup the resource requirements
+    val resourceBuilder = new ResourceRequirementsBuilder()
+      .addToLimits("cpu", new Quantity(cpuLimit))
+      .addToLimits("memory", new Quantity(memoryLimit))
+
+    // Only add GPU resources if the requested amount is greater than 0
+    if (gpuLimit != "0") {
+      // Use the configured GPU resource key directly
+      resourceBuilder.addToLimits(KubernetesConfig.gpuResourceKey, new Quantity(gpuLimit))
+    }
+
+    // Build the pod with metadata
+    val podBuilder = new PodBuilder()
       .withNewMetadata()
       .withName(podName)
       .withNamespace(namespace)
       .addToLabels("type", "computing-unit")
       .addToLabels("cuid", cuid.toString)
       .addToLabels("name", podName)
+
+    // Start building the pod spec
+    val specBuilder = podBuilder
       .endMetadata()
       .withNewSpec()
+
+    // Only add runtimeClassName when using NVIDIA GPU
+    if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
+      specBuilder.withRuntimeClassName("nvidia")
+    }
+
+    // Complete the pod spec
+    val pod = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
@@ -116,10 +142,7 @@ object KubernetesClient {
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()
       .withEnv(envList)
-      .withNewResources()
-      .addToLimits("cpu", new Quantity(cpuLimit))
-      .addToLimits("memory", new Quantity(memoryLimit))
-      .endResources()
+      .withResources(resourceBuilder.build())
       .endContainer()
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)

@@ -9,6 +9,7 @@ export interface WorkflowComputingUnit {
 export interface WorkflowComputingUnitResourceLimit {
   cpuLimit: string;
   memoryLimit: string;
+  gpuLimit: string;
 }
 
 export interface WorkflowComputingUnitMetrics {

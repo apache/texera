@@ -156,12 +156,16 @@ texeraEnvVars:
     value: postgres
   - name: USER_SYS_ENABLED
     value: "true"
+  - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
+    value: "true"
   - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
     value: "10"
   - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS
-    value: "1,2"
+    value: "2"
   - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
-    value: "1Gi,2Gi"
+    value: "2Gi"
+  - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
+    value: "0"
 
 # Ingress dependency configs
 ingress-nginx:
