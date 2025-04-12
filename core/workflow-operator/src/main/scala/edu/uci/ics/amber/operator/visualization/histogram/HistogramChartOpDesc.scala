@@ -42,7 +42,7 @@ class HistogramChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Histogram",
       "Visualize data in a Histogram Chart",
-      OperatorGroupConstants.VISUALIZATION_STATISTICAL,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

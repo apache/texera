@@ -30,7 +30,7 @@ class DotPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Dot Plot",
       "Visualize data using a dot plot",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

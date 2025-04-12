@@ -41,7 +41,7 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Heatmap",
       "Visualize data in a HeatMap Chart",
-      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

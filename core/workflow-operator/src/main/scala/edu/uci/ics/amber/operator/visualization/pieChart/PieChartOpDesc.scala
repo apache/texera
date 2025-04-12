@@ -46,7 +46,7 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Pie Chart",
       "Visualize data in a Pie Chart",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

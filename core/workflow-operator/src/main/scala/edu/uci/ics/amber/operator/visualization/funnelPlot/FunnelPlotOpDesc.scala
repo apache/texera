@@ -48,7 +48,7 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Funnel Plot",
       "Visualize data in a Funnel Plot",
-      OperatorGroupConstants.VISUALIZATION_FINANCIAL,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

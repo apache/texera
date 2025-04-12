@@ -49,7 +49,7 @@ class HtmlVizOpDesc extends LogicalOp {
     OperatorInfo(
       "HTML Visualizer",
       "Render the result of HTML content",
-      OperatorGroupConstants.VISUALIZATION_MEDIA,
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

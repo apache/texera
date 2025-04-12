@@ -60,7 +60,7 @@ class UrlVizOpDesc extends LogicalOp {
     OperatorInfo(
       "URL Visualizer",
       "Render the content of URL",
-      OperatorGroupConstants.VISUALIZATION_MEDIA,
+      OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

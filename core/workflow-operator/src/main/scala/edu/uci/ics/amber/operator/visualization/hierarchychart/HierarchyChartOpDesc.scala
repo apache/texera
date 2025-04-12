@@ -50,7 +50,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hierarchy Chart",
       "Visualize data in hierarchy",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

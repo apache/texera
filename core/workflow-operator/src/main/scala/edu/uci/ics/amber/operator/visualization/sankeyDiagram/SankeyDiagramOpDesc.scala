@@ -42,7 +42,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Sankey Diagram",
       "Visualize data using a Sankey diagram",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

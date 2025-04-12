@@ -98,7 +98,7 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Figure Factory Table",
       "Visualize data in a figure factory table",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -47,7 +47,7 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Icicle Chart",
       "Visualize hierarchical data from root to leaves",
-      OperatorGroupConstants.VISUALIZATION_BASIC,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
