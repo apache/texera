@@ -22,7 +22,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   private static readonly MIN_PANEL_WIDTH = 230;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  width = LeftPanelComponent.MIN_PANEL_WIDTH
+  width = LeftPanelComponent.MIN_PANEL_WIDTH;
   minPanelHeight = 410;
   height = Math.max(this.minPanelHeight, window.innerHeight * 0.6);
   id = -1;
@@ -119,7 +119,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
       this.width = 0;
       this.height = 65;
     } else if (!this.width) {
-      this.width = LeftPanelComponent.MIN_PANEL_WIDTH
+      this.width = LeftPanelComponent.MIN_PANEL_WIDTH;
       this.height = this.minPanelHeight;
     }
     this.title = this.items[i].title;
