@@ -7,8 +7,10 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import edu.uci.ics.texera.service.KubernetesConfig
 import edu.uci.ics.texera.service.KubernetesConfig.{
   cpuLimitOptions,
+  gpuLimitOptions,
   maxNumOfRunningComputingUnitsPerUser,
   memoryLimitOptions
 }
@@ -51,8 +53,12 @@ object ComputingUnitManagingResource {
       .get,
     // Variables for amber setting
     // TODO: use AmberConfig for the following items. Currently AmberConfig is only accessible in workflow-executing-service
-    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> true,
-    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> true
+    EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR)
+      .get,
+    EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
+      .get
   )
 
   def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
@@ -66,12 +72,14 @@ object ComputingUnitManagingResource {
       name: String,
       unitType: String,
       cpuLimit: String,
-      memoryLimit: String
+      memoryLimit: String,
+      gpuLimit: String
   )
 
   case class WorkflowComputingUnitResourceLimit(
       cpuLimit: String,
-      memoryLimit: String
+      memoryLimit: String,
+      gpuLimit: String
   )
 
   case class WorkflowComputingUnitMetrics(
@@ -89,7 +97,8 @@ object ComputingUnitManagingResource {
 
   case class ComputingUnitLimitOptionsResponse(
       cpuLimitOptions: List[String],
-      memoryLimitOptions: List[String]
+      memoryLimitOptions: List[String],
+      gpuLimitOptions: List[String]
   )
 }
 
@@ -109,9 +118,13 @@ class ComputingUnitManagingResource {
   private def getComputingUnitResourceLimit(cuid: Int): WorkflowComputingUnitResourceLimit = {
     val podLimits: Map[String, String] = KubernetesClient.getPodLimits(cuid)
 
+    // Get GPU value by finding the exact configured resource key
+    val gpuValue = podLimits.getOrElse(KubernetesConfig.gpuResourceKey, "0")
+
     WorkflowComputingUnitResourceLimit(
       podLimits.getOrElse("cpu", ""),
-      podLimits.getOrElse("memory", "")
+      podLimits.getOrElse("memory", ""),
+      gpuValue
     )
   }
 
@@ -122,7 +135,7 @@ class ComputingUnitManagingResource {
   def getComputingUnitLimitOptions(
       @Auth user: SessionUser
   ): ComputingUnitLimitOptionsResponse = {
-    ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions)
+    ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions, gpuLimitOptions)
   }
 
   /**
@@ -151,6 +164,12 @@ class ComputingUnitManagingResource {
     if (!memoryLimitOptions.contains(param.memoryLimit)) {
       throw new ForbiddenException(
         s"Memory quantity '${param.memoryLimit}' is not allowed. Valid options: ${memoryLimitOptions
+          .mkString(", ")}"
+      )
+    }
+    if (!gpuLimitOptions.contains(param.gpuLimit)) {
+      throw new ForbiddenException(
+        s"GPU quantity '${param.gpuLimit}' is not allowed. Valid options: ${gpuLimitOptions
           .mkString(", ")}"
       )
     }
@@ -186,8 +205,10 @@ class ComputingUnitManagingResource {
           cuid,
           param.cpuLimit,
           param.memoryLimit,
+          param.gpuLimit,
           computingUnitEnvironmentVariables ++ Map(
-            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken
+            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
+            EnvironmentalVariable.ENV_JAVA_OPTS -> "-Xmx2G"
           )
         )
 
@@ -197,7 +218,7 @@ class ComputingUnitManagingResource {
           KubernetesClient.generatePodURI(cuid),
           pod.getStatus.getPhase,
           getComputingUnitMetrics(cuid),
-          WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit)
+          WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit, param.gpuLimit)
         )
       }
     }

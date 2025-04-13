@@ -14,7 +14,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap, take } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -24,7 +24,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, of, Subscription, timer } from "rxjs";
+import { firstValueFrom, of, Subscription, timer, interval, Subject } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -33,6 +33,10 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
+import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
+import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -58,6 +62,7 @@ import { WorkflowComputingUnitManagingService } from "../../service/workflow-com
 export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
+  public ComputingUnitConnectionState = ComputingUnitConnectionState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
@@ -73,7 +78,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
-  @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
+  @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -88,6 +93,13 @@ export class MenuComponent implements OnInit, OnDestroy {
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
+
+  // Computing unit status variables
+  private computingUnitStatusSubscription: Subscription = new Subscription();
+  public computingUnitStatus: ComputingUnitConnectionState = ComputingUnitConnectionState.NoComputingUnit;
+  private computingUnitConnected: boolean = false;
+
+  @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -108,7 +120,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -132,9 +145,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
-    // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
     this.registerWorkflowModifiableChangedHandler();
     this.registerWorkflowIdUpdateHandler();
+
+    // Subscribe to computing unit status changes
+    this.subscribeToComputingUnitStatus();
   }
 
   public ngOnInit(): void {
@@ -170,6 +185,88 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.workflowResultExportService.resetFlags();
+    this.computingUnitStatusSubscription.unsubscribe();
+  }
+
+  /**
+   * Subscribe to computing unit status changes from the ComputingUnitStatusService
+   */
+  private subscribeToComputingUnitStatus(): void {
+    // Initial state is disconnected until subscriptions update
+    this.computingUnitConnected = this.workflowWebsocketService.isConnected;
+    this.computingUnitStatus = this.workflowWebsocketService.isConnected
+      ? ComputingUnitConnectionState.Running
+      : ComputingUnitConnectionState.Disconnected;
+
+    // Subscribe to get the computing unit status
+    this.computingUnitStatusSubscription.add(
+      this.computingUnitStatusService
+        .getStatus()
+        .pipe(untilDestroyed(this))
+        .subscribe(status => {
+          this.computingUnitStatus = status;
+
+          // If we have a computing unit but it's in a non-connected state,
+          // make sure the button reflects this
+          if (
+            status !== ComputingUnitConnectionState.NoComputingUnit &&
+            status !== ComputingUnitConnectionState.Running &&
+            !this.computingUnitStatusService.isConnectingToUnitValue
+          ) {
+            // Set connecting state in the service to reflect correct button state
+            this.computingUnitConnected = false;
+          }
+
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
+        })
+    );
+
+    // Subscribe to connection status
+    this.computingUnitStatusSubscription.add(
+      this.computingUnitStatusService
+        .getConnectionStatus()
+        .pipe(untilDestroyed(this))
+        .subscribe(connected => {
+          this.computingUnitConnected = connected;
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
+        })
+    );
+
+    // Add a periodic check of websocket connection status
+    // to detect disconnections more quickly
+    this.computingUnitStatusSubscription.add(
+      interval(1000)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => {
+          // Only update if there's a change in connection status
+          const isConnected = this.workflowWebsocketService.isConnected;
+          if (this.computingUnitConnected !== isConnected) {
+            this.computingUnitConnected = isConnected;
+            this.applyRunButtonBehavior(this.getRunButtonBehavior());
+          }
+        })
+    );
+  }
+
+  /**
+   * Dynamically adjusts the width of the workflow name input field
+   * by creating a hidden span element to measure the text width.
+   */
+  public adjustWorkflowNameWidth(): void {
+    const input = this.workflowNameInput?.nativeElement;
+    if (!input) return;
+
+    const tempSpan = document.createElement("span");
+    tempSpan.style.visibility = "hidden";
+    tempSpan.style.position = "absolute";
+    tempSpan.style.whiteSpace = "pre";
+    tempSpan.style.font = getComputedStyle(input).font;
+    tempSpan.textContent = input.value || input.placeholder;
+
+    document.body.appendChild(tempSpan);
+    const width = Math.min(tempSpan.offsetWidth + 20, 800); // +20 for padding
+    input.style.width = `${width}px`;
+    document.body.removeChild(tempSpan);
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -203,21 +300,77 @@ export class MenuComponent implements OnInit, OnDestroy {
     disable: boolean;
     onClick: () => void;
   } {
-    if (this.isWorkflowEmpty) {
+    // If workflow is invalid, always disable and show "Invalid Workflow"
+    if (!this.isWorkflowValid) {
       return {
-        text: "Empty",
-        icon: "exclamation-circle",
-        disable: true,
-        onClick: () => {},
-      };
-    } else if (!this.isWorkflowValid) {
-      return {
-        text: "Error",
-        icon: "exclamation-circle",
+        text: "Invalid Workflow",
+        icon: "warning",
         disable: true,
         onClick: () => {},
       };
     }
+
+    // If workflow is empty, always disable and show "Empty Workflow"
+    if (this.isWorkflowEmpty) {
+      return {
+        text: "Empty Workflow",
+        icon: "info-circle",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
+    // Check for creating/connecting states
+    if (
+      this.computingUnitStatusService.isCreatingUnitValue ||
+      this.computingUnitStatusService.isConnectingToUnitValue
+    ) {
+      return {
+        text: "Connecting",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
+    // This handles the case where a unit exists but we're not connected to it
+    if (
+      environment.computingUnitManagerEnabled &&
+      this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
+      !this.computingUnitConnected
+    ) {
+      return {
+        text: "Connecting",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      };
+    }
+
+    // In cuManager mode with no computing unit, show "Connect" button
+    if (
+      environment.computingUnitManagerEnabled &&
+      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
+    ) {
+      return {
+        text: "Connect",
+        icon: "plus-circle",
+        disable: false,
+        onClick: () => this.runWorkflow(),
+      };
+    }
+
+    // In cuManager mode with disconnected computing unit, show "Connect" button
+    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+      return {
+        text: "Connect",
+        icon: "link",
+        disable: false,
+        onClick: () => this.runWorkflow(),
+      };
+    }
+
+    // Handle execution states when connected to a running computing unit
     switch (this.executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
@@ -227,11 +380,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () =>
-            this.executeWorkflowService.executeWorkflowWithEmailNotification(
-              this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled
-            ),
+          onClick: () => this.runWorkflow(),
         };
       case ExecutionState.Initializing:
         return {
@@ -274,6 +423,13 @@ export class MenuComponent implements OnInit, OnDestroy {
           icon: "loading",
           disable: true,
           onClick: () => {},
+        };
+      default:
+        return {
+          text: "Run",
+          icon: "play-circle",
+          disable: false,
+          onClick: () => this.runWorkflow(),
         };
     }
   }
@@ -516,6 +672,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+        // Use timeout to make sure this.adjustWorkflowNameWidth() runs
+        // after currentWorkflowName is set. Otherwise, the input width may not match
+        // the latest name right after refresh.
+        setTimeout(() => this.adjustWorkflowNameWidth(), 0);
         this.autoSaveState =
           this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined
             ? ""
@@ -591,7 +751,71 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService
       .workflowMetaDataChanged()
       .pipe(untilDestroyed(this))
-      .subscribe(metadata => (this.workflowId = metadata.wid));
+      .subscribe(metadata => {
+        this.workflowId = metadata.wid;
+
+        // Pass the workflow ID to the computing unit status service
+        if (this.workflowId) {
+          this.computingUnitStatusService.setWorkflowId(this.workflowId);
+        }
+      });
+  }
+
+  /**
+   * Attempts to run a workflow based on the current state.
+   * If no computing unit is selected but the feature is enabled,
+   * it will first create and connect to a new computing unit.
+   */
+  runWorkflow(): void {
+    // Use the existing flags that were already updated via subscriptions
+    if (!this.isWorkflowValid || this.isWorkflowEmpty) {
+      return;
+    }
+
+    // If computing unit manager is enabled and no computing unit is selected
+    if (
+      environment.computingUnitManagerEnabled &&
+      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
+    ) {
+      // Create a default name based on the workflow name
+      const defaultName = this.currentWorkflowName
+        ? `${this.currentWorkflowName}'s Computing Unit`
+        : "New Computing Unit";
+
+      // Set the default name in the computing unit selection component
+      this.computingUnitSelectionComponent.newComputingUnitName = defaultName;
+
+      // Show the existing modal in the ComputingUnitSelectionComponent
+      this.computingUnitSelectionComponent.showAddComputeUnitModalVisible();
+      return;
+    }
+
+    // If computing unit manager is enabled and the computing unit is not connected
+    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+      // Update button immediately to show connecting
+      this.applyRunButtonBehavior({
+        text: "Connecting",
+        icon: "loading",
+        disable: true,
+        onClick: () => {},
+      });
+
+      // Create and connect to a computing unit (no auto-run)
+      this.computingUnitStatusService
+        .createAndConnect()
+        .pipe(untilDestroyed(this))
+        .subscribe(() => {
+          // Update the button state after request is initiated
+          this.applyRunButtonBehavior(this.getRunButtonBehavior());
+        });
+      return;
+    }
+
+    // Regular workflow execution - already connected
+    this.executeWorkflowService.executeWorkflowWithEmailNotification(
+      this.currentExecutionName || "Untitled Execution",
+      this.emailNotificationEnabled && environment.userSystemEnabled
+    );
   }
 
   protected readonly environment = environment;
