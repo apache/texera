@@ -153,6 +153,7 @@ import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
+import { NzSliderModule } from "ng-zorro-antd/slider";
 
 registerLocaleData(en);
 
@@ -298,6 +299,7 @@ registerLocaleData(en);
     ColorPickerModule,
     NzSwitchModule,
     NzLayoutModule,
+    NzSliderModule,
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,
