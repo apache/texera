@@ -21,11 +21,12 @@
 
 <div id="spacer"></div>
 
-<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
+<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
 <ng-template
   #menuTemplate
-  let-groupNames>
+  let-groupNames
+  let-depth="depth">
   <nz-collapse
     nzBordered="false"
     nzExpandIconPosition="right"
@@ -33,9 +34,11 @@
     <nz-collapse-panel
       *ngFor="let groupname of groupNames"
       [nzHeader]="groupname.groupName"
-      class="operator-group">
+      class="operator-group"
+      [attr.data-depth]="depth">
       <div class="indent">
-        <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
+        <ng-container
+          *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children, depth: depth + 1 }"></ng-container>
         <div
           *ngFor="let operatorSchema of opList.get(groupname.groupName)"
           class="operator-label">

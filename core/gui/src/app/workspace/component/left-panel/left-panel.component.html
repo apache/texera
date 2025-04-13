@@ -38,7 +38,7 @@
   class="box"
   nz-resizable
   [nzMinWidth]="230"
-  [nzMinHeight]="300"
+  [nzMinHeight]="minPanelHeight"
   [nzMaxWidth]="window.innerWidth*0.9"
   [nzMaxHeight]="window.innerHeight*0.85"
   [style.width.px]="width"
@@ -101,6 +101,7 @@
     </li>
   </ul>
   <div
+    #content
     id="content"
     [hidden]="!currentComponent">
     <h4
