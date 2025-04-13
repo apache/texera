@@ -160,7 +160,9 @@ class DatasetResource {
   ): DashboardDataset = {
     val targetDataset = getDatasetByID(ctx, did)
 
-    if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
+    if (requesterUid.isEmpty && !targetDataset.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
 
@@ -168,7 +170,7 @@ class DatasetResource {
       .map(uid => getDatasetUserAccessPrivilege(ctx, did, uid))
       .getOrElse(PrivilegeEnum.READ)
 
-    val isOwner = requesterUid.exists(uid => targetDataset.getOwnerUid == uid)
+    val isOwner = requesterUid.contains(targetDataset.getOwnerUid)
 
     DashboardDataset(
       targetDataset,
