@@ -6,13 +6,13 @@ public enum RangeSliderHandleDuplicateFunction  {
     MEAN("mean"),
     SUM("sum"),
     NOTHING("nothing");
-    private final String functionType;
+    private final String duplicateType;
 
-    RangeSliderHandleDuplicateFunction(String functionType) {
-        this.functionType = functionType;
+    RangeSliderHandleDuplicateFunction(String duplicateType) {
+        this.duplicateType = duplicateType;
     }
     @JsonValue
     public String getFunctionType() {
-        return this.functionType;
+        return this.duplicateType;
     }
 }

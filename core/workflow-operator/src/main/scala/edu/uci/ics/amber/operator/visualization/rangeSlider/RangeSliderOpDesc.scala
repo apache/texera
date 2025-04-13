@@ -32,10 +32,10 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(
     value = "Handle Duplicate Method",
-    required = true,
+    required = false,
     defaultValue = "mean"
   )
-  @AutofillAttributeName var duplicateType: RangeSliderHandleDuplicateFunction = _
+  var duplicateType: RangeSliderHandleDuplicateFunction = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -48,7 +48,7 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "RangeSlider",
+      "Range Slider",
       "Visualize data in a Range Slider",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -79,31 +79,9 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
        |        # Add range slider
        |        fig.update_layout(
        |            xaxis=dict(
-       |                rangeselector=dict(
-       |                    buttons=list([
-       |                        dict(count=1,
-       |                            label="1m",
-       |                            step="month",
-       |                            stepmode="backward"),
-       |                        dict(count=6,
-       |                            label="6m",
-       |                            step="month",
-       |                            stepmode="backward"),
-       |                        dict(count=1,
-       |                            label="YTD",
-       |                            step="year",
-       |                            stepmode="todate"),
-       |                        dict(count=1,
-       |                            label="1y",
-       |                            step="year",
-       |                            stepmode="backward"),
-       |                        dict(step="all")
-       |                    ])
-       |                ),
        |                rangeslider=dict(
        |                    visible=True
-       |                ),
-       |                type="date"
+       |                )
        |            )
        |        )
        |""".stripMargin
@@ -136,7 +114,6 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
-         |
          |""".stripMargin
     finalcode
   }
