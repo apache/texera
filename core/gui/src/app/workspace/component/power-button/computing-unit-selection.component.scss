@@ -155,6 +155,16 @@
   width: 100%;
 }
 
+.jvm-memory-slider {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.memory-warning {
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
 .create-compute-unit-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

@@ -73,7 +73,8 @@ object ComputingUnitManagingResource {
       unitType: String,
       cpuLimit: String,
       memoryLimit: String,
-      gpuLimit: String
+      gpuLimit: String,
+      jvmMemorySize: String
   )
 
   case class WorkflowComputingUnitResourceLimit(
@@ -173,6 +174,27 @@ class ComputingUnitManagingResource {
           .mkString(", ")}"
       )
     }
+
+    // Validate JVM memory size against the selected memory limit
+    val jvmMemorySizeValue = param.jvmMemorySize.replaceAll("[^0-9]", "").toInt
+    val memoryLimitValue = {
+      val memValue = param.memoryLimit
+      if (memValue.endsWith("Gi")) {
+        memValue.replaceAll("[^0-9]", "").toInt
+      } else if (memValue.endsWith("Mi")) {
+        memValue.replaceAll("[^0-9]", "").toInt / 1024
+      } else {
+        // Default case, assume value is in GB
+        memValue.replaceAll("[^0-9]", "").toInt
+      }
+    }
+
+    if (jvmMemorySizeValue > memoryLimitValue) {
+      throw new ForbiddenException(
+        s"JVM memory size (${param.jvmMemorySize}) cannot exceed the total memory limit (${param.memoryLimit})"
+      )
+    }
+
     try {
       withTransaction(context) { ctx =>
         val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
@@ -208,7 +230,7 @@ class ComputingUnitManagingResource {
           param.gpuLimit,
           computingUnitEnvironmentVariables ++ Map(
             EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
-            EnvironmentalVariable.ENV_JAVA_OPTS -> "-Xmx2G"
+            EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
           )
         )
 
