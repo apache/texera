@@ -15,12 +15,14 @@ from proto.edu.uci.ics.amber.core import (
     ExecutionIdentity,
     OperatorIdentity,
     PortIdentity,
+    GlobalPortIdentity,
+    PhysicalOpIdentity,
 )
 
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
-    postgres_username="texera_iceberg_admin",
+    postgres_username="texera",
     postgres_password="password",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../core/amber/user-resources/workflow-results",
@@ -55,9 +57,14 @@ class TestIcebergDocument:
         uri = VFSURIFactory.create_result_uri(
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
-            OperatorIdentity(id=f"test_table_{operator_uuid}"),
-            "main",
-            PortIdentity(id=0),
+            GlobalPortIdentity(
+                op_id=PhysicalOpIdentity(
+                    logical_op_id=OperatorIdentity(id=f"test_table_{operator_uuid}"),
+                    layer_name="main",
+                ),
+                port_id=PortIdentity(id=0),
+                input=False,
+            ),
         )
         DocumentFactory.create_document(uri, amber_schema)
         document, _ = DocumentFactory.open_document(uri)
@@ -77,7 +84,7 @@ class TestIcebergDocument:
                     "col-long": 1123213213213,
                     "col-double": 214214.9969346,
                     "col-timestamp": datetime.datetime.now(),
-                    "col-binary": b"hello",
+                    "col-binary": [b"hello"],
                 },
                 schema=amber_schema,
             ),
@@ -89,7 +96,7 @@ class TestIcebergDocument:
                     "col-long": -98765432109876,
                     "col-double": -0.001,
                     "col-timestamp": datetime.datetime.fromtimestamp(100000000),
-                    "col-binary": bytearray([255, 0, 0, 64]),
+                    "col-binary": [bytearray([255, 0, 0, 64])],
                 },
                 schema=amber_schema,
             ),
@@ -101,7 +108,7 @@ class TestIcebergDocument:
                     "col-long": 9223372036854775807,
                     "col-double": 1.7976931348623157e308,
                     "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
-                    "col-binary": bytearray([1, 2, 3, 4, 5]),
+                    "col-binary": [bytearray([1, 2, 3, 4, 5])],
                 },
                 schema=amber_schema,
             ),
@@ -127,7 +134,9 @@ class TestIcebergDocument:
                             datetime.datetime.now().timestamp() + i
                         )
                     ),
-                    "col-binary": None if i % 9 == 0 else generate_random_binary(10),
+                    "col-binary": (
+                        None if i % 9 == 0 else [generate_random_binary(10)]
+                    ),
                 },
                 schema=amber_schema,
             )

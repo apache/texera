@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
@@ -30,12 +29,9 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   PortConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-
-import java.net.URI
 
 class RegionExecutionCoordinator(
     region: Region,
@@ -268,22 +264,13 @@ class RegionExecutionCoordinator(
     portConfigs.foreach {
       case (outputPortId, portConfig: PortConfig) =>
         val storageUriToAdd = portConfig.storageURI
-        val (wid, eid, _, _, _, _) = decodeURI(storageUriToAdd)
+        val (_, eid, _, _) = decodeURI(storageUriToAdd)
         val existingStorageUri =
-          WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-            wid = wid,
+          WorkflowExecutionsResource.getResultUriByGlobalPortId(
             eid = eid,
-            opId = outputPortId.opId.logicalOpId,
-            layerName = Some(outputPortId.opId.layerName),
-            portId = outputPortId.portId
+            globalPortId = outputPortId
           )
-        if (
-          (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
-            .getResourceURIs(eid)
-            .contains(
-              existingStorageUri
-            )) || (AmberConfig.isUserSystemEnabled && existingStorageUri.isEmpty)
-        ) {
+        if (existingStorageUri.isEmpty) {
           // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
           val schemaOptional =
             region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
@@ -292,9 +279,7 @@ class RegionExecutionCoordinator(
           DocumentFactory.createDocument(storageUriToAdd, schema)
           WorkflowExecutionsResource.insertOperatorPortResultUri(
             eid = eid,
-            opId = outputPortId.opId.logicalOpId,
-            layerName = outputPortId.opId.layerName,
-            portId = outputPortId.portId,
+            globalPortId = outputPortId,
             uri = storageUriToAdd
           )
         }

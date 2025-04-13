@@ -24,13 +24,13 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
-  @JsonPropertyDescription("the axes of each scatter plot in the matrix.")
+  @JsonPropertyDescription("The axes of each scatter plot in the matrix.")
   @AutofillAttributeNameList
   var selectedAttributes: List[String] = _
 
   @JsonProperty(value = "Color", required = true)
   @JsonSchemaTitle("Color Column")
-  @JsonPropertyDescription("column to color points")
+  @JsonPropertyDescription("Column to color points")
   @AutofillAttributeName
   var color: String = ""
 
@@ -47,7 +47,7 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Scatter Matrix Chart",
       "Visualize datasets in a Scatter Matrix",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

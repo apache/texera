@@ -1,0 +1,22 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 9092
+  adminConnectors: []
+
+logging:
+  level: INFO
+  loggers:
+    "io.dropwizard": INFO
+  appenders:
+    - type: console
+    - type: file
+      currentLogFilename: log/file-service.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: true
+      archivedLogFilenamePattern: log/file-service-%d{yyyy-MM-dd}.log.gz
+      archivedFileCount: 7
+      bufferSize: 8KiB
+      immediateFlush: true

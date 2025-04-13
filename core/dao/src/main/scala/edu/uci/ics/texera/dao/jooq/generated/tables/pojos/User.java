@@ -23,6 +23,7 @@ public class User implements IUser {
     private String       googleId;
     private String       googleAvatar;
     private UserRoleEnum role;
+    private String       comment;
 
     public User() {}
 
@@ -34,6 +35,7 @@ public class User implements IUser {
         this.googleId = value.getGoogleId();
         this.googleAvatar = value.getGoogleAvatar();
         this.role = value.getRole();
+        this.comment = value.getComment();
     }
 
     public User(
@@ -43,7 +45,8 @@ public class User implements IUser {
         String       password,
         String       googleId,
         String       googleAvatar,
-        UserRoleEnum role
+        UserRoleEnum role,
+        String       comment
     ) {
         this.uid = uid;
         this.name = name;
@@ -52,6 +55,7 @@ public class User implements IUser {
         this.googleId = googleId;
         this.googleAvatar = googleAvatar;
         this.role = role;
+        this.comment = comment;
     }
 
     /**
@@ -166,6 +170,22 @@ public class User implements IUser {
         this.role = role;
     }
 
+    /**
+     * Getter for <code>texera_db.user.comment</code>.
+     */
+    @Override
+    public String getComment() {
+        return this.comment;
+    }
+
+    /**
+     * Setter for <code>texera_db.user.comment</code>.
+     */
+    @Override
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
@@ -177,6 +197,7 @@ public class User implements IUser {
         sb.append(", ").append(googleId);
         sb.append(", ").append(googleAvatar);
         sb.append(", ").append(role);
+        sb.append(", ").append(comment);
 
         sb.append(")");
         return sb.toString();
@@ -195,6 +216,7 @@ public class User implements IUser {
         setGoogleId(from.getGoogleId());
         setGoogleAvatar(from.getGoogleAvatar());
         setRole(from.getRole());
+        setComment(from.getComment());
     }
 
     @Override

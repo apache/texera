@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
@@ -16,7 +16,7 @@ import {
   templateUrl: "./browse-section.component.html",
   styleUrls: ["./browse-section.component.scss"],
 })
-export class BrowseSectionComponent implements OnInit {
+export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() entities: DashboardEntry[] = [];
   @Input() sectionTitle: string = "";
   @Input() currentUid: number | undefined;
@@ -40,7 +40,7 @@ export class BrowseSectionComponent implements OnInit {
     });
   }
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
     this.entities.forEach(entity => {
       this.initializeEntry(entity);
     });

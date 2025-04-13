@@ -23,7 +23,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with each category")
+  @JsonPropertyDescription("The value associated with each category")
   @AutofillAttributeName
   var value: String = ""
 
@@ -63,7 +63,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Bar Chart",
       "Visualize data in a Bar Chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
