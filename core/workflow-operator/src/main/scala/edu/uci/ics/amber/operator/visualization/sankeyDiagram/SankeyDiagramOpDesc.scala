@@ -13,19 +13,19 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
-  @JsonPropertyDescription("the source node of the Sankey diagram")
+  @JsonPropertyDescription("The source node of the Sankey diagram")
   @AutofillAttributeName
   var sourceAttribute: String = ""
 
   @JsonProperty(value = "Target Attribute", required = true)
   @JsonSchemaTitle("Target Attribute")
-  @JsonPropertyDescription("the target node of the Sankey diagram")
+  @JsonPropertyDescription("The target node of the Sankey diagram")
   @AutofillAttributeName
   var targetAttribute: String = ""
 
   @JsonProperty(value = "Value Attribute", required = true)
   @JsonSchemaTitle("Value Attribute")
-  @JsonPropertyDescription("the value/volume of the flow between source and target")
+  @JsonPropertyDescription("The value/volume of the flow between source and target")
   @AutofillAttributeName
   var valueAttribute: String = ""
 
@@ -42,7 +42,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Sankey Diagram",
       "Visualize data using a Sankey diagram",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
