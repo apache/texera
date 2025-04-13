@@ -17,14 +17,14 @@ import { PanelService } from "../../service/panel/panel.service";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
-  @ViewChild("content") contentRef!: ElementRef<HTMLDivElement>;
+  @ViewChild("content") content!: ElementRef<HTMLDivElement>;
   protected readonly window = window;
+  private static readonly MIN_PANEL_WIDTH = 230;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  minWidth = 230;
-  width = this.minWidth;
-  minHeight = 395;
-  height = Math.max(this.minHeight, window.innerHeight * 0.6);
+  width = LeftPanelComponent.MIN_PANEL_WIDTH
+  minPanelHeight = 410;
+  height = Math.max(this.minPanelHeight, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
   items = [
@@ -81,9 +81,10 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
     });
   }
 
+  // Calculates the sum of level one operator tabs, and sets minPanelHeight to this value
   ngAfterViewInit(): void {
     setTimeout(() => {
-      const topLevelCategories = this.contentRef.nativeElement.querySelectorAll(
+      const topLevelCategories = this.content.nativeElement.querySelectorAll(
         "nz-collapse-panel.operator-group[data-depth=\"0\"]"
       );
 
@@ -93,8 +94,9 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
           totalCategoriesHeight += element.clientHeight;
         });
 
-        this.minHeight = totalCategoriesHeight + 75; // Add padding for search bar and other UI elements
-        this.height = this.minHeight;
+        let padding = 90;
+        this.minPanelHeight = totalCategoriesHeight + padding; // Add padding for search bar and other UI elements
+        this.height = this.minPanelHeight;
       }
     }, 0); // Wait for collapsible panels to render
   }
@@ -117,8 +119,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
       this.width = 0;
       this.height = 65;
     } else if (!this.width) {
-      this.width = this.minWidth;
-      this.height = this.minHeight;
+      this.width = LeftPanelComponent.MIN_PANEL_WIDTH
+      this.height = this.minPanelHeight;
     }
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
