@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
@@ -16,12 +16,15 @@ import { PanelService } from "../../service/panel/panel.service";
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
 })
-export class LeftPanelComponent implements OnDestroy, OnInit {
+export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
+  @ViewChild("content") contentRef!: ElementRef<HTMLDivElement>;
   protected readonly window = window;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  width = 230;
-  height = Math.max(395, window.innerHeight * 0.6);
+  minWidth = 230;
+  width = this.minWidth;
+  minHeight = 395;
+  height = Math.max(this.minHeight, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
   items = [
@@ -78,6 +81,24 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     });
   }
 
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      const topLevelCategories = this.contentRef.nativeElement.querySelectorAll(
+        "nz-collapse-panel.operator-group[data-depth=\"0\"]"
+      );
+
+      if (topLevelCategories.length > 0) {
+        let totalCategoriesHeight = 0;
+        topLevelCategories.forEach(element => {
+          totalCategoriesHeight += element.clientHeight;
+        });
+
+        this.minHeight = totalCategoriesHeight + 75; // Add padding for search bar and other UI elements
+        this.height = this.minHeight;
+      }
+    }, 0); // Wait for collapsible panels to render
+  }
+
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("left-panel-width", String(this.width));
@@ -96,8 +117,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       this.width = 0;
       this.height = 65;
     } else if (!this.width) {
-      this.width = 230;
-      this.height = 395;
+      this.width = this.minWidth;
+      this.height = this.minHeight;
     }
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
