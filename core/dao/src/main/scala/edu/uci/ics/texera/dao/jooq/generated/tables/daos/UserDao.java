@@ -186,4 +186,19 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.dao.jooq.gen
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchByRole(UserRoleEnum... values) {
         return fetch(User.USER.ROLE, values);
     }
+
+    /**
+     * Fetch records that have <code>comment BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchRangeOfComment(String lowerInclusive, String upperInclusive) {
+        return fetchRange(User.USER.COMMENT, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>comment IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User> fetchByComment(String... values) {
+        return fetch(User.USER.COMMENT, values);
+    }
 }
