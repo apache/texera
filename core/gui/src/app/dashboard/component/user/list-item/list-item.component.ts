@@ -103,18 +103,6 @@ export class ListItemComponent implements OnInit, OnChanges {
             }
             setTimeout(() => this.cdr.detectChanges(), 0);
           });
-        this.hubService
-          .getLikeCount(this.entry.id, this.entry.type)
-          .pipe(untilDestroyed(this))
-          .subscribe(count => {
-            this.likeCount = count;
-          });
-        this.hubService
-          .getViewCount(this.entry.id, this.entry.type)
-          .pipe(untilDestroyed(this))
-          .subscribe(count => {
-            this.viewCount = count;
-          });
         this.workflowPersistService
           .getSize(this.entry.id)
           .pipe(untilDestroyed(this))
