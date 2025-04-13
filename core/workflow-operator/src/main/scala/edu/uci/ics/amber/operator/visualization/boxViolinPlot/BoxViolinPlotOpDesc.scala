@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.visualization.boxPlot
+package edu.uci.ics.amber.operator.visualization.boxViolinPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -8,6 +8,9 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
+
+@JsonPropertyOrder(Array("value", "quartileType", "horizontalOrientation", "violinPlot"))
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -17,25 +20,32 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class BoxPlotOpDesc extends PythonOperatorDescriptor {
+class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("Data Column for Boxplot")
+  @JsonPropertyDescription("Data column for box plot")
   @AutofillAttributeName
   var value: String = ""
-
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Horizontal Orientation")
-  @JsonPropertyDescription("Orientation Style")
-  var orientation: Boolean = _
 
   @JsonProperty(
     value = "Quartile Method",
     required = true,
     defaultValue = "linear"
   )
-  var quertiletype: BoxPlotQuartileFunction = _
+  var quartileType: BoxViolinPlotQuartileFunction = _
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Horizontal Orientation")
+  @JsonPropertyDescription("Orientation style")
+  var horizontalOrientation: Boolean = _
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Violin Plot")
+  @JsonPropertyDescription(
+    "Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot"
+  )
+  var violinPlot: Boolean = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -48,9 +58,9 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Box Plot",
-      "Visualize data in a Box Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”).",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      "Box/Violin Plot",
+      "Visualize data using either a Box Plot or a Violin Plot. Box plots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”). Violin plots provide more detail by showing a smoothed density curve on each side, and also include a box plot inside for comparison.",
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
@@ -65,14 +75,20 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): String = {
-    var horizontal = ""
-    if (orientation) horizontal = "True"
+    val horizontal = if (horizontalOrientation) "True" else "False"
+    val violin = if (violinPlot) "True" else "False"
     s"""
-       |        if($horizontal):
-       |            fig = px.box(table, x='$value',boxmode="overlay", points='all')
+       |        if($violin):
+       |            if ($horizontal):
+       |                fig = px.violin(table, x='$value', box=True, points='all')
+       |            else:
+       |                fig = px.violin(table, y='$value', box=True, points='all')
        |        else:
-       |            fig = px.box(table, y='$value',boxmode="overlay", points='all')
-       |        fig.update_traces(quartilemethod="${quertiletype.getQuartiletype}", jitter=0, col=1)
+       |            if($horizontal):
+       |                fig = px.box(table, x='$value',boxmode="overlay", points='all')
+       |            else:
+       |                fig = px.box(table, y='$value',boxmode="overlay", points='all')
+       |        fig.update_traces(quartilemethod="${quartileType.getQuartiletype}", col=1)
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
@@ -95,7 +111,7 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
          |
          |    # Generate custom error message as html string
          |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Box Plot is not available.</h1>
+         |        return '''<h1>Box/Violin Plot is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |

@@ -13,10 +13,7 @@ import java.util.Optional
 
 object JwtParser extends LazyLogging {
 
-  private val TOKEN_SECRET = AuthConfig.jwtSecretKey.toLowerCase() match {
-    case "random" => getRandomHexString
-    case _        => AuthConfig.jwtSecretKey
-  }
+  private val TOKEN_SECRET = AuthConfig.jwtSecretKey
 
   private val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
     .setAllowedClockSkewInSeconds(30)
@@ -45,14 +42,5 @@ object JwtParser extends LazyLogging {
         logger.error(s"Failed to parse JWT: ${e.getMessage}")
         Optional.empty()
     }
-  }
-
-  private def getRandomHexString: String = {
-    val bytes = 32
-    val r = new scala.util.Random()
-    val sb = new StringBuilder
-    while (sb.length < bytes)
-      sb.append(Integer.toHexString(r.nextInt()))
-    sb.toString.substring(0, bytes)
   }
 }
