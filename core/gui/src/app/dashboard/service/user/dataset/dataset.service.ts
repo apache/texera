@@ -68,9 +68,7 @@ export class DatasetService {
 
     return this.http
       .get<{ presignedUrl: string }>(endpoint)
-      .pipe(
-        switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" }))
-      );
+      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
   }
 
   /**
