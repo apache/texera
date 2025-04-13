@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+spec:
+  replicas: {{ .Values.workflowCompilingService.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
+    spec:
+      containers:
+        - name: {{ .Values.workflowCompilingService.name }}
+          image: {{ .Values.workflowCompilingService.imageName }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.workflowCompilingService.service.port }}
+          env:
+            # FileService Access
+            - name: FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT
+              value: http://{{ .Values.fileService.name }}-svc:9092/api/dataset/presign-download
+            # LakeFS Access
+            - name: STORAGE_LAKEFS_ENDPOINT
+              value: http://{{ .Release.Name }}-lakefs:8000/api/v1
+            - name: STORAGE_LAKEFS_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: access_key
+            - name: STORAGE_LAKEFS_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-lakefs-secret
+                  key: secret_key
+            # TexeraDB Access
+            - name: STORAGE_JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
+            {{- range .Values.texeraEnvVars }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
