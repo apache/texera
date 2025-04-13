@@ -19,10 +19,12 @@
 }
 
 .workflow-name {
-  margin-top: 1px;
-  padding: 2px 8px;
+  min-width: 100px;
+  max-width: 800px;
   font-size: 18px;
+  padding: 2px 8px;
   border: none;
+  box-sizing: content-box;
 
   &:hover {
     box-shadow: 0 0 0 1px rgb(202, 202, 202);
