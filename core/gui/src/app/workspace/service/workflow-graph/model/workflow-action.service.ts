@@ -78,7 +78,7 @@ export class WorkflowActionService {
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
   private workflowSettings: WorkflowSettings;
-  private workflowChangeSubject = new Subject<void>();
+  private workflowResetSubject = new Subject<void>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -626,7 +626,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
-      this.workflowChangeSubject.asObservable()
+      this.workflowResetSubject.asObservable()
     );
   }
 
@@ -754,7 +754,7 @@ export class WorkflowActionService {
   public resetAsNewWorkflow() {
     this.destroySharedModel();
     this.reloadWorkflow(undefined);
-    this.workflowChangeSubject.next();
+    this.workflowResetSubject.next();
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
