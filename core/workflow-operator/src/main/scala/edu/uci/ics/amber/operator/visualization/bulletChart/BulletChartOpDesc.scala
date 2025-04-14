@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.visualization.bulletChart
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
@@ -16,15 +16,6 @@ import scala.jdk.CollectionConverters._
   * Visualization Operator to visualize results as a Bullet Chart
   */
 
-class StepDefinition @JsonCreator() (
-    @JsonProperty("start")
-    @JsonSchemaTitle("Start")
-    var start: String,
-    @JsonProperty("end")
-    @JsonSchemaTitle("End")
-    var end: String
-)
-
 class BulletChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
@@ -37,17 +28,15 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
   var deltaReference: String = ""
 
-  // Threshold
   @JsonProperty(value = "thresholdValue", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("The performance threshold value. e.g., 100")
   var thresholdValue: String = ""
 
-  // Steps
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
-  var steps: JList[StepDefinition] = new ArrayList[StepDefinition]()
+  var steps: JList[BulletChartStepDefinition] = new ArrayList[BulletChartStepDefinition]()
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -59,14 +48,15 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Bullet Chart",
-      "Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator. " +
-        "Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.",
+      """Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator.
+        |Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.""".stripMargin,
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {
+    // Convert the Scala list of steps into a list of dictionaries
     val stepsStr = if (steps != null && !steps.isEmpty) {
       val stepsSeq =
         steps.asScala.map(step => s"""{"start": "${step.start}", "end": "${step.end}"}""")
@@ -84,10 +74,12 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
+         |    # Render an error message in HTML format
          |    def render_error(self, error_msg) -> str:
          |        return '''<h1>Bullet chart is not available.</h1>
          |                  <p>Reason: {} </p>'''.format(error_msg)
          |
+         |    # Generate a list of grayscale HSL colors with decreasing brightness
          |    def generate_gray_gradient(self, step_count):
          |        colors = []
          |        for i in range(step_count):
@@ -95,6 +87,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            colors.append(f"hsl(0, 0%, {lightness}%)")
          |        return colors
          |
+         |    # Validate and convert user-provided step definitions
          |    def generate_valid_steps(self, steps_data):
          |        valid_steps = []
          |        for index, step in enumerate(steps_data):
@@ -106,10 +99,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                    e_val = float(end)
          |                    if s_val < e_val:
          |                        valid_steps.append({"start": s_val, "end": e_val})
-         |                except ValueError:
-         |                    print(f"Could not convert step values: {start}, {end}")
-         |                except Exception as e:
-         |                    print(f"Error processing steps: {str(e)}")
+         |                except Exception:
+         |                    pass
          |        return valid_steps
          |
          |    @overrides
@@ -136,7 +127,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            except ValueError:
          |                threshold_val = None
          |
-         |            # Process steps
+         |            # Parse and validate steps input
          |            try:
          |                steps_data = $stepsStr
          |                valid_steps = self.generate_valid_steps(steps_data)
@@ -148,10 +139,10 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                        "range": [step_data["start"], step_data["end"]],
          |                        "color": color
          |                    })
-         |            except Exception as e:
-         |                print(f"Error processing steps: {str(e)}")
+         |            except Exception:
          |                steps_list = []
          |
+         |            # Iterate through up to 10 rows of the input table
          |            count = 0
          |            html_chunks = []
          |            for _, row in table.iterrows():
@@ -161,6 +152,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                    actual = float(row[value_col])
          |                    ref = delta_ref
          |
+         |                    # Construct gauge configuration
          |                    gauge_config = {'shape': 'bullet'}
          |                    if steps_list:
          |                        gauge_config['steps'] = steps_list
@@ -172,8 +164,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                    if steps_list:
          |                        for r in steps_list:
          |                            max_range_values.append(r["range"][1])
-         |                    max_range = max(max_range_values) * 1.2
-         |                    gauge_config['axis'] = {"range": [0, max_range]}
+         |
+         |                    gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
          |
          |                    if threshold_val is not None:
          |                        gauge_config["threshold"] = {
@@ -199,6 +191,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                except Exception as e:
          |                    html_chunks.append(self.render_error(f"Error generating bullet chart: {str(e)}"))
          |
+         |            # Combine HTML chunks into final output
          |            final_html = "<div>" + "".join(html_chunks) + "</div>"
          |            yield {"html-content": final_html}
          |        except Exception as e:
