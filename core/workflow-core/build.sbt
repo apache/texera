@@ -100,12 +100,13 @@ libraryDependencies ++= Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+val arrowVersion = "14.0.1"
 // Arrow related
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % "15.0.2",
+  "org.apache.arrow" % "flight-grpc" % arrowVersion,
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
-  "org.apache.arrow" % "flight-core" % "18.2.0"
+  "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
 libraryDependencies ++= arrowDependencies
