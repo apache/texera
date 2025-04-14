@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
@@ -16,12 +16,15 @@ import { PanelService } from "../../service/panel/panel.service";
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
 })
-export class LeftPanelComponent implements OnDestroy, OnInit {
+export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
+  @ViewChild("content") content!: ElementRef<HTMLDivElement>;
   protected readonly window = window;
+  private static readonly MIN_PANEL_WIDTH = 230;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  width = 300;
-  height = Math.max(300, window.innerHeight * 0.6);
+  width = LeftPanelComponent.MIN_PANEL_WIDTH;
+  minPanelHeight = 410;
+  height = Math.max(this.minPanelHeight, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
   items = [
@@ -78,6 +81,26 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     });
   }
 
+  // Calculates the sum of level one operator tabs, and sets minPanelHeight to this value
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      const topLevelCategories = this.content.nativeElement.querySelectorAll(
+        "nz-collapse-panel.operator-group[data-depth=\"0\"]"
+      );
+
+      if (topLevelCategories.length > 0) {
+        let totalCategoriesHeight = 0;
+        topLevelCategories.forEach(element => {
+          totalCategoriesHeight += element.clientHeight;
+        });
+
+        let padding = 90;
+        this.minPanelHeight = totalCategoriesHeight + padding; // Add padding for search bar and other UI elements
+        this.height = this.minPanelHeight;
+      }
+    }, 0); // Wait for collapsible panels to render
+  }
+
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("left-panel-width", String(this.width));
@@ -96,8 +119,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       this.width = 0;
       this.height = 65;
     } else if (!this.width) {
-      this.width = 230;
-      this.height = 300;
+      this.width = LeftPanelComponent.MIN_PANEL_WIDTH;
+      this.height = this.minPanelHeight;
     }
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
