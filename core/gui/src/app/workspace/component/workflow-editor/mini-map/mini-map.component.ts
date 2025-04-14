@@ -39,41 +39,17 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     })
       .scale(this.scale)
       .translate(-MAIN_CANVAS.xMin * this.scale, -MAIN_CANVAS.yMin * this.scale);
-    // this.workflowActionService
-    //   .getJointGraphWrapper()
-    //   .getMainJointPaperAttachedStream()
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(mainPaper => {
-    //     this.paper = mainPaper;
-    //     this.updateNavigator();
-    //     mainPaper.on("translate", () => this.updateNavigator());
-    //     mainPaper.on("scale", () => this.updateNavigator());
-    //     mainPaper.on("resize", () => this.updateNavigator());
-    //   });
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
-        console.log("Main joint paper attached:", mainPaper);
         this.paper = mainPaper;
         this.updateNavigator();
-
-        mainPaper.on("translate", () => {
-          console.log("Translate event triggered on main paper");
-          this.updateNavigator();
-        });
-
-        mainPaper.on("scale", () => {
-          console.log("Scale event triggered on main paper");
-          this.updateNavigator();
-        });
-
-        mainPaper.on("resize", () => {
-          console.log("Resize event triggered on main paper");
-          this.updateNavigator();
-        });
-      })
+        mainPaper.on("translate", () => this.updateNavigator());
+        mainPaper.on("scale", () => this.updateNavigator());
+        mainPaper.on("resize", () => this.updateNavigator());
+      });
     this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
 
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = true));

@@ -1290,27 +1290,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     }, 175);
   }
 
+  /**
+   * Handles the center event triggered from the group
+   */
   private handleCenterEvent(): void {
-    this.workflowActionService.getTexeraGraph().getCenterEventStream()
+    const CENTER_OFFSET_RATIO = 0.15; // Offset ratio used to leave margin when centering
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCenterEventStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowActionService.centerPaperContent();
 
         const centerCoord = this.workflowActionService.getCenterPoint();
-        console.log("center coord:", JSON.stringify(centerCoord));
-
-        const offsetX = this.editor.offsetWidth * 0.15;
-        const offsetY = this.editor.offsetHeight * 0.15;
+        const offsetX = this.editor.offsetWidth * CENTER_OFFSET_RATIO;
+        const offsetY = this.editor.offsetHeight * CENTER_OFFSET_RATIO;
 
         const targetCoord = {
           x: centerCoord.x - offsetX,
-          y: centerCoord.y - offsetY
+          y: centerCoord.y - offsetY,
         };
 
-        console.log("target coord:", JSON.stringify(targetCoord));
-        console.log("translate for center")
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }
-
 }

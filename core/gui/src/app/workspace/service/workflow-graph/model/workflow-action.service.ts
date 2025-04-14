@@ -73,7 +73,7 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private highlightingEnabled = false;
-  private centerPoint: Point = {x: 0, y: 0};
+  private centerPoint: Point = { x: 0, y: 0 };
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
@@ -158,8 +158,8 @@ export class WorkflowActionService {
     return this.jointGraphWrapper;
   }
 
-  public getCenterPoint(): Point{
-    return this.centerPoint
+  public getCenterPoint(): Point {
+    return this.centerPoint;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -356,6 +356,9 @@ export class WorkflowActionService {
     });
   }
 
+  /**
+   * Calculating the top-left (minimum x and y) position of all operators
+   */
   public centerPaperContent(): void {
     this.texeraGraph.bundleActions(() => {
       this.undoRedoService.setListenJointCommand(false);
@@ -368,8 +371,6 @@ export class WorkflowActionService {
       for (const operator of allOperators) {
         const operatorID = operator.operatorID;
         const position = this.jointGraphWrapper.getElementPosition(operatorID);
-        console.log("operator id " + operatorID);
-        console.log("location: ", position);
 
         if (position.x < minX) {
           minX = position.x;

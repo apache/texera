@@ -1,42 +1,3 @@
-<!--<div>-->
-<!--  <button-->
-<!--    nz-button-->
-<!--    id="minimap-button"-->
-<!--    (click)="hidden = !hidden">-->
-<!--    <span-->
-<!--      nz-icon-->
-<!--      nzType="{{hidden ? 'global' : 'minus'}}"></span>-->
-<!--  </button>-->
-<!--  <button-->
-<!--    id="minimap-zoom-out-button"-->
-<!--    (click)="onClickZoomOut()"-->
-<!--    nz-button-->
-<!--    title="zoom out">-->
-<!--    <i-->
-<!--      nz-icon-->
-<!--      nzType="zoom-out"></i>-->
-<!--  </button>-->
-<!--  <button-->
-<!--    id="minimap-zoom-in-button"-->
-<!--    (click)="onClickZoomIn()"-->
-<!--    nz-button-->
-<!--    title="zoom in">-->
-<!--    <i-->
-<!--      nz-icon-->
-<!--      nzType="zoom-in"></i>-->
-<!--  </button>-->
-<!--  <div [hidden]="hidden">-->
-<!--    <div id="mini-map"></div>-->
-<!--    <div-->
-<!--      id="mini-map-navigator"-->
-<!--      cdkDrag-->
-<!--      cdkDragBoundary="texera-mini-map"-->
-<!--      (cdkDragMoved)="onDrag($event)"-->
-<!--      (cdkDragStarted)="dragging=true"-->
-<!--      (cdkDragEnded)="dragging=false"></div>-->
-<!--  </div>-->
-<!--</div>-->
-
 <div>
   <button
     nz-button
@@ -49,7 +10,8 @@
   <button
     nz-button
     id="minimap-center-button"
-    (click)="triggerCenter()">
+    (click)="triggerCenter()"
+    title="Center View">
     <span
       nz-icon
       nzType="environment"></span>
@@ -72,15 +34,16 @@
       nz-icon
       nzType="zoom-in"></i>
   </button>
-  <div [hidden]="hidden" id="mini-map-container">
+  <div
+    [hidden]="hidden"
+    id="mini-map-container">
     <div id="mini-map"></div>
     <div
       id="mini-map-navigator"
       #navigatorDrag="cdkDrag"
       cdkDrag
       (cdkDragMoved)="onDrag($event)"
-      (cdkDragStarted)="dragging = true"
-      (cdkDragEnded)="dragging = false">
-    </div>
+      (cdkDragStarted)="dragging=true"
+      (cdkDragEnded)="dragging=false"></div>
   </div>
 </div>

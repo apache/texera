@@ -143,7 +143,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
             // load the fetched workflow
             this.workflowActionService.reloadWorkflow(workflow);
             this.workflowActionService.getTexeraGraph().triggerCenterEvent();
-
           },
           error: () => {
             throw new Error(`Failed to load workflow with id ${wid}`);
