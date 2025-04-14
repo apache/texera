@@ -212,7 +212,7 @@ metrics-server:
   args:
     - --kubelet-insecure-tls
     - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-    - --metric-resolution=10s
+    - --metric-resolution=15s
   resources:
     requests:
       cpu: 200m
