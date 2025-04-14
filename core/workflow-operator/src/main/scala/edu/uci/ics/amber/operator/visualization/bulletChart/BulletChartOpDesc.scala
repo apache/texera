@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -13,16 +13,15 @@ import java.util.{ArrayList, List => JList}
 import scala.jdk.CollectionConverters._
 
 /**
- * Visualization Operator to visualize results as a Bullet Chart
- */
+  * Visualization Operator to visualize results as a Bullet Chart
+  */
 class StepDefinition @JsonCreator() (
-  @JsonProperty("start")
-  @JsonSchemaTitle("Start")
-  var start: String,
-
-  @JsonProperty("end")
-  @JsonSchemaTitle("End")
-  var end: String
+    @JsonProperty("start")
+    @JsonSchemaTitle("Start")
+    var start: String,
+    @JsonProperty("end")
+    @JsonSchemaTitle("End")
+    var end: String
 )
 
 class BulletChartOpDesc extends PythonOperatorDescriptor {
@@ -50,8 +49,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   var steps: JList[StepDefinition] = new ArrayList[StepDefinition]()
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema().add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
@@ -68,9 +67,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
 
   override def generatePythonCode(): String = {
     val stepsStr = if (steps != null && !steps.isEmpty) {
-      val stepsSeq = steps.asScala.map(step =>
-        s"""{"start": "${step.start}", "end": "${step.end}"}"""
-      )
+      val stepsSeq =
+        steps.asScala.map(step => s"""{"start": "${step.start}", "end": "${step.end}"}""")
       "[" + stepsSeq.mkString(", ") + "]"
     } else {
       "[]"
