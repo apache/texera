@@ -90,6 +90,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |    # Validate and convert user-provided step definitions
          |    def generate_valid_steps(self, steps_data):
          |        valid_steps = []
+         |        self.step_errors = []
+         |
          |        for index, step in enumerate(steps_data):
          |            start = step.get('start', '')
          |            end = step.get('end', '')
@@ -99,8 +101,10 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                    e_val = float(end)
          |                    if s_val < e_val:
          |                        valid_steps.append({"start": s_val, "end": e_val})
-         |                except Exception:
-         |                    pass
+         |                    else:
+         |                        self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
+         |                except Exception as e:
+         |                    self.step_errors.append(f"Step {index + 1}: Invalid step values: start='{start}', end='{end}'")
          |        return valid_steps
          |
          |    @overrides
@@ -185,6 +189,12 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |
          |                    fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
          |                    html_chunk = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |
+         |                    # Add step error
+         |                    if hasattr(self, 'step_errors') and self.step_errors:
+         |                        error_notes = "<br><b>Step Errors:</b><ul>" + "".join([f"<li>{msg}</li>" for msg in self.step_errors]) + "</ul>"
+         |                        html_chunk += error_notes
+         |
          |                    html_chunks.append(html_chunk)
          |                    count += 1
          |
