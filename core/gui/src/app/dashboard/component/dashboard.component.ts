@@ -20,7 +20,6 @@ import {
 } from "../../app-routing.constant";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
-import { types } from "sass";
 
 @Component({
   selector: "texera-dashboard",
