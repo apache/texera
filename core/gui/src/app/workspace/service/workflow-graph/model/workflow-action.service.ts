@@ -80,7 +80,6 @@ export class WorkflowActionService {
   private workflowSettings: WorkflowSettings;
   private workflowChangeSubject = new Subject<void>();
 
-
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
