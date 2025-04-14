@@ -15,6 +15,7 @@ import scala.jdk.CollectionConverters._
 /**
   * Visualization Operator to visualize results as a Bullet Chart
   */
+
 class StepDefinition @JsonCreator() (
     @JsonProperty("start")
     @JsonSchemaTitle("Start")
