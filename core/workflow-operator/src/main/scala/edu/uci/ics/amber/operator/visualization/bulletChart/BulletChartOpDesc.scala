@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.visualization.bulletChart
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -9,9 +9,22 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
+import java.util.{ArrayList, List => JList}
+import scala.jdk.CollectionConverters._
+
 /**
-  * Visualization Operator to visualize results as a Bullet Chart
-  */
+ * Visualization Operator to visualize results as a Bullet Chart
+ */
+class StepDefinition @JsonCreator() (
+  @JsonProperty("start")
+  @JsonSchemaTitle("Start")
+  var start: String,
+
+  @JsonProperty("end")
+  @JsonSchemaTitle("End")
+  var end: String
+)
+
 class BulletChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
@@ -21,51 +34,24 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
-  @JsonPropertyDescription("The reference value for the delta indicator. e.g., 200")
+  @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
   var deltaReference: String = ""
 
   // Threshold
   @JsonProperty(value = "thresholdValue", required = false)
   @JsonSchemaTitle("Threshold Value")
-  @JsonPropertyDescription("The performance threshold value. e.g., 80")
+  @JsonPropertyDescription("The performance threshold value. e.g., 100")
   var thresholdValue: String = ""
 
-  // Step 1 (Optional)
-  @JsonProperty(value = "step1Start", required = false)
-  @JsonSchemaTitle("Step 1 Start")
-  @JsonPropertyDescription("Start value for the first qualitative step range. e.g., 0")
-  var step1Start: String = ""
-
-  @JsonProperty(value = "step1End", required = false)
-  @JsonSchemaTitle("Step 1 End")
-  @JsonPropertyDescription("End value for the first qualitative step range. e.g., 100")
-  var step1End: String = ""
-
-  // Step 2 (Optional)
-  @JsonProperty(value = "step2Start", required = false)
-  @JsonSchemaTitle("Step 2 Start")
-  @JsonPropertyDescription("Start value for the second qualitative step range. e.g., 100")
-  var step2Start: String = ""
-
-  @JsonProperty(value = "step2End", required = false)
-  @JsonSchemaTitle("Step 2 End")
-  @JsonPropertyDescription("End value for the second qualitative step range. e.g., 200")
-  var step2End: String = ""
-
-  // Step 3 (Optional)
-  @JsonProperty(value = "step3Start", required = false)
-  @JsonSchemaTitle("Step 3 Start")
-  @JsonPropertyDescription("Start value for the third qualitative step range. e.g., 200")
-  var step3Start: String = ""
-
-  @JsonProperty(value = "step3End", required = false)
-  @JsonSchemaTitle("Step 3 End")
-  @JsonPropertyDescription("End value for the third qualitative step range. e.g., 300")
-  var step3End: String = ""
+  // Steps
+  @JsonProperty(value = "steps", required = false)
+  @JsonSchemaTitle("Steps")
+  @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
+  var steps: JList[StepDefinition] = new ArrayList[StepDefinition]()
 
   override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
+                                 inputSchemas: Map[PortIdentity, Schema]
+                               ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema().add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
@@ -73,23 +59,59 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Bullet Chart",
-      "Visualize data using a Bullet Chart that combines qualitative ranges (steps), a quantitative bar, and a performance threshold into a compact view.",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      "Visualize data using a Bullet Chart that shows a primary quantitative bar and delta indicator. " +
+        "Optional elements such as qualitative ranges (steps) and a performance threshold are displayed only when provided.",
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {
+    val stepsStr = if (steps != null && !steps.isEmpty) {
+      val stepsSeq = steps.asScala.map(step =>
+        s"""{"start": "${step.start}", "end": "${step.end}"}"""
+      )
+      "[" + stepsSeq.mkString(", ") + "]"
+    } else {
+      "[]"
+    }
+
     val finalCode =
       s"""
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
+         |import json
          |
          |class ProcessTableOperator(UDFTableOperator):
+         |
          |    def render_error(self, error_msg) -> str:
          |        return '''<h1>Bullet chart is not available.</h1>
          |                  <p>Reason: {} </p>'''.format(error_msg)
+         |
+         |    def generate_gray_gradient(self, step_count):
+         |        colors = []
+         |        for i in range(step_count):
+         |            lightness = 90 - (i * (60 / max(1, step_count - 1)))
+         |            colors.append(f"hsl(0, 0%, {lightness}%)")
+         |        return colors
+         |
+         |    def generate_valid_steps(self, steps_data):
+         |        valid_steps = []
+         |        for index, step in enumerate(steps_data):
+         |            start = step.get('start', '')
+         |            end = step.get('end', '')
+         |            if start and end:
+         |                try:
+         |                    s_val = float(start)
+         |                    e_val = float(end)
+         |                    if s_val < e_val:
+         |                        valid_steps.append({"start": s_val, "end": e_val})
+         |                except ValueError:
+         |                    print(f"Could not convert step values: {start}, {end}")
+         |                except Exception as e:
+         |                    print(f"Error processing steps: {str(e)}")
+         |        return valid_steps
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -115,41 +137,26 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            except ValueError:
          |                threshold_val = None
          |
-         |            steps_list = []
-         |            # Step 1
-         |            if "$step1Start".strip() and "$step1End".strip():
-         |                try:
-         |                    step1_start = float("$step1Start")
-         |                    step1_end = float("$step1End")
-         |                    if step1_start < step1_end:
-         |                        steps_list.append({"range": [step1_start, step1_end], "color": "lightgray"})
-         |                except ValueError:
-         |                  pass
-         |
-         |            # Step 2
-         |            if "$step2Start".strip() and "$step2End".strip():
-         |                try:
-         |                    step2_start = float("$step2Start")
-         |                    step2_end = float("$step2End")
-         |                    if step2_start < step2_end:
-         |                        steps_list.append({"range": [step2_start, step2_end], "color": "gray"})
-         |                except ValueError:
-         |                    pass
-         |
-         |            # Step 3
-         |            if "$step3Start".strip() and "$step3End".strip():
-         |                try:
-         |                    step3_start = float("$step3Start")
-         |                    step3_end = float("$step3End")
-         |                    if step3_start < step3_end:
-         |                        steps_list.append({"range": [step3_start, step3_end], "color": "darkgray"})
-         |                except ValueError:
-         |                    pass
+         |            # Process steps
+         |            try:
+         |                steps_data = $stepsStr
+         |                valid_steps = self.generate_valid_steps(steps_data)
+         |                step_colors = self.generate_gray_gradient(len(valid_steps))
+         |                steps_list = []
+         |                for index, step_data in enumerate(valid_steps):
+         |                    color = step_colors[index]
+         |                    steps_list.append({
+         |                        "range": [step_data["start"], step_data["end"]],
+         |                        "color": color
+         |                    })
+         |            except Exception as e:
+         |                print(f"Error processing steps: {str(e)}")
+         |                steps_list = []
          |
          |            count = 0
          |            html_chunks = []
          |            for _, row in table.iterrows():
-         |                if count >= 10: # Limit to 10 charts
+         |                if count >= 10:  # Limit to 10 charts
          |                    break
          |                try:
          |                    actual = float(row[value_col])
