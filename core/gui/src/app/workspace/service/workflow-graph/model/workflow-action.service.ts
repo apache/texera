@@ -359,7 +359,7 @@ export class WorkflowActionService {
   /**
    * Calculating the top-left (minimum x and y) position of all operators
    */
-  public centerPaperContent(): void {
+  public calculateTopLeftOperatorPosition(): void {
     this.texeraGraph.bundleActions(() => {
       this.undoRedoService.setListenJointCommand(false);
       const allOperators = this.getTexeraGraph().getAllOperators();

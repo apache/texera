@@ -1300,7 +1300,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .getCenterEventStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.workflowActionService.centerPaperContent();
+        this.workflowActionService.calculateTopLeftOperatorPosition();
 
         const centerCoord = this.workflowActionService.getCenterPoint();
         const offsetX = this.editor.offsetWidth * CENTER_OFFSET_RATIO;
