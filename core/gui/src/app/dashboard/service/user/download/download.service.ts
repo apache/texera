@@ -124,7 +124,10 @@ export class DownloadService {
       destination,
     };
     console.log("received cui from exportWorkflowResult", unit);
-    const urlPath = (unit && unit.computingUnit?.cuid) ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}` : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
+    const urlPath =
+      unit && unit.computingUnit?.cuid
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
     if (destination === "local") {
       return this.http.post(urlPath, requestBody, {
         responseType: "blob",
@@ -136,18 +139,14 @@ export class DownloadService {
       });
     } else {
       // dataset => return JSON
-      return this.http.post<ExportWorkflowJsonResponse>(
-        urlPath,
-        requestBody,
-        {
-          responseType: "json",
-          observe: "response",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        }
-      );
+      return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
+        responseType: "json",
+        observe: "response",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
     }
   }
 

@@ -60,7 +60,7 @@ export class ResultExportationComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
         this.selectedComputingUnit = unit;
-      })
+      });
   }
 
   updateOutputType(): void {
