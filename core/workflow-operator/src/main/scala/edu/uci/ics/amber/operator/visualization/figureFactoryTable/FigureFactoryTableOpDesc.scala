@@ -96,9 +96,9 @@ class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
-      "FigureFactoryTable",
+      "Figure Factory Table",
       "Visualize data in a figure factory table",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -40,7 +40,7 @@ data:
                                 local uri = request_handle:headers():get(":path")
                                 local cuid = string.match(uri, "cuid=(%d+)")
                                 if cuid then
-                                  local new_host = "computing-unit-" .. cuid .. ".workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local:8085"
+                                  local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
                                   request_handle:headers():replace(":authority", new_host)
                                 end
                               end
