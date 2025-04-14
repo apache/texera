@@ -12,26 +12,30 @@
     class="metrics-container">
     <div class="metric-item">
       <span class="metric-label">CPU</span>
-      <nz-progress
-        id="cpu-progress-bar"
-        [nzPercent]="(getCpuPercentage() | number:'1.0-0')"
-        [nzStrokeColor]="'#52c41a'"
-        [nzStatus]="getCpuStatus()"
-        nzType="line"
-        [nzStrokeWidth]="8"
-        [nzShowInfo]="false"></nz-progress>
+      <div class="metric-bar-wrapper">
+        <nz-progress
+          id="cpu-progress-bar"
+          [nzPercent]="getCpuPercentage()"
+          [nzStrokeColor]="'#52c41a'"
+          [nzStatus]="getCpuStatus()"
+          nzType="line"
+          [nzStrokeWidth]="8"
+          [nzShowInfo]="false"></nz-progress>
+      </div>
     </div>
 
     <div class="metric-item">
       <span class="metric-label">Memory</span>
-      <nz-progress
-        id="memory-progress-bar"
-        [nzPercent]="(getMemoryPercentage() | number:'1.0-0')"
-        [nzStrokeColor]="'#1890ff'"
-        [nzStatus]="getMemoryStatus()"
-        nzType="line"
-        [nzStrokeWidth]="8"
-        [nzShowInfo]="false"></nz-progress>
+      <div class="metric-bar-wrapper">
+        <nz-progress
+          id="memory-progress-bar"
+          [nzPercent]="getMemoryPercentage()"
+          [nzStrokeColor]="'#1890ff'"
+          [nzStatus]="getMemoryStatus()"
+          nzType="line"
+          [nzStrokeWidth]="8"
+          [nzShowInfo]="false"></nz-progress>
+      </div>
     </div>
   </div>
 
@@ -42,20 +46,28 @@
     [nzDropdownMenu]="environment.computingUnitManagerEnabled ? menu : null"
     [nzPlacement]="'bottomRight'"
     class="computing-units-dropdown-button">
-    <nz-badge
-      [nzStatus]="computeStatus()"
-      [nzText]="''"></nz-badge>
-    <span
-      *ngIf="selectedComputingUnit"
-      nz-tooltip
-      [nzTooltipTitle]="getComputingUnitName(selectedComputingUnit.uri)">
-      {{selectedComputingUnit.computingUnit.name}}
-    </span>
-    <span *ngIf="!selectedComputingUnit">Connect</span>
-    <i
-      nz-icon
-      *ngIf="environment.computingUnitManagerEnabled"
-      nzType="down"></i>
+    <div class="button-content">
+      <nz-badge
+        [nzStatus]="computeStatus()"
+        [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
+        [nzText]="''"></nz-badge>
+      <span
+        *ngIf="selectedComputingUnit"
+        nz-tooltip
+        class="unit-name-text"
+        [nzTooltipTitle]="selectedComputingUnit.computingUnit.name">
+        {{selectedComputingUnit.computingUnit.name}}
+      </span>
+      <span
+        *ngIf="!selectedComputingUnit"
+        class="connect-text"
+        >Connect</span
+      >
+      <i
+        nz-icon
+        *ngIf="environment.computingUnitManagerEnabled"
+        nzType="down"></i>
+    </div>
   </button>
 
   <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -66,26 +78,53 @@
         nz-menu-item
         *ngFor="let unit of computingUnits"
         id="computing-unit-option"
+        class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
-        [ngClass]="{ 'unit-selected': isSelectedUnit(unit) }"
+        [ngClass]="{
+          'unit-selected': isSelectedUnit(unit),
+          'unit-connecting': unit.status === 'Pending',
+          'unit-disconnected': unit.status === 'Disconnected',
+          'unit-terminating': unit.status === 'Terminating'
+        }"
+        [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
         (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
-        <div class="computing-unit-name">
-          <nz-badge
-            [nzColor]="getBadgeColor(unit.status)"
-            [nzText]="''"></nz-badge>
-          <span
+        <div class="computing-unit-row">
+          <div class="computing-unit-name">
+            <nz-badge
+              [nzColor]="getBadgeColor(unit.status)"
+              [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
+            <span
+              nz-tooltip
+              [nzTooltipTitle]="unit.computingUnit.name">
+              {{ unit.computingUnit.name }}
+              <span
+                *ngIf="unit.status === 'Pending'"
+                class="unit-status-indicator"
+                >(Connecting)</span
+              >
+              <span
+                *ngIf="unit.status === 'Disconnected'"
+                class="unit-status-indicator"
+                >(Disconnected)</span
+              >
+              <span
+                *ngIf="unit.status === 'Terminating'"
+                class="unit-status-indicator"
+                >(Terminating)</span
+              >
+            </span>
+          </div>
+          <i
+            nz-icon
+            nzType="delete"
+            class="computing-unit-terminate-icon"
             nz-tooltip
-            [nzTooltipTitle]="unit.computingUnit.name">
-            {{ getComputingUnitName(unit.uri) }}
-          </span>
+            [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
+            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
+            role="button"
+            aria-label="Terminate computing unit">
+          </i>
         </div>
-        <div
-          class="terminate-icon"
-          nz-icon
-          nzType="delete"
-          nz-tooltip
-          [nzTooltipTitle]="'Terminate ' + getComputingUnitName(unit.uri)"
-          (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"></div>
       </li>
       <li
         *ngIf="computingUnits.length > 0"
@@ -106,7 +145,7 @@
 
 <!-- Panel for creating the computing unit -->
 <nz-modal
-  [(nzVisible)]="environment.computingUnitManagerEnabled && addComputeUnitModalVisible"
+  [nzVisible]="addComputeUnitModalVisible && environment.computingUnitManagerEnabled"
   [nzTitle]="addComputeUnitModalTitle"
   [nzContent]="addComputeUnitModalContent"
   [nzFooter]="addComputeUnitModalFooter"
@@ -114,38 +153,79 @@
   <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
   <ng-template #addComputeUnitModalContent>
     <div class="create-compute-unit-container">
+      <div class="select-unit name-field">
+        <span>Computing Unit Name</span>
+        <input
+          [required]="true"
+          nz-input
+          placeholder="Enter the name of your computing unit (required)"
+          [(ngModel)]="newComputingUnitName"
+          class="unit-name-input" />
+      </div>
       <div class="select-unit">
-        <span>Select Memory</span>
+        <span>Select Memory Size</span>
         <nz-select
           class="memory-selection"
-          [(ngModel)]="selectedMemory">
+          [(ngModel)]="selectedMemory"
+          (ngModelChange)="onMemorySelectionChange()">
           <nz-option
-            nzValue="1Gi"
-            nzLabel="Lowest Memory (1Gi)"></nz-option>
-          <nz-option
-            nzValue="2Gi"
-            nzLabel="Standard Memory (2Gi)"></nz-option>
-          <nz-option
-            nzValue="4Gi"
-            nzLabel="High Memory (4Gi)"></nz-option>
+            *ngFor="let option of memoryOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
       </div>
 
       <div class="select-unit">
-        <span>Select CPU</span>
+        <span>Select #CPU Core(s)</span>
         <nz-select
           class="cpu-selection"
           [(ngModel)]="selectedCpu">
           <nz-option
-            nzValue="1"
-            nzLabel="Lowest CPU (1 Core)"></nz-option>
-          <nz-option
-            nzValue="2"
-            nzLabel="Standard CPU (2 Core)"></nz-option>
-          <nz-option
-            nzValue="4"
-            nzLabel="High CPU (4 Core)"></nz-option>
+            *ngFor="let option of cpuOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
         </nz-select>
+      </div>
+
+      <div
+        *ngIf="showGpuSelection()"
+        class="select-unit">
+        <span>Select #GPU(s)</span>
+        <nz-select
+          class="gpu-selection"
+          [(ngModel)]="selectedGpu">
+          <nz-option
+            *ngFor="let option of gpuOptions"
+            [nzValue]="option"
+            [nzLabel]="option">
+          </nz-option>
+        </nz-select>
+      </div>
+
+      <div class="select-unit name-field">
+        <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
+        <nz-slider
+          *ngIf="showJvmMemorySlider"
+          class="jvm-memory-slider"
+          [nzMarks]="jvmMemoryMarks"
+          [nzMin]="jvmMemorySteps[0] || 2"
+          [nzMax]="jvmMemoryMax"
+          [nzStep]="null"
+          [nzIncluded]="false"
+          [ngModel]="jvmMemorySliderValue"
+          (ngModelChange)="onJvmMemorySliderChange($event)">
+        </nz-slider>
+        <div
+          *ngIf="isMaxJvmMemorySelected()"
+          class="memory-warning">
+          <nz-alert
+            nzType="warning"
+            nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
+            nzShowIcon>
+          </nz-alert>
+        </div>
       </div>
     </div>
   </ng-template>
@@ -170,16 +250,24 @@
     <div class="cpu-metric general-metric">
       <p class="metric-name">CPU</p>
       <p class="metric-value">
-        {{getCpuValue() | number:'1.2-2' || '0.00'}}
+        {{getCpuValue() | number:'1.4-4'}}
         <span class="metric-unit">/ {{getCpuLimit()}} {{getCpuLimitUnit()}}</span>
+        <span class="metric-percentage">({{getCpuPercentage() | number:'1.1-1'}}%)</span>
       </p>
     </div>
     <div class="memory-metric general-metric">
       <p class="metric-name">Memory</p>
       <p class="metric-value">
-        {{getMemoryValue() | number:'1.2-2' || '0.00'}}
+        {{getMemoryValue() | number:'1.4-4'}}
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
+        <span class="metric-percentage">({{getMemoryPercentage() | number:'1.1-1'}}%)</span>
       </p>
+    </div>
+    <div
+      *ngIf="getGpuLimit() !== '0' && getGpuLimit() !== 'N/A' && showGpuSelection()"
+      class="gpu-metric general-metric">
+      <p class="metric-name">GPU</p>
+      <p class="metric-value">{{getGpuLimit()}} GPU(s)</p>
     </div>
   </div>
 </ng-template>

@@ -23,13 +23,13 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with slice of pie")
+  @JsonPropertyDescription("The value associated with slice of pie")
   @AutofillAttributeName
   var value: String = ""
 
   @JsonProperty(value = "name", required = true)
   @JsonSchemaTitle("Name Column")
-  @JsonPropertyDescription("the name of the slice of pie")
+  @JsonPropertyDescription("The name of the slice of pie")
   @AutofillAttributeName
   var name: String = ""
 
@@ -44,9 +44,9 @@ class PieChartOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "PieChart",
+      "Pie Chart",
       "Visualize data in a Pie Chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
