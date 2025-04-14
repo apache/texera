@@ -31,6 +31,11 @@ data:
                               route:
                                 cluster: dynamic_service
                                 prefix_rewrite: "/wsapi"
+                            - match:
+                                prefix: "/api/executions"
+                              route:
+                                cluster: dynamic_service
+                                prefix_rewrite: "/api/executions"
                     http_filters:
                       - name: envoy.filters.http.lua
                         typed_config:
