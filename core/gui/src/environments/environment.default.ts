@@ -109,6 +109,32 @@ export const defaultEnvironment = {
    * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
+
+  /**
+   * whether hub feature is enabled
+   */
+  hubEnabled: true,
+
+  /**
+   * whether forum feature is enabled
+   */
+  forumEnabled: false,
+
+  /**
+   * whether project feature is enabled
+   */
+  projectEnabled: false,
+
+  /**
+   * Can be configured as { username: "texera", password: "password" }
+   * If configured, this will be automatically filled into the local login input box
+   */
+  defaultLocalUser: {} as { username?: string; password?: string },
+
+  /**
+   * maximum number of console messages to store per operator
+   */
+  operatorConsoleMessageBufferSize: 100,
 };
 
 export type AppEnv = typeof defaultEnvironment;

@@ -6,6 +6,8 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 
 @UntilDestroy()
 @Component({
@@ -20,7 +22,7 @@ export class ResultExportationComponent implements OnInit {
    */
   sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
-  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
+  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
@@ -29,6 +31,7 @@ export class ResultExportationComponent implements OnInit {
   isVisualizationOutput: boolean = false;
   containsBinaryData: boolean = false;
   inputDatasetName = "";
+  selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
@@ -38,7 +41,8 @@ export class ResultExportationComponent implements OnInit {
     private modalRef: NzModalRef,
     private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
   ngOnInit(): void {
@@ -50,6 +54,13 @@ export class ResultExportationComponent implements OnInit {
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });
     this.updateOutputType();
+
+    this.computingUnitStatusService
+      .getSelectedComputingUnit()
+      .pipe(untilDestroyed(this))
+      .subscribe(unit => {
+        this.selectedComputingUnit = unit;
+      });
   }
 
   updateOutputType(): void {
@@ -123,7 +134,8 @@ export class ResultExportationComponent implements OnInit {
       this.columnIndex,
       this.inputFileName,
       this.sourceTriggered === "menu",
-      destination
+      destination,
+      this.selectedComputingUnit
     );
     this.modalRef.close();
   }

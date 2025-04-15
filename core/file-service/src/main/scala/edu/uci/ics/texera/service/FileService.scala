@@ -7,12 +7,16 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
+import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.`type`.serde.DatasetFileNodeSerializer
-import edu.uci.ics.texera.service.auth.{JwtAuthFilter, SessionUser}
-import edu.uci.ics.texera.service.resource.{DatasetAccessResource, DatasetResource}
-import edu.uci.ics.texera.service.util.{S3StorageClient}
+import edu.uci.ics.texera.service.resource.{
+  DatasetAccessResource,
+  DatasetResource,
+  HealthCheckResource
+}
+import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
@@ -43,6 +47,8 @@ class FileService extends Application[FileServiceConfiguration] {
 
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
+
+    environment.jersey.register(classOf[HealthCheckResource])
 
     // Register JWT authentication filter
     environment.jersey.register(new AuthDynamicFeature(classOf[JwtAuthFilter]))

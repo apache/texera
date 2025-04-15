@@ -9,6 +9,8 @@ import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
+import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
+import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
@@ -107,7 +109,8 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "dataset" // "local" or "dataset" => default to "dataset"
+    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
+    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const requestBody = {
       exportType,
@@ -120,8 +123,13 @@ export class DownloadService {
       filename,
       destination,
     };
+    console.log("received cui from exportWorkflowResult", unit);
+    const urlPath =
+      unit && unit.computingUnit?.cuid
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
     if (destination === "local") {
-      return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+      return this.http.post(urlPath, requestBody, {
         responseType: "blob",
         observe: "response",
         headers: {
@@ -131,18 +139,14 @@ export class DownloadService {
       });
     } else {
       // dataset => return JSON
-      return this.http.post<ExportWorkflowJsonResponse>(
-        `${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`,
-        requestBody,
-        {
-          responseType: "json",
-          observe: "response",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        }
-      );
+      return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
+        responseType: "json",
+        observe: "response",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
     }
   }
 

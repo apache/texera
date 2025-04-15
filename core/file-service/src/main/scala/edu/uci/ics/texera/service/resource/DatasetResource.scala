@@ -3,6 +3,7 @@ package edu.uci.ics.texera.service.resource
 import edu.uci.ics.amber.core.storage.model.OnDataset
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -21,7 +22,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
-import edu.uci.ics.texera.service.auth.SessionUser
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
   getDatasetUserAccessPrivilege,
   getOwner,
@@ -49,6 +49,7 @@ import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response, StreamingOutput}
 import org.jooq.{DSLContext, EnumType}
 
+import java.util
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -1031,6 +1032,26 @@ class DatasetResource {
       .fetch()
 
     records.getValues(DATASET_USER_ACCESS.UID)
+  }
+
+  /**
+    * This method returns all owner user names of the dataset that the user has access to
+    *
+    * @return OwnerName[]
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-dataset-owners")
+  def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
+    context
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(DATASET)
+      .on(DATASET.OWNER_UID.eq(USER.UID))
+      .join(DATASET_USER_ACCESS)
+      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .where(DATASET_USER_ACCESS.UID.eq(user.getUid))
+      .fetchInto(classOf[String])
   }
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {

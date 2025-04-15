@@ -1,0 +1,36 @@
+{{- if .Values.ingressPaths.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer | quote}}
+    {{- end }}
+    {{- if .Values.ingressPaths.issuer }}
+    cert-manager.io/issuer: {{ .Values.ingressPaths.issuer }}
+    {{- end }}
+spec:
+  ingressClassName: nginx
+  {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
+  tls:
+    - hosts:
+        - {{ .Values.ingressPaths.hostname }}
+      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingressPaths.hostname }}
+      http:
+        paths:
+          {{- range .Values.ingressPaths.paths }}
+          - path: {{ .path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .serviceName }}
+                port:
+                  number: {{ .servicePort }}
+          {{- end }}
+{{- end }}

@@ -36,7 +36,7 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Waterfall Chart",
       "Visualize data as a waterfall chart",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

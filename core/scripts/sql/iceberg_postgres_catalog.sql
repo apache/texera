@@ -1,16 +1,27 @@
--- Important: replace "texera_iceberg_admin" and "password" with your own username
--- and password before executing the script.
-\set db_user texera_iceberg_admin
-\set db_password '\'password\''
+-- Connect to the default postgres database
+\c postgres
 
+-- Create the user `texera` with `password` if it doesn't exist
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT FROM pg_catalog.pg_roles WHERE rolname = 'texera'
+        ) THEN
+            CREATE ROLE texera LOGIN PASSWORD 'password';
+        END IF;
+    END
+$$;
+
+-- Drop and recreate the database
+DROP DATABASE IF EXISTS texera_iceberg_catalog;
 CREATE DATABASE texera_iceberg_catalog;
 
-CREATE USER :db_user WITH ENCRYPTED PASSWORD :db_password;
+-- Grant and change ownership
+GRANT ALL PRIVILEGES ON DATABASE texera_iceberg_catalog TO texera;
+ALTER DATABASE texera_iceberg_catalog OWNER TO texera;
 
-GRANT ALL PRIVILEGES ON DATABASE texera_iceberg_catalog TO :db_user;
+-- Reconnect to the new database
+\c texera_iceberg_catalog
 
-ALTER DATABASE texera_iceberg_catalog OWNER TO :db_user;
-
-\c texera_iceberg_catalog;
-
-GRANT ALL ON SCHEMA public TO :db_user;
+-- Grant schema access
+GRANT ALL ON SCHEMA public TO texera;

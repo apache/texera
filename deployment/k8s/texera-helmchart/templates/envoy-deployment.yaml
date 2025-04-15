@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-envoy-deployment
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.envoy.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: envoy
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+        - name: envoy
+          image: "{{ .Values.envoy.image.repository }}:{{ .Values.envoy.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.envoy.port}}
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+              readOnly: true
+          args:
+            - "-c"
+            - "/etc/envoy/envoy.yaml"  # Specify the path to the configuration file
+            # - "--log-level debug"  # Set level of logging
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: envoy-config  # Reference the ConfigMap created earlier

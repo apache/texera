@@ -8,7 +8,6 @@ import { assert } from "../../../common/util/assert";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
-export const COMPUTING_UNIT_TERMINATE_URL = `${COMPUTING_UNIT_BASE_URL}/terminate`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
 
 @Injectable({
@@ -22,6 +21,8 @@ export class WorkflowComputingUnitManagingService {
    * @param name The name for the computing unit.
    * @param cpuLimit The cpu resource limit for the computing unit.
    * @param memoryLimit The memory resource limit for the computing unit.
+   * @param gpuLimit The gpu resource limit for the computing unit.
+   * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
    * @param unitType
    * @returns An Observable of the created WorkflowComputingUnit.
    */
@@ -29,9 +30,11 @@ export class WorkflowComputingUnitManagingService {
     name: string,
     cpuLimit: string,
     memoryLimit: string,
+    gpuLimit: string = "0",
+    jvmMemorySize: string = "1G",
     unitType: string = "k8s_pod"
   ): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, cpuLimit, memoryLimit, unitType };
+    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, unitType };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
       `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,
@@ -42,13 +45,28 @@ export class WorkflowComputingUnitManagingService {
   /**
    * Terminate a computing unit (pod) by its URI.
    * @returns An Observable of the server response.
-   * @param uri
+   * @param cuid
    */
-  public terminateComputingUnit(uri: string): Observable<Response> {
+  public terminateComputingUnit(cuid: number): Observable<Response> {
     assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.");
-    const body = { uri: uri, name: "dummy" };
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_TERMINATE_URL}`, body);
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/terminate`);
+  }
+
+  /**
+   * Fetch the list of available CPU and memory limit options.
+   * @returns An Observable containing both CPU and memory limit options.
+   */
+  public getComputingUnitLimitOptions(): Observable<{
+    cpuLimitOptions: string[];
+    memoryLimitOptions: string[];
+    gpuLimitOptions: string[];
+  }> {
+    return this.http.get<{
+      cpuLimitOptions: string[];
+      memoryLimitOptions: string[];
+      gpuLimitOptions: string[];
+    }>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/limits`);
   }
 
   /**
@@ -79,6 +97,7 @@ export class WorkflowComputingUnitManagingService {
         resourceLimits: {
           cpuLimit: "NaN",
           memoryLimit: "NaN",
+          gpuLimit: "0",
         },
       };
 

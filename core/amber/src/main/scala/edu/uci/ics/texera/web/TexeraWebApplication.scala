@@ -5,9 +5,9 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
@@ -100,6 +100,8 @@ class TexeraWebApplication
     environment.jersey.register(classOf[SystemMetadataResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
+    environment.jersey.register(classOf[HealthCheckResource])
+
     setupJwtAuth(environment)
 
     environment.jersey.register(
@@ -114,7 +116,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
-    environment.jersey.register(classOf[ResultResource])
     environment.jersey.register(classOf[HubResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[ProjectResource])

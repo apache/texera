@@ -1,0 +1,264 @@
+global:
+  security:
+    allowInsecureImages: true # for custom postgres image
+
+# Persistence Configuration
+# This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
+# 
+# removeAfterUninstall: 
+#   - true: PVCs will be deleted when helm uninstalls the chart
+#   - false: PVCs will remain after uninstall to preserve the data
+persistence:
+  removeAfterUninstall: true
+
+# Part 1: the configuration of Postgres, Minio and LakeFS
+postgresql:
+  image:
+    repository: texera/postgres17-pgroonga
+    tag: latest
+    debug: true
+  auth:
+    postgresPassword: root_password  # for executing init script with superuser
+  primary:
+    resources:
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: local-path
+      existingClaim: "postgresql-data-pvc"
+
+    initdb:
+      scriptsConfigMap: "postgresql-init-script"
+
+minio:
+  mode: standalone
+  customIngress:
+    enabled: false
+    ingressClassName: "" # e.g., "nginx"
+    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
+    minioHostname: "" # the url for the minio
+    issuer: "" # e.g., "letsencrypt-prod"
+  auth:
+    rootUser: texera_minio
+    rootPassword: password
+  service:
+    # In production, use ClusterIP to avoid exposing the minio to the internet
+    # type: ClusterIP
+    type: NodePort
+    nodePorts:
+      api: 31000
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: local-path
+    existingClaim: "minio-data-pvc"
+
+lakefs:
+  secrets:
+    authEncryptSecretKey: random_string_for_lakefs
+    databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
+  auth:
+    username: texera-admin
+    accessKey: AKIAIOSFOLKFSSAMPLES
+    secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  service:
+    port: 8000
+  lakefsConfig: |
+    database:
+      type: postgres
+    blockstore:
+      type: s3
+      s3:
+        endpoint: http://texera-minio:9000
+        pre_signed_expiry: 15m
+        pre_signed_endpoint: http://localhost:31000
+        force_path_style: true
+        credentials:
+          access_key_id: texera_minio
+          secret_access_key: password
+
+# Part2: configurations of Texera-related micro services
+texeraImages:
+  pullPolicy: Always
+
+# Example data loader configuration
+exampleDataLoader:
+  enabled: true
+  image: texera/texera-example-data-loader:cluster
+  username: texera
+  password: texera
+  datasetDir: datasets
+  workflowDir: workflows
+
+webserver:
+  name: webserver
+  numOfPods: 1  # Number of pods for the Texera deployment
+  imageName: texera/texera-web-application:cluster # image name of the texera
+  service:
+    type: ClusterIP
+    port: 8080
+
+workflowComputingUnitManager:
+  name: workflow-computing-unit-manager
+  numOfPods: 1
+  serviceAccountName: workflow-computing-unit-manager-service-account
+  imageName: texera/workflow-computing-unit-managing-service:cluster
+  service:
+    type: ClusterIP
+    port: 8888
+
+workflowCompilingService:
+  name: workflow-compiling-service
+  numOfPods: 1
+  imageName: texera/workflow-compiling-service:cluster
+  service:
+    type: ClusterIP
+    port: 9090
+
+fileService:
+  name: file-service
+  numOfPods: 1
+  imageName: texera/file-service:cluster
+  service:
+    type: ClusterIP
+    port: 9092
+
+# Configs of the envoy proxy, used to routerequests to the computing units
+envoy:
+  replicas: 1
+  image:
+    repository: envoyproxy/envoy
+    tag: v1.31-latest
+  port:
+    10000
+  debug: false
+  service:
+    type: ClusterIP
+    port: 10000
+
+# headless service for the access of computing units
+workflowComputingUnitPool:
+  createNamespaces: true
+  # The name of the workflow computing unit pool
+  name: texera-workflow-computing-unit
+  # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
+  namespace: texera-workflow-computing-unit-pool
+  imageName: texera/computing-unit-master:cluster
+  service:
+    port: 8085
+    targetPort: 8085
+
+texeraEnvVars:
+  - name: STORAGE_JDBC_USERNAME
+    value: postgres
+  - name: USER_SYS_ENABLED
+    value: "true"
+  - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
+    value: "true"
+  - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
+    value: "10"
+  - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS
+    value: "2"
+  - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
+    value: "2Gi"
+  - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
+    value: "0"
+
+# Ingress dependency configs
+ingress-nginx:
+  enabled: true # set to true if nginx is not installed, should be false in production
+  controller:
+    replicaCount: 1
+    service:
+      type: NodePort
+      nodePorts:
+        http: 30080
+    ingressClassResource:
+      name: nginx
+      enabled: true
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  rbac:
+    create: true
+
+
+yWebsocketServer:
+  name: y-websocket-server
+  replicaCount: 1
+  image: jxzliu/y-websocket-server:latest
+
+
+pythonLanguageServer:
+  name: python-language-server
+  replicaCount: 1
+  image: jxzliu/pylsp:latest
+  imagePullSecret: regcred
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "100Mi"
+
+# Metrics Server configuration
+metrics-server:
+  enabled: true # set to false if metrics-server is already installed
+  args:
+    - --kubelet-insecure-tls
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --metric-resolution=15s
+  resources:
+    requests:
+      cpu: 200m
+      memory: 400Mi
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+  priorityClassName: system-cluster-critical
+
+# Custom Ingress resource configs
+ingressPaths:
+  enabled: true
+  hostname: "localhost"
+  # Optional TLS secret (manually created)
+  tlsSecretName: ""  # e.g., "texera-tls"
+  # Optional Issuer name for cert-manager
+  issuer: ""  # e.g., "letsencrypt-prod"
+  paths:
+    - path: /api/computing-unit
+      serviceName: workflow-computing-unit-manager-svc
+      servicePort: 8888
+    - path: /api/compile
+      serviceName: workflow-compiling-service-svc
+      servicePort: 9090
+    - path: /api/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /api/access/dataset
+      serviceName: file-service-svc
+      servicePort: 9092
+    - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api/executions
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api
+      serviceName: webserver-svc
+      servicePort: 8080
+    - path: /rtc
+      serviceName: y-websocket-server-svc
+      servicePort: 1234
+    - path: /python-language-server
+      serviceName: python-language-server-svc
+      servicePort: 3000
+    - path: /
+      serviceName: webserver-svc
+      servicePort: 8080

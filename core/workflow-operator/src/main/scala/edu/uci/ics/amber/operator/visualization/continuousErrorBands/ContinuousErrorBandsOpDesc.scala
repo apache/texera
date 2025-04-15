@@ -38,7 +38,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Continuous Error Bands",
       "Visualize error or uncertainty along a continuous line",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS "user"
     google_id     VARCHAR(256) UNIQUE,
     google_avatar VARCHAR(100),
     role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
+    comment TEXT,
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
@@ -230,17 +231,15 @@ CREATE TABLE IF NOT EXISTS operator_executions
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
 
--- operator_port_executions (replaces the old operator_runtime_statistics)
-CREATE TABLE IF NOT EXISTS operator_port_executions
+-- operator_port_executions
+CREATE TABLE operator_port_executions
 (
     workflow_execution_id INT NOT NULL,
-    operator_id           VARCHAR(100) NOT NULL,
-    layer_name            VARCHAR(100) NOT NULL DEFAULT 'main',
-    port_id               INT NOT NULL,
+    global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
-    PRIMARY KEY (workflow_execution_id, operator_id, layer_name, port_id),
+    PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
-    );
+);
 
 -- workflow_user_likes
 CREATE TABLE IF NOT EXISTS workflow_user_likes
@@ -300,6 +299,17 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     PRIMARY KEY (did),
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
+
+-- workflow_computing_unit table
+CREATE TABLE IF NOT EXISTS workflow_computing_unit
+(
+    uid                INT           NOT NULL,
+    name               VARCHAR(128)  NOT NULL,
+    cuid               SERIAL PRIMARY KEY,
+    creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    terminate_time     TIMESTAMP  DEFAULT NULL,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;

@@ -21,19 +21,19 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
-  @JsonPropertyDescription("treemap or sunburst")
+  @JsonPropertyDescription("Treemap or Sunburst")
   var hierarchyChartType: HierarchyChartType = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Hierarchy Path")
   @JsonPropertyDescription(
-    "hierarchy of attributes from a higher-level category to lower-level category"
+    "Hierarchy of attributes from a higher-level category to lower-level category"
   )
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with the size of each sector in the chart")
+  @JsonPropertyDescription("The value associated with the size of each sector in the chart")
   @AutofillAttributeName
   var value: String = ""
 
@@ -50,7 +50,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hierarchy Chart",
       "Visualize data in hierarchy",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

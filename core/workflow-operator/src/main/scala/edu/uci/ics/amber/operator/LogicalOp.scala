@@ -75,7 +75,7 @@ import edu.uci.ics.amber.operator.visualization.IcicleChart.IcicleChartOpDesc
 import edu.uci.ics.amber.operator.visualization.ImageViz.ImageVisualizerOpDesc
 import edu.uci.ics.amber.operator.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import edu.uci.ics.amber.operator.visualization.barChart.BarChartOpDesc
-import edu.uci.ics.amber.operator.visualization.boxPlot.BoxPlotOpDesc
+import edu.uci.ics.amber.operator.visualization.boxViolinPlot.BoxViolinPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import edu.uci.ics.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
@@ -101,6 +101,7 @@ import edu.uci.ics.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -185,7 +186,7 @@ trait StateTransferFunc
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
-    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
@@ -196,6 +197,7 @@ trait StateTransferFunc
     new Type(value = classOf[ContinuousErrorBandsOpDesc], name = "ContinuousErrorBands"),
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
+    new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),

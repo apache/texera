@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
@@ -38,6 +38,7 @@ class WorkflowResourceSpec
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment")
     user
   }
 
@@ -47,6 +48,7 @@ class WorkflowResourceSpec
     user.setName("test_user2")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment2")
     user
   }
 
