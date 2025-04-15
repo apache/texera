@@ -247,6 +247,9 @@ ingressPaths:
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
+    - path: /api/executions
+      serviceName: envoy-svc
+      servicePort: 10000
     - path: /api
       serviceName: webserver-svc
       servicePort: 8080
