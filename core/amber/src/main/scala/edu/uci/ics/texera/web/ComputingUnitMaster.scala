@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
@@ -104,6 +105,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
       StorageConfig.jdbcPassword
     )
 
+    environment.jersey.setUrlPattern("/api/*")
+
     val webSocketUpgradeFilter =
       WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
@@ -117,6 +120,13 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment.servlets.setSessionHandler(new SessionHandler)
 
     setupJwtAuth(environment)
+
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
+    )
+    environment.jersey.register(
+      classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
+    )
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
@@ -143,6 +153,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         recurringCheckExpiredResults(timeToLive)
       }
     }
+
+    environment.jersey.register(classOf[WorkflowExecutionsResource])
   }
 
   /**
