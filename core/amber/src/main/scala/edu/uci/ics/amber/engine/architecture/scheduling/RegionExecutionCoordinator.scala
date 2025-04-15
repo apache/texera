@@ -3,14 +3,32 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkflowAggregatedState}
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, PortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkflowAggregatedState
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  PortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -87,7 +105,7 @@ class RegionExecutionCoordinator(
     Future(())
       .flatMap(_ => initExecutors(operatorsToInit, resourceConfig))
       .flatMap(_ => assignPorts(region))
-      .flatMap(_ => connectChannels(region))
+      .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
       .flatMap(_ => sendStarts(region))
       .unit
@@ -190,17 +208,7 @@ class RegionExecutionCoordinator(
     )
   }
 
-  private def connectChannels(region: Region): Future[Seq[EmptyReturn]] = {
-    val links: Set[PhysicalLink] = region.getLinks
-    val inputPortsAndStorageURIStrs: Set[(GlobalPortIdentity, String, ActorVirtualIdentity)] = region.resourceConfig match {
-      case Some(config) => config.portConfigs.filter {
-        case (globalPortId, portConfig) => globalPortId.input && portConfig.storageURIs.nonEmpty
-      }.toSet.flatMap {
-        case (globalPortId, portConfig) => portConfig.storageURIs.map(uri => (globalPortId, uri.toString, config.operatorConfigs(globalPortId.opId).workerConfigs.map)
-      }
-      case None => Set.empty
-    }
-
+  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[EmptyReturn]] = {
     Future.collect(
       links.map { link: PhysicalLink =>
         asyncRPCClient.controllerInterface.linkWorkers(
