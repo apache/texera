@@ -74,7 +74,7 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Tables Plot",
       "Visualize data in a table chart.",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

@@ -46,17 +46,17 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("log scale X")
-  @JsonPropertyDescription("values in X-column is log-scaled")
+  @JsonPropertyDescription("Values in X-column is log-scaled")
   var xLogScale: Boolean = false
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("log scale Y")
-  @JsonPropertyDescription("values in Y-column is log-scaled")
+  @JsonPropertyDescription("Values in Y-column is log-scaled")
   var yLogScale: Boolean = false
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Hover column")
-  @JsonPropertyDescription("column value to display when a dot is hovered over")
+  @JsonPropertyDescription("Column value to display when a dot is hovered over")
   @AutofillAttributeName
   var hoverName: String = ""
 
@@ -71,9 +71,9 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Scatterplot",
+      "Scatter Plot",
       "View the result in a scatterplot",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

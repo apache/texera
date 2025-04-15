@@ -158,7 +158,7 @@ texeraEnvVars:
   - name: USER_SYS_ENABLED
     value: "true"
   - name: SCHEDULE_GENERATOR_ENABLE_COST_BASED_SCHEDULE_GENERATOR
-    value: "true"
+    value: "false"
   - name: MAX_NUM_OF_RUNNING_COMPUTING_UNITS_PER_USER
     value: "10"
   - name: KUBERNETES_COMPUTING_UNIT_CPU_LIMIT_OPTIONS
@@ -166,7 +166,7 @@ texeraEnvVars:
   - name: KUBERNETES_COMPUTING_UNIT_MEMORY_LIMIT_OPTIONS
     value: "2Gi,4Gi,8Gi"
   - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
-    value: "0,1,2,7"
+    value: "0,1,2"
 
 # Ingress dependency configs
 ingress-nginx:
@@ -213,7 +213,7 @@ metrics-server:
   args:
     - --kubelet-insecure-tls
     - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-    - --metric-resolution=10s
+    - --metric-resolution=15s
   resources:
     requests:
       cpu: 200m
@@ -246,6 +246,9 @@ ingressPaths:
       serviceName: file-service-svc
       servicePort: 9092
     - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api/executions
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api
