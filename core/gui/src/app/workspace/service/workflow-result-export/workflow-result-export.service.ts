@@ -13,6 +13,7 @@ import { OperatorResultService, WorkflowResultService } from "../workflow-result
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
 import { HttpResponse } from "@angular/common/http";
 import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 
 @Injectable({
   providedIn: "root",
@@ -83,7 +84,8 @@ export class WorkflowResultExportService {
     exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
     // we should export all operators, otherwise, only highlighted ones
     // which means export button is selected from context-menu
-    destination: "dataset" | "local" = "dataset" // default to dataset
+    destination: "dataset" | "local" = "dataset", // default to dataset
+    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
   ): void {
     if (!environment.exportExecutionResultEnabled) {
       return;
@@ -120,7 +122,8 @@ export class WorkflowResultExportService {
         rowIndex,
         columnIndex,
         filename,
-        destination
+        destination,
+        unit
       )
       .subscribe({
         next: response => {
