@@ -7,8 +7,7 @@ import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIden
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.MATERIALIZATION_READER_ACTOR_PREFIX
-import edu.uci.ics.amber.util.VirtualIdentityUtils.getWorkerIndex
+import edu.uci.ics.amber.util.VirtualIdentityUtils.{getFromActorIdForInputPortStorage, getWorkerIndex}
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicLong
@@ -25,14 +24,14 @@ class InputPortMaterializationReaderThread(
   private val sequenceNum = new AtomicLong()
   private val buffer = new ArrayBuffer[Tuple]()
   private val storageReadIterator = materialization.get()
+  // TODO: Support multi-worker
   private lazy val workerIndex = getWorkerIndex(workerActorId)
   private lazy val channelId = {
     // A unique channel between this thread (dummy actor) and the worker actor.
     val storageURIStr = materialization.getURI.toString
-    val fromActorId = ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr)
+    val fromActorId: ActorVirtualIdentity = getFromActorIdForInputPortStorage(storageURIStr)
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
-  // TODO: Add a partitionFilter
 
   override def run(): Unit = {
     // Notify the input port of start of input channel

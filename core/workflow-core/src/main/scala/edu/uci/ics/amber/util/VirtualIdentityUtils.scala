@@ -1,11 +1,6 @@
 package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 
 import scala.util.matching.Regex
 
@@ -13,6 +8,7 @@ object VirtualIdentityUtils {
 
   private val workerNamePattern: Regex = raw"Worker:WF(\d+)-(.+)-(\w+)-(\d+)".r
   private val operatorUUIDPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
+  private val MATERIALIZATION_READER_ACTOR_PREFIX: String = "MATERIALIZATION_READER_"
   def createWorkerIdentity(
       workflowId: WorkflowIdentity,
       operator: String,
@@ -70,5 +66,9 @@ object VirtualIdentityUtils {
         s"WF$workflowId-$shorterName-$layerName-$workerIndex"
       case _ => workerId.name
     }
+  }
+
+  def getFromActorIdForInputPortStorage(storageURIStr: String): ActorVirtualIdentity = {
+    ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr)
   }
 }

@@ -1,4 +1,4 @@
-w//package edu.uci.ics.amber.engine.architecture.worker
+//package edu.uci.ics.amber.engine.architecture.worker
 //
 //import edu.uci.ics.amber.core.executor.OperatorExecutor
 //import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
