@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
     new Type(value = classOf[EditingTimeCompilationRequest]),
     new Type(value = classOf[HeartBeatRequest]),
     new Type(value = classOf[ModifyLogicRequest]),
-    new Type(value = classOf[ResultExportRequest]),
     new Type(value = classOf[ResultPaginationRequest]),
     new Type(value = classOf[RetryRequest]),
     new Type(value = classOf[SkipTupleRequest]),

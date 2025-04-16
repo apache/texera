@@ -14,7 +14,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.auth.SessionUser
-import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
+import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import io.dropwizard.auth.Auth
