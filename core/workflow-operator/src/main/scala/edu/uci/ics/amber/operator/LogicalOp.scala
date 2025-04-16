@@ -77,6 +77,7 @@ import edu.uci.ics.amber.operator.visualization.ScatterMatrixChart.ScatterMatrix
 import edu.uci.ics.amber.operator.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.amber.operator.visualization.boxViolinPlot.BoxViolinPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.bubbleChart.BubbleChartOpDesc
+import edu.uci.ics.amber.operator.visualization.bulletChart.BulletChartOpDesc
 import edu.uci.ics.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import edu.uci.ics.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import edu.uci.ics.amber.operator.visualization.contourPlot.ContourPlotOpDesc
@@ -181,6 +182,7 @@ trait StateTransferFunc
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
+    new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
