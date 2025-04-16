@@ -45,7 +45,7 @@ class RegionExecutionCoordinator(
     val resourceConfig = region.resourceConfig.get
 
     // Create storage objects for output ports of the region
-    createOutputPortStorageObjects(resourceConfig.portConfigs)
+    createOutputPortStorageObjects(resourceConfig.portConfigs.filter(!_._1.input))
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 

@@ -46,13 +46,8 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
   ): Unit = {
     val readerThreads = uris.map { uri =>
       {
-        val materializationDocument = DocumentFactory
-          .openDocument(uri)
-          ._1
-          .asInstanceOf[VirtualDocument[Tuple]]
-
         new InputPortMaterializationReaderThread(
-          materialization = materializationDocument,
+          uri = uri,
           inputMessageQueue = this.inputMessageQueue,
           workerActorId = this.actorId
         )

@@ -80,7 +80,7 @@ class CostBasedScheduleGenerator(
     val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
       matEdgesRemovedDAG.dag
     ).getConnectedComponents.asScala.toSet
-    connectedComponents.zipWithIndex.map {
+    val regionsWithoutInputPortStorage = connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
         val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
         val links = operatorIds
@@ -89,6 +89,7 @@ class CostBasedScheduleGenerator(
               .getDownstreamPhysicalLinks(operatorId)
           })
           .filter(link => operatorIds.contains(link.fromOpId))
+          .diff(matEdges)
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
         val outputPortIdsToViewResult: Set[GlobalPortIdentity] =
           workflowContext.workflowSettings.outputPortsNeedingStorage
@@ -115,23 +116,7 @@ class CostBasedScheduleGenerator(
           )
           .toMap
 
-        // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
-        val inputPortConfigs =
-          matEdges
-            .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
-              val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
-              val uri = outputPortConfigs(globalOutputPortId).storageURIs.head
-              val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
-              acc.updated(
-                globalInputPortId,
-                acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
-              )
-            }
-            .map {
-              case (inputPortId, uris) => inputPortId -> PortConfig(storageURIs = uris)
-            }
-
-        val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs ++ inputPortConfigs)
+        val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
         val ports = operators.flatMap(op =>
           op.inputPorts.keys
             .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
@@ -146,6 +131,40 @@ class CostBasedScheduleGenerator(
           ports = ports,
           resourceConfig = Some(resourceConfig)
         )
+    }
+    val allPortConfigs = regionsWithoutInputPortStorage
+      .flatMap(_.resourceConfig.map(_.portConfigs))
+      .foldLeft(Map.empty[GlobalPortIdentity, PortConfig])(_ ++ _)
+    regionsWithoutInputPortStorage.map { existingRegion =>
+      {
+        val nonDepMatEdges = matEdges.diff(physicalPlan.getDependeeLinks)
+        val relevantMatEdges = nonDepMatEdges.filter(matLink =>
+          existingRegion.getOperators.map(physicalOp => physicalOp.id).contains(matLink.toOpId)
+        )
+        // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
+        val inputPortConfigs = relevantMatEdges
+          .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
+            val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
+            val uri = allPortConfigs(globalOutputPortId).storageURIs.head
+            val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+            acc.updated(
+              globalInputPortId,
+              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
+            )
+          }
+          .map {
+            case (inputPortId, uris) => inputPortId -> PortConfig(storageURIs = uris)
+          }
+        val newResourceConfig = existingRegion.resourceConfig match {
+          case Some(existingConfig) =>
+            Some(ResourceConfig(portConfigs = existingConfig.portConfigs ++ inputPortConfigs))
+          case None =>
+            if (inputPortConfigs.nonEmpty) {
+              Some(ResourceConfig(portConfigs = inputPortConfigs))
+            } else None
+        }
+        existingRegion.copy(resourceConfig = newResourceConfig)
+      }
     }
   }
 
