@@ -237,66 +237,11 @@ class CostBasedScheduleGenerator(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search time: " +
         s"${searchResult.searchTimeNanoSeconds / 1e6} ms."
     )
-//    // Only a non-dependee blocking link that has not already been materialized should be replaced
-//    // with a materialization write op + materialization read op.
-//    val linksToMaterialize =
-//      (searchResult.state ++ physicalPlan.getBlockingAndDependeeLinks).diff(
-//        physicalPlan.getDependeeLinks
-//      )
-//    if (linksToMaterialize.nonEmpty) {
-//      val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-//      linksToMaterialize.foreach(link =>
-//        physicalPlan = replaceLinkWithMaterialization(
-//          link,
-//          matReaderWriterPairs
-//        )
-//      )
-//    }
-//    // Calling the search again to include cache read ops in the regions.
-//    // This new search is only needed because of additional cache read operators which alters the physical plan.
-//    // However, as the new physical plan is already schedulable, the original materialized ports of each region will not
-//    // be included in the new region DAG.
-//    // TODO: remove this step after cache read is removed.
-//    val regionDAG = bottomUpSearch().regionDAG
 
-//    addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
     val regionDAG = searchResult.regionDAG
     populateDependeeLinks(regionDAG)
-//    // The materialized ports of each region are already decided by the first RPG search
-//    // However they will be lost after the second search as a consequence of the modified physical plan.
-//    // The second search is only needed because of additional cache read operators.
-//    // Need to add the original materialized ports back. This will not be needed after removal of cache read ops.
-//    // TODO: remove this step after cache read is removed.
-//    val outputPortsToMaterialize = linksToMaterialize.map(link =>
-//      GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
-//    )
-//    updateRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
     allocateResource(regionDAG)
     regionDAG
-  }
-
-  /**
-    * Adds materialization links as region links within the given region DAG.
-    * This method processes each physical link in the input set, identifying the source and destination
-    * regions for each link. It then adds an edge between these regions in the DAG to represent
-    * the materialization relationship.
-    *
-    * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
-    * @param regionDAG The DAG of regions to be modified
-    */
-  private def addMaterializationsAsRegionLinks(
-      linksToMaterialize: Set[PhysicalLink],
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-    linksToMaterialize.foreach(link => {
-      val fromOpRegions = getRegions(link.fromOpId, regionDAG)
-      val toOpRegions = getRegions(link.toOpId, regionDAG)
-      fromOpRegions.foreach(fromRegion => {
-        toOpRegions.foreach(toRegion => {
-          regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
-        })
-      })
-    })
   }
 
   /**
