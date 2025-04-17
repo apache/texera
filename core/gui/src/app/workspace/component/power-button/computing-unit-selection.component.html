@@ -166,7 +166,8 @@
         <span>Select Memory Size</span>
         <nz-select
           class="memory-selection"
-          [(ngModel)]="selectedMemory">
+          [(ngModel)]="selectedMemory"
+          (ngModelChange)="onMemorySelectionChange()">
           <nz-option
             *ngFor="let option of memoryOptions"
             [nzValue]="option"
@@ -201,6 +202,30 @@
             [nzLabel]="option">
           </nz-option>
         </nz-select>
+      </div>
+
+      <div class="select-unit name-field">
+        <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
+        <nz-slider
+          *ngIf="showJvmMemorySlider"
+          class="jvm-memory-slider"
+          [nzMarks]="jvmMemoryMarks"
+          [nzMin]="jvmMemorySteps[0] || 2"
+          [nzMax]="jvmMemoryMax"
+          [nzStep]="null"
+          [nzIncluded]="false"
+          [ngModel]="jvmMemorySliderValue"
+          (ngModelChange)="onJvmMemorySliderChange($event)">
+        </nz-slider>
+        <div
+          *ngIf="isMaxJvmMemorySelected()"
+          class="memory-warning">
+          <nz-alert
+            nzType="warning"
+            nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
+            nzShowIcon>
+          </nz-alert>
+        </div>
       </div>
     </div>
   </ng-template>

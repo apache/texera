@@ -33,6 +33,14 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   selectedMemory: string = "";
   selectedCpu: string = "";
   selectedGpu: string = "0"; // Default to no GPU
+  selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
+
+  // JVM memory slider configuration
+  jvmMemorySliderValue: number = 1; // Initial value in GB
+  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
+  jvmMemoryMax: number = 1;
+  jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
+  showJvmMemorySlider: boolean = false; // Whether to show the slider
 
   // cpu&memory limit options from backend
   cpuOptions: string[] = [];
@@ -66,6 +74,9 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
             this.selectedCpu = this.cpuOptions[0] ?? "1";
             this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
             this.selectedGpu = this.gpuOptions[0] ?? "0";
+
+            // Initialize JVM memory slider based on selected memory
+            this.updateJvmMemorySlider();
           },
           error: (err: unknown) =>
             this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
@@ -237,9 +248,10 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     const computeCPU = this.selectedCpu;
     const computeMemory = this.selectedMemory;
     const computeGPU = this.selectedGpu;
+    const computeJvmMemory = this.selectedJvmMemorySize;
 
     this.computingUnitService
-      .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU)
+      .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (unit: DashboardWorkflowComputingUnit) => {
@@ -556,6 +568,132 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
         return "Computing unit is being terminated";
       default:
         return unit.status;
+    }
+  }
+
+  // Called when the component initializes
+  updateJvmMemorySlider(): void {
+    this.resetJvmMemorySlider();
+  }
+
+  // Find the nearest valid step value
+  findNearestValidStep(value: number): number {
+    if (this.jvmMemorySteps.length === 0) return 1;
+    if (this.jvmMemorySteps.includes(value)) return value;
+
+    // Find the closest step value
+    return this.jvmMemorySteps.reduce((prev, curr) => {
+      return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
+    });
+  }
+
+  onJvmMemorySliderChange(value: number): void {
+    // Ensure the value is one of the valid steps
+    const validStep = this.findNearestValidStep(value);
+    this.jvmMemorySliderValue = validStep;
+    this.selectedJvmMemorySize = `${validStep}G`;
+  }
+
+  // Check if the maximum JVM memory value is selected
+  isMaxJvmMemorySelected(): boolean {
+    // Only show warning for larger memory sizes (>=4GB) where the slider is shown
+    // AND when the maximum value is selected
+    return this.showJvmMemorySlider && this.jvmMemorySliderValue === this.jvmMemoryMax && this.jvmMemoryMax >= 4;
+  }
+
+  // Completely reset the JVM memory slider based on the selected CU memory
+  resetJvmMemorySlider(): void {
+    // Parse memory limit to determine max JVM memory
+    const memoryValue = this.parseResourceNumber(this.selectedMemory);
+    const memoryUnit = this.parseResourceUnit(this.selectedMemory);
+
+    // Set max JVM memory to the total memory selected (in GB)
+    let cuMemoryInGb = 1; // Default to 1GB
+    if (memoryUnit === "Gi") {
+      cuMemoryInGb = memoryValue;
+    } else if (memoryUnit === "Mi") {
+      cuMemoryInGb = Math.max(1, Math.floor(memoryValue / 1024));
+    }
+
+    this.jvmMemoryMax = cuMemoryInGb;
+
+    // Special cases for smaller memory sizes (1-3GB)
+    if (cuMemoryInGb <= 3) {
+      // Don't show slider for small memory sizes
+      this.showJvmMemorySlider = false;
+
+      // Set JVM memory size to 1GB when CU memory is 1GB, otherwise set to 2GB
+      if (cuMemoryInGb === 1) {
+        this.jvmMemorySliderValue = 1;
+        this.selectedJvmMemorySize = "1G";
+      } else {
+        // For 2-3GB instances, use 2GB for JVM
+        this.jvmMemorySliderValue = 2;
+        this.selectedJvmMemorySize = "2G";
+      }
+
+      // Still calculate steps for completeness
+      this.jvmMemorySteps = [];
+      let value = 1;
+      while (value <= this.jvmMemoryMax) {
+        this.jvmMemorySteps.push(value);
+        value = value * 2;
+      }
+
+      // Update marks
+      this.jvmMemoryMarks = {};
+      this.jvmMemorySteps.forEach(step => {
+        this.jvmMemoryMarks[step] = `${step}G`;
+      });
+
+      return;
+    }
+
+    // For larger memory sizes (4GB+), show the slider
+    this.showJvmMemorySlider = true;
+
+    // Calculate binary steps (2,4,8,...) starting from 2GB
+    this.jvmMemorySteps = [];
+    let value = 2; // Start from 2GB for larger instances
+    while (value <= this.jvmMemoryMax) {
+      this.jvmMemorySteps.push(value);
+      value = value * 2;
+    }
+
+    // Update slider marks
+    this.jvmMemoryMarks = {};
+    this.jvmMemorySteps.forEach(step => {
+      this.jvmMemoryMarks[step] = `${step}G`;
+    });
+
+    // Always default to 2GB for larger memory sizes
+    this.jvmMemorySliderValue = 2;
+    this.selectedJvmMemorySize = "2G";
+  }
+
+  // Listen for memory selection changes
+  onMemorySelectionChange(): void {
+    // Store current JVM memory value for potential reuse
+    const previousJvmMemory = this.jvmMemorySliderValue;
+
+    // Reset slider configuration based on the new memory selection
+    this.resetJvmMemorySlider();
+
+    // For CU memory > 3GB, preserve previous value if valid and >= 2GB
+    // Get the current memory in GB
+    const memoryValue = this.parseResourceNumber(this.selectedMemory);
+    const memoryUnit = this.parseResourceUnit(this.selectedMemory);
+    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
+
+    // Only try to preserve previous value for larger memory sizes where slider is shown
+    if (
+      cuMemoryInGb > 3 &&
+      previousJvmMemory >= 2 &&
+      previousJvmMemory <= this.jvmMemoryMax &&
+      this.jvmMemorySteps.includes(previousJvmMemory)
+    ) {
+      this.jvmMemorySliderValue = previousJvmMemory;
+      this.selectedJvmMemorySize = `${previousJvmMemory}G`;
     }
   }
 
