@@ -20,6 +20,10 @@ postgresql:
   auth:
     postgresPassword: root_password  # for executing init script with superuser
   primary:
+    livenessProbe:
+      initialDelaySeconds: 60
+    readinessProbe:
+      initialDelaySeconds: 60
     resources:
       requests:
         cpu: "1"
