@@ -47,7 +47,7 @@ export const defaultEnvironment = {
   /**
    * whether google login is enabled
    */
-  googleLogin: true,
+  googleLogin: false,
   /**
    * whether invite only is enabled
    */
@@ -87,7 +87,7 @@ export const defaultEnvironment = {
   /**
    * the file size limit for dataset upload
    */
-  singleFileUploadMaximumSizeMB: 20,
+  singleFileUploadMaximumSizeMB: 1024,
 
   /**
    * the maximum number of file chunks that can be held in the memory;
