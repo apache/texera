@@ -8,6 +8,9 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
+
+@JsonPropertyOrder(Array("value", "quartileType", "horizontalOrientation", "violinPlot"))
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -21,26 +24,28 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("Data Column for Boxplot")
+  @JsonPropertyDescription("Data column for box plot")
   @AutofillAttributeName
   var value: String = ""
-
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Horizontal Orientation")
-  @JsonPropertyDescription("Orientation Style")
-  var orientation: Boolean = _
-
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Violin Plot")
-  @JsonPropertyDescription("Use Violin Plot")
-  var violinplot: Boolean = _
 
   @JsonProperty(
     value = "Quartile Method",
     required = true,
     defaultValue = "linear"
   )
-  var quertiletype: BoxPlotQuartileFunction = _
+  var quartileType: BoxViolinPlotQuartileFunction = _
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Horizontal Orientation")
+  @JsonPropertyDescription("Orientation style")
+  var horizontalOrientation: Boolean = _
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Violin Plot")
+  @JsonPropertyDescription(
+    "Check this box to overlay a violin plot on the box plot; otherwise, show only the box plot"
+  )
+  var violinPlot: Boolean = _
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
@@ -54,8 +59,8 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Box/Violin Plot",
-      "Visualize data using either a Box Plot or a Violin Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”). Violin plots are similar to box plots, but with a rotated kernel density plot on each side, providing more insight into the distribution shape.",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      "Visualize data using either a Box Plot or a Violin Plot. Box plots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”). Violin plots provide more detail by showing a smoothed density curve on each side, and also include a box plot inside for comparison.",
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
@@ -70,8 +75,8 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
   }
 
   def createPlotlyFigure(): String = {
-    val horizontal = if (orientation) "True" else "False"
-    val violin = if (violinplot) "True" else "False"
+    val horizontal = if (horizontalOrientation) "True" else "False"
+    val violin = if (violinPlot) "True" else "False"
     s"""
        |        if($violin):
        |            if ($horizontal):
@@ -83,8 +88,7 @@ class BoxViolinPlotOpDesc extends PythonOperatorDescriptor {
        |                fig = px.box(table, x='$value',boxmode="overlay", points='all')
        |            else:
        |                fig = px.box(table, y='$value',boxmode="overlay", points='all')
-       |            fig.update_traces(quartilemethod="${quertiletype.getQuartiletype}", jitter=0, col=1)
-       |
+       |        fig.update_traces(quartilemethod="${quartileType.getQuartiletype}", col=1)
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
