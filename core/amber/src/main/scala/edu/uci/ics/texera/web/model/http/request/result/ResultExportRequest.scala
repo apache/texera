@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.model.websocket.request
+package edu.uci.ics.texera.web.model.http.request.result
 
 case class ResultExportRequest(
     exportType: String, // e.g. "csv", "google_sheet", "arrow", "data"
