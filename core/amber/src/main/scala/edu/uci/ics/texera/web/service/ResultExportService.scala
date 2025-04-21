@@ -10,8 +10,8 @@ import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.auth.JwtAuth
 import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
-import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
+import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
+import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowExecutionsResource,
   WorkflowVersionResource

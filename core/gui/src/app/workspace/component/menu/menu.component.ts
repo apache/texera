@@ -78,7 +78,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
-  @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
+  @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -246,6 +246,27 @@ export class MenuComponent implements OnInit, OnDestroy {
           }
         })
     );
+  }
+
+  /**
+   * Dynamically adjusts the width of the workflow name input field
+   * by creating a hidden span element to measure the text width.
+   */
+  public adjustWorkflowNameWidth(): void {
+    const input = this.workflowNameInput?.nativeElement;
+    if (!input) return;
+
+    const tempSpan = document.createElement("span");
+    tempSpan.style.visibility = "hidden";
+    tempSpan.style.position = "absolute";
+    tempSpan.style.whiteSpace = "pre";
+    tempSpan.style.font = getComputedStyle(input).font;
+    tempSpan.textContent = input.value || input.placeholder;
+
+    document.body.appendChild(tempSpan);
+    const width = Math.min(tempSpan.offsetWidth + 20, 800); // +20 for padding
+    input.style.width = `${width}px`;
+    document.body.removeChild(tempSpan);
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -651,6 +672,10 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+        // Use timeout to make sure this.adjustWorkflowNameWidth() runs
+        // after currentWorkflowName is set. Otherwise, the input width may not match
+        // the latest name right after refresh.
+        setTimeout(() => this.adjustWorkflowNameWidth(), 0);
         this.autoSaveState =
           this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined
             ? ""

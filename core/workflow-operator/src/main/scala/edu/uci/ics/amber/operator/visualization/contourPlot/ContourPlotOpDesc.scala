@@ -59,7 +59,7 @@ class ContourPlotOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Contour Plot",
       "Displays terrain or gradient variations in a Contour Plot",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
