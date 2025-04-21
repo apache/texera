@@ -498,4 +498,42 @@ class HubResource {
 
     clickableFileEntries.toList.asJava
   }
+
+  @GET
+  @Path("/allCounts")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getAllCounts(
+    @QueryParam("entityId") entityId: Integer,
+    @QueryParam("entityType") entityType: String
+  ): util.Map[String, Int] = {
+
+    validateEntityType(entityType)
+
+    // Prepare view count query (and insert if not exists)
+    val entityTables = ViewCountTable(entityType)
+    val (table, idColumn, viewCountColumn) =
+      (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
+
+    context
+      .insertInto(table)
+      .set(idColumn, entityId)
+      .set(viewCountColumn, Integer.valueOf(0))
+      .onDuplicateKeyIgnore()
+      .execute()
+
+    val viewCount = context
+      .select(viewCountColumn)
+      .from(table)
+      .where(idColumn.eq(entityId))
+      .fetchOneInto(classOf[Int])
+
+    val likeCount = getUserLCCount(entityId, entityType, "like")
+    val cloneCount = getUserLCCount(entityId, entityType, "clone")
+
+    Map(
+      "likeCount" -> likeCount,
+      "cloneCount" -> cloneCount,
+      "viewCount" -> viewCount
+    ).asJava
+  }
 }

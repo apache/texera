@@ -144,6 +144,13 @@ export class ListItemComponent implements OnInit, OnChanges {
         .subscribe(count => {
           this.viewCount = count;
         });
+      // this.hubService
+      //   .getAllCounts(this.entry.id, this.entry.type)
+      //   .pipe(untilDestroyed(this))
+      //   .subscribe(counts => {
+      //     this.likeCount = counts.likeCount;
+      //     this.viewCount = counts.viewCount;
+      //   });
     }
   }
 

@@ -79,4 +79,13 @@ export class HubService {
 
     return this.http.get<SearchResultItem[]>(`${this.BASE_URL}/getTops`, { params });
   }
+
+  public getAllCounts(entityId: number, entityType: string): Observable<{ likeCount: number; cloneCount: number; viewCount: number }> {
+    const params = new HttpParams()
+      .set("entityId", entityId.toString())
+      .set("entityType", entityType);
+
+    return this.http.get<{ likeCount: number; cloneCount: number; viewCount: number }>(`${this.BASE_URL}/allCounts`, { params });
+  }
+
 }
