@@ -13,20 +13,11 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: wait-for-lakefs-setup
-          image: bitnami/kubectl:latest
-          command:
-            - /bin/sh
-            - -c
-            - |
-              echo "Waiting for lakefs-setup-job to complete..."
-              while true; do
-                status=$(kubectl get job {{ .Release.Name }}-lakefs-setup-job -n {{ .Release.Namespace }} -o jsonpath='{.status.succeeded}' || echo "0")
-                if [ "$status" = "1" ]; then
-                  echo "lakefs-setup-job completed successfully."
-                  break
-                fi
-                sleep 5
-              done
+          image: groundnuty/k8s-wait-for:v2.0
+          args:
+            - "job"
+            - "{{ .Release.Name }}-lakefs-setup-job"
+
       containers:
         - name: example-data-loader
           image: {{ .Values.exampleDataLoader.image }}
