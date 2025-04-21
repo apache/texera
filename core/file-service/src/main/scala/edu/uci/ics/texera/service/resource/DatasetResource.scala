@@ -19,7 +19,8 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion
+  DatasetVersion,
+  User
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -158,16 +159,24 @@ class DatasetResource {
       requesterUid: Option[Integer]
   ): DashboardDataset = {
     val targetDataset = getDatasetByID(ctx, did)
-    if (requesterUid.isDefined && !userHasReadAccess(ctx, did, requesterUid.get)) {
+
+    if (requesterUid.isEmpty && !targetDataset.getIsPublic) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    } else if (requesterUid.exists(uid => !userHasReadAccess(ctx, did, uid))) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
 
-    val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, requesterUid.get)
+    val userAccessPrivilege = requesterUid
+      .map(uid => getDatasetUserAccessPrivilege(ctx, did, uid))
+      .getOrElse(PrivilegeEnum.READ)
+
+    val isOwner = requesterUid.contains(targetDataset.getOwnerUid)
+
     DashboardDataset(
       targetDataset,
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
-      targetDataset.getOwnerUid == requesterUid.get,
+      isOwner,
       LakeFSStorageClient.retrieveRepositorySize(targetDataset.getName)
     )
   }
@@ -422,57 +431,19 @@ class DatasetResource {
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
-    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+  }
 
-    (Option(datasetName), Option(commitHash)) match {
-      case (Some(_), None) | (None, Some(_)) =>
-        // Case 1: Only one parameter is provided (error case)
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity(
-            "Both datasetName and commitHash must be provided together, or neither should be provided."
-          )
-          .build()
-
-      case (Some(dsName), Some(commit)) =>
-        // Case 2: datasetName and commitHash are provided, validate access
-        withTransaction(context) { ctx =>
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets = datasetDao.fetchByName(dsName).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-          }
-
-          val url = LakeFSStorageClient.getFilePresignedUrl(dsName, commit, decodedPathStr)
-          Response.ok(Map("presignedUrl" -> url)).build()
-        }
-
-      case (None, None) =>
-        // Case 3: Neither datasetName nor commitHash are provided, resolve normally
-        withTransaction(context) { ctx =>
-          val fileUri = FileResolver.resolve(decodedPathStr)
-          val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
-          val datasetDao = new DatasetDao(ctx.configuration())
-          val datasets = datasetDao.fetchByName(document.getDatasetName()).asScala.toList
-
-          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid)) {
-            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-          }
-
-          Response
-            .ok(
-              Map(
-                "presignedUrl" -> LakeFSStorageClient.getFilePresignedUrl(
-                  document.getDatasetName(),
-                  document.getVersionHash(),
-                  document.getFileRelativePath()
-                )
-              )
-            )
-            .build()
-        }
-    }
+  @GET
+  @Path("/public-presign-download")
+  def getPublicPresignedUrl(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    val user = new SessionUser(new User())
+    val uid = user.getUid
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
   }
 
   @DELETE
@@ -1095,5 +1066,62 @@ class DatasetResource {
         .get,
       DatasetFileNode.calculateTotalSize(List(ownerFileNode))
     )
+  }
+
+  private def generatePresignedResponse(
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response = {
+    val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
+
+    (Option(datasetName), Option(commitHash)) match {
+      case (Some(_), None) | (None, Some(_)) =>
+        // Case 1: Only one parameter is provided (error case)
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .entity(
+            "Both datasetName and commitHash must be provided together, or neither should be provided."
+          )
+          .build()
+
+      case (Some(dsName), Some(commit)) =>
+        // Case 2: datasetName and commitHash are provided, validate access
+        withTransaction(context) { ctx =>
+          val datasetDao = new DatasetDao(ctx.configuration())
+          val datasets = datasetDao.fetchByName(dsName).asScala.toList
+
+          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
+            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+
+          val url = LakeFSStorageClient.getFilePresignedUrl(dsName, commit, decodedPathStr)
+          Response.ok(Map("presignedUrl" -> url)).build()
+        }
+
+      case (None, None) =>
+        // Case 3: Neither datasetName nor commitHash are provided, resolve normally
+        withTransaction(context) { ctx =>
+          val fileUri = FileResolver.resolve(decodedPathStr)
+          val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
+          val datasetDao = new DatasetDao(ctx.configuration())
+          val datasets = datasetDao.fetchByName(document.getDatasetName()).asScala.toList
+
+          if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
+            throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+
+          Response
+            .ok(
+              Map(
+                "presignedUrl" -> LakeFSStorageClient.getFilePresignedUrl(
+                  document.getDatasetName(),
+                  document.getVersionHash(),
+                  document.getFileRelativePath()
+                )
+              )
+            )
+            .build()
+        }
+    }
   }
 }

@@ -103,6 +103,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   filePath: string = "";
 
+  @Input()
+  isLogin: boolean = false;
+
   @Output()
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
@@ -139,7 +142,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath)
+        .retrieveDatasetVersionSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
