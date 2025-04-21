@@ -10,6 +10,7 @@ spec:
     metadata:
       name: {{ .Release.Name }}-example-data-loader
     spec:
+      serviceAccountName: {{ .Release.Name }}-job-waiter-service-account
       restartPolicy: Never
       initContainers:
         - name: wait-for-lakefs-setup
