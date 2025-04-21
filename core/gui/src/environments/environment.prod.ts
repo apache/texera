@@ -6,9 +6,9 @@ export const environment: AppEnv = {
 
   userSystemEnabled: true,
 
-  localLogin: false,
+  localLogin: true,
 
-  inviteOnly: true,
+  inviteOnly: false,
 
   exportExecutionResultEnabled: true,
 
