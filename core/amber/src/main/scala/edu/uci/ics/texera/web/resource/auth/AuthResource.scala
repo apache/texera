@@ -85,6 +85,8 @@ class AuthResource {
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
     if (!AmberConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
+    if (!AmberConfig.usernamePasswordRegistrationEnabled)
+      throw new NotAcceptableException("Username-Password Registration is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
