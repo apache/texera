@@ -20,7 +20,6 @@ import edu.uci.ics.texera.service.util.LakeFSHealthManager
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
-
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
