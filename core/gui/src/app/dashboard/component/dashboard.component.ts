@@ -146,6 +146,5 @@ export class DashboardComponent implements OnInit {
   }
 
   protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
-  protected readonly types = types;
   protected readonly String = String;
 }
