@@ -114,28 +114,23 @@
 
     <div
       nz-col
-      nzFlex="75px"
+      nzFlex="55px"
       class="resource-info">
-      <div
-        *ngIf="entry.type === 'dataset'"
-        class="resource-info">
-        Size: {{ formatSize(entry.size) }}
-      </div>
+      Views:<br />
+      {{ formatCount(viewCount) }}
     </div>
 
     <div
       nz-col
       nzFlex="75px"
       class="resource-info">
-      <div class="resource-info">
-        {{ formatCount(viewCount) }}<br />
-        views
-      </div>
+      Size: <br />
+      {{ formatSize(size) }}
     </div>
 
     <div
       nz-col
-      nzFlex="95px"
+      nzFlex="90px"
       class="resource-info">
       Created:<br />
       {{ formatTime(entry.creationTime) }}
