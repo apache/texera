@@ -4,7 +4,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
@@ -14,18 +14,9 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
-import edu.uci.ics.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
-  WorkflowAccessResource,
-  WorkflowExecutionsResource,
-  WorkflowResource,
-  WorkflowVersionResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
 import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -127,5 +118,8 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[AIAssistantResource])
 
+    if (AmberConfig.isUserSystemEnabled) {
+      AuthResource.createAdminUser()
+    }
   }
 }

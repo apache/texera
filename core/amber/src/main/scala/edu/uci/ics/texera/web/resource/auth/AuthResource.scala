@@ -53,6 +53,23 @@ object AuthResource {
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
   }
+
+  def createAdminUser(): Unit = {
+    val adminUsername = AmberConfig.adminUsername
+    val adminPassword = AmberConfig.adminPassword
+
+    if (adminUsername.trim.nonEmpty && adminPassword.trim.nonEmpty) {
+      val existingUser = userDao.fetchByName(adminUsername)
+      if (existingUser.isEmpty) {
+        val user = new User
+        user.setName(adminUsername)
+        user.setEmail(adminUsername)
+        user.setRole(UserRoleEnum.ADMIN)
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(adminPassword))
+        userDao.insert(user)
+      }
+    }
+  }
 }
 
 @Path("/auth/")
@@ -85,8 +102,6 @@ class AuthResource {
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
     if (!AmberConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
-    if (!AmberConfig.usernamePasswordRegistrationEnabled)
-      throw new NotAcceptableException("Username-Password Registration is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
@@ -95,7 +110,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(username)
-        user.setRole(UserRoleEnum.ADMIN)
+        user.setRole(UserRoleEnum.RESTRICTED)
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
