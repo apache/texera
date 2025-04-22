@@ -26,6 +26,7 @@ export const WORKFLOW_NAME = WORKFLOW_BASE_URL + "/workflow_name";
 export const WORKFLOW_PUBLIC_WORKFLOW = WORKFLOW_BASE_URL + "/publicised";
 export const WORKFLOW_DESCRIPTION = WORKFLOW_BASE_URL + "/workflow_description";
 export const WORKFLOW_USER_ACCESS = WORKFLOW_BASE_URL + "/workflow_user_access";
+export const WORKFLOW_SIZE = WORKFLOW_BASE_URL + "/size";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -259,5 +260,14 @@ export class WorkflowPersistService {
    */
   public getWorkflowOwners(wid: number): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_USER_ACCESS}?wid=${wid}`);
+  }
+
+  /**
+   * Get JSON size of the workflow corresponding to the wid
+   * can be used without logging in
+   * @param wid
+   */
+  public getSize(wid: number): Observable<number> {
+    return this.http.get<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}?wid=${wid}`);
   }
 }
