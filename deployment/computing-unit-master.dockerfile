@@ -63,12 +63,12 @@ RUN curl -O https://cran.r-project.org/src/base/R-4/R-${R_VERSION}.tar.gz && \
     make -j 4 && \
     make install && \
     cd .. && \
-    rm -rf R-${R_VERSION}* && R --version && pip3 install --upgrade pip setuptools wheel&& \
+    rm -rf R-${R_VERSION}* && R --version && pip3 install --upgrade pip setuptools wheel && \
     pip3 install -r /tmp/requirements.txt && \
     pip3 install -r /tmp/operator-requirements.txt && \
     pip3 install -r /tmp/r-requirements.txt
 RUN Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
-                install.packages(c('coro', 'arrow'), \
+                install.packages(c('coro', 'arrow', 'dplyr'), \
                                  Ncpus = parallel::detectCores())"
 ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:$LD_LIBRARY_PATH
 

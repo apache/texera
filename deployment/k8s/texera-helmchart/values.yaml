@@ -20,6 +20,10 @@ postgresql:
   auth:
     postgresPassword: root_password  # for executing init script with superuser
   primary:
+    livenessProbe:
+      initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
+    readinessProbe:
+      initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
     resources:
       requests:
         cpu: "1"

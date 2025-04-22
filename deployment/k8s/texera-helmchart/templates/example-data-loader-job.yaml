@@ -10,7 +10,15 @@ spec:
     metadata:
       name: {{ .Release.Name }}-example-data-loader
     spec:
+      serviceAccountName: {{ .Release.Name }}-job-waiter-service-account
       restartPolicy: Never
+      initContainers:
+        - name: wait-for-lakefs-setup
+          image: groundnuty/k8s-wait-for:v2.0
+          args:
+            - "job"
+            - "{{ .Release.Name }}-lakefs-setup-job"
+
       containers:
         - name: example-data-loader
           image: {{ .Values.exampleDataLoader.image }}
@@ -27,4 +35,4 @@ spec:
               value: http://{{ .Values.webserver.name }}-svc:{{ .Values.webserver.service.port }}/api
             - name: TEXERA_FILE_SERVICE_URL
               value: http://{{ .Values.fileService.name }}-svc:{{ .Values.fileService.service.port }}/api
-{{- end }} 
+{{- end }}
