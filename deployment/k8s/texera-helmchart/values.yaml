@@ -156,6 +156,10 @@ workflowComputingUnitPool:
     targetPort: 8085
 
 texeraEnvVars:
+  - name: USER_SYS_ADMIN_USERNAME
+    value: "texera"
+  - name: USER_SYS_ADMIN_PASSWORD
+    value: "texera"
   - name: STORAGE_JDBC_USERNAME
     value: postgres
   - name: USER_SYS_ENABLED
