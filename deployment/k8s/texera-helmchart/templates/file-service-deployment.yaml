@@ -15,13 +15,6 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.fileService.name }}
     spec:
-      initContainers:
-      - name: wait-for-lakefs-setup
-        image: groundnuty/k8s-wait-for:v2.0
-        args:
-          - "job"
-          - "{{ .Release.Name }}-lakefs-setup-job"
-      serviceAccountName: {{ .Release.Name }}-job-waiter-service-account
       containers:
         - name: {{ .Values.fileService.name }}
           image: {{ .Values.fileService.imageName }}

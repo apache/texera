@@ -4,8 +4,6 @@ kind: Job
 metadata:
   name: {{ .Release.Name }}-example-data-loader
   namespace: {{ .Release.Namespace }}
-  annotations:
-    "helm.sh/hook": post-install
 spec:
   backoffLimit: 3
   template:
