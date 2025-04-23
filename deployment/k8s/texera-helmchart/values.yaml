@@ -20,6 +20,10 @@ postgresql:
   auth:
     postgresPassword: root_password  # for executing init script with superuser
   primary:
+    livenessProbe:
+      initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
+    readinessProbe:
+      initialDelaySeconds: 30 # increase this if the launching of postgresql is slow on the cluster
     resources:
       requests:
         cpu: "1"
@@ -152,6 +156,10 @@ workflowComputingUnitPool:
     targetPort: 8085
 
 texeraEnvVars:
+  - name: USER_SYS_ADMIN_USERNAME
+    value: "texera"
+  - name: USER_SYS_ADMIN_PASSWORD
+    value: "texera"
   - name: STORAGE_JDBC_USERNAME
     value: postgres
   - name: USER_SYS_ENABLED
@@ -245,6 +253,9 @@ ingressPaths:
       serviceName: file-service-svc
       servicePort: 9092
     - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api/executions
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api
