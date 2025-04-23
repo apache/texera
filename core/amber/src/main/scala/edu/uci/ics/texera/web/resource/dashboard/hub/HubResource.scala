@@ -380,9 +380,9 @@ class HubResource {
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def viewWorkflow(
-      @Context request: HttpServletRequest,
-      viewRequest: userRequest
-  ): Int = {
+                    @Context request: HttpServletRequest,
+                    viewRequest: userRequest
+                  ): Int = {
 
     val (entityID, userId, entityType) =
       (viewRequest.entityId, viewRequest.userId, viewRequest.entityType)
@@ -393,11 +393,9 @@ class HubResource {
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
 
     context
-      .insertInto(table)
-      .set(idColumn, entityID)
-      .set(viewCountColumn, Integer.valueOf(1))
-      .onDuplicateKeyUpdate()
+      .update(table)
       .set(viewCountColumn, viewCountColumn.add(1))
+      .where(idColumn.eq(entityID))
       .execute()
 
     recordUserActivity(request, userId, entityID, entityType, "view")
@@ -409,12 +407,13 @@ class HubResource {
       .fetchOneInto(classOf[Int])
   }
 
+
   @GET
   @Path("/viewCount")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getViewCount(
-      @QueryParam("entityId") entityId: Integer,
-      @QueryParam("entityType") entityType: String
+    @QueryParam("entityId") entityId: Integer,
+    @QueryParam("entityType") entityType: String
   ): Int = {
 
     validateEntityType(entityType)
@@ -423,18 +422,12 @@ class HubResource {
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
 
     context
-      .insertInto(table)
-      .set(idColumn, entityId)
-      .set(viewCountColumn, Integer.valueOf(0))
-      .onDuplicateKeyIgnore()
-      .execute()
-
-    context
       .select(viewCountColumn)
       .from(table)
       .where(idColumn.eq(entityId))
       .fetchOneInto(classOf[Int])
   }
+
 
   @GET
   @Path("/getTops")
@@ -508,18 +501,9 @@ class HubResource {
   ): util.Map[String, Int] = {
 
     validateEntityType(entityType)
-
-    // Prepare view count query (and insert if not exists)
     val entityTables = ViewCountTable(entityType)
     val (table, idColumn, viewCountColumn) =
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
-
-    context
-      .insertInto(table)
-      .set(idColumn, entityId)
-      .set(viewCountColumn, Integer.valueOf(0))
-      .onDuplicateKeyIgnore()
-      .execute()
 
     val viewCount = context
       .select(viewCountColumn)
@@ -528,11 +512,11 @@ class HubResource {
       .fetchOneInto(classOf[Int])
 
     val likeCount = getUserLCCount(entityId, entityType, "like")
-    val cloneCount = getUserLCCount(entityId, entityType, "clone")
+//    val cloneCount = getUserLCCount(entityId, entityType, "clone")
 
     Map(
       "likeCount" -> likeCount,
-      "cloneCount" -> cloneCount,
+//      "cloneCount" -> cloneCount,
       "viewCount" -> viewCount
     ).asJava
   }

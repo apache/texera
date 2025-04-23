@@ -133,24 +133,12 @@ export class ListItemComponent implements OnInit, OnChanges {
 
     if (typeof this.entry.id === "number") {
       this.hubService
-        .getLikeCount(this.entry.id, this.entry.type)
+        .getAllCounts(this.entry.id, this.entry.type)
         .pipe(untilDestroyed(this))
-        .subscribe(count => {
-          this.likeCount = count;
+        .subscribe(counts => {
+          this.likeCount = counts.likeCount;
+          this.viewCount = counts.viewCount;
         });
-      this.hubService
-        .getViewCount(this.entry.id, this.entry.type)
-        .pipe(untilDestroyed(this))
-        .subscribe(count => {
-          this.viewCount = count;
-        });
-      // this.hubService
-      //   .getAllCounts(this.entry.id, this.entry.type)
-      //   .pipe(untilDestroyed(this))
-      //   .subscribe(counts => {
-      //     this.likeCount = counts.likeCount;
-      //     this.viewCount = counts.viewCount;
-      //   });
     }
   }
 
@@ -406,7 +394,6 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.isLiked = false;
             this.hubService
               .getLikeCount(entryId, this.entry.type)
-
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
