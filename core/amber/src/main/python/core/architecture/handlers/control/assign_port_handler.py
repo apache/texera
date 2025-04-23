@@ -1,5 +1,7 @@
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.models import Schema
+from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     AssignPortRequest,
@@ -11,8 +13,13 @@ class AssignPortHandler(ControlHandler):
     async def assign_port(self, req: AssignPortRequest) -> EmptyReturn:
         if req.input:
             self.context.input_manager.add_input_port(
-                req.port_id, Schema(raw_schema=req.schema)
+                req.port_id, Schema(raw_schema=req.schema), req.storage_uris
             )
+            for uri in req.storage_uris:
+                from_actor_id = get_from_actor_id_for_input_port_storage(uri)
+                to_actor_id = ActorVirtualIdentity(self.context.worker_id)
+                channel_id = ChannelIdentity(from_actor_id, to_actor_id, False)
+                self.context.input_manager.register_input(channel_id = channel_id, port_id = req.port_id)
         else:
             storage_uri = None
             if len(req.storage_uris) > 0 and req.storage_uris[0] != "":

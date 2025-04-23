@@ -1,26 +1,15 @@
 import typing
 
-from core.models import Tuple, InternalQueue, DataFrame, Table, MarkerFrame
+from pyarrow.lib import Table
+
+from core.models import Tuple, InternalQueue, DataFrame, MarkerFrame
 from core.models.internal_queue import DataElement
 from core.models.marker import StartOfInputChannel, EndOfInputChannel
 from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
+from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
-
-MATERIALIZATION_READER_ACTOR_PREFIX = "MATERIALIZATION_READER_"
-
-def get_from_actor_id_for_input_port_storage(storage_uri_str: str) -> ActorVirtualIdentity:
-    """
-    Constructs an ActorVirtualIdentity for input port storage.
-
-    Args:
-        storage_uri_str (str): The string representation of the storage URI.
-
-    Returns:
-        ActorVirtualIdentity: A new virtual identity created by prefixing the storage URI.
-    """
-    return ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storage_uri_str)
 
 
 class InputPortMaterializationReaderThread(Runnable, Stoppable):
@@ -38,7 +27,8 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.batch_size = batch_size
         self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
         self.buffer = []  # Buffer for Tuple objects.
-        self.channel_id = None  # Will be assigned upon run.
+        from_actor_id = get_from_actor_id_for_input_port_storage(self.uri)
+        self.channel_id = ChannelIdentity(from_actor_id, self.worker_actor_id, is_control=False)
         self._stopped = False
         self.materialization = None
         self.tuple_schema = None
@@ -50,8 +40,6 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         emits an end marker.
         """
         # Setup a unique channel identity.
-        from_actor_id = get_from_actor_id_for_input_port_storage(self.uri)
-        self.channel_id = ChannelIdentity(from_actor_id, self.worker_actor_id, is_control=False)
 
         # Emit start marker.
         self.emit_marker(StartOfInputChannel())

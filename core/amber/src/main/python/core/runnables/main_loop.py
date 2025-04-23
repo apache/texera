@@ -65,6 +65,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._output_queue: InternalQueue = output_queue
 
         self.context = Context(worker_id, input_queue)
+        self.context.input_manager.set_input_queue(self._input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
