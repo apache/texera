@@ -21,11 +21,11 @@ class JSONLScanSourceOpExec private[json] (
     objectMapper.readValue(descString, classOf[JSONLScanSourceOpDesc])
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
+  private val schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] = {
     rows.flatMap { line =>
       Try {
-        val schema = desc.sourceSchema()
         val data = JSONToMap(objectMapper.readTree(line), desc.flatten).withDefaultValue(null)
         val fields = schema.getAttributeNames.map { fieldName =>
           parseField(data(fieldName), schema.getAttribute(fieldName).getType)
@@ -39,7 +39,7 @@ class JSONLScanSourceOpExec private[json] (
   }
 
   override def open(): Unit = {
-    val stream = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
     // count lines and partition the task to each worker
     reader = new BufferedReader(
       new InputStreamReader(stream, desc.fileEncoding.getCharset)

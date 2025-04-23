@@ -5,6 +5,18 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@abacritt/angularx-social-login@npm:2.3.0":
+  version: 2.3.0
+  resolution: "@abacritt/angularx-social-login@npm:2.3.0"
+  dependencies:
+    tslib: "npm:>=2.6.3"
+  peerDependencies:
+    "@angular/common": ">=18.0.1"
+    "@angular/core": ">=18.0.1"
+  checksum: 10c0/eb89f39d443f7f2ed1f8d8119db0315dcf2783ca570ced53db5486f88524feb36902e6480c219c22a43388221ef64bbc9b93fd318c0c3a322477841453271f9d
+  languageName: node
+  linkType: hard
+
 "@adobe/css-tools@npm:^4.0.1":
   version: 4.4.0
   resolution: "@adobe/css-tools@npm:4.4.0"
@@ -5023,6 +5035,13 @@ __metadata:
   dependencies:
     "@types/node": "npm:*"
   checksum: 10c0/2e1cdba2c410f25649e77856505cd60223250fa12dff7a503e492208dbfdd25f62859918f28aba95315251fd1f5e1ffbfca1e25e73037189ab85dd3f8d0a148c
+  languageName: node
+  linkType: hard
+
+"@types/content-disposition@npm:0":
+  version: 0.5.8
+  resolution: "@types/content-disposition@npm:0.5.8"
+  checksum: 10c0/f10baeab2ec44579012c1170763851687e740ea30531a80cd7a403475730ce7d7ead4f88927cea6970cc2d5e74fa7af38cdf4f039c5f115fba1bb98ec0014977
   languageName: node
   linkType: hard
 
@@ -11066,6 +11085,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "gui@workspace:."
   dependencies:
+    "@abacritt/angularx-social-login": "npm:2.3.0"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:16.0.1"
     "@angular-devkit/build-angular": "npm:16.2.12"
@@ -11098,6 +11118,7 @@ __metadata:
     "@nx/angular": "npm:20.0.3"
     "@stoplight/json-ref-resolver": "npm:3.1.5"
     "@types/backbone": "npm:1.4.15"
+    "@types/content-disposition": "npm:0"
     "@types/dagre": "npm:0.7.47"
     "@types/file-saver": "npm:2.0.5"
     "@types/graphlib": "npm:2.1.8"
@@ -11117,6 +11138,7 @@ __metadata:
     babel-plugin-dynamic-import-node: "npm:2.3.3"
     backbone: "npm:1.4.1"
     concurrently: "npm:7.4.0"
+    content-disposition: "npm:0.5.4"
     dagre: "npm:0.8.5"
     deep-map: "npm:2.0.0"
     edit-distance: "npm:1.0.4"
@@ -11169,7 +11191,6 @@ __metadata:
     ring-buffer-ts: "npm:1.0.3"
     rxjs: "npm:7.8.1"
     rxjs-marbles: "npm:7.0.1"
-    sanitize-filename: "npm:1.6.3"
     sass: "npm:1.71.1"
     style-loader: "npm:3.3.4"
     tinyqueue: "npm:2.0.3"
@@ -16492,15 +16513,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sanitize-filename@npm:1.6.3":
-  version: 1.6.3
-  resolution: "sanitize-filename@npm:1.6.3"
-  dependencies:
-    truncate-utf8-bytes: "npm:^1.0.0"
-  checksum: 10c0/16ff47556a6e54e228c28db096bedd303da67b030d4bea4925fd71324932d6b02c7b0446f00ad33987b25b6414f24ae968e01a1a1679ce599542e82c4b07eb1f
-  languageName: node
-  linkType: hard
-
 "sass-loader@npm:13.3.2":
   version: 13.3.2
   resolution: "sass-loader@npm:13.3.2"
@@ -17741,15 +17753,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"truncate-utf8-bytes@npm:^1.0.0":
-  version: 1.0.2
-  resolution: "truncate-utf8-bytes@npm:1.0.2"
-  dependencies:
-    utf8-byte-length: "npm:^1.0.1"
-  checksum: 10c0/af2b431fc4314f119b551e5fccfad49d4c0ef82e13ba9ca61be6567801195b08e732ce9643542e8ad1b3df44f3df2d7345b3dd34f723954b6bb43a14584d6b3c
-  languageName: node
-  linkType: hard
-
 "ts-api-utils@npm:^1.0.1, ts-api-utils@npm:^1.3.0":
   version: 1.3.0
   resolution: "ts-api-utils@npm:1.3.0"
@@ -17968,6 +17971,13 @@ __metadata:
   version: 2.6.1
   resolution: "tslib@npm:2.6.1"
   checksum: 10c0/a0382d386f5f1d6e3a39ab22bc56d1e08493da99ab3daf550e63bae6c08fdd6dd4fd20623ef387cad8262ce3fede98439257054fc025f2103cd4603b4509a052
+  languageName: node
+  linkType: hard
+
+"tslib@npm:>=2.6.3":
+  version: 2.8.1
+  resolution: "tslib@npm:2.8.1"
+  checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
   languageName: node
   linkType: hard
 
@@ -18404,13 +18414,6 @@ __metadata:
     querystringify: "npm:^2.1.1"
     requires-port: "npm:^1.0.0"
   checksum: 10c0/bd5aa9389f896974beb851c112f63b466505a04b4807cea2e5a3b7092f6fbb75316f0491ea84e44f66fed55f1b440df5195d7e3a8203f64fcefa19d182f5be87
-  languageName: node
-  linkType: hard
-
-"utf8-byte-length@npm:^1.0.1":
-  version: 1.0.5
-  resolution: "utf8-byte-length@npm:1.0.5"
-  checksum: 10c0/e69bda3299608f4cc75976da9fb74ac94801a58b9ca29fdad03a20ec952e7477d7f226c12716b5f36bd4cff8151d1d152d02ee1df3752f017d4b2c725ce3e47a
   languageName: node
   linkType: hard
 

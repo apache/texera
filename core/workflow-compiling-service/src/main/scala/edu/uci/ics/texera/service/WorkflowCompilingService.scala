@@ -3,8 +3,11 @@ package edu.uci.ics.texera.service
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.resource.WorkflowCompilationResource
+import edu.uci.ics.texera.service.resource.HealthCheckResource
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -18,6 +21,15 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
   ): Unit = {
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
+
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
+    environment.jersey.register(classOf[HealthCheckResource])
+
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
   }

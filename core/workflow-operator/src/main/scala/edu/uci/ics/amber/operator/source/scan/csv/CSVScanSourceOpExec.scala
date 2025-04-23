@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.source.scan.csv
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, TupleLike}
+import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.io.InputStreamReader
@@ -16,6 +16,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   var parser: CsvParser = _
   var nextRow: Array[String] = _
   var numRowGenerated = 0
+  private val schema: Schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] = {
 
@@ -42,7 +43,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
         try {
           TupleLike(
             ArraySeq.unsafeWrapArray(
-              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], desc.sourceSchema())
+              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
             ): _*
           )
         } catch {
@@ -58,7 +59,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
 
   override def open(): Unit = {
     inputReader = new InputStreamReader(
-      DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
+      DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
       desc.fileEncoding.getCharset
     )
 

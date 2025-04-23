@@ -1,0 +1,24 @@
+/* Styles for the file tree container */
+.staged-object-list-container {
+  max-height: 200px; /* Adjust the max-height as needed */
+  overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
+  overflow-x: auto; /* Prevents horizontal scrolling */
+}
+
+.truncate-file-path {
+  display: inline-block;
+  max-width: 250px; /* Adjust width as needed */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.delete-button {
+  width: 24px; /* Minimum width for button */
+  height: 24px; /* Keep the button small */
+  padding: 0; /* Remove extra padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: unset; /* Prevents unnecessary expansion */
+}

@@ -6,7 +6,8 @@
     nzTheme="light">
     <ul
       nz-menu
-      nzMode="inline">
+      nzMode="inline"
+      nzSelectable="false">
       <li class="logo-section">
         <img
           *ngIf="isCollpased"
@@ -20,6 +21,7 @@
       </li>
 
       <li
+        *ngIf="environment.hubEnabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
@@ -35,6 +37,7 @@
         nzOpen="true">
         <ul>
           <li
+            *ngIf="environment.projectEnabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
@@ -81,7 +84,7 @@
             <span>Quota</span>
           </li>
           <li
-            *ngIf="displayForum"
+            *ngIf="environment.forumEnabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
@@ -135,19 +138,35 @@
           </li>
         </ul>
       </li>
+
+      <li
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT">
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
+      </li>
     </ul>
+    <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
   </nz-sider>
 
   <div class="page-container">
     <nz-layout>
       <div
-        *ngIf="displayNavbar"
+        [hidden]="!displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>
-        <texera-google-login [hidden]="isLogin"></texera-google-login>
+        <asl-google-signin-button
+          *ngIf="!isLogin && googleLogin"
+          type="standard"
+          size="large"
+          [width]="200"></asl-google-signin-button>
       </div>
 
       <nz-content>

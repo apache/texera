@@ -8,9 +8,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.operator.sink.ProgressiveSinkOpExec
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.util.VirtualIdentityUtils
+
+import java.net.URI
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -26,15 +27,8 @@ trait InitializeExecutorHandler {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
       case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
-      case OpExecSink(storageKey, workflowIdentity, outputMode) =>
-        new ProgressiveSinkOpExec(
-          workerIdx,
-          outputMode,
-          storageKey,
-          workflowIdentity
-        )
-      case OpExecSource(storageKey, workflowIdentity) =>
-        new CacheSourceOpExec(storageKey, workflowIdentity)
+      case OpExecSource(storageUri, _) =>
+        new CacheSourceOpExec(URI.create(storageUri))
     }
     EmptyReturn()
   }

@@ -1,20 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
-import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
   getDateFilter,
-  getFullTextSearchFilter,
-  getSubstringSearchFilter
+  getFullTextSearchFilter
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -35,13 +33,13 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
    * constructs the FROM clause for querying datasets with specific access controls.
    *
    * Parameter:
-   * - uid: UInteger - Represents the unique identifier of the current user.
+   * - uid: Integer - Represents the unique identifier of the current user.
    *  - uid is 'null' if the user is not logged in or performing a public search.
    *  - Otherwise, `uid` holds the identifier for the logged-in user.
    * - includePublic - Boolean - Specifies whether to include public datasets in the result.
    */
   override protected def constructFromClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
@@ -57,14 +55,14 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     if (uid == null) {
       // If `uid` is null, the user is not logged in or performing a public search
       // We only select datasets marked as public
-      condition = DATASET.IS_PUBLIC.eq(1.toByte)
+      condition = DATASET.IS_PUBLIC.eq(true)
     } else {
       // When `uid` is present, we add a condition to only include datasets with direct user access.
       val userAccessCondition = DATASET_USER_ACCESS.UID.eq(uid)
 
       if (includePublic) {
         // If `includePublic` is true, we extend visibility to public datasets as well.
-        condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(1.toByte))
+        condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(true))
       } else {
         condition = userAccessCondition
       }
@@ -73,7 +71,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -89,21 +87,15 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.datasetIds, DATASET.DID))
       .and(
         getFullTextSearchFilter(splitKeywords, List(DATASET.NAME, DATASET.DESCRIPTION))
-          .or(
-            getSubstringSearchFilter(
-              splitKeywords,
-              List(DATASET.NAME, DATASET.DESCRIPTION)
-            )
-          )
       )
   }
 
   override protected def getGroupByFields: Seq[GroupField] = {
-    Seq(DATASET.DID)
+    Seq.empty
   }
 
   override protected def toEntryImpl(
-      uid: UInteger,
+      uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
@@ -114,11 +106,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       record
         .get(
           DATASET_USER_ACCESS.PRIVILEGE,
-          classOf[DatasetUserAccessPrivilege]
+          classOf[PrivilegeEnum]
         ),
       dataset.getOwnerUid == uid,
-      List(),
-      DatasetResource.calculateDatasetVersionSize(dataset.getDid)
+      LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

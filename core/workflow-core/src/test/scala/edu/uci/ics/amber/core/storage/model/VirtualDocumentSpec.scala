@@ -21,13 +21,6 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     */
   def getDocument: VirtualDocument[T]
 
-  /**
-    * Checks if the document has been cleared.
-    * Subclasses should override this to provide their specific check.
-    * @return true if the document is cleared, false otherwise.
-    */
-  def isDocumentCleared: Boolean
-
   // VirtualDocument instance for each test
   var document: VirtualDocument[T] = _
 
@@ -96,7 +89,6 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     document.clear()
 
     // Check if the document is cleared
-    assert(isDocumentCleared, "The document should be cleared after calling clear.")
     assert(document.get().isEmpty, "The document should have no items after clearing.")
   }
 
@@ -150,9 +142,10 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
   it should "allow a reader to read data while a writer is writing items incrementally" in {
     val allItems = generateSampleItems()
-    val batchSize = allItems.length / 5 // Divide items into 5 incremental batches
+    val numBatches = 5
+    val batchSize = Math.max(1, allItems.length / numBatches) // Ensure batchSize is at least 1
 
-    // Split items into 5 batches
+    // Split items into batches
     val itemBatches = allItems.grouped(batchSize).toList
 
     // Flag to indicate when writing is done

@@ -64,10 +64,6 @@ class WorkflowWebsocketResource extends LazyLogging {
           workflowStateOpt.foreach(state =>
             sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
-        case resultExportRequest: ResultExportRequest =>
-          workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(userOpt.get, resultExportRequest))
-          )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
             val executionService = workflowStateOpt.get.executionService.getValue
@@ -80,7 +76,14 @@ class WorkflowWebsocketResource extends LazyLogging {
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
             case Some(workflow) =>
-              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+              sessionState.send(WorkflowStateEvent("Initializing"))
+              synchronized {
+                workflow.initExecutionService(
+                  workflowExecuteRequest,
+                  userOpt,
+                  session.getRequestURI
+                )
+              }
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>

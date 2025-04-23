@@ -14,15 +14,19 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
+/**
+  * Unified object for resolving both VFS resources and local/dataset files.
+  */
 object FileResolver {
-  val DATASET_FILE_URI_SCHEME = "vfs"
+
+  val DATASET_FILE_URI_SCHEME = "dataset"
 
   /**
-    * Attempts to resolve the given fileName using a list of resolver functions.
+    * Resolves a given fileName to either a file on the local file system or a dataset file.
     *
-    * @param fileName the name of the file to resolve
-    * @throws FileNotFoundException if the file cannot be resolved by any resolver
-    * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
+    * @param fileName the name of the file to resolve.
+    * @throws FileNotFoundException if the file cannot be resolved.
+    * @return A URI pointing to the resolved file.
     */
   def resolve(fileName: String): URI = {
     if (isFileResolved(fileName)) {
@@ -58,7 +62,7 @@ object FileResolver {
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{did}/{versionHash}/file-path
-    *   e.g. vfs:///15/adeq233td/some/dir/file.txt
+    *   e.g. {DATASET_FILE_URI_SCHEME}:///15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
@@ -78,11 +82,7 @@ object FileResolver {
     val (dataset, datasetVersion) =
       withTransaction(
         SqlServer
-          .getInstance(
-            StorageConfig.jdbcUrl,
-            StorageConfig.jdbcUsername,
-            StorageConfig.jdbcPassword
-          )
+          .getInstance()
           .createDSLContext()
       ) { ctx =>
         // fetch the dataset from DB
@@ -117,13 +117,13 @@ object FileResolver {
       }
       .toArray
 
-    // Prepend did and versionHash to the encoded path segments
+    // Prepend dataset name and versionHash to the encoded path segments
     val allPathSegments = Array(
-      dataset.getDid.intValue().toString,
+      datasetName,
       datasetVersion.getVersionHash
     ) ++ encodedFileRelativePath
 
-    // Build the the format /{did}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    // Build the format /{datasetName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
     val uriSplitter = "/"
     val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
 

@@ -3,14 +3,26 @@ import { Observable, throwError, of, forkJoin, from } from "rxjs";
 import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { DatasetService } from "../dataset/dataset.service";
+import { DATASET_BASE_URL, DatasetService } from "../dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
+import { AppSettings } from "../../../../common/app-setting";
+import { HttpClient, HttpResponse } from "@angular/common/http";
+import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
+import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
+var contentDisposition = require("content-disposition");
+
+export const EXPORT_BASE_URL = "result/export";
 
 interface DownloadableItem {
   blob: Blob;
   fileName: string;
+}
+
+export interface ExportWorkflowJsonResponse {
+  status: string;
+  message: string;
 }
 
 @Injectable({
@@ -21,7 +33,8 @@ export class DownloadService {
     private fileSaverService: FileSaverService,
     private notificationService: NotificationService,
     private datasetService: DatasetService,
-    private workflowPersistService: WorkflowPersistService
+    private workflowPersistService: WorkflowPersistService,
+    private http: HttpClient
   ) {}
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
@@ -38,7 +51,7 @@ export class DownloadService {
 
   downloadDataset(id: number, name: string): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: id }),
+      () => this.datasetService.retrieveDatasetVersionZip(id),
       `${name}.zip`,
       "Starting to download the latest version of the dataset as ZIP",
       "The latest version of the dataset has been downloaded as ZIP",
@@ -53,7 +66,7 @@ export class DownloadService {
     versionName: string
   ): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
+      () => this.datasetService.retrieveDatasetVersionZip(datasetId, datasetVersionId),
       `${datasetName}-${versionName}.zip`,
       `Starting to download version ${versionName} as ZIP`,
       `Version ${versionName} has been downloaded as ZIP`,
@@ -81,6 +94,77 @@ export class DownloadService {
       "Workflows have been downloaded as ZIP",
       "Error downloading workflows as ZIP"
     );
+  }
+
+  /**
+   * Export the workflow result. If destination = "local", the server returns a BLOB (file).
+   * Otherwise, it returns JSON with a status message.
+   */
+  public exportWorkflowResult(
+    exportType: string,
+    workflowId: number,
+    workflowName: string,
+    operatorIds: string[],
+    datasetIds: number[],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string,
+    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
+    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
+  ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
+    const requestBody = {
+      exportType,
+      workflowId,
+      workflowName,
+      operatorIds,
+      datasetIds,
+      rowIndex,
+      columnIndex,
+      filename,
+      destination,
+    };
+    console.log("received cui from exportWorkflowResult", unit);
+    const urlPath =
+      unit && unit.computingUnit?.cuid
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
+    if (destination === "local") {
+      return this.http.post(urlPath, requestBody, {
+        responseType: "blob",
+        observe: "response",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/octet-stream",
+        },
+      });
+    } else {
+      // dataset => return JSON
+      return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
+        responseType: "json",
+        observe: "response",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+    }
+  }
+
+  /**
+   * Utility function to download a file from the server from blob object.
+   */
+  public saveBlobFile(response: any, defaultFileName: string): void {
+    // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
+    // we can parse that out. Otherwise just use defaultFileName.
+    const dispositionHeader = response.headers.get("Content-Disposition");
+    let fileName = defaultFileName;
+    if (dispositionHeader) {
+      const parsed = contentDisposition.parse(dispositionHeader);
+      fileName = parsed.parameters.filename || defaultFileName;
+    }
+
+    const blob = response.body; // the actual file data
+    this.fileSaverService.saveAs(blob, fileName);
   }
 
   downloadOperatorsResult(

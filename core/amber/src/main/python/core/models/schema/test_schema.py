@@ -27,8 +27,8 @@ class TestSchema:
                 pa.field("field-3", pa.int64()),
                 pa.field("field-4", pa.float64()),
                 pa.field("field-5", pa.bool_()),
-                pa.field("field-6", pa.timestamp("ms", tz="UTC")),
-                pa.field("field-7", pa.binary()),
+                pa.field("field-6", pa.timestamp("us")),
+                pa.field("field-7", pa.large_list(pa.binary())),
             ]
         )
 

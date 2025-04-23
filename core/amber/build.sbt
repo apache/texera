@@ -33,15 +33,15 @@ PB.generate / excludeFilter := "scalapb.proto"
 
 /////////////////////////////////////////////////////////////////////////////
 // Akka related
-val akkaVersion = "2.8.3"
+val akkaVersion = "2.6.21"
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
   "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+  "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
   "com.softwaremill.macwire" %% "macros" % "2.5.8" % Provided,
@@ -49,7 +49,7 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "util" % "2.5.8",
   "com.softwaremill.macwire" %% "proxy" % "2.5.8",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "ch.qos.logback" % "logback-classic" % "1.2.3"
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % Test
 )
 
 // dropwizard web framework
@@ -57,8 +57,6 @@ val akkaDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // DropWizard server related
 val dropwizardVersion = "1.3.23"
-// jersey version should be the same as jersey-server that is contained in dropwizard
-val jerseyMultipartVersion = "2.25.1"
 
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -69,7 +67,6 @@ val dropwizardDependencies = Seq(
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
-  "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
   "commons-io" % "commons-io" % "2.15.1"
 )
@@ -81,7 +78,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % "1.7.26",
   "io.github.classgraph" % "classgraph" % "4.8.157",
-  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.14" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
@@ -89,7 +86,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
@@ -120,8 +117,6 @@ val hadoopDependencies = Seq(
 val googleServiceDependencies = Seq(
   "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude("com.google.guava", "guava"),
   "com.google.api-client" % "google-api-client" % "2.2.0" exclude("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
@@ -220,12 +215,8 @@ libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models"
-
-// https://mvnrepository.com/artifact/com.twitter/chill-akka
-libraryDependencies += "com.twitter" %% "chill-akka" % "0.10.0"
+// https://mvnrepository.com/artifact/io.altoo/akka-kryo-serialization
+libraryDependencies += "io.altoo" %% "akka-kryo-serialization" % "2.5.2"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
 libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"

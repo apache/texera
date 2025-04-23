@@ -6,20 +6,23 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
-import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess;
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
@@ -27,7 +30,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 
 
 /**
- * Convenience access to all tables in texera_db
+ * Convenience access to all tables in texera_db.
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
@@ -43,9 +46,19 @@ public class Tables {
     public static final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
 
     /**
+     * The table <code>texera_db.dataset_user_likes</code>.
+     */
+    public static final DatasetUserLikes DATASET_USER_LIKES = DatasetUserLikes.DATASET_USER_LIKES;
+
+    /**
      * The table <code>texera_db.dataset_version</code>.
      */
     public static final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
+
+    /**
+     * The table <code>texera_db.dataset_view_count</code>.
+     */
+    public static final DatasetViewCount DATASET_VIEW_COUNT = DatasetViewCount.DATASET_VIEW_COUNT;
 
     /**
      * The table <code>texera_db.operator_executions</code>.
@@ -53,9 +66,9 @@ public class Tables {
     public static final OperatorExecutions OPERATOR_EXECUTIONS = OperatorExecutions.OPERATOR_EXECUTIONS;
 
     /**
-     * The table <code>texera_db.operator_runtime_statistics</code>.
+     * The table <code>texera_db.operator_port_executions</code>.
      */
-    public static final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS;
+    public static final OperatorPortExecutions OPERATOR_PORT_EXECUTIONS = OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -78,6 +91,11 @@ public class Tables {
     public static final User USER = User.USER;
 
     /**
+     * The table <code>texera_db.user_activity</code>.
+     */
+    public static final UserActivity USER_ACTIVITY = UserActivity.USER_ACTIVITY;
+
+    /**
      * The table <code>texera_db.user_config</code>.
      */
     public static final UserConfig USER_CONFIG = UserConfig.USER_CONFIG;
@@ -86,6 +104,11 @@ public class Tables {
      * The table <code>texera_db.workflow</code>.
      */
     public static final Workflow WORKFLOW = Workflow.WORKFLOW;
+
+    /**
+     * The table <code>texera_db.workflow_computing_unit</code>.
+     */
+    public static final WorkflowComputingUnit WORKFLOW_COMPUTING_UNIT = WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT;
 
     /**
      * The table <code>texera_db.workflow_executions</code>.
@@ -106,11 +129,6 @@ public class Tables {
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public static final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
-
-    /**
-     * The table <code>texera_db.workflow_user_activity</code>.
-     */
-    public static final WorkflowUserActivity WORKFLOW_USER_ACTIVITY = WorkflowUserActivity.WORKFLOW_USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.workflow_user_clones</code>.

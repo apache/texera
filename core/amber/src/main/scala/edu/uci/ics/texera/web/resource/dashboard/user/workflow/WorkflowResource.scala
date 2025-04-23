@@ -3,11 +3,11 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfProjectDao,
@@ -15,13 +15,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
-import org.jooq.types.UInteger
+import org.jooq.{Condition, Record9, Result, SelectOnConditionStep}
 
 import java.sql.Timestamp
 import java.util
@@ -42,7 +42,7 @@ import scala.util.control.NonFatal
 
 object WorkflowResource {
   final private lazy val context = SqlServer
-    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .getInstance()
     .createDSLContext()
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
@@ -53,7 +53,7 @@ object WorkflowResource {
   )
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
-  def getWorkflowName(wid: UInteger): String = {
+  def getWorkflowName(wid: Integer): String = {
     val workflow = workflowDao.fetchOneByWid(wid)
     if (workflow == null) {
       throw new NotFoundException(s"Workflow with id $wid not found")
@@ -68,12 +68,12 @@ object WorkflowResource {
       new WorkflowUserAccess(
         user.getUid,
         workflow.getWid,
-        WorkflowUserAccessPrivilege.WRITE
+        PrivilegeEnum.WRITE
       )
     )
   }
 
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+  private def workflowOfUserExists(wid: Integer, uid: Integer): Boolean = {
     workflowOfUserDao.existsById(
       context
         .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
@@ -81,7 +81,7 @@ object WorkflowResource {
     )
   }
 
-  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+  private def workflowOfProjectExists(wid: Integer, pid: Integer): Boolean = {
     workflowOfProjectDao.existsById(
       context
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
@@ -94,22 +94,22 @@ object WorkflowResource {
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
-      projectIDs: List[UInteger],
-      ownerId: UInteger
+      projectIDs: List[Integer],
+      ownerId: Integer
   )
 
   case class WorkflowWithPrivilege(
       name: String,
       description: String,
-      wid: UInteger,
+      wid: Integer,
       content: String,
       creationTime: Timestamp,
       lastModifiedTime: Timestamp,
-      isPublished: Byte,
+      isPublished: Boolean,
       readonly: Boolean
   )
 
-  case class WorkflowIDs(wids: List[UInteger], pid: Option[UInteger])
+  case class WorkflowIDs(wids: List[Integer], pid: Option[Integer])
 
   private def updateWorkflowField(
       workflow: Workflow,
@@ -160,10 +160,80 @@ object WorkflowResource {
         updatedContent.replace(oldId, newId)
     }
   }
+
+  def baseWorkflowSelect(): SelectOnConditionStep[Record9[
+    Integer,
+    String,
+    String,
+    Timestamp,
+    Timestamp,
+    PrivilegeEnum,
+    Integer,
+    String,
+    String
+  ]] = {
+    context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.DESCRIPTION,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME,
+        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .leftJoin(WORKFLOW_OF_PROJECT)
+      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
+  }
+
+  def mapWorkflowEntries(
+      workflowEntries: Result[Record9[
+        Integer,
+        String,
+        String,
+        Timestamp,
+        Timestamp,
+        PrivilegeEnum,
+        Integer,
+        String,
+        String
+      ]],
+      uid: Integer
+  ): List[DashboardWorkflow] = {
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflow(
+          if (uid != null)
+            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
+          else false,
+          workflowRecord
+            .into(WORKFLOW_USER_ACCESS)
+            .into(classOf[WorkflowUserAccess])
+            .getPrivilege
+            .toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
+          if (workflowRecord.component9() == null) List[Integer]()
+          else
+            workflowRecord.component9().split(',').map(str => Integer.valueOf(str)).toList,
+          workflowRecord.into(WORKFLOW_OF_USER).getUid
+        )
+      )
+      .asScala
+      .toList
+  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
 class WorkflowResource extends LazyLogging {
 
@@ -173,6 +243,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
@@ -188,6 +259,7 @@ class WorkflowResource extends LazyLogging {
     * @return OwnerName[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-owners")
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
@@ -207,6 +279,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/search-by-operators")
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
@@ -259,13 +332,15 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
-    val workflowEntries = context
-      .select(
+    val workflowEntries = baseWorkflowSelect()
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .groupBy(
         WORKFLOW.WID,
         WORKFLOW.NAME,
         WORKFLOW.DESCRIPTION,
@@ -273,40 +348,10 @@ class WorkflowResource extends LazyLogging {
         WORKFLOW.LAST_MODIFIED_TIME,
         WORKFLOW_USER_ACCESS.PRIVILEGE,
         WORKFLOW_OF_USER.UID,
-        USER.NAME,
-        groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects")
+        USER.NAME
       )
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .leftJoin(WORKFLOW_OF_PROJECT)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .groupBy(WORKFLOW.WID, WORKFLOW_OF_USER.UID)
       .fetch()
-    workflowEntries
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          if (workflowRecord.component9() == null) List[UInteger]()
-          else
-            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList,
-          workflowRecord.into(WORKFLOW_OF_USER).getUid
-        )
-      )
-      .asScala
-      .toList
+    mapWorkflowEntries(workflowEntries, user.getUid)
   }
 
   /**
@@ -318,9 +363,10 @@ class WorkflowResource extends LazyLogging {
     * @return a json string representing an savedWorkflow
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{wid}")
   def retrieveWorkflow(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @Auth user: SessionUser
   ): WorkflowWithPrivilege = {
     if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
@@ -351,6 +397,7 @@ class WorkflowResource extends LazyLogging {
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
@@ -388,6 +435,7 @@ class WorkflowResource extends LazyLogging {
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/duplicate")
   def duplicateWorkflow(
       workflowIDs: WorkflowIDs,
@@ -411,13 +459,13 @@ class WorkflowResource extends LazyLogging {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
             new Workflow(
+              null,
               oldWorkflow.getName + "_copy",
               oldWorkflow.getDescription,
-              null,
               assignNewOperatorIds(oldWorkflow.getContent),
               null,
               null,
-              0.toByte
+              false
             ),
             sessionUser
           )
@@ -448,41 +496,28 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/clone/{wid}")
   def cloneWorkflow(
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: Integer,
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
-  ): UInteger = {
+  ): Integer = {
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
+        null,
         oldWorkflow.getName + "_clone",
         oldWorkflow.getDescription,
-        null,
         assignNewOperatorIds(oldWorkflow.getContent),
         null,
         null,
-        0.toByte
+        false
       ),
       sessionUser
     )
 
-    recordUserActivity(request, sessionUser.getUid, wid, "clone")
-
-    val existingCloneRecord = context
-      .selectFrom(WORKFLOW_USER_CLONES)
-      .where(WORKFLOW_USER_CLONES.UID.eq(sessionUser.getUid))
-      .and(WORKFLOW_USER_CLONES.WID.eq(wid))
-      .fetchOne()
-
-    if (existingCloneRecord == null) {
-      context
-        .insertInto(WORKFLOW_USER_CLONES)
-        .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
-        .set(WORKFLOW_USER_CLONES.WID, wid)
-        .execute()
-    }
+    recordCloneActivity(request, sessionUser.getUid, wid, "workflow")
 
     newWorkflow.workflow.getWid
   }
@@ -496,6 +531,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/create")
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
     val user = sessionUser.getUser
@@ -506,10 +542,10 @@ class WorkflowResource extends LazyLogging {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       DashboardWorkflow(
         isOwner = true,
-        WorkflowUserAccessPrivilege.WRITE.toString,
+        PrivilegeEnum.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
-        List[UInteger](),
+        List[Integer](),
         user.getUid
       )
     }
@@ -517,15 +553,47 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method deletes the workflow from database
+    * Deletes workflows from the database and cleans up associated resources.
     *
-    * @return Response, deleted - 200, not exists - 400
+    * @param workflowIDs The IDs of workflows to delete
+    * @param sessionUser Current authenticated user
+    * @return Unit, with appropriate HTTP status: 200 if deleted, 400 if not exists
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
+
     try {
+      // Find all execution IDs related to these workflows
+      val eids = context
+        .select(WORKFLOW_EXECUTIONS.EID)
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+        .join(WORKFLOW)
+        .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+        .where(WORKFLOW.WID.in(workflowIDs.wids.asJava))
+        .fetchInto(classOf[Integer])
+        .asScala
+        .toList
+
+      // Collect all URIs related to executions for cleanup
+      val uris = eids.flatMap { eid =>
+        val executionId = ExecutionIdentity(eid.longValue())
+
+        // Gather URIs from all execution resources
+        val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(executionId)
+        val consoleMessagesUris =
+          WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(executionId)
+        val runtimeStatsUris =
+          WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(executionId).toList
+
+        resultUris ++ consoleMessagesUris ++ runtimeStatsUris
+      }
+
+      // Delete workflows in a transaction
       context.transaction { _ =>
         for (wid <- workflowIDs.wids) {
           if (workflowOfUserExists(wid, user.getUid)) {
@@ -535,16 +603,34 @@ class WorkflowResource extends LazyLogging {
           }
         }
       }
+
+      // Clean up document storage
+      try {
+        uris.foreach { uri =>
+          try {
+            val (document, _) = DocumentFactory.openDocument(uri)
+            document.clear()
+          } catch {
+            case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
+              logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
+            case NonFatal(e) =>
+              logger.error(s"Failed to clear document for URI $uri", e)
+          }
+        }
+      } catch {
+        case NonFatal(e) =>
+          logger.error("Failed to clean up execution results", e)
+      }
     } catch {
       case _: BadRequestException =>
-      case NonFatal(exception) =>
-        throw new WebApplicationException(exception)
+      case NonFatal(exception)    => throw new WebApplicationException(exception)
     }
   }
 
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/name")
   def updateWorkflowName(
       workflow: Workflow,
@@ -556,6 +642,7 @@ class WorkflowResource extends LazyLogging {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/description")
   def updateWorkflowDescription(
       workflow: Workflow,
@@ -565,29 +652,129 @@ class WorkflowResource extends LazyLogging {
   }
 
   @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
-  def makePublic(@PathParam("wid") wid: UInteger, @Auth user: SessionUser): Unit = {
+  def makePublic(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(1.toByte)
+    workflow.setIsPublic(true)
     workflowDao.update(workflow)
   }
 
   @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/private/{wid}")
-  def makePrivate(@PathParam("wid") wid: UInteger): Unit = {
+  def makePrivate(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(0.toByte)
+    workflow.setIsPublic(false)
     workflowDao.update(workflow)
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/type/{wid}")
-  def getWorkflowType(@PathParam("wid") wid: UInteger): String = {
+  def getWorkflowType(@PathParam("wid") wid: Integer): String = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    if (workflow.getIsPublic == 1.toByte) {
+    if (workflow.getIsPublic) {
       "Public"
     } else {
       "Private"
     }
+  }
+
+  @GET
+  @Path("/owner_user")
+  def getOwnerUser(@QueryParam("wid") wid: Integer): User = {
+    context
+      .select(
+        USER.UID,
+        USER.NAME,
+        USER.EMAIL,
+        USER.PASSWORD,
+        USER.GOOGLE_ID,
+        USER.ROLE,
+        USER.GOOGLE_AVATAR
+      )
+      .from(WORKFLOW_OF_USER)
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetchOneInto(classOf[User])
+  }
+
+  @GET
+  @Path("/workflow_name")
+  def getWorkflowName(@QueryParam("wid") wid: Integer): String = {
+    context
+      .select(
+        WORKFLOW.NAME
+      )
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[String])
+  }
+
+  @GET
+  @Path("/publicised/{wid}")
+  def retrievePublicWorkflow(
+      @PathParam("wid") wid: Integer
+  ): WorkflowWithPrivilege = {
+    val workflow = workflowDao.ctx
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .and(WORKFLOW.IS_PUBLIC.isTrue)
+      .fetchOne()
+    WorkflowWithPrivilege(
+      workflow.getName,
+      workflow.getDescription,
+      workflow.getWid,
+      workflow.getContent,
+      workflow.getCreationTime,
+      workflow.getLastModifiedTime,
+      workflow.getIsPublic,
+      readonly = true
+    )
+  }
+
+  @GET
+  @Path("/workflow_description")
+  def getWorkflowDescription(@QueryParam("wid") wid: Integer): String = {
+    context
+      .select(
+        WORKFLOW.DESCRIPTION
+      )
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[String])
+  }
+
+  @GET
+  @Path("/workflow_user_access")
+  def workflowUserAccess(
+      @QueryParam("wid") wid: Integer
+  ): util.List[Integer] = {
+    val records = context
+      .select(WORKFLOW_USER_ACCESS.UID)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
+      .fetch()
+
+    records.getValues(WORKFLOW_USER_ACCESS.UID)
+  }
+
+  //TODO Get size from database
+  @GET
+  @Path("/size")
+  def getSize(@QueryParam("wid") wid: Integer): Int = {
+    val workflow = workflowDao.ctx
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+    workflow.getContent.length;
   }
 }

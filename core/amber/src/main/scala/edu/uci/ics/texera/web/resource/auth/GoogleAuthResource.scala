@@ -3,17 +3,11 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_DAYS,
-  dayToMin,
-  jwtClaims,
-  jwtToken
-}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims, jwtToken}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.userDao
@@ -25,7 +19,7 @@ import javax.ws.rs.core.MediaType
 object GoogleAuthResource {
   final private lazy val userDao = new UserDao(
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .configuration
   )
@@ -37,9 +31,7 @@ class GoogleAuthResource {
 
   @GET
   @Path("/clientid")
-  def getClientId: String = {
-    clientId
-  }
+  def getClientId: String = clientId
 
   @POST
   @Consumes(Array(MediaType.TEXT_PLAIN))
@@ -92,7 +84,7 @@ class GoogleAuthResource {
               user.setName(googleName)
               user.setEmail(googleEmail)
               user.setGoogleId(googleId)
-              user.setRole(UserRole.INACTIVE)
+              user.setRole(UserRoleEnum.INACTIVE)
               user.setGoogleAvatar(googleAvatar)
               userDao.insert(user)
               user

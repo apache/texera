@@ -6,10 +6,20 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import scala.collection.mutable
 
 class DifferenceOpExec extends OperatorExecutor {
+  private var leftHashSet: mutable.HashSet[Tuple] = _
+  private var rightHashSet: mutable.HashSet[Tuple] = _
+  private var exhaustedCounter: Int = _
 
-  private val leftHashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
-  private val rightHashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
-  private var exhaustedCounter: Int = 0
+  override def open(): Unit = {
+    leftHashSet = new mutable.HashSet()
+    rightHashSet = new mutable.HashSet()
+    exhaustedCounter = 0
+  }
+
+  override def close(): Unit = {
+    leftHashSet.clear()
+    rightHashSet.clear()
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     if (port == 1) { // right input

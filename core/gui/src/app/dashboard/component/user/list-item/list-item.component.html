@@ -114,18 +114,23 @@
 
     <div
       nz-col
-      nzFlex="40px"
+      nzFlex="55px"
       class="resource-info">
-      <ng-container *ngIf="entry.type === 'workflow'; else sizeInfo">
-        {{ formatCount(viewCount) }}<br />
-        views
-      </ng-container>
-      <ng-template #sizeInfo> Size: {{ formatSize(entry.size) }} </ng-template>
+      Views:<br />
+      {{ formatCount(viewCount) }}
     </div>
 
     <div
       nz-col
-      nzFlex="95px"
+      nzFlex="75px"
+      class="resource-info">
+      Size: <br />
+      {{ formatSize(size) }}
+    </div>
+
+    <div
+      nz-col
+      nzFlex="90px"
       class="resource-info">
       Created:<br />
       {{ formatTime(entry.creationTime) }}
@@ -144,13 +149,13 @@
       nzFlex="0"
       class="resource-info">
       <button
-        *ngIf="!isPrivateSearch && entry.type==='workflow'"
+        *ngIf="!isPrivateSearch"
         nz-button
         nzType="default"
         class="like-button"
         title="Like"
         [disabled]="!currentUid"
-        (click)="toggleLike(this.entry.id, this.currentUid); $event.stopPropagation()"
+        (click)="toggleLike(); $event.stopPropagation()"
         [attr.disabled]="!currentUid ? true : null">
         <i
           nz-icon

@@ -1,0 +1,61 @@
+{{/* Define storage path configuration, please change it to your own path and make sure the path exists with the right permission*/}}
+{{/* This path only works for local-path storage class */}}
+{{- $hostBasePath := "/path/to/your/host/directory" }}
+
+{{- if .Values.minio.persistence.enabled }}
+{{- $name := "minio" }}
+{{- $persistence := .Values.minio.persistence }}
+{{- $volumeName := printf "%s-data-pv" $name }}
+{{- $claimName := printf "%s-data-pvc" $name }}
+{{- $storageClass := $persistence.storageClass | default "local-path" }}
+{{- $size := $persistence.size | default "20Gi" }}
+{{- $hostPath := printf "%s/%s/%s" $hostBasePath $.Release.Name $name }}
+
+{{/* Only create PV for local-path storage class */}}
+{{- if eq $storageClass "local-path" }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $volumeName }}
+  {{- if not $.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    type: local
+    app: {{ $.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  capacity:
+    storage: {{ $size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ $hostPath }}
+---
+{{- end }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $claimName }}
+  namespace: {{ $.Release.Namespace }}
+  {{- if not $.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app: {{ $.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $size }}
+  {{- if eq $storageClass "local-path" }}
+  volumeName: {{ $volumeName }}
+  {{- end }}
+{{- end }} 

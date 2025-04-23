@@ -60,7 +60,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
       return null
     }
     // infer schema from the first few lines of the file
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }

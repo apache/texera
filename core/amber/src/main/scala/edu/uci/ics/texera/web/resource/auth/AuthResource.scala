@@ -1,9 +1,14 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.texera.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  dayToMin,
+  jwtClaims,
+  jwtConsumer,
+  jwtToken
+}
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
   UserLoginRequest,
@@ -11,7 +16,7 @@ import edu.uci.ics.texera.web.model.http.request.auth.{
 }
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
@@ -24,7 +29,7 @@ object AuthResource {
 
   final private lazy val userDao = new UserDao(
     SqlServer
-      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .getInstance()
       .createDSLContext()
       .configuration
   )
@@ -40,13 +45,30 @@ object AuthResource {
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
     Option(
       SqlServer
-        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .getInstance()
         .createDSLContext()
         .select()
         .from(USER)
         .where(USER.NAME.eq(name))
         .fetchOneInto(classOf[User])
     ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
+  }
+
+  def createAdminUser(): Unit = {
+    val adminUsername = AmberConfig.adminUsername
+    val adminPassword = AmberConfig.adminPassword
+
+    if (adminUsername.trim.nonEmpty && adminPassword.trim.nonEmpty) {
+      val existingUser = userDao.fetchByName(adminUsername)
+      if (existingUser.isEmpty) {
+        val user = new User
+        user.setName(adminUsername)
+        user.setEmail(adminUsername)
+        user.setRole(UserRoleEnum.ADMIN)
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(adminPassword))
+        userDao.insert(user)
+      }
+    }
   }
 }
 
@@ -88,7 +110,7 @@ class AuthResource {
         val user = new User
         user.setName(username)
         user.setEmail(username)
-        user.setRole(UserRole.ADMIN)
+        user.setRole(UserRoleEnum.RESTRICTED)
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)

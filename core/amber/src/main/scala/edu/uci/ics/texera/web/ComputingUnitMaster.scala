@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
@@ -16,6 +16,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
@@ -27,7 +29,6 @@ import io.dropwizard.websockets.WebsocketBundle
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
-import org.glassfish.jersey.media.multipart.MultiPartFeature
 
 import java.net.URI
 import java.time.Duration
@@ -98,6 +99,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
 
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
+
+    environment.jersey.setUrlPattern("/api/*")
+
     val webSocketUpgradeFilter =
       WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
@@ -110,10 +119,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
-    // register MultiPartFeature
-    environment.jersey.register(classOf[MultiPartFeature])
-
     setupJwtAuth(environment)
+
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
+    )
+    environment.jersey.register(
+      classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
+    )
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
@@ -140,6 +153,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         recurringCheckExpiredResults(timeToLive)
       }
     }
+
+    environment.jersey.register(classOf[WorkflowExecutionsResource])
   }
 
   /**
@@ -149,7 +164,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     */
   private def cleanExecutions(
       executions: List[WorkflowExecutions],
-      statusChangeFunc: Byte => Byte
+      statusChangeFunc: Short => Short
   ): Unit = {
     // drop the collection and update the status to ABORTED
     executions.foreach(execEntry => {
@@ -179,9 +194,9 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         val storageType = collection.get("storageType").asText()
         val collectionName = collection.get("storageKey").asText()
         storageType match {
-          case OpResultStorage.ICEBERG =>
+          case DocumentFactory.ICEBERG =>
           // rely on the server-side result cleanup logic.
-          case OpResultStorage.MONGODB =>
+          case DocumentFactory.MONGODB =>
             MongoDatabaseManager.dropCollection(collectionName)
         }
       })

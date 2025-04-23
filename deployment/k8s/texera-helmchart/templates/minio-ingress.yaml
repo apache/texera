@@ -1,0 +1,48 @@
+{{- if .Values.minio.customIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: texera-minio-api-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.minio.customIngress.ingressClassName }}
+    {{- if .Values.minio.customIngress.issuer }}
+    cert-manager.io/issuer: {{ .Values.minio.customIngress.issuer }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "{{ .Values.minio.customIngress.texeraHostname }}"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "ETag, x-amz-meta-custom-header"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/x-forwarded-proto: "https"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.minio.customIngress.ingressClassName }}
+  {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
+  tls:
+    - hosts:
+        - {{ .Values.minio.customIngress.minioHostname }}
+      secretName: {{ .Values.ingressPaths.tlsSecretName | default (printf "%s-minio-tls" .Release.Name) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.minio.customIngress.minioHostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-minio
+                port:
+                  number: 9000
+{{- end }}

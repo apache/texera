@@ -5,12 +5,13 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
-import org.apache.iceberg.types.Types
+import org.apache.iceberg.types.{Type, Types}
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
+import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
-import org.apache.iceberg.types.Type.PrimitiveType
+import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.{
   CatalogProperties,
   DataFile,
@@ -20,7 +21,6 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 
-import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
 import java.time.LocalDateTime
@@ -61,6 +61,59 @@ object IcebergUtil {
   }
 
   /**
+    * Creates and initializes a RESTCatalog with the given parameters.
+    * - Configures the catalog to interact with a REST endpoint.
+    * - The `warehouse` parameter specifies the root directory for storing table data.
+    * - Sets the file I/O implementation to `HadoopFileIO`.
+    * - Authentication support is not implemented yet (see TODO).
+    *
+    * Note: The only tested REST catalog implementation is `tabulario/iceberg-rest`
+    * (https://hub.docker.com/r/tabulario/iceberg-rest).
+    *
+    * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
+    *
+    * @param catalogName the name of the catalog.
+    * @param warehouse   the root path for the warehouse where the tables are stored.
+    * @return the initialized RESTCatalog instance.
+    */
+  def createRestCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): RESTCatalog = {
+    val catalog = new RESTCatalog()
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString,
+        CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
+      ).asJava
+    )
+    catalog
+  }
+
+  def createPostgresCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): JdbcCatalog = {
+    val catalog = new JdbcCatalog()
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString.replace(
+          ":",
+          ""
+        ), //warehouse path is C:/xxx/xxx in Windows, but PyArrow on the Python side cannot parse it. The acceptable format for PyArrow is C/xxx/xxx.
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
+        CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
+        JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
+        JdbcCatalog.PROPERTY_PREFIX + "password" -> StorageConfig.icebergPostgresCatalogPassword
+      ).asJava
+    )
+    catalog
+  }
+
+  /**
     * Creates a new Iceberg table with the specified schema and properties.
     * - Drops the existing table if `overrideIfExists` is true and the table already exists.
     * - Creates an unpartitioned table with custom commit retry properties.
@@ -79,11 +132,13 @@ object IcebergUtil {
       tableSchema: IcebergSchema,
       overrideIfExists: Boolean
   ): Table = {
+
     val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
+
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
       catalog.dropTable(identifier)
@@ -94,6 +149,7 @@ object IcebergUtil {
       PartitionSpec.unpartitioned,
       tableProperties.asJava
     )
+
   }
 
   /**
@@ -128,7 +184,11 @@ object IcebergUtil {
   def toIcebergSchema(amberSchema: Schema): IcebergSchema = {
     val icebergFields = amberSchema.getAttributes.zipWithIndex.map {
       case (attribute, index) =>
-        Types.NestedField.optional(index + 1, attribute.getName, toIcebergType(attribute.getType))
+        Types.NestedField.optional(
+          index + 1,
+          attribute.getName,
+          toIcebergType(attribute.getType, index + 1)
+        )
     }
     new IcebergSchema(icebergFields.asJava)
   }
@@ -137,9 +197,10 @@ object IcebergUtil {
     * Converts a custom Amber `AttributeType` to an Iceberg `Type`.
     *
     * @param attributeType The custom Amber AttributeType.
+    * @param fieldId The field ID to use for nested type elements (like list elements).
     * @return The corresponding Iceberg Type.
     */
-  def toIcebergType(attributeType: AttributeType): PrimitiveType = {
+  def toIcebergType(attributeType: AttributeType, fieldId: Int = 0): Type = {
     attributeType match {
       case AttributeType.STRING    => Types.StringType.get()
       case AttributeType.INTEGER   => Types.IntegerType.get()
@@ -147,7 +208,10 @@ object IcebergUtil {
       case AttributeType.DOUBLE    => Types.DoubleType.get()
       case AttributeType.BOOLEAN   => Types.BooleanType.get()
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
-      case AttributeType.BINARY    => Types.BinaryType.get()
+      case AttributeType.BINARY    =>
+        // Multiply fieldId by -1 to ensure element IDs are unique and don't conflict with parent field IDs
+        val elementId = -1 * fieldId
+        Types.ListType.ofRequired(elementId, Types.BinaryType.get())
       case AttributeType.ANY =>
         throw new IllegalArgumentException("ANY type is not supported in Iceberg")
     }
@@ -165,10 +229,11 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val value = tuple.getField[AnyRef](index) match {
-          case null               => null
-          case ts: Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case bytes: Array[Byte] => ByteBuffer.wrap(bytes)
-          case other              => other
+          case null          => null
+          case ts: Timestamp => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case scalaList: scala.collection.immutable.List[_] =>
+            scalaList.asJava
+          case other => other
         }
         record.setField(attribute.getName, value)
     }
@@ -178,6 +243,7 @@ object IcebergUtil {
 
   /**
     * Converts an Iceberg `Record` to an Amber `Tuple`
+    * This is the opposite conversion of toGenericRecord
     *
     * @param record      The Iceberg Record.
     * @param amberSchema The corresponding Amber Schema.
@@ -186,13 +252,10 @@ object IcebergUtil {
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
       val value = record.getField(attribute.getName) match {
-        case null               => null
-        case ldt: LocalDateTime => Timestamp.valueOf(ldt)
-        case buffer: ByteBuffer =>
-          val bytes = new Array[Byte](buffer.remaining())
-          buffer.get(bytes)
-          bytes
-        case other => other
+        case null                    => null
+        case ldt: LocalDateTime      => Timestamp.valueOf(ldt)
+        case list: java.util.List[_] => list.asScala.toList
+        case other                   => other
       }
       value
     }
@@ -211,7 +274,7 @@ object IcebergUtil {
       .columns()
       .asScala
       .map { field =>
-        new Attribute(field.name(), fromIcebergType(field.`type`().asPrimitiveType()))
+        new Attribute(field.name(), fromIcebergType(field.`type`()))
       }
       .toList
 
@@ -224,16 +287,25 @@ object IcebergUtil {
     * @param icebergType The Iceberg Type.
     * @return The corresponding Amber AttributeType.
     */
-  def fromIcebergType(icebergType: PrimitiveType): AttributeType = {
+  def fromIcebergType(icebergType: Type): AttributeType = {
     icebergType match {
-      case _: Types.StringType    => AttributeType.STRING
-      case _: Types.IntegerType   => AttributeType.INTEGER
-      case _: Types.LongType      => AttributeType.LONG
-      case _: Types.DoubleType    => AttributeType.DOUBLE
-      case _: Types.BooleanType   => AttributeType.BOOLEAN
-      case _: Types.TimestampType => AttributeType.TIMESTAMP
-      case _: Types.BinaryType    => AttributeType.BINARY
-      case _                      => throw new IllegalArgumentException(s"Unsupported Iceberg type: $icebergType")
+      case _: Types.StringType      => AttributeType.STRING
+      case _: Types.IntegerType     => AttributeType.INTEGER
+      case _: Types.LongType        => AttributeType.LONG
+      case _: Types.DoubleType      => AttributeType.DOUBLE
+      case _: Types.BooleanType     => AttributeType.BOOLEAN
+      case _: Types.TimestampType   => AttributeType.TIMESTAMP
+      case listType: Types.ListType =>
+        // For list types, return the corresponding Amber type based on element type
+        // Currently we only support binary lists
+        if (listType.elementType() == Types.BinaryType.get()) {
+          AttributeType.BINARY
+        } else {
+          throw new IllegalArgumentException(
+            s"Unsupported list element type: ${listType.elementType()}"
+          )
+        }
+      case _ => throw new IllegalArgumentException(s"Unsupported Iceberg type: $icebergType")
     }
   }
 

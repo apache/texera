@@ -9,6 +9,7 @@ import { NotificationService } from "../../../../../../common/service/notificati
 
 export const MIME_TYPES = {
   JPEG: "image/jpeg",
+  JPG: "image/jpeg",
   PNG: "image/png",
   CSV: "text/csv",
   TXT: "text/plain",
@@ -23,6 +24,13 @@ export const MIME_TYPES = {
   MP3: "audio/mpeg",
   OCTET_STREAM: "application/octet-stream", // Default binary format
 };
+
+export function getMimeType(filename: string): string {
+  const extension = filename.split(".").pop()?.toUpperCase();
+  return extension && MIME_TYPES[extension as keyof typeof MIME_TYPES]
+    ? MIME_TYPES[extension as keyof typeof MIME_TYPES]
+    : MIME_TYPES.OCTET_STREAM;
+}
 
 // the size limits for all preview-supported types
 export const MIME_TYPE_SIZE_LIMITS_MB = {
@@ -95,6 +103,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   filePath: string = "";
 
+  @Input()
+  isLogin: boolean = false;
+
   @Output()
   loadFile = new EventEmitter<{ file: string; prefix: string }>();
 
@@ -131,12 +142,12 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath)
+        .retrieveDatasetVersionSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
             this.isLoading = false;
-            const blobMimeType = blob.type;
+            const blobMimeType = getMimeType(this.filePath);
             if (!this.isPreviewSupported(blobMimeType)) {
               this.onFileTypePreviewUnsupported();
               return;

@@ -1,10 +1,8 @@
 package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.{ActorSystem, Props}
-import akka.serialization.SerializationExtension
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
-import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
@@ -12,7 +10,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState}
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -21,7 +18,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
   var system: ActorSystem = _
 
-  val resultStorage = new OpResultStorage()
   val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
   val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
   val workflow = buildWorkflow(
@@ -40,7 +36,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   override def beforeAll(): Unit = {
     system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    AmberRuntime.serde = SerializationExtension(system)
   }
 
   "Default controller state" should "be serializable" in {

@@ -4,11 +4,12 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.OpResultStorage.MONGODB
+import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
@@ -19,9 +20,12 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -29,6 +33,9 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
+import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
 import java.util.UUID
@@ -40,13 +47,117 @@ object ExecutionResultService {
   private val defaultPageSize: Int = 5
 
   /**
+    * Converts a collection of Tuples to a list of JSON ObjectNodes.
+    *
+    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
+    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For string values longer than maxStringLength (100), it truncates them.
+    * NULL values are converted to the string "NULL".
+    *
+    * @param tuples The collection of Tuples to convert
+    * @param isVisualization Whether this is for visualization rendering (affects string truncation)
+    * @return A List of ObjectNodes containing the JSON representation of the tuples
+    */
+  def convertTuplesToJson(
+      tuples: Iterable[Tuple],
+      isVisualization: Boolean = false
+  ): List[ObjectNode] = {
+    val maxStringLength = 100
+
+    tuples.map { tuple =>
+      val processedFields = tuple.schema.getAttributes.zipWithIndex
+        .map {
+          case (attr, idx) =>
+            val fieldValue = tuple.getField[AnyRef](idx)
+
+            Option(fieldValue) match {
+              case None => "NULL"
+              case Some(value) =>
+                attr.getType match {
+                  case AttributeType.BINARY =>
+                    value match {
+                      case binaryList: List[_] if binaryList.nonEmpty =>
+                        val totalSize = binaryList.foldLeft(0) {
+                          case (sum, buffer: java.nio.ByteBuffer) => sum + buffer.remaining()
+                          case (_, other) =>
+                            throw new RuntimeException(
+                              s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+                            )
+                        }
+
+                        val firstElement = getByteBufferHexString(binaryList.head)
+
+                        val lastElement = if (binaryList.size > 1) {
+                          getByteBufferHexString(binaryList.last)
+                        } else {
+                          firstElement
+                        }
+
+                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
+                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
+                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
+                        if (firstElement.length < 39) {
+                          s"bytes'$firstElement' (length: $totalSize)"
+                        } else {
+                          val leadingBytes = firstElement.take(30)
+                          val trailingBytes = lastElement.takeRight(9)
+                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                        }
+
+                      case _ =>
+                        throw new RuntimeException(
+                          s"Expected a List for binary type field, but got: ${value.getClass.getName}"
+                        )
+                    }
+                  case AttributeType.STRING =>
+                    val stringValue = value.asInstanceOf[String]
+                    if (stringValue.length > maxStringLength && !isVisualization)
+                      stringValue.take(maxStringLength) + "..."
+                    else
+                      stringValue
+                  case _ => value
+                }
+            }
+        }
+        .toArray[Any]
+
+      TupleUtils.tuple2json(tuple.schema, processedFields)
+    }.toList
+  }
+
+  /**
+    * Converts a ByteBuffer value to a hex string representation.
+    *
+    * This helper function takes a ByteBuffer value and converts its contents to a space-separated
+    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
+    * If the input is not a ByteBuffer, it throws a RuntimeException.
+    *
+    * @param value The value to convert, expected to be a ByteBuffer
+    * @return A string containing the hex representation of the ByteBuffer's contents
+    * @throws RuntimeException if the input value is not a ByteBuffer
+    */
+  private def getByteBufferHexString(value: Any): String = {
+    value match {
+      case buffer: java.nio.ByteBuffer =>
+        val bytes = new Array[Byte](buffer.remaining())
+        val dupBuffer = buffer.duplicate()
+        dupBuffer.get(bytes)
+        bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+      case other =>
+        throw new RuntimeException(
+          s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
+        )
+    }
+  }
+
+  /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
       table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
+    val tableInJson = convertTuplesToJson(table, mode == SetSnapshotMode())
     WebDataUpdate(mode, tableInJson)
   }
 
@@ -60,6 +171,7 @@ object ExecutionResultService {
     */
   private def convertWebResultUpdate(
       workflowIdentity: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       physicalOps: List[PhysicalOp],
       oldTupleCount: Int,
       newTupleCount: Int
@@ -85,32 +197,49 @@ object ExecutionResultService {
       }
     }
 
-    val storage =
-      ResultStorage
-        .getOpResultStorage(workflowIdentity)
-        .get(OpResultStorage.createStorageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
-    val webUpdate = webOutputMode match {
-      case PaginationMode() =>
-        val numTuples = storage.getCount
-        val maxPageIndex =
-          Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+    // Cannot assume the storage is available at this point. The storage object is only available
+    // after a region is scheduled to execute.
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      executionId,
+      physicalOps.head.id.logicalOpId,
+      PortIdentity()
+    )
+    storageUriOption match {
+      case Some(storageUri) =>
+        val storage: VirtualDocument[Tuple] =
+          DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+        val webUpdate = webOutputMode match {
+          case PaginationMode() =>
+            val numTuples = storage.getCount
+            val maxPageIndex =
+              Math.ceil(numTuples / defaultPageSize.toDouble).toInt
+            // This can be extremly expensive when we have a lot of pages.
+            // It causes delays in some obseved cases.
+            // TODO: try to optimize this.
+            WebPaginationUpdate(
+              PaginationMode(),
+              newTupleCount,
+              (1 to maxPageIndex).toList
+            )
+          case SetSnapshotMode() =>
+            tuplesToWebData(webOutputMode, storage.get().toList)
+          case SetDeltaMode() =>
+            val deltaList = storage.getAfter(oldTupleCount).toList
+            tuplesToWebData(webOutputMode, deltaList)
+
+          case _ =>
+            throw new RuntimeException(
+              "update mode combination not supported: " + (webOutputMode, outputMode)
+            )
+        }
+        webUpdate
+      case None =>
         WebPaginationUpdate(
           PaginationMode(),
-          newTupleCount,
-          (1 to maxPageIndex).toList
-        )
-      case SetSnapshotMode() =>
-        tuplesToWebData(webOutputMode, storage.get().toList)
-      case SetDeltaMode() =>
-        val deltaList = storage.getAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList)
-
-      case _ =>
-        throw new RuntimeException(
-          "update mode combination not supported: " + (webOutputMode, outputMode)
+          0,
+          List.empty
         )
     }
-    webUpdate
   }
 
   /**
@@ -152,7 +281,7 @@ object ExecutionResultService {
 }
 
 /**
-  * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
+  * ExecutionResultService manages all operator output ports that have storage in one workflow execution.
   *
   * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
@@ -167,11 +296,11 @@ class ExecutionResultService(
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToExecution(
+      executionId: ExecutionIdentity,
       stateStore: ExecutionStateStore,
       physicalPlan: PhysicalPlan,
       client: AmberClient
   ): Unit = {
-
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
       resultUpdateCancellable.cancel()
     }
@@ -188,7 +317,7 @@ class ExecutionResultService(
                   2.seconds,
                   resultPullingFrequency.seconds
                 ) {
-                  onResultUpdate(physicalPlan)
+                  onResultUpdate(executionId, physicalPlan)
                 }
             }
           } else {
@@ -204,7 +333,7 @@ class ExecutionResultService(
             logger.info("Workflow execution terminated. Stop update results.")
             if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
               // immediately perform final update
-              onResultUpdate(physicalPlan)
+              onResultUpdate(executionId, physicalPlan)
             }
           }
         })
@@ -233,28 +362,42 @@ class ExecutionResultService(
               val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
               buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
                 workflowIdentity,
+                executionId,
                 physicalPlan.getPhysicalOpsOfLogicalOp(opId),
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == MONGODB) {
-                // using the first port for now. TODO: support multiple ports
-                val storageKey = OpResultStorage.createStorageKey(opId, PortIdentity())
-                val opStorage = ResultStorage
-                  .getOpResultStorage(workflowIdentity)
-                  .get(storageKey)
-                opStorage match {
-                  case mongoDocument: MongoDocument[Tuple] =>
-                    val tableCatStats = mongoDocument.getCategoricalStats
-                    val tableDateStats = mongoDocument.getDateColStats
-                    val tableNumericStats = mongoDocument.getNumericColStats
+              // using the first port for now. TODO: support multiple ports
+              val outputPortsMap = physicalPlan
+                .getPhysicalOpsOfLogicalOp(opId)
+                .headOption
+                .map(_.outputPorts)
+                .getOrElse(Map.empty)
+              val hasSingleSnapshot = outputPortsMap.values.exists {
+                case (outputPort, _, _) =>
+                  // SINGLE_SNAPSHOT is used for HTML content
+                  outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+              }
 
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
-                  case _ =>
+              if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
+                val layerName = physicalPlan.operators
+                  .filter(physicalOp =>
+                    physicalOp.id.logicalOpId == opId &&
+                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
+                  ) // TODO: Remove layerName and use GlobalPortIdentity for storage URIs
+                  .headOption match {
+                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
+                  case None                         => "main"
+                }
+                val storageUri = WorkflowExecutionsResource
+                  .getResultUriByLogicalPortId(
+                    executionId,
+                    opId,
+                    PortIdentity()
+                  )
+                if (storageUri.nonEmpty) {
+                  val opStorage = DocumentFactory.openDocument(storageUri.get)._1
+                  allTableStats(opId.id) = opStorage.getTableStatistics
                 }
               }
           }
@@ -278,46 +421,52 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
+    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
+      throw new IllegalStateException("No execution is recorded")
+    )
 
-    // using the first port for now. TODO: support multiple ports
-    val storageKey =
-      OpResultStorage.createStorageKey(OperatorIdentity(request.operatorID), PortIdentity())
-    val paginationIterable = {
-      ResultStorage
-        .getOpResultStorage(workflowIdentity)
-        .get(storageKey)
-        .getRange(from, from + request.pageSize)
-        .to(Iterable)
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      latestExecutionId,
+      OperatorIdentity(request.operatorID),
+      PortIdentity()
+    )
+
+    storageUriOption match {
+      case Some(storageUri) =>
+        val paginationIterable = {
+          DocumentFactory
+            .openDocument(storageUri)
+            ._1
+            .asInstanceOf[VirtualDocument[Tuple]]
+            .getRange(from, from + request.pageSize)
+            .to(Iterable)
+        }
+        val mappedResults = convertTuplesToJson(paginationIterable)
+        val attributes = paginationIterable.headOption
+          .map(_.getSchema.getAttributes)
+          .getOrElse(List.empty)
+        PaginatedResultEvent.apply(request, mappedResults, attributes)
+
+      case None =>
+        // Handle the case when storageUri is empty
+        PaginatedResultEvent.apply(request, List.empty, List.empty)
     }
-    val mappedResults = paginationIterable
-      .map(tuple => tuple.asKeyValuePairJson())
-      .toList
-    val attributes = paginationIterable.headOption
-      .map(_.getSchema.getAttributes)
-      .getOrElse(List.empty)
-    PaginatedResultEvent.apply(request, mappedResults, attributes)
   }
 
-  private def onResultUpdate(physicalPlan: PhysicalPlan): Unit = {
+  private def onResultUpdate(executionId: ExecutionIdentity, physicalPlan: PhysicalPlan): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
-        ResultStorage
-          .getOpResultStorage(workflowIdentity)
-          .getAllKeys
-          .filter(!_.startsWith("materialized_"))
-          .map(storageKey => {
-            val count = ResultStorage
-              .getOpResultStorage(workflowIdentity)
-              .get(storageKey)
-              .getCount
-              .toInt
+        WorkflowExecutionsResource
+          .getResultUrisByExecutionId(executionId)
+          .map(uri => {
+            val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (opId, storagePortId) = OpResultStorage.decodeStorageKey(storageKey)
+            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(opId)
-              .flatMap(_.outputPorts.get(storagePortId))
+              .getPhysicalOpsOfLogicalOp(globalPortIdOption.get.opId.logicalOpId)
+              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
               .map(_._1.mode)
               .head
 
@@ -325,7 +474,7 @@ class ExecutionResultService(
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (opId, OperatorResultMetadata(count, changeDetector))
+            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
           })
           .toMap
       }

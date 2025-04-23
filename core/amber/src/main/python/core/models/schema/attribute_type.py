@@ -41,18 +41,21 @@ TO_ARROW_MAPPING = {
     AttributeType.STRING: pa.string(),
     AttributeType.DOUBLE: pa.float64(),
     AttributeType.BOOL: pa.bool_(),
-    AttributeType.BINARY: pa.binary(),
-    AttributeType.TIMESTAMP: pa.timestamp("ms", tz="UTC"),
+    AttributeType.BINARY: pa.large_list(pa.binary()),
+    AttributeType.TIMESTAMP: pa.timestamp("us"),
 }
 
 FROM_ARROW_MAPPING = {
     lib.Type_INT32: AttributeType.INT,
     lib.Type_INT64: AttributeType.LONG,
     lib.Type_STRING: AttributeType.STRING,
+    lib.Type_LARGE_STRING: AttributeType.STRING,
     lib.Type_DOUBLE: AttributeType.DOUBLE,
     lib.Type_BOOL: AttributeType.BOOL,
     lib.Type_BINARY: AttributeType.BINARY,
+    lib.Type_LARGE_BINARY: AttributeType.BINARY,
     lib.Type_TIMESTAMP: AttributeType.TIMESTAMP,
+    lib.Type_LARGE_LIST: AttributeType.BINARY,
 }
 
 
@@ -63,7 +66,7 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.LONG: int,  # Python3 unifies long into int.
     AttributeType.DOUBLE: float,
     AttributeType.BOOL: bool,
-    AttributeType.BINARY: bytes,
+    AttributeType.BINARY: list,  # Use only list for BINARY (not bytes)
     AttributeType.TIMESTAMP: datetime.datetime,
 }
 
@@ -72,6 +75,6 @@ FROM_PYOBJECT_MAPPING = {
     int: AttributeType.INT,
     float: AttributeType.DOUBLE,
     bool: AttributeType.BOOL,
-    bytes: AttributeType.BINARY,
+    list: AttributeType.BINARY,
     datetime.datetime: AttributeType.TIMESTAMP,
 }

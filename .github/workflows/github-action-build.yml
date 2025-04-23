@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             core/gui/node_modules
@@ -111,6 +111,13 @@ jobs:
           if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
           if [ -f core/amber/r-requirements.txt ]; then pip install -r core/amber/r-requirements.txt; fi
           if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
+      - name: Install PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql
+      - name: Start PostgreSQL Service
+        run: sudo systemctl start postgresql
+      - name: Create Database and User
+        run: |
+          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
           cd core/amber/src/main/python && flake8 && black . --check

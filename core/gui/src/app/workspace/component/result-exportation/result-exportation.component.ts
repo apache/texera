@@ -6,6 +6,8 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 
 @UntilDestroy()
 @Component({
@@ -20,7 +22,7 @@ export class ResultExportationComponent implements OnInit {
    */
   sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
-  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
+  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
@@ -29,6 +31,7 @@ export class ResultExportationComponent implements OnInit {
   isVisualizationOutput: boolean = false;
   containsBinaryData: boolean = false;
   inputDatasetName = "";
+  selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
@@ -38,7 +41,8 @@ export class ResultExportationComponent implements OnInit {
     private modalRef: NzModalRef,
     private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {}
 
   ngOnInit(): void {
@@ -50,22 +54,63 @@ export class ResultExportationComponent implements OnInit {
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });
     this.updateOutputType();
+
+    this.computingUnitStatusService
+      .getSelectedComputingUnit()
+      .pipe(untilDestroyed(this))
+      .subscribe(unit => {
+        this.selectedComputingUnit = unit;
+      });
   }
 
   updateOutputType(): void {
-    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIds.length === 1) {
-      const operatorId = highlightedOperatorIds[0];
-      const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
-      this.isTableOutput = outputTypes.isTableOutput;
-      this.isVisualizationOutput = outputTypes.isVisualizationOutput;
-      this.containsBinaryData = outputTypes.containsBinaryData;
+    // Determine if the caller of this component is menu or context menu
+    // if its menu then we need to export all operators else we need to export only highlighted operators
+    // TODO: currently, user need to set `view result` to true in order to export result but
+    //  we should allow user to export result without setting `view result` to true
+    let operatorIds: readonly string[];
+    if (this.sourceTriggered === "menu") {
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID);
     } else {
-      // TODO: handle multiple operators
+      operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    }
+
+    if (operatorIds.length === 0) {
+      // No operators highlighted
       this.isTableOutput = false;
       this.isVisualizationOutput = false;
       this.containsBinaryData = false;
+      return;
     }
+
+    // Assume they're all table or visualization
+    // until we find an operator that isn't
+    let allTable = true;
+    let allVisualization = true;
+    let anyBinaryData = false;
+
+    for (const operatorId of operatorIds) {
+      const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
+      if (!outputTypes.hasAnyResult) {
+        continue;
+      }
+      if (!outputTypes.isTableOutput) {
+        allTable = false;
+      }
+      if (!outputTypes.isVisualizationOutput) {
+        allVisualization = false;
+      }
+      if (outputTypes.containsBinaryData) {
+        anyBinaryData = true;
+      }
+    }
+
+    this.isTableOutput = allTable;
+    this.isVisualizationOutput = allVisualization;
+    this.containsBinaryData = anyBinaryData;
   }
 
   onUserInputDatasetName(event: Event): void {
@@ -78,23 +123,20 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
-    if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResult(
-        this.exportType,
-        this.workflowName,
-        [dataset.dataset.did],
-        this.rowIndex,
-        this.columnIndex,
-        this.inputFileName,
-        this.sourceTriggered === "menu"
-      );
-      this.modalRef.close();
-    }
-  }
-
-  onClickExportAllResult() {
-    this.workflowResultExportService.exportOperatorsResultToLocal(this.sourceTriggered === "menu");
+  onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
+    const datasetIds =
+      destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
+    this.workflowResultExportService.exportWorkflowExecutionResult(
+      this.exportType,
+      this.workflowName,
+      datasetIds,
+      this.rowIndex,
+      this.columnIndex,
+      this.inputFileName,
+      this.sourceTriggered === "menu",
+      destination,
+      this.selectedComputingUnit
+    );
     this.modalRef.close();
   }
 }

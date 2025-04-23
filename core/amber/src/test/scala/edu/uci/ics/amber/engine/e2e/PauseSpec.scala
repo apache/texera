@@ -1,21 +1,18 @@
 package edu.uci.ics.amber.engine.e2e
 
 import akka.actor.{ActorSystem, Props}
-import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
-import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -34,7 +31,6 @@ class PauseSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    AmberRuntime.serde = SerializationExtension(system)
   }
 
   override def afterAll(): Unit = {
@@ -45,8 +41,8 @@ class PauseSpec
       operators: List[LogicalOp],
       links: List[LogicalLink]
   ): Unit = {
-    val resultStorage = new OpResultStorage()
-    val workflow = TestUtils.buildWorkflow(operators, links, new WorkflowContext())
+    val workflow =
+      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
     val client =
       new AmberClient(
         system,

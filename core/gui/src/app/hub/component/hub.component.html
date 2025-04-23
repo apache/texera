@@ -1,5 +1,6 @@
 <ul>
   <li
+    *ngIf="environment.hubEnabled"
     nz-menu-item
     nz-tooltip="Home Page"
     nzMatchRouter="true"
@@ -11,6 +12,7 @@
     <span> Home </span>
   </li>
   <li
+    *ngIf="environment.hubEnabled"
     nz-menu-item
     nz-tooltip="Search public workflows"
     nzMatchRouter="true"
@@ -22,14 +24,15 @@
     <span>Workflows</span>
   </li>
   <li
+    *ngIf="environment.hubEnabled"
     nz-menu-item
-    nz-tooltip="About"
+    nz-tooltip="Search public dataset"
     nzMatchRouter="true"
     nzTooltipPlacement="right"
-    [routerLink]="DASHBOARD_ABOUT">
+    [routerLink]="DASHBOARD_HUB_DATASET_RESULT">
     <span
       nz-icon
-      nzType="info-circle"></span>
-    <span>About</span>
+      nzType="database"></span>
+    <span>Datasets</span>
   </li>
 </ul>

@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
@@ -28,15 +27,12 @@ class BatchSizePropagationSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val resultStorage = new OpResultStorage()
-
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    resultStorage.clear()
   }
 
   def verifyBatchSizeInPartitioning(
@@ -107,7 +103,8 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
 
-    val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
+    val context =
+      new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
 
@@ -128,7 +125,8 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
 
-    val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
+    val context =
+      new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
@@ -157,7 +155,8 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
 
-    val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
+    val context =
+      new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
@@ -194,7 +193,8 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
 
-    val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
+    val context =
+      new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
@@ -234,7 +234,8 @@ class BatchSizePropagationSpec
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
 
-    val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
+    val context =
+      new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
