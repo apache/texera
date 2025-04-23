@@ -33,20 +33,15 @@ spec:
               set -e
 
               echo "Waiting for LakeFS healthcheck..."
-              for i in $(seq 1 60); do
+              while true; do
                 code=$(curl -s -o /dev/null -w "%{http_code}" "$STORAGE_LAKEFS_ENDPOINT/healthcheck") || true
-                echo "Healthcheck attempt $i -> status: $code"
+                echo "Healthcheck status: $code"
                 if [ "$code" = "200" ] || [ "$code" = "204" ]; then
                   echo "LakeFS is healthy!"
                   break
                 fi
                 sleep 5
               done
-
-              if [ "$code" != "200" ] && [ "$code" != "204" ]; then
-                echo "LakeFS healthcheck failed. Exiting."
-                exit 1
-              fi
 
               echo "Sending GET /setup_lakefs to check existing state..."
               curl -s -w "\nStatus: %{http_code}\n" "$STORAGE_LAKEFS_ENDPOINT/setup_lakefs" || echo "GET failed"

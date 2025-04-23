@@ -80,6 +80,8 @@ object AmberConfig {
 
   // User system
   val isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
+  val adminUsername: String = getConfSource.getString("user-sys.admin-username")
+  val adminPassword: String = getConfSource.getString("user-sys.admin-password")
   val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
   val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")
