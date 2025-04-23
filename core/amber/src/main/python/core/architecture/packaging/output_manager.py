@@ -70,6 +70,9 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+    def is_missing_output_ports(self):
+        return not self._ports
+
     def add_output_port(
         self,
         port_id: PortIdentity,

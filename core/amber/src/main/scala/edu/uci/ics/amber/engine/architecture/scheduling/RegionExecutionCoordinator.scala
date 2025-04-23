@@ -157,6 +157,12 @@ class RegionExecutionCoordinator(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
           val inputPortMapping = physicalOp.inputPorts
+            .filter {
+              // Because of the hack on input dependency, some input ports may not belong to this region.
+              case (inputPortId, _) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+                region.getPorts.contains(globalInputPortId)
+            }
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
                 val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
@@ -172,8 +178,13 @@ class RegionExecutionCoordinator(
                 )
               case _ => None
             }
-          // TODO: Also use empty list to replace ""
+
           val outputPortMapping = physicalOp.outputPorts
+            .filter {
+              case (outputPortId, _) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, outputPortId)
+                region.getPorts.contains(globalInputPortId)
+            }
             .flatMap {
               case (outputPortId, (_, _, Right(schema))) =>
                 val storageURI = resourceConfig.portConfigs.get(

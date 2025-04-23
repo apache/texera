@@ -141,6 +141,7 @@ abstract class ScheduleGenerator(
           )
           replaceVertex(regionDAG, region, newRegion)
       }
+    // TODO: Also remove the port from the toOp Region?
   }
 
   def replaceLinkWithMaterialization(

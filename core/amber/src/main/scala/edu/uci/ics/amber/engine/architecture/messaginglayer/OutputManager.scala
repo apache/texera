@@ -234,6 +234,9 @@ class OutputManager(
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def finalizeOutput(): Unit = {
+    // Special case for the hack of input port dependency.
+    if (this.ports.isEmpty)
+      return
     this.ports.keys
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
