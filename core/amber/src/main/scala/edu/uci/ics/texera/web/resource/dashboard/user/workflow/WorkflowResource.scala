@@ -766,4 +766,15 @@ class WorkflowResource extends LazyLogging {
 
     records.getValues(WORKFLOW_USER_ACCESS.UID)
   }
+
+  //TODO Get size from database
+  @GET
+  @Path("/size")
+  def getSize(@QueryParam("wid") wid: Integer): Int = {
+    val workflow = workflowDao.ctx
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+    workflow.getContent.length;
+  }
 }
