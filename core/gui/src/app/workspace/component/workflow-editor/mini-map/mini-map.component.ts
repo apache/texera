@@ -70,9 +70,15 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   private updateNavigator(): void {
     if (!this.dragging) {
-      const point = this.paper.pageToLocalPoint({ x: 0, y: 0 });
       const editor = document.getElementById("workflow-editor")!;
       const navigator = document.getElementById("mini-map-navigator")!;
+      const editorRect = editor.getBoundingClientRect();
+
+      const point = this.paper.pageToLocalPoint({
+        x: editorRect.left,
+        y: editorRect.top,
+      });
+
       navigator.style.transform = "";
       navigator.style.left = (point.x - MAIN_CANVAS.xMin) * this.scale + "px";
       navigator.style.top = (point.y - MAIN_CANVAS.yMin) * this.scale + "px";
