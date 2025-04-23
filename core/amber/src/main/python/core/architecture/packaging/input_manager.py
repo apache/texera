@@ -11,7 +11,9 @@ from core.models.internal_marker import (
 )
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
-from core.storage.runnables.input_port_materialization_reader_thread import InputPortMaterializationReaderThread
+from core.storage.runnables.input_port_materialization_reader_thread import (
+    InputPortMaterializationReaderThread,
+)
 from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -61,25 +63,31 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
         self._input_queue = None
-        self._input_port_mat_read_threads: Dict[PortIdentity, List[InputPortMaterializationReaderThread]] = dict()
+        self._input_port_mat_read_threads: Dict[
+            PortIdentity, List[InputPortMaterializationReaderThread]
+        ] = dict()
 
     def set_input_queue(self, queue: InternalQueue) -> None:
         self._input_queue = queue
 
-    def set_up_input_port_mat_reader_threads(self,
-                                             port_id: PortIdentity,
-                                             uris: List[str]
-                                             ) -> None:
+    def set_up_input_port_mat_reader_threads(
+        self, port_id: PortIdentity, uris: List[str]
+    ) -> None:
         if uris is not None:
-            reader_threads = [InputPortMaterializationReaderThread(
-                uri = uri,
-                queue = self._input_queue,
-                worker_actor_id=ActorVirtualIdentity(self.worker_id),
-                batch_size=400
-            ) for uri in uris]
+            reader_threads = [
+                InputPortMaterializationReaderThread(
+                    uri=uri,
+                    queue=self._input_queue,
+                    worker_actor_id=ActorVirtualIdentity(self.worker_id),
+                    batch_size=400,
+                )
+                for uri in uris
+            ]
             self._input_port_mat_read_threads[port_id] = reader_threads
 
-    def get_input_port_mat_reader_threads(self) -> Dict[PortIdentity, List[InputPortMaterializationReaderThread]]:
+    def get_input_port_mat_reader_threads(
+        self,
+    ) -> Dict[PortIdentity, List[InputPortMaterializationReaderThread]]:
         return self._input_port_mat_read_threads
 
     def start_input_port_mat_reader_threads(self):
@@ -88,14 +96,16 @@ class InputManager:
                 reader_thread = threading.Thread(
                     target=reader.run,
                     daemon=True,
-                    name=f"port_mat_reader_thread_{reader.channel_id}"
+                    name=f"port_mat_reader_thread_{reader.channel_id}",
                 )
                 reader_thread.start()
 
     def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
         return self._channels.keys()
 
-    def add_input_port(self, port_id: PortIdentity, schema: Schema, storage_uris: List[str]) -> None:
+    def add_input_port(
+        self, port_id: PortIdentity, schema: Schema, storage_uris: List[str]
+    ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
@@ -178,4 +188,3 @@ class InputManager:
 
             if all_ports_completed:
                 yield EndOfOutputPorts()
-

@@ -19,7 +19,9 @@ class AssignPortHandler(ControlHandler):
                 from_actor_id = get_from_actor_id_for_input_port_storage(uri)
                 to_actor_id = ActorVirtualIdentity(self.context.worker_id)
                 channel_id = ChannelIdentity(from_actor_id, to_actor_id, False)
-                self.context.input_manager.register_input(channel_id = channel_id, port_id = req.port_id)
+                self.context.input_manager.register_input(
+                    channel_id=channel_id, port_id=req.port_id
+                )
         else:
             storage_uri = None
             if len(req.storage_uris) > 0 and req.storage_uris[0] != "":

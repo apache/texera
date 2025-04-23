@@ -3,12 +3,14 @@ from proto.edu.uci.ics.amber.core import (
     GlobalPortIdentity,
     PhysicalOpIdentity,
     OperatorIdentity,
-    PortIdentity, ActorVirtualIdentity,
+    PortIdentity,
+    ActorVirtualIdentity,
 )
 
 worker_name_pattern = re.compile(r"Worker:WF\d+-.+-(\w+)-(\d+)")
 
 MATERIALIZATION_READER_ACTOR_PREFIX = "MATERIALIZATION_READER_"
+
 
 def get_worker_index(worker_id: str) -> int:
     match = worker_name_pattern.match(worker_id)
@@ -61,7 +63,10 @@ def deserialize_global_port_identity(encoded_str: str) -> GlobalPortIdentity:
     port = PortIdentity(id=port_id, internal=is_internal)
     return GlobalPortIdentity(op_id=op_id, port_id=port, input=is_input_port)
 
-def get_from_actor_id_for_input_port_storage(storage_uri_str: str) -> ActorVirtualIdentity:
+
+def get_from_actor_id_for_input_port_storage(
+    storage_uri_str: str,
+) -> ActorVirtualIdentity:
     """
     Constructs an ActorVirtualIdentity for input port storage.
 
@@ -69,6 +74,7 @@ def get_from_actor_id_for_input_port_storage(storage_uri_str: str) -> ActorVirtu
         storage_uri_str (str): The string representation of the storage URI.
 
     Returns:
-        ActorVirtualIdentity: A new virtual identity created by prefixing the storage URI.
+        ActorVirtualIdentity: A new virtual identity created by
+        prefixing the storage URI.
     """
     return ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storage_uri_str)

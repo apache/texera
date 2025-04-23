@@ -13,7 +13,13 @@ from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 
 class InputPortMaterializationReaderThread(Runnable, Stoppable):
-    def __init__(self, uri: str, queue: InternalQueue, worker_actor_id: ActorVirtualIdentity, batch_size: int):
+    def __init__(
+        self,
+        uri: str,
+        queue: InternalQueue,
+        worker_actor_id: ActorVirtualIdentity,
+        batch_size: int,
+    ):
         """
         Args:
             uri (str): The URI of the materialized document.
@@ -28,7 +34,9 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
         self.buffer = []  # Buffer for Tuple objects.
         from_actor_id = get_from_actor_id_for_input_port_storage(self.uri)
-        self.channel_id = ChannelIdentity(from_actor_id, self.worker_actor_id, is_control=False)
+        self.channel_id = ChannelIdentity(
+            from_actor_id, self.worker_actor_id, is_control=False
+        )
         self._stopped = False
         self.materialization = None
         self.tuple_schema = None
@@ -46,8 +54,12 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
 
         try:
             # Open the document and obtain an iterator over the tuples.
-            self.materialization, self.tuple_schema = DocumentFactory.open_document(self.uri)
-            storage_iterator = self.materialization.get()  # Iterator over Tuple objects.
+            self.materialization, self.tuple_schema = DocumentFactory.open_document(
+                self.uri
+            )
+            storage_iterator = (
+                self.materialization.get()
+            )  # Iterator over Tuple objects.
 
             # Iterate and process tuples.
             for tup in storage_iterator:
