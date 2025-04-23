@@ -31,14 +31,15 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 class RegionExecutionCoordinator(
-    region: Region,
-    workflowExecution: WorkflowExecution,
-    asyncRPCClient: AsyncRPCClient,
-    controllerConfig: ControllerConfig
-) {
+                                  region: Region,
+                                  workflowExecution: WorkflowExecution,
+                                  asyncRPCClient: AsyncRPCClient,
+                                  controllerConfig: ControllerConfig
+                                ) {
   def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
@@ -112,11 +113,11 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      operatorExecution: OperatorExecution
-  ): Unit = {
+                             actorService: AkkaActorService,
+                             physicalOp: PhysicalOp,
+                             operatorConfig: OperatorConfig,
+                             operatorExecution: OperatorExecution
+                           ): Unit = {
     ExecutorDeployment.createWorkers(
       physicalOp,
       actorService,
@@ -128,9 +129,9 @@ class RegionExecutionCoordinator(
   }
 
   private def initExecutors(
-      operators: Set[PhysicalOp],
-      resourceConfig: ResourceConfig
-  ): Future[Seq[EmptyReturn]] = {
+                             operators: Set[PhysicalOp],
+                             resourceConfig: ResourceConfig
+                           ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -233,29 +234,43 @@ class RegionExecutionCoordinator(
         workflowExecution.getAllRegionExecutionsStats
       )
     )
-    Future.collect(
-      region.getSourceOperators
-        .map(_.id)
-        .flatMap { opId =>
+    val response = asyncRPCClient.controllerInterface
+      .propagateChannelMarker(
+        PropagateChannelMarkerRequest(
+          region.getSourceOperators.map(_.id).toSeq,
+          ChannelMarkerIdentity("start"),
+          REQUIRE_ALIGNMENT,
+          region.getSourceOperators.map(_.id).toSeq,
+          region.getSourceOperators.map(_.id).toSeq,
+          EmptyRequest(),
+          METHOD_START_WORKER.getBareMethodName
+        ),
+        asyncRPCClient.mkContext(CONTROLLER)
+      )
+      .map { resp =>
+        resp.returns.map { x =>
+          val workerId = ActorVirtualIdentity(x._1)
           workflowExecution
             .getRegionExecution(region.id)
-            .getOperatorExecution(opId)
-            .getWorkerIds
-            .map { workerId =>
-              asyncRPCClient.workerInterface
-                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
-                .map(resp =>
-                  // update worker state
-                  workflowExecution
-                    .getRegionExecution(region.id)
-                    .getOperatorExecution(opId)
-                    .getWorkerExecution(workerId)
-                    .setState(resp.state)
-                )
-            }
-        }
-        .toSeq
-    )
+            .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+            .getWorkerExecution(workerId)
+            .setState(x._2.asInstanceOf[WorkerStateResponse].state)
+        }.toSeq
+      }
+      asyncRPCClient.controllerInterface
+        .propagateChannelMarker(
+          PropagateChannelMarkerRequest(
+            region.getSourceOperators.map(_.id).toSeq,
+            ChannelMarkerIdentity("end"),
+            REQUIRE_ALIGNMENT,
+            region.getOperators.map(_.id).toSeq,
+            region.getOperators.map(_.id).toSeq,
+            EmptyRequest(),
+            METHOD_END_WORKER.getBareMethodName
+          ),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
+      response
   }
 
   private def createOutputPortStorageObjects(
@@ -285,5 +300,4 @@ class RegionExecutionCoordinator(
         }
     }
   }
-
 }
