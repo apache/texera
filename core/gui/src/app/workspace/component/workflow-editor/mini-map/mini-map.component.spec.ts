@@ -8,9 +8,11 @@ import { StubOperatorMetadataService } from "../../../service/operator-metadata/
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
+import { DragDropModule } from "@angular/cdk/drag-drop";
 
 describe("MiniMapComponent", () => {
   let fixture: ComponentFixture<MiniMapComponent>;
+
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [MiniMapComponent, WorkflowEditorComponent],
@@ -24,7 +26,7 @@ describe("MiniMapComponent", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, DragDropModule],
     }).compileComponents();
   }));
 

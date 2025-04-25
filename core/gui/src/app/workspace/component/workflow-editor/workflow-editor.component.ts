@@ -146,6 +146,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePointerEvents();
     this.handleURLFragment();
     this.invokeResize();
+    this.handleCenterEvent();
   }
 
   ngOnDestroy(): void {
@@ -1287,5 +1288,30 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       window.dispatchEvent(resizeEvent);
     }, 175);
+  }
+
+  /**
+   * Handles the center event triggered from the group
+   */
+  private handleCenterEvent(): void {
+    const CENTER_OFFSET_RATIO = 0.15; // Offset ratio used to leave margin when centering
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCenterEventStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.calculateTopLeftOperatorPosition();
+
+        const centerCoord = this.workflowActionService.getCenterPoint();
+        const offsetX = this.editor.offsetWidth * CENTER_OFFSET_RATIO;
+        const offsetY = this.editor.offsetHeight * CENTER_OFFSET_RATIO;
+
+        const targetCoord = {
+          x: centerCoord.x - offsetX,
+          y: centerCoord.y - offsetY,
+        };
+
+        this.paper.translate(-targetCoord.x, -targetCoord.y);
+      });
   }
 }
