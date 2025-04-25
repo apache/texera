@@ -93,7 +93,7 @@ class GmailResource {
          |
          |${emailMessage.receiver}
          |
-         |Thanks,
+         |Thanks!
          |""".stripMargin
 
     sendEmail(
