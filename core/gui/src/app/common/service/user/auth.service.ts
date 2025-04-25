@@ -113,7 +113,7 @@ export class AuthService {
     const email = this.jwtHelperService.decodeToken(token).email;
     if (this.inviteOnly && role == Role.INACTIVE) {
       alert("The account request of " + email + " is received and pending.");
-      this.notifyAdminOfInactiveLoginAttempt(email);
+      this.gmailService.notifyUnauthorizedLogin(email);
       return this.logout();
     }
 
@@ -182,20 +182,5 @@ export class AuthService {
 
   static removeAccessToken(): void {
     localStorage.removeItem(TOKEN_KEY);
-  }
-
-  private notifyAdminOfInactiveLoginAttempt(userEmail: string): void {
-    this.gmailService.getSenderEmail().subscribe({
-      next: (adminEmail: string) => {
-        const title = "Pending account login attempt";
-        const content = `User ${userEmail} attempted to login but is still marked as INACTIVE.`;
-        const receiver = adminEmail;
-
-        this.gmailService.sendEmail(title, content, receiver);
-      },
-      error: (err: unknown) => {
-        console.error("Failed to get sender email:", err);
-      },
-    });
   }
 }
