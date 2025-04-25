@@ -8,6 +8,7 @@ import { startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
+import { GmailService } from "../gmail/gmail.service";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -34,7 +35,8 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private gmailService: GmailService
   ) {}
 
   /**
@@ -111,6 +113,7 @@ export class AuthService {
     const email = this.jwtHelperService.decodeToken(token).email;
     if (this.inviteOnly && role == Role.INACTIVE) {
       alert("The account request of " + email + " is received and pending.");
+      this.gmailService.notifyUnauthorizedLogin(email);
       return this.logout();
     }
 
