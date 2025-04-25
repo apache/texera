@@ -96,9 +96,9 @@ class GmailResource {
          |Thanks,
          |""".stripMargin
 
-      sendEmail(
-        EmailMessage(subject = subject, content = content, receiver = senderGmail),
-        senderGmail
-      )
+    sendEmail(
+      EmailMessage(subject = subject, content = content, receiver = senderGmail),
+      senderGmail
+    )
   }
 }
