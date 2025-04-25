@@ -79,4 +79,26 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/sender/email")
   def getSenderEmail: String = senderGmail
+
+  @POST
+  @Path("/notify-unauthorized")
+  def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
+    val subject = "New Account Request Pending Approval"
+    val content =
+      s"""
+         |Hello Admin,
+         |
+         |A new user has attempted to log in or register, but their account is not yet approved.
+         |Please review the account request for the following email:
+         |
+         |${emailMessage.receiver}
+         |
+         |Thanks,
+         |""".stripMargin
+
+    sendEmail(
+      EmailMessage(subject = subject, content = content, receiver = senderGmail),
+      senderGmail
+    )
+  }
 }
