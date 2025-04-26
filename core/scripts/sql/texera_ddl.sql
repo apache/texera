@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     eid                 SERIAL PRIMARY KEY,
     vid                 INT NOT NULL,
     uid                 INT NOT NULL,
+    cuid                INT,
     status              SMALLINT NOT NULL DEFAULT 1,
     result              TEXT,
     starting_time       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -192,8 +193,9 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     runtime_stats_uri   TEXT,
     runtime_stats_size  INT DEFAULT 0,
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE
+);
 
 -- public_project
 CREATE TABLE IF NOT EXISTS public_project
