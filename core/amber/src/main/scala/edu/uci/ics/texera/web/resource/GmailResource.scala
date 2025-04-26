@@ -2,7 +2,12 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.SessionUser
-import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail}
+import edu.uci.ics.texera.web.resource.GmailResource.{
+  createAdminNotification,
+  createUserNotification,
+  sendEmail,
+  senderGmail
+}
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.RolesAllowed
@@ -63,6 +68,37 @@ object GmailResource {
       case Failure(exception) => Left(s"Failed to send email: ${exception.getMessage}")
     }
   }
+
+  private def createAdminNotification(userEmail: String): EmailMessage = {
+    val subject = "New Account Request Pending Approval"
+    val content =
+      s"""
+         |Hello Admin,
+         |
+         |A new user has attempted to log in or register, but their account is not yet approved.
+         |Please review the account request for the following email:
+         |
+         |$userEmail
+         |
+         |Thanks!
+         |""".stripMargin
+    EmailMessage(subject = subject, content = content, receiver = senderGmail)
+  }
+
+  private def createUserNotification(userEmail: String): EmailMessage = {
+    val subject = "Account Request Received"
+    val content =
+      s"""
+         |Hello,
+         |
+         |Thank you for submitting your account request.
+         |We have received your request and it is currently under review.
+         |Please be patient during this process. You will be notified once your account has been approved.
+         |
+         |Thank you for your interest!
+         |""".stripMargin
+    EmailMessage(subject = subject, content = content, receiver = userEmail)
+  }
 }
 
 @Path("/gmail")
@@ -83,22 +119,7 @@ class GmailResource {
   @POST
   @Path("/notify-unauthorized")
   def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
-    val subject = "New Account Request Pending Approval"
-    val content =
-      s"""
-         |Hello Admin,
-         |
-         |A new user has attempted to log in or register, but their account is not yet approved.
-         |Please review the account request for the following email:
-         |
-         |${emailMessage.receiver}
-         |
-         |Thanks!
-         |""".stripMargin
-
-    sendEmail(
-      EmailMessage(subject = subject, content = content, receiver = senderGmail),
-      senderGmail
-    )
+    sendEmail(createAdminNotification(emailMessage.receiver), senderGmail)
+    sendEmail(createUserNotification(emailMessage.receiver), emailMessage.receiver)
   }
 }
