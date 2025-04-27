@@ -2,11 +2,14 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.resource.EmailTemplate.{
   createAdminNotification,
   createUserNotification
 }
-import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail}
+import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail, userDao}
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.RolesAllowed
@@ -18,6 +21,11 @@ import scala.util.{Failure, Success, Try}
 case class EmailMessage(receiver: String, subject: String, content: String)
 
 object GmailResource {
+  final private lazy val context = SqlServer
+    .getInstance()
+    .createDSLContext()
+  final private lazy val userDao = new UserDao(context.configuration)
+
   private lazy val senderGmail: String = AmberConfig.gmail
   private val smtpProperties = Map(
     "mail.smtp.host" -> "smtp.gmail.com",
@@ -87,10 +95,17 @@ class GmailResource {
   @POST
   @Path("/notify-unauthorized")
   def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
-    sendEmail(
-      createAdminNotification(receiverEmail = senderGmail, userEmail = emailMessage.receiver),
-      senderGmail
-    )
+    val adminUsers = userDao.fetchByRole(UserRoleEnum.ADMIN)
+    val adminUserIterator = adminUsers.iterator()
+
+    while (adminUserIterator.hasNext) {
+      val admin = adminUserIterator.next()
+      sendEmail(
+        createAdminNotification(receiverEmail = admin.getEmail, userEmail = emailMessage.receiver),
+        admin.getEmail
+      )
+    }
+
     sendEmail(createUserNotification(receiverEmail = emailMessage.receiver), emailMessage.receiver)
   }
 }
