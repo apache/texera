@@ -15,7 +15,6 @@ import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
 import scala.util.{Failure, Success, Try}
-import jakarta.ws.rs.core.Response
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 
