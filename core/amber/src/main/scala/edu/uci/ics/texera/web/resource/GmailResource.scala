@@ -2,22 +2,29 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.SessionUser
-import edu.uci.ics.texera.web.resource.EmailTemplate.{
-  createAdminNotification,
-  createUserNotification
-}
-import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, senderGmail}
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.web.resource.EmailTemplate.userRegistrationNotification
+import edu.uci.ics.texera.web.resource.GmailResource.{isValidEmail, sendEmail, senderGmail, userDao}
 import io.dropwizard.auth.Auth
+import org.slf4j.LoggerFactory
 
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
 import scala.util.{Failure, Success, Try}
+import jakarta.ws.rs.core.Response
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 
 object GmailResource {
+  final private lazy val context = SqlServer
+    .getInstance()
+    .createDSLContext()
+  final private lazy val userDao = new UserDao(context.configuration)
+
   private lazy val senderGmail: String = AmberConfig.gmail
   private val smtpProperties = Map(
     "mail.smtp.host" -> "smtp.gmail.com",
@@ -67,6 +74,23 @@ object GmailResource {
       case Failure(exception) => Left(s"Failed to send email: ${exception.getMessage}")
     }
   }
+
+  /**
+    * Validates whether a given email address has a basic correct format.
+    *
+    * This method uses a regular expression to ensure the email:
+    * - Has a valid local part containing letters, numbers, '+', '_', '.', or '-'
+    * - Contains a single '@' character separating the local part and domain
+    * - Has a valid domain containing letters, numbers, '.' or '-'
+    * - Ends with a domain suffix (e.g., '.com', '.net') that is at least two letters long
+    *
+    * @param email the email address to validate
+    * @return true if the email matches the expected format, false otherwise
+    */
+  private def isValidEmail(email: String): Boolean = {
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
+    email != null && emailRegex.matches(email)
+  }
 }
 
 @Path("/gmail")
@@ -87,10 +111,53 @@ class GmailResource {
   @POST
   @Path("/notify-unauthorized")
   def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
-    sendEmail(
-      createAdminNotification(receiverEmail = senderGmail, userEmail = emailMessage.receiver),
-      senderGmail
-    )
-    sendEmail(createUserNotification(receiverEmail = emailMessage.receiver), emailMessage.receiver)
+    val logger = LoggerFactory.getLogger(this.getClass)
+
+    if (!isValidEmail(emailMessage.receiver)) {
+      logger.warn(s"Blocked sending notification to invalid user email: ${emailMessage.receiver}")
+      throw new ForbiddenException("Invalid email address.")
+    }
+
+    val adminUsers = userDao.fetchByRole(UserRoleEnum.ADMIN)
+    val adminUserIterator = adminUsers.iterator()
+
+    while (adminUserIterator.hasNext) {
+      val admin = adminUserIterator.next()
+      val adminEmail = admin.getEmail
+
+      if (isValidEmail(adminEmail)) {
+        try {
+          sendEmail(
+            userRegistrationNotification(
+              receiverEmail = adminEmail,
+              userEmail = Some(emailMessage.receiver),
+              toAdmin = true
+            ),
+            adminEmail
+          )
+        } catch {
+          case ex: Exception =>
+            logger.warn(s"Failed to send email to admin: $adminEmail. Error: ${ex.getMessage}")
+        }
+      } else {
+        logger.warn(s"Skipped invalid admin email: $adminEmail")
+      }
+    }
+
+    try {
+      sendEmail(
+        userRegistrationNotification(
+          receiverEmail = emailMessage.receiver,
+          userEmail = None,
+          toAdmin = false
+        ),
+        emailMessage.receiver
+      )
+    } catch {
+      case ex: Exception =>
+        logger.warn(
+          s"Failed to send notification to user: ${emailMessage.receiver}. Error: ${ex.getMessage}"
+        )
+    }
   }
 }
