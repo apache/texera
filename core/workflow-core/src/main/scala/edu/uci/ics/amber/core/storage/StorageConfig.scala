@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.core.storage
 
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.core.storage.util.ConfigParserUtil.parseS3MultipartPartSize
 import edu.uci.ics.amber.util.PathUtils.corePath
 
 import java.nio.file.Path
@@ -63,6 +64,7 @@ object StorageConfig {
   val s3Region: String = conf.getString("storage.s3.region")
   val s3Username: String = conf.getString("storage.s3.auth.username")
   val s3Password: String = conf.getString("storage.s3.auth.password")
+  val s3partSize: Long = parseS3MultipartPartSize(conf.getString("storage.s3.multipart.part-size"))
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =

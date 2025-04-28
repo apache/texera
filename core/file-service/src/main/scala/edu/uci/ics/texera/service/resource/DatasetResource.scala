@@ -430,75 +430,82 @@ class DatasetResource {
       @Context headers: HttpHeaders,
       @Auth user: SessionUser
   ): Response = {
+    try {
+      val uid = user.getUid
+      withTransaction(context) { ctx =>
+        if (!userHasWriteAccess(ctx, did, uid))
+          throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-    val uid = user.getUid
-    withTransaction(context) { ctx =>
-      if (!userHasWriteAccess(ctx, did, uid))
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+        val dataset = getDatasetByID(ctx, did)
+        val repoName = dataset.getName
+        val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name)
 
-      val dataset = getDatasetByID(ctx, did)
-      val repoName = dataset.getName
-      val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name)
+        // ---------- decide part-size & number-of-parts ----------
+        val declaredLen = Option(headers.getHeaderString(HttpHeaders.CONTENT_LENGTH)).map(_.toLong)
+        var partSize = StorageConfig.s3partSize
 
-      // ---------- decide part-size & number-of-parts ----------
-      val declaredLen = Option(headers.getHeaderString(HttpHeaders.CONTENT_LENGTH)).map(_.toLong)
-      var partSize = 16L * 1024 * 1024 // start with 16 MiB
+        declaredLen.foreach { ln =>
+          val needed = ((ln + partSize - 1) / partSize).toInt
+          if (needed > MAX_S3_PARTS)
+            partSize = math.max(MIN_S3_PART, (ln / (MAX_S3_PARTS - 1)))
+        }
 
-      declaredLen.foreach { ln =>
-        val needed = ((ln + partSize - 1) / partSize).toInt
-        if (needed > MAX_S3_PARTS)
-          partSize = math.max(MIN_S3_PART, (ln / (MAX_S3_PARTS - 1)))
+        val expectedParts = declaredLen
+          .map(ln =>
+            ((ln + partSize - 1) / partSize).toInt + 1
+          ) // “+1” for last (possibly small) part
+          .getOrElse(MAX_S3_PARTS)
+
+        // ---------- ask LakeFS for presigned URLs ----------
+        val presign = LakeFSStorageClient
+          .initiatePresignedMultipartUploads(repoName, filePath, expectedParts)
+        val uploadId = presign.getUploadId
+        val presignedUrls = presign.getPresignedUrls.asScala.iterator
+        val physicalAddress = presign.getPhysicalAddress
+
+        // ---------- stream & upload parts ----------
+        val buf = new Array[Byte](partSize.toInt)
+        var buffered = 0
+        var partNumber = 1
+        val completedParts = ListBuffer[(Int, String)]()
+
+        @inline def flush(): Unit = {
+          if (buffered == 0) return
+          if (!presignedUrls.hasNext)
+            throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
+
+          val etag = put(buf, buffered, presignedUrls.next(), partNumber)
+          completedParts += ((partNumber, etag))
+          partNumber += 1
+          buffered = 0
+        }
+
+        var read = fileStream.read(buf, buffered, buf.length - buffered)
+        while (read != -1) {
+          buffered += read
+          if (buffered == buf.length) flush() // buffer full
+          read = fileStream.read(buf, buffered, buf.length - buffered)
+        }
+        fileStream.close()
+        flush()
+
+        // ---------- complete upload ----------
+        LakeFSStorageClient.completePresignedMultipartUploads(
+          repoName,
+          filePath,
+          uploadId,
+          completedParts.toList,
+          physicalAddress
+        )
+
+        Response.ok(Map("message" -> s"Uploaded $filePath in ${completedParts.size} parts")).build()
       }
-
-      val expectedParts = declaredLen
-        .map(ln =>
-          ((ln + partSize - 1) / partSize).toInt + 1
-        ) // “+1” for last (possibly small) part
-        .getOrElse(MAX_S3_PARTS)
-
-      // ---------- ask LakeFS for presigned URLs ----------
-      val presign = LakeFSStorageClient
-        .initiatePresignedMultipartUploads(repoName, filePath, expectedParts)
-      val uploadId = presign.getUploadId
-      val presignedUrls = presign.getPresignedUrls.asScala.iterator
-      val physicalAddress = presign.getPhysicalAddress
-
-      // ---------- stream & upload parts ----------
-      val buf = new Array[Byte](partSize.toInt)
-      var buffered = 0
-      var partNumber = 1
-      val completedParts = ListBuffer[(Int, String)]()
-
-      @inline def flush(): Unit = {
-        if (buffered == 0) return
-        if (!presignedUrls.hasNext)
-          throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
-
-        val etag = put(buf, buffered, presignedUrls.next(), partNumber)
-        completedParts += ((partNumber, etag))
-        partNumber += 1
-        buffered = 0
-      }
-
-      var read = fileStream.read(buf, buffered, buf.length - buffered)
-      while (read != -1) {
-        buffered += read
-        if (buffered == buf.length) flush() // buffer full
-        read = fileStream.read(buf, buffered, buf.length - buffered)
-      }
-      fileStream.close()
-      flush()
-
-      // ---------- complete upload ----------
-      LakeFSStorageClient.completePresignedMultipartUploads(
-        repoName,
-        filePath,
-        uploadId,
-        completedParts.toList,
-        physicalAddress
-      )
-
-      Response.ok(Map("message" -> s"Uploaded $filePath in ${completedParts.size} parts")).build()
+    } catch {
+      case e: Exception =>
+        throw new WebApplicationException(
+          s"Failed to upload file to dataset: ${e.getMessage}",
+          e
+        )
     }
   }
 
