@@ -117,7 +117,7 @@ export class ComputingUnitStatusService implements OnDestroy {
 
       if (updatedUnit) {
         this.selectedUnitSubject.next(updatedUnit);
-        
+
         // Update isUsingLocalComputingUnit based on the unit type
         this.isUsingLocalComputingUnit = updatedUnit.computingUnit.type === "local";
       } else if (units.length > 0) {
@@ -235,7 +235,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   public selectComputingUnit(unit: DashboardWorkflowComputingUnit): void {
     // Update whether we're using a local computing unit based on the type
     this.isUsingLocalComputingUnit = unit.computingUnit.type === "local";
-    
+
     // First, update the selected unit
     this.selectedUnitSubject.next(unit);
 
@@ -319,13 +319,13 @@ export class ComputingUnitStatusService implements OnDestroy {
     return this.selectedUnitSubject.pipe(
       filter((unit): unit is DashboardWorkflowComputingUnit => !!unit),
       map((unit: DashboardWorkflowComputingUnit) => {
-        if (!unit || unit.metrics.cpuUsage === "NaN" || unit.resourceLimits.cpuLimit === "NaN") {
+        if (!unit || unit.metrics.cpuUsage === "NaN" || unit.computingUnit.resource.cpuLimit === "NaN") {
           return 0;
         }
 
         try {
           const usage = this.parseResourceValue(unit.metrics.cpuUsage);
-          const limit = this.parseResourceValue(unit.resourceLimits.cpuLimit);
+          const limit = this.parseResourceValue(unit.computingUnit.resource.cpuLimit);
           return Math.min(Math.round((usage / limit) * 100), 100);
         } catch (e) {
           return 0;
@@ -339,13 +339,13 @@ export class ComputingUnitStatusService implements OnDestroy {
     return this.selectedUnitSubject.pipe(
       filter((unit): unit is DashboardWorkflowComputingUnit => !!unit),
       map((unit: DashboardWorkflowComputingUnit) => {
-        if (!unit || unit.metrics.memoryUsage === "NaN" || unit.resourceLimits.memoryLimit === "NaN") {
+        if (!unit || unit.metrics.memoryUsage === "NaN" || unit.computingUnit.resource.memoryLimit === "NaN") {
           return 0;
         }
 
         try {
           const usage = this.parseResourceValue(unit.metrics.memoryUsage);
-          const limit = this.parseResourceValue(unit.resourceLimits.memoryLimit);
+          const limit = this.parseResourceValue(unit.computingUnit.resource.memoryLimit);
           return Math.min(Math.round((usage / limit) * 100), 100);
         } catch (e) {
           return 0;
@@ -461,67 +461,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Create a new computing unit with default settings and connect to it
-   */
-  public createAndConnectComputingUnit(): Observable<boolean> {
-    if (!this.workflowIdSubject.value) {
-      return of(false);
-    }
-
-    // Set to creating state
-    this.isCreatingUnitSubject.next(true);
-
-    // Create response subject to track overall process success
-    const processCompleteSubject = new Subject<boolean>();
-
-    // Get the available configurations
-    this.computingUnitService
-      .getComputingUnitLimitOptions()
-      .pipe(
-        mergeMap(({ cpuLimitOptions, memoryLimitOptions }) => {
-          const defaultCpu = cpuLimitOptions[0] || "1";
-          const defaultMemory = memoryLimitOptions[0] || "1Gi";
-          const workflowId = this.workflowIdSubject.value;
-          const unitName = workflowId ? `Workflow ${workflowId} Unit` : "Default Unit";
-
-          // Create the computing unit
-          return this.computingUnitService.createComputingUnit(unitName, defaultCpu, defaultMemory);
-        }),
-        catchError((err: unknown) => {
-          this.isCreatingUnitSubject.next(false);
-          this.notificationService.error(`Failed to create computing unit: ${err}`);
-          processCompleteSubject.next(false);
-          return of(null);
-        }),
-        untilDestroyed(this)
-      )
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit | null) => {
-          // Reset creation state
-          this.isCreatingUnitSubject.next(false);
-
-          if (unit) {
-            // Connect to the newly created unit
-            this.connectToComputingUnit(unit)
-              .pipe(untilDestroyed(this))
-              .subscribe(connected => {
-                processCompleteSubject.next(connected);
-              });
-          } else {
-            processCompleteSubject.next(false);
-          }
-        },
-        error: (err: unknown) => {
-          this.isCreatingUnitSubject.next(false);
-          this.notificationService.error(`Failed to create computing unit: ${err}`);
-          processCompleteSubject.next(false);
-        },
-      });
-
-    return processCompleteSubject.asObservable();
-  }
-
-  /**
    * Connect to a specific computing unit
    * @param unit The computing unit to connect to
    * @returns An observable that emits true when connected, false on failure
@@ -600,15 +539,6 @@ export class ComputingUnitStatusService implements OnDestroy {
       unit.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : unit
     );
     this.allUnitsSubject.next(updatedUnitsList);
-  }
-
-  /**
-   * Create a computing unit and connect to it (no auto-run)
-   * @returns Observable<boolean> that emits true when the unit is connected and ready
-   */
-  public createAndConnect(): Observable<boolean> {
-    // Create and connect to a computing unit
-    return this.createAndConnectComputingUnit();
   }
 
   /**

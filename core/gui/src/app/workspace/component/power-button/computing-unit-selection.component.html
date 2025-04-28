@@ -21,7 +21,7 @@
   class="computing-units-selection"
   [ngClass]="{ 'metrics-visible': isComputingUnitRunning() }">
   <div
-    *ngIf="isComputingUnitRunning()"
+    *ngIf="isComputingUnitRunning() && selectedComputingUnit && selectedComputingUnit.computingUnit.type !== 'local'"
     nz-button
     nz-popover
     [nzPopoverContent]="selectedComputingUnit ? metricsTemplate : undefined"

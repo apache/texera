@@ -362,7 +362,7 @@
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected) || displayParticularWorkflowVersion"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit) || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
           nzType="primary">

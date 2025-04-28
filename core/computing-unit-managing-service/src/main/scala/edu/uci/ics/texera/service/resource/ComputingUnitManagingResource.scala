@@ -26,6 +26,8 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import edu.uci.ics.texera.service.ComputingUnitConfig
 import edu.uci.ics.texera.service.KubernetesConfig
 import edu.uci.ics.texera.service.KubernetesConfig.{
   cpuLimitOptions,
@@ -42,6 +44,7 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.jooq.DSLContext
 
 import java.sql.Timestamp
+import play.api.libs.json._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object ComputingUnitManagingResource {
@@ -80,13 +83,6 @@ object ComputingUnitManagingResource {
       .get
   )
 
-  def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
-    val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
-
-    Option(computingUnitDao.fetchOneByCuid(cuid))
-      .exists(_.getUid == uid)
-  }
-
   case class WorkflowComputingUnitCreationParams(
       name: String,
       unitType: String,
@@ -110,10 +106,8 @@ object ComputingUnitManagingResource {
 
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
-      uri: String,
       status: String,
-      metrics: WorkflowComputingUnitMetrics,
-      resourceLimits: WorkflowComputingUnitResourceLimit
+      metrics: WorkflowComputingUnitMetrics
   )
 
   case class ComputingUnitLimitOptionsResponse(
@@ -131,26 +125,72 @@ object ComputingUnitManagingResource {
 @Path("/computing-unit")
 class ComputingUnitManagingResource {
 
-  private def getComputingUnitMetrics(cuid: Int): WorkflowComputingUnitMetrics = {
-    val metrics: Map[String, String] = KubernetesClient.getPodMetrics(cuid)
+  private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
+    val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
+    val unit = wcDao.fetchOneByCuid(cuid)
 
-    WorkflowComputingUnitMetrics(
-      metrics.getOrElse("cpu", ""),
-      metrics.getOrElse("memory", "")
-    )
+    if (unit == null) {
+      throw new NotFoundException(s"Computing unit with cuid=$cuid does not exist.")
+    }
+    unit
   }
 
-  private def getComputingUnitResourceLimit(cuid: Int): WorkflowComputingUnitResourceLimit = {
-    val podLimits: Map[String, String] = KubernetesClient.getPodLimits(cuid)
+  private def userOwnComputingUnit(ctx: DSLContext, cuid: Integer, uid: Integer): Boolean = {
+    getComputingUnitByCuid(ctx, cuid).getUid == uid
+  }
 
-    // Get GPU value by finding the exact configured resource key
-    val gpuValue = podLimits.getOrElse(KubernetesConfig.gpuResourceKey, "0")
+  private def getSupportedComputingUnitTypes(): List[String] = {
+    val allTypes = WorkflowComputingUnitTypeEnum.values().map(_.getLiteral).toList
+    allTypes.filter {
+      case "local"      => ComputingUnitConfig.localComputingUnitEnabled
+      case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
+      case _            => false // Any unknown types are disabled by default
+    }
+  }
 
-    WorkflowComputingUnitResourceLimit(
-      podLimits.getOrElse("cpu", ""),
-      podLimits.getOrElse("memory", ""),
-      gpuValue
-    )
+  private def getComputingUnitStatus(unit: WorkflowComputingUnit): String = {
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local => "Running"
+      case WorkflowComputingUnitTypeEnum.kubernetes =>
+        val pod = KubernetesClient.getPodByName(KubernetesClient.generatePodName(unit.getCuid))
+        pod.map(_.getStatus.getPhase).getOrElse("Unknown")
+      case _ => "Unknown"
+    }
+  }
+
+  private def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local =>
+        WorkflowComputingUnitMetrics("NaN", "NaN")
+      case WorkflowComputingUnitTypeEnum.kubernetes =>
+        val metrics = KubernetesClient.getPodMetrics(unit.getCuid)
+        WorkflowComputingUnitMetrics(
+          metrics.getOrElse("cpu", ""),
+          metrics.getOrElse("memory", "")
+        )
+      case _ =>
+        WorkflowComputingUnitMetrics("NaN", "NaN")
+    }
+  }
+
+  private def getComputingUnitResourceLimit(
+      unit: WorkflowComputingUnit
+  ): WorkflowComputingUnitResourceLimit = {
+    unit.getType match {
+      case WorkflowComputingUnitTypeEnum.local =>
+        WorkflowComputingUnitResourceLimit("NaN", "NaN", "NaN")
+      case WorkflowComputingUnitTypeEnum.kubernetes =>
+        val podLimits: Map[String, String] = KubernetesClient.getPodLimits(unit.getCuid)
+
+        // Get GPU value by finding the exact configured resource key
+        val gpuValue = podLimits.getOrElse(KubernetesConfig.gpuResourceKey, "0")
+
+        WorkflowComputingUnitResourceLimit(
+          podLimits("cpu"),
+          podLimits("memory"),
+          gpuValue
+        )
+    }
   }
 
   @GET
@@ -162,6 +202,14 @@ class ComputingUnitManagingResource {
   ): ComputingUnitLimitOptionsResponse = {
     ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions, gpuLimitOptions)
   }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/types")
+  def getComputingUnitTypes(
+      @Auth user: SessionUser
+  ): ComputingUnitTypesResponse = ComputingUnitTypesResponse(getSupportedComputingUnitTypes())
 
   /**
     * Create a new pod for the given user ID.
@@ -181,18 +229,15 @@ class ComputingUnitManagingResource {
     if (param.name.trim.isEmpty) {
       throw new ForbiddenException("Computing unit name cannot be empty.")
     }
-    
-    // Import necessary types
-    import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-    
+
     // Validate the unit type
-    val validTypes = WorkflowComputingUnitTypeEnum.values().map(_.getLiteral).toList
-    if (!validTypes.contains(param.unitType)) {
+    if (!getSupportedComputingUnitTypes().contains(param.unitType)) {
       throw new ForbiddenException(
-        s"Unit type '${param.unitType}' is not allowed. Valid options: ${validTypes.mkString(", ")}"
+        s"Unit type '${param.unitType}' is not allowed. Valid options: ${getSupportedComputingUnitTypes()
+          .mkString(", ")}"
       )
     }
-    
+
     // For Kubernetes computing units, validate resource limits
     if (param.unitType == "kubernetes") {
       if (!cpuLimitOptions.contains(param.cpuLimit)) {
@@ -239,81 +284,87 @@ class ComputingUnitManagingResource {
       }
     }
 
-    try {
-      withTransaction(context) { ctx =>
-        val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
+    withTransaction(context) { ctx =>
+      val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
-        val units = wcDao
-          .fetchByUid(user.getUid)
-          .filter(_.getTerminateTime == null) // Filter out terminated units
+      val units = wcDao
+        .fetchByUid(user.getUid)
+        .filter(_.getTerminateTime == null) // Filter out terminated units
 
-        if (units.size >= maxNumOfRunningComputingUnitsPerUser && param.unitType == "kubernetes") {
-          throw new BadRequestException(
-            s"You can only have at most ${maxNumOfRunningComputingUnitsPerUser} running at the same time"
-          )
-        }
-
-        val computingUnit = new WorkflowComputingUnit()
-        val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
-        computingUnit.setUid(user.getUid)
-        computingUnit.setName(param.name)
-        computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
-        computingUnit.setType(WorkflowComputingUnitTypeEnum.lookupLiteral(param.unitType))
-        
-        // Set URI for local computing units
-        if (param.unitType == "local" && param.uri.isDefined) {
-          computingUnit.setUri(param.uri.get)
-        }
-        
-        // Insert using the DAO
-        wcDao.insert(computingUnit)
-
-        // Retrieve the generated CUID
-        val cuid = ctx.lastID().intValue()
-        val insertedUnit = wcDao.fetchOneByCuid(cuid)
-
-        // Handle based on computing unit type
-        val pod = if (param.unitType == "kubernetes") {
-          // Create the pod with the generated CUID for kubernetes units
-          Some(KubernetesClient.createPod(
-            cuid,
-            param.cpuLimit,
-            param.memoryLimit, 
-            param.gpuLimit,
-            computingUnitEnvironmentVariables ++ Map(
-              EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
-              EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-            )
-          ))
-        } else {
-          None
-        }
-
-        // Return the dashboard response
-        DashboardWorkflowComputingUnit(
-          insertedUnit,
-          param.unitType match {
-            case "kubernetes" => KubernetesClient.generatePodURI(cuid)
-            case "local" => param.uri.getOrElse("http://localhost:8085")
-            case _ => KubernetesClient.generatePodURI(cuid)
-          },
-          param.unitType match {
-            case "kubernetes" => pod.map(_.getStatus.getPhase).getOrElse("Unknown")
-            case "local" => "Running" // Assume local computing unit is running
-            case _ => "Unknown"
-          },
-          param.unitType match {
-            case "kubernetes" => getComputingUnitMetrics(cuid)
-            case "local" => WorkflowComputingUnitMetrics("NaN", "NaN")
-            case _ => WorkflowComputingUnitMetrics("NaN", "NaN")
-          },
-          param.unitType match {
-            case "kubernetes" => WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit, param.gpuLimit)
-            case "local" => WorkflowComputingUnitResourceLimit("NaN", "NaN", "0")
-            case _ => WorkflowComputingUnitResourceLimit("NaN", "NaN", "0")
-          }
+      if (units.size >= maxNumOfRunningComputingUnitsPerUser && param.unitType == "kubernetes") {
+        throw new BadRequestException(
+          s"You can only have at most ${maxNumOfRunningComputingUnitsPerUser} running at the same time"
         )
       }
+
+      val resourceJson: String = param.unitType match {
+        case "kubernetes" =>
+          Json.stringify(
+            Json.obj(
+              "cpuLimit" -> param.cpuLimit,
+              "memoryLimit" -> param.memoryLimit,
+              "gpuLimit" -> param.gpuLimit,
+              "jvmMemorySize" -> param.jvmMemorySize
+            )
+          )
+        case "local" =>
+          Json.stringify(
+            Json.obj(
+              "cpuLimit" -> "NaN",
+              "memoryLimit" -> "NaN",
+              "gpuLimit" -> "NaN",
+              "jvmMemorySize" -> "NaN"
+            )
+          )
+        case _ => "{}"
+      }
+
+      val computingUnit = new WorkflowComputingUnit()
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
+      computingUnit.setUid(user.getUid)
+      computingUnit.setName(param.name)
+      computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
+      computingUnit.setType(WorkflowComputingUnitTypeEnum.lookupLiteral(param.unitType))
+      computingUnit.setResource(resourceJson)
+
+      // Set URI during initial insert for local only
+      if (param.unitType == "local") {
+        computingUnit.setUri(param.uri.get)
+      } else {
+        computingUnit.setUri("") // placeholder for kubernetes
+      }
+
+      wcDao.insert(computingUnit)
+
+      // Retrieve generated cuid
+      val cuid = ctx.lastID().intValue()
+      val insertedUnit = wcDao.fetchOneByCuid(cuid)
+
+      // if Kubernetes, update the URI
+      if (param.unitType == "kubernetes" && insertedUnit != null) {
+        insertedUnit.setUri(KubernetesClient.generatePodURI(cuid))
+        wcDao.update(insertedUnit)
+      }
+
+      // Handle based on unit type
+      if (param.unitType == "kubernetes") {
+        KubernetesClient.createPod(
+          cuid,
+          param.cpuLimit,
+          param.memoryLimit,
+          param.gpuLimit,
+          computingUnitEnvironmentVariables ++ Map(
+            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
+            EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
+          )
+        )
+      }
+
+      DashboardWorkflowComputingUnit(
+        insertedUnit,
+        getComputingUnitStatus(insertedUnit),
+        getComputingUnitMetrics(insertedUnit)
+      )
     }
   }
 
@@ -338,16 +389,10 @@ class ComputingUnitManagingResource {
         .filter(_.getTerminateTime == null) // Filter out terminated units
 
       units.map { unit =>
-        val cuid = unit.getCuid.intValue()
-        val podName = KubernetesClient.generatePodName(cuid)
-        val pod = KubernetesClient.getPodByName(podName)
-
         DashboardWorkflowComputingUnit(
           computingUnit = unit,
-          uri = KubernetesClient.generatePodURI(cuid),
-          status = pod.map(_.getStatus.getPhase).getOrElse("Unknown"),
-          metrics = getComputingUnitMetrics(cuid),
-          resourceLimits = getComputingUnitResourceLimit(cuid)
+          status = getComputingUnitStatus(unit),
+          metrics = getComputingUnitMetrics(unit)
         )
       }.toList
     }
@@ -356,7 +401,6 @@ class ComputingUnitManagingResource {
   /**
     * Terminate the computing unit's pod based on the pod URI.
     *
-    * @param param The parameters containing the pod URI.
     * @return A response indicating success or failure.
     */
   @DELETE
@@ -375,15 +419,18 @@ class ComputingUnitManagingResource {
         .build()
     }
 
-    KubernetesClient.deletePod(cuid)
-
     // If successful, update the database
     withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val units = cuDao.fetchByCuid(cuid)
+      val unit = getComputingUnitByCuid(ctx, cuid)
 
-      units.forEach(unit => unit.setTerminateTime(new Timestamp(System.currentTimeMillis())))
-      cuDao.update(units)
+      // if the computing unit is kubernetes pod, then kill the pod
+      if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
+        KubernetesClient.deletePod(cuid)
+      }
+
+      unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
+      cuDao.update(unit)
     }
     Response.ok().build()
   }
@@ -405,7 +452,8 @@ class ComputingUnitManagingResource {
     if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
       throw new BadRequestException("User has no access to the computing unit")
     }
-    getComputingUnitMetrics(cuid.toInt)
+    val computingUnit = getComputingUnitByCuid(context, cuid.toInt)
+    getComputingUnitMetrics(computingUnit)
   }
 
   @GET
@@ -419,28 +467,7 @@ class ComputingUnitManagingResource {
     if (!userOwnComputingUnit(context, cuid.toInt, user.getUid)) {
       throw new BadRequestException("User has no access to the computing unit")
     }
-    getComputingUnitResourceLimit(cuid.toInt)
-  }
-
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/types")
-  def getComputingUnitTypes(
-      @Auth user: SessionUser
-  ): ComputingUnitTypesResponse = {
-    import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-    import edu.uci.ics.texera.service.ComputingUnitConfig
-    import edu.uci.ics.texera.service.KubernetesConfig
-    
-    // Filter types based on configuration
-    val allTypes = WorkflowComputingUnitTypeEnum.values().map(_.getLiteral).toList
-    val enabledTypes = allTypes.filter {
-      case "local" => ComputingUnitConfig.localComputingUnitEnabled
-      case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
-      case _ => false // Any unknown types are disabled by default
-    }
-    
-    ComputingUnitTypesResponse(enabledTypes)
+    val computingUnit = getComputingUnitByCuid(context, cuid.toInt)
+    getComputingUnitResourceLimit(computingUnit)
   }
 }

@@ -236,7 +236,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   isSelectedUnit(unit: DashboardWorkflowComputingUnit): boolean {
-    return unit.uri === this.selectedComputingUnit?.uri;
+    return unit.computingUnit.uri === this.selectedComputingUnit?.computingUnit.uri;
   }
 
   // Determines if the GPU selection dropdown should be shown
@@ -332,13 +332,12 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   terminateComputingUnit(cuid: number): void {
     const unit = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid);
 
-    if (!unit || !unit.uri) {
+    if (!unit || !unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");
       return;
     }
 
     const unitName = unit.computingUnit.name;
-    const unitId = this.getComputingUnitId(unit.uri);
     const isTerminatingSelectedUnit = this.selectedComputingUnit?.computingUnit.cuid === cuid;
 
     // Show confirmation modal
@@ -369,7 +368,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
               }
 
               if (success) {
-                this.notificationService.success(`Terminated ${unitId}`);
+                this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
 
                 // Find another running unit to select if needed
                 if (this.selectedComputingUnit === null || isTerminatingSelectedUnit) {
@@ -402,7 +401,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
 
   parseResourceUnit(resource: string): string {
     // check if has a capacity (is a number followed by a unit)
-    if (!resource || resource === "NaN") return "N/A";
+    if (!resource || resource === "NaN") return "NaN";
     const re = /^(\d+(\.\d+)?)([a-zA-Z]*)$/;
     const match = resource.match(re);
     if (match) {
@@ -477,23 +476,23 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   getCurrentComputingUnitCpuUsage(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.cpuUsage : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.cpuUsage : "NaN";
   }
 
   getCurrentComputingUnitMemoryUsage(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.memoryUsage : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.memoryUsage : "NaN";
   }
 
   getCurrentComputingUnitCpuLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.cpuLimit : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.cpuLimit : "NaN";
   }
 
   getCurrentComputingUnitMemoryLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.memoryLimit : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.memoryLimit : "NaN";
   }
 
   getCurrentComputingUnitGpuLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.gpuLimit : "0";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.gpuLimit : "NaN";
   }
 
   /**

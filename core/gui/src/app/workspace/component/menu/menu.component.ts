@@ -365,23 +365,13 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // In cuManager mode with no computing unit, show "Connect" button
+    // no computing unit, show "Connect" button
     if (
       this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
       return {
         text: "Connect",
         icon: "plus-circle",
-        disable: false,
-        onClick: () => this.runWorkflow(),
-      };
-    }
-
-    // In cuManager mode with disconnected computing unit, show "Connect" button
-    if (!this.computingUnitConnected) {
-      return {
-        text: "Connect",
-        icon: "link",
         disable: false,
         onClick: () => this.runWorkflow(),
       };
@@ -803,27 +793,6 @@ export class MenuComponent implements OnInit, OnDestroy {
 
       // Show the existing modal in the ComputingUnitSelectionComponent
       this.computingUnitSelectionComponent.showAddComputeUnitModalVisible();
-      return;
-    }
-
-    // If computing unit manager is enabled and the computing unit is not connected
-    if (!this.computingUnitConnected) {
-      // Update button immediately to show connecting
-      this.applyRunButtonBehavior({
-        text: "Connecting",
-        icon: "loading",
-        disable: true,
-        onClick: () => {},
-      });
-
-      // Create and connect to a computing unit (no auto-run)
-      this.computingUnitStatusService
-        .createAndConnect()
-        .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          // Update the button state after request is initiated
-          this.applyRunButtonBehavior(this.getRunButtonBehavior());
-        });
       return;
     }
 
