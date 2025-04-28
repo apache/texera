@@ -98,6 +98,7 @@ import edu.uci.ics.amber.operator.visualization.scatter3DChart.Scatter3dChartOpD
 import edu.uci.ics.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import edu.uci.ics.amber.operator.visualization.treemap.TreeMapOpDesc
 import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
@@ -197,6 +198,7 @@ trait StateTransferFunc
     new Type(value = classOf[ContinuousErrorBandsOpDesc], name = "ContinuousErrorBands"),
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
+    new Type(value = classOf[TreeMapOpDesc], name = "TreeMap"),
     new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
