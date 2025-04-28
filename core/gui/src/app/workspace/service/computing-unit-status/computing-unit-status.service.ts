@@ -22,7 +22,6 @@ import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of
 import { filter, map, switchMap, tap, take, mergeMap, catchError } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
@@ -86,9 +85,6 @@ export class ComputingUnitStatusService implements OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: units => {
-          // Check if the units include a local computing unit (when cuManager is disabled)
-          this.isUsingLocalComputingUnit = !environment.computingUnitManagerEnabled;
-
           // Update the computing units
           this.updateComputingUnits(units);
         },
@@ -121,12 +117,16 @@ export class ComputingUnitStatusService implements OnDestroy {
 
       if (updatedUnit) {
         this.selectedUnitSubject.next(updatedUnit);
+        
+        // Update isUsingLocalComputingUnit based on the unit type
+        this.isUsingLocalComputingUnit = updatedUnit.computingUnit.type === "local";
       } else if (units.length > 0) {
         // Our selected unit is no longer available, select another one
         this.selectComputingUnit(units[0]);
       } else {
         // No units available
         this.selectedUnitSubject.next(null);
+        this.isUsingLocalComputingUnit = false;
       }
     }
   }
@@ -233,6 +233,9 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Select a computing unit and emit the updated selection
   public selectComputingUnit(unit: DashboardWorkflowComputingUnit): void {
+    // Update whether we're using a local computing unit based on the type
+    this.isUsingLocalComputingUnit = unit.computingUnit.type === "local";
+    
     // First, update the selected unit
     this.selectedUnitSubject.next(unit);
 
@@ -411,11 +414,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.workflowIdSubject.complete();
   }
 
-  // Public API to check if computing unit manager is enabled
-  public isCuManagerEnabled(): boolean {
-    return environment.computingUnitManagerEnabled;
-  }
-
   /**
    * Clear the currently selected computing unit and update connection status
    */
@@ -466,7 +464,7 @@ export class ComputingUnitStatusService implements OnDestroy {
    * Create a new computing unit with default settings and connect to it
    */
   public createAndConnectComputingUnit(): Observable<boolean> {
-    if (!environment.computingUnitManagerEnabled || !this.workflowIdSubject.value) {
+    if (!this.workflowIdSubject.value) {
       return of(false);
     }
 

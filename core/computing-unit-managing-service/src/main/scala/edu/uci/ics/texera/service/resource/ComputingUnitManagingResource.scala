@@ -93,7 +93,8 @@ object ComputingUnitManagingResource {
       cpuLimit: String,
       memoryLimit: String,
       gpuLimit: String,
-      jvmMemorySize: String
+      jvmMemorySize: String,
+      uri: Option[String] = None
   )
 
   case class WorkflowComputingUnitResourceLimit(
@@ -119,6 +120,10 @@ object ComputingUnitManagingResource {
       cpuLimitOptions: List[String],
       memoryLimitOptions: List[String],
       gpuLimitOptions: List[String]
+  )
+
+  case class ComputingUnitTypesResponse(
+      typeOptions: List[String]
   )
 }
 
@@ -176,42 +181,62 @@ class ComputingUnitManagingResource {
     if (param.name.trim.isEmpty) {
       throw new ForbiddenException("Computing unit name cannot be empty.")
     }
-    if (!cpuLimitOptions.contains(param.cpuLimit)) {
+    
+    // Import necessary types
+    import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+    
+    // Validate the unit type
+    val validTypes = WorkflowComputingUnitTypeEnum.values().map(_.getLiteral).toList
+    if (!validTypes.contains(param.unitType)) {
       throw new ForbiddenException(
-        s"CPU quantity '${param.cpuLimit}' is not allowed. Valid options: ${cpuLimitOptions.mkString(", ")}"
+        s"Unit type '${param.unitType}' is not allowed. Valid options: ${validTypes.mkString(", ")}"
       )
     }
-    if (!memoryLimitOptions.contains(param.memoryLimit)) {
-      throw new ForbiddenException(
-        s"Memory quantity '${param.memoryLimit}' is not allowed. Valid options: ${memoryLimitOptions
-          .mkString(", ")}"
-      )
-    }
-    if (!gpuLimitOptions.contains(param.gpuLimit)) {
-      throw new ForbiddenException(
-        s"GPU quantity '${param.gpuLimit}' is not allowed. Valid options: ${gpuLimitOptions
-          .mkString(", ")}"
-      )
-    }
-
-    // Validate JVM memory size against the selected memory limit
-    val jvmMemorySizeValue = param.jvmMemorySize.replaceAll("[^0-9]", "").toInt
-    val memoryLimitValue = {
-      val memValue = param.memoryLimit
-      if (memValue.endsWith("Gi")) {
-        memValue.replaceAll("[^0-9]", "").toInt
-      } else if (memValue.endsWith("Mi")) {
-        memValue.replaceAll("[^0-9]", "").toInt / 1024
-      } else {
-        // Default case, assume value is in GB
-        memValue.replaceAll("[^0-9]", "").toInt
+    
+    // For Kubernetes computing units, validate resource limits
+    if (param.unitType == "kubernetes") {
+      if (!cpuLimitOptions.contains(param.cpuLimit)) {
+        throw new ForbiddenException(
+          s"CPU quantity '${param.cpuLimit}' is not allowed. Valid options: ${cpuLimitOptions.mkString(", ")}"
+        )
       }
-    }
+      if (!memoryLimitOptions.contains(param.memoryLimit)) {
+        throw new ForbiddenException(
+          s"Memory quantity '${param.memoryLimit}' is not allowed. Valid options: ${memoryLimitOptions
+            .mkString(", ")}"
+        )
+      }
+      if (!gpuLimitOptions.contains(param.gpuLimit)) {
+        throw new ForbiddenException(
+          s"GPU quantity '${param.gpuLimit}' is not allowed. Valid options: ${gpuLimitOptions
+            .mkString(", ")}"
+        )
+      }
 
-    if (jvmMemorySizeValue > memoryLimitValue) {
-      throw new ForbiddenException(
-        s"JVM memory size (${param.jvmMemorySize}) cannot exceed the total memory limit (${param.memoryLimit})"
-      )
+      // Validate JVM memory size against the selected memory limit
+      val jvmMemorySizeValue = param.jvmMemorySize.replaceAll("[^0-9]", "").toInt
+      val memoryLimitValue = {
+        val memValue = param.memoryLimit
+        if (memValue.endsWith("Gi")) {
+          memValue.replaceAll("[^0-9]", "").toInt
+        } else if (memValue.endsWith("Mi")) {
+          memValue.replaceAll("[^0-9]", "").toInt / 1024
+        } else {
+          // Default case, assume value is in GB
+          memValue.replaceAll("[^0-9]", "").toInt
+        }
+      }
+
+      if (jvmMemorySizeValue > memoryLimitValue) {
+        throw new ForbiddenException(
+          s"JVM memory size (${param.jvmMemorySize}) cannot exceed the total memory limit (${param.memoryLimit})"
+        )
+      }
+    } else if (param.unitType == "local") {
+      // For local computing units, validate URI
+      if (param.uri.isEmpty || param.uri.get.trim.isEmpty) {
+        throw new ForbiddenException("URI is required for local computing units")
+      }
     }
 
     try {
@@ -222,7 +247,7 @@ class ComputingUnitManagingResource {
           .fetchByUid(user.getUid)
           .filter(_.getTerminateTime == null) // Filter out terminated units
 
-        if (units.size >= maxNumOfRunningComputingUnitsPerUser) {
+        if (units.size >= maxNumOfRunningComputingUnitsPerUser && param.unitType == "kubernetes") {
           throw new BadRequestException(
             s"You can only have at most ${maxNumOfRunningComputingUnitsPerUser} running at the same time"
           )
@@ -233,7 +258,13 @@ class ComputingUnitManagingResource {
         computingUnit.setUid(user.getUid)
         computingUnit.setName(param.name)
         computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
-
+        computingUnit.setType(WorkflowComputingUnitTypeEnum.lookupLiteral(param.unitType))
+        
+        // Set URI for local computing units
+        if (param.unitType == "local" && param.uri.isDefined) {
+          computingUnit.setUri(param.uri.get)
+        }
+        
         // Insert using the DAO
         wcDao.insert(computingUnit)
 
@@ -241,25 +272,46 @@ class ComputingUnitManagingResource {
         val cuid = ctx.lastID().intValue()
         val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
-        // Create the pod with the generated CUID
-        val pod = KubernetesClient.createPod(
-          cuid,
-          param.cpuLimit,
-          param.memoryLimit,
-          param.gpuLimit,
-          computingUnitEnvironmentVariables ++ Map(
-            EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
-            EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-          )
-        )
+        // Handle based on computing unit type
+        val pod = if (param.unitType == "kubernetes") {
+          // Create the pod with the generated CUID for kubernetes units
+          Some(KubernetesClient.createPod(
+            cuid,
+            param.cpuLimit,
+            param.memoryLimit, 
+            param.gpuLimit,
+            computingUnitEnvironmentVariables ++ Map(
+              EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
+              EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
+            )
+          ))
+        } else {
+          None
+        }
 
         // Return the dashboard response
         DashboardWorkflowComputingUnit(
           insertedUnit,
-          KubernetesClient.generatePodURI(cuid),
-          pod.getStatus.getPhase,
-          getComputingUnitMetrics(cuid),
-          WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit, param.gpuLimit)
+          param.unitType match {
+            case "kubernetes" => KubernetesClient.generatePodURI(cuid)
+            case "local" => param.uri.getOrElse("http://localhost:8085")
+            case _ => KubernetesClient.generatePodURI(cuid)
+          },
+          param.unitType match {
+            case "kubernetes" => pod.map(_.getStatus.getPhase).getOrElse("Unknown")
+            case "local" => "Running" // Assume local computing unit is running
+            case _ => "Unknown"
+          },
+          param.unitType match {
+            case "kubernetes" => getComputingUnitMetrics(cuid)
+            case "local" => WorkflowComputingUnitMetrics("NaN", "NaN")
+            case _ => WorkflowComputingUnitMetrics("NaN", "NaN")
+          },
+          param.unitType match {
+            case "kubernetes" => WorkflowComputingUnitResourceLimit(param.cpuLimit, param.memoryLimit, param.gpuLimit)
+            case "local" => WorkflowComputingUnitResourceLimit("NaN", "NaN", "0")
+            case _ => WorkflowComputingUnitResourceLimit("NaN", "NaN", "0")
+          }
         )
       }
     }
@@ -368,5 +420,27 @@ class ComputingUnitManagingResource {
       throw new BadRequestException("User has no access to the computing unit")
     }
     getComputingUnitResourceLimit(cuid.toInt)
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/types")
+  def getComputingUnitTypes(
+      @Auth user: SessionUser
+  ): ComputingUnitTypesResponse = {
+    import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+    import edu.uci.ics.texera.service.ComputingUnitConfig
+    import edu.uci.ics.texera.service.KubernetesConfig
+    
+    // Filter types based on configuration
+    val allTypes = WorkflowComputingUnitTypeEnum.values().map(_.getLiteral).toList
+    val enabledTypes = allTypes.filter {
+      case "local" => ComputingUnitConfig.localComputingUnitEnabled
+      case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
+      case _ => false // Any unknown types are disabled by default
+    }
+    
+    ComputingUnitTypesResponse(enabledTypes)
   }
 }

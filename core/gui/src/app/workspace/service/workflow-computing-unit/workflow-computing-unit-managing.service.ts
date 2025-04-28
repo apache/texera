@@ -19,15 +19,15 @@
 
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { Observable, of } from "rxjs";
+import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
-import { environment } from "../../../../environments/environment";
 import { assert } from "../../../common/util/assert";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
+export const COMPUTING_UNIT_TYPES_URL = `${COMPUTING_UNIT_BASE_URL}/types`;
 
 @Injectable({
   providedIn: "root",
@@ -42,7 +42,7 @@ export class WorkflowComputingUnitManagingService {
    * @param memoryLimit The memory resource limit for the computing unit.
    * @param gpuLimit The gpu resource limit for the computing unit.
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
-   * @param unitType
+   * @param unitType The type of computing unit (e.g. "local", "kubernetes")
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createComputingUnit(
@@ -51,9 +51,62 @@ export class WorkflowComputingUnitManagingService {
     memoryLimit: string,
     gpuLimit: string = "0",
     jvmMemorySize: string = "1G",
-    unitType: string = "k8s_pod"
+    unitType: string = "kubernetes"
   ): Observable<DashboardWorkflowComputingUnit> {
     const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, unitType };
+
+    return this.http.post<DashboardWorkflowComputingUnit>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,
+      body
+    );
+  }
+
+  /**
+   * Create a new Kubernetes-based workflow computing unit.
+   * 
+   * @param name The name for the computing unit.
+   * @param cpuLimit The cpu resource limit for the computing unit.
+   * @param memoryLimit The memory resource limit for the computing unit.
+   * @param gpuLimit The gpu resource limit for the computing unit.
+   * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
+   * @returns An Observable of the created WorkflowComputingUnit.
+   */
+  public createKubernetesBasedComputingUnit(
+    name: string,
+    cpuLimit: string,
+    memoryLimit: string,
+    gpuLimit: string = "0",
+    jvmMemorySize: string = "1G"
+  ): Observable<DashboardWorkflowComputingUnit> {
+    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, "kubernetes");
+  }
+
+  /**
+   * Create a new local workflow computing unit.
+   * 
+   * @param uri The URI of the local computing unit (default: http://localhost:8085).
+   * @returns An Observable of the created WorkflowComputingUnit.
+   */
+  public createLocalComputingUnit(
+    uri: string = "http://localhost:8085",
+  ): Observable<DashboardWorkflowComputingUnit> {
+    const name = "Local Computing Unit";
+    // Default resources (will be ignored for local computing units)
+    const cpuLimit = "1";
+    const memoryLimit = "1Gi";
+    const gpuLimit = "0";
+    const jvmMemorySize = "1G";
+    
+    // Additional information for local units
+    const body = { 
+      name, 
+      cpuLimit, 
+      memoryLimit, 
+      gpuLimit, 
+      jvmMemorySize, 
+      unitType: "local",
+      uri 
+    };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
       `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,
@@ -67,8 +120,6 @@ export class WorkflowComputingUnitManagingService {
    * @param cuid
    */
   public terminateComputingUnit(cuid: number): Observable<Response> {
-    assert(environment.computingUnitManagerEnabled, "computing unit manage is disabled.");
-
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/terminate`);
   }
 
@@ -89,38 +140,24 @@ export class WorkflowComputingUnitManagingService {
   }
 
   /**
+   * Fetch the list of supported computing unit types.
+   * @returns An Observable containing the available computing unit types.
+   */
+  public getComputingUnitTypes(): Observable<{
+    typeOptions: string[];
+  }> {
+    return this.http.get<{
+      typeOptions: string[];
+    }>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_TYPES_URL}`);
+  }
+
+  /**
    * List all active computing units.
    * @returns An Observable of a list of WorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    if (environment.computingUnitManagerEnabled) {
-      return this.http.get<DashboardWorkflowComputingUnit[]>(
-        `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`
-      );
-    } else {
-      // Create a default single WorkflowComputingUnit
-      const defaultComputingUnit: DashboardWorkflowComputingUnit = {
-        computingUnit: {
-          cuid: 1,
-          uid: 1,
-          name: "Local Computing Unit",
-          creationTime: Date.now(),
-          terminateTime: undefined,
-        },
-        uri: "http://localhost:8085",
-        status: "Running",
-        metrics: {
-          cpuUsage: "NaN",
-          memoryUsage: "NaN",
-        },
-        resourceLimits: {
-          cpuLimit: "NaN",
-          memoryLimit: "NaN",
-          gpuLimit: "0",
-        },
-      };
-
-      return of([defaultComputingUnit]);
-    }
+    return this.http.get<DashboardWorkflowComputingUnit[]>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`
+    );
   }
 }

@@ -354,7 +354,6 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // This handles the case where a unit exists but we're not connected to it
     if (
-      environment.computingUnitManagerEnabled &&
       this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
       !this.computingUnitConnected
     ) {
@@ -368,7 +367,6 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // In cuManager mode with no computing unit, show "Connect" button
     if (
-      environment.computingUnitManagerEnabled &&
       this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
       return {
@@ -380,7 +378,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // In cuManager mode with disconnected computing unit, show "Connect" button
-    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+    if (!this.computingUnitConnected) {
       return {
         text: "Connect",
         icon: "link",
@@ -793,7 +791,6 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // If computing unit manager is enabled and no computing unit is selected
     if (
-      environment.computingUnitManagerEnabled &&
       this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
     ) {
       // Create a default name based on the workflow name
@@ -810,7 +807,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // If computing unit manager is enabled and the computing unit is not connected
-    if (environment.computingUnitManagerEnabled && !this.computingUnitConnected) {
+    if (!this.computingUnitConnected) {
       // Update button immediately to show connecting
       this.applyRunButtonBehavior({
         text: "Connecting",

@@ -27,7 +27,6 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { environment } from "../../../../environments/environment";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -53,6 +52,9 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   selectedCpu: string = "";
   selectedGpu: string = "0"; // Default to no GPU
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
+  selectedComputingUnitType: string = ""; // Selected computing unit type
+  availableComputingUnitTypes: string[] = []; // Available computing unit types
+  localComputingUnitUri: string = "http://localhost:8085"; // URI for local computing unit
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
@@ -79,28 +81,44 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   ) {}
 
   ngOnInit(): void {
-    if (environment.computingUnitManagerEnabled) {
-      this.computingUnitService
-        .getComputingUnitLimitOptions()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
-            this.cpuOptions = cpuLimitOptions;
-            this.memoryOptions = memoryLimitOptions;
-            this.gpuOptions = gpuLimitOptions;
+    // Fetch available computing unit types
+    this.computingUnitService
+      .getComputingUnitTypes()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ typeOptions }) => {
+          this.availableComputingUnitTypes = typeOptions;
+          // Set default selected type if available
+          if (typeOptions.includes("kubernetes")) {
+            this.selectedComputingUnitType = "kubernetes";
+          } else if (typeOptions.length > 0) {
+            this.selectedComputingUnitType = typeOptions[0];
+          }
+        },
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
+      });
 
-            // fallback defaults
-            this.selectedCpu = this.cpuOptions[0] ?? "1";
-            this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-            this.selectedGpu = this.gpuOptions[0] ?? "0";
+    this.computingUnitService
+      .getComputingUnitLimitOptions()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
+          this.cpuOptions = cpuLimitOptions;
+          this.memoryOptions = memoryLimitOptions;
+          this.gpuOptions = gpuLimitOptions;
 
-            // Initialize JVM memory slider based on selected memory
-            this.updateJvmMemorySlider();
-          },
-          error: (err: unknown) =>
-            this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
-        });
-    }
+          // fallback defaults
+          this.selectedCpu = this.cpuOptions[0] ?? "1";
+          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+          this.selectedGpu = this.gpuOptions[0] ?? "0";
+
+          // Initialize JVM memory slider based on selected memory
+          this.updateJvmMemorySlider();
+        },
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
+      });
 
     // Track if user is intentionally terminating a unit
     this.isUserTerminatingUnit = false;
@@ -259,28 +277,52 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
    * Start a new computing unit.
    */
   startComputingUnit(): void {
-    if (this.newComputingUnitName.trim() == "") {
-      this.notificationService.error("Name of the computing unit cannot be empty");
-      return;
-    }
-    const computeUnitName = this.newComputingUnitName;
-    const computeCPU = this.selectedCpu;
-    const computeMemory = this.selectedMemory;
-    const computeGPU = this.selectedGpu;
-    const computeJvmMemory = this.selectedJvmMemorySize;
+    // Validate based on computing unit type
+    if (this.selectedComputingUnitType === "kubernetes") {
+      if (this.newComputingUnitName.trim() == "") {
+        this.notificationService.error("Name of the computing unit cannot be empty");
+        return;
+      }
+      const computeUnitName = this.newComputingUnitName;
+      const computeCPU = this.selectedCpu;
+      const computeMemory = this.selectedMemory;
+      const computeGPU = this.selectedGpu;
+      const computeJvmMemory = this.selectedJvmMemorySize;
 
-    this.computingUnitService
-      .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit) => {
-          this.notificationService.success("Successfully created the new compute unit");
-          // Select the newly created unit
-          this.connectToComputingUnit(unit);
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
-      });
+      this.computingUnitService
+        .createKubernetesBasedComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (unit: DashboardWorkflowComputingUnit) => {
+            this.notificationService.success("Successfully created the new Kubernetes compute unit");
+            // Select the newly created unit
+            this.connectToComputingUnit(unit);
+          },
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to start Kubernetes computing unit: ${extractErrorMessage(err)}`),
+        });
+    } else if (this.selectedComputingUnitType === "local") {
+      // For local computing units, validate the URI
+      if (!this.localComputingUnitUri || this.localComputingUnitUri.trim() === "") {
+        this.notificationService.error("URI for local computing unit cannot be empty");
+        return;
+      }
+
+      this.computingUnitService
+        .createLocalComputingUnit(this.localComputingUnitUri)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (unit: DashboardWorkflowComputingUnit) => {
+            this.notificationService.success("Successfully created the new local compute unit");
+            // Select the newly created unit
+            this.connectToComputingUnit(unit);
+          },
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to start local computing unit: ${extractErrorMessage(err)}`),
+        });
+    } else {
+      this.notificationService.error("Please select a valid computing unit type");
+    }
   }
 
   /**
@@ -715,6 +757,4 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
       this.selectedJvmMemorySize = `${previousJvmMemory}G`;
     }
   }
-
-  protected readonly environment = environment;
 }

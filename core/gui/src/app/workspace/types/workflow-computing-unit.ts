@@ -23,6 +23,7 @@ export interface WorkflowComputingUnit {
   name: string;
   creationTime: number;
   terminateTime: number | undefined;
+  type: "local" | "kubernetes";
 }
 
 export interface WorkflowComputingUnitResourceLimit {
