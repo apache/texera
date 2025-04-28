@@ -5,7 +5,7 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.EmailTemplate.createRoleChangeTemplate
-import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
+import edu.uci.ics.texera.web.resource.GmailResource.{isValidEmail, sendEmail}
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
@@ -53,7 +53,7 @@ class AdminUserResource {
     updatedUser.setComment(user.getComment)
     userDao.update(updatedUser)
 
-    if (roleChanged)
+    if (roleChanged && isValidEmail(updatedUser.getEmail))
       sendEmail(
         createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
         updatedUser.getEmail
