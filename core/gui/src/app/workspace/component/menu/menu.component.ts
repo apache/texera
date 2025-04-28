@@ -353,10 +353,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // This handles the case where a unit exists but we're not connected to it
-    if (
-      this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
-      !this.computingUnitConnected
-    ) {
+    if (this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit && !this.computingUnitConnected) {
       return {
         text: "Connecting",
         icon: "loading",
@@ -366,9 +363,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // no computing unit, show "Connect" button
-    if (
-      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
-    ) {
+    if (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit) {
       return {
         text: "Connect",
         icon: "plus-circle",
@@ -780,9 +775,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // If computing unit manager is enabled and no computing unit is selected
-    if (
-      this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit
-    ) {
+    if (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit) {
       // Create a default name based on the workflow name
       const defaultName = this.currentWorkflowName
         ? `${this.currentWorkflowName}'s Computing Unit`

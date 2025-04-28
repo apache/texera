@@ -408,8 +408,8 @@
           </nz-badge>
           <ng-template #clusterInfo>
             <b
-              >{{(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running))?"Connected":"Disconnected"}} to
-              Computing Unit</b
+              >{{(workflowWebsocketService.isConnected && (computingUnitStatus ===
+              ComputingUnitConnectionState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
             >
             <div *ngIf="workflowWebsocketService.isConnected">
               <div>Computing Unit Status: {{computingUnitStatus}}</div>

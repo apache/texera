@@ -24,13 +24,15 @@ export interface WorkflowComputingUnitResourceLimit {
   jvmMemorySize: string;
 }
 
+export type WorkflowComputingUnitType = "local" | "kubernetes";
+
 export interface WorkflowComputingUnit {
   cuid: number;
   uid: number;
   name: string;
   creationTime: number;
   terminateTime: number | undefined;
-  type: "local" | "kubernetes";
+  type: WorkflowComputingUnitType;
   uri: string;
   resource: WorkflowComputingUnitResourceLimit;
 }

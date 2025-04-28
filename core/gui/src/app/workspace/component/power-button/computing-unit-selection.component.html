@@ -113,7 +113,7 @@
               [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
               nz-tooltip
-              [nzTooltipTitle]="unit.computingUnit.name">
+              [nzTooltipTitle]="unit.computingUnit.uri">
               {{ unit.computingUnit.name }}
               <span
                 *ngIf="unit.status === 'Pending'"
@@ -137,7 +137,7 @@
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
-            [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
+            [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
             (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
             aria-label="Terminate computing unit">
@@ -149,6 +149,7 @@
         nz-menu-divider></li>
       <li
         nz-menu-item
+        *ngIf="!(availableComputingUnitTypes.length === 1 && availableComputingUnitTypes[0] === 'local')"
         (click)="showAddComputeUnitModalVisible()">
         <div class="create-computing-unit">
           <i
@@ -164,7 +165,7 @@
 <!-- Panel for creating the computing unit -->
 <nz-modal
   [nzVisible]="addComputeUnitModalVisible"
-  [nzTitle]="addComputeUnitModalTitle"
+  [nzTitle]="getCreateModalTitle()"
   [nzContent]="addComputeUnitModalContent"
   [nzFooter]="addComputeUnitModalFooter"
   (nzOnCancel)="handleAddComputeUnitModalCancel()">

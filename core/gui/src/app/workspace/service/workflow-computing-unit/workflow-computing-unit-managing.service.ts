@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
 import { assert } from "../../../common/util/assert";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
@@ -63,7 +63,7 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * Create a new Kubernetes-based workflow computing unit.
-   * 
+   *
    * @param name The name for the computing unit.
    * @param cpuLimit The cpu resource limit for the computing unit.
    * @param memoryLimit The memory resource limit for the computing unit.
@@ -83,29 +83,27 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * Create a new local workflow computing unit.
-   * 
+   *
    * @param uri The URI of the local computing unit (default: http://localhost:8085).
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createLocalComputingUnit(
-    uri: string = "http://localhost:8085",
-  ): Observable<DashboardWorkflowComputingUnit> {
+  public createLocalComputingUnit(uri: string = "http://localhost:8085"): Observable<DashboardWorkflowComputingUnit> {
     const name = "Local Computing Unit";
     // Default resources (will be ignored for local computing units)
     const cpuLimit = "1";
     const memoryLimit = "1Gi";
     const gpuLimit = "0";
     const jvmMemorySize = "1G";
-    
+
     // Additional information for local units
-    const body = { 
-      name, 
-      cpuLimit, 
-      memoryLimit, 
-      gpuLimit, 
-      jvmMemorySize, 
+    const body = {
+      name,
+      cpuLimit,
+      memoryLimit,
+      gpuLimit,
+      jvmMemorySize,
       unitType: "local",
-      uri 
+      uri,
     };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
@@ -144,10 +142,10 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable containing the available computing unit types.
    */
   public getComputingUnitTypes(): Observable<{
-    typeOptions: string[];
+    typeOptions: WorkflowComputingUnitType[];
   }> {
     return this.http.get<{
-      typeOptions: string[];
+      typeOptions: WorkflowComputingUnitType[];
     }>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_TYPES_URL}`);
   }
 

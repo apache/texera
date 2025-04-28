@@ -21,7 +21,7 @@ import { Component, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { interval } from "rxjs";
 import { switchMap } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -52,8 +52,8 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   selectedCpu: string = "";
   selectedGpu: string = "0"; // Default to no GPU
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
-  selectedComputingUnitType: string = ""; // Selected computing unit type
-  availableComputingUnitTypes: string[] = []; // Available computing unit types
+  selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
+  availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = "http://localhost:8085"; // URI for local computing unit
 
   // JVM memory slider configuration
@@ -339,15 +339,21 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
 
     const unitName = unit.computingUnit.name;
     const isTerminatingSelectedUnit = this.selectedComputingUnit?.computingUnit.cuid === cuid;
+    const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
+    const templates = this.unitTypeMessageTemplate[unitType];
 
     // Show confirmation modal
     this.modalService.confirm({
-      nzTitle: "Terminate Computing Unit",
-      nzContent: `
-        <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
-        <p style="color: #ff4d4f;"><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>
-      `,
-      nzOkText: "Terminate",
+      nzTitle: templates.terminateTitle,
+      nzContent: templates.terminateWarning
+        ? `
+      <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
+      ${templates.terminateWarning}
+    `
+        : `
+      <p>Are you sure you want to disconnect from <strong>${unitName}</strong>?</p>
+    `,
+      nzOkText: unitType === "local" ? "Disconnect" : "Terminate",
       nzOkType: "primary",
       nzOnOk: () => {
         // Set flag to avoid showing disconnection errors during intentional termination
@@ -756,4 +762,33 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
       this.selectedJvmMemorySize = `${previousJvmMemory}G`;
     }
   }
+
+  getCreateModalTitle(): string {
+    if (!this.selectedComputingUnitType) return "Create Computing Unit";
+    return this.unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
+  }
+
+  unitTypeMessageTemplate = {
+    local: {
+      createTitle: "Connect to a Local Computing Unit",
+      terminateTitle: "Disconnect from Local Computing Unit",
+      terminateWarning: "", // no red warning
+      createSuccess: "Successfully connected to the local computing unit",
+      createFailure: "Failed to connect to the local computing unit",
+      terminateSuccess: "Disconnected from the local computing unit",
+      terminateFailure: "Failed to disconnect from the local computing unit",
+      terminateTooltip: "Disconnect from this computing unit",
+    },
+    kubernetes: {
+      createTitle: "Create Computing Unit",
+      terminateTitle: "Terminate Computing Unit",
+      terminateWarning:
+        "<p style='color: #ff4d4f;'><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>",
+      createSuccess: "Successfully created the Kubernetes computing unit",
+      createFailure: "Failed to create the Kubernetes computing unit",
+      terminateSuccess: "Terminated Kubernetes computing unit",
+      terminateFailure: "Failed to terminate Kubernetes computing unit",
+      terminateTooltip: "Terminate this computing unit",
+    },
+  } as const;
 }

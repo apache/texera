@@ -25,9 +25,7 @@ import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
-import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
-import { ExecutionState } from "../../types/execute-workflow.interface";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -61,13 +59,9 @@ export class ComputingUnitStatusService implements OnDestroy {
   private connectionCheckSubscription: Subscription | null = null;
   private connectionTimeoutTimer: Subscription | null = null;
 
-  // Flag to track if we're using a local computing unit
-  private isUsingLocalComputingUnit: boolean = false;
-
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService,
     private notificationService: NotificationService
   ) {
     // Initialize the service by loading computing units
@@ -117,16 +111,12 @@ export class ComputingUnitStatusService implements OnDestroy {
 
       if (updatedUnit) {
         this.selectedUnitSubject.next(updatedUnit);
-
-        // Update isUsingLocalComputingUnit based on the unit type
-        this.isUsingLocalComputingUnit = updatedUnit.computingUnit.type === "local";
       } else if (units.length > 0) {
         // Our selected unit is no longer available, select another one
         this.selectComputingUnit(units[0]);
       } else {
         // No units available
         this.selectedUnitSubject.next(null);
-        this.isUsingLocalComputingUnit = false;
       }
     }
   }
@@ -197,35 +187,26 @@ export class ComputingUnitStatusService implements OnDestroy {
           // Get current selected unit's CUID
           const selectedCuid = this.selectedUnitSubject.value?.computingUnit.cuid;
 
-          if (this.isUsingLocalComputingUnit) {
-            // In local mode, ensure units show correct status based on connection
-            const modifiedUnits = units.map(unit => ({
-              ...unit,
-              status: isConnected ? "Running" : "Disconnected",
-            }));
-            this.updateComputingUnits(modifiedUnits);
-          } else {
-            // In cuManager mode, handle each unit individually:
-            // - Only mark the selected unit as disconnected when websocket is disconnected
-            // - Keep other units' status as reported by the backend
-            let modifiedUnits = [...units];
+          // In cuManager mode, handle each unit individually:
+          // - Only mark the selected unit as disconnected when websocket is disconnected
+          // - Keep other units' status as reported by the backend
+          let modifiedUnits = [...units];
 
-            // If there's a selected unit and we're not connected
-            if (selectedCuid && !isConnected) {
-              // Only mark the currently selected unit as disconnected
-              modifiedUnits = modifiedUnits.map(unit => {
-                if (unit.computingUnit.cuid === selectedCuid) {
-                  return {
-                    ...unit,
-                    status: "Disconnected",
-                  };
-                }
-                return unit;
-              });
-            }
-
-            this.updateComputingUnits(modifiedUnits);
+          // If there's a selected unit and we're not connected
+          if (selectedCuid && !isConnected) {
+            // Only mark the currently selected unit as disconnected
+            modifiedUnits = modifiedUnits.map(unit => {
+              if (unit.computingUnit.cuid === selectedCuid) {
+                return {
+                  ...unit,
+                  status: "Disconnected",
+                };
+              }
+              return unit;
+            });
           }
+
+          this.updateComputingUnits(modifiedUnits);
         },
         error: (err: unknown) => console.error("Failed to refresh computing units:", err),
       });
@@ -233,9 +214,6 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Select a computing unit and emit the updated selection
   public selectComputingUnit(unit: DashboardWorkflowComputingUnit): void {
-    // Update whether we're using a local computing unit based on the type
-    this.isUsingLocalComputingUnit = unit.computingUnit.type === "local";
-
     // First, update the selected unit
     this.selectedUnitSubject.next(unit);
 
@@ -244,23 +222,6 @@ export class ComputingUnitStatusService implements OnDestroy {
       this.connectedSubject.next(true);
     } else {
       this.connectedSubject.next(false);
-    }
-
-    // If we're in local mode, make sure connection status and unit status match
-    if (this.isUsingLocalComputingUnit) {
-      // Update the status based on connection status
-      const isConnected = this.workflowWebsocketService.isConnected;
-      const updatedUnit = {
-        ...unit,
-        status: isConnected ? "Running" : "Disconnected",
-      };
-      this.selectedUnitSubject.next(updatedUnit);
-
-      // Also update in the all units list
-      const updatedUnitsList = this.allUnitsSubject.value.map(u =>
-        u.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : u
-      );
-      this.allUnitsSubject.next(updatedUnitsList);
     }
   }
 
