@@ -17,7 +17,7 @@
  * under the License.
  */
 
-﻿import { Injectable } from "@angular/core";
+import { Injectable } from "@angular/core";
 import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
 import { UserService } from "./user.service";
 import { environment } from "../../../../environments/environment";
