@@ -89,7 +89,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      */
     public final TableField<WorkflowExecutionsRecord, Boolean> BOOKMARKED = createField(DSL.name("bookmarked"), SQLDataType.BOOLEAN.defaultValue(DSL.field("false", SQLDataType.BOOLEAN)), this, "");
 
-    /** 
+    /**
      * The column <code>texera_db.workflow_executions.name</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false).defaultValue(DSL.field("'Untitled Execution'::character varying", SQLDataType.VARCHAR)), this, "");
