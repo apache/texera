@@ -42,11 +42,13 @@ import edu.uci.ics.texera.service.resource.DatasetResource.{
   getDatasetByID,
   getDatasetVersionByID,
   getLatestDatasetVersion,
-  put,
-  MAX_S3_PARTS,
-  MIN_S3_PART
+  put
 }
 import edu.uci.ics.texera.service.util.S3StorageClient
+import edu.uci.ics.texera.service.util.S3StorageClient.{
+  MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
+  MINIMUM_NUM_OF_MULTIPART_S3_PART
+}
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -65,8 +67,7 @@ import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
 object DatasetResource {
-  private val MIN_S3_PART = 5L * 1024 * 1024 // 5 MiB
-  private val MAX_S3_PARTS = 10_000
+
   private val context = SqlServer
     .getInstance()
     .createDSLContext()
@@ -430,40 +431,55 @@ class DatasetResource {
       @Context headers: HttpHeaders,
       @Auth user: SessionUser
   ): Response = {
+    // These variables are defined at the top so catch block can access them
+    val uid = user.getUid
+    var repoName: String = null
+    var filePath: String = null
+    var uploadId: String = null
+    var physicalAddress: String = null
+
     try {
-      val uid = user.getUid
       withTransaction(context) { ctx =>
         if (!userHasWriteAccess(ctx, did, uid))
           throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
         val dataset = getDatasetByID(ctx, did)
-        val repoName = dataset.getName
-        val filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name)
+        repoName = dataset.getName
+        filePath = URLDecoder.decode(encodedFilePath, StandardCharsets.UTF_8.name)
 
         // ---------- decide part-size & number-of-parts ----------
         val declaredLen = Option(headers.getHeaderString(HttpHeaders.CONTENT_LENGTH)).map(_.toLong)
-        var partSize = StorageConfig.s3partSize
+        var partSize = StorageConfig.s3MultipartUploadPartSize
 
         declaredLen.foreach { ln =>
           val needed = ((ln + partSize - 1) / partSize).toInt
-          if (needed > MAX_S3_PARTS)
-            partSize = math.max(MIN_S3_PART, (ln / (MAX_S3_PARTS - 1)))
+          if (needed > MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
+            partSize = math.max(
+              MINIMUM_NUM_OF_MULTIPART_S3_PART,
+              (ln / (MAXIMUM_NUM_OF_MULTIPART_S3_PARTS - 1))
+            )
         }
 
         val expectedParts = declaredLen
           .map(ln =>
             ((ln + partSize - 1) / partSize).toInt + 1
           ) // “+1” for last (possibly small) part
-          .getOrElse(MAX_S3_PARTS)
+          .getOrElse(MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
 
         // ---------- ask LakeFS for presigned URLs ----------
         val presign = LakeFSStorageClient
           .initiatePresignedMultipartUploads(repoName, filePath, expectedParts)
-        val uploadId = presign.getUploadId
+        uploadId = presign.getUploadId
         val presignedUrls = presign.getPresignedUrls.asScala.iterator
-        val physicalAddress = presign.getPhysicalAddress
+        physicalAddress = presign.getPhysicalAddress
 
         // ---------- stream & upload parts ----------
+        /*
+        1. Reads the input stream in chunks of 'partSize' bytes by stacking them in a buffer
+        2. Uploads each chunk (part) using a presigned URL
+        3. Tracks each part number and ETag returned from S3
+        4. After all parts are uploaded, completes the multipart upload
+         */
         val buf = new Array[Byte](partSize.toInt)
         var buffered = 0
         var partNumber = 1
@@ -502,6 +518,12 @@ class DatasetResource {
       }
     } catch {
       case e: Exception =>
+        LakeFSStorageClient.abortPresignedMultipartUploads(
+          repoName,
+          filePath,
+          uploadId,
+          physicalAddress
+        )
         throw new WebApplicationException(
           s"Failed to upload file to dataset: ${e.getMessage}",
           e

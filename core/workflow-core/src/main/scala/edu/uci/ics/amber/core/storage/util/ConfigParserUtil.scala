@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.core.storage.util
 
 object ConfigParserUtil {
-  def parseS3MultipartPartSize(size: String): Long = {
+  def parseSizeStringToBytes(size: String): Long = {
     val sizePattern = """(\d+)([KMG]B)""".r
     size match {
       case sizePattern(value, unit) =>
