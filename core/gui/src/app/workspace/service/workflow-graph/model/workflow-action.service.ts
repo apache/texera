@@ -73,6 +73,7 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private highlightingEnabled = false;
+  private centerPoint: Point = { x: 0, y: 0 };
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
@@ -155,6 +156,10 @@ export class WorkflowActionService {
    */
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getCenterPoint(): Point {
+    return this.centerPoint;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -347,6 +352,36 @@ export class WorkflowActionService {
           this.texeraGraph.sharedModel.elementPositionMap.set(commentBoxID, newPosition);
         }
       }
+      this.undoRedoService.setListenJointCommand(true);
+    });
+  }
+
+  /**
+   * Calculating the top-left (minimum x and y) position of all operators
+   */
+  public calculateTopLeftOperatorPosition(): void {
+    this.texeraGraph.bundleActions(() => {
+      this.undoRedoService.setListenJointCommand(false);
+      const allOperators = this.getTexeraGraph().getAllOperators();
+      if (allOperators.length === 0) return;
+
+      let minX = Infinity;
+      let minY = Infinity;
+
+      for (const operator of allOperators) {
+        const operatorID = operator.operatorID;
+        const position = this.jointGraphWrapper.getElementPosition(operatorID);
+
+        if (position.x < minX) {
+          minX = position.x;
+        }
+        if (position.y < minY) {
+          minY = position.y;
+        }
+      }
+
+      this.centerPoint = { x: minX, y: minY };
+
       this.undoRedoService.setListenJointCommand(true);
     });
   }

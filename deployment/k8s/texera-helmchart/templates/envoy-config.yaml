@@ -31,6 +31,13 @@ data:
                               route:
                                 cluster: dynamic_service
                                 prefix_rewrite: "/wsapi"
+                                timeout: "0s" # disables timeout
+                            - match:
+                                prefix: "/api/executions"
+                              route:
+                                cluster: dynamic_service
+                                prefix_rewrite: "/api/executions"
+                                timeout: "0s"
                     http_filters:
                       - name: envoy.filters.http.lua
                         typed_config:
@@ -40,7 +47,7 @@ data:
                                 local uri = request_handle:headers():get(":path")
                                 local cuid = string.match(uri, "cuid=(%d+)")
                                 if cuid then
-                                  local new_host = "computing-unit-" .. cuid .. ".workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local:8085"
+                                  local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
                                   request_handle:headers():replace(":authority", new_host)
                                 end
                               end

@@ -14,36 +14,11 @@ object KubernetesClient {
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 
-  def isValidQuantity(q: String): Boolean = {
-    try {
-      new Quantity(q)
-      true
-    } catch {
-      case _: Exception => false
-    }
-  }
-
   def generatePodURI(cuid: Int): String = {
     s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local"
   }
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
-
-  def parseCUIDFromURI(uri: String): Int = {
-    val pattern = """computing-unit-(\d+).*""".r
-    uri match {
-      case pattern(cuid) => cuid.toInt
-      case _             => throw new IllegalArgumentException(s"Invalid pod URI: $uri")
-    }
-  }
-
-  def getPodsList(): List[Pod] = {
-    client.pods().inNamespace(namespace).list().getItems.asScala.toList
-  }
-
-  def getPodsList(label: String): List[Pod] = {
-    client.pods().inNamespace(namespace).withLabel(label).list().getItems.asScala.toList
-  }
 
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
@@ -70,9 +45,11 @@ object KubernetesClient {
     getPodByName(generatePodName(cuid))
       .flatMap { pod =>
         pod.getSpec.getContainers.asScala.headOption.map { container =>
-          container.getResources.getLimits.asScala.map {
+          val limitsMap = container.getResources.getLimits.asScala.map {
             case (key, value) => key -> value.toString
           }.toMap
+
+          limitsMap
         }
       }
       .getOrElse(Map.empty[String, String])
@@ -82,6 +59,7 @@ object KubernetesClient {
       cuid: Int,
       cpuLimit: String,
       memoryLimit: String,
+      gpuLimit: String,
       envVars: Map[String, Any]
   ): Pod = {
     val podName = generatePodName(cuid)
@@ -100,26 +78,47 @@ object KubernetesClient {
       .toList
       .asJava
 
-    val pod = new PodBuilder()
+    // Setup the resource requirements
+    val resourceBuilder = new ResourceRequirementsBuilder()
+      .addToLimits("cpu", new Quantity(cpuLimit))
+      .addToLimits("memory", new Quantity(memoryLimit))
+
+    // Only add GPU resources if the requested amount is greater than 0
+    if (gpuLimit != "0") {
+      // Use the configured GPU resource key directly
+      resourceBuilder.addToLimits(KubernetesConfig.gpuResourceKey, new Quantity(gpuLimit))
+    }
+
+    // Build the pod with metadata
+    val podBuilder = new PodBuilder()
       .withNewMetadata()
       .withName(podName)
       .withNamespace(namespace)
       .addToLabels("type", "computing-unit")
       .addToLabels("cuid", cuid.toString)
       .addToLabels("name", podName)
+
+    // Start building the pod spec
+    val specBuilder = podBuilder
       .endMetadata()
       .withNewSpec()
+
+    // Only add runtimeClassName when using NVIDIA GPU
+    if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
+      specBuilder.withRuntimeClassName("nvidia")
+    }
+
+    // Complete the pod spec
+    val pod = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
+      .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()
       .withEnv(envList)
-      .withNewResources()
-      .addToLimits("cpu", new Quantity(cpuLimit))
-      .addToLimits("memory", new Quantity(memoryLimit))
-      .endResources()
+      .withResources(resourceBuilder.build())
       .endContainer()
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)

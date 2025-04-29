@@ -147,6 +147,7 @@ import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
+import { NzSliderModule } from "ng-zorro-antd/slider";
 import { JupyterUploadSuccessComponent } from "./dashboard/component/user/user-workflow/notebook-migration-tool/notebook-migration.component";
 import { JupyterNotebookPanelComponent } from "./workspace/component/jupyter-notebook-panel/jupyter-notebook-panel.component";
 
@@ -291,6 +292,7 @@ registerLocaleData(en);
     ColorPickerModule,
     NzSwitchModule,
     NzLayoutModule,
+    NzSliderModule,
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,

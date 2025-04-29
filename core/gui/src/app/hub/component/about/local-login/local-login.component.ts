@@ -123,7 +123,9 @@ export class LocalLoginComponent implements OnInit {
         untilDestroyed(this)
       )
       .subscribe(() =>
-        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW)
+        this.notificationService.success(
+          "Your account has been created. Please contact the Texera administrator to activate your account."
+        )
       );
   }
 }
