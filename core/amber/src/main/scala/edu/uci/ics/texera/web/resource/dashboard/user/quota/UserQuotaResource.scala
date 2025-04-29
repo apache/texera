@@ -13,6 +13,7 @@ import edu.uci.ics.texera.web.service.WorkflowService
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer
