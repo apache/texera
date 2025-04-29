@@ -264,8 +264,6 @@ export class UserQuotaComponent implements OnInit {
       .subscribe(() => {
         this.workflows.forEach((workflow, index, array) => {
           const executionToDelete = workflow.executions.find(execution => execution.eid === eid);
-          console.log(eid);
-          console.log(executionToDelete);
           if (executionToDelete) {
             this.totalQuotaSize -=
               executionToDelete.resultBytes + executionToDelete.logBytes + executionToDelete.runTimeStatsBytes;
@@ -279,6 +277,6 @@ export class UserQuotaComponent implements OnInit {
   // alias for formatSize
   formatSize = formatSize;
 
-  public sortByMongoDBSize: NzTableSortFn<ExecutionQuota> = (a: ExecutionQuota, b: ExecutionQuota) =>
+  public sortBySize: NzTableSortFn<ExecutionQuota> = (a: ExecutionQuota, b: ExecutionQuota) =>
     b.resultBytes + b.logBytes + b.runTimeStatsBytes - a.resultBytes - a.logBytes - a.runTimeStatsBytes;
 }

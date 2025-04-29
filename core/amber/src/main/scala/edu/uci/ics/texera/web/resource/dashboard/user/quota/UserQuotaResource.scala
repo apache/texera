@@ -2,8 +2,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
 import edu.uci.ics.amber.core.storage.{DocumentFactory, IcebergCatalogInstance}
-import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
-import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
@@ -53,13 +51,6 @@ object UserQuotaResource {
       size: Long
   )
 
-  case class MongoStorage(
-      workflowName: String,
-      size: Double,
-      pointer: String,
-      eid: Integer
-  )
-
   case class QuotaStorage(
       eid: Integer,
       workflowId: Integer,
@@ -68,45 +59,6 @@ object UserQuotaResource {
       runTimeStatsBytes: Long,
       logBytes: Long
   )
-
-  def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
-    var count = 0
-
-    for (collection <- collectionNames) {
-      val stats: Document = database.runCommand(new Document("collStats", collection.pointer))
-      collectionNames(count) = MongoStorage(
-        collection.workflowName,
-        stats.getInteger("totalSize").toDouble,
-        collection.pointer,
-        collection.eid
-      )
-      count += 1
-    }
-
-    collectionNames
-  }
-
-  def getCollectionName(result: String): String = {
-
-    /**
-      * Get the Collection Name from
-      * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
-      * to
-      * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
-      */
-
-    var quoteCount = 0
-    var name = ""
-    for (chr <- result) {
-      if (chr == '\"') {
-        quoteCount += 1
-      } else if (quoteCount == 3) { // collection name starts from the third quote and ends at the fourth quote.
-        name += chr
-      }
-    }
-
-    name
-  }
 
   def getUserCreatedWorkflow(uid: Integer): List[Workflow] = {
     val userWorkflowEntries = context
@@ -159,79 +111,6 @@ object UserQuotaResource {
       .fetchInto(classOf[Integer])
 
     availableWorkflowIds
-  }
-
-  def getWorkflowExecutions(uid: Integer): util.List[WorkflowExecutions] = {
-    val workflowExecutions = context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.VID,
-        WORKFLOW_EXECUTIONS.UID,
-        WORKFLOW_EXECUTIONS.STATUS,
-        WORKFLOW_EXECUTIONS.RESULT,
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
-        WORKFLOW_EXECUTIONS.BOOKMARKED,
-        WORKFLOW_EXECUTIONS.NAME,
-        WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION,
-        WORKFLOW_EXECUTIONS.LOG_LOCATION,
-        WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI
-      )
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
-      .fetchInto(classOf[WorkflowExecutions])
-
-    workflowExecutions
-  }
-
-  def getOperatorExecutions(eid: Integer): util.List[OperatorExecutions] = {
-    val operatorExecutions = context
-      .select(
-        OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_EXECUTIONS.OPERATOR_ID,
-        OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI
-      )
-      .from(OPERATOR_EXECUTIONS)
-      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-      .fetchInto(classOf[OperatorExecutions])
-
-    operatorExecutions
-  }
-
-  def getOperatorPortExecutions(eid: Integer): util.List[OperatorPortExecutions] = {
-    val operatorPortExecutions = context
-      .select(
-        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_PORT_EXECUTIONS.RESULT_URI
-      )
-      .from(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-      .fetchInto(classOf[OperatorPortExecutions])
-
-    operatorPortExecutions
-  }
-
-  def getWorkflowNameByExecutionId(eid: Integer): String = {
-    context
-      .select(WORKFLOW.NAME)
-      .from(WORKFLOW_EXECUTIONS)
-      .join(WORKFLOW_VERSION)
-      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
-      .join(WORKFLOW)
-      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
-      .fetchOneInto(classOf[String])
-  }
-
-  def getRuntimeStatsSizesByUserId(uid: Integer): List[Integer] = {
-    context
-      .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE)
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
-      .fetch()
-      .asScala
-      .map(r => r.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE))
-      .toList
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
