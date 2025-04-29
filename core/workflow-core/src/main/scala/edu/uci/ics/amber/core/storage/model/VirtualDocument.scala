@@ -118,5 +118,5 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     throw new NotImplementedError("getTableStatistics method is not implemented")
 
   def getTotalFileSize: Long =
-    throw new NotImplementedError("asInputStream method is not implemented")
+    throw new NotImplementedError("getTotalFileSize method is not implemented")
 }
