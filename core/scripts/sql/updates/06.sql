@@ -2,7 +2,6 @@
 
 SET search_path TO texera_db;
 
--- 为 workflow_executions 添加 runtime_stats_size 字段
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -17,7 +16,6 @@ BEGIN
 END
 $$;
 
--- 为 operator_executions 添加 console_messages_size 字段
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -32,7 +30,6 @@ BEGIN
 END
 $$;
 
--- 为 operator_port_executions 添加 result_size 字段
 DO $$
 BEGIN
     IF NOT EXISTS (
