@@ -578,4 +578,11 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     return terminationSubject.asObservable();
   }
+
+  /**
+   * Get the current selected computing unit value synchronously
+   */
+  public getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
+    return this.selectedUnitSubject.value;
+  }
 }
