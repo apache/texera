@@ -241,37 +241,26 @@ export class UserQuotaComponent implements OnInit {
 
         this.mongodbExecutions.forEach(execution => {
           let insert = false;
-          this.totalMongoSize += execution.size;
+          console.log(execution)
+          this.totalMongoSize += execution.resultBytes + execution.runTimeStatsBytes + execution.resultBytes;
 
-          this.mongodbWorkflows.some((workflow, index, array) => {
-            if (workflow.workflowName === execution.workflowName) {
-              array[index].executions.push(execution);
-              insert = true;
-              return;
-            }
-          });
-
-          if (!insert) {
-            let workflow: MongoWorkflow = {
+          let workflow: MongoWorkflow = {
               workflowName: execution.workflowName,
               executions: [] as MongoExecution[],
             };
             workflow.executions.push(execution);
             this.mongodbWorkflows.push(workflow);
-          }
         });
       });
   }
 
-  deleteMongoCollection(collectionName: string, execution: MongoExecution, workflowName: string) {
-    this.UserService.deleteMongoDBCollection(collectionName)
+  deleteMongoCollection(eid: number, execution: MongoExecution) {
+    this.UserService.deleteMongoDBCollection("eid")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.mongodbWorkflows.some((workflow, index, array) => {
-          if (workflow.workflowName === workflowName) {
-            array[index].executions = array[index].executions.filter(e => e !== execution);
-            this.totalMongoSize -= execution.size;
-          }
+          array[index].executions = array[index].executions.filter(e => e !== execution);
+          this.totalMongoSize -= execution.resultBytes + execution.logBytes + execution.runTimeStatsBytes;
         });
       });
   }
@@ -279,5 +268,5 @@ export class UserQuotaComponent implements OnInit {
   // alias for formatSize
   formatSize = formatSize;
 
-  public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;
+  public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.resultBytes + b.logBytes + b.runTimeStatsBytes - a.resultBytes - a.logBytes - a.runTimeStatsBytes;
 }

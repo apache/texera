@@ -17,7 +17,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row12;
+import org.jooq.Row13;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -89,7 +89,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      */
     public final TableField<WorkflowExecutionsRecord, Boolean> BOOKMARKED = createField(DSL.name("bookmarked"), SQLDataType.BOOLEAN.defaultValue(DSL.field("false", SQLDataType.BOOLEAN)), this, "");
 
-    /**
+    /** 
      * The column <code>texera_db.workflow_executions.name</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false).defaultValue(DSL.field("'Untitled Execution'::character varying", SQLDataType.VARCHAR)), this, "");
@@ -109,6 +109,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.runtime_stats_uri</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> RUNTIME_STATS_URI = createField(DSL.name("runtime_stats_uri"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.runtime_stats_size</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, Integer> RUNTIME_STATS_SIZE = createField(DSL.name("runtime_stats_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
 
     private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -216,11 +221,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row12 type methods
+    // Row13 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row12<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String> fieldsRow() {
-        return (Row12) super.fieldsRow();
+    public Row13<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String, Integer> fieldsRow() {
+        return (Row13) super.fieldsRow();
     }
 }

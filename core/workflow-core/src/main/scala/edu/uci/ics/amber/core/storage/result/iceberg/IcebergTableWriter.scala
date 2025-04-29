@@ -48,10 +48,11 @@ private[storage] class IcebergTableWriter[T](
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
   // Load the Iceberg table
-  private val table: Table =
+  private val table: Table = {
     IcebergUtil
       .loadTableMetadata(catalog, tableNamespace, tableName)
       .get
+  }
 
   /**
     * Open the writer and clear the buffer.
@@ -89,9 +90,12 @@ private[storage] class IcebergTableWriter[T](
     if (buffer.nonEmpty) {
       // Create a unique file path using the writer's identifier and the filename index
       val filepath = Paths.get(table.location()).resolve(s"${writerIdentifier}_${filenameIdx}")
+      println("table.location(): " + table.location())
+      println("writerIdentifier: " + writerIdentifier)
       // Increment the filename index by 1
       filenameIdx += 1
       val outputFile: OutputFile = table.io().newOutputFile(filepath.toString)
+      println("outputFile: " + outputFile)
       // Create a Parquet data writer to write a new file
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)

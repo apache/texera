@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     environment_version VARCHAR(128) NOT NULL,
     log_location        TEXT,
     runtime_stats_uri   TEXT,
+    runtime_stats_size  INT DEFAULT 0,
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
@@ -227,6 +228,7 @@ CREATE TABLE IF NOT EXISTS operator_executions
     workflow_execution_id INT NOT NULL,
     operator_id           VARCHAR(100) NOT NULL,
     console_messages_uri  TEXT,
+    console_messages_size INT DEFAULT 0,
     PRIMARY KEY (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
@@ -237,6 +239,7 @@ CREATE TABLE operator_port_executions
     workflow_execution_id INT NOT NULL,
     global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
+    result_size           INT DEFAULT 0,
     PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
 );

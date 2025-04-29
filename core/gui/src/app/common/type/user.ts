@@ -52,10 +52,11 @@ export interface MongoWorkflow {
 
 export interface MongoExecution
   extends Readonly<{
-    workflowName: string;
-    size: number;
-    pointer: string;
     eid: number;
+    workflowName: string;
+    resultBytes: number;
+    runTimeStatsBytes: number;
+    logBytes: number;
   }> {}
 
 /**

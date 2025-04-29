@@ -1,15 +1,33 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
+import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
+import edu.uci.ics.amber.core.storage.{DocumentFactory, IcebergCatalogInstance}
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  OperatorExecutions,
+  OperatorPortExecutions,
+  WorkflowExecutions
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import io.dropwizard.auth.Auth
+import org.apache.iceberg.{BaseTable, Table}
+import edu.uci.ics.amber.util.IcebergUtil
+import edu.uci.ics.texera.web.service.WorkflowService
+import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
+import org.apache.iceberg.exceptions.NoSuchTableException
 import org.bson.Document
 
+import java.lang.Integer
+import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
+import java.net.URI
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -40,6 +58,15 @@ object UserQuotaResource {
       size: Double,
       pointer: String,
       eid: Integer
+  )
+
+  case class QuotaStorage(
+      eid: Integer,
+      workflowId: Integer,
+      workflowName: String,
+      resultBytes: Long,
+      runTimeStatsBytes: Long,
+      logBytes: Long
   )
 
   def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
@@ -134,57 +161,163 @@ object UserQuotaResource {
     availableWorkflowIds
   }
 
-  def getUserMongoDBSize(uid: Integer): Array[MongoStorage] = {
-    val collectionNames = context
+  def getWorkflowExecutions(uid: Integer): util.List[WorkflowExecutions] = {
+    val workflowExecutions = context
       .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.VID,
+        WORKFLOW_EXECUTIONS.UID,
+        WORKFLOW_EXECUTIONS.STATUS,
         WORKFLOW_EXECUTIONS.RESULT,
-        WORKFLOW.NAME,
-        WORKFLOW_EXECUTIONS.EID
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
+        WORKFLOW_EXECUTIONS.BOOKMARKED,
+        WORKFLOW_EXECUTIONS.NAME,
+        WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION,
+        WORKFLOW_EXECUTIONS.LOG_LOCATION,
+        WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI
       )
-      .from(
-        WORKFLOW_EXECUTIONS
-      )
-      .leftJoin(
-        WORKFLOW_VERSION
-      )
-      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
-      .leftJoin(
-        WORKFLOW
-      )
-      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
-      .where(
-        WORKFLOW_EXECUTIONS.UID
-          .eq(uid)
-          .and(WORKFLOW_EXECUTIONS.RESULT.notEqual(""))
-          .and(WORKFLOW_EXECUTIONS.RESULT.isNotNull)
-      )
-      .fetch()
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
+      .fetchInto(classOf[WorkflowExecutions])
 
-    val collections = collectionNames
-      .map(result => {
-        MongoStorage(
-          result.get(WORKFLOW.NAME),
-          0.0,
-          getCollectionName(result.get(WORKFLOW_EXECUTIONS.RESULT)),
-          result.get(WORKFLOW_EXECUTIONS.EID)
-        )
-      })
-      .asScala
-      .toArray
-
-    val collectionSizes = getDatabaseSize(collections)
-
-    collectionSizes
+    workflowExecutions
   }
 
-  def deleteMongoCollection(collectionName: String): Unit = {
-    MongoDatabaseManager.dropCollection(collectionName)
-    val resultName = "{\"results\":[\"" + collectionName + "\"]}"
+  def getOperatorExecutions(eid: Integer): util.List[OperatorExecutions] = {
+    val operatorExecutions = context
+      .select(
+        OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_EXECUTIONS.OPERATOR_ID,
+        OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI
+      )
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
+      .fetchInto(classOf[OperatorExecutions])
+
+    operatorExecutions
+  }
+
+  def getOperatorPortExecutions(eid: Integer): util.List[OperatorPortExecutions] = {
+    val operatorPortExecutions = context
+      .select(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
+      .fetchInto(classOf[OperatorPortExecutions])
+
+    operatorPortExecutions
+  }
+
+  def getWorkflowNameByExecutionId(eid: Integer): String = {
     context
-      .update(WORKFLOW_EXECUTIONS)
-      .set(WORKFLOW_EXECUTIONS.RESULT, null.asInstanceOf[String])
-      .where(WORKFLOW_EXECUTIONS.RESULT.eq(resultName))
-      .execute()
+      .select(WORKFLOW.NAME)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .join(WORKFLOW)
+      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
+      .fetchOneInto(classOf[String])
+  }
+
+  def getRuntimeStatsSizesByUserId(uid: Integer): List[Integer] = {
+    context
+      .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
+      .fetch()
+      .asScala
+      .map(r => r.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE))
+      .toList
+  }
+
+  def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
+    val executions = context
+      .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE,
+        WORKFLOW.WID,
+        WORKFLOW.NAME
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .leftJoin(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .leftJoin(WORKFLOW)
+      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
+      .orderBy(WORKFLOW_EXECUTIONS.EID.desc)
+      .fetch()
+
+    if (executions == null || executions.isEmpty) {
+      return Array.empty
+    }
+
+    executions.asScala.map { record =>
+      val eid = record.get(WORKFLOW_EXECUTIONS.EID)
+      val wid = record.get(WORKFLOW.WID)
+      val workflowName = record.get(WORKFLOW.NAME)
+      val runTimeStatsSize =
+        Option(record.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE)).map(_.toLong).getOrElse(0L)
+
+      val resultSize = context
+        .select(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
+        .fetch()
+        .asScala
+        .map(r =>
+          Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).getOrElse(0).asInstanceOf[Integer]
+        )
+        .map(_.toLong)
+        .sum
+
+      val logSize = context
+        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
+        .fetch()
+        .asScala
+        .map(r =>
+          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE))
+            .getOrElse(0)
+            .asInstanceOf[Integer]
+        )
+        .map(_.toLong)
+        .sum
+
+      QuotaStorage(
+        eid,
+        wid,
+        workflowName,
+        resultSize,
+        runTimeStatsSize,
+        logSize
+      )
+    }.toArray
+  }
+
+  def deleteWorkflowCollection(eid: Integer): Unit = {
+    // === 1. 清理文件内容 ===
+    // 假设你有 workflowId 和 eid
+    val wid = context
+      .select(WORKFLOW_VERSION.WID)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
+      .fetchOne(0, classOf[Integer])
+    val workflowId = WorkflowIdentity(wid.toLong)
+    val executionId = ExecutionIdentity(eid.toLong)
+    println("clear wid + eid: " + wid + " " + eid)
+
+    // 拿到 WorkflowService，然后清除
+    WorkflowService.getOrCreate(workflowId).clearExecutionResources(executionId)
+    WorkflowExecutionsResource.removeRuntimeStats(Array(eid))
+    WorkflowExecutionsResource.clearUris(executionId)
+    WorkflowExecutionsResource.removeExecution(executionId)
   }
 }
 
@@ -213,15 +346,15 @@ class UserQuotaResource {
   }
 
   @GET
-  @Path("/mongodb_size")
+  @Path("/user_quota_size")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def mongoDBSize(@Auth current_user: SessionUser): Array[MongoStorage] = {
-    getUserMongoDBSize(current_user.getUid)
+  def getUserQuota(@Auth current_user: SessionUser): Array[QuotaStorage] = {
+    getUserQuotaSize(current_user.getUid)
   }
 
   @DELETE
-  @Path("/deleteCollection/{collectionName}")
-  def deleteCollection(@PathParam("collectionName") collectionName: String): Unit = {
-    deleteMongoCollection(collectionName)
+  @Path("/deleteCollection/{eid}")
+  def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
+    deleteWorkflowCollection(eid)
   }
 }

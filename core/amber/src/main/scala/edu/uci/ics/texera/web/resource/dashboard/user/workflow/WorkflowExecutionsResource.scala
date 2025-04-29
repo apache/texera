@@ -88,7 +88,7 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, globalPortId.serializeAsString, uri.toString)
+        .values(eid.id, globalPortId.serializeAsString, uri.toString, 0)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -102,7 +102,7 @@ object WorkflowExecutionsResource {
   ): Unit = {
     context
       .insertInto(OPERATOR_EXECUTIONS)
-      .values(eid, opId, uri.toString)
+      .values(eid, opId, uri.toString, 0)
       .execute()
   }
 
@@ -178,6 +178,97 @@ object WorkflowExecutionsResource {
         .execute()
     } else {
       ExecutionResourcesMapping.removeExecutionResources(eid)
+    }
+  }
+
+  def removeExecution(eid: ExecutionIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      context
+        .delete(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .execute()
+    } else {
+      ExecutionResourcesMapping.removeExecutionResources(eid)
+    }
+  }
+
+  def removeRuntimeStats(eids: Array[Integer]): Unit = {
+    val eIdsList = eids.toSeq.asJava
+    // Clear runtime statistics documents for each execution
+    eids.foreach { eid =>
+      WorkflowExecutionsResource
+        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
+        .foreach { uri =>
+          DocumentFactory.openDocument(uri)._1.clear()
+          println("clear: " + eid)
+        }
+      WorkflowExecutionsResource.clearUris(ExecutionIdentity(eid.longValue()))
+      WorkflowExecutionsResource.removeExecution(ExecutionIdentity(eid.longValue()))
+    }
+
+    context
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
+      .execute()
+  }
+
+  def updateResultSize(
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity,
+      size: Long
+  ): Unit = {
+    println("result size: " + size)
+    context
+      .update(OPERATOR_PORT_EXECUTIONS)
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, Integer.valueOf(size.toInt))
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .execute()
+  }
+
+  def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      val statsUriOpt = context
+        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+        .from(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .fetchOptionalInto(classOf[String])
+        .map(URI.create)
+
+      if (statsUriOpt.isPresent) {
+        val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+        println("stats size: " + size)
+        context
+          .update(WORKFLOW_EXECUTIONS)
+          .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
+          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+          .execute()
+      }
+
+    }
+  }
+
+  def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      val uriOpt = context
+        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+        .fetchOptionalInto(classOf[String])
+        .map(URI.create)
+
+      if (uriOpt.isPresent) {
+        val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+        println("log size: " + size)
+        context
+          .update(OPERATOR_EXECUTIONS)
+          .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
+          .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+          .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+          .execute()
+      }
+
     }
   }
 
@@ -480,21 +571,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    val eIdsList = request.eIds.toSeq.asJava
-
-    context
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
-      .execute()
-
-    // Clear runtime statistics documents for each execution
-    request.eIds.foreach { eid =>
-      WorkflowExecutionsResource
-        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
-        .foreach { uri =>
-          DocumentFactory.openDocument(uri)._1.clear()
-        }
-    }
+    removeRuntimeStats(request.eIds)
   }
 
   /** Name a single execution * */
