@@ -200,7 +200,6 @@ object WorkflowExecutionsResource {
         .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
         .foreach { uri =>
           DocumentFactory.openDocument(uri)._1.clear()
-          println("clear: " + eid)
         }
       WorkflowExecutionsResource.clearUris(ExecutionIdentity(eid.longValue()))
       WorkflowExecutionsResource.removeExecution(ExecutionIdentity(eid.longValue()))
@@ -217,7 +216,6 @@ object WorkflowExecutionsResource {
       globalPortId: GlobalPortIdentity,
       size: Long
   ): Unit = {
-    println("result size: " + size)
     context
       .update(OPERATOR_PORT_EXECUTIONS)
       .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, Integer.valueOf(size.toInt))
@@ -237,7 +235,6 @@ object WorkflowExecutionsResource {
 
       if (statsUriOpt.isPresent) {
         val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
-        println("stats size: " + size)
         context
           .update(WORKFLOW_EXECUTIONS)
           .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
@@ -260,7 +257,6 @@ object WorkflowExecutionsResource {
 
       if (uriOpt.isPresent) {
         val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
-        println("log size: " + size)
         context
           .update(OPERATOR_EXECUTIONS)
           .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
@@ -666,5 +662,4 @@ class WorkflowExecutionsResource {
           .build()
     }
   }
-
 }

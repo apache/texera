@@ -105,10 +105,6 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     *                         the prefix of the files they append
     */
   override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
-    println(writerIdentifier)
-    println(catalog)
-    println(tableNamespace)
-    println("tableSchema: " + tableSchema)
     new IcebergTableWriter[T](
       writerIdentifier,
       catalog,
@@ -407,7 +403,6 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
       )
     var filesSize: Long = 0L
-    println(tableNamespace + " " + tableName)
 
     try {
       filesSize = table.currentSnapshot().summary().getOrDefault("total-files-size", "0").toLong

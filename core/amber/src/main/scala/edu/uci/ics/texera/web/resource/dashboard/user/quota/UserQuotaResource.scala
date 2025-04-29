@@ -300,8 +300,6 @@ object UserQuotaResource {
   }
 
   def deleteWorkflowCollection(eid: Integer): Unit = {
-    // === 1. 清理文件内容 ===
-    // 假设你有 workflowId 和 eid
     val wid = context
       .select(WORKFLOW_VERSION.WID)
       .from(WORKFLOW_EXECUTIONS)
@@ -311,9 +309,7 @@ object UserQuotaResource {
       .fetchOne(0, classOf[Integer])
     val workflowId = WorkflowIdentity(wid.toLong)
     val executionId = ExecutionIdentity(eid.toLong)
-    println("clear wid + eid: " + wid + " " + eid)
 
-    // 拿到 WorkflowService，然后清除
     WorkflowService.getOrCreate(workflowId).clearExecutionResources(executionId)
     WorkflowExecutionsResource.removeRuntimeStats(Array(eid))
     WorkflowExecutionsResource.clearUris(executionId)
