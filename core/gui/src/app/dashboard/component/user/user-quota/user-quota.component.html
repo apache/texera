@@ -44,7 +44,7 @@
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ formatSize(this.totalMongoSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalQuotaSize) }}</p>
           </div>
         </div>
         <nz-card
@@ -65,7 +65,7 @@
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>
           <nz-collapse-panel
-            *ngFor="let workflow of mongodbWorkflows"
+            *ngFor="let workflow of workflows"
             [nzHeader]="workflow.workflowName">
             <nz-table
               #executionTable
@@ -91,7 +91,7 @@
                       nzPopconfirmTitle="Confirm to delete selected workflows."
                       nz-button
                       nz-tooltip="delete collection"
-                      (nzOnConfirm)="deleteMongoCollection(execution.eid, execution)"
+                      (nzOnConfirm)="deleteCollection(execution.eid)"
                       type="button">
                       <i
                         nz-icon

@@ -15,7 +15,8 @@ describe("UserQuotaComponent", () => {
       "getCreatedWorkflows",
       "getAccessFiles",
       "getAccessWorkflows",
-      "getMongoDBs",
+      "getExecutionQuota",
+      "deleteExecutionCollection",
     ]);
 
     TestBed.configureTestingModule({
