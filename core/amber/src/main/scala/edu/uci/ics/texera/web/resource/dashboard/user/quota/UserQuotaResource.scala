@@ -1,35 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
-import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
-import edu.uci.ics.amber.core.storage.{DocumentFactory, IcebergCatalogInstance}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  OperatorExecutions,
-  OperatorPortExecutions,
-  WorkflowExecutions
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import io.dropwizard.auth.Auth
-import org.apache.iceberg.{BaseTable, Table}
-import edu.uci.ics.amber.util.IcebergUtil
 import edu.uci.ics.texera.web.service.WorkflowService
-import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
-import org.apache.iceberg.exceptions.NoSuchTableException
-import org.bson.Document
 
-import java.lang.Integer
-import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters._
-import java.net.URI
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer
