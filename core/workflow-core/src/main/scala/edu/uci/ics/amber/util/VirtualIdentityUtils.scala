@@ -73,7 +73,10 @@ object VirtualIdentityUtils {
     }
   }
 
-  def getFromActorIdForInputPortStorage(storageURIStr: String): ActorVirtualIdentity = {
-    ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr)
+  def getFromActorIdForInputPortStorage(
+      storageURIStr: String,
+      toWorkerActorId: ActorVirtualIdentity
+  ): ActorVirtualIdentity = {
+    ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr + toWorkerActorId.name)
   }
 }

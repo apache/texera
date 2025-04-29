@@ -25,8 +25,8 @@ trait AssignPortHandler {
       val inputPortURIs = inputPortURIStrs.map(uriStr => URI.create(uriStr))
       dp.inputManager.addPort(msg.portId, schema, inputPortURIs)
       inputPortURIStrs.foreach { uriStr =>
-        val fromActorId = getFromActorIdForInputPortStorage(uriStr)
         val toActorId = ctx.receiver
+        val fromActorId = getFromActorIdForInputPortStorage(uriStr, toActorId)
         val channelId =
           ChannelIdentity(fromWorkerId = fromActorId, toWorkerId = toActorId, isControl = false)
         // Same as AddInputChannelHandler

@@ -35,7 +35,8 @@ class InputPortMaterializationReaderThread(
   private lazy val workerIndex = getWorkerIndex(workerActorId)
   private lazy val channelId = {
     // A unique channel between this thread (dummy actor) and the worker actor.
-    val fromActorId: ActorVirtualIdentity = getFromActorIdForInputPortStorage(uri.toString)
+    val fromActorId: ActorVirtualIdentity =
+      getFromActorIdForInputPortStorage(uri.toString, workerActorId)
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
 

@@ -12,6 +12,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   PortConfig,
   ResourceConfig
 }
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
 import scala.collection.mutable
 
@@ -78,7 +80,36 @@ class DefaultResourceAllocator(
     linkConfigs ++= linkToLinkConfigMapping
 
     val portConfigs = region.resourceConfig match {
-      case Some(existingResourceConfig) => existingResourceConfig.portConfigs
+      case Some(existingResourceConfig) =>
+        val updatedPortConfigs = existingResourceConfig.portConfigs.map {
+          case (globalPortId, existingPortConfig) =>
+            if (globalPortId.input && existingPortConfig.storageURIs.nonEmpty) {
+              val portPartitionings = existingPortConfig.storageURIs.map(inputMatUri => {
+                val toWorkerActorIds =
+                  operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId)
+                val fromVirtualThreadActorIds = toWorkerActorIds.map(toWorkerActorId =>
+                  getFromActorIdForInputPortStorage(inputMatUri.toString, toWorkerActorId)
+                )
+                // Extract the input port partitionInfo defined in the physicalOp, defaulting to UnknownPartition.
+                val inputPortPartitionInfo = region
+                  .getOperator(globalPortId.opId)
+                  .partitionRequirement
+                  .applyOrElse(globalPortId.portId.id, (_: Int) => None)
+                  .getOrElse(UnknownPartition())
+                toPartitioning(
+                  fromVirtualThreadActorIds,
+                  toWorkerActorIds,
+                  inputPortPartitionInfo,
+                  workflowSettings.dataTransferBatchSize
+                )
+              })
+              globalPortId -> PortConfig(
+                storageURIs = existingPortConfig.storageURIs,
+                partitioningsOpt = Some(portPartitionings)
+              )
+            } else globalPortId -> existingPortConfig
+        }
+        updatedPortConfigs
       case None =>
         val newPortConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
         newPortConfigs
