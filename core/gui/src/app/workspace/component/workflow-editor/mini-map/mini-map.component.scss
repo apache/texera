@@ -5,28 +5,43 @@
   z-index: 4;
 }
 
-#minimap-zoom-out-button {
+#minimap-center-button {
   position: absolute;
   bottom: 0;
   right: 30px;
   z-index: 4;
 }
 
-#minimap-zoom-in-button {
+#minimap-zoom-out-button {
   position: absolute;
   bottom: 0;
   right: 60px;
   z-index: 4;
 }
 
-#mini-map {
-  height: 200px;
+#minimap-zoom-in-button {
+  position: absolute;
+  bottom: 0;
+  right: 90px;
+  z-index: 4;
+}
+
+#mini-map-container {
+  position: relative;
+  overflow: hidden;
   width: 300px;
+  height: 200px;
+}
+
+#mini-map {
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 #mini-map-navigator {
-  border: 1px solid #797a79;
   position: absolute;
+  border: 2px solid #797a79;
   cursor: move;
   z-index: 1;
 }
