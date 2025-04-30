@@ -194,6 +194,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.isLoading = false;
+          this.triggerCenter();
         },
         () => {
           this.workflowActionService.resetAsNewWorkflow();
@@ -285,5 +286,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe();
+  }
+
+  public triggerCenter(): void {
+    this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
 }
