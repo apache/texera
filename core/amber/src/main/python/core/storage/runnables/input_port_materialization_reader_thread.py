@@ -2,14 +2,36 @@ import typing
 
 from pyarrow.lib import Table
 
+from core.architecture.sendsemantics.broad_cast_partitioner import (
+    BroadcastPartitioner,
+)
+from core.architecture.sendsemantics.hash_based_shuffle_partitioner import (
+    HashBasedShufflePartitioner,
+)
+from core.architecture.sendsemantics.one_to_one_partitioner import OneToOnePartitioner
+from core.architecture.sendsemantics.partitioner import Partitioner
+from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
+    RangeBasedShufflePartitioner,
+)
+from core.architecture.sendsemantics.round_robin_partitioner import (
+    RoundRobinPartitioner,
+)
 from core.models import Tuple, InternalQueue, DataFrame, MarkerFrame
 from core.models.internal_queue import DataElement
-from core.models.marker import StartOfInputChannel, EndOfInputChannel
+from core.models.marker import StartOfInputChannel, EndOfInputChannel, Marker
 from core.storage.document_factory import DocumentFactory
-from core.util import Stoppable
+from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+    HashBasedShufflePartitioning,
+    OneToOnePartitioning,
+    Partitioning,
+    RoundRobinPartitioning,
+    RangeBasedShufflePartitioning,
+    BroadcastPartitioning,
+)
 
 
 class InputPortMaterializationReaderThread(Runnable, Stoppable):
@@ -18,6 +40,7 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         uri: str,
         queue: InternalQueue,
         worker_actor_id: ActorVirtualIdentity,
+        partitioning: Partitioning,
         batch_size: int,
     ):
         """
@@ -33,13 +56,45 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.batch_size = batch_size
         self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
         self.buffer = []  # Buffer for Tuple objects.
-        from_actor_id = get_from_actor_id_for_input_port_storage(self.uri)
+        from_actor_id = get_from_actor_id_for_input_port_storage(
+            self.uri, self.worker_actor_id
+        )
         self.channel_id = ChannelIdentity(
             from_actor_id, self.worker_actor_id, is_control=False
         )
         self._stopped = False
         self.materialization = None
         self.tuple_schema = None
+        self._partitioning_to_partitioner: dict[
+            type(Partitioning), type(Partitioner)
+        ] = {
+            OneToOnePartitioning: OneToOnePartitioner,
+            RoundRobinPartitioning: RoundRobinPartitioner,
+            HashBasedShufflePartitioning: HashBasedShufflePartitioner,
+            RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
+            BroadcastPartitioning: BroadcastPartitioner,
+        }
+        the_partitioning = get_one_of(partitioning)
+        partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
+        print(f"Input port materialization thread: adding {the_partitioning}")
+        self.partitioner = (
+            partitioner(the_partitioning)
+            if partitioner != OneToOnePartitioner
+            else partitioner(the_partitioning, self.worker_actor_id)
+        )
+
+    def tuple_to_batch_with_filter(self, tuple_: Tuple) -> typing.Iterator[DataFrame]:
+        for receiver, tuples in self.partitioner.add_tuple_to_batch(tuple_):
+            print(f"Trying receiver={receiver!r}; ")
+            if receiver == self.worker_actor_id:
+                # Found the one we want → immediately return its DataFrame
+                yield self.tuple_to_frame(tuples)
+            else:
+                # Log every non‐matching receiver
+                print(
+                    f"Skipping receiver={receiver!r}; "
+                    f"looking for worker_actor_id={self.worker_actor_id!r}"
+                )
 
     def run(self) -> None:
         """
@@ -65,13 +120,12 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
             for tup in storage_iterator:
                 if self._stopped:
                     break
-                self.buffer.append(tup)
-                if len(self.buffer) >= self.batch_size:
-                    self.flush()
-
-            # Flush any remaining tuples.
-            if self.buffer:
-                self.flush()
+                for data_frame in self.tuple_to_batch_with_filter(tup):
+                    queue_element = DataElement(
+                        tag=self.channel_id,
+                        payload=data_frame,
+                    )
+                    self.queue.put(queue_element)
         finally:
             # Emit end marker.
             self.emit_marker(EndOfInputChannel())
@@ -100,14 +154,26 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         Emit a marker (for example, StartOfInputChannel or EndOfInputChannel)
         by first flushing the current data and then sending the marker message.
         """
-        self.flush()
-        marker_payload = MarkerFrame(marker)
-        queue_element = DataElement(
-            tag=self.channel_id,
-            payload=marker_payload,
-        )
-        self.queue.put(queue_element)
-        self.flush()
+        for receiver, payload in self.partitioner.flush(marker):
+            print(f"Trying receiver={receiver!r}; ")
+            if receiver == self.worker_actor_id:
+                # Found the one we want → immediately return its DataFrame
+                final_payload = (
+                    MarkerFrame(payload)
+                    if isinstance(payload, Marker)
+                    else self.tuple_to_frame(payload)
+                )
+                queue_element = DataElement(
+                    tag=self.channel_id,
+                    payload=final_payload,
+                )
+                self.queue.put(queue_element)
+            else:
+                # Log every non‐matching receiver
+                print(
+                    f"Skipping receiver={receiver!r}; "
+                    f"looking for worker_actor_id={self.worker_actor_id!r}"
+                )
 
     def get_sequence_number(self) -> int:
         """

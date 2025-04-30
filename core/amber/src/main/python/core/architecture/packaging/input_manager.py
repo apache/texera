@@ -19,6 +19,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
     ChannelIdentity,
 )
+from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 
 
 class Channel:
@@ -71,17 +72,19 @@ class InputManager:
         self._input_queue = queue
 
     def set_up_input_port_mat_reader_threads(
-        self, port_id: PortIdentity, uris: List[str]
+        self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
     ) -> None:
+        assert len(uris) == len(partitionings)
         if uris is not None:
             reader_threads = [
                 InputPortMaterializationReaderThread(
                     uri=uri,
                     queue=self._input_queue,
                     worker_actor_id=ActorVirtualIdentity(self.worker_id),
+                    partitioning=partitioning,
                     batch_size=400,
                 )
-                for uri in uris
+                for uri, partitioning in zip(uris, partitionings)
             ]
             self._input_port_mat_read_threads[port_id] = reader_threads
 
@@ -104,7 +107,11 @@ class InputManager:
         return self._channels.keys()
 
     def add_input_port(
-        self, port_id: PortIdentity, schema: Schema, storage_uris: List[str]
+        self,
+        port_id: PortIdentity,
+        schema: Schema,
+        storage_uris: List[str],
+        partitionings: List[Partitioning],
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
@@ -115,7 +122,7 @@ class InputManager:
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
-        self.set_up_input_port_mat_reader_threads(port_id, storage_uris)
+        self.set_up_input_port_mat_reader_threads(port_id, storage_uris, partitionings)
 
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id

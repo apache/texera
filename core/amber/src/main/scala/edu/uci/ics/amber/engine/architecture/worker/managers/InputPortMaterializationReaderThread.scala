@@ -51,9 +51,12 @@ class InputPortMaterializationReaderThread(
       // Produce tuples
       while (storageReadIterator.hasNext) {
         val tuple = storageReadIterator.next()
-        if (partitioner.getBucketIndex(tuple).toList.exists( bucketIndex=>
-          partitioner.allReceivers(bucketIndex) == workerActorId
-        )) {
+        if (
+          partitioner
+            .getBucketIndex(tuple)
+            .toList
+            .exists(bucketIndex => partitioner.allReceivers(bucketIndex) == workerActorId)
+        ) {
           buffer.append(tuple)
           if (buffer.size >= batchSize) {
             flush()

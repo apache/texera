@@ -13,11 +13,16 @@ class AssignPortHandler(ControlHandler):
     async def assign_port(self, req: AssignPortRequest) -> EmptyReturn:
         if req.input:
             self.context.input_manager.add_input_port(
-                req.port_id, Schema(raw_schema=req.schema), req.storage_uris
+                req.port_id,
+                Schema(raw_schema=req.schema),
+                req.storage_uris,
+                req.partitionings,
             )
             for uri in req.storage_uris:
-                from_actor_id = get_from_actor_id_for_input_port_storage(uri)
                 to_actor_id = ActorVirtualIdentity(self.context.worker_id)
+                from_actor_id = get_from_actor_id_for_input_port_storage(
+                    uri, to_actor_id
+                )
                 channel_id = ChannelIdentity(from_actor_id, to_actor_id, False)
                 self.context.input_manager.register_input(
                     channel_id=channel_id, port_id=req.port_id

@@ -65,7 +65,7 @@ def deserialize_global_port_identity(encoded_str: str) -> GlobalPortIdentity:
 
 
 def get_from_actor_id_for_input_port_storage(
-    storage_uri_str: str,
+    storage_uri_str: str, to_worker_actor_id: ActorVirtualIdentity
 ) -> ActorVirtualIdentity:
     """
     Constructs an ActorVirtualIdentity for input port storage.
@@ -77,4 +77,6 @@ def get_from_actor_id_for_input_port_storage(
         ActorVirtualIdentity: A new virtual identity created by
         prefixing the storage URI.
     """
-    return ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storage_uri_str)
+    return ActorVirtualIdentity(
+        MATERIALIZATION_READER_ACTOR_PREFIX + storage_uri_str + to_worker_actor_id.name
+    )
