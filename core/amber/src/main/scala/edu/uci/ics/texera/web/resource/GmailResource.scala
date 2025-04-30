@@ -64,6 +64,13 @@ object GmailResource {
       emailMessage: EmailMessage,
       recipientEmail: String
   ): Either[String, Unit] = {
+    val logger = LoggerFactory.getLogger(this.getClass)
+
+    if (!isValidEmail(recipientEmail)) {
+      logger.warn(s"Attempted to send email to invalid address: $recipientEmail")
+      return Left("Invalid email format")
+    }
+
     Try {
       val session = createSession()
       val email = createMimeMessage(session, emailMessage, recipientEmail)
@@ -113,7 +120,6 @@ class GmailResource {
     val logger = LoggerFactory.getLogger(this.getClass)
 
     if (!isValidEmail(emailMessage.receiver)) {
-      logger.warn(s"Blocked sending notification to invalid user email: ${emailMessage.receiver}")
       throw new ForbiddenException("Invalid email address.")
     }
 
@@ -124,22 +130,18 @@ class GmailResource {
       val admin = adminUserIterator.next()
       val adminEmail = admin.getEmail
 
-      if (isValidEmail(adminEmail)) {
-        try {
-          sendEmail(
-            userRegistrationNotification(
-              receiverEmail = adminEmail,
-              userEmail = Some(emailMessage.receiver),
-              toAdmin = true
-            ),
-            adminEmail
-          )
-        } catch {
-          case ex: Exception =>
-            logger.warn(s"Failed to send email to admin: $adminEmail. Error: ${ex.getMessage}")
-        }
-      } else {
-        logger.warn(s"Skipped invalid admin email: $adminEmail")
+      try {
+        sendEmail(
+          userRegistrationNotification(
+            receiverEmail = adminEmail,
+            userEmail = Some(emailMessage.receiver),
+            toAdmin = true
+          ),
+          adminEmail
+        )
+      } catch {
+        case ex: Exception =>
+          logger.warn(s"Failed to send email to admin: $adminEmail. Error: ${ex.getMessage}")
       }
     }
 
