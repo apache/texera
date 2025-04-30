@@ -372,10 +372,10 @@ class WorkflowExecutionsResource {
         .join(USER)
         .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
+        .orderBy(WORKFLOW_EXECUTIONS.EID.desc())
         .fetchInto(classOf[WorkflowExecutionEntry])
         .asScala
         .toList
-        .reverse
     }
   }
 

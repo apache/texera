@@ -349,13 +349,14 @@ class WorkflowVersionResource {
         .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
         .from(WORKFLOW_VERSION)
         .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
+        .orderBy(WORKFLOW_VERSION.VID.desc())
         .fetchInto(classOf[WorkflowVersion])
         .asScala
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)
       // return particular version of the workflow
-      val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
+      val res: Workflow = applyPatch(versionEntries, currentWorkflow)
       res
     }
   }
