@@ -291,24 +291,16 @@ class RegionExecutionCoordinator(
       case (outputPortId, portConfig: PortConfig) =>
         val storageUriToAdd = portConfig.storageURIs.head
         val (_, eid, _, _) = decodeURI(storageUriToAdd)
-        val existingStorageUri =
-          WorkflowExecutionsResource.getResultUriByGlobalPortId(
-            eid = eid,
-            globalPortId = outputPortId
-          )
-        if (existingStorageUri.isEmpty) {
-          // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
-          val schemaOptional =
-            region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
-          val schema =
-            schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-          DocumentFactory.createDocument(storageUriToAdd, schema)
-          WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = eid,
-            globalPortId = outputPortId,
-            uri = storageUriToAdd
-          )
-        }
+        val schemaOptional =
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
+        val schema =
+          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+        DocumentFactory.createDocument(storageUriToAdd, schema)
+        WorkflowExecutionsResource.insertOperatorPortResultUri(
+          eid = eid,
+          globalPortId = outputPortId,
+          uri = storageUriToAdd
+        )
     }
   }
 
