@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+
 /**
   * EmailTemplate provides factory methods to generate email messages
   * for different user notification scenarios.
@@ -49,5 +51,29 @@ object EmailTemplate {
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
+  }
+
+  /**
+    * Creates an email message to notify a user
+    * that their role has been updated.
+    *
+    * @param receiverEmail the user's email address
+    * @param newRole the new role assigned to the user
+    * @return an EmailMessage ready to be sent to the user
+    */
+  def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
+    val subject = "Your Role Has Been Updated"
+    val content =
+      s"""
+         |Hello,
+         |
+         |Your user role has been updated to: $newRole.
+         |
+         |If you have any questions, please contact the administrator.
+         |
+         |Thank you!
+         |""".stripMargin
+
+    EmailMessage(subject = subject, content = content, receiver = receiverEmail)
   }
 }
