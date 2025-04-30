@@ -228,6 +228,7 @@ message AssignPortRequest {
   bool input = 2;
   map<string, string> schema = 3;
   repeated string storageUris = 4;
+  repeated sendsemantics.Partitioning partitionings = 5;
 }
 
 message FinalizeCheckpointRequest {

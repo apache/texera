@@ -5,6 +5,7 @@ import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
@@ -26,6 +27,7 @@ class InputPortMaterializationReaderThread(
     uri: URI,
     inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement],
     workerActorId: ActorVirtualIdentity,
+    partitioning: Partitioning,
     batchSize: Int = AmberConfig.defaultDataTransferBatchSize
 ) extends Thread {
 

@@ -6,6 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import edu.uci.ics.amber.engine.architecture.worker.managers.InputPortMaterializationReaderThread
 
@@ -29,7 +30,13 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
     this.ports.keys.toSet
   }
 
-  def addPort(portId: PortIdentity, schema: Schema, urisToRead: List[URI]): Unit = {
+  def addPort(
+      portId: PortIdentity,
+      schema: Schema,
+      urisToRead: List[URI],
+      partitionings: List[Partitioning]
+  ): Unit = {
+    assert(urisToRead.size == partitionings.size)
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
@@ -37,21 +44,25 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
     this.ports(portId) = WorkerPort(schema)
 
     // if a materialization URI is provided, set up a materialization reader thread
-    setupInputPortMaterializationReaderThreads(portId, urisToRead)
+    setupInputPortMaterializationReaderThreads(portId, urisToRead, partitionings)
   }
 
   private def setupInputPortMaterializationReaderThreads(
       portId: PortIdentity,
-      uris: List[URI]
+      uris: List[URI],
+      partitionings: List[Partitioning]
   ): Unit = {
-    val readerThreads = uris.map { uri =>
-      {
+    val readerThreads = uris.zip(partitionings).map {
+      case (uri, partitioning) =>
+        logger.warn(
+          "Setting up input port reader using URI: " + uri + " and partitioning: " + partitioning
+        )
         new InputPortMaterializationReaderThread(
           uri = uri,
           inputMessageQueue = this.inputMessageQueue,
-          workerActorId = this.actorId
+          workerActorId = this.actorId,
+          partitioning = partitioning
         )
-      }
     }
 
     inputPortMaterializationReaderThreads(portId) = readerThreads
