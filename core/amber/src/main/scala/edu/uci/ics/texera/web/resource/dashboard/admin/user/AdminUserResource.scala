@@ -4,6 +4,8 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.resource.EmailTemplate.createRoleChangeTemplate
+import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
@@ -44,11 +46,18 @@ class AdminUserResource {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
     val updatedUser = userDao.fetchOneByUid(user.getUid)
+    val roleChanged = updatedUser.getRole != user.getRole
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)
     updatedUser.setRole(user.getRole)
     updatedUser.setComment(user.getComment)
     userDao.update(updatedUser)
+
+    if (roleChanged)
+      sendEmail(
+        createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
+        updatedUser.getEmail
+      )
   }
 
   @POST
