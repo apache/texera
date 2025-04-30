@@ -93,7 +93,7 @@ object GmailResource {
     * @param email the email address to validate
     * @return true if the email matches the expected format, false otherwise
     */
-  def isValidEmail(email: String): Boolean = {
+  private def isValidEmail(email: String): Boolean = {
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
     email != null && emailRegex.matches(email)
   }
