@@ -10,17 +10,18 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchySection
 
-class TreeMapOpDesc extends PythonOperatorDescriptor{
+class TreeMapOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
   @AutofillAttributeName
   var textColumn: String = ""
 
+  var hierarchy: List[HierarchySection] = List()
 
   override def getOutputSchemas(
-     inputSchemas: Map[PortIdentity, Schema]
-   ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+ ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
@@ -30,28 +31,17 @@ class TreeMapOpDesc extends PythonOperatorDescriptor{
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Tree Map",
-      "Generate Tree Map for result texts",
+      "Visualize Data into a Tree Map",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
-  var hierarchy: List[HierarchySection] = List()
-
   private def getHierarchyAttributesInPython: String =
     hierarchy.map(h => s"'${h.attributeName}'").mkString("[", ", ", "]")
 
-  def createPlotlyFigure(): String = {
-    //assert(hierarchy.nonEmpty)
-    val attributes = getHierarchyAttributesInPython
-    s"""
-       |    fig = px.treemap(table, path=[$attributes], values='$textColumn',
-       |                     color='$textColumn', hover_data=[$attributes],
-       |                     color_continuous_scale='RdBu')
-       |""".stripMargin
-  }
-
   override def generatePythonCode(): String = {
+    val hierarchyAttributes = getHierarchyAttributesInPython
     val finalCode =
       s"""
          |from pytexera import *
@@ -62,7 +52,6 @@ class TreeMapOpDesc extends PythonOperatorDescriptor{
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    # Generate custom error message as html string
          |    def render_error(self, error_msg) -> str:
          |        return '''<h1>Tree Map is not available.</h1>
          |                  <p>Reason is: {} </p>
@@ -73,7 +62,39 @@ class TreeMapOpDesc extends PythonOperatorDescriptor{
          |        if table.empty:
          |            yield {'html-content': self.render_error("input table is empty.")}
          |            return
-         |        ${createPlotlyFigure()}
+         |
+         |        hierarchy_columns = $hierarchyAttributes
+         |        value_column = "$textColumn"
+         |        required_columns = hierarchy_columns + [value_column]
+         |
+         |        # Drop rows with nulls
+         |        table = table.dropna(subset=required_columns)
+         |
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("input table became empty after dropping nulls.")}
+         |            return
+         |
+         |        # Ensure value column is numeric
+         |        if not np.issubdtype(table[value_column].dtype, np.number):
+         |            yield {'html-content': self.render_error(f"Value column '{value_column}' must be numeric.")}
+         |            return
+         |
+         |        # Ensure values are positive
+         |        if (table[value_column] <= 0).all():
+         |            yield {'html-content': self.render_error("Value column contains only non-positive numbers.")}
+         |            return
+         |
+         |        # Tree Map Visualization
+         |        fig = px.treemap(
+         |            table,
+         |            path=hierarchy_columns,
+         |            values=value_column,
+         |            color=value_column,
+         |            hover_data=hierarchy_columns,
+         |            color_continuous_scale='RdBu'
+         |        )
+         |
+         |        # To HTML Content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        yield {'html-content': html}
          |""".stripMargin
