@@ -518,12 +518,14 @@ class DatasetResource {
       }
     } catch {
       case e: Exception =>
-        LakeFSStorageClient.abortPresignedMultipartUploads(
-          repoName,
-          filePath,
-          uploadId,
-          physicalAddress
-        )
+        if (repoName != null && filePath != null && uploadId != null && physicalAddress != null) {
+          LakeFSStorageClient.abortPresignedMultipartUploads(
+            repoName,
+            filePath,
+            uploadId,
+            physicalAddress
+          )
+        }
         throw new WebApplicationException(
           s"Failed to upload file to dataset: ${e.getMessage}",
           e
