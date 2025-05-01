@@ -19,7 +19,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 
-
 class WorkflowVersionResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
