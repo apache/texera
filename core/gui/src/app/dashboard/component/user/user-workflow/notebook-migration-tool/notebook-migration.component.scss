@@ -27,8 +27,8 @@
 }
 
 .notebook-workflow-side-by-side {
-  display: flex;  /* Use flexbox for the container */
-  flex-direction: row;  /* Arrange children in a row */
+  display: flex; /* Use flexbox for the container */
+  flex-direction: row; /* Arrange children in a row */
   gap: 20px; /* Optional: Adds space between the columns */
 }
 

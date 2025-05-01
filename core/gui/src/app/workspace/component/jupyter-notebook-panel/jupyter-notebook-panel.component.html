@@ -3,11 +3,17 @@
   *ngIf="isVisible"
   cdkDrag
   cdkDragBoundary="texera-workspace"
-  cdkDragHandle=".panel-header"
->
-  <div class="panel-header" cdkDragHandle>
+  cdkDragHandle=".panel-header">
+  <div
+    class="panel-header"
+    cdkDragHandle>
     <span>Jupyter Notebook</span>
-    <button class="close-button" (click)="closePanel()">X</button> <!-- Close button -->
+    <button
+      class="close-button"
+      (click)="closePanel()">
+      X
+    </button>
+    <!-- Close button -->
   </div>
 
   <div class="iframe-container">
@@ -17,7 +23,6 @@
       src="http://localhost:8888/notebooks/work/example.ipynb?token=mytoken"
       width="100%"
       height="100%"
-      style="border: none"
-    ></iframe>
+      style="border: none"></iframe>
   </div>
 </div>

@@ -15,7 +15,10 @@ export class JupyterUploadSuccessComponent {
   workflowGeneratingInProgress: boolean = false;
   workflowJsonContent: any; // variable to store the JSON content
 
-  constructor(private http: HttpClient, private modalService: NzModalService) {}
+  constructor(
+    private http: HttpClient,
+    private modalService: NzModalService
+  ) {}
 
   getOutputText(output: JupyterOutput): string {
     if (output.output_type === "stream") {
@@ -45,9 +48,7 @@ export class JupyterUploadSuccessComponent {
           { id: "1", type: "OperatorA", properties: {} },
           { id: "2", type: "OperatorB", properties: {} },
         ],
-        links: [
-          { source: "1", target: "2" },
-        ],
+        links: [{ source: "1", target: "2" }],
         commentBoxes: [],
         groups: [],
         operatorPositions: {
@@ -59,8 +60,6 @@ export class JupyterUploadSuccessComponent {
       // Process the mock data
       this.workflowJsonContent = mockData; // Assign mock data as workflow content
       this.workflowGeneratingInProgress = false;
-
-
     }, 2000); // Simulate a delay of 2 seconds for processing
   }
 
@@ -69,7 +68,7 @@ export class JupyterUploadSuccessComponent {
    */
   private processDatasets(): void {
     if (this.datasets.length > 0) {
-      this.datasets.forEach((file) => {
+      this.datasets.forEach(file => {
         this.handleFileUploads(file);
       });
     }
