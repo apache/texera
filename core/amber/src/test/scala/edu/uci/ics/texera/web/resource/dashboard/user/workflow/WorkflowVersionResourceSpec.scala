@@ -34,11 +34,10 @@ class WorkflowVersionResourceSpec
     new WorkflowVersionResource()
   }
 
-  private val workflowDao: WorkflowDao = new WorkflowDao(getDSLContext.configuration())
-  private val workflowVersionDao: WorkflowVersionDao = new WorkflowVersionDao(
-    getDSLContext.configuration()
-  )
-  private val userDao: UserDao = new UserDao(getDSLContext.configuration())
+  // Initialize DAOs after database setup instead of during class initialization
+  private var workflowDao: WorkflowDao = _
+  private var workflowVersionDao: WorkflowVersionDao = _
+  private var userDao: UserDao = _
 
   // Helper method to create a test workflow
   private def createTestWorkflow(name: String, content: String): Workflow = {
@@ -60,6 +59,10 @@ class WorkflowVersionResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
+    // Initialize the DAOs after the database is set up
+    workflowDao = new WorkflowDao(getDSLContext.configuration())
+    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
   }
 
@@ -77,7 +80,7 @@ class WorkflowVersionResourceSpec
     shutdownDB()
   }
 
-  // Test case to verify that retrieveWorkflowVersion correctly applies patches in the right order
+  // Test case to verify that retrieveWorkflowVersion correctly applies patches in chronological order
   "retrieveWorkflowVersion" should "correctly apply patches in chronological order" in {
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
@@ -85,25 +88,20 @@ class WorkflowVersionResourceSpec
     workflowDao.insert(workflow)
     val wid = workflow.getWid
 
-    // Create a series of versions with different patches
+    // Create a series of versions with different patches (at least 10)
     // Version 1: Initial version (automatically created by the system)
     WorkflowVersionResource.insertNewVersion(wid)
-    Thread.sleep(100) // ensure different timestamps
+    Thread.sleep(50) // ensure different timestamps
 
-    // Version 2: Change op1 value from 1 to 2
-    val patchContent2 = """[{"op":"replace","path":"/operators/op1/value","value":2}]"""
-    createWorkflowVersion(wid, patchContent2)
-    Thread.sleep(100)
+    // Create 10 versions that change the value in sequence from 1 to 11
+    var lastVersion: WorkflowVersion = null
+    for (i <- 2 to 11) {
+      val patchContent = s"""[{"op":"replace","path":"/operators/op1/value","value":$i}]"""
+      lastVersion = createWorkflowVersion(wid, patchContent)
+      Thread.sleep(50) // ensure different timestamps
+    }
 
-    // Version 3: Change op1 value from 2 to 3
-    val patchContent3 = """[{"op":"replace","path":"/operators/op1/value","value":3}]"""
-    createWorkflowVersion(wid, patchContent3)
-    Thread.sleep(100)
-
-    // Version 4: Change op1 value from 3 to 4
-    val patchContent4 = """[{"op":"replace","path":"/operators/op1/value","value":4}]"""
-    val v4 = createWorkflowVersion(wid, patchContent4)
-    val vid = v4.getVid
+    val vid = lastVersion.getVid
 
     // Retrieve versions to get the original workflow
     val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
@@ -113,8 +111,86 @@ class WorkflowVersionResourceSpec
     val op1Value = jsonNode.path("operators").path("op1").path("value").asInt()
 
     // The value should be 1 because we're applying patches from vid to the latest version
-    // Each patch reverts one change, going backwards from 4 to 3 to 2 to 1
+    // Each patch reverts one change, going backwards from 11 to 10 to 9... to 1
     assert(op1Value === 1)
+  }
+
+  // Additional test case with 10 versions applying different types of changes
+  "retrieveWorkflowVersion" should "correctly handle a mix of different patch operations" in {
+    // Create a workflow with initial content
+    val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1, "config": {}}}}"""
+    val workflow = createTestWorkflow("Test Workflow", initialContent)
+    workflowDao.insert(workflow)
+    val wid = workflow.getWid
+
+    // Create the initial version
+    WorkflowVersionResource.insertNewVersion(wid)
+    Thread.sleep(50)
+
+    // Version 2: Change value from 1 to 2
+    createWorkflowVersion(wid, """[{"op":"replace","path":"/operators/op1/value","value":2}]""")
+    Thread.sleep(50)
+
+    // Version 3: Add a new property
+    createWorkflowVersion(
+      wid,
+      """[{"op":"add","path":"/operators/op1/name","value":"Operator 1"}]"""
+    )
+    Thread.sleep(50)
+
+    // Version 4: Add a nested property
+    createWorkflowVersion(wid, """[{"op":"add","path":"/operators/op1/config/size","value":10}]""")
+    Thread.sleep(50)
+
+    // Version 5: Change the nested property
+    createWorkflowVersion(
+      wid,
+      """[{"op":"replace","path":"/operators/op1/config/size","value":20}]"""
+    )
+    Thread.sleep(50)
+
+    // Version 6: Add another operator
+    createWorkflowVersion(
+      wid,
+      """[{"op":"add","path":"/operators/op2","value":{"id":"op2","value":5}}]"""
+    )
+    Thread.sleep(50)
+
+    // Version 7: Remove a property
+    createWorkflowVersion(wid, """[{"op":"remove","path":"/operators/op1/name"}]""")
+    Thread.sleep(50)
+
+    // Version 8: Replace the entire config object
+    createWorkflowVersion(
+      wid,
+      """[{"op":"replace","path":"/operators/op1/config","value":{"color":"blue"}}]"""
+    )
+    Thread.sleep(50)
+
+    // Version 9: Update the second operator
+    createWorkflowVersion(wid, """[{"op":"replace","path":"/operators/op2/value","value":10}]""")
+    Thread.sleep(50)
+
+    // Version 10: Add a new top-level property
+    val v10 = createWorkflowVersion(
+      wid,
+      """[{"op":"add","path":"/links","value":[{"source":"op1","target":"op2"}]}]"""
+    )
+    val vid = v10.getVid
+
+    // Retrieve the original workflow state
+    val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
+
+    // Parse the JSON content to verify
+    val jsonNode = objectMapper.readTree(restoredWorkflow.getContent)
+
+    // Verify content matches the initial state after all patches are applied
+    assert(jsonNode.path("operators").path("op1").path("value").asInt() === 1)
+    assert(!jsonNode.path("operators").path("op1").has("name"))
+    assert(!jsonNode.path("operators").has("op2"))
+    assert(!jsonNode.has("links"))
+    assert(jsonNode.path("operators").path("op1").path("config").isObject)
+    assert(jsonNode.path("operators").path("op1").path("config").isEmpty)
   }
 
   // Test case to verify that retrieveWorkflowVersion with the latest vid returns the current workflow
