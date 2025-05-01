@@ -14,6 +14,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
+import org.jooq.DSLContext
 
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
@@ -247,13 +248,35 @@ object WorkflowVersionResource {
   }
 
   /**
+    * Fetches all versions of a workflow from a specific version ID to the latest version
+    *
+    * @param wid workflow ID to query
+    * @param vid starting version ID (inclusive)
+    * @return List of workflow versions ordered from latest to earliest
+    */
+  def fetchVersionsPrecedingVersion(
+      wid: Integer,
+      vid: Integer,
+      context: DSLContext
+  ): List[WorkflowVersion] = {
+    context
+      .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+      .from(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
+      .orderBy(WORKFLOW_VERSION.VID.desc())
+      .fetchInto(classOf[WorkflowVersion])
+      .asScala
+      .toList
+  }
+
+  /**
     * This function applies all the diff versions to a workflow
     *
     * @param versions list of computed delta in each version
     * @param workflow beginning workflow ( more recent)
     * @return the (old) workflow is computed after applying all the patches
     */
-  private def applyPatch(versions: List[WorkflowVersion], workflow: Workflow): Workflow = {
+  def applyPatch(versions: List[WorkflowVersion], workflow: Workflow): Workflow = {
     // loop all versions and apply the patch
     for (patch <- versions) {
       workflow.setContent(
@@ -269,31 +292,6 @@ object WorkflowVersionResource {
     }
     // the checked out version is returned
     workflow
-  }
-
-  /**
-    * This function fetches a specific version of a workflow given its ID and version ID
-    *
-    * @param wid workflow ID
-    * @param vid version ID to retrieve
-    * @return the workflow at the specified version
-    */
-  def fetchWorkflowVersion(wid: Integer, vid: Integer): Workflow = {
-    // fetch all versions preceding this
-    val versionEntries = context
-      .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-      .orderBy(WORKFLOW_VERSION.VID.desc())
-      .fetchInto(classOf[WorkflowVersion])
-      .asScala
-      .toList
-
-    // get current workflow
-    val currentWorkflow = workflowDao.fetchOneByWid(wid)
-
-    // apply patches to get the version of the workflow
-    applyPatch(versionEntries, currentWorkflow)
   }
 
   /**
@@ -369,8 +367,13 @@ class WorkflowVersionResource {
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      // Use the extracted function to get the workflow version
-      fetchWorkflowVersion(wid, vid)
+      // fetch all versions preceding this
+      val versionEntries = fetchVersionsPrecedingVersion(wid, vid, context)
+      // apply patch
+      val currentWorkflow = workflowDao.fetchOneByWid(wid)
+      // return particular version of the workflow
+      val res: Workflow = applyPatch(versionEntries, currentWorkflow)
+      res
     }
   }
 
