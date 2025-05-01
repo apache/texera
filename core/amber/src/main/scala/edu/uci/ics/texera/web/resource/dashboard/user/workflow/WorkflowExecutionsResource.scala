@@ -212,9 +212,6 @@ object WorkflowExecutionsResource {
     }
 
     // Delete execution-related URIs from database tables
-    eIdsLong.foreach { eid =>
-      WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(ExecutionIdentity(eid))
-    }
     context
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
@@ -222,7 +219,12 @@ object WorkflowExecutionsResource {
 
     // Clear corresponding Iceberg documents
     uris.foreach { uri =>
-      DocumentFactory.openDocument(uri)._1.clear()
+      try {
+        DocumentFactory.openDocument(uri)._1.clear()
+      } catch {
+        case _: Throwable =>
+        // Document already deleted – safe to ignore
+      }
     }
   }
 
