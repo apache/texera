@@ -1,4 +1,4 @@
-FROM node:18 AS build-gui
+FROM node:18.17 AS build-gui
 
 WORKDIR /gui
 COPY core/gui /gui
