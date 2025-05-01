@@ -606,9 +606,9 @@ export class MenuComponent implements OnInit, OnDestroy {
         await this.sendNotebookToPod(notebookContent);
 
         // Get workflow and mapping from OpenAI
-        console.log("Getting data from OpenAI...")
+        console.log("Getting data from OpenAI...");
         await this.sendToAIGenerateWorkflow()
-          .then((result) => {
+          .then(result => {
             if (result) {
               const { workflowContent, mappingContent } = result;
               console.log("Workflow:", workflowContent);
@@ -648,7 +648,7 @@ export class MenuComponent implements OnInit, OnDestroy {
               console.error("Result is undefined");
             }
           })
-          .catch((error) => {
+          .catch(error => {
             console.error("Error while fetching data from OpenAI:", error);
           })
           .finally(() => {
@@ -678,7 +678,7 @@ export class MenuComponent implements OnInit, OnDestroy {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
 
       // Check if the response is OK (status code 200)
@@ -733,9 +733,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.notificationService.error("Error sending notebook to JupyterLab: " + error.message);
     }
   }
-
-
-
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {
     const reader = new FileReader();
