@@ -87,7 +87,7 @@ class WorkflowVersionResourceSpec
     patch.toString
   }
 
-  "WorkflowVersionResource" should "return versions in descending order from fetchVersionsPrecedingVersion and apply patches correctly" in {
+  "WorkflowVersionResource" should "return versions in descending order from fetchSubsequentVersions  and apply patches correctly" in {
     var currentContent = "initial"
     for (i <- 1 to 10) {
       val newContent = s"version_$i"
@@ -108,7 +108,7 @@ class WorkflowVersionResourceSpec
     workflowDao.update(testWorkflow)
 
     val midVersionId = 5
-    val versions = WorkflowVersionResource.fetchVersionsPrecedingVersion(
+    val versions = WorkflowVersionResource.fetchSubsequentVersions(
       testWorkflow.getWid,
       midVersionId,
       getDSLContext
@@ -145,7 +145,7 @@ class WorkflowVersionResourceSpec
       s"Workflow content from direct applyPatch should be 'version_$midVersionId' but was '$directVersionContent'"
     )
 
-    val combinedVersions = WorkflowVersionResource.fetchVersionsPrecedingVersion(
+    val combinedVersions = WorkflowVersionResource.fetchSubsequentVersions(
       testWorkflow.getWid,
       midVersionId,
       getDSLContext

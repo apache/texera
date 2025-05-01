@@ -254,7 +254,7 @@ object WorkflowVersionResource {
     * @param vid starting version ID (inclusive)
     * @return List of workflow versions ordered from latest to earliest
     */
-  def fetchVersionsPrecedingVersion(
+  def fetchSubsequentVersions(
       wid: Integer,
       vid: Integer,
       context: DSLContext
@@ -367,8 +367,8 @@ class WorkflowVersionResource {
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      // fetch all versions preceding this
-      val versionEntries = fetchVersionsPrecedingVersion(wid, vid, context)
+      // fetch all versions equal to and subsequent to the specified version
+      val versionEntries = fetchSubsequentVersions(wid, vid, context)
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)
       // return particular version of the workflow
