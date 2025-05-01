@@ -1,19 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.auth.SessionUser
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
   WorkflowDao,
-  WorkflowVersionDao,
-  WorkflowOfUserDao
+  WorkflowVersionDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
   Workflow,
-  WorkflowVersion,
-  WorkflowOfUser
+  WorkflowVersion
 }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -25,24 +19,8 @@ class WorkflowVersionResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
-  private val testUser: User = {
-    val user = new User
-    user.setUid(Integer.valueOf(1))
-    user.setName("test_user")
-    user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
-    user
-  }
-
-  private val sessionUser: SessionUser = new SessionUser(testUser)
-
-  private val workflowVersionResource: WorkflowVersionResource = new WorkflowVersionResource()
-
   private var workflowDao: WorkflowDao = _
   private var workflowVersionDao: WorkflowVersionDao = _
-  private var userDao: UserDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-
   // Test workflow for the first test
   private var testWorkflow1: Workflow = _
   private var testWorkflow1Versions: List[WorkflowVersion] = List()
@@ -62,22 +40,10 @@ class WorkflowVersionResourceSpec
     initializeDBAndReplaceDSLContext()
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    userDao = new UserDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-
-    // Insert test user
-    userDao.insert(testUser)
   }
 
   override protected def afterEach(): Unit = {
     shutdownDB()
-  }
-
-  private def setupWorkflowOwnership(wid: Integer): Unit = {
-    val workflowOfUser = new WorkflowOfUser
-    workflowOfUser.setWid(wid)
-    workflowOfUser.setUid(testUser.getUid)
-    workflowOfUserDao.insert(workflowOfUser)
   }
 
   private def createTestWorkflow(name: String, content: String): Workflow = {
@@ -86,7 +52,6 @@ class WorkflowVersionResourceSpec
     workflow.setDescription("Test description")
     workflow.setContent(content)
     workflowDao.insert(workflow)
-    setupWorkflowOwnership(workflow.getWid)
     workflow
   }
 
@@ -98,8 +63,8 @@ class WorkflowVersionResourceSpec
     version
   }
 
-  // Test case to verify that retrieveWorkflowVersion correctly applies patches in chronological order
-  "retrieveWorkflowVersion" should "correctly apply patches in chronological order" in {
+  // Test case to verify that fetchWorkflowVersion correctly applies patches in chronological order
+  "fetchWorkflowVersion" should "correctly apply patches in chronological order" in {
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
     val workflow = createTestWorkflow("Test Workflow 1", initialContent)
@@ -119,7 +84,7 @@ class WorkflowVersionResourceSpec
     val vid = lastVersion.getVid
 
     // Retrieve versions to get the original workflow
-    val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
+    val restoredWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
 
     // Parse the JSON content to verify the value
     val jsonNode = objectMapper.readTree(restoredWorkflow.getContent)
@@ -131,7 +96,7 @@ class WorkflowVersionResourceSpec
   }
 
   // Additional test case with different types of changes
-  "retrieveWorkflowVersion" should "correctly handle a mix of different patch operations" in {
+  "fetchWorkflowVersion" should "correctly handle a mix of different patch operations" in {
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1, "config": {}}}}"""
     val workflow = createTestWorkflow("Test Workflow 2", initialContent)
@@ -162,7 +127,7 @@ class WorkflowVersionResourceSpec
     val vid = lastVersion.getVid
 
     // Retrieve the original workflow state
-    val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
+    val restoredWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
 
     // Parse the JSON content to verify
     val jsonNode = objectMapper.readTree(restoredWorkflow.getContent)
@@ -176,8 +141,8 @@ class WorkflowVersionResourceSpec
     assert(jsonNode.path("operators").path("op1").path("config").isEmpty)
   }
 
-  // Test case to verify that retrieveWorkflowVersion with the latest vid returns the current workflow
-  "retrieveWorkflowVersion" should "return the current workflow when using the latest vid" in {
+  // Test case to verify that fetchWorkflowVersion with the latest vid returns the current workflow
+  "fetchWorkflowVersion" should "return the current workflow when using the latest vid" in {
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
     val updatedContent = """{"operators": {"op1": {"id": "op1", "value": 99}}}"""
@@ -193,7 +158,7 @@ class WorkflowVersionResourceSpec
     val vid = version.getVid
 
     // Retrieve the latest version
-    val retrievedWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
+    val retrievedWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
 
     // Verify the content is the same as the current workflow
     assert(retrievedWorkflow.getContent === updatedContent)

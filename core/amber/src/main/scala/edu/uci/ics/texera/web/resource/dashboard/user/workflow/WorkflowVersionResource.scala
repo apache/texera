@@ -272,6 +272,31 @@ object WorkflowVersionResource {
   }
 
   /**
+    * This function fetches a specific version of a workflow given its ID and version ID
+    *
+    * @param wid workflow ID
+    * @param vid version ID to retrieve
+    * @return the workflow at the specified version
+    */
+  def fetchWorkflowVersion(wid: Integer, vid: Integer): Workflow = {
+    // fetch all versions preceding this
+    val versionEntries = context
+      .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+      .from(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
+      .orderBy(WORKFLOW_VERSION.VID.desc())
+      .fetchInto(classOf[WorkflowVersion])
+      .asScala
+      .toList
+
+    // get current workflow
+    val currentWorkflow = workflowDao.fetchOneByWid(wid)
+
+    // apply patches to get the version of the workflow
+    applyPatch(versionEntries, currentWorkflow)
+  }
+
+  /**
     * This class is to add version importance encoding to the existing `VersionEntry` from DB
     *
     * @param vId
@@ -344,20 +369,8 @@ class WorkflowVersionResource {
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
-      // fetch all versions preceding this
-      val versionEntries = context
-        .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
-        .from(WORKFLOW_VERSION)
-        .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-        .orderBy(WORKFLOW_VERSION.VID.desc())
-        .fetchInto(classOf[WorkflowVersion])
-        .asScala
-        .toList
-      // apply patch
-      val currentWorkflow = workflowDao.fetchOneByWid(wid)
-      // return particular version of the workflow
-      val res: Workflow = applyPatch(versionEntries, currentWorkflow)
-      res
+      // Use the extracted function to get the workflow version
+      fetchWorkflowVersion(wid, vid)
     }
   }
 
