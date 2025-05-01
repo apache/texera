@@ -57,8 +57,8 @@ class WorkflowVersionResourceSpec
   private var testWorkflow3: Workflow = _
   private var testWorkflow3Version: WorkflowVersion = _
 
-  override protected def beforeAll(): Unit = {
-    // Initialize database and create DAOs
+  override protected def beforeEach(): Unit = {
+    // Initialize database and create DAOs before each test
     initializeDBAndReplaceDSLContext()
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
@@ -67,75 +67,10 @@ class WorkflowVersionResourceSpec
 
     // Insert test user
     userDao.insert(testUser)
+  }
 
-    // Prepare Test 1: Workflow with sequential versions
-    testWorkflow1 = createTestWorkflowOnly(
-      "Test Workflow 1",
-      """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
-    )
-    workflowDao.insert(testWorkflow1)
-    setupWorkflowOwnership(testWorkflow1.getWid)
-
-    // Create initial version
-    val initialVersion1 = WorkflowVersionResource.insertNewVersion(testWorkflow1.getWid)
-    testWorkflow1Versions = testWorkflow1Versions :+ initialVersion1
-    Thread.sleep(50)
-
-    // Create 10 versions with incrementing values
-    for (i <- 2 to 11) {
-      val patchContent = s"""[{"op":"replace","path":"/operators/op1/value","value":$i}]"""
-      val version = createVersionForWorkflow(testWorkflow1.getWid, patchContent)
-      testWorkflow1Versions = testWorkflow1Versions :+ version
-      Thread.sleep(50)
-    }
-    lastVersionId1 = testWorkflow1Versions.last.getVid
-
-    // Prepare Test 2: Workflow with mixed operations
-    testWorkflow2 = createTestWorkflowOnly(
-      "Test Workflow 2",
-      """{"operators": {"op1": {"id": "op1", "value": 1, "config": {}}}}"""
-    )
-    workflowDao.insert(testWorkflow2)
-    setupWorkflowOwnership(testWorkflow2.getWid)
-
-    // Create initial version
-    val initialVersion2 = WorkflowVersionResource.insertNewVersion(testWorkflow2.getWid)
-    testWorkflow2Versions = testWorkflow2Versions :+ initialVersion2
-    Thread.sleep(50)
-
-    // Add different types of changes
-    val changes = List(
-      """[{"op":"replace","path":"/operators/op1/value","value":2}]""",
-      """[{"op":"add","path":"/operators/op1/name","value":"Operator 1"}]""",
-      """[{"op":"add","path":"/operators/op1/config/size","value":10}]""",
-      """[{"op":"replace","path":"/operators/op1/config/size","value":20}]""",
-      """[{"op":"add","path":"/operators/op2","value":{"id":"op2","value":5}}]""",
-      """[{"op":"remove","path":"/operators/op1/name"}]""",
-      """[{"op":"replace","path":"/operators/op1/config","value":{"color":"blue"}}]""",
-      """[{"op":"replace","path":"/operators/op2/value","value":10}]""",
-      """[{"op":"add","path":"/links","value":[{"source":"op1","target":"op2"}]}]"""
-    )
-
-    for (change <- changes) {
-      val version = createVersionForWorkflow(testWorkflow2.getWid, change)
-      testWorkflow2Versions = testWorkflow2Versions :+ version
-      Thread.sleep(50)
-    }
-    lastVersionId2 = testWorkflow2Versions.last.getVid
-
-    // Prepare Test 3: Latest version test
-    val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
-    val updatedContent = """{"operators": {"op1": {"id": "op1", "value": 99}}}"""
-    testWorkflow3 = createTestWorkflowOnly("Test Workflow 3", initialContent)
-    workflowDao.insert(testWorkflow3)
-    setupWorkflowOwnership(testWorkflow3.getWid)
-
-    // Update the workflow content
-    testWorkflow3.setContent(updatedContent)
-    workflowDao.update(testWorkflow3)
-
-    // Create a version
-    testWorkflow3Version = WorkflowVersionResource.insertNewVersion(testWorkflow3.getWid)
+  override protected def afterEach(): Unit = {
+    shutdownDB()
   }
 
   private def setupWorkflowOwnership(wid: Integer): Unit = {
@@ -145,11 +80,13 @@ class WorkflowVersionResourceSpec
     workflowOfUserDao.insert(workflowOfUser)
   }
 
-  private def createTestWorkflowOnly(name: String, content: String): Workflow = {
+  private def createTestWorkflow(name: String, content: String): Workflow = {
     val workflow = new Workflow()
     workflow.setName(name)
     workflow.setDescription("Test description")
     workflow.setContent(content)
+    workflowDao.insert(workflow)
+    setupWorkflowOwnership(workflow.getWid)
     workflow
   }
 
@@ -161,15 +98,25 @@ class WorkflowVersionResourceSpec
     version
   }
 
-  override protected def afterAll(): Unit = {
-    shutdownDB()
-  }
-
   // Test case to verify that retrieveWorkflowVersion correctly applies patches in chronological order
   "retrieveWorkflowVersion" should "correctly apply patches in chronological order" in {
-    // Use the pre-created objects from beforeAll
-    val wid = testWorkflow1.getWid
-    val vid = lastVersionId1
+    // Create a workflow with initial content
+    val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
+    val workflow = createTestWorkflow("Test Workflow 1", initialContent)
+    val wid = workflow.getWid
+
+    // Create initial version
+    val initialVersion = WorkflowVersionResource.insertNewVersion(wid)
+    Thread.sleep(50)
+
+    // Create 10 versions with incrementing values
+    var lastVersion: WorkflowVersion = null
+    for (i <- 2 to 11) {
+      val patchContent = s"""[{"op":"replace","path":"/operators/op1/value","value":$i}]"""
+      lastVersion = createVersionForWorkflow(wid, patchContent)
+      Thread.sleep(50)
+    }
+    val vid = lastVersion.getVid
 
     // Retrieve versions to get the original workflow
     val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
@@ -185,9 +132,34 @@ class WorkflowVersionResourceSpec
 
   // Additional test case with different types of changes
   "retrieveWorkflowVersion" should "correctly handle a mix of different patch operations" in {
-    // Use the pre-created objects from beforeAll
-    val wid = testWorkflow2.getWid
-    val vid = lastVersionId2
+    // Create a workflow with initial content
+    val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1, "config": {}}}}"""
+    val workflow = createTestWorkflow("Test Workflow 2", initialContent)
+    val wid = workflow.getWid
+
+    // Create initial version
+    val initialVersion = WorkflowVersionResource.insertNewVersion(wid)
+    Thread.sleep(50)
+
+    // Add different types of changes
+    val changes = List(
+      """[{"op":"replace","path":"/operators/op1/value","value":2}]""",
+      """[{"op":"add","path":"/operators/op1/name","value":"Operator 1"}]""",
+      """[{"op":"add","path":"/operators/op1/config/size","value":10}]""",
+      """[{"op":"replace","path":"/operators/op1/config/size","value":20}]""",
+      """[{"op":"add","path":"/operators/op2","value":{"id":"op2","value":5}}]""",
+      """[{"op":"remove","path":"/operators/op1/name"}]""",
+      """[{"op":"replace","path":"/operators/op1/config","value":{"color":"blue"}}]""",
+      """[{"op":"replace","path":"/operators/op2/value","value":10}]""",
+      """[{"op":"add","path":"/links","value":[{"source":"op1","target":"op2"}]}]"""
+    )
+
+    var lastVersion: WorkflowVersion = null
+    for (change <- changes) {
+      lastVersion = createVersionForWorkflow(wid, change)
+      Thread.sleep(50)
+    }
+    val vid = lastVersion.getVid
 
     // Retrieve the original workflow state
     val restoredWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
@@ -206,14 +178,24 @@ class WorkflowVersionResourceSpec
 
   // Test case to verify that retrieveWorkflowVersion with the latest vid returns the current workflow
   "retrieveWorkflowVersion" should "return the current workflow when using the latest vid" in {
-    // Use the pre-created objects from beforeAll
-    val wid = testWorkflow3.getWid
-    val vid = testWorkflow3Version.getVid
+    // Create a workflow with initial content
+    val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
+    val updatedContent = """{"operators": {"op1": {"id": "op1", "value": 99}}}"""
+    val workflow = createTestWorkflow("Test Workflow 3", initialContent)
+    val wid = workflow.getWid
+
+    // Update the workflow content
+    workflow.setContent(updatedContent)
+    workflowDao.update(workflow)
+
+    // Create a version
+    val version = WorkflowVersionResource.insertNewVersion(wid)
+    val vid = version.getVid
 
     // Retrieve the latest version
     val retrievedWorkflow = workflowVersionResource.retrieveWorkflowVersion(wid, vid, sessionUser)
 
     // Verify the content is the same as the current workflow
-    assert(retrievedWorkflow.getContent === testWorkflow3.getContent)
+    assert(retrievedWorkflow.getContent === updatedContent)
   }
 }
