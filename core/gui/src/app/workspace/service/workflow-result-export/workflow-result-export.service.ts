@@ -93,6 +93,7 @@ export class WorkflowResultExportService {
 
     const workflowId = this.workflowActionService.getWorkflow().wid;
     if (!workflowId) {
+      this.notificationService.error("Cannot export result: workflow ID is not available");
       return;
     }
 

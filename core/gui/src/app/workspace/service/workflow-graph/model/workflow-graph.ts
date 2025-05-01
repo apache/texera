@@ -78,6 +78,7 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
 export class WorkflowGraph {
   public sharedModel: SharedModel = new SharedModel();
   public newYDocLoadedSubject = new Subject();
+  private readonly centerEventSubject = new Subject<void>();
 
   public readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
@@ -981,6 +982,14 @@ export class WorkflowGraph {
     newProperty: PortProperty;
   }> {
     return this.portPropertyChangedSubject.asObservable();
+  }
+
+  public getCenterEventStream(): Observable<void> {
+    return this.centerEventSubject.asObservable();
+  }
+
+  public triggerCenterEvent(): void {
+    this.centerEventSubject.next();
   }
 
   /**
