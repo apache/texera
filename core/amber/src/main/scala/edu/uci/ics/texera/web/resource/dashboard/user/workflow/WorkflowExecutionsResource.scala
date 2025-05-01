@@ -226,6 +226,13 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+    * Updates the result size of the corresponding Iceberg document in the database.
+    *
+    * @param eid          Execution ID associated with the result.
+    * @param globalPortId Global port identifier for the operator output.
+    * @param size         Size of the result in bytes.
+    */
   def updateResultSize(
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity,
@@ -239,6 +246,11 @@ object WorkflowExecutionsResource {
       .execute()
   }
 
+  /**
+    * Updates the size of the runtime statistics stored via Iceberg document.
+    *
+    * @param eid Execution ID associated with the runtime statistics document.
+    */
   def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       val statsUriOpt = context
@@ -259,6 +271,12 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+    * Updates the size of the console message stored via Iceberg document.
+    *
+    * @param eid  Execution ID associated with the console message.
+    * @param opId Operator ID of the corresponding operator.
+    */
   def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       val uriOpt = context

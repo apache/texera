@@ -162,7 +162,7 @@ object UserQuotaResource {
     }.toArray
   }
 
-  def deleteWorkflowCollection(eid: Integer): Unit = {
+  def deleteExecutionCollection(eid: Integer): Unit = {
     WorkflowExecutionsResource.removeAllExecutionFiles(Array(eid))
   }
 }
@@ -201,6 +201,6 @@ class UserQuotaResource {
   @DELETE
   @Path("/deleteCollection/{eid}")
   def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
-    deleteWorkflowCollection(eid)
+    deleteExecutionCollection(eid)
   }
 }

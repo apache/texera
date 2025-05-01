@@ -86,6 +86,6 @@ class AdminUserResource {
   @DELETE
   @Path("/deleteCollection/{eid}")
   def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
-    deleteWorkflowCollection(eid)
+    deleteExecutionCollection(eid)
   }
 }
