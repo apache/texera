@@ -513,8 +513,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
-          } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
-            this.wrapper.highlightGroups(elementID);
+            // } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
+            //   this.wrapper.highlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.wrapper.highlightCommentBoxes(elementID);
           }
