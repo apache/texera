@@ -88,7 +88,8 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, globalPortId.serializeAsString, uri.toString, 0)
+        .columns(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID, OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID, OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+        .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -102,7 +103,8 @@ object WorkflowExecutionsResource {
   ): Unit = {
     context
       .insertInto(OPERATOR_EXECUTIONS)
-      .values(eid, opId, uri.toString, 0)
+      .columns(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, OPERATOR_EXECUTIONS.OPERATOR_ID, OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+      .values(eid.toInt, opId, uri.toString)
       .execute()
   }
 
@@ -246,7 +248,6 @@ object WorkflowExecutionsResource {
           .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
           .execute()
       }
-
     }
   }
 
@@ -269,7 +270,6 @@ object WorkflowExecutionsResource {
           .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
           .execute()
       }
-
     }
   }
 
