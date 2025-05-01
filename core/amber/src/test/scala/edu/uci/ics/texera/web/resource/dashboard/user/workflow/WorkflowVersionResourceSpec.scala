@@ -87,7 +87,7 @@ class WorkflowVersionResourceSpec
     patch.toString
   }
 
-  "WorkflowVersionResource" should "return versions in descending order from fetchSubsequentVersions  and apply patches correctly" in {
+  "WorkflowVersionResource" should "return versions in descending order from fetchSubsequentVersions and apply patches correctly" in {
     var currentContent = "initial"
     for (i <- 1 to 10) {
       val newContent = s"version_$i"
