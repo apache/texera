@@ -166,7 +166,7 @@ object WorkflowExecutionsResource {
         .map(URI.create)
     else None
 
-  def clearUris(eid: ExecutionIdentity): Unit = {
+  def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .delete(OPERATOR_PORT_EXECUTIONS)
@@ -181,34 +181,39 @@ object WorkflowExecutionsResource {
     }
   }
 
-  def removeExecution(eid: ExecutionIdentity): Unit = {
-    if (AmberConfig.isUserSystemEnabled) {
-      context
-        .delete(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .execute()
-    } else {
-      ExecutionResourcesMapping.removeExecutionResources(eid)
-    }
-  }
+  /**
+    * Removes all resources related to the specified execution IDs,
+    * including runtime statistics, console messages, result documents, and database records.
+    *
+    * @param eids Array of execution IDs to be cleaned up.
+    */
+  def removeAllExecutionFiles(eids: Array[Integer]): Unit = {
+    val eIdsLong = eids.map(_.toLong)
+    val eIdsList = eIdsLong.toSeq.asJava
 
-  def removeRuntimeStats(eids: Array[Integer]): Unit = {
-    val eIdsList = eids.toSeq.asJava
-    // Clear runtime statistics documents for each execution
-    eids.foreach { eid =>
+    // Collect all related document URIs (runtime stats, console logs, results)
+    val uris: Seq[URI] = eIdsLong.flatMap { eid =>
+      val execId = ExecutionIdentity(eid)
       WorkflowExecutionsResource
-        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
-        .foreach { uri =>
-          DocumentFactory.openDocument(uri)._1.clear()
-        }
-      WorkflowExecutionsResource.clearUris(ExecutionIdentity(eid.longValue()))
-      WorkflowExecutionsResource.removeExecution(ExecutionIdentity(eid.longValue()))
+        .getRuntimeStatsUriByExecutionId(execId)
+        .toList ++
+        WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(execId) ++
+        WorkflowExecutionsResource.getResultUrisByExecutionId(execId)
     }
 
+    // Delete execution-related URIs from database tables
+    eIdsLong.foreach { eid =>
+      WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(ExecutionIdentity(eid))
+    }
     context
       .deleteFrom(WORKFLOW_EXECUTIONS)
       .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
       .execute()
+
+    // Clear corresponding Iceberg documents
+    uris.foreach { uri =>
+      DocumentFactory.openDocument(uri)._1.clear()
+    }
   }
 
   def updateResultSize(
@@ -567,7 +572,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    removeRuntimeStats(request.eIds)
+    removeAllExecutionFiles(request.eIds)
   }
 
   /** Name a single execution * */

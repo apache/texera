@@ -163,20 +163,7 @@ object UserQuotaResource {
   }
 
   def deleteWorkflowCollection(eid: Integer): Unit = {
-    val wid = context
-      .select(WORKFLOW_VERSION.WID)
-      .from(WORKFLOW_EXECUTIONS)
-      .join(WORKFLOW_VERSION)
-      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
-      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
-      .fetchOne(0, classOf[Integer])
-    val workflowId = WorkflowIdentity(wid.toLong)
-    val executionId = ExecutionIdentity(eid.toLong)
-
-    WorkflowService.getOrCreate(workflowId).clearExecutionResources(executionId)
-    WorkflowExecutionsResource.removeRuntimeStats(Array(eid))
-    WorkflowExecutionsResource.clearUris(executionId)
-    WorkflowExecutionsResource.removeExecution(executionId)
+    WorkflowExecutionsResource.removeAllExecutionFiles(Array(eid))
   }
 }
 

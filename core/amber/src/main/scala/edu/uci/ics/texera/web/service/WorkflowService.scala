@@ -291,13 +291,13 @@ class WorkflowService(
     *
     * @param eid The execution identity to clean up resources for
     */
-  def clearExecutionResources(eid: ExecutionIdentity): Unit = {
+  private def clearExecutionResources(eid: ExecutionIdentity): Unit = {
     // Retrieve URIs for all resources associated with this execution
     val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
     val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
 
     // Remove references from registry first
-    WorkflowExecutionsResource.clearUris(eid)
+    WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(eid)
 
     // Clean up all result and console message documents
     (resultUris ++ consoleMessagesUris).foreach { uri =>
