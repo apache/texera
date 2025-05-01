@@ -3,8 +3,18 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowVersionDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowVersion}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowVersionDao,
+  WorkflowOfUserDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowVersion,
+  WorkflowOfUser
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
@@ -38,9 +48,24 @@ class WorkflowVersionResourceSpec
   private var workflowDao: WorkflowDao = _
   private var workflowVersionDao: WorkflowVersionDao = _
   private var userDao: UserDao = _
+  private var workflowOfUserDao: WorkflowOfUserDao = _
 
   // Helper method to create a test workflow
   private def createTestWorkflow(name: String, content: String): Workflow = {
+    val workflow = createTestWorkflowOnly(name, content)
+    workflowDao.insert(workflow)
+
+    // Set the workflow owner to the test user
+    val workflowOfUser = new WorkflowOfUser
+    workflowOfUser.setWid(workflow.getWid)
+    workflowOfUser.setUid(testUser.getUid)
+    workflowOfUserDao.insert(workflowOfUser)
+
+    workflow
+  }
+
+  // Helper method to create a workflow without inserting into DB
+  private def createTestWorkflowOnly(name: String, content: String): Workflow = {
     val workflow = new Workflow()
     workflow.setName(name)
     workflow.setDescription("Test description")
@@ -63,10 +88,15 @@ class WorkflowVersionResourceSpec
     workflowDao = new WorkflowDao(getDSLContext.configuration())
     workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
     userDao = new UserDao(getDSLContext.configuration())
+    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
     userDao.insert(testUser)
   }
 
   override protected def afterEach(): Unit = {
+    // Clean up all workflow of user entries
+    val allWorkflowOfUsers = workflowOfUserDao.findAll().asScala
+    allWorkflowOfUsers.foreach(entry => workflowOfUserDao.delete(entry))
+
     // Clean up all workflow versions
     val allVersions = workflowVersionDao.findAll().asScala
     allVersions.foreach(version => workflowVersionDao.delete(version))
@@ -85,7 +115,6 @@ class WorkflowVersionResourceSpec
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
     val workflow = createTestWorkflow("Test Workflow", initialContent)
-    workflowDao.insert(workflow)
     val wid = workflow.getWid
 
     // Create a series of versions with different patches (at least 10)
@@ -120,7 +149,6 @@ class WorkflowVersionResourceSpec
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1, "config": {}}}}"""
     val workflow = createTestWorkflow("Test Workflow", initialContent)
-    workflowDao.insert(workflow)
     val wid = workflow.getWid
 
     // Create the initial version
@@ -198,7 +226,6 @@ class WorkflowVersionResourceSpec
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
     val workflow = createTestWorkflow("Test Workflow", initialContent)
-    workflowDao.insert(workflow)
     val wid = workflow.getWid
 
     // Update the workflow content
