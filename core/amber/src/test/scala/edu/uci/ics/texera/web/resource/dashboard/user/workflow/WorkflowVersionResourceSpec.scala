@@ -57,8 +57,8 @@ class WorkflowVersionResourceSpec
     version
   }
 
-  // Test case to verify that fetchWorkflowVersion correctly applies patches in chronological order
-  "fetchWorkflowVersion" should "correctly apply patches in chronological order" in {
+  // Test case to verify that fetchWorkflowVersion correctly applies patches
+  "fetchWorkflowVersion" should "return the workflow at the specified version" in {
     // Create a workflow with initial content
     val initialContent = """{"operators": {"op1": {"id": "op1", "value": 1}}}"""
     val workflow = createTestWorkflow("Test Workflow 1", initialContent)
@@ -69,24 +69,43 @@ class WorkflowVersionResourceSpec
     Thread.sleep(50)
 
     // Create 10 versions with incrementing values
+    var versionMap = Map[Integer, Int]()
     var lastVersion: WorkflowVersion = null
     for (i <- 2 to 11) {
       val patchContent = s"""[{"op":"replace","path":"/operators/op1/value","value":$i}]"""
       lastVersion = createVersionForWorkflow(wid, patchContent)
+      versionMap += (lastVersion.getVid -> i)
       Thread.sleep(50)
     }
     val vid = lastVersion.getVid
 
-    // Retrieve versions to get the original workflow
-    val restoredWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
+    // Retrieve the last version (should have value 11)
+    val lastVersionWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
 
     // Parse the JSON content to verify the value
-    val jsonNode = objectMapper.readTree(restoredWorkflow.getContent)
+    val jsonNode = objectMapper.readTree(lastVersionWorkflow.getContent)
     val op1Value = jsonNode.path("operators").path("op1").path("value").asInt()
 
-    // The value should be 1 because we're applying patches from vid to the latest version
-    // Each patch reverts one change, going backwards from 11 to 10 to 9... to 1
-    assert(op1Value === 1)
+    // The value should be 11 at the latest version
+    assert(op1Value === 11)
+
+    // Check a middle version (e.g., the 5th version)
+    val midVersionId = versionMap.keys.toList.sorted.apply(4) // 5th version
+    val midVersion = WorkflowVersionResource.fetchWorkflowVersion(wid, midVersionId)
+    val midJsonNode = objectMapper.readTree(midVersion.getContent)
+    val midValue = midJsonNode.path("operators").path("op1").path("value").asInt()
+
+    // Value should match what we set for this version
+    assert(midValue === versionMap(midVersionId))
+
+    // Check the first version (should still be 1)
+    val firstVersionWorkflow =
+      WorkflowVersionResource.fetchWorkflowVersion(wid, initialVersion.getVid)
+    val firstJsonNode = objectMapper.readTree(firstVersionWorkflow.getContent)
+    val firstValue = firstJsonNode.path("operators").path("op1").path("value").asInt()
+
+    // The value should be 1 at the first version
+    assert(firstValue === 1)
   }
 
   // Additional test case with different types of changes
@@ -113,26 +132,36 @@ class WorkflowVersionResourceSpec
       """[{"op":"add","path":"/links","value":[{"source":"op1","target":"op2"}]}]"""
     )
 
-    var lastVersion: WorkflowVersion = null
+    var versions: List[WorkflowVersion] = List()
     for (change <- changes) {
-      lastVersion = createVersionForWorkflow(wid, change)
+      val version = createVersionForWorkflow(wid, change)
+      versions = versions :+ version
       Thread.sleep(50)
     }
-    val vid = lastVersion.getVid
 
-    // Retrieve the original workflow state
-    val restoredWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
+    // Check the state at the final version (should have all changes applied)
+    val finalVersion = WorkflowVersionResource.fetchWorkflowVersion(wid, versions.last.getVid)
+    val finalJson = objectMapper.readTree(finalVersion.getContent)
 
-    // Parse the JSON content to verify
-    val jsonNode = objectMapper.readTree(restoredWorkflow.getContent)
+    // Verify final state has all changes applied
+    assert(finalJson.path("operators").path("op1").path("value").asInt() === 2)
+    assert(!finalJson.path("operators").path("op1").has("name")) // was removed in version 6
+    assert(finalJson.path("operators").has("op2"))
+    assert(finalJson.path("operators").path("op2").path("value").asInt() === 10)
+    assert(finalJson.has("links"))
+    assert(finalJson.path("operators").path("op1").path("config").has("color"))
+    assert(finalJson.path("operators").path("op1").path("config").path("color").asText() === "blue")
 
-    // Verify content matches the initial state after all patches are applied
-    assert(jsonNode.path("operators").path("op1").path("value").asInt() === 1)
-    assert(!jsonNode.path("operators").path("op1").has("name"))
-    assert(!jsonNode.path("operators").has("op2"))
-    assert(!jsonNode.has("links"))
-    assert(jsonNode.path("operators").path("op1").path("config").isObject)
-    assert(jsonNode.path("operators").path("op1").path("config").isEmpty)
+    // Check the initial version (should be the original content)
+    val firstVersion = WorkflowVersionResource.fetchWorkflowVersion(wid, initialVersion.getVid)
+    val firstJson = objectMapper.readTree(firstVersion.getContent)
+
+    assert(firstJson.path("operators").path("op1").path("value").asInt() === 1)
+    assert(!firstJson.path("operators").path("op1").has("name"))
+    assert(!firstJson.path("operators").has("op2"))
+    assert(!firstJson.has("links"))
+    assert(firstJson.path("operators").path("op1").path("config").isObject)
+    assert(firstJson.path("operators").path("op1").path("config").isEmpty)
   }
 
   // Test case to verify that fetchWorkflowVersion with the latest vid returns the current workflow
@@ -143,18 +172,26 @@ class WorkflowVersionResourceSpec
     val workflow = createTestWorkflow("Test Workflow 3", initialContent)
     val wid = workflow.getWid
 
+    // Create initial version
+    val initialVersion = WorkflowVersionResource.insertNewVersion(wid)
+
     // Update the workflow content
     workflow.setContent(updatedContent)
     workflowDao.update(workflow)
 
-    // Create a version
-    val version = WorkflowVersionResource.insertNewVersion(wid)
-    val vid = version.getVid
+    // Create another version after the update
+    val updatedVersion = WorkflowVersionResource.insertNewVersion(wid)
 
     // Retrieve the latest version
-    val retrievedWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, vid)
+    val retrievedWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, updatedVersion.getVid)
 
     // Verify the content is the same as the current workflow
     assert(retrievedWorkflow.getContent === updatedContent)
+
+    // Retrieve the initial version
+    val initialWorkflow = WorkflowVersionResource.fetchWorkflowVersion(wid, initialVersion.getVid)
+
+    // Verify the content is the original content
+    assert(initialWorkflow.getContent === initialContent)
   }
 }
