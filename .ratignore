@@ -1,3 +1,4 @@
 .gitattributes
 .ratignore
 README.md
+core/gui/yarn.lock
