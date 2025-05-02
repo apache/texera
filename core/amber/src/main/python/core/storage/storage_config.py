@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 class StorageConfig:
     """
     A static class to keep the storage-related configs.
