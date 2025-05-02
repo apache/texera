@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,7 @@
  * under the License.
  */
 
-﻿import { Injectable } from "@angular/core";
+import { Injectable } from "@angular/core";
 import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
 import { UserService } from "./user.service";
 import { environment } from "../../../../environments/environment";
