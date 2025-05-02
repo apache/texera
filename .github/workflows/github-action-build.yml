@@ -143,7 +143,7 @@ jobs:
           cd core/amber/src/main/python && pytest -sv
 
   license:
-    name: Check License Headers
+    name: license-headers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
