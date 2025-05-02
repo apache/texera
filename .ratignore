@@ -1,3 +1,5 @@
 .dockerignore
 .gitattributes
 .gitignore
+.ratignore
+README.md
