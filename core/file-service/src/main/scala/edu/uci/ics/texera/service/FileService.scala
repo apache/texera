@@ -6,6 +6,7 @@ import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
@@ -16,7 +17,7 @@ import edu.uci.ics.texera.service.resource.{
   DatasetResource,
   HealthCheckResource
 }
-import edu.uci.ics.texera.service.util.LakeFSHealthManager
+import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
@@ -40,6 +41,11 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
       StorageConfig.jdbcPassword
     )
 
+    // check if the texera dataset bucket exists, if not create it
+    S3StorageClient.createBucketIfNotExist(StorageConfig.lakefsBucketName)
+    // check if we can connect to the lakeFS service
+    LakeFSStorageClient.healthCheck()
+
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
 
@@ -55,10 +61,6 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
-
-    // Add health check for underlying S3 & LakeFS storage
-    val healthCheckIntervalSeconds = 60
-    environment.lifecycle().manage(new LakeFSHealthManager(healthCheckIntervalSeconds))
   }
 }
 
