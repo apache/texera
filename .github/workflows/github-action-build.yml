@@ -142,12 +142,7 @@ jobs:
         run: |
           cd core/amber/src/main/python && pytest -sv
 
-name: Release Auditing
-
-on: [push, pull_request]
-
-jobs:
-  test:
+  license:
     name: Check License Headers
     runs-on: ubuntu-latest
     steps:
