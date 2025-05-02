@@ -2,7 +2,7 @@
 .ratignore
 README.md
 
-texera/core/gui/yarn.lock
-texera/core/amber/operator-requirements.txt
-texera/core/amber/r-requirements.txt
-texera/core/amber/requirements.txt
+core/gui/yarn.lock
+core/amber/operator-requirements.txt
+core/amber/r-requirements.txt
+core/amber/requirements.txt
