@@ -1,5 +1,7 @@
 .gitattributes
 .ratignore
 README.md
-*requirements.txt
 core/gui/yarn.lock
+core/amber/operator-requirements.txt
+core/amber/r-requirements.txt
+core/amber/requirements.txt
