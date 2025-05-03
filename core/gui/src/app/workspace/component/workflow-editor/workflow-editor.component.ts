@@ -767,6 +767,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
         this.currentOpenedOperatorID = operatorID;
         this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.workflowActionService.openResultPanel();
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
@@ -780,6 +781,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
         this.currentOpenedOperatorID = operatorID;
         this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.workflowActionService.openResultPanel();
       });
 
     fromJointPaperEvent(this.paper, "blank:pointerdown")
