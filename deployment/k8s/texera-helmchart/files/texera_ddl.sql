@@ -1,6 +1,3 @@
--- CREATE LakeFS db
-DROP DATABASE IF EXISTS texera_lakefs;
-CREATE DATABASE texera_lakefs;
 
 -- CREATE iceberg catalog db
 

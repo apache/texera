@@ -11,7 +11,7 @@ global:
 persistence:
   removeAfterUninstall: true
 
-# Part 1: the configuration of Postgres, Minio and LakeFS
+# Part 1: the configuration of Postgres
 postgresql:
   image:
     repository: texera/postgres17-pgroonga
@@ -36,53 +36,6 @@ postgresql:
 
     initdb:
       scriptsConfigMap: "postgresql-init-script"
-
-minio:
-  mode: standalone
-  customIngress:
-    enabled: false
-    ingressClassName: "" # e.g., "nginx"
-    texeraHostname: "" # the url for the texera WITH http or https, e.g., "https://texera.example.com"
-    minioHostname: "" # the url for the minio
-    issuer: "" # e.g., "letsencrypt-prod"
-  auth:
-    rootUser: texera_minio
-    rootPassword: password
-  service:
-    # In production, use ClusterIP to avoid exposing the minio to the internet
-    # type: ClusterIP
-    type: NodePort
-    nodePorts:
-      api: 31000
-  persistence:
-    enabled: true
-    size: 20Gi
-    storageClass: local-path
-    existingClaim: "minio-data-pvc"
-
-lakefs:
-  secrets:
-    authEncryptSecretKey: random_string_for_lakefs
-    databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
-  auth:
-    username: texera-admin
-    accessKey: AKIAIOSFOLKFSSAMPLES
-    secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  service:
-    port: 8000
-  lakefsConfig: |
-    database:
-      type: postgres
-    blockstore:
-      type: s3
-      s3:
-        endpoint: http://texera-minio:9000
-        pre_signed_expiry: 15m
-        pre_signed_endpoint: http://localhost:31000
-        force_path_style: true
-        credentials:
-          access_key_id: texera_minio
-          secret_access_key: password
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
@@ -121,14 +74,6 @@ workflowCompilingService:
   service:
     type: ClusterIP
     port: 9090
-
-fileService:
-  name: file-service
-  numOfPods: 1
-  imageName: texera/file-service:cluster
-  service:
-    type: ClusterIP
-    port: 9092
 
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
@@ -246,12 +191,6 @@ ingressPaths:
     - path: /api/compile
       serviceName: workflow-compiling-service-svc
       servicePort: 9090
-    - path: /api/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
-    - path: /api/access/dataset
-      serviceName: file-service-svc
-      servicePort: 9092
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
