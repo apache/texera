@@ -32,7 +32,7 @@ export const defaultEnvironment = {
   /**
    * whether export execution result is supported
    */
-  exportExecutionResultEnabled: true,
+  exportExecutionResultEnabled: false,
 
   /**
    * whether automatically correcting attribute name on change is enabled
@@ -43,12 +43,12 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   /**
    * whether workflow computing unit manager is enabled (requires k8s)
    */
-  computingUnitManagerEnabled: true,
+  computingUnitManagerEnabled: false,
 
   /**
    * whether selecting files from datasets instead of the local file system.
@@ -64,7 +64,7 @@ export const defaultEnvironment = {
   /**
    * whether google login is enabled
    */
-  googleLogin: false,
+  googleLogin: true,
   /**
    * whether invite only is enabled
    */
@@ -78,7 +78,7 @@ export const defaultEnvironment = {
   /**
    * whether workflow executions tracking feature is enabled
    */
-  workflowExecutionsTrackingEnabled: true,
+  workflowExecutionsTrackingEnabled: false,
 
   /**
    * whether linkBreakpoint is supported
@@ -99,12 +99,12 @@ export const defaultEnvironment = {
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
    */
-  productionSharedEditingServer: true,
+  productionSharedEditingServer: false,
 
   /**
    * the file size limit for dataset upload
    */
-  singleFileUploadMaximumSizeMB: 1024,
+  singleFileUploadMaximumSizeMB: 20,
 
   /**
    * the maximum number of file chunks that can be held in the memory;
