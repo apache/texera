@@ -9,9 +9,15 @@
     cdkDragHandle>
     <span>Jupyter Notebook</span>
     <button
+      nz-button
+      nzType="text"
+      nzShape="circle"
       class="close-button"
       (click)="closePanel()">
-      X
+      <i
+        nz-icon
+        nzType="close"
+        nzTheme="outline"></i>
     </button>
     <!-- Close button -->
   </div>
