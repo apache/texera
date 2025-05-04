@@ -11,3 +11,6 @@ yarn.lock
 .htaccess
 .gitkeep
 site.webmanifest
+line_numbers.txt
+line_numbers_crlf.txt
+numbers.txt
