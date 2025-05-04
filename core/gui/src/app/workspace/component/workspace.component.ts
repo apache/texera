@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -9,7 +28,6 @@ import { OperatorMetadataService } from "../service/operator-metadata/operator-m
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
-import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -42,6 +60,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public isLoading: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
+
+  /**
+   * Flag to ensure auto persist is registered only once.  This prevents multiple
+   * subscriptions and avoids accidental persistence of an empty workflow
+   * before the actual workflow is loaded from backend.
+   */
+  private autoPersistRegistered = false;
+
   constructor(
     private userService: UserService,
     // list additional 3 services in constructor so they are initialized even if no one use them directly
@@ -106,6 +132,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.workflowActionService.resetAsNewWorkflow();
 
     if (this.userSystemEnabled) {
+      // if a workflow id is present in the route, display loading spinner immediately while loading
+      const widInRoute = this.route.snapshot.params.id;
+      if (widInRoute) {
+        this.isLoading = true;
+        this.workflowActionService.disableWorkflowModification();
+      }
+
       this.onWIDChange();
       this.updateViewCount();
     }
@@ -136,6 +169,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   registerAutoPersistWorkflow(): void {
+    // make sure it is only registered once
+    if (this.autoPersistRegistered) {
+      return;
+    }
+    this.autoPersistRegistered = true;
+
     this.workflowActionService
       .workflowChanged()
       .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
@@ -193,6 +232,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.isLoading = false;
+          this.registerAutoPersistWorkflow();
+          this.triggerCenter();
         },
         () => {
           this.workflowActionService.resetAsNewWorkflow();
@@ -216,7 +257,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         if (environment.userSystemEnabled) {
           // load workflow with wid if presented in the URL
           if (wid) {
-            // if wid is present in the url, load it from the backend
+            // show loading spinner right away while waiting for workflow to load
+            this.isLoading = true;
+            // temporarily disable modification to prevent editing an empty workflow before real data is loaded
+            this.workflowActionService.disableWorkflowModification();
+            // if wid is present in the url, load it from the backend once the user info is ready
             this.userService
               .userChanged()
               .pipe(untilDestroyed(this))
@@ -224,10 +269,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
                 this.loadWorkflowWithId(wid);
               });
           } else {
-            // no workflow to load, pending to create a new workflow
+            // no workflow to load; directly register auto persist for brand-new workflow
+            this.registerAutoPersistWorkflow();
           }
-          // responsible for persisting the workflow to the backend
-          this.registerAutoPersistWorkflow();
         } else {
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
@@ -284,5 +328,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe();
+  }
+
+  public triggerCenter(): void {
+    this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
 }

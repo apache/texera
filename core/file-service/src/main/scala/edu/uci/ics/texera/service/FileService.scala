@@ -1,9 +1,29 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.service
 
 import com.fasterxml.jackson.databind.module.SimpleModule
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
@@ -20,7 +40,7 @@ import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
-class FileService extends Application[FileServiceConfiguration] {
+class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)

@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -16,6 +35,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
@@ -104,6 +124,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
       StorageConfig.jdbcPassword
     )
 
+    environment.jersey.setUrlPattern("/api/*")
+
     val webSocketUpgradeFilter =
       WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
@@ -117,6 +139,13 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment.servlets.setSessionHandler(new SessionHandler)
 
     setupJwtAuth(environment)
+
+    environment.jersey.register(
+      new io.dropwizard.auth.AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
+    )
+    environment.jersey.register(
+      classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
+    )
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
@@ -143,6 +172,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         recurringCheckExpiredResults(timeToLive)
       }
     }
+
+    environment.jersey.register(classOf[WorkflowExecutionsResource])
   }
 
   /**

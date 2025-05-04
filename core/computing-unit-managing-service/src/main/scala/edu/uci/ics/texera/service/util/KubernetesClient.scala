@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.service.util
 
 import edu.uci.ics.texera.service.KubernetesConfig
@@ -14,36 +33,11 @@ object KubernetesClient {
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 
-  def isValidQuantity(q: String): Boolean = {
-    try {
-      new Quantity(q)
-      true
-    } catch {
-      case _: Exception => false
-    }
-  }
-
   def generatePodURI(cuid: Int): String = {
     s"${generatePodName(cuid)}.${KubernetesConfig.computeUnitServiceName}.$namespace.svc.cluster.local"
   }
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
-
-  def parseCUIDFromURI(uri: String): Int = {
-    val pattern = """computing-unit-(\d+).*""".r
-    uri match {
-      case pattern(cuid) => cuid.toInt
-      case _             => throw new IllegalArgumentException(s"Invalid pod URI: $uri")
-    }
-  }
-
-  def getPodsList(): List[Pod] = {
-    client.pods().inNamespace(namespace).list().getItems.asScala.toList
-  }
-
-  def getPodsList(label: String): List[Pod] = {
-    client.pods().inNamespace(namespace).withLabel(label).list().getItems.asScala.toList
-  }
 
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
@@ -138,6 +132,7 @@ object KubernetesClient {
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
+      .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
       .endPort()

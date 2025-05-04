@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
@@ -59,20 +78,16 @@ export class DatasetService {
   /**
    * Retrieves a single file from a dataset version using a pre-signed URL.
    * @param filePath Relative file path within the dataset.
+   * @param isLogin Determine whether a user is currently logged in
    * @returns Observable<Blob>
    */
-  public retrieveDatasetVersionSingleFile(filePath: string): Observable<Blob> {
+  public retrieveDatasetVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
+    const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
+
     return this.http
-      .get<{
-        presignedUrl: string;
-      }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/presign-download?filePath=${encodeURIComponent(filePath)}`
-      )
-      .pipe(
-        switchMap(({ presignedUrl }) => {
-          return this.http.get(presignedUrl, { responseType: "blob" });
-        })
-      );
+      .get<{ presignedUrl: string }>(endpoint)
+      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
   }
 
   /**

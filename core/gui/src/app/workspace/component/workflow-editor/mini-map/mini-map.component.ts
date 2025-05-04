@@ -1,10 +1,30 @@
-import { AfterViewInit, Component, HostListener, OnDestroy } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { AfterViewInit, Component, HostListener, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 import { PanelService } from "../../../service/panel/panel.service";
+import { CdkDrag } from "@angular/cdk/drag-drop";
 
 @UntilDestroy()
 @Component({
@@ -13,6 +33,8 @@ import { PanelService } from "../../../service/panel/panel.service";
   styleUrls: ["mini-map.component.scss"],
 })
 export class MiniMapComponent implements AfterViewInit, OnDestroy {
+  @ViewChild("navigatorDrag", { static: false }) navigatorDrag!: CdkDrag;
+
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
@@ -67,9 +89,16 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   private updateNavigator(): void {
     if (!this.dragging) {
-      const point = this.paper.pageToLocalPoint({ x: 0, y: 0 });
       const editor = document.getElementById("workflow-editor")!;
       const navigator = document.getElementById("mini-map-navigator")!;
+      const editorRect = editor.getBoundingClientRect();
+
+      const point = this.paper.pageToLocalPoint({
+        x: editorRect.left,
+        y: editorRect.top,
+      });
+
+      navigator.style.transform = "";
       navigator.style.left = (point.x - MAIN_CANVAS.xMin) * this.scale + "px";
       navigator.style.top = (point.y - MAIN_CANVAS.yMin) * this.scale + "px";
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
@@ -110,5 +139,10 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .setZoomProperty(
         this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF
       );
+  }
+
+  public triggerCenter(): void {
+    this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+    if (this.navigatorDrag) this.navigatorDrag.reset();
   }
 }

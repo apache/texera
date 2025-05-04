@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -146,6 +165,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePointerEvents();
     this.handleURLFragment();
     this.invokeResize();
+    this.handleCenterEvent();
   }
 
   ngOnDestroy(): void {
@@ -1287,5 +1307,30 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       window.dispatchEvent(resizeEvent);
     }, 175);
+  }
+
+  /**
+   * Handles the center event triggered from the group
+   */
+  private handleCenterEvent(): void {
+    const CENTER_OFFSET_RATIO = 0.15; // Offset ratio used to leave margin when centering
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCenterEventStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowActionService.calculateTopLeftOperatorPosition();
+
+        const centerCoord = this.workflowActionService.getCenterPoint();
+        const offsetX = this.editor.offsetWidth * CENTER_OFFSET_RATIO;
+        const offsetY = this.editor.offsetHeight * CENTER_OFFSET_RATIO;
+
+        const targetCoord = {
+          x: centerCoord.x - offsetX,
+          y: centerCoord.y - offsetY,
+        };
+
+        this.paper.translate(-targetCoord.x, -targetCoord.y);
+      });
   }
 }
