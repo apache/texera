@@ -18,7 +18,7 @@ spec:
 
 {{/* Define namespace variables for better readability */}}
 {{- $namespace := .Release.Namespace }}
-{{- $workflowComputingUnitPoolNamespace := .Values.workflowComputingUnitPool.namespace }}
+{{/*{{- $workflowComputingUnitPoolNamespace := .Values.workflowComputingUnitPool.namespace }}*/}}
 
 {{/* 
 Create ExternalName services in the workflow namespace to allow compute units
@@ -26,26 +26,18 @@ to access services in the main namespace using the same service names.
 */}}
 
 {{/* File service ExternalName */}}
-{{- include "external-name-service" (dict 
-  "name" (printf "%s-svc" .Values.fileService.name)
-  "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.fileService.name $namespace)
-) | nindent 0 }}
+{{/*{{- include "external-name-service" (dict */}}
+{{/*  "name" (printf "%s-svc" .Values.fileService.name)*/}}
+{{/*  "namespace" $workflowComputingUnitPoolNamespace*/}}
+{{/*  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.fileService.name $namespace)*/}}
+{{/*) | nindent 0 }}*/}}
 
 ---
 {{/* PostgreSQL ExternalName */}}
-{{- include "external-name-service" (dict 
-  "name" (printf "%s-postgresql" .Release.Name)
-  "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-postgresql.%s.svc.cluster.local" .Release.Name $namespace)
-) | nindent 0 }}
-
----
-{{/* Webserver ExternalName */}}
-{{- include "external-name-service" (dict 
-  "name" (printf "%s-svc" .Values.webserver.name)
-  "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
-) | nindent 0 }}
+{{/*{{- include "external-name-service" (dict */}}
+{{/*  "name" (printf "%s-postgresql" .Release.Name)*/}}
+{{/*  "namespace" $workflowComputingUnitPoolNamespace*/}}
+{{/*  "externalName" (printf "%s-postgresql.%s.svc.cluster.local" .Release.Name $namespace)*/}}
+{{/*) | nindent 0 }}*/}}
 
 
