@@ -1,0 +1,17 @@
+name: Release Auditing
+
+on:
+  push:
+    branches:
+      - 'ci-enable/**'
+      - 'master'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Check License Headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erisu/apache-rat-action@v1
