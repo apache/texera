@@ -9,3 +9,5 @@ DESCRIPTION
 yarn.lock
 *-.txt
 .nvmrc
+.htaccess
+.gitkeep
