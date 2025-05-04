@@ -34,14 +34,6 @@ dependencies:
     version: 16.5.6
     repository: https://charts.bitnami.com/bitnami
 
-  - name: minio
-    version: 15.0.7
-    repository: https://charts.bitnami.com/bitnami
-
-  - name: lakefs
-    version: 1.4.5
-    repository: https://charts.lakefs.io
-
   - name: metrics-server
     version: 3.12.2
     repository: https://kubernetes-sigs.github.io/metrics-server/
