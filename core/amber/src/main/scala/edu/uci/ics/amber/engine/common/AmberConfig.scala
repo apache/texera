@@ -16,11 +16,12 @@ object AmberConfig {
   // Perform lazy reload
   private def getConfSource: Config = {
     if (lastModifiedTime == configFile.lastModified()) {
-      conf
+      conf.resolve()
     } else {
       lastModifiedTime = configFile.lastModified()
-      conf = ConfigFactory.parseFile(configFile).withFallback(ConfigFactory.load())
-      conf
+      conf = ConfigFactory.parseFile(configFile)
+        .withFallback(ConfigFactory.load())
+      conf.resolve()
     }
   }
 
