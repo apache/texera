@@ -24,7 +24,12 @@ spec:
           env:
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
-              value: "jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera?currentSchema=public"
+              value: "jdbc:postgresql://postgres-external.{{ .Release.Name }}-pg-access:5432/texera_db?currentSchema=texera_db,public&connectTimeout=30&socketTimeout=30&loginTimeout=30&tcpKeepAlive=true"
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
             - name: POSTGRES_STARTUP_WAIT_TIME
               value: "30"
           {{- range .Values.texeraEnvVars }}

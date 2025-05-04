@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Name }}-pg-access
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-external
+  namespace: {{ .Release.Name }}-pg-access
+spec:
+  type: ExternalName
+  externalName: {{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local 
