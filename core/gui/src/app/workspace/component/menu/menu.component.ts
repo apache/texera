@@ -572,7 +572,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public onClickImportNotebook = (file: NzUploadFile): boolean => {
-    this.setWaitingForOpenAi.emit(true); // start loading
     const reader = new FileReader();
 
     // Check if the file is a Jupyter notebook based on its extension
@@ -581,6 +580,8 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.notificationService.error("Please upload a valid Jupyter Notebook (.ipynb) file.");
       return false;
     }
+
+    this.setWaitingForOpenAi.emit(true); // start loading
 
     // Read the notebook file as text
     reader.readAsText(file as any);
