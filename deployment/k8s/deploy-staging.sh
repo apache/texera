@@ -1,5 +1,6 @@
 helm install texera texera-helmchart -n texera-dev --create-namespace \
   --set persistence.removeAfterUninstall=true \
+  --set metrics-server.enabled=false \
   --set postgresql.primary.livenessProbe.initialDelaySeconds=60 \
   --set postgresql.primary.readinessProbe.initialDelaySeconds=60 \
   --set postgresql.primary.resources.requests.cpu=4 \
