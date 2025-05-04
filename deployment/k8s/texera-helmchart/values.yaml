@@ -41,19 +41,10 @@ postgresql:
 texeraImages:
   pullPolicy: Always
 
-# Example data loader configuration
-exampleDataLoader:
-  enabled: true
-  image: texera/texera-example-data-loader:cluster
-  username: texera
-  password: texera
-  datasetDir: datasets
-  workflowDir: workflows
-
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:cluster # image name of the texera
+  imageName: texera/texera-web-application:git-fs-dataset # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -61,7 +52,7 @@ webserver:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:cluster
+  imageName: texera/workflow-compiling-service:git-fs-dataset
   service:
     type: ClusterIP
     port: 9090
