@@ -1,9 +1,30 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.admin.user
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.resource.EmailTemplate.createRoleChangeTemplate
+import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
@@ -44,11 +65,18 @@ class AdminUserResource {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
     val updatedUser = userDao.fetchOneByUid(user.getUid)
+    val roleChanged = updatedUser.getRole != user.getRole
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)
     updatedUser.setRole(user.getRole)
     updatedUser.setComment(user.getComment)
     userDao.update(updatedUser)
+
+    if (roleChanged)
+      sendEmail(
+        createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
+        updatedUser.getEmail
+      )
   }
 
   @POST

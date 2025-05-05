@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
@@ -18,6 +37,7 @@ import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import io.dropwizard.auth.Auth
+import org.jooq.DSLContext
 
 import java.net.URI
 import java.sql.Timestamp
@@ -165,6 +185,33 @@ object WorkflowExecutionsResource {
       ).filter(_.nonEmpty)
         .map(URI.create)
     else None
+
+  def getWorkflowExecutions(wid: Integer, context: DSLContext): List[WorkflowExecutionEntry] = {
+    context
+      .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.VID,
+        USER.NAME,
+        USER.GOOGLE_AVATAR,
+        WORKFLOW_EXECUTIONS.STATUS,
+        WORKFLOW_EXECUTIONS.RESULT,
+        WORKFLOW_EXECUTIONS.STARTING_TIME,
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
+        WORKFLOW_EXECUTIONS.BOOKMARKED,
+        WORKFLOW_EXECUTIONS.NAME,
+        WORKFLOW_EXECUTIONS.LOG_LOCATION
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .join(USER)
+      .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .orderBy(WORKFLOW_EXECUTIONS.EID.desc())
+      .fetchInto(classOf[WorkflowExecutionEntry])
+      .asScala
+      .toList
+  }
 
   def clearUris(eid: ExecutionIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
@@ -352,30 +399,7 @@ class WorkflowExecutionsResource {
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
-      context
-        .select(
-          WORKFLOW_EXECUTIONS.EID,
-          WORKFLOW_EXECUTIONS.VID,
-          USER.NAME,
-          USER.GOOGLE_AVATAR,
-          WORKFLOW_EXECUTIONS.STATUS,
-          WORKFLOW_EXECUTIONS.RESULT,
-          WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
-          WORKFLOW_EXECUTIONS.BOOKMARKED,
-          WORKFLOW_EXECUTIONS.NAME,
-          WORKFLOW_EXECUTIONS.LOG_LOCATION
-        )
-        .from(WORKFLOW_EXECUTIONS)
-        .join(WORKFLOW_VERSION)
-        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-        .join(USER)
-        .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-        .where(WORKFLOW_VERSION.WID.eq(wid))
-        .fetchInto(classOf[WorkflowExecutionEntry])
-        .asScala
-        .toList
-        .reverse
+      getWorkflowExecutions(wid, context)
     }
   }
 

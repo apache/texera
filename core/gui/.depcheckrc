@@ -1,2 +1,0 @@
-ignores: ["eslint-*", "babel-*", "tslint-*"]
-skip-missing: true
