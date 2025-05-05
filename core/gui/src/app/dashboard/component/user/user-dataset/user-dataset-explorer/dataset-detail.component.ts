@@ -80,7 +80,13 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
-  public uploadTasks: Array<MultipartUploadProgress & { filePath: string }> = [];
+
+  //  List of upload tasks – every task owns a uniqueKey
+  public uploadTasks: Array<MultipartUploadProgress & {
+    filePath: string;
+    uniqueKey: string;
+  }> = [];
+  private autoHideTimers: number[] = [];
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -301,68 +307,100 @@ export class DatasetDetailComponent implements OnInit {
     return this.userDatasetAccessLevel == "WRITE";
   }
 
-  // Track multiple file by id
-  trackByTask(_: number, task: MultipartUploadProgress & { filePath: string }) {
-    return task.uploadId || _;
+  // Track multiple file by unique key
+  trackByTask(
+    _: number,
+    task: MultipartUploadProgress & {
+      filePath: string;
+      uniqueKey: string;
+      physicalAddress?: string;
+    }
+  ): string {
+    return task.uniqueKey;
   }
 
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
-      files.forEach(file => {
+      files.forEach((file, idx) => {
         // Add an initializing task placeholder to uploadTasks.
+        const uniqueKey = `${file.name}-${Date.now()}-${idx}`;
+
         this.uploadTasks.push({
           filePath: file.name,
           percentage: 0,
-          status: "initializing",
-          uploadId: "",
-          physicalAddress: ""
+          status: 'initializing',
+          uploadId: '',
+          physicalAddress: '',
+          uniqueKey: uniqueKey
         });
 
         // Start multipart upload
+        const key = uniqueKey;
         this.datasetService
           .multipartUpload(this.datasetName, file.name, file.file)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: progress => {
-              // Update the task that matches this filePath
-              const idx = this.uploadTasks.findIndex(t => t.filePath === progress.filePath);
-              if (idx !== -1) {
-                this.uploadTasks[idx] = progress;
+              // Find the task
+              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+
+              if (taskIndex !== -1) {
+                // Update the task with new progress info
+                this.uploadTasks[taskIndex] = {
+                  ...this.uploadTasks[taskIndex],
+                  ...progress,
+                  percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
+                  uniqueKey
+                };
+
+                // Auto‑hide when upload is truly finished
+                if (progress.status === 'finished') {
+                  this.userMakeChanges.emit();
+                  this.scheduleHide(taskIndex);
+                }
               }
             },
             error: () => {
-              // Handle upload error for this file
-              const idx = this.uploadTasks.findIndex(t => t.filePath === file.name);
-              if (idx !== -1) {
-                this.uploadTasks[idx] = {
-                  ...this.uploadTasks[idx],
+              // Handle upload error
+              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+
+              if (taskIndex !== -1) {
+                this.uploadTasks[taskIndex] = {
+                  ...this.uploadTasks[taskIndex],
                   percentage: 100,
                   status: "aborted"
                 };
-                // Auto-remove the aborted task after 3 seconds
-                setTimeout(() => this.uploadTasks.splice(idx, 1), 3000);
+                this.scheduleHide(taskIndex);
               }
             },
             complete: () => {
-              // Handle upload completion for this file
-              const idx = this.uploadTasks.findIndex(t => t.filePath === file.name);
-              if (idx !== -1) {
-                this.uploadTasks[idx] = {
-                  ...this.uploadTasks[idx],
-                  percentage: 100,
-                  status: "finished"
-                };
+              console.info(`Upload stream for "${file.name}" has completed`);
+              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== 'finished') {
+                this.uploadTasks[taskIndex].status = 'finished';
                 this.userMakeChanges.emit();
-                // Auto-remove the successful task after 3 seconds
-                setTimeout(() => this.uploadTasks.splice(idx, 1), 3000);
+                this.scheduleHide(taskIndex);
               }
             }
+
           });
       });
     }
   }
 
-  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
+  // Hide a task row after 3s (stores timer to clear on destroy)
+  private scheduleHide(idx: number) {
+    if (idx === -1) {
+      return;
+    }
+    const key = this.uploadTasks[idx].uniqueKey;
+    const handle = window.setTimeout(() => {
+      this.uploadTasks = this.uploadTasks.filter(t => t.uniqueKey !== key);
+    }, 3000);
+    this.autoHideTimers.push(handle);
+  }
+
+  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string; uniqueKey: string }) {
     this.datasetService
       .finalizeMultipartUpload(
         this.datasetName,
@@ -370,14 +408,14 @@ export class DatasetDetailComponent implements OnInit {
         task.uploadId,
         [],
         task.physicalAddress,
-        true // abort flag
+        true, // abort flag
       )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.notificationService.info(`${task.filePath} uploading has been terminated`);
       });
     // Remove the aborted task immediately
-    this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== task.filePath);
+    this.uploadTasks = this.uploadTasks.filter(t => t.uniqueKey !== task.uniqueKey);
   }
 
   getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
