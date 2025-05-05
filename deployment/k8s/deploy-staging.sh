@@ -7,7 +7,7 @@ helm install texera texera-helmchart -n texera-dev --create-namespace \
   --set postgresql.primary.resources.requests.memory=8Gi \
   --set postgresql.primary.persistence.size=100Gi \
   --set postgresql.primary.persistence.storageClass=nfs-client \
-  --set texeraImages.pullPolicy=IfNotPresent \
+  --set texeraImages.pullPolicy=Always \
   --set ingress-nginx.enabled=false \
   --set ingressPaths.hostname=staging.texera.io \
   --set ingressPaths.issuer=letsencrypt-prod

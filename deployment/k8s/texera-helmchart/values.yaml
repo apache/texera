@@ -44,7 +44,7 @@ texeraImages:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:git-fs-dataset # image name of the texera
+  imageName: texera/texera-web-application:git-fs-dataset-amd64 # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -52,7 +52,7 @@ webserver:
 workflowCompilingService:
   name: workflow-compiling-service
   numOfPods: 1
-  imageName: texera/workflow-compiling-service:git-fs-dataset
+  imageName: texera/workflow-compiling-service:git-fs-dataset-amd64
   service:
     type: ClusterIP
     port: 9090
