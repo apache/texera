@@ -67,15 +67,6 @@ export class JupyterPanelService {
     this.iframeRef.onload = () => console.log("Iframe loaded successfully.");
   }
 
-  // Trigger a cell click inside the iframe
-  triggerCellClickInsideIframe(cellUUID: string) {
-    if (this.iframeRef && this.iframeRef.contentWindow) {
-      this.iframeRef.contentWindow.postMessage({ action: "triggerCellClick", cellUUID }, "http://localhost:8888");
-    } else {
-      console.error("Iframe reference is null or not loaded.");
-    }
-  }
-
   // Open the Jupyter Notebook panel
   openPanel(panelName: string): void {
     if (panelName === "JupyterNotebookPanel") {
