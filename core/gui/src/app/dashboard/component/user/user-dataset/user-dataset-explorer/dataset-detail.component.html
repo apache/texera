@@ -241,17 +241,21 @@
           nzHeader="Create New Version">
           <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
           <div
-            *ngIf="uploadProgress"
+            *ngFor="let task of uploadTasks; trackBy: trackByTask"
             class="upload-progress-container">
             <div class="progress-header">
-              <span><b>{{ uploadProgress.status }}</b>: {{ uploadProgress.filePath }}</span>
+              <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
               <button
                 nz-button
                 nzType="text"
                 nzShape="circle"
-                [nz-tooltip]="uploadProgress
-                && (uploadProgress.status === 'aborted' || uploadProgress.status === 'finished') ? 'Close' : 'Cancel the upload'"
-                (click)="onClickAbortUploadProgress()">
+                [nz-tooltip]="
+                (task.status === 'aborted' || task.status === 'finished')
+                ? 'Close'
+                : 'Cancel the upload'
+                "
+                (click)="onClickAbortUploadProgress(task)"
+              >
                 <i
                   nz-icon
                   nzType="close"
@@ -259,8 +263,8 @@
               </button>
             </div>
             <nz-progress
-              [nzPercent]="uploadProgress.percentage"
-              [nzStatus]="getUploadStatus(uploadProgress.status)"></nz-progress>
+              [nzPercent]="task.percentage"
+              [nzStatus]="getUploadStatus(task.status)"></nz-progress>
           </div>
           <texera-dataset-staged-objects-list
             [did]="did"
