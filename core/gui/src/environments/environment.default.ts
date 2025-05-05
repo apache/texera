@@ -76,7 +76,7 @@ export const defaultEnvironment = {
   /**
    * the file size limit for dataset upload
    */
-  singleFileUploadMaximumSizeMB: 20,
+  singleFileUploadMaximumSizeMB: 2000000,
 
   /**
    * default data transfer batch size for workflows
