@@ -133,6 +133,8 @@ ingressPaths:
   tlsSecretName: ""  # e.g., "texera-tls"
   # Optional Issuer name for cert-manager
   issuer: ""  # e.g., "letsencrypt-prod"
+  # Maximum allowed upload file size (default: 10GB)
+  maxUploadSize: "10g"
   paths:
     - path: /api/compile
       serviceName: workflow-compiling-service-svc

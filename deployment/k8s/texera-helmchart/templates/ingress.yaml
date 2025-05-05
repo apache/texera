@@ -6,6 +6,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
+    # Set maximum upload file size
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.ingressPaths.maxUploadSize | default "50m" }}
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "36000"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "36000"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "36000"
     {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
     nginx.ingress.kubernetes.io/ssl-redirect: {{ or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer | quote}}
     {{- end }}
