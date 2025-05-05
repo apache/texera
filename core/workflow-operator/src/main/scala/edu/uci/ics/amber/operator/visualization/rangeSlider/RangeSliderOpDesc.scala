@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.operator.visualization.rangeSlider
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
@@ -20,29 +39,26 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 }
 """)
 class RangeSliderOpDesc extends PythonOperatorDescriptor {
-  @JsonProperty(value = "value", required = true)
-  @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with the y-axis")
-  @AutofillAttributeName var value: String = ""
+  @JsonProperty(value = "Y-axis", required = true)
+  @JsonSchemaTitle("Y-axis")
+  @JsonPropertyDescription("The name of the column to represent y-axis")
+  @AutofillAttributeName var Y_axis: String = ""
 
-  @JsonProperty(value = "range", required = true)
-  @JsonSchemaTitle("Range Column")
-  @JsonPropertyDescription("the name of the column to represent the range (x-axis)")
-  @AutofillAttributeName var range: String = ""
+  @JsonProperty(value = "X-axis", required = true)
+  @JsonSchemaTitle("X-axis")
+  @JsonPropertyDescription("The name of the column to represent the x-axis")
+  @AutofillAttributeName var X_axis: String = ""
 
-  @JsonProperty(
-    value = "Handle Duplicate Method",
-    required = false,
-    defaultValue = "mean"
-  )
-  var duplicateType: RangeSliderHandleDuplicateFunction = _
+  @JsonProperty(value = "Duplicates", required = false)
+  @JsonSchemaTitle("Handle Duplicates")
+  @JsonPropertyDescription("How to handle duplicate values in y-axis")
+  var duplicateType: RangeSliderHandleDuplicateFunction = RangeSliderHandleDuplicateFunction.NOTHING
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
@@ -56,15 +72,13 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): String = {
-    assert(value.nonEmpty)
-    assert(range.nonEmpty)
     s"""
-       |        table = table.dropna(subset=['$range', '$value'])
+       |        table = table.dropna(subset=['$X_axis', '$Y_axis'])
        |        functionType = '${duplicateType.getFunctionType}'
-       |        if functionType == "mean":
-       |          table = table.groupby('$range')['$value'].mean().reset_index() #get mean of values
-       |        elif functionType == "sum":
-       |          table = table.groupby('$range')['$value'].sum().reset_index() #get sum of values
+       |        if functionType.lower() == "mean":
+       |          table = table.groupby('$X_axis')['$Y_axis'].mean().reset_index() #get mean of values
+       |        elif functionType.lower() == "sum":
+       |          table = table.groupby('$X_axis')['$Y_axis'].sum().reset_index() #get sum of values
        |""".stripMargin
   }
 
@@ -73,11 +87,12 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
        |        # Create figure
        |        fig = go.Figure()
        |
-       |        fig.add_trace(
-       |            go.Scatter(x=list(table['$range']), y=list(table['$value'])))
+       |        fig.add_trace(go.Scatter(x=table['$X_axis'], y=table['$Y_axis'], mode = "markers+lines"))
        |
        |        # Add range slider
        |        fig.update_layout(
+       |            xaxis_title='$X_axis',
+       |            yaxis_title='$Y_axis',
        |            xaxis=dict(
        |                rangeslider=dict(
        |                    visible=True
@@ -106,10 +121,13 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        original_table = table
-         |        ${manipulateTable()}
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
+         |        if '$Y_axis'.strip() == "" or '$X_axis'.strip() == "":
+         |           yield {'html-content': self.render_error("Y-axis or X-axis is empty")}
+         |           return
+         |        ${manipulateTable()}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
