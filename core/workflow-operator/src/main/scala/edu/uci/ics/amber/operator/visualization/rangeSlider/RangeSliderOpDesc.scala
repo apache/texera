@@ -42,12 +42,12 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Y-axis", required = true)
   @JsonSchemaTitle("Y-axis")
   @JsonPropertyDescription("The name of the column to represent y-axis")
-  @AutofillAttributeName var Y_axis: String = ""
+  @AutofillAttributeName var yAxis: String = ""
 
   @JsonProperty(value = "X-axis", required = true)
   @JsonSchemaTitle("X-axis")
   @JsonPropertyDescription("The name of the column to represent the x-axis")
-  @AutofillAttributeName var X_axis: String = ""
+  @AutofillAttributeName var xAxis: String = ""
 
   @JsonProperty(value = "Duplicates", required = false)
   @JsonSchemaTitle("Handle Duplicates")
@@ -73,12 +73,12 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
 
   def manipulateTable(): String = {
     s"""
-       |        table = table.dropna(subset=['$X_axis', '$Y_axis'])
+       |        table = table.dropna(subset=['$xAxis', '$yAxis'])
        |        functionType = '${duplicateType.getFunctionType}'
        |        if functionType.lower() == "mean":
-       |          table = table.groupby('$X_axis')['$Y_axis'].mean().reset_index() #get mean of values
+       |          table = table.groupby('$xAxis')['$yAxis'].mean().reset_index() #get mean of values
        |        elif functionType.lower() == "sum":
-       |          table = table.groupby('$X_axis')['$Y_axis'].sum().reset_index() #get sum of values
+       |          table = table.groupby('$xAxis')['$yAxis'].sum().reset_index() #get sum of values
        |""".stripMargin
   }
 
@@ -87,12 +87,12 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
        |        # Create figure
        |        fig = go.Figure()
        |
-       |        fig.add_trace(go.Scatter(x=table['$X_axis'], y=table['$Y_axis'], mode = "markers+lines"))
+       |        fig.add_trace(go.Scatter(x=table['$xAxis'], y=table['$yAxis'], mode = "markers+lines"))
        |
        |        # Add range slider
        |        fig.update_layout(
-       |            xaxis_title='$X_axis',
-       |            yaxis_title='$Y_axis',
+       |            xaxis_title='$xAxis',
+       |            yaxis_title='$yAxis',
        |            xaxis=dict(
        |                rangeslider=dict(
        |                    visible=True
@@ -124,7 +124,7 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
-         |        if '$Y_axis'.strip() == "" or '$X_axis'.strip() == "":
+         |        if '$yAxis'.strip() == "" or '$xAxis'.strip() == "":
          |           yield {'html-content': self.render_error("Y-axis or X-axis is empty")}
          |           return
          |        ${manipulateTable()}
