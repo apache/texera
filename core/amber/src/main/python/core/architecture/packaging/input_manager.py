@@ -98,7 +98,7 @@ class InputManager:
                     uri=uri,
                     queue=self._input_queue,
                     worker_actor_id=ActorVirtualIdentity(self.worker_id),
-                    partitioning=partitioning
+                    partitioning=partitioning,
                 )
                 for uri, partitioning in zip(uris, partitionings)
             ]

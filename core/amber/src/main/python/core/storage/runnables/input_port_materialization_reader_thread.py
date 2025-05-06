@@ -57,7 +57,7 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         uri: str,
         queue: InternalQueue,
         worker_actor_id: ActorVirtualIdentity,
-        partitioning: Partitioning
+        partitioning: Partitioning,
     ):
         """
         Args:

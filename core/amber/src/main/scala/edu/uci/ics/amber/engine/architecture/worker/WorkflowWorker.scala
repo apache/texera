@@ -75,7 +75,6 @@ class WorkflowWorker(
     workerConfig: WorkerConfig,
     replayInitialization: WorkerReplayInitialization
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
-  // TODO: Add a cap to the input queue?
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)
