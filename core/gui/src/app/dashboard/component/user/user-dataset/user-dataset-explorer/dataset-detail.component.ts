@@ -82,10 +82,12 @@ export class DatasetDetailComponent implements OnInit {
   userHasPendingChanges: boolean = false;
 
   //  List of upload tasks – every task owns a uniqueKey
-  public uploadTasks: Array<MultipartUploadProgress & {
-    filePath: string;
-    uniqueKey: string;
-  }> = [];
+  public uploadTasks: Array<
+    MultipartUploadProgress & {
+      filePath: string;
+      uniqueKey: string;
+    }
+  > = [];
   private autoHideTimers: number[] = [];
 
   @Output() userMakeChanges = new EventEmitter<void>();
@@ -328,10 +330,10 @@ export class DatasetDetailComponent implements OnInit {
         this.uploadTasks.push({
           filePath: file.name,
           percentage: 0,
-          status: 'initializing',
-          uploadId: '',
-          physicalAddress: '',
-          uniqueKey: uniqueKey
+          status: "initializing",
+          uploadId: "",
+          physicalAddress: "",
+          uniqueKey: uniqueKey,
         });
 
         // Start multipart upload
@@ -350,11 +352,11 @@ export class DatasetDetailComponent implements OnInit {
                   ...this.uploadTasks[taskIndex],
                   ...progress,
                   percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                  uniqueKey
+                  uniqueKey,
                 };
 
                 // Auto‑hide when upload is truly finished
-                if (progress.status === 'finished') {
+                if (progress.status === "finished") {
                   this.userMakeChanges.emit();
                   this.scheduleHide(taskIndex);
                 }
@@ -368,7 +370,7 @@ export class DatasetDetailComponent implements OnInit {
                 this.uploadTasks[taskIndex] = {
                   ...this.uploadTasks[taskIndex],
                   percentage: 100,
-                  status: "aborted"
+                  status: "aborted",
                 };
                 this.scheduleHide(taskIndex);
               }
@@ -376,13 +378,12 @@ export class DatasetDetailComponent implements OnInit {
             complete: () => {
               console.info(`Upload stream for "${file.name}" has completed`);
               const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
-              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== 'finished') {
-                this.uploadTasks[taskIndex].status = 'finished';
+              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
+                this.uploadTasks[taskIndex].status = "finished";
                 this.userMakeChanges.emit();
                 this.scheduleHide(taskIndex);
               }
-            }
-
+            },
           });
       });
     }
@@ -408,7 +409,7 @@ export class DatasetDetailComponent implements OnInit {
         task.uploadId,
         [],
         task.physicalAddress,
-        true, // abort flag
+        true // abort flag
       )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
