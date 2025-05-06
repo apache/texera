@@ -40,20 +40,17 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         uri: str,
         queue: InternalQueue,
         worker_actor_id: ActorVirtualIdentity,
-        partitioning: Partitioning,
-        batch_size: int,
+        partitioning: Partitioning
     ):
         """
         Args:
             uri (str): The URI of the materialized document.
             queue: An instance of IQueue where messages are enqueued.
             worker_actor_id (ActorVirtualIdentity): The target worker actor's identity.
-            batch_size (int): The batch size for flushing tuples.
         """
         self.uri = uri
         self.queue = queue
         self.worker_actor_id = worker_actor_id
-        self.batch_size = batch_size
         self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
         self.buffer = []  # Buffer for Tuple objects.
         from_actor_id = get_from_actor_id_for_input_port_storage(

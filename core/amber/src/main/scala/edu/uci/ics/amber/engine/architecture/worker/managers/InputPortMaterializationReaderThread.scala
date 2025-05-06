@@ -25,8 +25,7 @@ class InputPortMaterializationReaderThread(
     uri: URI,
     inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement],
     workerActorId: ActorVirtualIdentity,
-    partitioning: Partitioning,
-    batchSize: Int = AmberConfig.defaultDataTransferBatchSize
+    partitioning: Partitioning
 ) extends Thread {
 
   private val sequenceNum = new AtomicLong()
@@ -38,6 +37,7 @@ class InputPortMaterializationReaderThread(
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
+  private val batchSize = AmberConfig.defaultDataTransferBatchSize
 
   override def run(): Unit = {
     // Notify the input port of start of input channel
