@@ -16,14 +16,14 @@
           <!-- Markdown Cell -->
           <div
             *ngSwitchCase="'markdown'"
-            class="markdown-cell">
+            class="jupyter-markdown-cell">
             <pre>{{ cell.source.join("") }}</pre>
           </div>
 
           <!-- Code Cell -->
           <div
             *ngSwitchCase="'code'"
-            class="code-cell">
+            class="jupyter-code-cell">
             <pre>{{ cell.source.join("") }}</pre>
             <!-- Safe check for outputs -->
             <div
@@ -37,7 +37,7 @@
           <!-- Raw Cell -->
           <div
             *ngSwitchCase="'raw'"
-            class="raw-cell">
+            class="jupyter-raw-cell">
             <pre>{{ cell.source.join("") }}</pre>
           </div>
         </ng-container>
@@ -87,14 +87,14 @@
             <!-- Markdown Cell -->
             <div
               *ngSwitchCase="'markdown'"
-              class="markdown-cell">
+              class="jupyter-markdown-cell">
               <pre>{{ cell.source.join("") }}</pre>
             </div>
 
             <!-- Code Cell -->
             <div
               *ngSwitchCase="'code'"
-              class="code-cell">
+              class="jupyter-code-cell">
               <pre>{{ cell.source.join("") }}</pre>
               <!-- Safe check for outputs -->
               <div
@@ -108,7 +108,7 @@
             <!-- Raw Cell -->
             <div
               *ngSwitchCase="'raw'"
-              class="raw-cell">
+              class="jupyter-raw-cell">
               <pre>{{ cell.source.join("") }}</pre>
             </div>
           </ng-container>
