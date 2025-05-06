@@ -280,6 +280,35 @@ class ExpansionGreedyScheduleGenerator(
   }
 
   /**
+    * @param physicalLink
+    * @param writerReaderPairs
+    * @return
+    */
+  private def replaceLinkWithMaterialization(
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.Set[(GlobalPortIdentity, GlobalPortIdentity)]
+  ): PhysicalPlan = {
+    val outputGlobalPortId = GlobalPortIdentity(
+      physicalLink.fromOpId,
+      physicalLink.fromPortId
+    )
+
+    val inputGlobalPortId = GlobalPortIdentity(
+      physicalLink.toOpId,
+      physicalLink.toPortId,
+      input = true
+    )
+
+    val pair = (outputGlobalPortId, inputGlobalPortId)
+
+    writerReaderPairs += pair
+
+    val newPhysicalPlan = physicalPlan
+      .removeLink(physicalLink)
+    newPhysicalPlan
+  }
+
+  /**
     * This function creates and connects a region DAG while conducting materialization replacement.
     * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
     * of PhysicalLinks that causes the failure will be given to conduct materialization replacement,

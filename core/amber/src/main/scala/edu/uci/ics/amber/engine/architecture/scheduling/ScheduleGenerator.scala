@@ -157,28 +157,4 @@ abstract class ScheduleGenerator(
           replaceVertex(regionDAG, region, newRegion)
       }
   }
-
-  def replaceLinkWithMaterialization(
-      physicalLink: PhysicalLink,
-      writerReaderPairs: mutable.Set[(GlobalPortIdentity, GlobalPortIdentity)]
-  ): PhysicalPlan = {
-    val outputGlobalPortId = GlobalPortIdentity(
-      physicalLink.fromOpId,
-      physicalLink.fromPortId
-    )
-
-    val inputGlobalPortId = GlobalPortIdentity(
-      physicalLink.toOpId,
-      physicalLink.toPortId,
-      input = true
-    )
-
-    val pair = (outputGlobalPortId, inputGlobalPortId)
-
-    writerReaderPairs += pair
-
-    val newPhysicalPlan = physicalPlan
-      .removeLink(physicalLink)
-    newPhysicalPlan
-  }
 }
