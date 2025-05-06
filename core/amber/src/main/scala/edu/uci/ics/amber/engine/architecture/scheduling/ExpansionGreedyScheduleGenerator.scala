@@ -308,10 +308,10 @@ class ExpansionGreedyScheduleGenerator(
         )
     }
 
+    assignPortConfigs(matReaderWriterPairs.toSet, regionDAG)
+
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
-
-    assignPortConfigs(matReaderWriterPairs.toSet, regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)
