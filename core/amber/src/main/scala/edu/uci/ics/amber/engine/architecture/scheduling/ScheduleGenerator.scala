@@ -19,17 +19,13 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.VFSURIFactory
-import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -160,7 +156,6 @@ abstract class ScheduleGenerator(
           )
           replaceVertex(regionDAG, region, newRegion)
       }
-    // TODO: Also remove the port from the toOp Region?
   }
 
   def replaceLinkWithMaterialization(
@@ -185,31 +180,5 @@ abstract class ScheduleGenerator(
     val newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
     newPhysicalPlan
-  }
-
-  def updateRegionsWithOutputPortStorage(
-      outputPortsToMaterialize: Set[GlobalPortIdentity],
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
-      .foreach(outputPortId => {
-        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val portConfigToAdd = outputPortId -> {
-            val uriToAdd = createResultURI(
-              workflowId = workflowContext.workflowId,
-              executionId = workflowContext.executionId,
-              globalPortId = outputPortId
-            )
-            PortConfig(storageURIs = List(uriToAdd))
-          }
-          val newResourceConfig = fromRegion.resourceConfig match {
-            case Some(existingConfig) =>
-              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
-            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
-          }
-          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
-          replaceVertex(regionDAG, fromRegion, newFromRegion)
-        })
-      })
   }
 }

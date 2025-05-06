@@ -290,10 +290,8 @@ class ExpansionGreedyScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    val matReaderWriterPairs =
+    val materializedOutputInputPortPairs =
       new mutable.HashSet[(GlobalPortIdentity, GlobalPortIdentity)]()
-
-    val outputPortsToMaterialize = new mutable.HashSet[GlobalPortIdentity]()
 
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
@@ -303,11 +301,7 @@ class ExpansionGreedyScheduleGenerator(
           links.foreach { link =>
             physicalPlan = replaceLinkWithMaterialization(
               link,
-              matReaderWriterPairs
-            )
-            outputPortsToMaterialize += GlobalPortIdentity(
-              opId = link.fromOpId,
-              portId = link.fromPortId
+              materializedOutputInputPortPairs
             )
           }
           recConnectRegionDAG()
@@ -319,7 +313,7 @@ class ExpansionGreedyScheduleGenerator(
 
     // try to add dependencies between materialization writer and reader regions
     try {
-      matReaderWriterPairs.foreach {
+      materializedOutputInputPortPairs.foreach {
         case (upstreamOutputPort, downstreamInputPort) =>
           toRegionOrderPairs(upstreamOutputPort.opId, downstreamInputPort.opId, regionDAG).foreach {
             case (fromRegion, toRegion) =>
@@ -334,7 +328,7 @@ class ExpansionGreedyScheduleGenerator(
         )
     }
 
-    assignPortConfigs(matReaderWriterPairs.toSet, regionDAG)
+    assignPortConfigs(materializedOutputInputPortPairs.toSet, regionDAG)
 
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
