@@ -511,13 +511,13 @@ case class PhysicalOp(
       .flatMap(port => port.dependencies.map(dependee => port.id -> dependee))
       .foreach({
         case (depender: PortIdentity, dependee: PortIdentity) =>
-            if (!dependencyDag.containsVertex(dependee)) {
-              dependencyDag.addVertex(dependee)
-            }
-            if (!dependencyDag.containsVertex(depender)) {
-              dependencyDag.addVertex(depender)
-            }
-            dependencyDag.addEdge(dependee, depender)
+          if (!dependencyDag.containsVertex(dependee)) {
+            dependencyDag.addVertex(dependee)
+          }
+          if (!dependencyDag.containsVertex(depender)) {
+            dependencyDag.addVertex(depender)
+          }
+          dependencyDag.addEdge(dependee, depender)
       })
     val topologicalIterator =
       new TopologicalOrderIterator[PortIdentity, DefaultEdge](dependencyDag)

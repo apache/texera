@@ -22,7 +22,12 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
@@ -142,7 +147,7 @@ class ExpansionGreedyScheduleGenerator(
     physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
-        (handleDependentLinks(physicalOpId, regionDAG))
+        handleInputPortDependencies(physicalOpId, regionDAG)
           .map(links => return Right(links))
       })
 
@@ -151,7 +156,7 @@ class ExpansionGreedyScheduleGenerator(
     Left(regionDAG)
   }
 
-  private def handleDependentLinks(
+  private def handleInputPortDependencies(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Option[Set[PhysicalLink]] = {
@@ -163,10 +168,13 @@ class ExpansionGreedyScheduleGenerator(
       .foreach {
         case List(prevPort, nextPort) =>
           // Create edges between regions
-          val prevLinks = physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l=>l.toPortId == prevPort)
-          val nextLinks = physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l=>l.toPortId == nextPort)
+          val prevLinks =
+            physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l => l.toPortId == prevPort)
+          val nextLinks =
+            physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l => l.toPortId == nextPort)
           if (nextLinks.nonEmpty) {
-            val regionOrderPairs = toRegionOrderPairs(prevLinks.head.fromOpId, nextLinks.head.fromOpId, regionDAG)
+            val regionOrderPairs =
+              toRegionOrderPairs(prevLinks.head.fromOpId, nextLinks.head.fromOpId, regionDAG)
             // Attempt to add edges to regionDAG
             try {
               regionOrderPairs.foreach {
@@ -179,13 +187,30 @@ class ExpansionGreedyScheduleGenerator(
                 return Some(Set(nextLinks.head))
             }
           } else {
-            // Use port to find regions
-            val fromRegions = getRegions(prevLinks.head.fromOpId, regionDAG)
-            val toRegion = getRegions(physicalOpId, regionDAG)
-              .filter(region=>region.getPorts.contains(GlobalPortIdentity(
-              opId = physicalOpId, portId = nextPort, input = true
-            ))).head
-            fromRegions.foreach(fromRegion => regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id)))
+            try {
+              // Use port to find regions
+              val fromRegions = getRegions(prevLinks.head.fromOpId, regionDAG)
+              val toRegion = getRegions(physicalOpId, regionDAG)
+                .filter(region =>
+                  region.getPorts.contains(
+                    GlobalPortIdentity(
+                      opId = physicalOpId,
+                      portId = nextPort,
+                      input = true
+                    )
+                  )
+                )
+                .head
+              fromRegions.foreach(fromRegion =>
+                regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+              )
+            } catch {
+              case _: IllegalArgumentException =>
+                // a cycle is detected. it should not reach here.
+                throw new WorkflowRuntimeException(
+                  "Cyclic dependency when trying to handle dependent ports in building a region plan"
+                )
+            }
           }
         case _ =>
       }
@@ -193,13 +218,13 @@ class ExpansionGreedyScheduleGenerator(
   }
 
   /**
-   *
-   * @param matReaderWriterPairs
-   * @param regionDAG
-   */
+    * @param matReaderWriterPairs
+    * @param regionDAG
+    */
   private def assignPortConfigs(
-                                       matReaderWriterPairs: Set[(GlobalPortIdentity, GlobalPortIdentity)],
-                                       regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+      matReaderWriterPairs: Set[(GlobalPortIdentity, GlobalPortIdentity)],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
 
     val outputPortsToMaterialize = matReaderWriterPairs.map(_._1)
 
@@ -224,23 +249,24 @@ class ExpansionGreedyScheduleGenerator(
       // group all pairs by the input port (_2)
       .groupBy { case (_, inputPort) => inputPort }
       // for each input port, build its PortConfig based on all its upstream output ports
-      .foreach { case (inputPort, pairsForThisInput) =>
-        // extract all the output ports paired with this input
-        val urisToAdd: List[URI] = pairsForThisInput
-            .map { case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort) }
-            .toList
+      .foreach {
+        case (inputPort, pairsForThisInput) =>
+          // extract all the output ports paired with this input
+          val urisToAdd: List[URI] = pairsForThisInput.map {
+            case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort)
+          }.toList
 
-        val portConfigToAdd = inputPort -> PortConfig(storageURIs   = urisToAdd)
+          val portConfigToAdd = inputPort -> PortConfig(storageURIs = urisToAdd)
 
-        getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
-          val newResourceConfig = toRegion.resourceConfig match {
-            case Some(existingConfig) =>
-              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
-            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
-          }
-          val newToRegion = toRegion.copy(resourceConfig = Some(newResourceConfig))
-          replaceVertex(regionDAG, toRegion, newToRegion)
-        })
+          getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
+            val newResourceConfig = toRegion.resourceConfig match {
+              case Some(existingConfig) =>
+                existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+              case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+            }
+            val newToRegion = toRegion.copy(resourceConfig = Some(newResourceConfig))
+            replaceVertex(regionDAG, toRegion, newToRegion)
+          })
       }
   }
 
