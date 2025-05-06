@@ -19,15 +19,13 @@
 
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import edu.uci.ics.amber.engine.architecture.worker.managers.InputPortMaterializationReaderThread
+import edu.uci.ics.amber.engine.common.AmberLogging
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue

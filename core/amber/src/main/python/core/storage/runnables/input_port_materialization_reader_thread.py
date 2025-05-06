@@ -33,7 +33,7 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, InternalQueue, DataFrame, MarkerFrame
+from core.models import Tuple, InternalQueue, DataFrame, MarkerFrame, DataPayload
 from core.models.internal_queue import DataElement
 from core.models.marker import StartOfInputChannel, EndOfInputChannel, Marker
 from core.storage.document_factory import DocumentFactory
@@ -69,7 +69,6 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.queue = queue
         self.worker_actor_id = worker_actor_id
         self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
-        self.buffer = []  # Buffer for Tuple objects.
         from_actor_id = get_from_actor_id_for_input_port_storage(
             self.uri, self.worker_actor_id
         )
@@ -90,7 +89,6 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         }
         the_partitioning = get_one_of(partitioning)
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
-        print(f"Input port materialization thread: adding {the_partitioning}")
         self.partitioner = (
             partitioner(the_partitioning)
             if partitioner != OneToOnePartitioner
@@ -98,106 +96,72 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         )
 
     def tuple_to_batch_with_filter(self, tuple_: Tuple) -> typing.Iterator[DataFrame]:
+        """
+        Let the partitioner produce batches to each (hypothetical) downstream
+        worker but only selects the worker that this thread is running on
+        as the input. This mimics the iterator logic of that in output
+        manager.
+        """
         for receiver, tuples in self.partitioner.add_tuple_to_batch(tuple_):
-            print(f"Trying receiver={receiver!r}; ")
             if receiver == self.worker_actor_id:
-                # Found the one we want → immediately return its DataFrame
-                yield self.tuple_to_frame(tuples)
-            else:
-                # Log every non‐matching receiver
-                print(
-                    f"Skipping receiver={receiver!r}; "
-                    f"looking for worker_actor_id={self.worker_actor_id!r}"
-                )
+                yield self.tuples_to_data_frame(tuples)
 
     def run(self) -> None:
         """
-        Main execution method that reads tuples from the materialized document and
+        Main execution logic that reads tuples from the materialized storage and
         enqueues them in batches. It first emits a start marker and, when finished,
-        emits an end marker.
+        emits an end marker. Use the same partitioner implementation as that in
+        output manager, where a tuple is batched by the partitioner and only
+        selected as the input of this worker according to the partitioner.
         """
-        # Setup a unique channel identity.
-
-        # Emit start marker.
-        self.emit_marker(StartOfInputChannel())
-
         try:
-            # Open the document and obtain an iterator over the tuples.
+            self.emit_marker(StartOfInputChannel())
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
                 self.uri
             )
-            storage_iterator = (
-                self.materialization.get()
-            )  # Iterator over Tuple objects.
+            storage_iterator = self.materialization.get()
 
             # Iterate and process tuples.
             for tup in storage_iterator:
                 if self._stopped:
                     break
+                # Each tuple is sent to the partitioner and converted to
+                # a batch-based iterator.
                 for data_frame in self.tuple_to_batch_with_filter(tup):
-                    queue_element = DataElement(
-                        tag=self.channel_id,
-                        payload=data_frame,
-                    )
-                    self.queue.put(queue_element)
+                    self.emit_payload(data_frame)
         finally:
-            # Emit end marker.
             self.emit_marker(EndOfInputChannel())
 
     def stop(self):
         """Sets the stop flag so the run loop may terminate."""
         self._stopped = True
 
-    def flush(self) -> None:
-        """
-        Flush the current batch of tuples in the buffer, wrapping them in a DataFrame
-        and sending them as a WorkflowFIFOMessage.
-        """
-        if not self.buffer:
-            return
-        data_payload = self.tuple_to_frame(self.buffer)
-        queue_element = DataElement(
-            tag=self.channel_id,
-            payload=data_payload,
-        )
-        self.queue.put(queue_element)
-        self.buffer.clear()
-
     def emit_marker(self, marker) -> None:
         """
-        Emit a marker (for example, StartOfInputChannel or EndOfInputChannel)
-        by first flushing the current data and then sending the marker message.
+        Emit a marker (StartOfInputChannel or EndOfInputChannel), and
+        flush the remaining data batches if any. This mimics the
+        iterator logic of that in output manager.
         """
         for receiver, payload in self.partitioner.flush(marker):
-            print(f"Trying receiver={receiver!r}; ")
             if receiver == self.worker_actor_id:
-                # Found the one we want → immediately return its DataFrame
                 final_payload = (
                     MarkerFrame(payload)
                     if isinstance(payload, Marker)
-                    else self.tuple_to_frame(payload)
+                    else self.tuples_to_data_frame(payload)
                 )
-                queue_element = DataElement(
-                    tag=self.channel_id,
-                    payload=final_payload,
-                )
-                self.queue.put(queue_element)
-            else:
-                # Log every non‐matching receiver
-                print(
-                    f"Skipping receiver={receiver!r}; "
-                    f"looking for worker_actor_id={self.worker_actor_id!r}"
-                )
+                self.emit_payload(final_payload)
 
-    def get_sequence_number(self) -> int:
+    def emit_payload(self, payload: DataPayload):
         """
-        Returns a monotonically increasing sequence number.
+        Put the payload to the DP internal queue.
         """
-        curr = self.sequence_number
-        self.sequence_number += 1
-        return curr
+        queue_element = DataElement(
+            tag=self.channel_id,
+            payload=payload,
+        )
+        self.queue.put(queue_element)
 
-    def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
+    def tuples_to_data_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
         return DataFrame(
             frame=Table.from_pydict(
                 {
