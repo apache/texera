@@ -39,7 +39,6 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable.ArrayBuffer
 
-// Reader thread that reads tuples from a storage iterator and enqueues them.
 class InputPortMaterializationReaderThread(
     uri: URI,
     inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement],
@@ -58,6 +57,9 @@ class InputPortMaterializationReaderThread(
   private val partitioner = toPartitioner(partitioning, workerActorId)
   private val batchSize = AmberConfig.defaultDataTransferBatchSize
 
+  /**
+    * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
+    */
   override def run(): Unit = {
     // Notify the input port of start of input channel
     emitMarker(StartOfInputChannel())
@@ -90,6 +92,9 @@ class InputPortMaterializationReaderThread(
     }
   }
 
+  /**
+    * Puts a marker into the internal queue.
+    */
   private def emitMarker(marker: Marker): Unit = {
     flush()
     val markerPayload = MarkerFrame(marker)
@@ -99,7 +104,9 @@ class InputPortMaterializationReaderThread(
     flush()
   }
 
-  // Flush the current batch into a DataFrame and enqueue it.
+  /**
+    * Flush the current batch into a DataFrame and enqueue it.
+    */
   private def flush(): Unit = {
     if (buffer.isEmpty) return
     val dataPayload = DataFrame(buffer.toArray) // Mimics flush logic in NetworkOutputBuffer.

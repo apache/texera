@@ -71,9 +71,6 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
   ): Unit = {
     val readerThreads = uris.zip(partitionings).map {
       case (uri, partitioning) =>
-        logger.warn(
-          "Setting up input port reader using URI: " + uri + " and partitioning: " + partitioning
-        )
         new InputPortMaterializationReaderThread(
           uri = uri,
           inputMessageQueue = this.inputMessageQueue,

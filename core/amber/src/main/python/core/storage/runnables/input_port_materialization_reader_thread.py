@@ -64,6 +64,7 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
             uri (str): The URI of the materialized document.
             queue: An instance of IQueue where messages are enqueued.
             worker_actor_id (ActorVirtualIdentity): The target worker actor's identity.
+            partitioning: The partitioning information for this virtual reader worker
         """
         self.uri = uri
         self.queue = queue

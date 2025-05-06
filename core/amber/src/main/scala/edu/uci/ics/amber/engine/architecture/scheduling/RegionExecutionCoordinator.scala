@@ -185,9 +185,6 @@ class RegionExecutionCoordinator(
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
                 val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-                // Currently input ports do not have URIs associated with them because
-                // we are using cache read operators to read materialized port storage.
-                // TODO: also add storageURIs for input ports when cache read ops are removed.
                 val storageURIs = resourceConfig.portConfigs.get(globalInputPortId) match {
                   case Some(config) => config.storageURIs.map(uri => uri.toString)
                   case None         => List.empty[String]
