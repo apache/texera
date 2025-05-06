@@ -165,59 +165,26 @@ abstract class ScheduleGenerator(
 
   def replaceLinkWithMaterialization(
       physicalLink: PhysicalLink,
-      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
+      writerReaderPairs: mutable.Set[(GlobalPortIdentity, GlobalPortIdentity)]
   ): PhysicalPlan = {
-
-    val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
-    val fromPortId = physicalLink.fromPortId
-
-    val toOp = physicalPlan.getOperator(physicalLink.toOpId)
-    val toPortId = physicalLink.toPortId
-
-    val newPhysicalPlan = physicalPlan
-      .removeLink(physicalLink)
-
-    val globalPortId = GlobalPortIdentity(
+    val outputGlobalPortId = GlobalPortIdentity(
       physicalLink.fromOpId,
       physicalLink.fromPortId
     )
 
-    // create the uri of the materialization storage
-    val storageURI = VFSURIFactory.createResultURI(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      globalPortId
+    val inputGlobalPortId = GlobalPortIdentity(
+      physicalLink.toOpId,
+      physicalLink.toPortId,
+      input = true
     )
 
-    // create cache reader and link
+    val pair = (outputGlobalPortId, inputGlobalPortId)
 
-    val schema = newPhysicalPlan
-      .getOperator(fromOp.id)
-      .outputPorts(fromPortId)
-      ._3
-      .toOption
-      .get
+    writerReaderPairs += pair
 
-    val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      storageURI,
-      toOp.id,
-      toPortId,
-      schema
-    )
-    val readerToDestLink =
-      PhysicalLink(
-        matReaderPhysicalOp.id,
-        matReaderPhysicalOp.outputPorts.keys.head,
-        toOp.id,
-        toPortId
-      )
-    // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(fromOp.id) = matReaderPhysicalOp.id
+    val newPhysicalPlan = physicalPlan
+      .removeLink(physicalLink)
     newPhysicalPlan
-      .addOperator(matReaderPhysicalOp)
-      .addLink(readerToDestLink)
   }
 
   def updateRegionsWithOutputPortStorage(

@@ -21,16 +21,15 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.workflow.{
-  GlobalPortIdentity,
-  PhysicalLink,
-  PhysicalPlan,
-  WorkflowContext
-}
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
+import java.net.URI
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -182,6 +181,67 @@ class ExpansionGreedyScheduleGenerator(
   }
 
   /**
+   *
+   * @param matReaderWriterPairs
+   * @param regionDAG
+   */
+  private def assignPortConfigs(
+                                       matReaderWriterPairs: Set[(GlobalPortIdentity, GlobalPortIdentity)],
+                                       regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+
+    val outputPortsToMaterialize = matReaderWriterPairs.map(_._1)
+
+    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
+      .foreach(outputPortId => {
+        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+          val portConfigToAdd = outputPortId -> {
+            val uriToAdd = getStorageURIFromGlobalOutputPortId(outputPortId)
+            PortConfig(storageURIs = List(uriToAdd))
+          }
+          val newResourceConfig = fromRegion.resourceConfig match {
+            case Some(existingConfig) =>
+              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+          }
+          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
+          replaceVertex(regionDAG, fromRegion, newFromRegion)
+        })
+      })
+
+    matReaderWriterPairs
+      // group all pairs by the input port (_2)
+      .groupBy { case (_, inputPort) => inputPort }
+      // for each input port, build its PortConfig based on all its upstream output ports
+      .foreach { case (inputPort, pairsForThisInput) =>
+        // extract all the output ports paired with this input
+        val urisToAdd: List[URI] = pairsForThisInput
+            .map { case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort) }
+            .toList
+
+        val portConfigToAdd = inputPort -> PortConfig(storageURIs   = urisToAdd)
+
+        getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
+          val newResourceConfig = toRegion.resourceConfig match {
+            case Some(existingConfig) =>
+              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+          }
+          val newToRegion = toRegion.copy(resourceConfig = Some(newResourceConfig))
+          replaceVertex(regionDAG, toRegion, newToRegion)
+        })
+      }
+  }
+
+  private def getStorageURIFromGlobalOutputPortId(outputPortId: GlobalPortIdentity) = {
+    assert(!outputPortId.input)
+    createResultURI(
+      workflowId = workflowContext.workflowId,
+      executionId = workflowContext.executionId,
+      globalPortId = outputPortId
+    )
+  }
+
+  /**
     * This function creates and connects a region DAG while conducting materialization replacement.
     * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
     * of PhysicalLinks that causes the failure will be given to conduct materialization replacement,
@@ -193,7 +253,7 @@ class ExpansionGreedyScheduleGenerator(
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
 
     val matReaderWriterPairs =
-      new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
+      new mutable.HashSet[(GlobalPortIdentity, GlobalPortIdentity)]()
 
     val outputPortsToMaterialize = new mutable.HashSet[GlobalPortIdentity]()
 
@@ -222,8 +282,8 @@ class ExpansionGreedyScheduleGenerator(
     // try to add dependencies between materialization writer and reader regions
     try {
       matReaderWriterPairs.foreach {
-        case (writer, reader) =>
-          toRegionOrderPairs(writer, reader, regionDAG).foreach {
+        case (upstreamOutputPort, downstreamInputPort) =>
+          toRegionOrderPairs(upstreamOutputPort.opId, downstreamInputPort.opId, regionDAG).foreach {
             case (fromRegion, toRegion) =>
               regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
           }
@@ -239,7 +299,7 @@ class ExpansionGreedyScheduleGenerator(
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
 
-    updateRegionsWithOutputPortStorage(outputPortsToMaterialize.toSet, regionDAG)
+    assignPortConfigs(matReaderWriterPairs.toSet, regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)
