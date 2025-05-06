@@ -158,22 +158,34 @@ class ExpansionGreedyScheduleGenerator(
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
-      .getInputLinksInProcessingOrder
+      .getInputPortsInProcessingOrder
       .sliding(2, 1)
       .foreach {
-        case List(prevLink, nextLink) =>
+        case List(prevPort, nextPort) =>
           // Create edges between regions
-          val regionOrderPairs = toRegionOrderPairs(prevLink.fromOpId, nextLink.fromOpId, regionDAG)
-          // Attempt to add edges to regionDAG
-          try {
-            regionOrderPairs.foreach {
-              case (fromRegion, toRegion) =>
-                regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+          val prevLinks = physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l=>l.toPortId == prevPort)
+          val nextLinks = physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l=>l.toPortId == nextPort)
+          if (nextLinks.nonEmpty) {
+            val regionOrderPairs = toRegionOrderPairs(prevLinks.head.fromOpId, nextLinks.head.fromOpId, regionDAG)
+            // Attempt to add edges to regionDAG
+            try {
+              regionOrderPairs.foreach {
+                case (fromRegion, toRegion) =>
+                  regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+              }
+            } catch {
+              case _: IllegalArgumentException =>
+                // adding the edge causes cycle. return the link for materialization replacement
+                return Some(Set(nextLinks.head))
             }
-          } catch {
-            case _: IllegalArgumentException =>
-              // adding the edge causes cycle. return the link for materialization replacement
-              return Some(Set(nextLink))
+          } else {
+            // Use port to find regions
+            val fromRegions = getRegions(prevLinks.head.fromOpId, regionDAG)
+            val toRegion = getRegions(physicalOpId, regionDAG)
+              .filter(region=>region.getPorts.contains(GlobalPortIdentity(
+              opId = physicalOpId, portId = nextPort, input = true
+            ))).head
+            fromRegions.foreach(fromRegion => regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id)))
           }
         case _ =>
       }

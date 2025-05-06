@@ -502,32 +502,26 @@ case class PhysicalOp(
     * processes the build input, then the probe input.
     */
   @JsonIgnore
-  def getInputLinksInProcessingOrder: List[PhysicalLink] = {
+  def getInputPortsInProcessingOrder: List[PortIdentity] = {
     val dependencyDag = {
-      new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
+      new DirectedAcyclicGraph[PortIdentity, DefaultEdge](classOf[DefaultEdge])
     }
     inputPorts.values
       .map(_._1)
       .flatMap(port => port.dependencies.map(dependee => port.id -> dependee))
       .foreach({
         case (depender: PortIdentity, dependee: PortIdentity) =>
-          val upstreamLinks = getInputLinks(Some(dependee))
-          val downstreamLinks = getInputLinks(Some(depender))
-          if (upstreamLinks.nonEmpty && downstreamLinks.nonEmpty) {
-            val upstreamLink = upstreamLinks.head
-            val downstreamLink = downstreamLinks.head
-            if (!dependencyDag.containsVertex(upstreamLink)) {
-              dependencyDag.addVertex(upstreamLink)
+            if (!dependencyDag.containsVertex(dependee)) {
+              dependencyDag.addVertex(dependee)
             }
-            if (!dependencyDag.containsVertex(downstreamLink)) {
-              dependencyDag.addVertex(downstreamLink)
+            if (!dependencyDag.containsVertex(depender)) {
+              dependencyDag.addVertex(depender)
             }
-            dependencyDag.addEdge(upstreamLink, downstreamLink)
-          }
+            dependencyDag.addEdge(dependee, depender)
       })
     val topologicalIterator =
-      new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
-    val processingOrder = new ArrayBuffer[PhysicalLink]()
+      new TopologicalOrderIterator[PortIdentity, DefaultEdge](dependencyDag)
+    val processingOrder = new ArrayBuffer[PortIdentity]()
     while (topologicalIterator.hasNext) {
       processingOrder.append(topologicalIterator.next())
     }
