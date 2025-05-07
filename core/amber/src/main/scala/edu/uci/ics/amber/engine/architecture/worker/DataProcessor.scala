@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.{StartOfInputChannel, State}
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
 import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
@@ -170,6 +170,7 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
+        outputManager.emitMarker(EndOfInputChannel())
         sendChannelMarker(channelMarkerManager.marker)
         // Send Completed signal to worker actor.
         executor.close()
@@ -235,6 +236,7 @@ class DataProcessor(
         marker match {
           case state: State =>
             processInputState(state, portId.id)
+          case _ =>
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
