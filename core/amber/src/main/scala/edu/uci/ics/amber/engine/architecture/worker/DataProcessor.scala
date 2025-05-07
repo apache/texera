@@ -113,8 +113,6 @@ class DataProcessor(
     * process start of an input port with Executor.produceStateOnStart().
     */
   def startOfInputChannel(channelId: ChannelIdentity): Unit = {
-    val b = this.inputGateway.getChannel(channelId)
-    println(s"start of input channel",b)
     val portId = this.inputGateway.getChannel(channelId).getPortId
     try {
       val outputState = executor.produceStateOnStart(portId.id)
@@ -243,8 +241,6 @@ class DataProcessor(
   }
 
   def endOfInputChannel(channelId: ChannelIdentity): Unit = {
-    val a = this.inputGateway.getChannel(channelId)
-    println(s"end of input channel",a)
     val portId = this.inputGateway.getChannel(channelId).getPortId
     this.inputManager.getPort(portId).channels(channelId) = true
     if (inputManager.isPortCompleted(portId)) {
