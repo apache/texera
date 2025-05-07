@@ -216,11 +216,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     const rowHeight = 39; // use the rendered height of a row.
     let extra: number;
 
-    if (this.sinkStorageMode == "mongodb") {
-      extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
-    } else {
-      extra = Math.floor((panelHeight - 170) / rowHeight);
-    }
+    extra = Math.floor((panelHeight - 170) / rowHeight);
 
     if (extra < 0) {
       extra = 0;

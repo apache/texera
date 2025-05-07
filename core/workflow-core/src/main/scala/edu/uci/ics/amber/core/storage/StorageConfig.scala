@@ -33,11 +33,6 @@ object StorageConfig {
   // General storage settings
   val resultStorageMode: String = conf.getString("storage.result-storage-mode")
 
-  // MongoDB specifics
-  val mongodbUrl: String = conf.getString("storage.mongodb.url")
-  val mongodbDatabaseName: String = conf.getString("storage.mongodb.database")
-  val mongodbBatchSize: Int = conf.getInt("storage.mongodb.commit-batch-size")
-
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
   val jdbcUsername: String = conf.getString("storage.jdbc.username")
@@ -90,15 +85,6 @@ object StorageConfig {
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
-
-  // Environment variable names for overriding storage config values
-  // When you change
-  val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
-
-  // MongoDB
-  val ENV_MONGODB_URL = "STORAGE_MONGODB_URL"
-  val ENV_MONGODB_DATABASE = "STORAGE_MONGODB_DATABASE"
-  val ENV_MONGODB_COMMIT_BATCH_SIZE = "STORAGE_MONGODB_COMMIT_BATCH_SIZE"
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"
