@@ -558,7 +558,7 @@ class WorkflowExecutionsResource {
           if (request.operatorIds.size > 1) {
             val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
             val (zipStream, zipFileNameOpt) =
-              resultExportService.exportOperatorsAsZip(user.user, request)
+              resultExportService.exportOperatorsAsZip(request)
 
             if (zipStream == null) {
               throw new RuntimeException("Zip stream is null")
