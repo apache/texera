@@ -29,7 +29,7 @@ class NestedTableOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Nested Table",
-      "Visualize data in a Nested Table",
+      "Visualize Data in a Depth Two Nested Table",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
