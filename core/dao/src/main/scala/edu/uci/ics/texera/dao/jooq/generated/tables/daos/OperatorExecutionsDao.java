@@ -100,4 +100,19 @@ public class OperatorExecutionsDao extends DAOImpl<OperatorExecutionsRecord, edu
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchByConsoleMessagesUri(String... values) {
         return fetch(OperatorExecutions.OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI, values);
     }
+
+    /**
+     * Fetch records that have <code>console_messages_size BETWEEN
+     * lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchRangeOfConsoleMessagesSize(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(OperatorExecutions.OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>console_messages_size IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchByConsoleMessagesSize(Integer... values) {
+        return fetch(OperatorExecutions.OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, values);
+    }
 }

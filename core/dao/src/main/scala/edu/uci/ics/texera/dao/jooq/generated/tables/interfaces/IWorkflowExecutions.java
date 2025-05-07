@@ -153,6 +153,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public String getRuntimeStatsUri();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
+     */
+    public void setRuntimeStatsSize(Integer value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
+     */
+    public Integer getRuntimeStatsSize();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

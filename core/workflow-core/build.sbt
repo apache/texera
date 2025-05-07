@@ -106,16 +106,6 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion     // No Constructor Deserializer
 )
 
-
-/////////////////////////////////////////////////////////////////////////////
-// MongoDB-related Dependencies
-/////////////////////////////////////////////////////////////////////////////
-
-libraryDependencies ++= Seq(
-  "org.mongodb" % "mongodb-driver-sync" % "5.0.0",               // MongoDB driver
-  "org.apache.commons" % "commons-jcs3-core" % "3.2"             // Apache Commons JCS
-)
-
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
 val arrowVersion = "14.0.1"
@@ -190,5 +180,6 @@ libraryDependencies ++= Seq(
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
   "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
-  "com.typesafe" % "config" % "1.4.3"                                  // config reader
+  "com.typesafe" % "config" % "1.4.3",                                 // config reader
+  "org.apache.commons" % "commons-jcs3-core" % "3.2"                  // Apache Commons JCS
 )

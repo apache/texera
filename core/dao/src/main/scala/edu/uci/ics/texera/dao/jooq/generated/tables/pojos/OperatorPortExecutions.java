@@ -35,6 +35,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
     private Integer workflowExecutionId;
     private String  globalPortId;
     private String  resultUri;
+    private Integer resultSize;
 
     public OperatorPortExecutions() {}
 
@@ -42,16 +43,19 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.globalPortId = value.getGlobalPortId();
         this.resultUri = value.getResultUri();
+        this.resultSize = value.getResultSize();
     }
 
     public OperatorPortExecutions(
         Integer workflowExecutionId,
         String  globalPortId,
-        String  resultUri
+        String  resultUri,
+        Integer resultSize
     ) {
         this.workflowExecutionId = workflowExecutionId;
         this.globalPortId = globalPortId;
         this.resultUri = resultUri;
+        this.resultSize = resultSize;
     }
 
     /**
@@ -106,6 +110,22 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         this.resultUri = resultUri;
     }
 
+    /**
+     * Getter for <code>texera_db.operator_port_executions.result_size</code>.
+     */
+    @Override
+    public Integer getResultSize() {
+        return this.resultSize;
+    }
+
+    /**
+     * Setter for <code>texera_db.operator_port_executions.result_size</code>.
+     */
+    @Override
+    public void setResultSize(Integer resultSize) {
+        this.resultSize = resultSize;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorPortExecutions (");
@@ -113,6 +133,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         sb.append(workflowExecutionId);
         sb.append(", ").append(globalPortId);
         sb.append(", ").append(resultUri);
+        sb.append(", ").append(resultSize);
 
         sb.append(")");
         return sb.toString();
@@ -127,6 +148,7 @@ public class OperatorPortExecutions implements IOperatorPortExecutions {
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setGlobalPortId(from.getGlobalPortId());
         setResultUri(from.getResultUri());
+        setResultSize(from.getResultSize());
     }
 
     @Override

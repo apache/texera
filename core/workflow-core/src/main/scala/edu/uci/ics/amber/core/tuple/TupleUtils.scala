@@ -23,9 +23,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.util.JSONUtils.JSONToMap
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import AttributeTypeUtils.{inferSchemaFromRows, parseField}
-import AttributeType.BINARY
-import org.bson.Document
-import org.bson.types.Binary
 
 import scala.collection.mutable.ArrayBuffer
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -90,19 +87,6 @@ object TupleUtils {
     } catch {
       case e: Exception => throw e
     }
-  }
-
-  def document2Tuple(doc: Document, schema: Schema): Tuple = {
-    val builder = Tuple.builder(schema)
-    schema.getAttributes.foreach(attr =>
-      if (attr.getType == BINARY) {
-        // special care for converting MongoDB's binary type to byte[] in our schema
-        builder.add(attr, doc.get(attr.getName).asInstanceOf[Binary].getData)
-      } else {
-        builder.add(attr, parseField(doc.get(attr.getName), attr.getType))
-      }
-    )
-    builder.build()
   }
 
 }

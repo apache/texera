@@ -64,6 +64,18 @@ public interface IOperatorExecutions extends Serializable {
      */
     public String getConsoleMessagesUri();
 
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.console_messages_size</code>.
+     */
+    public void setConsoleMessagesSize(Integer value);
+
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.console_messages_size</code>.
+     */
+    public Integer getConsoleMessagesSize();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

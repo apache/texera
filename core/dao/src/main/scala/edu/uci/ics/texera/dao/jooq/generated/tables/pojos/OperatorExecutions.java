@@ -35,6 +35,7 @@ public class OperatorExecutions implements IOperatorExecutions {
     private Integer workflowExecutionId;
     private String  operatorId;
     private String  consoleMessagesUri;
+    private Integer consoleMessagesSize;
 
     public OperatorExecutions() {}
 
@@ -42,16 +43,19 @@ public class OperatorExecutions implements IOperatorExecutions {
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.operatorId = value.getOperatorId();
         this.consoleMessagesUri = value.getConsoleMessagesUri();
+        this.consoleMessagesSize = value.getConsoleMessagesSize();
     }
 
     public OperatorExecutions(
         Integer workflowExecutionId,
         String  operatorId,
-        String  consoleMessagesUri
+        String  consoleMessagesUri,
+        Integer consoleMessagesSize
     ) {
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
         this.consoleMessagesUri = consoleMessagesUri;
+        this.consoleMessagesSize = consoleMessagesSize;
     }
 
     /**
@@ -106,6 +110,24 @@ public class OperatorExecutions implements IOperatorExecutions {
         this.consoleMessagesUri = consoleMessagesUri;
     }
 
+    /**
+     * Getter for
+     * <code>texera_db.operator_executions.console_messages_size</code>.
+     */
+    @Override
+    public Integer getConsoleMessagesSize() {
+        return this.consoleMessagesSize;
+    }
+
+    /**
+     * Setter for
+     * <code>texera_db.operator_executions.console_messages_size</code>.
+     */
+    @Override
+    public void setConsoleMessagesSize(Integer consoleMessagesSize) {
+        this.consoleMessagesSize = consoleMessagesSize;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorExecutions (");
@@ -113,6 +135,7 @@ public class OperatorExecutions implements IOperatorExecutions {
         sb.append(workflowExecutionId);
         sb.append(", ").append(operatorId);
         sb.append(", ").append(consoleMessagesUri);
+        sb.append(", ").append(consoleMessagesSize);
 
         sb.append(")");
         return sb.toString();
@@ -127,6 +150,7 @@ public class OperatorExecutions implements IOperatorExecutions {
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setOperatorId(from.getOperatorId());
         setConsoleMessagesUri(from.getConsoleMessagesUri());
+        setConsoleMessagesSize(from.getConsoleMessagesSize());
     }
 
     @Override

@@ -64,6 +64,16 @@ public interface IOperatorPortExecutions extends Serializable {
      */
     public String getResultUri();
 
+    /**
+     * Setter for <code>texera_db.operator_port_executions.result_size</code>.
+     */
+    public void setResultSize(Integer value);
+
+    /**
+     * Getter for <code>texera_db.operator_port_executions.result_size</code>.
+     */
+    public Integer getResultSize();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

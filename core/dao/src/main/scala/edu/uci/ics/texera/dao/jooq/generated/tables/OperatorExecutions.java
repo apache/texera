@@ -32,7 +32,7 @@ import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row3;
+import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -80,6 +80,12 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
      * <code>texera_db.operator_executions.console_messages_uri</code>.
      */
     public final TableField<OperatorExecutionsRecord, String> CONSOLE_MESSAGES_URI = createField(DSL.name("console_messages_uri"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column
+     * <code>texera_db.operator_executions.console_messages_size</code>.
+     */
+    public final TableField<OperatorExecutionsRecord, Integer> CONSOLE_MESSAGES_SIZE = createField(DSL.name("console_messages_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
 
     private OperatorExecutions(Name alias, Table<OperatorExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -171,11 +177,11 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row3 type methods
+    // Row4 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<Integer, String, String> fieldsRow() {
-        return (Row3) super.fieldsRow();
+    public Row4<Integer, String, String, Integer> fieldsRow() {
+        return (Row4) super.fieldsRow();
     }
 }

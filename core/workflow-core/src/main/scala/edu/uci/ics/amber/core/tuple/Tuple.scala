@@ -20,11 +20,9 @@
 package edu.uci.ics.amber.core.tuple
 
 import Tuple.checkSchemaMatchesFields
-import TupleUtils.document2Tuple
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
 import org.ehcache.sizeof.SizeOf
-import org.bson.Document
 
 import java.util
 import scala.collection.mutable
@@ -110,29 +108,9 @@ case class Tuple @JsonCreator() (
 
   override def toString: String =
     s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
-
-  def asDocument(): Document = {
-    val doc = new Document()
-    this.schema.getAttributeNames.foreach { attrName =>
-      doc.put(attrName, this.getField(attrName))
-    }
-    doc
-  }
 }
 
 object Tuple {
-  val toDocument: Tuple => Document = (tuple: Tuple) => {
-    val doc = new Document()
-    tuple.schema.getAttributeNames.foreach { attrName =>
-      doc.put(attrName, tuple.getField(attrName))
-    }
-    doc
-  }
-
-  val fromDocument: Schema => Document => Tuple = (schema: Schema) =>
-    (doc: Document) => {
-      document2Tuple(doc, schema)
-    }
 
   /**
     * Validates that the provided attributes match the provided fields in type and order.

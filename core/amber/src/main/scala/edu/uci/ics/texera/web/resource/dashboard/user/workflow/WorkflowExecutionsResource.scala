@@ -108,7 +108,12 @@ object WorkflowExecutionsResource {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .values(eid.id, globalPortId.serializeAsString, uri.toString)
+        .columns(
+          OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+          OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+          OPERATOR_PORT_EXECUTIONS.RESULT_URI
+        )
+        .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
         .execute()
     } else {
       ExecutionResourcesMapping.addResourceUri(eid, uri)
@@ -122,7 +127,12 @@ object WorkflowExecutionsResource {
   ): Unit = {
     context
       .insertInto(OPERATOR_EXECUTIONS)
-      .values(eid, opId, uri.toString)
+      .columns(
+        OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_EXECUTIONS.OPERATOR_ID,
+        OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI
+      )
+      .values(eid.toInt, opId, uri.toString)
       .execute()
   }
 
@@ -213,7 +223,7 @@ object WorkflowExecutionsResource {
       .toList
   }
 
-  def clearUris(eid: ExecutionIdentity): Unit = {
+  def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
     if (AmberConfig.isUserSystemEnabled) {
       context
         .delete(OPERATOR_PORT_EXECUTIONS)
@@ -225,6 +235,116 @@ object WorkflowExecutionsResource {
         .execute()
     } else {
       ExecutionResourcesMapping.removeExecutionResources(eid)
+    }
+  }
+
+  /**
+    * Removes all resources related to the specified execution IDs,
+    * including runtime statistics, console messages, result documents, and database records.
+    *
+    * @param eids Array of execution IDs to be cleaned up.
+    */
+  def removeAllExecutionFiles(eids: Array[Integer]): Unit = {
+    val eIdsLong = eids.map(_.toLong)
+    val eIdsList = eIdsLong.toSeq.asJava
+
+    // Collect all related document URIs (runtime stats, console logs, results)
+    val uris: Seq[URI] = eIdsLong.flatMap { eid =>
+      val execId = ExecutionIdentity(eid)
+      WorkflowExecutionsResource
+        .getRuntimeStatsUriByExecutionId(execId)
+        .toList ++
+        WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(execId) ++
+        WorkflowExecutionsResource.getResultUrisByExecutionId(execId)
+    }
+
+    // Delete execution-related URIs from database tables
+    context
+      .deleteFrom(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
+      .execute()
+
+    // Clear corresponding Iceberg documents
+    uris.foreach { uri =>
+      try {
+        DocumentFactory.openDocument(uri)._1.clear()
+      } catch {
+        case _: Throwable =>
+        // Document already deleted – safe to ignore
+      }
+    }
+  }
+
+  /**
+    * Updates the result size of the corresponding Iceberg document in the database.
+    *
+    * @param eid          Execution ID associated with the result.
+    * @param globalPortId Global port identifier for the operator output.
+    * @param size         Size of the result in bytes.
+    */
+  def updateResultSize(
+      eid: ExecutionIdentity,
+      globalPortId: GlobalPortIdentity,
+      size: Long
+  ): Unit = {
+    context
+      .update(OPERATOR_PORT_EXECUTIONS)
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, Integer.valueOf(size.toInt))
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
+      .execute()
+  }
+
+  /**
+    * Updates the size of the runtime statistics stored via Iceberg document.
+    *
+    * @param eid Execution ID associated with the runtime statistics document.
+    */
+  def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      val statsUriOpt = context
+        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+        .from(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .fetchOptionalInto(classOf[String])
+        .map(URI.create)
+
+      if (statsUriOpt.isPresent) {
+        val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+        context
+          .update(WORKFLOW_EXECUTIONS)
+          .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
+          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+          .execute()
+      }
+    }
+  }
+
+  /**
+    * Updates the size of the console message stored via Iceberg document.
+    *
+    * @param eid  Execution ID associated with the console message.
+    * @param opId Operator ID of the corresponding operator.
+    */
+  def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      val uriOpt = context
+        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+        .fetchOptionalInto(classOf[String])
+        .map(URI.create)
+
+      if (uriOpt.isPresent) {
+        val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+        context
+          .update(OPERATOR_EXECUTIONS)
+          .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
+          .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+          .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+          .execute()
+      }
     }
   }
 
@@ -504,21 +624,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
-    val eIdsList = request.eIds.toSeq.asJava
-
-    context
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.EID.in(eIdsList))
-      .execute()
-
-    // Clear runtime statistics documents for each execution
-    request.eIds.foreach { eid =>
-      WorkflowExecutionsResource
-        .getRuntimeStatsUriByExecutionId(ExecutionIdentity(eid.longValue()))
-        .foreach { uri =>
-          DocumentFactory.openDocument(uri)._1.clear()
-        }
-    }
+    removeAllExecutionFiles(request.eIds)
   }
 
   /** Name a single execution * */
@@ -613,5 +719,4 @@ class WorkflowExecutionsResource {
           .build()
     }
   }
-
 }

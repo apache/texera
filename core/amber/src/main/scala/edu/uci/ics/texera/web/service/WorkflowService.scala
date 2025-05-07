@@ -316,7 +316,7 @@ class WorkflowService(
     val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
 
     // Remove references from registry first
-    WorkflowExecutionsResource.clearUris(eid)
+    WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(eid)
 
     // Clean up all result and console message documents
     (resultUris ++ consoleMessagesUris).foreach { uri =>
