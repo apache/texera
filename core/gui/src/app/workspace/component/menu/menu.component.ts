@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, Output, EventEmitter } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -81,6 +81,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("workflowNameInput") workflowNameInput: ElementRef<HTMLInputElement> | undefined;
+  // Emit an event to parent component (workspace) when AI generation starts or stops
+  @Output() public setWaitingForOpenAi = new EventEmitter<boolean>();
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = "Run";
@@ -579,9 +581,11 @@ export class MenuComponent implements OnInit, OnDestroy {
       return false;
     }
 
+    this.setWaitingForOpenAi.emit(true); // start loading
+
     // Read the notebook file as text
     reader.readAsText(file as any);
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const result = reader.result;
         if (typeof result !== "string") {
@@ -600,12 +604,12 @@ export class MenuComponent implements OnInit, OnDestroy {
         console.log(`Notebook JSON: ${JSON.stringify(notebookContent)}`);
 
         // Send Notebook JSON to pod to open in jupyterlab
-        this.sendNotebookToPod(notebookContent);
+        await this.sendNotebookToPod(notebookContent);
 
         // Get workflow and mapping from OpenAI
-        console.log("Getting data from OpenAI...")
-        this.sendToAIGenerateWorkflow()
-          .then((result) => {
+        console.log("Getting data from OpenAI...");
+        await this.sendToAIGenerateWorkflow()
+          .then(result => {
             if (result) {
               const { workflowContent, mappingContent } = result;
               console.log("Workflow:", workflowContent);
@@ -645,8 +649,11 @@ export class MenuComponent implements OnInit, OnDestroy {
               console.error("Result is undefined");
             }
           })
-          .catch((error) => {
+          .catch(error => {
             console.error("Error while fetching data from OpenAI:", error);
+          })
+          .finally(() => {
+            this.setWaitingForOpenAi.emit(false); // stop loading
           });
       } catch (error) {
         this.notificationService.error("Failed to import the notebook.");
@@ -672,7 +679,7 @@ export class MenuComponent implements OnInit, OnDestroy {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
 
       // Check if the response is OK (status code 200)
@@ -727,9 +734,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.notificationService.error("Error sending notebook to JupyterLab: " + error.message);
     }
   }
-
-
-
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {
     const reader = new FileReader();

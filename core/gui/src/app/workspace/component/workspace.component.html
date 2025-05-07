@@ -1,6 +1,6 @@
 <div class="spinner-container">
   <nz-spin
-    [nzSpinning]="isLoading"
+    [nzSpinning]="isLoading || isWaitingForOpenAi"
     [nzSize]="'large'"
     nzTip="Loading workflow..."></nz-spin>
 </div>
@@ -10,7 +10,8 @@
 <texera-workflow-editor></texera-workflow-editor>
 <texera-menu
   [writeAccess]="writeAccess"
-  [pid]="pid">
+  [pid]="pid"
+  (setWaitingForOpenAi)="isWaitingForOpenAi = $event">
 </texera-menu>
 <texera-jupyter-notebook-panel></texera-jupyter-notebook-panel>
 <texera-mini-map class="box"></texera-mini-map>

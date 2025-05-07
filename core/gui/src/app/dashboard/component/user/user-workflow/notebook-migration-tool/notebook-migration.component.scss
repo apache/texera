@@ -27,8 +27,8 @@
 }
 
 .notebook-workflow-side-by-side {
-  display: flex;  /* Use flexbox for the container */
-  flex-direction: row;  /* Arrange children in a row */
+  display: flex; /* Use flexbox for the container */
+  flex-direction: row; /* Arrange children in a row */
   gap: 20px; /* Optional: Adds space between the columns */
 }
 
@@ -74,7 +74,7 @@
 }
 
 // Markdown Cell Styles
-.markdown-cell {
+.jupyter-markdown-cell {
   padding: 10px;
   background-color: #fbfbfb;
   font-family: "Georgia", "Times", "serif";
@@ -82,7 +82,7 @@
 }
 
 // Code Cell Styles
-.code-cell {
+.jupyter-code-cell {
   background-color: #f7f7f7;
   padding: 10px;
   border-radius: 4px;
@@ -103,7 +103,7 @@
 }
 
 // Raw Cell Styles
-.raw-cell {
+.jupyter-raw-cell {
   padding: 10px;
   background-color: #f1f1f1;
   border: 1px dashed #ddd;

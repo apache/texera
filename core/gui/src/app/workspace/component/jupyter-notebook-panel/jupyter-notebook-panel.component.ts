@@ -6,7 +6,7 @@ import { takeUntil } from "rxjs/operators";
 @Component({
   selector: "texera-jupyter-notebook-panel",
   templateUrl: "./jupyter-notebook-panel.component.html",
-  styleUrls: ["./jupyter-notebook-panel.component.scss"]
+  styleUrls: ["./jupyter-notebook-panel.component.scss"],
 })
 export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild("iframeRef", { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>; // Use static: false

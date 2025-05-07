@@ -67,18 +67,6 @@ export class JupyterPanelService {
     this.iframeRef.onload = () => console.log("Iframe loaded successfully.");
   }
 
-  // Trigger a cell click inside the iframe
-  triggerCellClickInsideIframe(cellUUID: string) {
-    if (this.iframeRef && this.iframeRef.contentWindow) {
-      this.iframeRef.contentWindow.postMessage(
-        { action: "triggerCellClick", cellUUID },
-        "http://localhost:8888"
-      );
-    } else {
-      console.error("Iframe reference is null or not loaded.");
-    }
-  }
-
   // Open the Jupyter Notebook panel
   openPanel(panelName: string): void {
     if (panelName === "JupyterNotebookPanel") {
@@ -114,10 +102,16 @@ export class JupyterPanelService {
 
     // Unhighlight all operators and links
     this.workflowActionService.unhighlightOperators(
-      ...this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID)
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID)
     );
     this.workflowActionService.unhighlightLinks(
-      ...this.workflowActionService.getTexeraGraph().getAllLinks().map(link => link.linkID)
+      ...this.workflowActionService
+        .getTexeraGraph()
+        .getAllLinks()
+        .map(link => link.linkID)
     );
 
     // Highlight components and edges

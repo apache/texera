@@ -1,5 +1,7 @@
 <!-- Preview and Upload Dataset Window -->
-<div class="modal-content" *ngIf="popupStage === 0">
+<div
+  class="modal-content"
+  *ngIf="popupStage === 0">
   <!-- Left Column: Jupyter Notebook Preview -->
   <div class="left-column">
     <h2>Upload Successful</h2>
@@ -7,25 +9,35 @@
     <h3>Notebook Preview:</h3>
 
     <div class="notebook-preview">
-      <div *ngFor="let cell of notebookContent?.cells" class="notebook-cell">
+      <div
+        *ngFor="let cell of notebookContent?.cells"
+        class="notebook-cell">
         <ng-container [ngSwitch]="cell.cell_type">
           <!-- Markdown Cell -->
-          <div *ngSwitchCase="'markdown'" class="markdown-cell">
+          <div
+            *ngSwitchCase="'markdown'"
+            class="jupyter-markdown-cell">
             <pre>{{ cell.source.join("") }}</pre>
           </div>
 
           <!-- Code Cell -->
-          <div *ngSwitchCase="'code'" class="code-cell">
+          <div
+            *ngSwitchCase="'code'"
+            class="jupyter-code-cell">
             <pre>{{ cell.source.join("") }}</pre>
             <!-- Safe check for outputs -->
-            <div *ngIf="cell.outputs && cell.outputs.length > 0" class="output">
+            <div
+              *ngIf="cell.outputs && cell.outputs.length > 0"
+              class="output">
               <h4>Output:</h4>
               <pre *ngFor="let output of cell.outputs">{{ getOutputText(output) }}</pre>
             </div>
           </div>
 
           <!-- Raw Cell -->
-          <div *ngSwitchCase="'raw'" class="raw-cell">
+          <div
+            *ngSwitchCase="'raw'"
+            class="jupyter-raw-cell">
             <pre>{{ cell.source.join("") }}</pre>
           </div>
         </ng-container>
@@ -38,16 +50,24 @@
     <h3>Select Datasets for Workflow</h3>
     <p>Add CSV files that will be used as input datasets for the workflow execution:</p>
     <div class="dataset-input">
-      <input type="file" accept=".csv" (change)="onFileChange($event)" multiple />
-      <ul *ngIf="datasets.length > 0" class="dataset-list">
+      <input
+        type="file"
+        accept=".csv"
+        (change)="onFileChange($event)"
+        multiple />
+      <ul
+        *ngIf="datasets.length > 0"
+        class="dataset-list">
         <li *ngFor="let dataset of datasets">{{ dataset.name }}</li>
       </ul>
     </div>
     <!-- Disable button when no datasets are selected -->
-    <button nz-button nzType="primary"
-            (click)="convertToWorkflow()"
-            [disabled]="datasets.length === 0"
-            [nzLoading]="workflowGeneratingInProgress">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="convertToWorkflow()"
+      [disabled]="datasets.length === 0"
+      [nzLoading]="workflowGeneratingInProgress">
       Convert to Texera Workflow
     </button>
   </div>
@@ -60,25 +80,35 @@
     <div class="left-half">
       <h3>Original Notebook</h3>
       <div class="notebook-preview">
-        <div *ngFor="let cell of notebookContent?.cells" class="notebook-cell">
+        <div
+          *ngFor="let cell of notebookContent?.cells"
+          class="notebook-cell">
           <ng-container [ngSwitch]="cell.cell_type">
             <!-- Markdown Cell -->
-            <div *ngSwitchCase="'markdown'" class="markdown-cell">
+            <div
+              *ngSwitchCase="'markdown'"
+              class="jupyter-markdown-cell">
               <pre>{{ cell.source.join("") }}</pre>
             </div>
 
             <!-- Code Cell -->
-            <div *ngSwitchCase="'code'" class="code-cell">
+            <div
+              *ngSwitchCase="'code'"
+              class="jupyter-code-cell">
               <pre>{{ cell.source.join("") }}</pre>
               <!-- Safe check for outputs -->
-              <div *ngIf="cell.outputs && cell.outputs.length > 0" class="output">
+              <div
+                *ngIf="cell.outputs && cell.outputs.length > 0"
+                class="output">
                 <h4>Output:</h4>
                 <pre *ngFor="let output of cell.outputs">{{ getOutputText(output) }}</pre>
               </div>
             </div>
 
             <!-- Raw Cell -->
-            <div *ngSwitchCase="'raw'" class="raw-cell">
+            <div
+              *ngSwitchCase="'raw'"
+              class="jupyter-raw-cell">
               <pre>{{ cell.source.join("") }}</pre>
             </div>
           </ng-container>
@@ -94,7 +124,10 @@
     </div>
   </div>
   <div class="equivalence-check">
-    <button nz-button nzType="primary" (click)="compareOutput()">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="compareOutput()">
       Compare Output
     </button>
   </div>
@@ -119,10 +152,16 @@
     </div>
   </div>
   <div class="equivalence-check">
-    <button nz-button nzType="primary" [style.background-color]="'red'" [style.margin-right]="'10px'">
+    <button
+      nz-button
+      nzType="primary"
+      [style.background-color]="'red'"
+      [style.margin-right]="'10px'">
       Reject Workflow
     </button>
-    <button nz-button nzType="primary">
+    <button
+      nz-button
+      nzType="primary">
       Accept Workflow
     </button>
   </div>
