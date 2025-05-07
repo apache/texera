@@ -178,8 +178,8 @@ libraryDependencies ++= Seq(
   "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
-  "org.apache.commons" % "commons-vfs2" % "2.9.0",                    // for FileResolver throw VFS-related exceptions
+  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
   "io.lakefs" % "sdk" % "1.51.0",                                     // for lakeFS api calls
-  "com.typesafe" % "config" % "1.4.3",                                // config reader
+  "com.typesafe" % "config" % "1.4.3",                                 // config reader
   "org.apache.commons" % "commons-jcs3-core" % "3.2"                  // Apache Commons JCS
 )
