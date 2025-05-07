@@ -37,7 +37,7 @@ case class WorkflowExecuteRequest(
     replayFromExecution: Option[ReplayExecutionInfo], // contains execution Id, interaction Id.
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: Boolean,
-    computingUnitId: Int,
+    computingUnitId: Int
 ) extends TexeraWebSocketRequest
 
 case class LogicalPlanPojo(

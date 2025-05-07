@@ -201,7 +201,7 @@ class WorkflowService(
       uidOpt,
       req.executionName,
       convertToJson(req.engineVersion),
-      req.computingUnitId,
+      req.computingUnitId
     )
 
     if (AmberConfig.isUserSystemEnabled) {
