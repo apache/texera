@@ -30,11 +30,11 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 class EndWorkerHandler(ControlHandler):
 
     async def end_worker(self, req: EndInputChannelRequest) -> EmptyReturn:
+        print("ergergerger")
         input_channel_id = (
             ChannelIdentity(InputManager.SOURCE_STARTER, ActorVirtualIdentity(self.context.worker_id), False)
             if self.context.executor_manager.executor.is_source
             else req.channelId
         )
-        print("ergergerger")
 
         return EmptyReturn()
