@@ -33,6 +33,14 @@ export class WorkflowExecutionsService {
   constructor(private http: HttpClient) {}
 
   /**
+   * Retrieves the latest execution entry (latest VID, latest start-time)
+   * for the given workflow ID.
+   */
+  retrieveLatestWorkflowExecution(wid: number): Observable<WorkflowExecutionsEntry> {
+    return this.http.get<WorkflowExecutionsEntry>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/latest`);
+  }
+
+  /**
    * retrieves a list of execution for a particular workflow from backend database
    */
   retrieveWorkflowExecutions(wid: number): Observable<WorkflowExecutionsEntry[]> {

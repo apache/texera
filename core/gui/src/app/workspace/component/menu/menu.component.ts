@@ -51,9 +51,7 @@ import { ReportGenerationService } from "../../service/report-generation/report-
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
-import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 

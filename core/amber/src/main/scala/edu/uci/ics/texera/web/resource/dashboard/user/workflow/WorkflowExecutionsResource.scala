@@ -33,6 +33,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
@@ -201,6 +202,7 @@ object WorkflowExecutionsResource {
       .select(
         WORKFLOW_EXECUTIONS.EID,
         WORKFLOW_EXECUTIONS.VID,
+        WORKFLOW_EXECUTIONS.CUID,
         USER.NAME,
         USER.GOOGLE_AVATAR,
         WORKFLOW_EXECUTIONS.STATUS,
@@ -426,6 +428,7 @@ object WorkflowExecutionsResource {
   case class WorkflowExecutionEntry(
       eId: Integer,
       vId: Integer,
+      cuId: Integer,
       userName: String,
       googleAvatar: String,
       status: Byte,
@@ -465,6 +468,54 @@ case class ExecutionRenameRequest(wid: Integer, eId: Integer, executionName: Str
 @Produces(Array(MediaType.APPLICATION_JSON, MediaType.APPLICATION_OCTET_STREAM, "application/zip"))
 @Path("/executions")
 class WorkflowExecutionsResource {
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/latest")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def retrieveLatestExecutionEntry(
+                                    @PathParam("wid") wid: Integer,
+                                    @Auth sessionUser: SessionUser
+                                  ): WorkflowExecutionEntry = {
+
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
+
+    withTransaction(context) { ctx =>
+      val latestEntryOpt =
+        ctx
+          .select(
+            WORKFLOW_EXECUTIONS.EID,
+            WORKFLOW_EXECUTIONS.VID,
+            WORKFLOW_EXECUTIONS.CUID,
+            USER.NAME,
+            USER.GOOGLE_AVATAR,
+            WORKFLOW_EXECUTIONS.STATUS,
+            WORKFLOW_EXECUTIONS.RESULT,
+            WORKFLOW_EXECUTIONS.STARTING_TIME,
+            WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
+            WORKFLOW_EXECUTIONS.BOOKMARKED,
+            WORKFLOW_EXECUTIONS.NAME,
+            WORKFLOW_EXECUTIONS.LOG_LOCATION
+          )
+          .from(WORKFLOW_EXECUTIONS)
+          .join(WORKFLOW_VERSION).on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+          .join(USER).on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+          .where(WORKFLOW_VERSION.WID.eq(wid))
+          // sort by latest VID first, then latest start-time
+          .orderBy(
+            WORKFLOW_EXECUTIONS.VID.desc(),
+            WORKFLOW_EXECUTIONS.EID.desc()
+          )
+          .limit(1)
+          .fetchInto(classOf[WorkflowExecutionEntry])
+          .asScala
+          .headOption
+
+      latestEntryOpt.getOrElse {
+        throw new ForbiddenException("Executions doesn't exist")
+      }
+    }
+  }
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))

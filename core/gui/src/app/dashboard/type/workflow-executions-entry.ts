@@ -20,6 +20,7 @@
 export interface WorkflowExecutionsEntry {
   eId: number;
   vId: number;
+  cuId: number;
   sId: number;
   userName: string;
   googleAvatar: string;

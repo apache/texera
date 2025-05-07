@@ -98,10 +98,10 @@ export class ComputingUnitStatusService implements OnDestroy {
     if (!this.selectedUnitSubject.value) {
       const runningUnit = units.find(unit => unit.status === "Running");
       if (runningUnit) {
-        this.selectComputingUnit(runningUnit);
+        this.selectComputingUnit(runningUnit.computingUnit.cuid);
       } else if (units.length > 0) {
         // Otherwise select the first available unit
-        this.selectComputingUnit(units[0]);
+        this.selectComputingUnit(units[0].computingUnit.cuid);
       }
     } else {
       // If we already have a selected unit, update its status from the fresh data
@@ -111,11 +111,8 @@ export class ComputingUnitStatusService implements OnDestroy {
 
       if (updatedUnit) {
         this.selectedUnitSubject.next(updatedUnit);
-      } else if (units.length > 0) {
-        // Our selected unit is no longer available, select another one
-        this.selectComputingUnit(units[0]);
       } else {
-        // No units available
+        // Our selected unit is no longer available
         this.selectedUnitSubject.next(null);
       }
     }
@@ -212,17 +209,21 @@ export class ComputingUnitStatusService implements OnDestroy {
       });
   }
 
-  // Select a computing unit and emit the updated selection
-  public selectComputingUnit(unit: DashboardWorkflowComputingUnit): void {
-    // First, update the selected unit
+  /**
+   * Select a computing unit **by its CUID** and emit the updated selection.
+   */
+  public selectComputingUnit(cuid: number): void {
+    // Find the unit in the current list; if not present do nothing
+    const unit = this.allUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
+    if (!unit) {
+      return;
+    }
+
     this.selectedUnitSubject.next(unit);
 
-    // If the status is running and we're connected, make sure we emit correct connection status
-    if (unit.status === "Running" && this.workflowWebsocketService.isConnected) {
-      this.connectedSubject.next(true);
-    } else {
-      this.connectedSubject.next(false);
-    }
+    // Update connection status according to the unit + websocket
+    const connected = unit.status === "Running" && this.workflowWebsocketService.isConnected;
+    this.connectedSubject.next(connected);
   }
 
   // Observable for the currently selected computing unit
@@ -265,92 +266,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     );
   }
 
-  // Get whether the selected computing unit is in a ready state
-  public isReady(): Observable<boolean> {
-    return this.selectedUnitSubject.pipe(
-      map((unit: DashboardWorkflowComputingUnit | null) => {
-        // Must have a unit, the unit status must be Running, and the websocket must be connected
-        return !!unit && unit.status === "Running" && this.workflowWebsocketService.isConnected;
-      })
-    );
-  }
-
-  // Get the current CPU usage percentage of the selected computing unit
-  public getCpuUsagePercentage(): Observable<number> {
-    return this.selectedUnitSubject.pipe(
-      filter((unit): unit is DashboardWorkflowComputingUnit => !!unit),
-      map((unit: DashboardWorkflowComputingUnit) => {
-        if (!unit || unit.metrics.cpuUsage === "NaN" || unit.computingUnit.resource.cpuLimit === "NaN") {
-          return 0;
-        }
-
-        try {
-          const usage = this.parseResourceValue(unit.metrics.cpuUsage);
-          const limit = this.parseResourceValue(unit.computingUnit.resource.cpuLimit);
-          return Math.min(Math.round((usage / limit) * 100), 100);
-        } catch (e) {
-          return 0;
-        }
-      })
-    );
-  }
-
-  // Get the current memory usage percentage of the selected computing unit
-  public getMemoryUsagePercentage(): Observable<number> {
-    return this.selectedUnitSubject.pipe(
-      filter((unit): unit is DashboardWorkflowComputingUnit => !!unit),
-      map((unit: DashboardWorkflowComputingUnit) => {
-        if (!unit || unit.metrics.memoryUsage === "NaN" || unit.computingUnit.resource.memoryLimit === "NaN") {
-          return 0;
-        }
-
-        try {
-          const usage = this.parseResourceValue(unit.metrics.memoryUsage);
-          const limit = this.parseResourceValue(unit.computingUnit.resource.memoryLimit);
-          return Math.min(Math.round((usage / limit) * 100), 100);
-        } catch (e) {
-          return 0;
-        }
-      })
-    );
-  }
-
-  // Helper method to parse resource values like "100m" or "1Gi"
-  private parseResourceValue(resource: string): number {
-    if (!resource || resource === "NaN") {
-      return 0;
-    }
-
-    // Extract the number part
-    const match = resource.match(/^(\d+(?:\.\d+)?)([a-zA-Z]*)$/);
-    if (!match) {
-      return 0;
-    }
-
-    const value = parseFloat(match[1]);
-    const unit = match[2] || "";
-
-    // Convert based on unit
-    // CPU units: n (nano), u (micro), m (milli), or none (whole)
-    // Memory units: Ki, Mi, Gi, or none (bytes)
-    switch (unit) {
-      case "n":
-        return value / 1_000_000_000;
-      case "u":
-        return value / 1_000_000;
-      case "m":
-        return value / 1_000;
-      case "Ki":
-        return value * 1024;
-      case "Mi":
-        return value * 1024 * 1024;
-      case "Gi":
-        return value * 1024 * 1024 * 1024;
-      default:
-        return value;
-    }
-  }
-
   // Clean up on service destroy
   ngOnDestroy(): void {
     if (this.refreshSubscription) {
@@ -376,35 +291,11 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   /**
-   * Clear the currently selected computing unit and update connection status
-   */
-  public clearSelectedComputingUnit(): void {
-    this.selectedUnitSubject.next(null);
-    this.connectedSubject.next(false);
-    this.isConnectingUnitSubject.next(false);
-    this.isCreatingUnitSubject.next(false);
-  }
-
-  /**
    * Sets the current workflow ID for the service to use when connecting
    * @param workflowId The ID of the current workflow
    */
   public setWorkflowId(workflowId: number | undefined): void {
     this.workflowIdSubject.next(workflowId);
-  }
-
-  /**
-   * Get the current state of the unit creation process as observable
-   */
-  public isCreatingUnit(): Observable<boolean> {
-    return this.isCreatingUnitSubject.asObservable();
-  }
-
-  /**
-   * Get the current state of the unit connection process as observable
-   */
-  public isConnectingToUnit(): Observable<boolean> {
-    return this.isConnectingUnitSubject.asObservable();
   }
 
   /**
@@ -419,77 +310,6 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public get isConnectingToUnitValue(): boolean {
     return this.isConnectingUnitSubject.value;
-  }
-
-  /**
-   * Connect to a specific computing unit
-   * @param unit The computing unit to connect to
-   * @returns An observable that emits true when connected, false on failure
-   */
-  public connectToComputingUnit(unit: DashboardWorkflowComputingUnit): Observable<boolean> {
-    if (!this.workflowIdSubject.value) {
-      return of(false);
-    }
-
-    // Create response subject to track connection success
-    const connectedSubject = new Subject<boolean>();
-
-    // Set the connecting state
-    this.isConnectingUnitSubject.next(true);
-
-    // Select the unit in the service
-    this.selectComputingUnit(unit);
-
-    // Connect to the unit's websocket
-    this.workflowWebsocketService.closeWebsocket();
-    this.workflowWebsocketService.openWebsocket(this.workflowIdSubject.value, undefined, unit.computingUnit.cuid);
-
-    // Check connection status more frequently
-    const connectionCheck = interval(200)
-      .pipe(
-        filter(() => this.workflowWebsocketService.isConnected),
-        take(1), // Take only the first connection event
-        untilDestroyed(this)
-      )
-      .subscribe(() => {
-        // Update connection status
-        this.connectedSubject.next(true);
-
-        // Update the unit status if needed
-        if (this.selectedUnitSubject.value && this.selectedUnitSubject.value.status !== "Running") {
-          const updatedUnit = {
-            ...this.selectedUnitSubject.value,
-            status: "Running",
-          };
-          this.selectedUnitSubject.next(updatedUnit);
-
-          // Update the list as well
-          this.updateUnitInList(updatedUnit);
-        }
-
-        // Complete the connection process
-        this.isConnectingUnitSubject.next(false);
-        connectedSubject.next(true);
-
-        // Clear any timeout
-        if (this.connectionTimeoutTimer) {
-          this.connectionTimeoutTimer.unsubscribe();
-          this.connectionTimeoutTimer = null;
-        }
-      });
-
-    // Set connection timeout
-    this.connectionTimeoutTimer = timer(this.CONNECTION_TIMEOUT_MS).subscribe(() => {
-      if (connectionCheck && !connectionCheck.closed) {
-        connectionCheck.unsubscribe();
-        this.isConnectingUnitSubject.next(false);
-        this.notificationService.error("Failed to connect to computing unit after timeout. Please try again.");
-        connectedSubject.next(false);
-        this.connectionTimeoutTimer = null;
-      }
-    });
-
-    return connectedSubject.asObservable();
   }
 
   /**

@@ -231,7 +231,7 @@ export class ExecuteWorkflowService {
     // Get the current computing unit ID from the status service
     const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
     const computingUnitId = selectedUnit?.computingUnit.cuid;
-    
+
     // Log a warning if no computing unit is selected
     if (computingUnitId === undefined) {
       console.warn("No computing unit selected for workflow execution");
@@ -244,7 +244,7 @@ export class ExecuteWorkflowService {
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
-      computingUnitId: computingUnitId // Include the computing unit ID
+      computingUnitId: computingUnitId, // Include the computing unit ID
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
