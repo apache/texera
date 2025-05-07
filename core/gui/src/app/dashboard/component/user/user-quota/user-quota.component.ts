@@ -19,7 +19,7 @@
 
 import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { File, Workflow, ExecutionQuota, WorkflowQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";
@@ -42,16 +42,16 @@ export class UserQuotaComponent implements OnInit {
   dynamicHeight: string = "700px";
 
   totalFileSize: number = 0;
-  totalMongoSize: number = 0;
+  totalQuotaSize: number = 0;
   totalUploadedDatasetSize: number = 0;
   totalUploadedDatasetCount: number = 0;
   createdFiles: ReadonlyArray<File> = [];
   createdWorkflows: ReadonlyArray<Workflow> = [];
   accessFiles: ReadonlyArray<number> = [];
   accessWorkflows: ReadonlyArray<number> = [];
-  mongodbExecutions: ReadonlyArray<MongoExecution> = [];
+  executionCollections: ReadonlyArray<ExecutionQuota> = [];
   datasetList: ReadonlyArray<DatasetQuota> = [];
-  mongodbWorkflows: Array<MongoWorkflow> = [];
+  workflows: Array<WorkflowQuota> = [];
   UserService: UserServiceType;
   DEFAULT_PIE_CHART_WIDTH = 480;
   DEFAULT_PIE_CHART_HEIGHT = 340;
@@ -251,52 +251,51 @@ export class UserQuotaComponent implements OnInit {
         this.accessWorkflows = accessWorkflows;
       });
 
-    this.UserService.getMongoDBs(this.userId)
+    this.UserService.getExecutionQuota(this.userId)
       .pipe(untilDestroyed(this))
-      .subscribe(mongoList => {
-        this.totalMongoSize = 0;
-        this.mongodbExecutions = mongoList;
-        this.mongodbWorkflows = [];
+      .subscribe(executionList => {
+        this.totalQuotaSize = 0;
+        this.executionCollections = executionList;
+        this.workflows = [];
 
-        this.mongodbExecutions.forEach(execution => {
-          let insert = false;
-          this.totalMongoSize += execution.size;
+        this.executionCollections.forEach(execution => {
+          this.totalQuotaSize += execution.resultBytes + execution.runTimeStatsBytes + execution.logBytes;
+          let workflow = this.workflows.find(
+            w => w.executions.length > 0 && w.executions[0].workflowId === execution.workflowId
+          );
 
-          this.mongodbWorkflows.some((workflow, index, array) => {
-            if (workflow.workflowName === execution.workflowName) {
-              array[index].executions.push(execution);
-              insert = true;
-              return;
-            }
-          });
-
-          if (!insert) {
-            let workflow: MongoWorkflow = {
+          if (!workflow) {
+            workflow = {
+              workflowId: execution.workflowId,
               workflowName: execution.workflowName,
-              executions: [] as MongoExecution[],
+              executions: [],
             };
-            workflow.executions.push(execution);
-            this.mongodbWorkflows.push(workflow);
+            this.workflows.push(workflow);
           }
+          workflow.executions.push(execution);
         });
       });
   }
 
-  deleteMongoCollection(collectionName: string, execution: MongoExecution, workflowName: string) {
-    this.UserService.deleteMongoDBCollection(collectionName)
+  deleteCollection(eid: number) {
+    this.UserService.deleteExecutionCollection(eid)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.mongodbWorkflows.some((workflow, index, array) => {
-          if (workflow.workflowName === workflowName) {
-            array[index].executions = array[index].executions.filter(e => e !== execution);
-            this.totalMongoSize -= execution.size;
+        this.workflows.forEach((workflow, index, array) => {
+          const executionToDelete = workflow.executions.find(execution => execution.eid === eid);
+          if (executionToDelete) {
+            this.totalQuotaSize -=
+              executionToDelete.resultBytes + executionToDelete.logBytes + executionToDelete.runTimeStatsBytes;
+            workflow.executions = workflow.executions.filter(execution => execution.eid !== eid);
           }
         });
+        this.workflows = this.workflows.filter(workflow => workflow.executions.length > 0);
       });
   }
 
   // alias for formatSize
   formatSize = formatSize;
 
-  public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;
+  public sortBySize: NzTableSortFn<ExecutionQuota> = (a: ExecutionQuota, b: ExecutionQuota) =>
+    b.resultBytes + b.logBytes + b.runTimeStatsBytes - a.resultBytes - a.logBytes - a.runTimeStatsBytes;
 }
