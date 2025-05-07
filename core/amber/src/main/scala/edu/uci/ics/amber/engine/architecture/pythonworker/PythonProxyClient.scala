@@ -140,6 +140,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       .builder(Schema().add("payload", AttributeType.BINARY))
       .add("payload", AttributeType.BINARY, markerPayload.toByteArray)
       .build()
+    print("wefwef34trfewf")
     writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
   }
 
