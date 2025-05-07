@@ -61,9 +61,9 @@ object Constants {
 }
 
 /**
- * A simple wrapper that ignores 'close()' calls on the underlying stream.
- * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
- */
+  * A simple wrapper that ignores 'close()' calls on the underlying stream.
+  * This allows each operator's writer to call close() without ending the entire ZipOutputStream.
+  */
 private class NonClosingOutputStream(os: OutputStream) extends FilterOutputStream(os) {
   @throws[IOException]
   override def close(): Unit = {
@@ -88,9 +88,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   import ResultExportService._
 
   /**
-   * Generate the VirtualDocument for one operator's result.
-   * Incorporates the remote code's extra parameter `None` for sub-operator ID.
-   */
+    * Generate the VirtualDocument for one operator's result.
+    * Incorporates the remote code's extra parameter `None` for sub-operator ID.
+    */
   private def getOperatorDocument(operatorId: String): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
@@ -107,8 +107,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Export results for all specified operators in the request.
-   */
+    * Export results for all specified operators in the request.
+    */
   def exportResultToDataset(user: User, request: ResultExportRequest): ResultExportResponse = {
     val successMessages = new mutable.ListBuffer[String]()
     val errorMessages = new mutable.ListBuffer[String]()
@@ -137,13 +137,13 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Export a single operator's result and handle different export types.
-   */
+    * Export a single operator's result and handle different export types.
+    */
   private def exportSingleOperatorToDataset(
-                                             user: User,
-                                             request: ResultExportRequest,
-                                             operatorId: String
-                                           ): (Option[String], Option[String]) = {
+      user: User,
+      request: ResultExportRequest,
+      operatorId: String
+  ): (Option[String], Option[String]) = {
 
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
@@ -159,23 +159,23 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val attributeNames = resultsForAttributes.head.getSchema.getAttributeNames
 
     request.exportType match {
-      case "csv" => writeCSVDataset(operatorId, user, request, operatorDocument, attributeNames)
-      case "data" => writeDataToDataset(operatorId, user, request, operatorDocument)
+      case "csv"   => writeCSVDataset(operatorId, user, request, operatorDocument, attributeNames)
+      case "data"  => writeDataToDataset(operatorId, user, request, operatorDocument)
       case "arrow" => writeArrowDataset(operatorId, user, request, operatorDocument)
-      case "html" => writeHTMLDataset(operatorId, user, request, operatorDocument)
-      case _ => writeCSVDataset(operatorId, user, request, operatorDocument, attributeNames)
+      case "html"  => writeHTMLDataset(operatorId, user, request, operatorDocument)
+      case _       => writeCSVDataset(operatorId, user, request, operatorDocument, attributeNames)
     }
   }
 
   /*
-    * Handle exporting HTML file for visualization operators.
+   * Handle exporting HTML file for visualization operators.
    */
   private def writeHTMLDataset(
-                                 operatorId: String,
-                                 user: User,
-                                 request: ResultExportRequest,
-                                 operatorDocument: VirtualDocument[Tuple]
-                               ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      operatorDocument: VirtualDocument[Tuple]
+  ): (Option[String], Option[String]) = {
     if (operatorDocument.get().isEmpty) {
       return (None, Some(s"No results to export for operator $operatorId"))
     }
@@ -200,14 +200,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Handle exporting results to Arrow format for a single operator.
-   */
+    * Handle exporting results to Arrow format for a single operator.
+    */
   private def writeArrowDataset(
-                                 operatorId: String,
-                                 user: User,
-                                 request: ResultExportRequest,
-                                 operatorDocument: VirtualDocument[Tuple]
-                               ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      operatorDocument: VirtualDocument[Tuple]
+  ): (Option[String], Option[String]) = {
     if (operatorDocument.get().isEmpty) {
       return (None, Some(s"No results to export for operator $operatorId"))
     }
@@ -232,15 +232,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Handle exporting a CSV file for a single operator.
-   */
+    * Handle exporting a CSV file for a single operator.
+    */
   private def writeCSVDataset(
-                               operatorId: String,
-                               user: User,
-                               request: ResultExportRequest,
-                               doc: VirtualDocument[Tuple],
-                               headers: List[String]
-                             ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      doc: VirtualDocument[Tuple],
+      headers: List[String]
+  ): (Option[String], Option[String]) = {
 
     val fileName = generateFileName(request, operatorId, "csv")
 
@@ -269,14 +269,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Handle exporting data for a single (row, column) from an operator's result.
-   */
+    * Handle exporting data for a single (row, column) from an operator's result.
+    */
   private def writeDataToDataset(
-                                  operatorId: String,
-                                  user: User,
-                                  request: ResultExportRequest,
-                                  operatorDocument: VirtualDocument[Tuple]
-                                ): (Option[String], Option[String]) = {
+      operatorId: String,
+      user: User,
+      request: ResultExportRequest,
+      operatorDocument: VirtualDocument[Tuple]
+  ): (Option[String], Option[String]) = {
     try {
       val rowIndex = request.rowIndex
       val columnIndex = request.columnIndex
@@ -288,12 +288,18 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       }
 
       // Get only the specific row we need
-      val selectedRow = operatorDocument.getRange(rowIndex, rowIndex + 1).to(Iterable).headOption
+      val selectedRow = operatorDocument
+        .getRange(rowIndex, rowIndex + 1)
+        .to(Iterable)
+        .headOption
         .getOrElse(throw new RuntimeException(s"Could not retrieve row at index $rowIndex"))
 
       // Verify column index is within bounds
       if (columnIndex >= selectedRow.getFields.length) {
-        return (None, Some(s"Invalid columnIndex $columnIndex. Total columns: ${selectedRow.getFields.length}"))
+        return (
+          None,
+          Some(s"Invalid columnIndex $columnIndex. Total columns: ${selectedRow.getFields.length}")
+        )
       }
 
       val field: Any = selectedRow.getField(columnIndex)
@@ -318,8 +324,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   private def convertFieldToBytes(field: Any): Array[Byte] = {
     field match {
       case data: Array[Byte] => data
-      case data: String => data.getBytes(StandardCharsets.UTF_8)
-      case other => other.toString.getBytes(StandardCharsets.UTF_8)
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case other             => other.toString.getBytes(StandardCharsets.UTF_8)
     }
   }
 
@@ -327,9 +333,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
    * Handle streaming HTML result from a visualization operator's result.
    */
   private def streamDocumentAsHTML(
-                              out: OutputStream,
-                              operatorDocument: VirtualDocument[Tuple]
-                            ): Unit = {
+      out: OutputStream,
+      operatorDocument: VirtualDocument[Tuple]
+  ): Unit = {
     val results: Iterable[Tuple] = operatorDocument.get().to(Iterable)
     val resHead = results.head
     val htmlCode = resHead.getField(0).toString
@@ -342,10 +348,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
    * This is used for the "data" export type, which exports a single field value.
    */
   private def writeDataLocal(
-                              out: OutputStream,
-                              request: ResultExportRequest,
-                              operatorDocument: VirtualDocument[Tuple]
-                            ): Unit = {
+      out: OutputStream,
+      request: ResultExportRequest,
+      operatorDocument: VirtualDocument[Tuple]
+  ): Unit = {
     val rowIndex = request.rowIndex
     val columnIndex = request.columnIndex
 
@@ -355,7 +361,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       )
     }
 
-    val selectedRow = operatorDocument.getRange(rowIndex, rowIndex + 1).to(Iterable).headOption
+    val selectedRow = operatorDocument
+      .getRange(rowIndex, rowIndex + 1)
+      .to(Iterable)
+      .headOption
       .getOrElse(throw new RuntimeException(s"Could not retrieve row at index $rowIndex"))
 
     if (columnIndex >= selectedRow.getFields.length) {
@@ -370,14 +379,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Save the pipedInputStream into the specified datasets as a new dataset version.
-   */
+    * Save the pipedInputStream into the specified datasets as a new dataset version.
+    */
   private def saveToDatasets(
-                              request: ResultExportRequest,
-                              user: User,
-                              fileWriter: OutputStream => Unit, // Pass function that writes data
-                              fileName: String
-                            ): Unit = {
+      request: ResultExportRequest,
+      user: User,
+      fileWriter: OutputStream => Unit, // Pass function that writes data
+      fileName: String
+  ): Unit = {
     request.datasetIds.foreach { did =>
       val encodedFilePath = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name())
       val message = URLEncoder.encode(
@@ -421,14 +430,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Generate a file name for an operator's exported file.
-   * Preserves your logic: uses operatorId in the name.
-   */
+    * Generate a file name for an operator's exported file.
+    * Preserves your logic: uses operatorId in the name.
+    */
   private def generateFileName(
-                                request: ResultExportRequest,
-                                operatorId: String,
-                                extension: String
-                              ): String = {
+      request: ResultExportRequest,
+      operatorId: String,
+      extension: String
+  ): String = {
     val latestVersion =
       WorkflowVersionResource.getLatestVersion(request.workflowId)
     val timestamp = LocalDateTime
@@ -442,12 +451,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Export a single operator's results as a streaming response (e.g., for download).
-   */
+    * Export a single operator's results as a streaming response (e.g., for download).
+    */
   def exportOperatorResultAsStream(
-                                    request: ResultExportRequest,
-                                    operatorId: String
-                                  ): (StreamingOutput, Option[String]) = {
+      request: ResultExportRequest,
+      operatorId: String
+  ): (StreamingOutput, Option[String]) = {
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
       return (null, None)
@@ -459,24 +468,27 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     val extension: String = request.exportType match {
-      case "csv" => "csv"
+      case "csv"   => "csv"
       case "arrow" => "arrow"
-      case "data" => "bin"
-      case "html" => "html"
-      case _ => "dat"
+      case "data"  => "bin"
+      case "html"  => "html"
+      case _       => "dat"
     }
 
     val fileName =
       if (request.filename.isEmpty) generateFileName(request, operatorId, extension)
       else request.filename
 
-
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
       request.exportType match {
-        case "csv" => streamDocumentAsCSV(operatorDocument, out, None)
+        case "csv"   => streamDocumentAsCSV(operatorDocument, out, None)
         case "arrow" => streamDocumentAsArrow(operatorDocument, out)
-        case "data" => writeDataLocal(out, request, operatorDocument) // handle single cell export
-        case "html" => streamDocumentAsHTML(out, operatorDocument) // handle HTML export for visualization operators
+        case "data"  => writeDataLocal(out, request, operatorDocument) // handle single cell export
+        case "html" =>
+          streamDocumentAsHTML(
+            out,
+            operatorDocument
+          ) // handle HTML export for visualization operators
         case _ => streamDocumentAsCSV(operatorDocument, out, None) // fallback
       }
     }
@@ -485,11 +497,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Export multiple operators' results as a single ZIP file stream.
-   */
+    * Export multiple operators' results as a single ZIP file stream.
+    */
   def exportOperatorsAsZip(
-                            request: ResultExportRequest
-                          ): (StreamingOutput, Option[String]) = {
+      request: ResultExportRequest
+  ): (StreamingOutput, Option[String]) = {
     if (request.operatorIds.isEmpty) {
       return (null, None)
     }
@@ -520,11 +532,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               zipOut.closeEntry()
             } else {
               val extension = request.exportType match {
-                case "csv" => "csv"
+                case "csv"   => "csv"
                 case "arrow" => "arrow"
-                case "data" => "bin"
-                case "html" => "html"
-                case _ => "dat"
+                case "data"  => "bin"
+                case "html"  => "html"
+                case _       => "dat"
               }
               val operatorFileName = generateFileName(request, opId, extension)
 
@@ -532,10 +544,19 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
               val nonClosingStream = new NonClosingOutputStream(zipOut)
 
               request.exportType match {
-                case "csv" => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
+                case "csv"   => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
                 case "arrow" => streamDocumentAsArrow(operatorDocument, nonClosingStream)
-                case "data" => writeDataLocal(nonClosingStream, request, operatorDocument) // handle single cell export
-                case "html" => streamDocumentAsHTML(nonClosingStream, operatorDocument) // handle HTML export for visualization operators
+                case "data" =>
+                  writeDataLocal(
+                    nonClosingStream,
+                    request,
+                    operatorDocument
+                  ) // handle single cell export
+                case "html" =>
+                  streamDocumentAsHTML(
+                    nonClosingStream,
+                    operatorDocument
+                  ) // handle HTML export for visualization operators
                 case _ => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
               }
               zipOut.closeEntry()
@@ -549,13 +570,13 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Streams the entire content of `VirtualDocument` as CSV into `outputStream` in a single pass.
-   */
+    * Streams the entire content of `VirtualDocument` as CSV into `outputStream` in a single pass.
+    */
   private def streamDocumentAsCSV(
-                                   doc: VirtualDocument[Tuple],
-                                   outputStream: OutputStream,
-                                   maybeHeaders: Option[List[String]]
-                                 ): Unit = {
+      doc: VirtualDocument[Tuple],
+      outputStream: OutputStream,
+      maybeHeaders: Option[List[String]]
+  ): Unit = {
     val totalCount = doc.getCount
     if (totalCount == 0) {
       return
@@ -605,12 +626,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   }
 
   /**
-   * Streams the entire content of `VirtualDocument` as Arrow into `outputStream` in a single pass.
-   */
+    * Streams the entire content of `VirtualDocument` as Arrow into `outputStream` in a single pass.
+    */
   private def streamDocumentAsArrow(
-                                     doc: VirtualDocument[Tuple],
-                                     outputStream: OutputStream
-                                   ): Unit = {
+      doc: VirtualDocument[Tuple],
+      outputStream: OutputStream
+  ): Unit = {
     if (doc.getCount == 0) return
 
     val allocator = new RootAllocator()
