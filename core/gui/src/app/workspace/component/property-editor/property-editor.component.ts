@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener, Type } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  OnDestroy,
+  HostListener,
+  Type,
+  ElementRef,
+  ViewChild,
+} from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -21,6 +30,8 @@ import { PanelService } from "../../service/panel/panel.service";
   styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
+  @ViewChild("contentWrapper") contentWrapperRef!: ElementRef;
+
   protected readonly window = window;
   id = -1;
   width = 260;
@@ -50,6 +61,18 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.resetPanelPosition();
       this.openPanel();
+    });
+  }
+
+  private updateHeightBasedOnContent(): void {
+    setTimeout(() => {
+      const contentEl = this.contentWrapperRef?.nativeElement;
+      if (contentEl) {
+        const contentHeight = contentEl.scrollHeight;
+        const maxHeight = this.window.innerHeight * 0.6;
+        this.height = Math.min(contentHeight + 40, maxHeight);
+        this.changeDetectorRef.detectChanges();
+      }
     });
   }
 
@@ -108,6 +131,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();
+        this.updateHeightBasedOnContent();
       });
   }
   onResize({ width, height }: NzResizeEvent) {
@@ -121,6 +145,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   openPanel() {
     this.width = 280;
     this.height = 300;
+    this.updateHeightBasedOnContent();
   }
 
   closePanel() {
