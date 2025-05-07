@@ -282,19 +282,16 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       val columnIndex = request.columnIndex
       val fileName = request.filename
 
-      // Verify row index is within bounds
       if (rowIndex >= operatorDocument.getCount) {
         return (None, Some(s"Invalid rowIndex $rowIndex. Total rows: ${operatorDocument.getCount}"))
       }
 
-      // Get only the specific row we need
       val selectedRow = operatorDocument
         .getRange(rowIndex, rowIndex + 1)
         .to(Iterable)
         .headOption
         .getOrElse(throw new RuntimeException(s"Could not retrieve row at index $rowIndex"))
 
-      // Verify column index is within bounds
       if (columnIndex >= selectedRow.getFields.length) {
         return (
           None,
