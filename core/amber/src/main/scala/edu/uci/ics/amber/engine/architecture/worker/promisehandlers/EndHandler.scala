@@ -10,10 +10,8 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 trait EndHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def endWorker(
-      request: EndInputChannelRequest,
-      ctx: AsyncRPCContext
-  ): Future[EmptyReturn] = {
+  override def endWorker(request: EndInputChannelRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    logger.info("Ending the worker.")
     val channelId = if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
     } else {
