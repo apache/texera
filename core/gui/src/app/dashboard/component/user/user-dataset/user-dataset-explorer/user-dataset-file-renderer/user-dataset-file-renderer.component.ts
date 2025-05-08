@@ -123,6 +123,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   filePath: string = "";
 
   @Input()
+  fileSize?: number;
+
+  @Input()
   isLogin: boolean = false;
 
   @Output()
@@ -158,6 +161,20 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   reloadFileContent() {
     this.turnOffAllDisplay();
+
+    // Pre-check - file size
+    const mimeType = getMimeType(this.filePath);
+    if (!this.isPreviewSupported(mimeType)) {
+      this.onFileTypePreviewUnsupported();
+      return;
+    }
+    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType] ?? this.DEFAULT_MAX_SIZE;
+    if (this.fileSize != null && this.fileSize > limit) {
+      this.onFileSizeNotLoadable();
+      return;
+    }
+
+    // Load file
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
