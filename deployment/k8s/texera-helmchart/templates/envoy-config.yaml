@@ -50,10 +50,10 @@ data:
                                 prefix_rewrite: "/wsapi"
                                 timeout: "0s" # disables timeout
                             - match:
-                                prefix: "/api/executions"
+                                prefix: "/api/executions/result/export"
                               route:
                                 cluster: dynamic_service
-                                prefix_rewrite: "/api/executions"
+                                prefix_rewrite: "/api/executions/result/export"
                                 timeout: "0s"
                     http_filters:
                       - name: envoy.filters.http.lua

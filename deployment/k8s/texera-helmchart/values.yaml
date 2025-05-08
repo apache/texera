@@ -27,6 +27,8 @@ global:
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
   removeAfterUninstall: true
+  minioHostLocalPath: ""
+  postgresqlHostLocalPath: ""
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -103,7 +105,7 @@ lakefs:
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
-  pullPolicy: Always
+  pullPolicy: IfNotExists
 
 # Example data loader configuration
 exampleDataLoader:
@@ -117,7 +119,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: texera/texera-web-application:cluster # image name of the texera
+  imageName: bobbai/texera-web-application:cu-refactor # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -272,7 +274,7 @@ ingressPaths:
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
-    - path: /api/executions
+    - path: /api/executions/result/export
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api
