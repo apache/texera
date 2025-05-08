@@ -64,17 +64,20 @@ export interface Workflow
     lastModifiedTime: number;
   }> {}
 
-export interface MongoWorkflow {
+export interface WorkflowQuota {
+  workflowId: number;
   workflowName: string;
-  executions: MongoExecution[];
+  executions: ExecutionQuota[];
 }
 
-export interface MongoExecution
+export interface ExecutionQuota
   extends Readonly<{
-    workflowName: string;
-    size: number;
-    pointer: string;
     eid: number;
+    workflowId: number;
+    workflowName: string;
+    resultBytes: number;
+    runTimeStatsBytes: number;
+    logBytes: number;
   }> {}
 
 /**

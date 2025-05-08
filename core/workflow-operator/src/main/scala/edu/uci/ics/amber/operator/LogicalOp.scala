@@ -113,6 +113,7 @@ import edu.uci.ics.amber.operator.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import edu.uci.ics.amber.operator.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import edu.uci.ics.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
 import edu.uci.ics.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
 import edu.uci.ics.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
 import edu.uci.ics.amber.operator.visualization.scatterplot.ScatterplotOpDesc
@@ -122,6 +123,7 @@ import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -167,6 +169,7 @@ trait StateTransferFunc
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
+    new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
@@ -219,6 +222,7 @@ trait StateTransferFunc
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
     new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
+    new Type(value = classOf[NestedTableOpDesc], name = "NestedTable"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),

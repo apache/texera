@@ -32,7 +32,7 @@ import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row3;
+import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -80,6 +80,11 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
      * The column <code>texera_db.operator_port_executions.result_uri</code>.
      */
     public final TableField<OperatorPortExecutionsRecord, String> RESULT_URI = createField(DSL.name("result_uri"), SQLDataType.CLOB, this, "");
+
+    /**
+     * The column <code>texera_db.operator_port_executions.result_size</code>.
+     */
+    public final TableField<OperatorPortExecutionsRecord, Integer> RESULT_SIZE = createField(DSL.name("result_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
 
     private OperatorPortExecutions(Name alias, Table<OperatorPortExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -171,11 +176,11 @@ public class OperatorPortExecutions extends TableImpl<OperatorPortExecutionsReco
     }
 
     // -------------------------------------------------------------------------
-    // Row3 type methods
+    // Row4 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<Integer, String, String> fieldsRow() {
-        return (Row3) super.fieldsRow();
+    public Row4<Integer, String, String, Integer> fieldsRow() {
+        return (Row4) super.fieldsRow();
     }
 }

@@ -23,7 +23,7 @@ import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
-import org.apache.iceberg.{FileScanTask, Table}
+import org.apache.iceberg.{FileScanTask, ManifestFile, Snapshot, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
@@ -407,5 +407,27 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       case (field, stats) =>
         field -> stats.toMap
     }.toMap
+  }
+
+  /**
+    * Computes the total size of all data files in the Iceberg table.
+    *
+    * @return The total size of all data files in bytes.
+    * @throws NoSuchTableException if the table does not exist.
+    */
+  override def getTotalFileSize: Long = {
+    val table = IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
+    var filesSize: Long = 0L
+
+    try {
+      filesSize = table.currentSnapshot().summary().getOrDefault("total-files-size", "0").toLong
+    } catch {
+      case e: Exception => println(s"Failed to get total-files-size: ${e.getMessage}")
+    }
+    filesSize
   }
 }
