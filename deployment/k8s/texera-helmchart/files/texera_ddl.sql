@@ -211,6 +211,20 @@ CREATE TABLE IF NOT EXISTS project_user_access
     FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
     );
 
+-- workflow_computing_unit table
+CREATE TABLE IF NOT EXISTS workflow_computing_unit
+(
+    uid                INT           NOT NULL,
+    name               VARCHAR(128)  NOT NULL,
+    cuid               SERIAL PRIMARY KEY,
+    creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    terminate_time     TIMESTAMP  DEFAULT NULL,
+    type               workflow_computing_unit_type_enum,
+    uri                TEXT NOT NULL DEFAULT '',
+    resource           TEXT DEFAULT '',
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+    );
+
 -- workflow_executions
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
@@ -356,20 +370,6 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     view_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (did),
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
-    );
-
--- workflow_computing_unit table
-CREATE TABLE IF NOT EXISTS workflow_computing_unit
-(
-    uid                INT           NOT NULL,
-    name               VARCHAR(128)  NOT NULL,
-    cuid               SERIAL PRIMARY KEY,
-    creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    terminate_time     TIMESTAMP  DEFAULT NULL,
-    type               workflow_computing_unit_type_enum,
-    uri                TEXT NOT NULL DEFAULT '',
-    resource           TEXT DEFAULT '',
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
