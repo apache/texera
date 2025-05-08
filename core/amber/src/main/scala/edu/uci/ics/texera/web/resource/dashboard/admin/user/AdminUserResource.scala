@@ -105,16 +105,15 @@ class AdminUserResource {
   }
 
   @GET
-  @Path("/mongodb_size")
+  @Path("/user_quota_size")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def mongoDBSize(@QueryParam("user_id") user_id: Integer): Array[MongoStorage] = {
-    getUserMongoDBSize(user_id)
+  def getUserQuota(@QueryParam("user_id") user_id: Integer): Array[QuotaStorage] = {
+    getUserQuotaSize(user_id)
   }
 
   @DELETE
-  @Path("/deleteCollection/{collectionName}")
-  def deleteCollection(@PathParam("collectionName") collectionName: String): Unit = {
-    deleteMongoCollection(collectionName)
+  @Path("/deleteCollection/{eid}")
+  def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
+    deleteExecutionCollection(eid)
   }
-
 }

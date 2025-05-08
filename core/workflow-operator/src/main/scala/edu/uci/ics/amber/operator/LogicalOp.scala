@@ -123,6 +123,7 @@ import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -221,6 +222,7 @@ trait StateTransferFunc
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
     new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
+    new Type(value = classOf[NestedTableOpDesc], name = "NestedTable"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),

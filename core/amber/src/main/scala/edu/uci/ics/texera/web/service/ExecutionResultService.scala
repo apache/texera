@@ -414,9 +414,19 @@ class ExecutionResultService(
                     opId,
                     PortIdentity()
                   )
+
                 if (storageUri.nonEmpty) {
+                  val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(storageUri.get)
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
+
                   allTableStats(opId.id) = opStorage.getTableStatistics
+                  WorkflowExecutionsResource.updateResultSize(
+                    executionId,
+                    globalPortIdOption.get,
+                    opStorage.getTotalFileSize
+                  )
+                  WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
+                  WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
                 }
               }
           }
