@@ -108,6 +108,10 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     // Replace all characters that are not letters (a-z, A-Z), numbers (0-9) with a short dash "-"
     sanitizedDatasetName = sanitizedDatasetName.replace(/[^a-zA-Z0-9]+/g, "-");
 
+    // Lower-case everything
+    sanitizedDatasetName = sanitizedDatasetName.toLowerCase();
+
+    // Track whether user’s input be changed
     if (sanitizedDatasetName !== datasetName) {
       this.isDatasetNameSanitized = true;
     }
@@ -156,8 +160,12 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           },
         });
     } else {
+      // capture original and sanitized names
+      const originalName = this.form.get("name")?.value as string;
+      const sanitizedName = this.datasetNameSanitization(originalName);
+
       const ds: Dataset = {
-        name: this.datasetNameSanitization(this.form.get("name")?.value),
+        name: sanitizedName,
         description: this.form.get("description")?.value,
         isPublic: this.isDatasetPublic,
         did: undefined,
@@ -170,9 +178,11 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
-            this.notificationService.success(
-              `Dataset '${ds.name}' Created. ${this.isDatasetNameSanitized ? "We have sanitized your provided dataset name for the compatibility reason" : ""}`
-            );
+            const msg = this.isDatasetNameSanitized
+              ? `Dataset '${originalName}' was sanitized to '${sanitizedName}' and created successfully.`
+              : `Dataset '${sanitizedName}' created successfully.`;
+
+            this.notificationService.success(msg);
             this.isCreating = false;
             // if creation succeed, emit the created dashboard dataset
             this.modalRef.close(res);
