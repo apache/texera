@@ -139,15 +139,17 @@ export class ComputingUnitSelectionComponent implements OnInit {
           !this.isUserTerminatingUnit
         ) {
           // Only show notification for unexpected status changes
-          if (unit.status === "Disconnected") {
+          if (unit.status === "Disconnected" && this.workflowId) {
             this.notificationService.info(`Connecting to computing unit "${unit.computingUnit.name}"...`);
+            this.workflowWebsocketService.closeWebsocket();
+            this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, unit.computingUnit.cuid);
           } else if (unit.status === "Terminating") {
+            this.workflowWebsocketService.closeWebsocket();
             this.notificationService.error(
               `Computing unit "${unit.computingUnit.name}" is being terminated. Please select another unit to continue.`
             );
           }
         }
-
         this.selectedComputingUnit = unit;
       });
 
@@ -162,15 +164,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.registerWorkflowMetadataSubscription();
   }
 
-  // ngOnChanges(changes: SimpleChanges): void {
-  //   if (changes["workflowId"] && isDefined(this.workflowId)) {
-  //     // Connecting to the workflowWebsocketService with the workflowId will trigger the computing unit service
-  //     if (this.selectedComputingUnit) {
-  //       this.connectToComputingUnit(this.selectedComputingUnit);
-  //     }
-  //   }
-  // }
-
   /**
    * Registers a subscription to listen for workflow metadata changes;
    * Calls `onComputingUnitChange` when the `wid` changes;
@@ -184,13 +177,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
+          this.computingUnitStatusService.setWorkflowId(wid);
           if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
             this.workflowExecutionsService
               .retrieveLatestWorkflowExecution(this.workflowId)
               .pipe(untilDestroyed(this))
               .subscribe({
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
-                  this.connectToComputingUnit(latestWorkflowExecution.cuId);
+                  this.selectComputingUnit(latestWorkflowExecution.cuId);
                 },
                 error: (err: unknown) => {},
               });
@@ -202,14 +196,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   /**
    * Called whenever the selected computing unit changes.
    */
-  connectToComputingUnit(cuid: number | undefined): void {
-    if (isDefined(this.workflowId) && isDefined(cuid)) {
-      // First update the selection in the status service
+  selectComputingUnit(cuid: number | undefined): void {
+    if (isDefined(cuid)) {
       this.computingUnitStatusService.selectComputingUnit(cuid);
-
-      // Then open the websocket connection
-      this.workflowWebsocketService.closeWebsocket();
-      this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, cuid);
     }
   }
 
@@ -309,7 +298,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           next: (unit: DashboardWorkflowComputingUnit) => {
             this.notificationService.success("Successfully created the new Kubernetes compute unit");
             // Select the newly created unit
-            this.connectToComputingUnit(unit.computingUnit.cuid);
+            this.selectComputingUnit(unit.computingUnit.cuid);
           },
           error: (err: unknown) =>
             this.notificationService.error(`Failed to start Kubernetes computing unit: ${extractErrorMessage(err)}`),
@@ -328,7 +317,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           next: (unit: DashboardWorkflowComputingUnit) => {
             this.notificationService.success("Successfully created the new local compute unit");
             // Select the newly created unit
-            this.connectToComputingUnit(unit.computingUnit.cuid);
+            this.selectComputingUnit(unit.computingUnit.cuid);
           },
           error: (err: unknown) =>
             this.notificationService.error(`Failed to start local computing unit: ${extractErrorMessage(err)}`),

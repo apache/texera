@@ -26,6 +26,7 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
+import { isDefined } from "../../../common/util/predicate";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -58,6 +59,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   private refreshSubscription: Subscription | null = null;
   private connectionCheckSubscription: Subscription | null = null;
   private connectionTimeoutTimer: Subscription | null = null;
+  private currentConnectedCuid?: number;
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -213,17 +215,22 @@ export class ComputingUnitStatusService implements OnDestroy {
    * Select a computing unit **by its CUID** and emit the updated selection.
    */
   public selectComputingUnit(cuid: number): void {
-    // Find the unit in the current list; if not present do nothing
     const unit = this.allUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
     if (!unit) {
       return;
     }
 
-    this.selectedUnitSubject.next(unit);
+    // If we already know the workflow id, (re-)open the socket to the new CU
+    const wid = this.workflowIdSubject.value;
+    if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
+      if (this.workflowWebsocketService.isConnected) {
+        this.workflowWebsocketService.closeWebsocket();
+      }
+      this.workflowWebsocketService.openWebsocket(wid, 1 /* uid */, cuid);
+      this.currentConnectedCuid = cuid;
+    }
 
-    // Update connection status according to the unit + websocket
-    const connected = unit.status === "Running" && this.workflowWebsocketService.isConnected;
-    this.connectedSubject.next(connected);
+    this.selectedUnitSubject.next(unit);
   }
 
   // Observable for the currently selected computing unit
@@ -296,6 +303,11 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public setWorkflowId(workflowId: number | undefined): void {
     this.workflowIdSubject.next(workflowId);
+
+    // if we already have a selected CU, connect immediately
+    if (isDefined(workflowId) && this.selectedUnitSubject.value) {
+      this.selectComputingUnit(this.selectedUnitSubject.value.computingUnit.cuid);
+    }
   }
 
   /**
