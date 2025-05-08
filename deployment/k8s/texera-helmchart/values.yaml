@@ -105,7 +105,7 @@ lakefs:
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
-  pullPolicy: IfNotExists
+  pullPolicy: Always
 
 # Example data loader configuration
 exampleDataLoader:
