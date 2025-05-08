@@ -250,4 +250,19 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByRuntimeStatsUri(String... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI, values);
     }
+
+    /**
+     * Fetch records that have <code>runtime_stats_size BETWEEN lowerInclusive
+     * AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfRuntimeStatsSize(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>runtime_stats_size IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions> fetchByRuntimeStatsSize(Integer... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, values);
+    }
 }

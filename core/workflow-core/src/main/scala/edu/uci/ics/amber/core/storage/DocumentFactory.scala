@@ -33,7 +33,6 @@ import java.net.URI
 
 object DocumentFactory {
 
-  val MONGODB = "mongodb"
   val ICEBERG = "iceberg"
 
   private def sanitizeURIPath(uri: URI): String =
