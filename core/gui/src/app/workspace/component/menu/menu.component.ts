@@ -753,11 +753,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(metadata => {
         this.workflowId = metadata.wid;
-
-        // Pass the workflow ID to the computing unit status service
-        if (this.workflowId) {
-          this.computingUnitStatusService.setWorkflowId(this.workflowId);
-        }
+        // consider adding the oprerator reconnect
       });
   }
 
