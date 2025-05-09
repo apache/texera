@@ -48,7 +48,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   // New behavior subjects for tracking connection process
   private isCreatingUnitSubject = new BehaviorSubject<boolean>(false);
   private isConnectingUnitSubject = new BehaviorSubject<boolean>(false);
-  private workflowIdSubject = new BehaviorSubject<number | undefined>(undefined);
 
   // Connection timeout values
   private readonly CONNECTION_TIMEOUT_MS = 20000;
@@ -97,26 +96,25 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.allUnitsSubject.next(units);
 
     // If we don't have a selected unit yet, select one
-    if (!this.selectedUnitSubject.value) {
-      const runningUnit = units.find(unit => unit.status === "Running");
-      if (runningUnit) {
-        this.selectComputingUnit(runningUnit.computingUnit.cuid);
-      } else if (units.length > 0) {
-        // Otherwise select the first available unit
-        this.selectComputingUnit(units[0].computingUnit.cuid);
-      }
-    } else {
-      // If we already have a selected unit, update its status from the fresh data
-      const updatedUnit = units.find(
-        unit => unit.computingUnit.cuid === this.selectedUnitSubject.value?.computingUnit.cuid
-      );
+    // if (!this.selectedUnitSubject.value) {
+    //   const runningUnit = units.find(unit => unit.status === "Running");
+    //   if (runningUnit) {
+    //     this.selectComputingUnit(runningUnit.computingUnit.cuid);
+    //   } else if (units.length > 0) {
+    //     // Otherwise select the first available unit
+    //     this.selectComputingUnit(units[0].computingUnit.cuid);
+    //   }
+    // } else {
+    // If we already have a selected unit, update its status from the fresh data
+    const updatedUnit = units.find(
+      unit => unit.computingUnit.cuid === this.selectedUnitSubject.value?.computingUnit.cuid
+    );
 
-      if (updatedUnit) {
-        this.selectedUnitSubject.next(updatedUnit);
-      } else {
-        // Our selected unit is no longer available
-        this.selectedUnitSubject.next(null);
-      }
+    if (updatedUnit) {
+      this.selectedUnitSubject.next(updatedUnit);
+    } else {
+      // Our selected unit is no longer available
+      this.selectedUnitSubject.next(null);
     }
   }
 
@@ -214,14 +212,12 @@ export class ComputingUnitStatusService implements OnDestroy {
   /**
    * Select a computing unit **by its CUID** and emit the updated selection.
    */
-  public selectComputingUnit(cuid: number): void {
+  public selectComputingUnit(wid: number | undefined, cuid: number): void {
     const unit = this.allUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
     if (!unit) {
       return;
     }
 
-    // If we already know the workflow id, (re-)open the socket to the new CU
-    const wid = this.workflowIdSubject.value;
     if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
       if (this.workflowWebsocketService.isConnected) {
         this.workflowWebsocketService.closeWebsocket();
@@ -294,20 +290,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.connectedSubject.complete();
     this.isCreatingUnitSubject.complete();
     this.isConnectingUnitSubject.complete();
-    this.workflowIdSubject.complete();
-  }
-
-  /**
-   * Sets the current workflow ID for the service to use when connecting
-   * @param workflowId The ID of the current workflow
-   */
-  public setWorkflowId(workflowId: number | undefined): void {
-    this.workflowIdSubject.next(workflowId);
-
-    // if we already have a selected CU, connect immediately
-    if (isDefined(workflowId) && this.selectedUnitSubject.value) {
-      this.selectComputingUnit(this.selectedUnitSubject.value.computingUnit.cuid);
-    }
   }
 
   /**

@@ -50,6 +50,13 @@ data:
                                 prefix_rewrite: "/wsapi"
                                 timeout: "0s" # disables timeout
                             - match:
+                                safe_regex:
+                                  google_re2: {}
+                                  regex: "^/api/executions/\\d+/stats/\\d+$"
+                              route:
+                                cluster: dynamic_service
+                                timeout: "0s"
+                            - match:
                                 prefix: "/api/executions/result/export"
                               route:
                                 cluster: dynamic_service

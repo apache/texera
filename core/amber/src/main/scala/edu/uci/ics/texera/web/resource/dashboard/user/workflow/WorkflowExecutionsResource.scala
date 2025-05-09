@@ -576,7 +576,7 @@ class WorkflowExecutionsResource {
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/{wid}/{eid}")
+  @Path("/{wid}/stats/{eid}")
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: Integer,
       @PathParam("eid") eid: Integer

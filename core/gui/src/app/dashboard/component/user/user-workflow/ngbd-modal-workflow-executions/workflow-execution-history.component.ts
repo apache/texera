@@ -703,9 +703,9 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     return processTimeData;
   }
 
-  showRuntimeStatistics(eId: number): void {
+  showRuntimeStatistics(eId: number, cuid: number): void {
     this.workflowExecutionsService
-      .retrieveWorkflowRuntimeStatistics(this.wid, eId)
+      .retrieveWorkflowRuntimeStatistics(this.wid, eId, cuid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
         this.modalRef = this.runtimeStatisticsModal.create({

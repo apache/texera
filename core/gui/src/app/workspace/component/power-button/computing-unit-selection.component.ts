@@ -177,14 +177,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
-          this.computingUnitStatusService.setWorkflowId(wid);
           if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
             this.workflowExecutionsService
               .retrieveLatestWorkflowExecution(this.workflowId)
               .pipe(untilDestroyed(this))
               .subscribe({
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
-                  this.selectComputingUnit(latestWorkflowExecution.cuId);
+                  this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
                 error: (err: unknown) => {},
               });
@@ -196,9 +195,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   /**
    * Called whenever the selected computing unit changes.
    */
-  selectComputingUnit(cuid: number | undefined): void {
-    if (isDefined(cuid)) {
-      this.computingUnitStatusService.selectComputingUnit(cuid);
+  selectComputingUnit(wid: number | undefined, cuid: number | undefined): void {
+    if (isDefined(cuid) && wid !== DEFAULT_WORKFLOW.wid) {
+      this.computingUnitStatusService.selectComputingUnit(wid, cuid);
     }
   }
 
@@ -298,7 +297,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           next: (unit: DashboardWorkflowComputingUnit) => {
             this.notificationService.success("Successfully created the new Kubernetes compute unit");
             // Select the newly created unit
-            this.selectComputingUnit(unit.computingUnit.cuid);
+            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
           },
           error: (err: unknown) =>
             this.notificationService.error(`Failed to start Kubernetes computing unit: ${extractErrorMessage(err)}`),
@@ -317,7 +316,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
           next: (unit: DashboardWorkflowComputingUnit) => {
             this.notificationService.success("Successfully created the new local compute unit");
             // Select the newly created unit
-            this.selectComputingUnit(unit.computingUnit.cuid);
+            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
           },
           error: (err: unknown) =>
             this.notificationService.error(`Failed to start local computing unit: ${extractErrorMessage(err)}`),

@@ -105,7 +105,7 @@
           'unit-terminating': unit.status === 'Terminating'
         }"
         [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
-        (click)="selectedComputingUnit = unit; selectComputingUnit(unit?.computingUnit?.cuid)">
+        (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
         <div class="computing-unit-row">
           <div class="computing-unit-name">
             <nz-badge

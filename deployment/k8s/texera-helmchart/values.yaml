@@ -128,7 +128,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/workflow-computing-unit-managing-service:cluster
+  imageName: bobbai/computing-unit-managing-service:cu-refactor
   service:
     type: ClusterIP
     port: 8888
@@ -169,7 +169,7 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
-  imageName: texera/computing-unit-master:cluster
+  imageName: bobbai/computing-unit-master:refactor-cu
   service:
     port: 8085
     targetPort: 8085
@@ -193,6 +193,12 @@ texeraEnvVars:
     value: "2Gi"
   - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
     value: "0"
+  - name: COMPUTING_UNIT_LOCAL_ENABLED
+    value: "false"
+  - name: KUBERNETES_COMPUTING_UNIT_ENABLED
+    value: "true"
+  - name: KUBERNETES_IMAGE_PULL_POLICY
+    value: "IfNotPresent"
 
 # Ingress dependency configs
 ingress-nginx:
@@ -253,7 +259,7 @@ metrics-server:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
-  hostname: "localhost"
+  hostname: ""
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
   # Optional Issuer name for cert-manager
@@ -272,6 +278,10 @@ ingressPaths:
       serviceName: file-service-svc
       servicePort: 9092
     - path: /wsapi/workflow-websocket
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api/executions/[0-9]+/stats/[0-9]+$
+      pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api/executions/result/export
