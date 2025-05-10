@@ -45,8 +45,6 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
   public numWorkers: number = -1;
-  private connectedWid: number = 0;
-  private connectedCuid?: number;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -84,7 +82,6 @@ export class WorkflowWebsocketService {
   public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
-    this.connectedCuid = undefined;
   }
 
   public openWebsocket(wId: number, uId?: number, cuId?: number) {
@@ -130,8 +127,6 @@ export class WorkflowWebsocketService {
         this.numWorkers = evt.numWorkers;
       }
       this.isConnected = true;
-      this.connectedWid = wId;
-      if (isDefined(cuId)) this.connectedCuid = cuId;
     });
   }
 }

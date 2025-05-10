@@ -264,7 +264,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        console.log(this.allExecutionEntries);
         this.dscSort("Execution Start Time");
         this.updatePaginatedExecutions();
       });

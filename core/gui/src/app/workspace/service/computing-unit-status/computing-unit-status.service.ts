@@ -27,6 +27,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isDefined } from "../../../common/util/predicate";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -63,6 +64,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService
   ) {
     // Initialize the service by loading computing units
@@ -221,6 +223,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
       if (this.workflowWebsocketService.isConnected) {
         this.workflowWebsocketService.closeWebsocket();
+        this.workflowStatusService.clearStatus();
       }
       this.workflowWebsocketService.openWebsocket(wid, 1 /* uid */, cuid);
       this.currentConnectedCuid = cuid;
@@ -332,6 +335,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     if (isSelectedUnit && this.workflowWebsocketService.isConnected) {
       // Close the websocket connection
       this.workflowWebsocketService.closeWebsocket();
+      this.workflowStatusService.clearStatus();
 
       // Clear the selected unit or mark as terminating
       if (this.selectedUnitSubject.value) {
