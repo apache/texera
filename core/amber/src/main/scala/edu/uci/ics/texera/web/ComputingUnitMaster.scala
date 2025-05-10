@@ -22,7 +22,6 @@ package edu.uci.ics.texera.web
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
-import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -215,8 +214,6 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         storageType match {
           case DocumentFactory.ICEBERG =>
           // rely on the server-side result cleanup logic.
-          case DocumentFactory.MONGODB =>
-            MongoDatabaseManager.dropCollection(collectionName)
         }
       })
     } catch {
