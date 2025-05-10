@@ -81,11 +81,10 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasPendingChanges: boolean = false;
 
-  //  List of upload tasks – every task owns a uniqueKey
+  //  List of upload tasks – each task tracked by its filePath
   public uploadTasks: Array<
     MultipartUploadProgress & {
       filePath: string;
-      uniqueKey: string;
     }
   > = [];
   private autoHideTimers: number[] = [];
@@ -310,41 +309,30 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   // Track multiple file by unique key
-  trackByTask(
-    _: number,
-    task: MultipartUploadProgress & {
-      filePath: string;
-      uniqueKey: string;
-      physicalAddress?: string;
-    }
-  ): string {
-    return task.uniqueKey;
+  trackByTask(_: number, task: MultipartUploadProgress & { filePath: string }): string {
+    return task.filePath;
   }
 
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
       files.forEach((file, idx) => {
         // Add an initializing task placeholder to uploadTasks.
-        const uniqueKey = `${file.name}-${Date.now()}-${idx}`;
-
         this.uploadTasks.push({
           filePath: file.name,
           percentage: 0,
           status: "initializing",
           uploadId: "",
           physicalAddress: "",
-          uniqueKey: uniqueKey,
         });
 
         // Start multipart upload
-        const key = uniqueKey;
         this.datasetService
           .multipartUpload(this.datasetName, file.name, file.file)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: progress => {
               // Find the task
-              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
               if (taskIndex !== -1) {
                 // Update the task with new progress info
@@ -352,7 +340,6 @@ export class DatasetDetailComponent implements OnInit {
                   ...this.uploadTasks[taskIndex],
                   ...progress,
                   percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                  uniqueKey,
                 };
 
                 // Auto‑hide when upload is truly finished
@@ -364,7 +351,7 @@ export class DatasetDetailComponent implements OnInit {
             },
             error: () => {
               // Handle upload error
-              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
               if (taskIndex !== -1) {
                 this.uploadTasks[taskIndex] = {
@@ -376,8 +363,7 @@ export class DatasetDetailComponent implements OnInit {
               }
             },
             complete: () => {
-              console.info(`Upload stream for "${file.name}" has completed`);
-              const taskIndex = this.uploadTasks.findIndex(t => t.uniqueKey === key);
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
               if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
                 this.uploadTasks[taskIndex].status = "finished";
                 this.userMakeChanges.emit();
@@ -394,14 +380,14 @@ export class DatasetDetailComponent implements OnInit {
     if (idx === -1) {
       return;
     }
-    const key = this.uploadTasks[idx].uniqueKey;
+    const key = this.uploadTasks[idx].filePath;
     const handle = window.setTimeout(() => {
-      this.uploadTasks = this.uploadTasks.filter(t => t.uniqueKey !== key);
+      this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
     }, 3000);
     this.autoHideTimers.push(handle);
   }
 
-  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string; uniqueKey: string }) {
+  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
     this.datasetService
       .finalizeMultipartUpload(
         this.datasetName,
@@ -416,7 +402,7 @@ export class DatasetDetailComponent implements OnInit {
         this.notificationService.info(`${task.filePath} uploading has been terminated`);
       });
     // Remove the aborted task immediately
-    this.uploadTasks = this.uploadTasks.filter(t => t.uniqueKey !== task.uniqueKey);
+    this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== task.filePath);
   }
 
   getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
