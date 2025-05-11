@@ -139,7 +139,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         ) {
           // Only show notification for unexpected status changes
           if (unit.status === "Disconnected" && this.workflowId) {
-            this.notificationService.info(`Connecting to computing unit "${unit.computingUnit.name}"...`);
             this.workflowWebsocketService.closeWebsocket();
             this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, unit.computingUnit.cuid);
           } else if (unit.status === "Terminating") {

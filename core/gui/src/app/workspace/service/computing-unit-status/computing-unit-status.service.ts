@@ -18,8 +18,8 @@
  */
 
 import { Injectable, OnDestroy } from "@angular/core";
-import {BehaviorSubject, Observable, interval, Subscription, Subject, timer, of, merge} from "rxjs";
-import {filter, map, switchMap, tap, take, mergeMap, catchError, distinctUntilChanged} from "rxjs/operators";
+import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of, merge } from "rxjs";
+import { filter, map, switchMap, tap, take, mergeMap, catchError, distinctUntilChanged } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
@@ -44,7 +44,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   // Behavior subjects to track and broadcast state changes
   private selectedUnitSubject = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
   private allUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
-  private connectedSubject = new BehaviorSubject<boolean>(false);
 
   // New behavior subjects for tracking connection process
   private isCreatingUnitSubject = new BehaviorSubject<boolean>(false);
@@ -56,8 +55,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   private readonly REFRESH_INTERVAL_MS = 2000;
   private readonly CONNECTION_CHECK_INTERVAL_MS = 1000;
   private refreshSubscription: Subscription | null = null;
-  private connectionCheckSubscription: Subscription | null = null;
-  private connectionTimeoutTimer: Subscription | null = null;
   private currentConnectedCuid?: number;
 
   constructor(
@@ -79,12 +76,9 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.computingUnitService
       .listComputingUnits()
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: units => {
-          // Update the computing units
-          this.updateComputingUnits(units);
-        },
-        error: (err: unknown) => console.error("Failed to fetch computing units:", err),
+      .subscribe(units => {
+        // Update the computing units
+        this.updateComputingUnits(units);
       });
 
     // Set up periodic refresh
@@ -94,7 +88,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   private refreshComputingUnitList(): void {
     this.refreshComputingUnitListSignal.next();
   }
-
 
   // Update computing units list and the selected unit
   private updateComputingUnits(units: DashboardWorkflowComputingUnit[]): void {
@@ -115,26 +108,17 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Monitor the connection status of the websocket service
   private monitorConnectionStatus(): void {
-    this.workflowWebsocketService                 // use websocket’s native stream
+    this.workflowWebsocketService // use websocket’s native stream
       .getConnectionStatusStream()
       .pipe(
-        distinctUntilChanged(),                   // react only to real changes
-        untilDestroyed(this),
+        distinctUntilChanged(), // react only to real changes
+        untilDestroyed(this)
       )
       .subscribe(isConnected => {
-        const previous = this.connectedSubject.value;
-        if (previous === isConnected) {
-          return;                                 // nothing changed
-        }
-
-        this.connectedSubject.next(isConnected);
-
         /* ---------- update the selected CU’s status ---------- */
         if (this.selectedUnitSubject.value) {
-          const cur     = this.selectedUnitSubject.value;
-          const desired = isConnected
-            ? (cur.status === 'Disconnected' ? 'Running' : cur.status)
-            : 'Disconnected';
+          const cur = this.selectedUnitSubject.value;
+          const desired = isConnected ? (cur.status === "Disconnected" ? "Running" : cur.status) : "Disconnected";
 
           if (cur.status !== desired) {
             const updated = { ...cur, status: desired };
@@ -159,21 +143,18 @@ export class ComputingUnitStatusService implements OnDestroy {
         switchMap(() => this.computingUnitService.listComputingUnits()),
         untilDestroyed(this)
       )
-      .subscribe({
-        next: units => {
-          // same post-processing logic as before
-          const isConnected   = this.workflowWebsocketService.isConnected;
-          const selectedCuid  = this.selectedUnitSubject.value?.computingUnit.cuid;
+      .subscribe(units => {
+        // same post-processing logic as before
+        const isConnected = this.workflowWebsocketService.isConnected;
+        const selectedCuid = this.selectedUnitSubject.value?.computingUnit.cuid;
 
-          let modifiedUnits = [...units];
-          if (selectedCuid && !isConnected) {
-            modifiedUnits = modifiedUnits.map(u =>
-              u.computingUnit.cuid === selectedCuid ? { ...u, status: 'Disconnected' } : u
-            );
-          }
-          this.updateComputingUnits(modifiedUnits);
-        },
-        error: err => console.error('Failed to refresh computing units:', err),
+        let modifiedUnits = [...units];
+        if (selectedCuid && !isConnected) {
+          modifiedUnits = modifiedUnits.map(u =>
+            u.computingUnit.cuid === selectedCuid ? { ...u, status: "Disconnected" } : u
+          );
+        }
+        this.updateComputingUnits(modifiedUnits);
       });
   }
 
@@ -185,6 +166,7 @@ export class ComputingUnitStatusService implements OnDestroy {
       // open websocket if needed
       if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
         if (this.workflowWebsocketService.isConnected) {
+          this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
         }
         this.workflowWebsocketService.openWebsocket(wid, 1 /* uid */, cuid);
@@ -206,7 +188,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.allUnitsSubject
       .pipe(
         filter(units => units.some(u => u.computingUnit.cuid === cuid)),
-        take(1),                       // auto-unsubscribe after first match
+        take(1), // auto-unsubscribe after first match
         untilDestroyed(this)
       )
       .subscribe(units => {
@@ -222,11 +204,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   // Observable for all available computing units
   public getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.allUnitsSubject.asObservable();
-  }
-
-  // Observable for the connection status to the selected computing unit
-  public getConnectionStatus(): Observable<boolean> {
-    return this.connectedSubject.asObservable();
   }
 
   // Get the current status of the selected computing unit as string
@@ -261,18 +238,8 @@ export class ComputingUnitStatusService implements OnDestroy {
       this.refreshSubscription = null;
     }
 
-    if (this.connectionCheckSubscription) {
-      this.connectionCheckSubscription.unsubscribe();
-      this.connectionCheckSubscription = null;
-    }
-
-    if (this.connectionTimeoutTimer) {
-      this.connectionTimeoutTimer.unsubscribe();
-    }
-
     this.selectedUnitSubject.complete();
     this.allUnitsSubject.complete();
-    this.connectedSubject.complete();
     this.isCreatingUnitSubject.complete();
     this.isConnectingUnitSubject.complete();
   }
@@ -315,31 +282,25 @@ export class ComputingUnitStatusService implements OnDestroy {
 
       const terminatingUnit = {
         ...this.selectedUnitSubject.value!,
-        status: 'Terminating',
+        status: "Terminating",
       };
       this.selectedUnitSubject.next(terminatingUnit);
       this.updateUnitInList(terminatingUnit);
-      this.connectedSubject.next(false);
     }
 
-    // ---- remote call -------------------------------------------------------
-    return this.computingUnitService
-      .terminateComputingUnit(cuid)
-      .pipe(
-        tap(() => {
-          // trigger a single refresh; the refresh pipeline will
-          // pull the new list and call updateComputingUnits()
-          this.refreshComputingUnitList();
-        }),
-        map(() => true),
-        catchError(err => {
-          this.notificationService.error(
-            `Failed to terminate computing unit: ${err}`
-          );
-          return of(false);
-        }),
-        take(1)   // complete after first emission
-      );
+    return this.computingUnitService.terminateComputingUnit(cuid).pipe(
+      tap(() => {
+        // trigger a single refresh; the refresh pipeline will
+        // pull the new list and call updateComputingUnits()
+        this.refreshComputingUnitList();
+      }),
+      map(() => true),
+      catchError((err: unknown) => {
+        this.notificationService.error(`Failed to terminate computing unit: ${err}`);
+        return of(false);
+      }),
+      take(1) // complete after first emission
+    );
   }
 
   /**
