@@ -24,10 +24,11 @@ import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-u
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
+import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isDefined } from "../../../common/util/predicate";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
+import { UserService } from "../../../common/service/user/user.service";
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -56,7 +57,8 @@ export class ComputingUnitStatusService implements OnDestroy {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private userService: UserService
   ) {
     // Initialize the service by loading computing units
     this.initializeService();
@@ -126,17 +128,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         untilDestroyed(this)
       )
       .subscribe(units => {
-        // same post-processing logic as before
-        const isConnected = this.workflowWebsocketService.isConnected;
-        const selectedCuid = this.selectedUnitSubject.value?.computingUnit.cuid;
-
-        let modifiedUnits = [...units];
-        if (selectedCuid && !isConnected) {
-          modifiedUnits = modifiedUnits.map(u =>
-            u.computingUnit.cuid === selectedCuid ? { ...u, status: "Disconnected" } : u
-          );
-        }
-        this.updateComputingUnits(modifiedUnits);
+        this.updateComputingUnits(units);
       });
   }
 
@@ -151,7 +143,7 @@ export class ComputingUnitStatusService implements OnDestroy {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
         }
-        this.workflowWebsocketService.openWebsocket(wid, 1 /* uid */, cuid);
+        this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
         this.currentConnectedCuid = cuid;
       }
       this.selectedUnitSubject.next(unit);
@@ -189,25 +181,21 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   // Get the current status of the selected computing unit as string
-  public getStatus(): Observable<ComputingUnitConnectionState> {
+  public getStatus(): Observable<ComputingUnitState> {
     return this.selectedUnitSubject.pipe(
       map((unit: DashboardWorkflowComputingUnit | null) => {
         if (!unit) {
-          return ComputingUnitConnectionState.NoComputingUnit;
+          return ComputingUnitState.NoComputingUnit;
         }
 
         // Convert string status to enum
         switch (unit.status) {
           case "Running":
-            return ComputingUnitConnectionState.Running;
+            return ComputingUnitState.Running;
           case "Pending":
-            return ComputingUnitConnectionState.Pending;
-          case "Disconnected":
-            return ComputingUnitConnectionState.Disconnected;
-          case "Terminating":
-            return ComputingUnitConnectionState.Terminating;
+            return ComputingUnitState.Pending;
           default:
-            return ComputingUnitConnectionState.Disconnected;
+            return ComputingUnitState.Pending;
         }
       })
     );

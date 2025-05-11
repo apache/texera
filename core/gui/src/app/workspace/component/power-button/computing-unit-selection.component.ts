@@ -126,16 +126,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(unit => {
         // Check if the status changed from Running to something else
         if (this.selectedComputingUnit?.status === "Running" && unit?.status && unit.status !== "Running") {
-          // Only show notification for unexpected status changes
-          if (unit.status === "Disconnected" && this.workflowId) {
-            this.workflowWebsocketService.closeWebsocket();
-            this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, unit.computingUnit.cuid);
-          } else if (unit.status === "Terminating") {
-            this.workflowWebsocketService.closeWebsocket();
-            this.notificationService.error(
-              `Computing unit "${unit.computingUnit.name}" is being terminated. Please select another unit to continue.`
-            );
-          }
+          this.notificationService.success("Connecting to the computing unit...");
         }
         this.selectedComputingUnit = unit;
       });
@@ -595,10 +586,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
         return "Ready to use";
       case "Pending":
         return "Computing unit is starting up";
-      case "Disconnected":
-        return "Computing unit is not connected";
-      case "Terminating":
-        return "Computing unit is being terminated";
       default:
         return unit.status;
     }

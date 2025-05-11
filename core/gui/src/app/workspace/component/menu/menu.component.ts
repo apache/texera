@@ -52,7 +52,7 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
 import { PanelService } from "../../service/panel/panel.service";
 import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
-import { ComputingUnitConnectionState } from "../../types/computing-unit-connection.interface";
+import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 
 /**
@@ -79,7 +79,7 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
-  public ComputingUnitConnectionState = ComputingUnitConnectionState; // make Angular HTML access enum definition
+  public ComputingUnitConnectionState = ComputingUnitState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
@@ -113,7 +113,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   // Computing unit status variables
   private computingUnitStatusSubscription: Subscription = new Subscription();
-  public computingUnitStatus: ComputingUnitConnectionState = ComputingUnitConnectionState.NoComputingUnit;
+  public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
@@ -208,11 +208,6 @@ export class MenuComponent implements OnInit, OnDestroy {
    * Subscribe to computing unit status changes from the ComputingUnitStatusService
    */
   private subscribeToComputingUnitStatus(): void {
-    // Initial state is disconnected until subscriptions update
-    this.computingUnitStatus = this.workflowWebsocketService.isConnected
-      ? ComputingUnitConnectionState.Running
-      : ComputingUnitConnectionState.Disconnected;
-
     // Subscribe to get the computing unit status
     this.computingUnitStatusSubscription.add(
       this.computingUnitStatusService
@@ -298,10 +293,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // This handles the case where a unit exists but we're not connected to it
-    if (
-      this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
-      !this.workflowWebsocketService.isConnected
-    ) {
+    if (this.computingUnitStatus !== ComputingUnitState.NoComputingUnit && !this.workflowWebsocketService.isConnected) {
       return {
         text: "Connecting",
         icon: "loading",
@@ -311,7 +303,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // no computing unit, show "Connect" button
-    if (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit) {
+    if (this.computingUnitStatus === ComputingUnitState.NoComputingUnit) {
       return {
         text: "Connect",
         icon: "plus-circle",
@@ -709,7 +701,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // If computing unit manager is enabled and no computing unit is selected
-    if (this.computingUnitStatus === ComputingUnitConnectionState.NoComputingUnit) {
+    if (this.computingUnitStatus === ComputingUnitState.NoComputingUnit) {
       // Create a default name based on the workflow name
       const defaultName = this.currentWorkflowName
         ? `${this.currentWorkflowName}'s Computing Unit`
