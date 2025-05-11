@@ -296,7 +296,6 @@ export class ComputingUnitStatusService implements OnDestroy {
       }),
       map(() => true),
       catchError((err: unknown) => {
-        this.notificationService.error(`Failed to terminate computing unit: ${err}`);
         return of(false);
       }),
       take(1) // complete after first emission

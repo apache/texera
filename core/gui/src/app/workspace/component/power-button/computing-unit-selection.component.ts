@@ -363,7 +363,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
             next: (success: boolean) => {
               if (success) {
                 this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
-                this.selectedComputingUnit = null;
               } else {
                 this.notificationService.error("Failed to terminate computing unit");
               }
