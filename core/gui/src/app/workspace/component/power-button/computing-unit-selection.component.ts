@@ -165,6 +165,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
+   * utility function used for displaying the computing unit
+   */
+  public trackByCuid(_idx: number, unit: DashboardWorkflowComputingUnit): number {
+    return unit.computingUnit.cuid;
+  }
+
+  /**
    * Registers a subscription to listen for workflow metadata changes;
    * Calls `onComputingUnitChange` when the `wid` changes;
    * The wid can change by time because of the workspace rendering;

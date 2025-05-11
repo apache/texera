@@ -94,7 +94,7 @@
       class="computing-units-dropdown">
       <li
         nz-menu-item
-        *ngFor="let unit of computingUnits"
+        *ngFor="let unit of computingUnits; trackBy: trackByCuid"
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
