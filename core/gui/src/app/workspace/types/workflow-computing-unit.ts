@@ -45,6 +45,6 @@ export interface WorkflowComputingUnitMetrics {
 
 export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
-  status: string;
+  status: "Running" | "Pending";
   metrics: WorkflowComputingUnitMetrics;
 }

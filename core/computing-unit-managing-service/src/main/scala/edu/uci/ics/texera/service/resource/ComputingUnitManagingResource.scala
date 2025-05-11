@@ -36,6 +36,7 @@ import edu.uci.ics.texera.service.KubernetesConfig.{
   memoryLimitOptions
 }
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
+import edu.uci.ics.texera.service.resource.ComputingUnitState._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
@@ -45,6 +46,7 @@ import org.jooq.DSLContext
 
 import java.sql.Timestamp
 import play.api.libs.json._
+
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object ComputingUnitManagingResource {
@@ -106,7 +108,7 @@ object ComputingUnitManagingResource {
 
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
-      status: String,
+      status: ComputingUnitState,
       metrics: WorkflowComputingUnitMetrics
   )
 
@@ -148,13 +150,23 @@ class ComputingUnitManagingResource {
     }
   }
 
-  private def getComputingUnitStatus(unit: WorkflowComputingUnit): String = {
+  private def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
     unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local => "Running"
+      // ── Local CUs are always “running” ──────────────────────────────
+      case WorkflowComputingUnitTypeEnum.local =>
+        Running
+
+      // ── Kubernetes CUs – only explicit “Running” counts as running ─
       case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val pod = KubernetesClient.getPodByName(KubernetesClient.generatePodName(unit.getCuid))
-        pod.map(_.getStatus.getPhase).getOrElse("Unknown")
-      case _ => "Unknown"
+        val phaseOpt = KubernetesClient
+          .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
+          .map(_.getStatus.getPhase)
+
+        if (phaseOpt.contains("Running")) Running else Pending
+
+      // ── Any other (unknown) type is treated as pending ──────────────
+      case _ =>
+        Pending
     }
   }
 
@@ -413,6 +425,33 @@ class ComputingUnitManagingResource {
         )
       }.toList
     }
+  }
+
+  /**
+    * Return a fully populated [[DashboardWorkflowComputingUnit]] for the
+    * specified `cuid`, identical to one row produced by /list.
+    *
+    * @param cuid the ID of the computing-unit to fetch
+    */
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{cuid}")
+  def getComputingUnitInfo(
+      @PathParam("cuid") cuid: Integer,
+      @Auth user: SessionUser
+  ): DashboardWorkflowComputingUnit = {
+
+    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
+      throw new BadRequestException("User has no access to the computing unit")
+    }
+    val unit = getComputingUnitByCuid(context, cuid)
+
+    DashboardWorkflowComputingUnit(
+      computingUnit = unit,
+      status = getComputingUnitStatus(unit),
+      metrics = getComputingUnitMetrics(unit)
+    )
   }
 
   /**

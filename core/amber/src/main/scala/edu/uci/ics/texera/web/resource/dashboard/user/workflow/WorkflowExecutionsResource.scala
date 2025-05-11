@@ -474,9 +474,9 @@ class WorkflowExecutionsResource {
   @Path("/{wid}/latest")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveLatestExecutionEntry(
-                                    @PathParam("wid") wid: Integer,
-                                    @Auth sessionUser: SessionUser
-                                  ): WorkflowExecutionEntry = {
+      @PathParam("wid") wid: Integer,
+      @Auth sessionUser: SessionUser
+  ): WorkflowExecutionEntry = {
 
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
 
@@ -498,8 +498,10 @@ class WorkflowExecutionsResource {
             WORKFLOW_EXECUTIONS.LOG_LOCATION
           )
           .from(WORKFLOW_EXECUTIONS)
-          .join(WORKFLOW_VERSION).on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-          .join(USER).on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+          .join(WORKFLOW_VERSION)
+          .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+          .join(USER)
+          .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
           .where(WORKFLOW_VERSION.WID.eq(wid))
           // sort by latest VID first, then latest start-time
           .orderBy(

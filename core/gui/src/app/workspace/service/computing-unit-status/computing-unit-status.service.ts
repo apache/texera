@@ -50,9 +50,9 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Refresh interval in milliseconds
   private readonly REFRESH_INTERVAL_MS = 2000;
-  private readonly CONNECTION_CHECK_INTERVAL_MS = 1000;
   private refreshSubscription: Subscription | null = null;
   private currentConnectedCuid?: number;
+  private selectedUnitPoll?: Subscription;
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -86,6 +86,24 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.refreshComputingUnitListSignal.next();
   }
 
+  private startPollingSelectedUnit(cuid: number): void {
+    // cancel previous poll, if any
+    this.selectedUnitPoll?.unsubscribe();
+
+    this.selectedUnitPoll = interval(this.REFRESH_INTERVAL_MS)
+      .pipe(
+        // each tick → get fresh data for *this* cuid
+        switchMap(() => this.computingUnitService.getComputingUnit(cuid)),
+        untilDestroyed(this)
+      )
+      .subscribe(unit => this.updateUnitInList(unit)); // merge into cache
+  }
+
+  private stopPollingSelectedUnit(): void {
+    this.selectedUnitPoll?.unsubscribe();
+    this.selectedUnitPoll = undefined;
+  }
+
   // Update computing units list and the selected unit
   private updateComputingUnits(units: DashboardWorkflowComputingUnit[]): void {
     // Update the all units list
@@ -100,6 +118,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     } else {
       // Our selected unit is no longer available
       this.selectedUnitSubject.next(null);
+      this.stopPollingSelectedUnit();
     }
   }
 
@@ -147,6 +166,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         this.currentConnectedCuid = cuid;
       }
       this.selectedUnitSubject.next(unit);
+      this.startPollingSelectedUnit(cuid);
     };
 
     // try immediate lookup in the current cache
@@ -203,10 +223,8 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Clean up on service destroy
   ngOnDestroy(): void {
-    if (this.refreshSubscription) {
-      this.refreshSubscription.unsubscribe();
-      this.refreshSubscription = null;
-    }
+    this.refreshSubscription?.unsubscribe();
+    this.selectedUnitPoll?.unsubscribe();
 
     this.selectedUnitSubject.complete();
     this.allUnitsSubject.complete();

@@ -101,8 +101,6 @@
         [ngClass]="{
           'unit-selected': isSelectedUnit(unit),
           'unit-connecting': unit.status === 'Pending',
-          'unit-disconnected': unit.status === 'Disconnected',
-          'unit-terminating': unit.status === 'Terminating'
         }"
         [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
         (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
@@ -119,16 +117,6 @@
                 *ngIf="unit.status === 'Pending'"
                 class="unit-status-indicator"
                 >(Connecting)</span
-              >
-              <span
-                *ngIf="unit.status === 'Disconnected'"
-                class="unit-status-indicator"
-                >(Disconnected)</span
-              >
-              <span
-                *ngIf="unit.status === 'Terminating'"
-                class="unit-status-indicator"
-                >(Terminating)</span
               >
             </span>
           </div>
