@@ -69,9 +69,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   memoryOptions: string[] = [];
   gpuOptions: string[] = []; // Add GPU options array
 
-  // Add property to track user-initiated termination
-  private isUserTerminatingUnit = false;
-
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
@@ -122,9 +119,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
       });
 
-    // Track if user is intentionally terminating a unit
-    this.isUserTerminatingUnit = false;
-
     // Subscribe to the current selected unit from the status service
     this.computingUnitStatusService
       .getSelectedComputingUnit()
@@ -134,8 +128,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
         if (
           this.selectedComputingUnit?.status === "Running" &&
           unit?.status &&
-          unit.status !== "Running" &&
-          !this.isUserTerminatingUnit
+          unit.status !== "Running"
         ) {
           // Only show notification for unexpected status changes
           if (unit.status === "Disconnected" && this.workflowId) {
@@ -344,7 +337,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
 
     const unitName = unit.computingUnit.name;
-    const isTerminatingSelectedUnit = this.selectedComputingUnit?.computingUnit.cuid === cuid;
     const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
     const templates = this.unitTypeMessageTemplate[unitType];
 
@@ -362,11 +354,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
       nzOkText: unitType === "local" ? "Disconnect" : "Terminate",
       nzOkType: "primary",
       nzOnOk: () => {
-        // Set flag to avoid showing disconnection errors during intentional termination
-        if (isTerminatingSelectedUnit) {
-          this.isUserTerminatingUnit = true;
-        }
-
         // Use the ComputingUnitStatusService to handle termination
         // This will properly close the websocket before terminating the unit
         this.computingUnitStatusService
@@ -374,11 +361,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: (success: boolean) => {
-              // Reset the termination flag regardless of result
-              if (isTerminatingSelectedUnit) {
-                this.isUserTerminatingUnit = false;
-              }
-
               if (success) {
                 this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
                 this.selectedComputingUnit = null;
@@ -387,10 +369,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
               }
             },
             error: (err: unknown) => {
-              // Reset the termination flag on error
-              if (isTerminatingSelectedUnit) {
-                this.isUserTerminatingUnit = false;
-              }
               this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`);
             },
           });
