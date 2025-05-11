@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import {BehaviorSubject, interval, Observable, Subject, Subscription, timer} from "rxjs";
+import { BehaviorSubject, interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
   TexeraWebsocketEvent,
@@ -117,7 +117,7 @@ export class WorkflowWebsocketService {
     const wsWithReconnect = this.websocket.pipe(
       retryWhen(errors =>
         errors.pipe(
-          tap(_ => (this.updateConnectionStatus(false))), // update connection status
+          tap(_ => this.updateConnectionStatus(false)), // update connection status
           tap(_ =>
             console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
           ),
@@ -143,7 +143,7 @@ export class WorkflowWebsocketService {
   }
 
   private updateConnectionStatus(connected: boolean) {
-    if (this.isConnected !== connected ) {
+    if (this.isConnected !== connected) {
       this.connectionStatusSubject.next(connected);
     }
   }

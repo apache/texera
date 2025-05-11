@@ -45,7 +45,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   computingUnits: DashboardWorkflowComputingUnit[] = [];
-  private readonly REFRESH_INTERVAL_MS = 2000;
 
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
