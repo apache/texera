@@ -125,11 +125,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
         // Check if the status changed from Running to something else
-        if (
-          this.selectedComputingUnit?.status === "Running" &&
-          unit?.status &&
-          unit.status !== "Running"
-        ) {
+        if (this.selectedComputingUnit?.status === "Running" && unit?.status && unit.status !== "Running") {
           // Only show notification for unexpected status changes
           if (unit.status === "Disconnected" && this.workflowId) {
             this.workflowWebsocketService.closeWebsocket();

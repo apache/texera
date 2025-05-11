@@ -45,10 +45,6 @@ export class ComputingUnitStatusService implements OnDestroy {
   private selectedUnitSubject = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
   private allUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
 
-  // New behavior subjects for tracking connection process
-  private isCreatingUnitSubject = new BehaviorSubject<boolean>(false);
-  private isConnectingUnitSubject = new BehaviorSubject<boolean>(false);
-
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
   // Refresh interval in milliseconds
@@ -60,8 +56,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowStatusService: WorkflowStatusService,
-    private notificationService: NotificationService
+    private workflowStatusService: WorkflowStatusService
   ) {
     // Initialize the service by loading computing units
     this.initializeService();
@@ -115,19 +110,6 @@ export class ComputingUnitStatusService implements OnDestroy {
         untilDestroyed(this)
       )
       .subscribe(isConnected => {
-        /* ---------- update the selected CU’s status ---------- */
-        if (this.selectedUnitSubject.value) {
-          const cur = this.selectedUnitSubject.value;
-          const desired = isConnected ? (cur.status === "Disconnected" ? "Running" : cur.status) : "Disconnected";
-
-          if (cur.status !== desired) {
-            const updated = { ...cur, status: desired };
-            this.selectedUnitSubject.next(updated);
-            this.updateUnitInList(updated);
-          }
-        }
-
-        /* ---------- trigger a one-off refresh of the CU list ---------- */
         this.refreshComputingUnitList();
       });
   }
@@ -240,22 +222,6 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.selectedUnitSubject.complete();
     this.allUnitsSubject.complete();
-    this.isCreatingUnitSubject.complete();
-    this.isConnectingUnitSubject.complete();
-  }
-
-  /**
-   * Get the current state of the unit creation process synchronously
-   */
-  public get isCreatingUnitValue(): boolean {
-    return this.isCreatingUnitSubject.value;
-  }
-
-  /**
-   * Get the current state of the unit connection process synchronously
-   */
-  public get isConnectingToUnitValue(): boolean {
-    return this.isConnectingUnitSubject.value;
   }
 
   /**
@@ -279,13 +245,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     if (isSelected && this.workflowWebsocketService.isConnected) {
       this.workflowWebsocketService.closeWebsocket();
       this.workflowStatusService.clearStatus();
-
-      const terminatingUnit = {
-        ...this.selectedUnitSubject.value!,
-        status: "Terminating",
-      };
-      this.selectedUnitSubject.next(terminatingUnit);
-      this.updateUnitInList(terminatingUnit);
     }
 
     return this.computingUnitService.terminateComputingUnit(cuid).pipe(

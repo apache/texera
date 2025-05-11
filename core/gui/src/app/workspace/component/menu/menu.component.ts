@@ -297,19 +297,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       };
     }
 
-    // Check for creating/connecting states
-    if (
-      this.computingUnitStatusService.isCreatingUnitValue ||
-      this.computingUnitStatusService.isConnectingToUnitValue
-    ) {
-      return {
-        text: "Connecting",
-        icon: "loading",
-        disable: true,
-        onClick: () => {},
-      };
-    }
-
     // This handles the case where a unit exists but we're not connected to it
     if (
       this.computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit &&
