@@ -96,7 +96,9 @@ export class ComputingUnitStatusService implements OnDestroy {
         switchMap(() => this.computingUnitService.getComputingUnit(cuid)),
         untilDestroyed(this)
       )
-      .subscribe(unit => this.updateUnitInList(unit)); // merge into cache
+      .subscribe(unit => {
+        this.updateUnitInList(unit);
+      }); // merge into cache
   }
 
   private stopPollingSelectedUnit(): void {
@@ -234,10 +236,11 @@ export class ComputingUnitStatusService implements OnDestroy {
    * Helper method to update a single unit in the units list
    */
   private updateUnitInList(updatedUnit: DashboardWorkflowComputingUnit): void {
-    const updatedUnitsList = this.allUnitsSubject.value.map(unit =>
-      unit.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : unit
+    const merged: DashboardWorkflowComputingUnit[] = this.allUnitsSubject.value.map(u =>
+      u.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : u
     );
-    this.allUnitsSubject.next(updatedUnitsList);
+
+    this.updateComputingUnits(merged);
   }
 
   /**

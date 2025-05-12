@@ -21,8 +21,14 @@ import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
+import {
+  DashboardWorkflowComputingUnit,
+  WorkflowComputingUnit,
+  WorkflowComputingUnitResourceLimit,
+  WorkflowComputingUnitType,
+} from "../../types/workflow-computing-unit";
 import { assert } from "../../../common/util/assert";
+import { map } from "rxjs/operators";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
@@ -34,6 +40,29 @@ export const COMPUTING_UNIT_TYPES_URL = `${COMPUTING_UNIT_BASE_URL}/types`;
 })
 export class WorkflowComputingUnitManagingService {
   constructor(private http: HttpClient) {}
+
+  /** Ensure the `resource` field is parsed into an object. */
+  private parseDashboardUnit = (raw: DashboardWorkflowComputingUnit): DashboardWorkflowComputingUnit => {
+    const cu = raw.computingUnit as WorkflowComputingUnit & {
+      resource: string | WorkflowComputingUnitResourceLimit;
+    };
+
+    if (typeof cu.resource === "string") {
+      try {
+        cu.resource = JSON.parse(cu.resource) as WorkflowComputingUnitResourceLimit;
+      } catch {
+        // fall back to an empty object, so the UI never crashes
+        cu.resource = {
+          cpuLimit: "NaN",
+          memoryLimit: "NaN",
+          gpuLimit: "NaN",
+          jvmMemorySize: "NaN",
+          nodeAddresses: [],
+        };
+      }
+    }
+    return { ...raw, computingUnit: cu };
+  };
 
   /**
    * Create a new workflow computing unit (pod).
@@ -78,7 +107,9 @@ export class WorkflowComputingUnitManagingService {
     gpuLimit: string = "0",
     jvmMemorySize: string = "1G"
   ): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, "kubernetes");
+    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, "kubernetes").pipe(
+      map(raw => this.parseDashboardUnit(raw))
+    );
   }
 
   /**
@@ -106,10 +137,9 @@ export class WorkflowComputingUnitManagingService {
       uri,
     };
 
-    return this.http.post<DashboardWorkflowComputingUnit>(
-      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,
-      body
-    );
+    return this.http
+      .post<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`, body)
+      .pipe(map(raw => this.parseDashboardUnit(raw)));
   }
 
   /**
@@ -154,14 +184,14 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of a list of WorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return this.http.get<DashboardWorkflowComputingUnit[]>(
-      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`
-    );
+    return this.http
+      .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`)
+      .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
   }
 
   public getComputingUnit(cuid: number): Observable<DashboardWorkflowComputingUnit> {
-    return this.http.get<DashboardWorkflowComputingUnit>(
-      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}`
-    );
+    return this.http
+      .get<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}`)
+      .pipe(map(raw => this.parseDashboardUnit(raw)));
   }
 }

@@ -108,7 +108,7 @@ object ComputingUnitManagingResource {
 
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
-      status: ComputingUnitState,
+      status: String,
       metrics: WorkflowComputingUnitMetrics
   )
 
@@ -391,7 +391,7 @@ class ComputingUnitManagingResource {
 
       DashboardWorkflowComputingUnit(
         insertedUnit,
-        getComputingUnitStatus(insertedUnit),
+        getComputingUnitStatus(insertedUnit).toString,
         getComputingUnitMetrics(insertedUnit)
       )
     }
@@ -420,7 +420,7 @@ class ComputingUnitManagingResource {
       units.map { unit =>
         DashboardWorkflowComputingUnit(
           computingUnit = unit,
-          status = getComputingUnitStatus(unit),
+          status = getComputingUnitStatus(unit).toString,
           metrics = getComputingUnitMetrics(unit)
         )
       }.toList
@@ -449,7 +449,7 @@ class ComputingUnitManagingResource {
 
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
-      status = getComputingUnitStatus(unit),
+      status = getComputingUnitStatus(unit).toString,
       metrics = getComputingUnitMetrics(unit)
     )
   }
