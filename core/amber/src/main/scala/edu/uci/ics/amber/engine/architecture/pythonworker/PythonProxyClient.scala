@@ -22,7 +22,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.State
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ChannelMarkerElement, ControlElement, DataElement}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
@@ -33,7 +33,7 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.{VarBinaryVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 
 import java.util.concurrent.TimeUnit
@@ -41,8 +41,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
-
-import java.util.Collections
+import scala.jdk.CollectionConverters._
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
@@ -136,7 +135,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     val flightListener = new SyncPutListener
 
     val field = new Field("payload", FieldType.nullable(new ArrowType.Binary), null)
-    val schema = new ArrowSchema(Collections.singletonList(field))
+    val schema = new ArrowSchema(List(field).asJava)
     val schemaRoot = VectorSchemaRoot.create(schema, allocator)
 
     val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
