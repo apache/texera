@@ -32,3 +32,12 @@ export interface WorkflowExecutionsEntry {
   bookmarked: boolean;
   logLocation: string;
 }
+
+export const EXECUTION_STATUS_CODE: Record<number, string> = {
+  0: "initializing",
+  1: "running",
+  2: "paused",
+  3: "completed",
+  4: "failed",
+  5: "killed",
+};

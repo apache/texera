@@ -105,7 +105,6 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll?.unsubscribe();
     this.selectedUnitPoll = undefined;
   }
-
   // Update computing units list and the selected unit
   private updateComputingUnits(units: DashboardWorkflowComputingUnit[]): void {
     // Update the all units list
@@ -166,9 +165,9 @@ export class ComputingUnitStatusService implements OnDestroy {
         }
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
         this.currentConnectedCuid = cuid;
+        this.selectedUnitSubject.next(unit);
+        this.startPollingSelectedUnit(cuid);
       }
-      this.selectedUnitSubject.next(unit);
-      this.startPollingSelectedUnit(cuid);
     };
 
     // try immediate lookup in the current cache

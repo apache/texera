@@ -41,10 +41,24 @@ export class WorkflowExecutionsService {
   }
 
   /**
-   * retrieves a list of execution for a particular workflow from backend database
+   * retrieves a list of executions for a particular workflow from the back-end
+   * database.
+   *
+   * @param wid       workflow ID
+   * @param statuses  optional list of status strings
+   *                  (e.g. ["running", "completed"]).  If the array is empty or
+   *                  omitted, no status filter is applied.
    */
-  retrieveWorkflowExecutions(wid: number): Observable<WorkflowExecutionsEntry[]> {
-    return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
+  retrieveWorkflowExecutions(wid: number, statuses?: string[]): Observable<WorkflowExecutionsEntry[]> {
+    /* -------------------------------------------------------------------- */
+    /* build query-string ?status=running,completed …                        */
+    /* -------------------------------------------------------------------- */
+    let params = new HttpParams();
+    if (statuses && statuses.length > 0) {
+      params = params.set("status", statuses.join(","));
+    }
+
+    return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`, { params });
   }
 
   groupSetIsBookmarked(wid: number, eIds: number[], isBookmarked: boolean): Observable<Object> {

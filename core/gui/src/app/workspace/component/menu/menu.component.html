@@ -346,7 +346,9 @@
         executionState === ExecutionState.Uninitialized ||
         executionState === ExecutionState.Completed ||
         executionState === ExecutionState.Killed ||
-        executionState === ExecutionState.Failed
+        executionState === ExecutionState.Failed ||
+        (!workflowWebsocketService.isConnected &&
+       computingUnitStatus !== ComputingUnitState.NoComputingUnit)
       "
           nz-button
           nzDanger
@@ -362,7 +364,7 @@
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitConnectionState.NoComputingUnit) || displayParticularWorkflowVersion"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
           nzType="primary">
@@ -404,12 +406,12 @@
             nz-tooltip=""
             nzTooltipPlacement="bottom"
             [nzTooltipTitle]="clusterInfo"
-            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running))?'green':'red'">
+            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitState.Running))?'green':'red'">
           </nz-badge>
           <ng-template #clusterInfo>
             <b
               >{{(workflowWebsocketService.isConnected && (computingUnitStatus ===
-              ComputingUnitConnectionState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
+              ComputingUnitState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
             >
             <div *ngIf="workflowWebsocketService.isConnected">
               <div>Computing Unit Status: {{computingUnitStatus}}</div>

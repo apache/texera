@@ -19,7 +19,7 @@
 
 import { AfterViewInit, Component, Inject, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
+import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/user/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -158,14 +158,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .subscribe(workflowExecutions => {
         // generate charts data
         let userNameData: { [key: string]: [string, number] } = {};
-        const statusMap: { [key: number]: string } = {
-          0: "initializing",
-          1: "running",
-          2: "paused",
-          3: "completed",
-          4: "failed",
-          5: "killed",
-        };
         let statusData: { [key: string]: [string, number] } = {};
 
         workflowExecutions.forEach(execution => {
@@ -173,10 +165,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
             userNameData[execution.userName] = [execution.userName, 0];
           }
           userNameData[execution.userName][1] += 1;
-          if (statusData[statusMap[execution.status]] === undefined) {
-            statusData[statusMap[execution.status]] = [statusMap[execution.status], 0];
+          if (statusData[EXECUTION_STATUS_CODE[execution.status]] === undefined) {
+            statusData[EXECUTION_STATUS_CODE[execution.status]] = [EXECUTION_STATUS_CODE[execution.status], 0];
           }
-          statusData[statusMap[execution.status]][1] += 1;
+          statusData[EXECUTION_STATUS_CODE[execution.status]][1] += 1;
         });
 
         this.generatePieChart(

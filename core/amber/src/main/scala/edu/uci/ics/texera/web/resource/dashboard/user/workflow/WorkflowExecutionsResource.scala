@@ -55,6 +55,15 @@ object WorkflowExecutionsResource {
     .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
 
+  val statusStringToCode: Map[String, Byte] = Map(
+    "initializing" -> 0,
+    "running" -> 1,
+    "paused" -> 2,
+    "completed" -> 3,
+    "failed" -> 4,
+    "killed" -> 5
+  )
+
   def getExecutionById(eId: Integer): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
   }
@@ -197,7 +206,19 @@ object WorkflowExecutionsResource {
         .map(URI.create)
     else None
 
-  def getWorkflowExecutions(wid: Integer, context: DSLContext): List[WorkflowExecutionEntry] = {
+  def getWorkflowExecutions(
+      wid: Integer,
+      context: DSLContext,
+      statusCodes: Set[Byte] = Set.empty
+  ): List[WorkflowExecutionEntry] = {
+    var condition = WORKFLOW_VERSION.WID.eq(wid)
+
+    if (statusCodes.nonEmpty) {
+      condition = condition.and(
+        WORKFLOW_EXECUTIONS.STATUS.in(statusCodes.map(Byte.box).asJava)
+      )
+    }
+
     context
       .select(
         WORKFLOW_EXECUTIONS.EID,
@@ -218,7 +239,7 @@ object WorkflowExecutionsResource {
       .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
       .join(USER)
       .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .where(condition)
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc())
       .fetchInto(classOf[WorkflowExecutionEntry])
       .asScala
@@ -566,13 +587,31 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveExecutionsOfWorkflow(
       @PathParam("wid") wid: Integer,
-      @Auth sessionUser: SessionUser
+      @Auth sessionUser: SessionUser,
+      @QueryParam("status") status: String
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
-      getWorkflowExecutions(wid, context)
+      val statusCodes: Set[Byte] =
+        Option(status)
+          .map(_.trim)
+          .filter(_.nonEmpty)
+          .map { raw =>
+            val tokens = raw.split(',').map(_.trim.toLowerCase).filter(_.nonEmpty)
+            val (known, unknown) = tokens.partition(statusStringToCode.contains)
+
+            if (unknown.nonEmpty) {
+              throw new BadRequestException(
+                s"Unknown execution status value(s): ${unknown.mkString(", ")}"
+              )
+            }
+
+            known.map(statusStringToCode).toSet
+          }
+          .getOrElse(Set.empty[Byte]) // no param → no filter
+      getWorkflowExecutions(wid, context, statusCodes)
     }
   }
 

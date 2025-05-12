@@ -79,7 +79,7 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
-  public ComputingUnitConnectionState = ComputingUnitState; // make Angular HTML access enum definition
+  public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;

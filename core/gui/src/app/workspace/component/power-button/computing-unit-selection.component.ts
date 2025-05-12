@@ -19,7 +19,7 @@
 
 import { Component, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { interval } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import { switchMap, take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -43,6 +43,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   workflowId: number | undefined;
 
+  lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   computingUnits: DashboardWorkflowComputingUnit[] = [];
 
@@ -124,10 +125,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getSelectedComputingUnit()
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
-        // Check if the status changed from Running to something else
-        if (this.selectedComputingUnit?.status === "Running" && unit?.status && unit.status !== "Running") {
-          this.notificationService.success("Connecting to the computing unit...");
+        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+
+        // ── compare with the *previous* cuid, not the one we are just about to store ──
+        if (isDefined(wid) && unit?.computingUnit.cuid !== this.lastSelectedCuid) {
+          this.updateWorkflowModificationStatus(wid);
         }
+
+        // update local caches **after** the comparison
+        this.lastSelectedCuid = unit?.computingUnit.cuid;
         this.selectedComputingUnit = unit;
       });
 
@@ -140,6 +146,25 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
 
     this.registerWorkflowMetadataSubscription();
+  }
+
+  /**
+   * Helper to query backend and (de)activate modification status.
+   */
+  private updateWorkflowModificationStatus(wid: number): void {
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(wid, ["running", "initializing"])
+      .pipe(take(1), untilDestroyed(this))
+      .subscribe(execList => {
+        if (execList.length > 0) {
+          this.notificationService.info(
+            "There are onging executions on this workflow. Modification of the workflow is currently disabled."
+          );
+          this.workflowActionService.disableWorkflowModification();
+        } else {
+          this.workflowActionService.enableWorkflowModification();
+        }
+      });
   }
 
   /**

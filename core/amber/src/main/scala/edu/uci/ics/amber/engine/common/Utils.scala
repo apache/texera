@@ -25,8 +25,6 @@ import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.jooq.DSLContext
-import org.jooq.impl.DSL
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
