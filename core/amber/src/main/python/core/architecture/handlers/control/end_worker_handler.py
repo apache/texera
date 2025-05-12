@@ -39,7 +39,8 @@ class EndWorkerHandler(ControlHandler):
         input_channel_id = (
             ChannelIdentity(InputManager.SOURCE_STARTER, ActorVirtualIdentity(self.context.worker_id), False)
             if self.context.executor_manager.executor.is_source
-            else req.channelId
+            else self.context.current_input_channel_id
         )
+
         self.context.input_queue.put(DataElement(tag=input_channel_id, payload=MarkerFrame(EndOfInputChannel())))
         return EmptyReturn()
