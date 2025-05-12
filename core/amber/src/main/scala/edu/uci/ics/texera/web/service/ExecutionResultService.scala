@@ -95,10 +95,9 @@ object ExecutionResultService {
                 attr.getType match {
                   case AttributeType.BINARY =>
                     value match {
-                      case byteBuffer: java.nio.ByteBuffer =>
-                        val buffer = byteBuffer.duplicate()
-                        val totalSize = buffer.remaining()
-                        val hexString = getByteBufferHexString(buffer)
+                      case byteArray: Array[Byte] =>
+                        val totalSize = byteArray.length
+                        val hexString = byteArrayToHexString(byteArray)
 
                         // 39 = 30 (leading bytes) + 9 (trailing bytes)
                         // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
@@ -113,7 +112,7 @@ object ExecutionResultService {
 
                       case _ =>
                         throw new RuntimeException(
-                          s"Expected ByteBuffer for binary type field, but got: ${value.getClass.getName}"
+                          s"Expected byte array for binary type field, but got: ${value.getClass.getName}"
                         )
                     }
                   case AttributeType.STRING =>
@@ -133,19 +132,16 @@ object ExecutionResultService {
   }
 
   /**
-    * Converts a ByteBuffer to a hex string representation.
+    * Converts a byte array to a hex string representation.
     *
-    * This helper function takes a ByteBuffer and converts its contents to a space-separated
+    * This helper function takes a byte array and converts its contents to a space-separated
     * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
     *
-    * @param buffer The ByteBuffer to convert
-    * @return A string containing the hex representation of the ByteBuffer's contents
+    * @param byteArray The byte array to convert
+    * @return A string containing the hex representation of the byte array's contents
     */
-  private def getByteBufferHexString(buffer: java.nio.ByteBuffer): String = {
-    val bytes = new Array[Byte](buffer.remaining())
-    val dupBuffer = buffer.duplicate()
-    dupBuffer.get(bytes)
-    bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+  private def byteArrayToHexString(byteArray: Array[Byte]): String = {
+    byteArray.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
   }
 
   /**
