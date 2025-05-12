@@ -128,7 +128,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: texera/computing-unit-managing-service:cluster
+  imageName: texera/workflow-computing-unit-managing-service:cluster
   service:
     type: ClusterIP
     port: 8888
