@@ -61,6 +61,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "",
     "Avatar",
     "Name (ID)",
+    "Computing Unit ID",
     "Execution Start Time",
     "Execution Completion Time",
     "Status",
@@ -70,6 +71,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
     "Name (ID)": "Execution Name",
+    "Computing Unit ID": "ID of the Computing Unit that ran the Workflow",
     Username: "The User Who Ran This Execution",
     "Execution Start Time": "Start Time of Workflow Execution",
     "Execution Completion Time": "Latest Status Updated Time of Workflow Execution",
@@ -83,6 +85,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public customColumnWidth: Record<string, string> = {
     "": "0%",
     "Name (ID)": "7%",
+    "Computing Unit ID": "7%",
     "Workflow Version Sample": "10%",
     Avatar: "5.5%",
     "Execution Start Time": "9%",
@@ -125,7 +128,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     ["failed", 4],
     ["killed", 5],
   ]);
-  public showORhide: boolean[] = [false, false, false, true];
+  public showORhide: boolean[] = [false, false, false, false, true];
   public avatarColors: { [key: string]: string } = {};
   public checked: boolean = false;
   public setOfEid = new Set<number>();
@@ -412,6 +415,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
         .sort((exe1, exe2) =>
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
         );
+    } else if (type === "Computing Unit ID") {
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
+        ?.slice()
+        .sort((a, b) => a.cuId - b.cuId);
     }
   }
 
@@ -439,6 +446,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
         .sort((exe1, exe2) =>
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
         );
+    } else if (type === "Computing Unit ID") {
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
+        ?.slice()
+        .sort((a, b) => b.cuId - a.cuId);
     }
   }
 
