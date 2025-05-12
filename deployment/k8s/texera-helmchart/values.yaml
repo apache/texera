@@ -119,7 +119,7 @@ exampleDataLoader:
 webserver:
   name: webserver
   numOfPods: 1  # Number of pods for the Texera deployment
-  imageName: bobbai/texera-web-application:cu-refactor # image name of the texera
+  imageName: texera/texera-web-application:cluster # image name of the texera
   service:
     type: ClusterIP
     port: 8080
@@ -128,7 +128,7 @@ workflowComputingUnitManager:
   name: workflow-computing-unit-manager
   numOfPods: 1
   serviceAccountName: workflow-computing-unit-manager-service-account
-  imageName: bobbai/computing-unit-managing-service:cu-refactor
+  imageName: texera/computing-unit-managing-service:cluster
   service:
     type: ClusterIP
     port: 8888
@@ -169,7 +169,7 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
-  imageName: bobbai/computing-unit-master:refactor-cu
+  imageName: texera/computing-unit-master:cluster
   service:
     port: 8085
     targetPort: 8085
