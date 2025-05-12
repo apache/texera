@@ -23,7 +23,6 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class ExecutionResultServiceSpec extends AnyFlatSpec with Matchers {
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {
