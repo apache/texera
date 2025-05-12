@@ -83,7 +83,7 @@ object ResultExportService {
       .trim
 }
 
-class ResultExportService(workflowIdentity: WorkflowIdentity) {
+class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: Int) {
 
   import ResultExportService._
 
@@ -127,8 +127,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       operatorRequest: OperatorExportInfo
   ): (Option[String], Option[String]) = {
 
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
-    if (execIdOpt.isEmpty)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
+    if (execIdOpt.isEmpty) {
       return (None, Some(s"Workflow ${request.workflowId} has no execution result"))
 
     val operatorDocument = getOperatorDocument(operatorRequest.id)
@@ -162,7 +162,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       request: ResultExportRequest,
       operatorRequest: OperatorExportInfo
   ): (StreamingOutput, Option[String]) = {
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
       return (null, None)
     }
@@ -210,7 +210,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val zipFileName = s"${request.workflowName}-$timestamp.zip"
 
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
       throw new WebApplicationException(
         s"No execution result for workflow ${request.workflowId}"
