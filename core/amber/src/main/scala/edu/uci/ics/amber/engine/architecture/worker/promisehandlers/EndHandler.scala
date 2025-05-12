@@ -15,6 +15,9 @@ trait EndHandler {
     val channelId = if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
     } else {
+
+      println("refrwfwr", request.channelId)
+      println("refrwfwrwefwefw", ctx)
       request.channelId
     }
     dp.endOfInputChannel(channelId)

@@ -58,6 +58,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessageTriggeredRequest,
     ChannelMarkerType,
     ChannelMarkerPayload,
+    EndInputChannelRequest,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -359,7 +360,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
             if command is not None:
-                self._async_rpc_server.receive(channel_id, command)
+                if command.method_name=='EndWorker':
+                    command.command = EndInputChannelRequest(channel_id)
+                    self._async_rpc_server.receive(channel_id, command)
+                else:
+                    self._async_rpc_server.receive(channel_id, command)
 
             downstream_channels_in_scope = {
                 scope

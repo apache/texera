@@ -170,7 +170,6 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        outputManager.emitMarker(EndOfInputChannel())
         sendChannelMarker(channelMarkerManager.marker)
         // Send Completed signal to worker actor.
         executor.close()
