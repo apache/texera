@@ -25,24 +25,48 @@ import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest, PropagateChannelMarkerRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerStateResponse, WorkflowAggregatedState}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_WORKER, METHOD_START_WORKER}
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, PortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest,
+  PropagateChannelMarkerRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkerStateResponse,
+  WorkflowAggregatedState
+}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_WORKER,
+  METHOD_START_WORKER
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  OperatorConfig,
+  PortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 class RegionExecutionCoordinator(
-                                  region: Region,
-                                  workflowExecution: WorkflowExecution,
-                                  asyncRPCClient: AsyncRPCClient,
-                                  controllerConfig: ControllerConfig
-                                ) {
+    region: Region,
+    workflowExecution: WorkflowExecution,
+    asyncRPCClient: AsyncRPCClient,
+    controllerConfig: ControllerConfig
+) {
   def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
@@ -116,11 +140,11 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-                             actorService: AkkaActorService,
-                             physicalOp: PhysicalOp,
-                             operatorConfig: OperatorConfig,
-                             operatorExecution: OperatorExecution
-                           ): Unit = {
+      actorService: AkkaActorService,
+      physicalOp: PhysicalOp,
+      operatorConfig: OperatorConfig,
+      operatorExecution: OperatorExecution
+  ): Unit = {
     ExecutorDeployment.createWorkers(
       physicalOp,
       actorService,
@@ -132,9 +156,9 @@ class RegionExecutionCoordinator(
   }
 
   private def initExecutors(
-                             operators: Set[PhysicalOp],
-                             resourceConfig: ResourceConfig
-                           ): Future[Seq[EmptyReturn]] = {
+      operators: Set[PhysicalOp],
+      resourceConfig: ResourceConfig
+  ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -260,20 +284,20 @@ class RegionExecutionCoordinator(
             .setState(x._2.asInstanceOf[WorkerStateResponse].state)
         }.toSeq
       }
-      asyncRPCClient.controllerInterface
-        .propagateChannelMarker(
-          PropagateChannelMarkerRequest(
-            region.getSourceOperators.map(_.id).toSeq,
-            ChannelMarkerIdentity("end"),
-            REQUIRE_ALIGNMENT,
-            region.getOperators.map(_.id).toSeq,
-            region.getOperators.map(_.id).toSeq,
-            EmptyRequest(),
-            METHOD_END_WORKER.getBareMethodName
-          ),
-          asyncRPCClient.mkContext(CONTROLLER)
-        )
-      response
+    asyncRPCClient.controllerInterface
+      .propagateChannelMarker(
+        PropagateChannelMarkerRequest(
+          region.getSourceOperators.map(_.id).toSeq,
+          ChannelMarkerIdentity("end"),
+          REQUIRE_ALIGNMENT,
+          region.getOperators.map(_.id).toSeq,
+          region.getOperators.map(_.id).toSeq,
+          EmptyRequest(),
+          METHOD_END_WORKER.getBareMethodName
+        ),
+        asyncRPCClient.mkContext(CONTROLLER)
+      )
+    response
   }
 
   private def createOutputPortStorageObjects(

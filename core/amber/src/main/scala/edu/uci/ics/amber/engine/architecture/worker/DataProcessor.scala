@@ -22,15 +22,29 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputManager,
+  OutputManager,
+  WorkerTimerService
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  READY,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -38,7 +52,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_WORKER, METHOD_START_WORKER}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_WORKER,
+  METHOD_START_WORKER
+}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -276,7 +293,10 @@ class DataProcessor(
 
       val isEndInputChannelRequest = command.exists { req =>
         if (req.methodName == METHOD_END_WORKER.getBareMethodName) {
-          asyncRPCServer.receive(req.withCommand(EndInputChannelRequest(channelId)), channelId.fromWorkerId)
+          asyncRPCServer.receive(
+            req.withCommand(EndInputChannelRequest(channelId)),
+            channelId.fromWorkerId
+          )
           channelMarkerManager.marker = marker
           true
         } else {
@@ -290,7 +310,7 @@ class DataProcessor(
     }
   }
 
-  def sendChannelMarker(marker: ChannelMarkerPayload):Unit={
+  def sendChannelMarker(marker: ChannelMarkerPayload): Unit = {
     // if this worker is not the final destination of the marker, pass it downstream
     val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
     if (downstreamChannelsInScope.nonEmpty) {
@@ -309,7 +329,6 @@ class DataProcessor(
       pauseManager.resume(EpochMarkerPause(marker.id))
     }
   }
-
 
   private[this] def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.controllerInterface.consoleMessageTriggered(
