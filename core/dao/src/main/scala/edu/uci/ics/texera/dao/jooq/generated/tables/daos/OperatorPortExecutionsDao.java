@@ -100,4 +100,19 @@ public class OperatorPortExecutionsDao extends DAOImpl<OperatorPortExecutionsRec
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchByResultUri(String... values) {
         return fetch(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.RESULT_URI, values);
     }
+
+    /**
+     * Fetch records that have <code>result_size BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchRangeOfResultSize(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>result_size IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions> fetchByResultSize(Integer... values) {
+        return fetch(OperatorPortExecutions.OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, values);
+    }
 }

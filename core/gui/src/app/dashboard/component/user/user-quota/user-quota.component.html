@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <div
   [style.height]="dynamicHeight"
   style="overflow-y: auto">
@@ -44,7 +63,7 @@
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ formatSize(this.totalMongoSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalQuotaSize) }}</p>
           </div>
         </div>
         <nz-card
@@ -65,7 +84,7 @@
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>
           <nz-collapse-panel
-            *ngFor="let workflow of mongodbWorkflows"
+            *ngFor="let workflow of workflows"
             [nzHeader]="workflow.workflowName">
             <nz-table
               #executionTable
@@ -76,22 +95,22 @@
                 <tr>
                   <th>Collection Name</th>
                   <th>Execution ID</th>
-                  <th [nzSortFn]="sortByMongoDBSize">Cache Size</th>
+                  <th [nzSortFn]="sortBySize">Cache Size</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let execution of executionTable.data">
-                  <td>{{ execution.pointer }}</td>
+                  <td>{{ execution.workflowName }}</td>
                   <td>{{ execution.eid }}</td>
-                  <td>{{ formatSize(execution.size) }}</td>
+                  <td>{{ formatSize(execution.resultBytes + execution.logBytes + execution.runTimeStatsBytes) }}</td>
                   <td>
                     <button
                       nz-popconfirm
                       nzPopconfirmTitle="Confirm to delete selected workflows."
                       nz-button
                       nz-tooltip="delete collection"
-                      (nzOnConfirm)="deleteMongoCollection(execution.pointer, execution, execution.workflowName)"
+                      (nzOnConfirm)="deleteCollection(execution.eid)"
                       type="button">
                       <i
                         nz-icon
