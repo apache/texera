@@ -151,6 +151,7 @@ class CostBasedScheduleGenerator(
           resourceConfig = Some(resourceConfig)
         )
     }
+    // TODO: Merge them in topological order
     val allPortConfigs = regionsWithoutInputPortStorage
       .flatMap(_.resourceConfig.map(_.portConfigs))
       .foldLeft(Map.empty[GlobalPortIdentity, PortConfig])(_ ++ _)
