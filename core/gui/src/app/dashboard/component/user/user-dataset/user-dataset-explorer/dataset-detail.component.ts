@@ -80,7 +80,14 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
-  public uploadProgress: MultipartUploadProgress | null = null;
+
+  //  List of upload tasks – each task tracked by its filePath
+  public uploadTasks: Array<
+    MultipartUploadProgress & {
+      filePath: string;
+    }
+  > = [];
+  private autoHideTimers: number[] = [];
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -301,60 +308,101 @@ export class DatasetDetailComponent implements OnInit {
     return this.userDatasetAccessLevel == "WRITE";
   }
 
+  // Track multiple file by unique key
+  trackByTask(_: number, task: MultipartUploadProgress & { filePath: string }): string {
+    return task.filePath;
+  }
+
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
-      const did = this.did;
-      files.forEach(file => {
+      files.forEach((file, idx) => {
+        // Add an initializing task placeholder to uploadTasks.
+        this.uploadTasks.push({
+          filePath: file.name,
+          percentage: 0,
+          status: "initializing",
+          uploadId: "",
+          physicalAddress: "",
+        });
+
+        // Start multipart upload
         this.datasetService
           .multipartUpload(this.datasetName, file.name, file.file)
           .pipe(untilDestroyed(this))
           .subscribe({
-            next: res => {
-              this.uploadProgress = res; // Update the progress UI
+            next: progress => {
+              // Find the task
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+
+              if (taskIndex !== -1) {
+                // Update the task with new progress info
+                this.uploadTasks[taskIndex] = {
+                  ...this.uploadTasks[taskIndex],
+                  ...progress,
+                  percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
+                };
+
+                // Auto‑hide when upload is truly finished
+                if (progress.status === "finished") {
+                  this.userMakeChanges.emit();
+                  this.scheduleHide(taskIndex);
+                }
+              }
             },
             error: () => {
-              this.uploadProgress = {
-                filePath: file.name,
-                percentage: 100,
-                status: "aborted",
-                physicalAddress: "",
-                uploadId: "",
-              };
-              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+              // Handle upload error
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+
+              if (taskIndex !== -1) {
+                this.uploadTasks[taskIndex] = {
+                  ...this.uploadTasks[taskIndex],
+                  percentage: 100,
+                  status: "aborted",
+                };
+                this.scheduleHide(taskIndex);
+              }
             },
             complete: () => {
-              this.uploadProgress = {
-                filePath: file.name,
-                percentage: 100,
-                status: "finished",
-                uploadId: "",
-                physicalAddress: "",
-              };
-              this.userMakeChanges.emit();
-              setTimeout(() => (this.uploadProgress = null), 3000); // Auto-hide after 3s
+              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
+                this.uploadTasks[taskIndex].status = "finished";
+                this.userMakeChanges.emit();
+                this.scheduleHide(taskIndex);
+              }
             },
           });
       });
     }
   }
 
-  onClickAbortUploadProgress() {
-    if (this.uploadProgress) {
-      this.datasetService
-        .finalizeMultipartUpload(
-          this.datasetName,
-          this.uploadProgress.filePath,
-          this.uploadProgress.uploadId,
-          [],
-          this.uploadProgress.physicalAddress,
-          true
-        )
-        .pipe(untilDestroyed(this))
-        .subscribe(res => {
-          this.notificationService.info(`${this.uploadProgress?.filePath} uploading has been terminated`);
-        });
+  // Hide a task row after 3s (stores timer to clear on destroy)
+  private scheduleHide(idx: number) {
+    if (idx === -1) {
+      return;
     }
-    this.uploadProgress = null;
+    const key = this.uploadTasks[idx].filePath;
+    const handle = window.setTimeout(() => {
+      this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
+    }, 3000);
+    this.autoHideTimers.push(handle);
+  }
+
+  onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
+    this.datasetService
+      .finalizeMultipartUpload(
+        this.datasetName,
+        task.filePath,
+        task.uploadId,
+        [],
+        task.physicalAddress,
+        true // abort flag
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.notificationService.info(`${task.filePath} uploading has been terminated`);
+      });
+    // Remove the aborted task immediately
+    this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== task.filePath);
   }
 
   getUploadStatus(status: "initializing" | "uploading" | "finished" | "aborted"): "active" | "exception" | "success" {
