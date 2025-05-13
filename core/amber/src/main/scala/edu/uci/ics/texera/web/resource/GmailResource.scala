@@ -32,8 +32,10 @@ import org.slf4j.LoggerFactory
 import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
+import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import scala.util.{Failure, Success, Try}
+import javax.ws.rs.core.Context
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 
@@ -81,7 +83,8 @@ object GmailResource {
 
   def sendEmail(
       emailMessage: EmailMessage,
-      recipientEmail: String
+      recipientEmail: String,
+      requestOpt: Option[HttpServletRequest] = None
   ): Either[String, Unit] = {
     val logger = LoggerFactory.getLogger(this.getClass)
 
@@ -90,9 +93,14 @@ object GmailResource {
       return Left("Invalid email format")
     }
 
+    val finalMessage = requestOpt match {
+      case Some(req) => withDomainHeader(emailMessage, req)
+      case None      => emailMessage
+    }
+
     Try {
       val session = createSession()
-      val email = createMimeMessage(session, emailMessage, recipientEmail)
+      val email = createMimeMessage(session, finalMessage, recipientEmail)
       Transport.send(email)
     } match {
       case Success(_)         => Right(())
@@ -116,6 +124,24 @@ object GmailResource {
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
     email != null && emailRegex.matches(email)
   }
+
+  private def withDomainHeader(
+                                message: EmailMessage,
+                                request: HttpServletRequest
+                              ): EmailMessage = {
+    val hostHeader = Option(request.getHeader("Host"))
+      .getOrElse(request.getServerName)
+    val domain = hostHeader.split(":")(0)
+
+    val newContent =
+      s"""${message.content}
+         |
+         |—
+         |Sent from: $domain
+         |""".stripMargin
+
+    message.copy(content = newContent)
+  }
 }
 
 @Path("/gmail")
@@ -123,9 +149,9 @@ class GmailResource {
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")
-  def sendEmailRequest(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
+  def sendEmailRequest(@Context request: HttpServletRequest, emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
     val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
-    sendEmail(emailMessage, recipientEmail)
+    sendEmail(emailMessage, recipientEmail, Some(request))
   }
 
   @GET
@@ -135,7 +161,7 @@ class GmailResource {
 
   @POST
   @Path("/notify-unauthorized")
-  def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
+  def notifyUnauthorizedUser(@Context request: HttpServletRequest, emailMessage: EmailMessage): Unit = {
     val logger = LoggerFactory.getLogger(this.getClass)
 
     if (!isValidEmail(emailMessage.receiver)) {
@@ -156,7 +182,8 @@ class GmailResource {
             userEmail = Some(emailMessage.receiver),
             toAdmin = true
           ),
-          adminEmail
+          adminEmail,
+          Some(request)
         )
       } catch {
         case ex: Exception =>
@@ -171,7 +198,8 @@ class GmailResource {
           userEmail = None,
           toAdmin = false
         ),
-        emailMessage.receiver
+        emailMessage.receiver,
+        Some(request)
       )
     } catch {
       case ex: Exception =>

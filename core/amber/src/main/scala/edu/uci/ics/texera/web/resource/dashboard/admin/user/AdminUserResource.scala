@@ -31,8 +31,9 @@ import org.jasypt.util.password.StrongPasswordEncryptor
 
 import java.util
 import javax.annotation.security.RolesAllowed
+import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.{Context, MediaType, Response}
 
 object AdminUserResource {
   final private lazy val context = SqlServer
@@ -59,7 +60,7 @@ class AdminUserResource {
 
   @PUT
   @Path("/update")
-  def updateUser(user: User): Unit = {
+  def updateUser(@Context request: HttpServletRequest, user: User): Unit = {
     val existingUser = userDao.fetchOneByEmail(user.getEmail)
     if (existingUser != null && existingUser.getUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
@@ -75,7 +76,8 @@ class AdminUserResource {
     if (roleChanged)
       sendEmail(
         createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
-        updatedUser.getEmail
+        updatedUser.getEmail,
+        Some(request)
       )
   }
 
