@@ -1,12 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.util.JSONUtils.JSONToMap
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import AttributeTypeUtils.{inferSchemaFromRows, parseField}
-import AttributeType.BINARY
-import org.bson.Document
-import org.bson.types.Binary
 
 import scala.collection.mutable.ArrayBuffer
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -71,19 +87,6 @@ object TupleUtils {
     } catch {
       case e: Exception => throw e
     }
-  }
-
-  def document2Tuple(doc: Document, schema: Schema): Tuple = {
-    val builder = Tuple.builder(schema)
-    schema.getAttributes.foreach(attr =>
-      if (attr.getType == BINARY) {
-        // special care for converting MongoDB's binary type to byte[] in our schema
-        builder.add(attr, doc.get(attr.getName).asInstanceOf[Binary].getData)
-      } else {
-        builder.add(attr, parseField(doc.get(attr.getName), attr.getType))
-      }
-    )
-    builder.build()
   }
 
 }
