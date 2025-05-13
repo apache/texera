@@ -36,6 +36,8 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 import { DOCUMENT } from "@angular/common";
 import { WorkflowSettings } from "src/app/common/type/workflow";
+import {ComputingUnitStatusService} from "../computing-unit-status/computing-unit-status.service";
+import {JWT_OPTIONS, JwtHelperService} from "@auth0/angular-jwt";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -60,8 +62,11 @@ describe("ExecuteWorkflowService", () => {
         ExecuteWorkflowService,
         WorkflowActionService,
         WorkflowUtilService,
+        ComputingUnitStatusService,
         UndoRedoService,
         JointUIService,
+        JwtHelperService,
+        { provide: JWT_OPTIONS, useValue: {} },
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
