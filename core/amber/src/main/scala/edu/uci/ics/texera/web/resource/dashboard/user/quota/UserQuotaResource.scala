@@ -19,7 +19,6 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
@@ -27,7 +26,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStati
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import io.dropwizard.auth.Auth
-import edu.uci.ics.texera.web.service.WorkflowService
 
 import java.util
 import javax.ws.rs._

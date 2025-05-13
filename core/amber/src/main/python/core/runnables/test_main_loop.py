@@ -16,6 +16,7 @@
 # under the License.
 
 import inspect
+import pickle
 from threading import Thread
 
 import pandas
@@ -96,10 +97,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_binary_tuple(self):
-        # Update the fixture to provide the data in the correct format
-        # Convert integers to bytes for the binary field
-        binary_data = [i.to_bytes(1, "big") for i in [1, 2, 3, 4]]
-        return Tuple({"test-1": binary_data, "test-2": 10})
+        return Tuple({"test-1": [1, 2, 3, 4], "test-2": 10})
 
     @pytest.fixture
     def mock_batch(self):
@@ -1006,14 +1004,9 @@ class TestMainLoop:
         data_frame: DataFrame = output_data_element.payload
 
         assert len(data_frame.frame) == 1
-        output_binary_data = data_frame.frame.to_pylist()[0]["test-1"]
-        expected_binary_data = mock_binary_tuple["test-1"]
-
-        assert isinstance(output_binary_data, list)
-        assert all(isinstance(item, bytes) for item in output_binary_data)
-        assert len(output_binary_data) == len(expected_binary_data)
-        # Compare the actual bytes directly since they're already in bytes format
-        assert output_binary_data == expected_binary_data
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
 
         reraise()
 
@@ -1164,12 +1157,9 @@ class TestMainLoop:
         data_frame: DataFrame = output_data_element.payload
 
         assert len(data_frame.frame) == 1
-        output_binary_data = data_frame.frame.to_pylist()[0]["test-1"]
-        expected_binary_data = mock_binary_tuple["test-1"]
-        assert isinstance(output_binary_data, list)
-        assert all(isinstance(item, bytes) for item in output_binary_data)
-        assert len(output_binary_data) == len(expected_binary_data)
-        assert output_binary_data == expected_binary_data
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
         output_control_element: ControlElement = output_queue.get()
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
