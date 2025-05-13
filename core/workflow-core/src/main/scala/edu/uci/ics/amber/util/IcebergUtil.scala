@@ -24,13 +24,14 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
-import org.apache.iceberg.types.{Type, Types}
+import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
+import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
   CatalogProperties,
   DataFile,
@@ -40,6 +41,7 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 
+import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
 import java.time.LocalDateTime
@@ -203,11 +205,7 @@ object IcebergUtil {
   def toIcebergSchema(amberSchema: Schema): IcebergSchema = {
     val icebergFields = amberSchema.getAttributes.zipWithIndex.map {
       case (attribute, index) =>
-        Types.NestedField.optional(
-          index + 1,
-          attribute.getName,
-          toIcebergType(attribute.getType, index + 1)
-        )
+        Types.NestedField.optional(index + 1, attribute.getName, toIcebergType(attribute.getType))
     }
     new IcebergSchema(icebergFields.asJava)
   }
@@ -216,10 +214,9 @@ object IcebergUtil {
     * Converts a custom Amber `AttributeType` to an Iceberg `Type`.
     *
     * @param attributeType The custom Amber AttributeType.
-    * @param fieldId The field ID to use for nested type elements (like list elements).
     * @return The corresponding Iceberg Type.
     */
-  def toIcebergType(attributeType: AttributeType, fieldId: Int = 0): Type = {
+  def toIcebergType(attributeType: AttributeType): PrimitiveType = {
     attributeType match {
       case AttributeType.STRING    => Types.StringType.get()
       case AttributeType.INTEGER   => Types.IntegerType.get()
@@ -227,10 +224,7 @@ object IcebergUtil {
       case AttributeType.DOUBLE    => Types.DoubleType.get()
       case AttributeType.BOOLEAN   => Types.BooleanType.get()
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
-      case AttributeType.BINARY    =>
-        // Multiply fieldId by -1 to ensure element IDs are unique and don't conflict with parent field IDs
-        val elementId = -1 * fieldId
-        Types.ListType.ofRequired(elementId, Types.BinaryType.get())
+      case AttributeType.BINARY    => Types.BinaryType.get()
       case AttributeType.ANY =>
         throw new IllegalArgumentException("ANY type is not supported in Iceberg")
     }
@@ -248,11 +242,10 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val value = tuple.getField[AnyRef](index) match {
-          case null          => null
-          case ts: Timestamp => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case scalaList: scala.collection.immutable.List[_] =>
-            scalaList.asJava
-          case other => other
+          case null               => null
+          case ts: Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case bytes: Array[Byte] => ByteBuffer.wrap(bytes)
+          case other              => other
         }
         record.setField(attribute.getName, value)
     }
@@ -262,7 +255,6 @@ object IcebergUtil {
 
   /**
     * Converts an Iceberg `Record` to an Amber `Tuple`
-    * This is the opposite conversion of toGenericRecord
     *
     * @param record      The Iceberg Record.
     * @param amberSchema The corresponding Amber Schema.
@@ -271,10 +263,13 @@ object IcebergUtil {
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
       val value = record.getField(attribute.getName) match {
-        case null                    => null
-        case ldt: LocalDateTime      => Timestamp.valueOf(ldt)
-        case list: java.util.List[_] => list.asScala.toList
-        case other                   => other
+        case null               => null
+        case ldt: LocalDateTime => Timestamp.valueOf(ldt)
+        case buffer: ByteBuffer =>
+          val bytes = new Array[Byte](buffer.remaining())
+          buffer.get(bytes)
+          bytes
+        case other => other
       }
       value
     }
@@ -293,7 +288,7 @@ object IcebergUtil {
       .columns()
       .asScala
       .map { field =>
-        new Attribute(field.name(), fromIcebergType(field.`type`()))
+        new Attribute(field.name(), fromIcebergType(field.`type`().asPrimitiveType()))
       }
       .toList
 
@@ -306,25 +301,16 @@ object IcebergUtil {
     * @param icebergType The Iceberg Type.
     * @return The corresponding Amber AttributeType.
     */
-  def fromIcebergType(icebergType: Type): AttributeType = {
+  def fromIcebergType(icebergType: PrimitiveType): AttributeType = {
     icebergType match {
-      case _: Types.StringType      => AttributeType.STRING
-      case _: Types.IntegerType     => AttributeType.INTEGER
-      case _: Types.LongType        => AttributeType.LONG
-      case _: Types.DoubleType      => AttributeType.DOUBLE
-      case _: Types.BooleanType     => AttributeType.BOOLEAN
-      case _: Types.TimestampType   => AttributeType.TIMESTAMP
-      case listType: Types.ListType =>
-        // For list types, return the corresponding Amber type based on element type
-        // Currently we only support binary lists
-        if (listType.elementType() == Types.BinaryType.get()) {
-          AttributeType.BINARY
-        } else {
-          throw new IllegalArgumentException(
-            s"Unsupported list element type: ${listType.elementType()}"
-          )
-        }
-      case _ => throw new IllegalArgumentException(s"Unsupported Iceberg type: $icebergType")
+      case _: Types.StringType    => AttributeType.STRING
+      case _: Types.IntegerType   => AttributeType.INTEGER
+      case _: Types.LongType      => AttributeType.LONG
+      case _: Types.DoubleType    => AttributeType.DOUBLE
+      case _: Types.BooleanType   => AttributeType.BOOLEAN
+      case _: Types.TimestampType => AttributeType.TIMESTAMP
+      case _: Types.BinaryType    => AttributeType.BINARY
+      case _                      => throw new IllegalArgumentException(s"Unsupported Iceberg type: $icebergType")
     }
   }
 
