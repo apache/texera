@@ -1,6 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.storage
 
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.core.storage.util.ConfigParserUtil.parseSizeStringToBytes
 import edu.uci.ics.amber.util.PathUtils.corePath
 
 import java.nio.file.Path
@@ -12,11 +32,6 @@ object StorageConfig {
 
   // General storage settings
   val resultStorageMode: String = conf.getString("storage.result-storage-mode")
-
-  // MongoDB specifics
-  val mongodbUrl: String = conf.getString("storage.mongodb.url")
-  val mongodbDatabaseName: String = conf.getString("storage.mongodb.database")
-  val mongodbBatchSize: Int = conf.getInt("storage.mongodb.commit-batch-size")
 
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
@@ -63,19 +78,13 @@ object StorageConfig {
   val s3Region: String = conf.getString("storage.s3.region")
   val s3Username: String = conf.getString("storage.s3.auth.username")
   val s3Password: String = conf.getString("storage.s3.auth.password")
+  val s3MultipartUploadPartSize: Long = parseSizeStringToBytes(
+    conf.getString("storage.s3.multipart.part-size")
+  )
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
-
-  // Environment variable names for overriding storage config values
-  // When you change
-  val ENV_RESULT_STORAGE_MODE = "STORAGE_RESULT_MODE"
-
-  // MongoDB
-  val ENV_MONGODB_URL = "STORAGE_MONGODB_URL"
-  val ENV_MONGODB_DATABASE = "STORAGE_MONGODB_DATABASE"
-  val ENV_MONGODB_COMMIT_BATCH_SIZE = "STORAGE_MONGODB_COMMIT_BATCH_SIZE"
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"
