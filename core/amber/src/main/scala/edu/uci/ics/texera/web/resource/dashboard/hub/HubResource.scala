@@ -25,6 +25,7 @@ import HubResource.{
   fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   getUserLCCount,
+  getViewCount,
   isLikedHelper,
   recordLikeActivity,
   recordUserActivity,
@@ -255,6 +256,32 @@ object HubResource {
       .fetchOne(0, classOf[Int])
   }
 
+  private def getViewCount(entityId: Integer, entityType: String): Int = {
+    validateEntityType(entityType)
+
+    val entityTables = ViewCountTable(entityType)
+    val (table, idCol, countCol) =
+      (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
+
+    val existing: Integer = context
+      .select(countCol)
+      .from(table)
+      .where(idCol.eq(entityId))
+      .fetchOneInto(classOf[Integer])
+
+    if (existing != null) {
+      existing
+    } else {
+      context
+        .insertInto(table)
+        .set(idCol, entityId)
+        .set(countCol, Integer.valueOf(0))
+        .onDuplicateKeyIgnore()
+        .execute()
+      0
+    }
+  }
+
   def fetchDashboardWorkflowsByWids(wids: Seq[Integer], uid: Integer): List[DashboardWorkflow] = {
     if (wids.isEmpty) {
       return List.empty[DashboardWorkflow]
@@ -385,16 +412,6 @@ class HubResource {
     getUserLCCount(entityId, entityType, "like")
   }
 
-  @GET
-  @Path("/cloneCount")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCloneCount(
-      @QueryParam("entityId") entityId: Integer,
-      @QueryParam("entityType") entityType: String
-  ): Int = {
-    getUserLCCount(entityId, entityType, "clone")
-  }
-
   @POST
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -408,51 +425,21 @@ class HubResource {
 
     validateEntityType(entityType)
     val entityTables = ViewCountTable(entityType)
-    val (table, idColumn, viewCountColumn) =
+    val (table, idCol, vcCol) =
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
 
-    context
+    val record = context
       .insertInto(table)
-      .set(idColumn, entityID)
-      .set(viewCountColumn, Integer.valueOf(1))
+      .set(idCol, entityID)
+      .set(vcCol, Integer.valueOf(1))
       .onDuplicateKeyUpdate()
-      .set(viewCountColumn, viewCountColumn.add(1))
-      .execute()
+      .set(vcCol, vcCol.add(1))
+      .returning(vcCol)
+      .fetchOne()
 
     recordUserActivity(request, userId, entityID, entityType, "view")
 
-    context
-      .select(viewCountColumn)
-      .from(table)
-      .where(idColumn.eq(entityID))
-      .fetchOneInto(classOf[Int])
-  }
-
-  @GET
-  @Path("/viewCount")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getViewCount(
-      @QueryParam("entityId") entityId: Integer,
-      @QueryParam("entityType") entityType: String
-  ): Int = {
-
-    validateEntityType(entityType)
-    val entityTables = ViewCountTable(entityType)
-    val (table, idColumn, viewCountColumn) =
-      (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
-
-    context
-      .insertInto(table)
-      .set(idColumn, entityId)
-      .set(viewCountColumn, Integer.valueOf(0))
-      .onDuplicateKeyIgnore()
-      .execute()
-
-    context
-      .select(viewCountColumn)
-      .from(table)
-      .where(idColumn.eq(entityId))
-      .fetchOneInto(classOf[Int])
+    record.get(vcCol)
   }
 
   @GET
@@ -516,5 +503,47 @@ class HubResource {
       }
 
     clickableFileEntries.toList.asJava
+  }
+
+  /**
+    * Unified endpoint to fetch one or more count metrics (view, like, clone) for a given entity.
+    *
+    * Example request:
+    *   GET /hub/counts?
+    *     entityId=123&
+    *     entityType=workflow&
+    *     actionType=view&
+    *     actionType=like
+    *
+    * @param entityId    The ID of the entity to count (e.g., a workflow or dataset).
+    * @param entityType  The type of the entity ("workflow" or "dataset").
+    * @param actionTypes A list of action types to fetch counts for. Valid values: "view", "like", "clone".
+    * @return            A map from actionType -> count, e.g. { "view" -> 42, "like" -> 17 }.
+    * @throws BadRequestException if an unsupported actionType is provided.
+    */
+  @GET
+  @Path("/counts")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCounts(
+      @QueryParam("entityId") entityId: Integer,
+      @QueryParam("entityType") entityType: String,
+      @QueryParam("actionType") actionTypes: java.util.List[String]
+  ): java.util.Map[String, Int] = {
+    validateEntityType(entityType)
+
+    val types = actionTypes.asScala.map(_.toLowerCase).distinct
+
+    val result: Map[String, Int] = types.map {
+      case "view"  => "view" -> getViewCount(entityId, entityType)
+      case "like"  => "like" -> getUserLCCount(entityId, entityType, "like")
+      case "clone" => "clone" -> getUserLCCount(entityId, entityType, "clone")
+
+      case other =>
+        throw new BadRequestException(
+          s"Unsupported actionType: '$other'. Supported: [view, like, clone]"
+        )
+    }.toMap
+
+    result.asJava
   }
 }

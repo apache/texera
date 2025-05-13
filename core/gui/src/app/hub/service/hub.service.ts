@@ -63,29 +63,11 @@ export class HubService {
     });
   }
 
-  public getLikeCount(entityId: number, entityType: string): Observable<number> {
-    const params = new HttpParams().set("entityId", entityId.toString()).set("entityType", entityType);
-
-    return this.http.get<number>(`${this.BASE_URL}/likeCount`, { params });
-  }
-
-  public getCloneCount(entityId: number, entityType: string): Observable<number> {
-    const params = new HttpParams().set("entityId", entityId.toString()).set("entityType", entityType);
-
-    return this.http.get<number>(`${this.BASE_URL}/cloneCount`, { params });
-  }
-
   public postView(entityId: number, userId: number, entityType: string): Observable<number> {
     const body = { entityId, userId, entityType };
     return this.http.post<number>(`${this.BASE_URL}/view`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
-  }
-
-  public getViewCount(entityId: number, entityType: string): Observable<number> {
-    const params = new HttpParams().set("entityId", entityId.toString()).set("entityType", entityType);
-
-    return this.http.get<number>(`${this.BASE_URL}/viewCount`, { params });
   }
 
   public getTops(entityType: string, actionType: string, currentUid?: number): Observable<SearchResultItem[]> {
@@ -97,5 +79,27 @@ export class HubService {
     params.uid = currentUid !== undefined ? currentUid : -1;
 
     return this.http.get<SearchResultItem[]>(`${this.BASE_URL}/getTops`, { params });
+  }
+
+  /**
+   * Fetches multiple counts (view, like, clone) for a given entity in one request.
+   *
+   * @param entityId    The numeric ID of the entity to query.
+   * @param entityType  The type of entity (e.g. "workflow" or "dataset").
+   * @param actionTypes An array of action types to fetch (each of "view", "like", or "clone").
+   * @returns            An Observable resolving to a map from actionType to its count.
+   */
+  public getCounts(
+    entityId: number,
+    entityType: string,
+    actionTypes: string[]
+  ): Observable<{ [action: string]: number }> {
+    let params = new HttpParams().set("entityId", entityId.toString()).set("entityType", entityType);
+
+    actionTypes.forEach(t => {
+      params = params.append("actionType", t);
+    });
+
+    return this.http.get<{ [action: string]: number }>(`${this.BASE_URL}/counts`, { params });
   }
 }

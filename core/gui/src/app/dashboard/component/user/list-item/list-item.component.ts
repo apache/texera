@@ -24,7 +24,6 @@ import {
   EventEmitter,
   Input,
   OnChanges,
-  OnInit,
   Output,
   SimpleChanges,
   ViewChild,
@@ -59,7 +58,7 @@ import { isDefined } from "../../../../common/util/predicate";
   templateUrl: "./list-item.component.html",
   styleUrls: ["./list-item.component.scss"],
 })
-export class ListItemComponent implements OnInit, OnChanges {
+export class ListItemComponent implements OnChanges {
   private owners: number[] = [];
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
@@ -160,23 +159,13 @@ export class ListItemComponent implements OnInit, OnChanges {
 
     if (typeof this.entry.id === "number") {
       this.hubService
-        .getLikeCount(this.entry.id, this.entry.type)
+        .getCounts(this.entry.id, this.entry.type, ["view", "like"])
         .pipe(untilDestroyed(this))
-        .subscribe(count => {
-          this.likeCount = count;
-        });
-      this.hubService
-        .getViewCount(this.entry.id, this.entry.type)
-        .pipe(untilDestroyed(this))
-        .subscribe(count => {
-          this.viewCount = count;
+        .subscribe(counts => {
+          this.viewCount = counts.view ?? 0;
+          this.likeCount = counts.like ?? 0;
         });
     }
-  }
-
-  ngOnInit(): void {
-    this.initializeEntry();
-    this.checkLikeStatus();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -400,10 +389,10 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (instance) {
       if (wid !== undefined) {
         this.hubService
-          .getViewCount(wid, this.entry.type)
+          .getCounts(wid, this.entry.type, ["view"])
           .pipe(untilDestroyed(this))
-          .subscribe(count => {
-            this.viewCount = count + 1; // hacky fix to display view correctly
+          .subscribe(counts => {
+            this.viewCount = (counts.view ?? 0) + 1; // hacky fix to display view correctly
           });
       }
     }
@@ -425,11 +414,10 @@ export class ListItemComponent implements OnInit, OnChanges {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getLikeCount(entryId, this.entry.type)
-
+              .getCounts(entryId, this.entry.type, ["like"])
               .pipe(untilDestroyed(this))
-              .subscribe((count: number) => {
-                this.likeCount = count;
+              .subscribe(counts => {
+                this.likeCount = counts.like ?? 0;
               });
           }
         });
@@ -441,10 +429,10 @@ export class ListItemComponent implements OnInit, OnChanges {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getLikeCount(entryId, this.entry.type)
+              .getCounts(entryId, this.entry.type, ["like"])
               .pipe(untilDestroyed(this))
-              .subscribe((count: number) => {
-                this.likeCount = count;
+              .subscribe(counts => {
+                this.likeCount = counts.like ?? 0;
               });
           }
         });
