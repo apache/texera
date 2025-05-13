@@ -87,7 +87,7 @@
         autofocus />
 
       <div
-        class="resource-description truncate-single-line"
+        class="resource-description truncate-single-line resource-description-enhanced"
         (click)="onEditDescription();$event.stopPropagation()"
         *ngIf="!editingDescription">
         {{ entry.description ? entry.description : (hovering) ? 'Write a description...' : '' }}
