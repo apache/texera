@@ -113,16 +113,16 @@ if should_build "pylsp"; then
     ./pylsp
 fi
 
-# Build shared editing server (directory: share-editing-server, image: y-websocket-server)
-if should_build "share-editing-server"; then
+# Build y-websocket-server service (directory: y-websocket-server, image: y-websocket-server)
+if should_build "y-websocket-server"; then
   image="texera/y-websocket-server:$FULL_TAG"
-  echo "👉 Building $image from share-editing-server/Dockerfile"
+  echo "👉 Building $image from y-websocket-server/Dockerfile"
   docker buildx build \
     --platform "$PLATFORM" \
-    -f "share-editing-server/Dockerfile" \
+    -f "y-websocket-server/Dockerfile" \
     -t "$image" \
     --push \
-    ./share-editing-server
+    ./y-websocket-server
 fi
 
 echo "✅ All images built and pushed with tag :$FULL_TAG"
