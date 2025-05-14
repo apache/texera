@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.operator.udf.python;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
@@ -56,11 +57,16 @@ public class LambdaAttributeUnit {
     @JsonSchemaTitle("Expression")
     public String expression;
 
-    LambdaAttributeUnit(String attributeName, String expression, String newAttributeName, AttributeType newAttributeType) {
+    @JsonCreator
+    public LambdaAttributeUnit(
+            @JsonProperty("attributeName") String attributeName,
+            @JsonProperty("expression") String expression,
+            @JsonProperty("newAttributeName") String newAttributeName,
+            @JsonProperty("attributeType") AttributeType attributeType) {
         this.attributeName = attributeName;
         this.expression = expression;
         this.newAttributeName = newAttributeName;
-        this.attributeType = newAttributeType;
+        this.attributeType = attributeType;
     }
 
     @Override

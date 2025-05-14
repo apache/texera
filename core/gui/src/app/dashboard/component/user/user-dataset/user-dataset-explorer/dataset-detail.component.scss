@@ -165,6 +165,12 @@ nz-select {
   margin-top: 15%;
 }
 
+.upload-progress-wrapper {
+  max-height: 25vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .upload-progress-container {
   margin-left: 20px;
 }
