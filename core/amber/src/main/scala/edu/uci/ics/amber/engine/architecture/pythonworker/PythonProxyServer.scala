@@ -27,15 +27,13 @@ import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIden
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
-  ControlInvocation => ControlInvocationV2,
-  ReturnInvocation => ReturnInvocationV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
+import org.apache.arrow.vector.VarBinaryVector
 
 import java.io.IOException
 import java.net.ServerSocket
@@ -139,7 +137,7 @@ private class AmberProducer(
         outputPort.sendTo(
           to,
           ChannelMarkerPayload.parseFrom(
-            ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")
+            root.getVector("payload").asInstanceOf[VarBinaryVector].get(0)
           )
         )
       case _ => // normal data batches

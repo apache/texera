@@ -311,17 +311,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         self.context.output_manager.close_port_storage_writers()
 
-        for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
-            self._output_queue.put(
-                DataElement(
-                    tag=ChannelIdentity(
-                        ActorVirtualIdentity(self.context.worker_id), to, False
-                    ),
-                    payload=batch,
-                )
-            )
-            self._check_and_process_control()
-
         # Need to send port completed even if there is no downstream link
         for port_id in self.context.output_manager.get_port_ids():
             self._async_rpc_client.controller_stub().port_completed(
@@ -360,14 +349,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
             if command is not None:
-                if command.method_name=='EndWorker':
-                    command.command = EndInputChannelRequest(channel_id)
-                    self._async_rpc_server.receive(channel_id, command)
-                else:
-                    self._async_rpc_server.receive(channel_id, command)
+                self._async_rpc_server.receive(channel_id, command)
 
             downstream_channels_in_scope = {
-                scope
+                (scope.from_worker_id, scope.to_worker_id)
                 for scope in marker_payload.scope
                 if scope.from_worker_id == ActorVirtualIdentity(self.context.worker_id)
             }
@@ -375,7 +360,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 for (
                     active_channel_id
                 ) in self.context.output_manager.get_output_channel_ids():
-                    if active_channel_id in downstream_channels_in_scope:
+                    if (active_channel_id.from_worker_id, active_channel_id.to_worker_id) in downstream_channels_in_scope:
                         logger.info(
                             f"send marker to {active_channel_id},"
                             f" id = {marker_id}, cmd = {command}"
