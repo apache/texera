@@ -442,67 +442,96 @@ class HubResource {
     record.get(vcCol)
   }
 
+  /**
+   * Unified endpoint to fetch the top N (here N = 8) entities of given action types (like/clone)
+   * for a specified entityType (e.g., "workflow" or "dataset") and optional user ID.
+   *
+   * @param entityType   The type of entity ("workflow" or "dataset") to query.
+   * @param actionTypes  A list of action types to fetch tops for (supported: "like", "clone").
+   *                     Example: ?entityType=workflow&actionTypes=like&actionTypes=clone
+   * @param uid          Optional user ID for context (e.g., to mark liked/cloned by this user).
+   *                     If null or -1, no user-specific context is applied.
+   * @return             A map from each actionType to a list of DashboardClickableFileEntry,
+   *                     representing the top 8 public entities of that type.
+   */
   @GET
   @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getTops(
-      @QueryParam("entityType") entityType: String,
-      @QueryParam("actionType") actionType: String,
-      @QueryParam("uid") uid: Integer
-  ): util.List[DashboardClickableFileEntry] = {
+     @QueryParam("entityType") entityType: String,
+     @QueryParam("actionTypes") actionTypes: java.util.List[String],
+     @QueryParam("uid") uid: Integer
+   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
     validateEntityType(entityType)
 
     val baseTable = BaseEntityTable(entityType)
-    val entityTables = actionType match {
-      case "like"  => LikeTable(entityType)
-      case "clone" => CloneTable(entityType)
-      case _       => throw new IllegalArgumentException(s"Invalid action type: $actionType")
-    }
+    val isPublicColumn = baseTable.isPublicColumn
+    val baseIdColumn = baseTable.idColumn
 
-    val (table, idColumn) = (entityTables.table, entityTables.idColumn)
-    val (isPublicColumn, baseIdColumn) = (baseTable.isPublicColumn, baseTable.idColumn)
+    val currentUid: Integer =
+      if (uid == null || uid == -1) null
+      else Integer.valueOf(uid)
 
-    val topEntityIds = context
-      .select(idColumn)
-      .from(table)
-      .join(baseTable.table)
-      .on(idColumn.eq(baseIdColumn))
-      .where(isPublicColumn.eq(true))
-      .groupBy(idColumn)
-      .orderBy(DSL.count(idColumn).desc())
-      .limit(8)
-      .fetchInto(classOf[Integer])
-      .asScala
+    val types: Seq[String] = actionTypes.asScala
+      .map(_.toLowerCase)
+      .distinct
       .toSeq
 
-    val currentUid: Integer = if (uid == null || uid == -1) null else Integer.valueOf(uid)
-
-    val clickableFileEntries =
-      if (entityType == "workflow") {
-        val workflows = fetchDashboardWorkflowsByWids(topEntityIds, currentUid)
-        workflows.map { w =>
-          DashboardClickableFileEntry(
-            resourceType = "workflow",
-            workflow = Some(w),
-            project = None,
-            dataset = None
-          )
+    val result: Map[String, java.util.List[DashboardClickableFileEntry]] =
+      types.map { act =>
+        val (table, idColumn) = act match {
+          case "like" =>
+            val lt = LikeTable(entityType)
+            (lt.table, lt.idColumn)
+          case "clone" =>
+            val ct = CloneTable(entityType)
+            (ct.table, ct.idColumn)
+          case other =>
+            throw new BadRequestException(
+              s"Unsupported actionType: '$other'. Supported: [like, clone]"
+            )
         }
-      } else if (entityType == "dataset") {
-        val datasets = fetchDashboardDatasetsByDids(topEntityIds, currentUid)
-        datasets.map { d =>
-          DashboardClickableFileEntry(
-            resourceType = "dataset",
-            workflow = None,
-            project = None,
-            dataset = Some(d)
-          )
-        }
-      } else {
-        Seq.empty[DashboardClickableFileEntry]
-      }
 
-    clickableFileEntries.toList.asJava
+        val topIds: Seq[Integer] = context
+          .select(idColumn)
+          .from(table)
+          .join(baseTable.table)
+          .on(idColumn.eq(baseIdColumn))
+          .where(isPublicColumn.eq(true))
+          .groupBy(idColumn)
+          .orderBy(DSL.count(idColumn).desc())
+          .limit(8)
+          .fetchInto(classOf[Integer])
+          .asScala
+          .toSeq
+
+        val entries: Seq[DashboardClickableFileEntry] =
+          if (entityType == "workflow") {
+            fetchDashboardWorkflowsByWids(topIds, currentUid).map { w =>
+              DashboardClickableFileEntry(
+                resourceType = "workflow",
+                workflow = Some(w),
+                project = None,
+                dataset = None
+              )
+            }
+          } else if (entityType == "dataset") {
+            fetchDashboardDatasetsByDids(topIds, currentUid).map { d =>
+              DashboardClickableFileEntry(
+                resourceType = "dataset",
+                workflow = None,
+                project = None,
+                dataset = Some(d)
+              )
+            }
+          } else {
+            Seq.empty
+          }
+
+        act -> entries.toList.asJava
+      }.toMap
+
+    result.asJava
   }
 
   /**

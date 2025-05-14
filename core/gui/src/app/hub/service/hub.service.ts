@@ -70,15 +70,29 @@ export class HubService {
     });
   }
 
-  public getTops(entityType: string, actionType: string, currentUid?: number): Observable<SearchResultItem[]> {
-    const params: any = {
-      entityType,
-      actionType,
-    };
+  /**
+   * Fetches the top entities for the given action types in one request.
+   *
+   * @param entityType   The type of entity to query (e.g. 'workflow' or 'dataset').
+   * @param actionTypes  An array of action types to retrieve (e.g. ['like', 'clone']).
+   * @param currentUid   User ID context (will be sent as -1 if undefined).
+   * @returns             An Observable resolving to a map where each key is an actionType
+   *                      and the value is the corresponding list of SearchResultItem.
+   */
+  public getTops(
+    entityType: string,
+    actionTypes: string[],
+    currentUid?: number
+  ): Observable<{ [actionType: string]: SearchResultItem[] }> {
+    let params = new HttpParams()
+      .set("entityType", entityType)
+      .set("uid", (currentUid !== undefined ? currentUid : -1).toString());
 
-    params.uid = currentUid !== undefined ? currentUid : -1;
+    actionTypes.forEach(act => {
+      params = params.append("actionTypes", act);
+    });
 
-    return this.http.get<SearchResultItem[]>(`${this.BASE_URL}/getTops`, { params });
+    return this.http.get<{ [actionType: string]: SearchResultItem[] }>(`${this.BASE_URL}/getTops`, { params });
   }
 
   /**
