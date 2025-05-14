@@ -95,37 +95,24 @@ object ExecutionResultService {
                 attr.getType match {
                   case AttributeType.BINARY =>
                     value match {
-                      case binaryList: List[_] if binaryList.nonEmpty =>
-                        val totalSize = binaryList.foldLeft(0) {
-                          case (sum, buffer: java.nio.ByteBuffer) => sum + buffer.remaining()
-                          case (_, other) =>
-                            throw new RuntimeException(
-                              s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
-                            )
-                        }
-
-                        val firstElement = getByteBufferHexString(binaryList.head)
-
-                        val lastElement = if (binaryList.size > 1) {
-                          getByteBufferHexString(binaryList.last)
-                        } else {
-                          firstElement
-                        }
+                      case byteArray: Array[Byte] =>
+                        val totalSize = byteArray.length
+                        val hexString = byteArrayToHexString(byteArray)
 
                         // 39 = 30 (leading bytes) + 9 (trailing bytes)
                         // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
                         // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
-                        if (firstElement.length < 39) {
-                          s"bytes'$firstElement' (length: $totalSize)"
+                        if (hexString.length < 39) {
+                          s"bytes'$hexString' (length: $totalSize)"
                         } else {
-                          val leadingBytes = firstElement.take(30)
-                          val trailingBytes = lastElement.takeRight(9)
+                          val leadingBytes = hexString.take(30)
+                          val trailingBytes = hexString.takeRight(9)
                           s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
                         }
 
                       case _ =>
                         throw new RuntimeException(
-                          s"Expected a List for binary type field, but got: ${value.getClass.getName}"
+                          s"Expected byte array for binary type field, but got: ${value.getClass.getName}"
                         )
                     }
                   case AttributeType.STRING =>
@@ -145,28 +132,16 @@ object ExecutionResultService {
   }
 
   /**
-    * Converts a ByteBuffer value to a hex string representation.
+    * Converts a byte array to a hex string representation.
     *
-    * This helper function takes a ByteBuffer value and converts its contents to a space-separated
+    * This helper function takes a byte array and converts its contents to a space-separated
     * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
-    * If the input is not a ByteBuffer, it throws a RuntimeException.
     *
-    * @param value The value to convert, expected to be a ByteBuffer
-    * @return A string containing the hex representation of the ByteBuffer's contents
-    * @throws RuntimeException if the input value is not a ByteBuffer
+    * @param byteArray The byte array to convert
+    * @return A string containing the hex representation of the byte array's contents
     */
-  private def getByteBufferHexString(value: Any): String = {
-    value match {
-      case buffer: java.nio.ByteBuffer =>
-        val bytes = new Array[Byte](buffer.remaining())
-        val dupBuffer = buffer.duplicate()
-        dupBuffer.get(bytes)
-        bytes.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
-      case other =>
-        throw new RuntimeException(
-          s"Expected ByteBuffer for binary type element, but got: ${other.getClass.getName}"
-        )
-    }
+  private def byteArrayToHexString(byteArray: Array[Byte]): String = {
+    byteArray.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
   }
 
   /**

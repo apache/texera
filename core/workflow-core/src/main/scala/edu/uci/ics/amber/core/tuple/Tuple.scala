@@ -147,9 +147,9 @@ object Tuple {
     */
   private def checkAttributeMatchesField(attribute: Attribute, field: Any): Unit = {
     if (
-      field != null && attribute.getType != AttributeType.ANY &&
-      !(field.getClass.equals(attribute.getType.getFieldClass) ||
-        (attribute.getType == AttributeType.BINARY && field.isInstanceOf[List[_]]))
+      field != null && attribute.getType != AttributeType.ANY && !field.getClass.equals(
+        attribute.getType.getFieldClass
+      )
     ) {
       throw new RuntimeException(
         s"edu.ics.uci.amber.model.tuple.model.Attribute ${attribute.getName}'s type (${attribute.getType}) is different from field's type (${AttributeType
