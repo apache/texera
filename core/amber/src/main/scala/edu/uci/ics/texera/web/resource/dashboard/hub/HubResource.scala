@@ -425,21 +425,21 @@ class HubResource {
 
     validateEntityType(entityType)
     val entityTables = ViewCountTable(entityType)
-    val (table, idCol, vcCol) =
+    val (table, idColumn, viewCountColumn) =
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
 
     val record = context
       .insertInto(table)
-      .set(idCol, entityID)
-      .set(vcCol, Integer.valueOf(1))
+      .set(idColumn, entityID)
+      .set(viewCountColumn, Integer.valueOf(1))
       .onDuplicateKeyUpdate()
-      .set(vcCol, vcCol.add(1))
-      .returning(vcCol)
+      .set(viewCountColumn, viewCountColumn.add(1))
+      .returning(viewCountColumn)
       .fetchOne()
 
     recordUserActivity(request, userId, entityID, entityType, "view")
 
-    record.get(vcCol)
+    record.get(viewCountColumn)
   }
 
   /**
