@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-language-server-deployment
+  namespace: texera
+  labels:
+    app: python-language-server
+spec:
+  replicas: 8 
+  selector:
+    matchLabels:
+      app: python-language-server
+  template:
+    metadata:
+      labels:
+        app: python-language-server
+    spec:
+      containers:
+      - name: python-language-server
+        image: jxzliu/pylsp:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        resources:
+            limits:
+              cpu: 1
+              memory: "200Mi"
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-language-server-service
+  namespace: texera
+  labels:
+    app: python-language-server
+spec:
+  selector:
+    app: python-language-server
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
