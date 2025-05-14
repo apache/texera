@@ -443,25 +443,25 @@ class HubResource {
   }
 
   /**
-   * Unified endpoint to fetch the top N (here N = 8) entities of given action types (like/clone)
-   * for a specified entityType (e.g., "workflow" or "dataset") and optional user ID.
-   *
-   * @param entityType   The type of entity ("workflow" or "dataset") to query.
-   * @param actionTypes  A list of action types to fetch tops for (supported: "like", "clone").
-   *                     Example: ?entityType=workflow&actionTypes=like&actionTypes=clone
-   * @param uid          Optional user ID for context (e.g., to mark liked/cloned by this user).
-   *                     If null or -1, no user-specific context is applied.
-   * @return             A map from each actionType to a list of DashboardClickableFileEntry,
-   *                     representing the top 8 public entities of that type.
-   */
+    * Unified endpoint to fetch the top N (here N = 8) entities of given action types (like/clone)
+    * for a specified entityType (e.g., "workflow" or "dataset") and optional user ID.
+    *
+    * @param entityType   The type of entity ("workflow" or "dataset") to query.
+    * @param actionTypes  A list of action types to fetch tops for (supported: "like", "clone").
+    *                     Example: ?entityType=workflow&actionTypes=like&actionTypes=clone
+    * @param uid          Optional user ID for context (e.g., to mark liked/cloned by this user).
+    *                     If null or -1, no user-specific context is applied.
+    * @return             A map from each actionType to a list of DashboardClickableFileEntry,
+    *                     representing the top 8 public entities of that type.
+    */
   @GET
   @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getTops(
-     @QueryParam("entityType") entityType: String,
-     @QueryParam("actionTypes") actionTypes: java.util.List[String],
-     @QueryParam("uid") uid: Integer
-   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
+      @QueryParam("entityType") entityType: String,
+      @QueryParam("actionTypes") actionTypes: java.util.List[String],
+      @QueryParam("uid") uid: Integer
+  ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
     validateEntityType(entityType)
 
     val baseTable = BaseEntityTable(entityType)
