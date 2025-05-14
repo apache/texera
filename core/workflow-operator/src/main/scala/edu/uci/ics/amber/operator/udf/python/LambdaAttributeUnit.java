@@ -56,6 +56,8 @@ public class LambdaAttributeUnit {
     @JsonSchemaTitle("Expression")
     public String expression;
 
+    public LambdaAttributeUnit() {}
+
     LambdaAttributeUnit(String attributeName, String expression, String newAttributeName, AttributeType newAttributeType) {
         this.attributeName = attributeName;
         this.expression = expression;
