@@ -52,7 +52,7 @@ import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 import scala.jdk.CollectionConverters._
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
-  extends Runnable
+    extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -136,9 +136,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def sendChannelMarker(
-                                 markerPayload: ChannelMarkerPayload,
-                                 from: ChannelIdentity
-                               ): Unit = {
+      markerPayload: ChannelMarkerPayload,
+      from: ChannelIdentity
+  ): Unit = {
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, "ChannelMarker").toByteArray)
     val flightListener = new SyncPutListener
 
@@ -168,9 +168,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def sendControl(
-                           from: ChannelIdentity,
-                           payload: ControlPayload
-                         ): Result = {
+      from: ChannelIdentity,
+      payload: ControlPayload
+  ): Result = {
     var payloadV2 = ControlPayloadV2.defaultInstance
     payloadV2 = payload match {
       case c: ControlInvocation =>
@@ -185,8 +185,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def sendActorCommand(
-                                command: ActorCommand
-                              ): Result = {
+      command: ActorCommand
+  ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
     sendCreditedAction(action)
   }
@@ -211,10 +211,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def writeArrowStream(
-                                tuples: mutable.Queue[Tuple],
-                                from: ChannelIdentity,
-                                payloadType: String
-                              ): Unit = {
+      tuples: mutable.Queue[Tuple],
+      from: ChannelIdentity,
+      payloadType: String
+  ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, payloadType).toByteArray)
