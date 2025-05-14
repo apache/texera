@@ -72,10 +72,10 @@ from proto.edu.uci.ics.amber.core import (
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
-        self,
-        worker_id: str,
-        input_queue: InternalQueue,
-        output_queue: InternalQueue,
+            self,
+            worker_id: str,
+            input_queue: InternalQueue,
+            output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
@@ -362,7 +362,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self._async_rpc_server.receive(channel_id, command)
 
             downstream_channels_in_scope = {
-                scope
+                (scope.from_worker_id, scope.to_worker_id)
                 for scope in marker_payload.scope
                 if scope.from_worker_id == ActorVirtualIdentity(self.context.worker_id)
             }
@@ -370,7 +370,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 for (
                     active_channel_id
                 ) in self.context.output_manager.get_output_channel_ids():
-                    if active_channel_id in downstream_channels_in_scope:
+                    if (active_channel_id.from_worker_id, active_channel_id.to_worker_id) in downstream_channels_in_scope:
                         logger.info(
                             f"send marker to {active_channel_id},"
                             f" id = {marker_id}, cmd = {command}"
