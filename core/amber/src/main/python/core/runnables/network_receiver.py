@@ -91,7 +91,6 @@ class NetworkReceiver(Runnable, Stoppable):
             # If not set, it may be computed at different times,
             # causing hash inconsistencies.
             data_header.tag.is_control = False
-
             payload = match(
                 data_header.payload_type,
                 "Data",
