@@ -151,6 +151,7 @@ class ExecutionMetadataStore(betterproto.Message):
     execution_id: "__core__.ExecutionIdentity" = betterproto.message_field(3)
     is_recovering: bool = betterproto.bool_field(4)
 
+
 @dataclass(eq=False, repr=False)
 class Backpressure(betterproto.Message):
     enable_backpressure: bool = betterproto.bool_field(1)
