@@ -19,33 +19,43 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowDao,
-  WorkflowVersionDao,
-  WorkflowExecutionsDao
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   User,
   Workflow,
-  WorkflowVersion,
-  WorkflowExecutions
+  WorkflowExecutions,
+  WorkflowVersion
 }
+import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
+import edu.uci.ics.texera.web.service.ResultExportService
+import org.scalatest.PrivateMethodTester.PrivateMethod
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
+import java.net.URI
 import java.sql.Timestamp
+import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
 class WorkflowExecutionsResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with PrivateMethodTester {
 
   private val testWorkflowWid = 3000 + scala.util.Random.nextInt(1000)
   private val testUserId = 1000 + scala.util.Random.nextInt(1000)
@@ -57,6 +67,37 @@ class WorkflowExecutionsResourceSpec
   private var workflowDao: WorkflowDao = _
   private var workflowVersionDao: WorkflowVersionDao = _
   private var workflowExecutionsDao: WorkflowExecutionsDao = _
+
+  /* ------------------------------------------------------------------ *
+   * Helper: very small in‑memory implementation of VirtualDocument[T]  *
+   * that supports only the methods exercised by ResultExportService.   *
+   * ------------------------------------------------------------------ */
+  private class TinyDocument(item: Tuple) extends VirtualDocument[Tuple] {
+    override def getCount: Long = 1L
+
+    override def get(): Iterator[Tuple] = util.Collections.singletonList(item).iterator().asScala
+
+    override def getURI: URI = ???
+
+    override def clear(): Unit = ???
+  }
+
+  /* ---------- shared helpers ---------- */
+  private def callFindExtension(
+      request: ResultExportRequest,
+      doc: VirtualDocument[Tuple]
+  ): String = {
+    val service = new ResultExportService(WorkflowIdentity(0))
+    val findPrivate = PrivateMethod[String]('findExtension)
+    service invokePrivate findPrivate(request, doc)
+  }
+
+  /* Common test data for ResultExportService */
+  private val htmlSchema = Schema(List(new Attribute("body", AttributeType.STRING)))
+  private val htmlTuple = Tuple
+    .builder(htmlSchema)
+    .add("body", AttributeType.STRING, "<html><body>Hello</body></html>")
+    .build()
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -173,5 +214,24 @@ class WorkflowExecutionsResourceSpec
       executionIds.toSet.subsetOf(returnedIds),
       "All inserted execution IDs should be returned"
     )
+  }
+
+  "ResultExportService.findExtension" should
+    "detect html when the operator result contains a single HTML snippet" in {
+
+    val req = ResultExportRequest(
+      workflowId = 1,
+      workflowName = "wf",
+      destination = "local",
+      exportType = "csv", // anything other than html
+      operatorIds = List("op"),
+      filename = "",
+      datasetIds = List.empty[Int],
+      rowIndex = 0,
+      columnIndex = 0
+    )
+    val ext = callFindExtension(req, new TinyDocument(htmlTuple))
+
+    assert(ext == "html", "Expected html extension")
   }
 }
