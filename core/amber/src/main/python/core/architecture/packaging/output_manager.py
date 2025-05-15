@@ -179,6 +179,10 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         for channel_id in the_partitioning.channels:
+            # Explicitly set is_control to trigger lazy computation.
+            # If not set, it may be computed at different times,
+            # causing hash inconsistencies.
+            channel_id.is_control = False
             self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
         self._partitioners[tag] = (
