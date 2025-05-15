@@ -291,20 +291,14 @@ class DataProcessor(
       logManager.markAsReplayDestination(marker.id)
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = $command")
 
-      val isEndInputChannelRequest = command.exists { req =>
-        if (req.methodName == METHOD_END_WORKER.getBareMethodName) {
-          asyncRPCServer.receive(
-            req.withCommand(EndInputChannelRequest(channelId)),
-            channelId.fromWorkerId
-          )
-          channelMarkerManager.marker = marker
-          true
-        } else {
-          asyncRPCServer.receive(req, channelId.fromWorkerId)
-          false
-        }
+      if (command.isDefined) {
+        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
-      if (!isEndInputChannelRequest) {
+
+      if (command.exists(_.methodName == METHOD_END_WORKER.getBareMethodName)) {
+        channelMarkerManager.marker = marker
+      }
+      else {
         sendChannelMarker(marker)
       }
     }
