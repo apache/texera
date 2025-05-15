@@ -707,7 +707,7 @@ class WorkflowExecutionsResource {
         case _ =>
           // destination = "dataset" by default
           val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
-          val exportResponse = resultExportService.exportResultToDataset(user.user, request)
+          val exportResponse = resultExportService.exportAllOperatorsResultToDataset(user.user, request)
           Response.ok(exportResponse).build()
       }
     } catch {
