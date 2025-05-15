@@ -187,7 +187,7 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        sendChannelMarker(channelMarkerManager.marker)
+        sendChannelMarker(channelMarkerManager.currentMarker)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -296,7 +296,7 @@ class DataProcessor(
       }
 
       if (command.exists(_.methodName == METHOD_END_WORKER.getBareMethodName)) {
-        channelMarkerManager.marker = marker
+        channelMarkerManager.currentMarker = marker
       }
       else {
         sendChannelMarker(marker)
