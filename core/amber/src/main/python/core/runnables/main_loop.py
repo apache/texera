@@ -58,7 +58,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessageTriggeredRequest,
     ChannelMarkerType,
     ChannelMarkerPayload,
-    EndInputChannelRequest,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
