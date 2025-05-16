@@ -129,8 +129,8 @@ class DataProcessor(
   /**
     * process start of an input port with Executor.produceStateOnStart().
     */
-  def startOfInputChannel(channelId: ChannelIdentity): Unit = {
-    val portId = this.inputGateway.getChannel(channelId).getPortId
+  def processStartOfInputChannel(): Unit = {
+    val portId = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
     try {
       val outputState = executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
@@ -138,26 +138,6 @@ class DataProcessor(
       }
     } catch safely {
       case e =>
-        handleExecutorException(e)
-    }
-  }
-
-  /**
-    * process end of an input port with Executor.produceStateOnFinish().
-    * this function is only called by the DP thread.
-    */
-  private[this] def processEndOfInputChannel(portId: Int): Unit = {
-    try {
-      val outputState = executor.produceStateOnFinish(portId)
-      if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
-      }
-      outputManager.outputIterator.setTupleOutput(
-        executor.onFinishMultiPort(portId)
-      )
-    } catch safely {
-      case e =>
-        // forward input tuple to the user and pause DP thread
         handleExecutorException(e)
     }
   }
@@ -258,12 +238,27 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  def endOfInputChannel(channelId: ChannelIdentity): Unit = {
+  def processEndOfInputChannel(): Unit = {
+    val channelId = inputManager.currentChannelId
     val portId = this.inputGateway.getChannel(channelId).getPortId
     this.inputManager.getPort(portId).channels(channelId) = true
     if (inputManager.isPortCompleted(portId)) {
       inputManager.initBatch(channelId, Array.empty)
-      processEndOfInputChannel(portId.id)
+
+      try {
+        val outputState = executor.produceStateOnFinish(portId.id)
+        if (outputState.isDefined) {
+          outputManager.emitMarker(outputState.get)
+        }
+        outputManager.outputIterator.setTupleOutput(
+          executor.onFinishMultiPort(portId.id)
+        )
+      } catch safely {
+        case e =>
+          // forward input tuple to the user and pause DP thread
+          handleExecutorException(e)
+      }
+
       outputManager.outputIterator.appendSpecialTupleToEnd(
         FinalizePort(portId, input = true)
       )

@@ -43,10 +43,10 @@ trait StartHandler {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
-      val dummyInputPortId = PortIdentity()
-      dp.inputManager.addPort(dummyInputPortId, null)
-      dp.inputGateway.getChannel(channelId).setPortId(dummyInputPortId)
-      dp.startOfInputChannel(channelId)
+      dp.inputManager.addPort(PortIdentity(), null)
+      dp.inputManager.currentChannelId = channelId
+      dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
+      dp.processStartOfInputChannel()
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else {
       throw new WorkflowRuntimeException(
