@@ -137,21 +137,11 @@ val googleServiceDependencies = Seq(
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
-/////////////////////////////////////////////////////////////////////////////
-// MongoDB related
-val mongoDbDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
-  "org.mongodb" % "mongodb-driver-sync" % "5.0.0",
-  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core
-  "org.apache.commons" % "commons-jcs3-core" % "3.2"
-)
-
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= googleServiceDependencies
-libraryDependencies ++= mongoDbDependencies
 libraryDependencies ++= hadoopDependencies
 
 /////////////////////////////////////////////////////////////////////////////
@@ -271,6 +261,9 @@ libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-vfs2
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
+
+// https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core
+libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.2"
 
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib

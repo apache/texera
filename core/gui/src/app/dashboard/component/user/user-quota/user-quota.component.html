@@ -63,7 +63,7 @@
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ formatSize(this.totalMongoSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalQuotaSize) }}</p>
           </div>
         </div>
         <nz-card
@@ -84,7 +84,7 @@
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>
           <nz-collapse-panel
-            *ngFor="let workflow of mongodbWorkflows"
+            *ngFor="let workflow of workflows"
             [nzHeader]="workflow.workflowName">
             <nz-table
               #executionTable
@@ -95,22 +95,22 @@
                 <tr>
                   <th>Collection Name</th>
                   <th>Execution ID</th>
-                  <th [nzSortFn]="sortByMongoDBSize">Cache Size</th>
+                  <th [nzSortFn]="sortBySize">Cache Size</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let execution of executionTable.data">
-                  <td>{{ execution.pointer }}</td>
+                  <td>{{ execution.workflowName }}</td>
                   <td>{{ execution.eid }}</td>
-                  <td>{{ formatSize(execution.size) }}</td>
+                  <td>{{ formatSize(execution.resultBytes + execution.logBytes + execution.runTimeStatsBytes) }}</td>
                   <td>
                     <button
                       nz-popconfirm
                       nzPopconfirmTitle="Confirm to delete selected workflows."
                       nz-button
                       nz-tooltip="delete collection"
-                      (nzOnConfirm)="deleteMongoCollection(execution.pointer, execution, execution.workflowName)"
+                      (nzOnConfirm)="deleteCollection(execution.eid)"
                       type="button">
                       <i
                         nz-icon

@@ -408,4 +408,26 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         field -> stats.toMap
     }.toMap
   }
+
+  /**
+    * Computes the total size of all data files in the Iceberg table.
+    *
+    * @return The total size of all data files in bytes.
+    * @throws NoSuchTableException if the table does not exist.
+    */
+  override def getTotalFileSize: Long = {
+    val table = IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
+    var filesSize: Long = 0L
+
+    try {
+      filesSize = table.currentSnapshot().summary().getOrDefault("total-files-size", "0").toLong
+    } catch {
+      case e: Exception => println(s"Failed to get total-files-size: ${e.getMessage}")
+    }
+    filesSize
+  }
 }
