@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import com.fasterxml.jackson.annotation.{JsonProperty}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
@@ -13,16 +13,26 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Effect Size (log2 Fold Change)")
+  @JsonPropertyDescription(
+    "Select the column representing the effect size or magnitude " +
+      "of change between two experimental groups. This value is typically a log2 fold change " +
+      "and is used for the x-axis of the volcano plot."
+  )
   @AutofillAttributeName var effectColumn: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("P-Value Column")
+  @JsonPropertyDescription(
+    "Select the column representing the p-value associated with the " +
+      "statistical test for each feature. This value is transformed using -log10(p-value) and " +
+      "plotted on the y-axis to indicate statistical significance."
+  )
   @AutofillAttributeName var pvalueColumn: String = ""
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       userFriendlyName = "Volcano Plot",
-      operatorDescription = "displays statistical significance versus effect size",
+      operatorDescription = "Displays statistical significance versus effect size",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
