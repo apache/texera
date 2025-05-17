@@ -46,7 +46,7 @@ class AssignPortHandler(ControlHandler):
                 )
         else:
             storage_uri = None
-            if len(req.storage_uris) > 0 and req.storage_uris[0] != "":
+            if len(req.storage_uris) > 0 and req.storage_uris[0]:
                 storage_uri = req.storage_uris[0]
             self.context.output_manager.add_output_port(
                 req.port_id, Schema(raw_schema=req.schema), storage_uri

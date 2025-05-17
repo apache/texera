@@ -49,9 +49,10 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from loguru import logger
 
 
-class InputPortMaterializationReaderThread(Runnable, Stoppable):
+class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
     def __init__(
         self,
         uri: str,
@@ -69,7 +70,6 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.uri = uri
         self.queue = queue
         self.worker_actor_id = worker_actor_id
-        self.sequence_number = 0  # Counter to mimic AtomicLong behavior.
         from_actor_id = get_from_actor_id_for_input_port_storage(
             self.uri, self.worker_actor_id
         )
@@ -116,10 +116,10 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         selected as the input of this worker according to the partitioner.
         """
         try:
-            self.emit_marker(StartOfInputChannel())
             self.materialization, self.tuple_schema = DocumentFactory.open_document(
                 self.uri
             )
+            self.emit_marker(StartOfInputChannel())
             storage_iterator = self.materialization.get()
 
             # Iterate and process tuples.
@@ -130,14 +130,15 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
                 # a batch-based iterator.
                 for data_frame in self.tuple_to_batch_with_filter(tup):
                     self.emit_payload(data_frame)
-        finally:
             self.emit_marker(EndOfInputChannel())
+        except Exception as err:
+            logger.exception(err)
 
     def stop(self):
         """Sets the stop flag so the run loop may terminate."""
         self._stopped = True
 
-    def emit_marker(self, marker) -> None:
+    def emit_marker(self, marker: Marker) -> None:
         """
         Emit a marker (StartOfInputChannel or EndOfInputChannel), and
         flush the remaining data batches if any. This mimics the
@@ -152,7 +153,7 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
                 )
                 self.emit_payload(final_payload)
 
-    def emit_payload(self, payload: DataPayload):
+    def emit_payload(self, payload: DataPayload) -> None:
         """
         Put the payload to the DP internal queue.
         """
@@ -163,6 +164,11 @@ class InputPortMaterializationReaderThread(Runnable, Stoppable):
         self.queue.put(queue_element)
 
     def tuples_to_data_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
+        """
+        Converts a list of tuples to a DataFrame using pyarrow.Table.from_pydict
+        :param tuples:
+        :return:
+        """
         return DataFrame(
             frame=Table.from_pydict(
                 {

@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, Marker, StartOfInputChannel}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
@@ -86,9 +87,10 @@ class InputPortMaterializationReaderThread(
       }
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
-    } finally {
       emitMarker(EndOfInputChannel())
-      // FinalizeInputPort, FinalizeOutputPort, and FinalizeExecutor will be sent by dp once it receives EndOfInputChannel()
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(s"Error reading input port materializations: ${e.getMessage}", e)
     }
   }
 
@@ -101,7 +103,6 @@ class InputPortMaterializationReaderThread(
     val fifoMessage = WorkflowFIFOMessage(channelId, getSequenceNumber, markerPayload)
     val inputQueueElement = FIFOMessageElement(fifoMessage)
     inputMessageQueue.put(inputQueueElement)
-    flush()
   }
 
   /**

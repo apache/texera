@@ -28,8 +28,8 @@ from core.models.internal_marker import (
 )
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
-from core.storage.runnables.input_port_materialization_reader_thread import (
-    InputPortMaterializationReaderThread,
+from core.storage.runnables.input_port_materialization_reader_runnable import (
+    InputPortMaterializationReaderRunnable,
 )
 from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
@@ -74,19 +74,16 @@ class WorkerPort:
 class InputManager:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
-    def __init__(self, worker_id: str):
+    def __init__(self, worker_id: str, input_queue: InternalQueue):
         self.worker_id = worker_id
         self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
-        self._input_queue = None
+        self._input_queue = input_queue
         self._input_port_mat_read_threads: Dict[
-            PortIdentity, List[InputPortMaterializationReaderThread]
+            PortIdentity, List[InputPortMaterializationReaderRunnable]
         ] = dict()
-
-    def set_input_queue(self, queue: InternalQueue) -> None:
-        self._input_queue = queue
 
     def set_up_input_port_mat_reader_threads(
         self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
@@ -94,7 +91,7 @@ class InputManager:
         assert len(uris) == len(partitionings)
         if uris is not None:
             reader_threads = [
-                InputPortMaterializationReaderThread(
+                InputPortMaterializationReaderRunnable(
                     uri=uri,
                     queue=self._input_queue,
                     worker_actor_id=ActorVirtualIdentity(self.worker_id),
@@ -106,7 +103,7 @@ class InputManager:
 
     def get_input_port_mat_reader_threads(
         self,
-    ) -> Dict[PortIdentity, List[InputPortMaterializationReaderThread]]:
+    ) -> Dict[PortIdentity, List[InputPortMaterializationReaderRunnable]]:
         return self._input_port_mat_read_threads
 
     def start_input_port_mat_reader_threads(self):
