@@ -47,14 +47,6 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
-  def isPortCompleted(portId: PortIdentity): Boolean = {
-    // a port without channels is not completed.
-    if (this.ports(portId).channels.isEmpty) {
-      return false
-    }
-    this.ports(portId).channels.values.forall(completed => completed)
-  }
-
   def hasUnfinishedInput: Boolean = inputBatch != null && currentInputIdx + 1 < inputBatch.length
 
   def getNextTuple: Tuple = {

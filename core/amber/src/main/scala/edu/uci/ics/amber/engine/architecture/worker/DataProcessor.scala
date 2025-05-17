@@ -239,31 +239,31 @@ class DataProcessor(
   }
 
   def processEndOfInputChannel(): Unit = {
+
     val channelId = inputManager.currentChannelId
     val portId = this.inputGateway.getChannel(channelId).getPortId
-    this.inputManager.getPort(portId).channels(channelId) = true
-    if (inputManager.isPortCompleted(portId)) {
-      inputManager.initBatch(channelId, Array.empty)
+    this.inputManager.getPort(portId).completed = true
 
-      try {
-        val outputState = executor.produceStateOnFinish(portId.id)
-        if (outputState.isDefined) {
-          outputManager.emitMarker(outputState.get)
-        }
-        outputManager.outputIterator.setTupleOutput(
-          executor.onFinishMultiPort(portId.id)
-        )
-      } catch safely {
-        case e =>
-          // forward input tuple to the user and pause DP thread
-          handleExecutorException(e)
+    inputManager.initBatch(channelId, Array.empty)
+    try {
+      val outputState = executor.produceStateOnFinish(portId.id)
+      if (outputState.isDefined) {
+        outputManager.emitMarker(outputState.get)
       }
-
-      outputManager.outputIterator.appendSpecialTupleToEnd(
-        FinalizePort(portId, input = true)
+      outputManager.outputIterator.setTupleOutput(
+        executor.onFinishMultiPort(portId.id)
       )
+    } catch safely {
+      case e =>
+        // forward input tuple to the user and pause DP thread
+        handleExecutorException(e)
     }
-    if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
+
+    outputManager.outputIterator.appendSpecialTupleToEnd(
+      FinalizePort(portId, input = true)
+    )
+
+    if (inputManager.getAllPorts.forall(portId => this.inputManager.getPort(portId).completed)) {
       // assuming all the output ports finalize after all input ports are finalized.
       outputManager.finalizeOutput()
     }
@@ -296,6 +296,11 @@ class DataProcessor(
       else {
         sendChannelMarker(marker)
       }
+
+      // unblock input channels
+      if (marker.markerType == REQUIRE_ALIGNMENT) {
+        pauseManager.resume(EpochMarkerPause(marker.id))
+      }
     }
   }
 
@@ -312,10 +317,6 @@ class DataProcessor(
           outputGateway.sendTo(activeChannelId, marker)
         }
       }
-    }
-    // unblock input channels
-    if (marker.markerType == REQUIRE_ALIGNMENT) {
-      pauseManager.resume(EpochMarkerPause(marker.id))
     }
   }
 

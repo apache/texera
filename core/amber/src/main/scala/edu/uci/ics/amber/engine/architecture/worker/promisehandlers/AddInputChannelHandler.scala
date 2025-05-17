@@ -36,9 +36,7 @@ trait AddInputChannelHandler {
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
     dp.inputGateway.getChannel(msg.channelId).setPortId(msg.portId)
-    dp.inputManager.getPort(msg.portId).channels(msg.channelId) = false
     dp.stateManager.assertState(READY, RUNNING, PAUSED)
     EmptyReturn()
   }
-
 }
