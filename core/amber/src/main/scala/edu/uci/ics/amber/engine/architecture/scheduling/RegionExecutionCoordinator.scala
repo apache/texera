@@ -44,8 +44,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   WorkflowAggregatedState
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
   OperatorConfig,
-  PortConfig,
+  OutputPortConfig,
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -64,7 +65,11 @@ class RegionExecutionCoordinator(
     val resourceConfig = region.resourceConfig.get
 
     // Create storage objects for output ports of the region
-    createOutputPortStorageObjects(resourceConfig.portConfigs.filter(!_._1.input))
+    createOutputPortStorageObjects(
+      resourceConfig.portConfigs.collect { // keep only output-port configs
+        case (id, cfg: OutputPortConfig) => id -> cfg
+      }
+    )
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
@@ -185,14 +190,15 @@ class RegionExecutionCoordinator(
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
                 val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-                val storageURIs = resourceConfig.portConfigs.get(globalInputPortId) match {
-                  case Some(config) => config.storageURIs.map(uri => uri.toString)
-                  case None         => List.empty[String]
-                }
-                val partitionings = resourceConfig.portConfigs.get(globalInputPortId) match {
-                  case Some(config) => config.partitioningsOpt.getOrElse(List.empty)
-                  case None         => List.empty
-                }
+                val storageURIs = resourceConfig.portConfigs
+                  .get(globalInputPortId)
+                  .collect { case c: InputPortConfig => c.storageURIs.map(_.toString) }
+                  .getOrElse(List.empty[String])
+
+                val partitionings = resourceConfig.portConfigs
+                  .get(globalInputPortId)
+                  .collect { case c: InputPortConfig => c.partitioningsOpt.getOrElse(List.empty) }
+                  .getOrElse(List.empty)
                 Some(
                   globalInputPortId -> (storageURIs, partitionings, schema)
                 )
@@ -207,12 +213,13 @@ class RegionExecutionCoordinator(
             }
             .flatMap {
               case (outputPortId, (_, _, Right(schema))) =>
-                val storageURI = resourceConfig.portConfigs.get(
-                  GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
-                ) match {
-                  case Some(portConfig) => portConfig.storageURIs.head.toString
-                  case None             => ""
-                }
+                val storageURI = resourceConfig.portConfigs
+                  .collectFirst {
+                    case (gid, cfg: OutputPortConfig)
+                        if gid == GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId) =>
+                      cfg.storageURI.toString
+                  }
+                  .getOrElse("")
                 Some(
                   GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(
                     storageURI
@@ -301,11 +308,11 @@ class RegionExecutionCoordinator(
   }
 
   private def createOutputPortStorageObjects(
-      portConfigs: Map[GlobalPortIdentity, PortConfig]
+      portConfigs: Map[GlobalPortIdentity, OutputPortConfig]
   ): Unit = {
     portConfigs.foreach {
-      case (outputPortId, portConfig: PortConfig) =>
-        val storageUriToAdd = portConfig.storageURIs.head
+      case (outputPortId, portConfig) =>
+        val storageUriToAdd = portConfig.storageURI
         val (_, eid, _, _) = decodeURI(storageUriToAdd)
         val schemaOptional =
           region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3

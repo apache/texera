@@ -27,7 +27,13 @@ import edu.uci.ics.amber.core.workflow.{
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
+
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  PortConfig,
+  ResourceConfig,
+  InputPortConfig,
+  OutputPortConfig
+}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
@@ -122,18 +128,14 @@ class CostBasedScheduleGenerator(
             )
           ) ++ outputPortIdsToViewResult
 
-        val outputPortConfigs = outputPortIdsNeedingStorage
-          .map(outputPortId =>
-            outputPortId -> {
-              val uri = createResultURI(
-                workflowId = workflowContext.workflowId,
-                executionId = workflowContext.executionId,
-                globalPortId = outputPortId
-              )
-              PortConfig(storageURIs = List(uri))
-            }
+        val outputPortConfigs = outputPortIdsNeedingStorage.map { outputPortId =>
+          val uri = createResultURI(
+            workflowId = workflowContext.workflowId,
+            executionId = workflowContext.executionId,
+            globalPortId = outputPortId
           )
-          .toMap
+          outputPortId -> OutputPortConfig(uri) // ← was PortConfig(...)
+        }.toMap
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
         val ports = operators.flatMap(op =>
@@ -167,13 +169,11 @@ class CostBasedScheduleGenerator(
             val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
             val uri = allPortConfigs(globalOutputPortId).storageURIs.head
             val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
-            acc.updated(
-              globalInputPortId,
-              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
-            )
+            acc.updated(globalInputPortId, acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri)
           }
           .map {
-            case (inputPortId, uris) => inputPortId -> PortConfig(storageURIs = uris)
+            case (inputPortId, uris) =>
+              inputPortId -> InputPortConfig(uris.map(u => (u, None))) // ← was PortConfig(...)
           }
         val newResourceConfig = existingRegion.resourceConfig match {
           case Some(existingConfig) =>

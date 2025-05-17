@@ -22,15 +22,19 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
@@ -233,7 +237,7 @@ class ExpansionGreedyScheduleGenerator(
         getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
           val portConfigToAdd = outputPortId -> {
             val uriToAdd = getStorageURIFromGlobalOutputPortId(outputPortId)
-            PortConfig(storageURIs = List(uriToAdd))
+            OutputPortConfig(uriToAdd)
           }
           val newResourceConfig = fromRegion.resourceConfig match {
             case Some(existingConfig) =>
@@ -256,7 +260,8 @@ class ExpansionGreedyScheduleGenerator(
             case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort)
           }.toList
 
-          val portConfigToAdd = inputPort -> PortConfig(storageURIs = urisToAdd)
+          val portConfigToAdd =
+            inputPort -> InputPortConfig(urisToAdd.map(u => (u, None)))
 
           getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
             val newResourceConfig = toRegion.resourceConfig match {
