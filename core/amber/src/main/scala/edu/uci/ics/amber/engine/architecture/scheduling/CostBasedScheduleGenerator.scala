@@ -229,7 +229,7 @@ class CostBasedScheduleGenerator(
         existingRegion.getOperators.exists(_.id == matEdge.toOpId)
       }
 
-      // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
+      // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URI)
       val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
         relevantMatEdges
           .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
