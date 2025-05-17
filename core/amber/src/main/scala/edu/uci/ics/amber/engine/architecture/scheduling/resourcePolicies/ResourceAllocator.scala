@@ -26,8 +26,10 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.gen
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config._
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
+import java.net.URI
 import scala.collection.mutable
 
 trait ResourceAllocator {
@@ -93,40 +95,37 @@ class DefaultResourceAllocator(
     linkConfigs ++= linkToLinkConfigMapping
 
     val portConfigs: Map[GlobalPortIdentity, PortConfig] = region.resourceConfig match {
-      case Some(existingResourceConfig) =>
-        val updatedPortConfigs = existingResourceConfig.portConfigs.map {
-          case (globalPortId, existingPortCfg: InputPortConfig)
-              if globalPortId.input && existingPortCfg.storageURIs.nonEmpty =>
-            // derive partitionings for each upstream materialisation
-            val portPartitionings = existingPortCfg.storageURIs.map { inputMatUri =>
-              val toWorkerActorIds =
-                operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId)
-              val fromVirtualThreadActorIds = toWorkerActorIds.map(toWorkerActorId =>
-                getFromActorIdForInputPortStorage(inputMatUri.toString, toWorkerActorId)
-              )
-              // Extract the input port partitionInfo defined in the physicalOp, defaulting to UnknownPartition.
-              val inputPortPartitionInfo = region
-                .getOperator(globalPortId.opId)
-                .partitionRequirement
-                .applyOrElse(globalPortId.portId.id, (_: Int) => None)
-                .getOrElse(UnknownPartition())
+      case Some(existing) =>
+        val upgradedInputPortConfigs: Map[GlobalPortIdentity, InputPortConfig] =
+          existing.portConfigs.collect {
+            case (globalPortId, rawInConfig: IntermediateInputPortConfig) if globalPortId.input =>
+              val uris: List[URI] = rawInConfig.storageURIs
+              // derive partitionings for each upstream materialization
+              val portPartitionings: List[Partitioning] = uris.map { inputMatUri =>
+                val toWorkerActorIds =
+                  operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId)
+                val fromVirtualThreadActorIds = toWorkerActorIds.map(toWorkerActorId =>
+                  getFromActorIdForInputPortStorage(inputMatUri.toString, toWorkerActorId)
+                )
+                // Extract the input port partitionInfo defined in the physicalOp, defaulting to UnknownPartition.
+                val inputPortPartitionInfo = region
+                  .getOperator(globalPortId.opId)
+                  .partitionRequirement
+                  .applyOrElse(globalPortId.portId.id, (_: Int) => None)
+                  .getOrElse(UnknownPartition())
 
-              toPartitioning(
-                fromVirtualThreadActorIds,
-                toWorkerActorIds,
-                inputPortPartitionInfo,
-                workflowSettings.dataTransferBatchSize
-              )
-            }
+                toPartitioning(
+                  fromVirtualThreadActorIds,
+                  toWorkerActorIds,
+                  inputPortPartitionInfo,
+                  workflowSettings.dataTransferBatchSize
+                )
+              }
+              // new InputPortConfig that carries both URIs and per-URI partitionings
+              globalPortId -> InputPortConfig(uris.zip(portPartitionings))
+          }
 
-            // new InputPortConfig that carries both URIs and per-URI partitionings
-            val storagePairs =
-              existingPortCfg.storageURIs.zip(portPartitionings.map(Some(_)))
-            globalPortId -> InputPortConfig(storagePairs)
-
-          case other => other // leave all other ports untouched
-        }
-        updatedPortConfigs
+        existing.portConfigs ++ upgradedInputPortConfigs
 
       case None =>
         Map.empty[GlobalPortIdentity, PortConfig]

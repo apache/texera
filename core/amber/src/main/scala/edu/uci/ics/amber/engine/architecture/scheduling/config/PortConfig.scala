@@ -3,28 +3,37 @@ package edu.uci.ics.amber.engine.architecture.scheduling.config
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import java.net.URI
 
-/** Common API for both input ports and output ports. */
+/**
+  * Super-type for any per-port config.
+  * After resource allocation, only OutputPortConfig or InputPortConfig remain.
+  */
 sealed trait PortConfig {
   def storageURIs: List[URI]
-  def partitioningsOpt: Option[List[Partitioning]]
 }
 
-/** Output-port config: exactly one destination URI, no partitioning. */
+/** An output port requires exactly one materialization URI. */
 final case class OutputPortConfig(storageURI: URI) extends PortConfig {
   override val storageURIs: List[URI] = List(storageURI)
-  override val partitioningsOpt: Option[List[Partitioning]] = None
 }
 
 /**
-  * Input-port config.
-  * To reach each upstream materialization, a pair of (URI, Partitioning) is needed.
+  * This class is needed as we fill the ResouceConfig of a region in two passes (before and after the ResouceAllocator
+  * is invoked.) In the first pass, the ScheduleGenerator builds a schedule and assigns materialization URIs to
+  * input/output ports. The URI allocation happens in this pass as the ScheduleGenerator can assign URIs as it creates
+  * each region, utilizing its global information about materializations across regions. After a Region DAG is
+  * finalized by the ScheduleGenerator, the ScheduleGenerator invokes ResouceAllocator, which allocates workers. As
+  * Partitioning can only be created after worker allocation, IntermediateInputPortConfig serves as the intermediate result
+  * before the ResourceAllocator is invoked. After ResourceAllocator finishes allocating resources, it will be
+  * upgraded to an InputPortConfig.
+  */
+final case class IntermediateInputPortConfig(storageURIs: List[URI]) extends PortConfig
+
+/**
+  * Final form after ResourceAllocator is invoked by the ScheduleGenerator.
+  * Each URI is associated with its Partitioning.
   */
 final case class InputPortConfig(
-    storagePairs: List[(URI, Option[Partitioning])]
+    storagePairs: List[(URI, Partitioning)]
 ) extends PortConfig {
-  override val storageURIs: List[URI] =
-    storagePairs.map(_._1)
-
-  override val partitioningsOpt: Option[List[Partitioning]] =
-    Some(storagePairs.flatMap(_._2))
+  override val storageURIs: List[URI] = storagePairs.map(_._1)
 }

@@ -31,7 +31,7 @@ import edu.uci.ics.amber.core.workflow.{
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  InputPortConfig,
+  IntermediateInputPortConfig,
   OutputPortConfig,
   ResourceConfig
 }
@@ -261,7 +261,7 @@ class ExpansionGreedyScheduleGenerator(
           }.toList
 
           val portConfigToAdd =
-            inputPort -> InputPortConfig(urisToAdd.map(u => (u, None)))
+            inputPort -> IntermediateInputPortConfig(urisToAdd)
 
           getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
             val newResourceConfig = toRegion.resourceConfig match {

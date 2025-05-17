@@ -31,7 +31,7 @@ import edu.uci.ics.amber.core.workflow.{
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   PortConfig,
   ResourceConfig,
-  InputPortConfig,
+  IntermediateInputPortConfig,
   OutputPortConfig
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
@@ -134,7 +134,7 @@ class CostBasedScheduleGenerator(
             executionId = workflowContext.executionId,
             globalPortId = outputPortId
           )
-          outputPortId -> OutputPortConfig(uri) // ← was PortConfig(...)
+          outputPortId -> OutputPortConfig(uri)
         }.toMap
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
@@ -169,11 +169,14 @@ class CostBasedScheduleGenerator(
             val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
             val uri = allPortConfigs(globalOutputPortId).storageURIs.head
             val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
-            acc.updated(globalInputPortId, acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri)
+            acc.updated(
+              globalInputPortId,
+              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
+            )
           }
           .map {
             case (inputPortId, uris) =>
-              inputPortId -> InputPortConfig(uris.map(u => (u, None))) // ← was PortConfig(...)
+              inputPortId -> IntermediateInputPortConfig(uris)
           }
         val newResourceConfig = existingRegion.resourceConfig match {
           case Some(existingConfig) =>

@@ -49,6 +49,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OutputPortConfig,
   ResourceConfig
 }
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -190,21 +191,23 @@ class RegionExecutionCoordinator(
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
                 val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-                val storageURIs = resourceConfig.portConfigs
-                  .get(globalInputPortId)
-                  .collect { case c: InputPortConfig => c.storageURIs.map(_.toString) }
-                  .getOrElse(List.empty[String])
+                val (storageURIs, partitionings) =
+                  resourceConfig.portConfigs.get(globalInputPortId) match {
+                    case Some(cfg: InputPortConfig) =>
+                      (
+                        cfg.storagePairs.map(_._1.toString),
+                        cfg.storagePairs.map(_._2)
+                      )
+                    case _ =>
+                      (List.empty[String], List.empty[Partitioning])
+                  }
 
-                val partitionings = resourceConfig.portConfigs
-                  .get(globalInputPortId)
-                  .collect { case c: InputPortConfig => c.partitioningsOpt.getOrElse(List.empty) }
-                  .getOrElse(List.empty)
-                Some(
-                  globalInputPortId -> (storageURIs, partitionings, schema)
-                )
+                Some(globalInputPortId -> (storageURIs, partitionings, schema))
               case _ => None
             }
-
+          // Currently an output port uses the same AssignPortRequest as an Input port.
+          // However, an output port does not need a list of URIs or partitionings.
+          // TODO: Separate AssignPortRequest for Input and Output Ports
           val outputPortMapping = physicalOp.outputPorts
             .filter {
               case (outputPortId, _) =>
