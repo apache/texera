@@ -24,17 +24,18 @@ import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpI
 import edu.uci.ics.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
+  PhysicalOp,
   PhysicalPlan,
   WorkflowContext
 }
-
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  PortConfig,
-  ResourceConfig,
   IntermediateInputPortConfig,
-  OutputPortConfig
+  OutputPortConfig,
+  PortConfig,
+  ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -89,105 +90,186 @@ class CostBasedScheduleGenerator(
   }
 
   /**
-    * Create regions based on only pipelined edges. This does not add the region links.
+    * Partitions a physical plan into Regions and assigns storage URIs in two passes.
     *
-    * @param physicalPlan The original physical plan without materializations added yet.
-    * @param matEdges     Set of edges to materialize (including the original blocking edges).
-    * @return A set of regions.
+    * <p><strong>Overview</strong></p>
+    * <ol>
+    *   <li><strong>Region construction:</strong>
+    *     Remove all materialized edges from the DAG and compute undirected connected
+    *     components. The resulting “Region Graph” may contain directed cycles.</li>
+    *   <li><strong>Pass 1 – Output URIs:</strong>
+    *     For each Region, allocate storage URIs on every output port of materialized edges.</li>
+    *   <li><strong>Pass 2 – Input URIs:</strong>
+    *     Re-traverse the same Regions and attach reader URIs on input ports using
+    *     the URIs created in Pass 1.</li>
+    * </ol>
+    *
+    * <p><strong>Why two passes?</strong></p>
+    * <ul>
+    *   <li>Potential directed cycles in the Region Graph makes a topological
+    *       traversal of regions inpossible.</li>
+    *   <li>To ensure every output URI exists before its corresponding reader is assigned,
+    *       and avoiding “reader before writer” holes, two passes are required.</li>
+    * </ul>
+    *
+    * @param physicalPlan the original physical plan (without materializations)
+    * @param matEdges     edges to be materialized (including blocking edges)
+    * @return a set of [[Region]]s whose [[ResourceConfig]] contains only [[URI]]s for [[PortConfig]]s
+    *         ([[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning]]
+    *         to be assigned later in
+    *         [[edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.ResourceAllocator]])
+    * @see [[edu.uci.ics.amber.engine.architecture.scheduling.config.IntermediateInputPortConfig]]
     */
   private def createRegions(
       physicalPlan: PhysicalPlan,
       matEdges: Set[PhysicalLink]
   ): Set[Region] = {
-    val matEdgesRemovedDAG = matEdges.foldLeft(physicalPlan) { (currentPlan, linkToRemove) =>
-      currentPlan.removeLink(linkToRemove)
-    }
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
-      matEdgesRemovedDAG.dag
-    ).getConnectedComponents.asScala.toSet
-    val regionsWithoutInputPortStorage = connectedComponents.zipWithIndex.map {
+
+    /* ------------------------------------------------------------------
+     * Pass 0 – remove materialized edges and create connected components
+     * ------------------------------------------------------------------ */
+
+    val matEdgesRemovedDAG: PhysicalPlan = matEdges.foldLeft(physicalPlan)(_.removeLink(_))
+
+    val connectedComponents: Set[Graph[PhysicalOpIdentity, PhysicalLink]] =
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
+        matEdgesRemovedDAG.dag
+      ).getConnectedComponents.asScala.toSet
+
+    /* ------------------------------------------------------------
+     * Pass 1 – build Regions only output-port storage URIs
+     * ------------------------------------------------------------ */
+
+    val regionsWithOnlyOutputPortURIs: Set[Region] = connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
-        val links = operatorIds
-          .flatMap(operatorId => {
-            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
-              .getDownstreamPhysicalLinks(operatorId)
-          })
-          .filter(link => operatorIds.contains(link.fromOpId))
-          .diff(matEdges)
-        val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
+        // --- operators and intra‑region pipelined links ------------------
+        val operators: Set[PhysicalOpIdentity] = connectedSubDAG.vertexSet().asScala.toSet
+
+        val links: Set[PhysicalLink] = operators
+          .flatMap { opId =>
+            physicalPlan.getUpstreamPhysicalLinks(opId) ++
+              physicalPlan.getDownstreamPhysicalLinks(opId)
+          }
+          .filter(link => operators.contains(link.fromOpId))
+          .diff(matEdges) // keep only pipelined edges
+
+        val physicalOps: Set[PhysicalOp] = operators.map(physicalPlan.getOperator)
+
+        /**
+          * Frontend-specified ports that need to be materailized
+          * (output ports of "eye-icon" physicalOps)
+          */
         val outputPortIdsToViewResult: Set[GlobalPortIdentity] =
           workflowContext.workflowSettings.outputPortsNeedingStorage
-            .filter(outputPort => operatorIds.contains(outputPort.opId))
-        val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
-          .diff(physicalPlan.getDependeeLinks)
-          .filter(matLink => operatorIds.contains(matLink.fromOpId))
-          .flatMap(link =>
-            List(
-              GlobalPortIdentity(link.fromOpId, link.fromPortId)
-            )
-          ) ++ outputPortIdsToViewResult
+            .filter(pid => operators.contains(pid.opId))
 
-        val outputPortConfigs = outputPortIdsNeedingStorage.map { outputPortId =>
-          val uri = createResultURI(
-            workflowId = workflowContext.workflowId,
-            executionId = workflowContext.executionId,
-            globalPortId = outputPortId
-          )
-          outputPortId -> OutputPortConfig(uri)
-        }.toMap
+        /**
+          * Contains both frontend-specified and scheduler-decided ports
+          * that require materailizations.
+          */
+        val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] =
+          matEdges
+            .diff(physicalPlan.getDependeeLinks) // non‑dependee mat edges only
+            .filter(e => operators.contains(e.fromOpId))
+            .map(e => GlobalPortIdentity(e.fromOpId, e.fromPortId)) ++
+            outputPortIdsToViewResult
+
+        // allocate an URI for each of these output ports
+        val outputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
+          outputPortIdsNeedingStorage.map { gpid =>
+            val outputWriterURI = createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              globalPortId = gpid
+            )
+            gpid -> OutputPortConfig(outputWriterURI)
+          }.toMap
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
-        val ports = operators.flatMap(op =>
+
+        // --- enumerate all ports belonging to the Region ------------------
+        val ports: Set[GlobalPortIdentity] = physicalOps.flatMap { op =>
           op.inputPorts.keys
             .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
             .toSet ++ op.outputPorts.keys
             .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
             .toSet
-        )
+        }
+
+        // build the Region skeleton (no input‑port URIs yet)
         Region(
           id = RegionIdentity(idx),
-          physicalOps = operators,
+          physicalOps = physicalOps,
           physicalLinks = links,
           ports = ports,
           resourceConfig = Some(resourceConfig)
         )
     }
-    // TODO: Merge them in topological order
-    val allPortConfigs = regionsWithoutInputPortStorage
-      .flatMap(_.resourceConfig.map(_.portConfigs))
-      .foldLeft(Map.empty[GlobalPortIdentity, PortConfig])(_ ++ _)
-    regionsWithoutInputPortStorage.map { existingRegion =>
-      {
-        val nonDepMatEdges = matEdges.diff(physicalPlan.getDependeeLinks)
-        val relevantMatEdges = nonDepMatEdges.filter(matLink =>
-          existingRegion.getOperators.map(physicalOp => physicalOp.id).contains(matLink.toOpId)
-        )
-        // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
-        val inputPortConfigs = relevantMatEdges
+
+    // Collect writer‑side configs so we can look them up in Pass 2
+    val allOutputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
+      regionsWithOnlyOutputPortURIs
+        .flatMap(_.resourceConfig) // Seq[ResourceConfig]
+        .flatMap(_.portConfigs.collect { // PortConfig → OutputPortConfig
+          case (id, cfg: OutputPortConfig) => id -> cfg
+        })
+        .toMap
+
+    /* ------------------------------------------------------------
+     * Pass 2 – add input‑port storage configs (reader URIs)
+     * ------------------------------------------------------------ */
+
+    regionsWithOnlyOutputPortURIs.map { existingRegion =>
+      val nonDepMatEdges: Set[PhysicalLink] = matEdges.diff(physicalPlan.getDependeeLinks)
+
+      /**
+        * MatEdges that originally connected to the input ports of this region.
+        */
+      val relevantMatEdges: Set[PhysicalLink] = nonDepMatEdges.filter { matEdge =>
+        existingRegion.getOperators.exists(_.id == matEdge.toOpId)
+      }
+
+      // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URIs)
+      val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
+        relevantMatEdges
           .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
             val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
-            val uri = allPortConfigs(globalOutputPortId).storageURIs.head
             val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+
+            /**
+              * Writer‑side URI that must already exist thanks to Pass 1
+              */
+            val inputReaderURI = allOutputPortConfigs
+              .getOrElse(
+                globalOutputPortId,
+                throw new IllegalStateException(
+                  s"Materialization edge $link: attempting to assign a materialization " +
+                    s"reader URI for input port $globalInputPortId when " +
+                    s"the outout port $globalOutputPortId has not been assigned a URI yet."
+                )
+              )
+              .storageURI
+
+            // Group all available URIs of this input port together
             acc.updated(
               globalInputPortId,
-              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ uri
+              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ inputReaderURI
             )
           }
           .map {
             case (inputPortId, uris) =>
               inputPortId -> IntermediateInputPortConfig(uris)
           }
-        val newResourceConfig = existingRegion.resourceConfig match {
-          case Some(existingConfig) =>
-            Some(ResourceConfig(portConfigs = existingConfig.portConfigs ++ inputPortConfigs))
-          case None =>
-            if (inputPortConfigs.nonEmpty) {
-              Some(ResourceConfig(portConfigs = inputPortConfigs))
-            } else None
-        }
-        existingRegion.copy(resourceConfig = newResourceConfig)
+
+      val newResourceConfig: Option[ResourceConfig] = existingRegion.resourceConfig match {
+        case Some(existingConfig) =>
+          Some(ResourceConfig(portConfigs = existingConfig.portConfigs ++ inputPortConfigs))
+        case None =>
+          if (inputPortConfigs.nonEmpty) Some(ResourceConfig(portConfigs = inputPortConfigs))
+          else None
       }
+
+      existingRegion.copy(resourceConfig = newResourceConfig)
     }
   }
 
