@@ -239,7 +239,6 @@ class DataProcessor(
   }
 
   def processEndOfInputChannel(): Unit = {
-
     val channelId = inputManager.currentChannelId
     val portId = this.inputGateway.getChannel(channelId).getPortId
     this.inputManager.getPort(portId).completed = true
