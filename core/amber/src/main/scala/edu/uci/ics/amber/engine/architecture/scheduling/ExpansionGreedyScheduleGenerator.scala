@@ -160,59 +160,107 @@ class ExpansionGreedyScheduleGenerator(
     Left(regionDAG)
   }
 
+  /**
+    * A dependee input port is one that is depended on by another input port of the same operator.
+    * The incoming edge of a dependee input port is called a dependee edge.
+    * Similarly, the other port of this dependency relationship is called a depender input port and connects
+    * to a depender edge.
+    *
+    * Core design: a dependee edge needs to be materialized, and is mapped to a region edge in the region DAG.
+    * Note: currently we assume there CANNOT be dependencies between two dependee input ports.
+    * This method reasons about the input port dependencies of a given operator during the greedy expansion-based
+    * construction of a region DAG.
+    *
+    * This method first reasons about the dependencies of the input ports of the given operator to find
+    * pairs of dependency relationships, and then enforces the dependency of each pair:
+    * All the incoming edges of a dependee port will be added to the partial region DAG as a region edge.
+    * If adding a dependee edge results in a cycle that breaks the region DAG, we use a heurestic which is to
+    * return the other depender edge and indicate that this depender edge needs to be materialized. This will
+    * break the cycle and maintain the acyclicity of the region DAG.
+    *
+    * Previously we relied purely on edges and cache read operators for implementing materializations for
+    * materialized edges and find regions in this method.
+    *
+    * After introducing materailizations on output and input ports, materializing an
+    * edge could result in an operator that does not have any edges connected to one or more of its input
+    * ports (i.e., it becomes a "starter" operator in a region). For such input ports, we can only use port to
+    * find regions.
+    *
+    * @param physicalOpId The id of the input physical operator on which we need to handle input port dependies.
+    * @param regionDAG The partial region DAG that is always acyclic.
+    * @return Optionally a set of [[PhysicalLink]]s to do materialization-replacements on.
+    */
   private def handleInputPortDependencies(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Option[Set[PhysicalLink]] = {
-    // for operators like HashJoin that have an order among their blocking and pipelined inputs
+    // for operators like HashJoin's Probe that have dependencies between their input ports
     physicalPlan
       .getOperator(physicalOpId)
       .getInputPortsInProcessingOrder
       .sliding(2, 1)
       .foreach {
-        case List(prevPort, nextPort) =>
+        case List(dependeePort, dependerPort) =>
           // Create edges between regions
-          val prevLinks =
-            physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l => l.toPortId == prevPort)
-          val nextLinks =
-            physicalPlan.getUpstreamPhysicalLinks(physicalOpId).filter(l => l.toPortId == nextPort)
-          if (nextLinks.nonEmpty) {
+          val dependeeEdges =
+            physicalPlan
+              .getUpstreamPhysicalLinks(physicalOpId)
+              .filter(l => l.toPortId == dependeePort)
+          val dependerEdges =
+            physicalPlan
+              .getUpstreamPhysicalLinks(physicalOpId)
+              .filter(l => l.toPortId == dependerPort)
+
+          if (dependerEdges.nonEmpty) {
+            // The depender port is connected to some edges of this same region
             val regionOrderPairs =
-              toRegionOrderPairs(prevLinks.head.fromOpId, nextLinks.head.fromOpId, regionDAG)
-            // Attempt to add edges to regionDAG
+              toRegionOrderPairs(
+                dependeeEdges.head.fromOpId,
+                dependerEdges.head.fromOpId,
+                regionDAG
+              )
+            // Attempt to add these depender edges to regionDAG
             try {
               regionOrderPairs.foreach {
-                case (fromRegion, toRegion) =>
-                  regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+                case (dependeeRegion, dependerRegion) =>
+                  regionDAG.addEdge(
+                    dependeeRegion,
+                    dependerRegion,
+                    RegionLink(dependeeRegion.id, dependerRegion.id)
+                  )
               }
             } catch {
               case _: IllegalArgumentException =>
-                // adding the edge causes cycle. return the link for materialization replacement
-                return Some(Set(nextLinks.head))
+                // adding the depender edge causes cycle. return the edge for materialization replacement
+                return Some(Set(dependerEdges.head))
             }
           } else {
+            // The depender port is not connected to any edges (due to materializations)
             try {
-              // Use port to find regions
-              val fromRegions = getRegions(prevLinks.head.fromOpId, regionDAG)
-              val toRegion = getRegions(physicalOpId, regionDAG)
+              // Use this depender port to find regions
+              val dependeeRegions = getRegions(dependeeEdges.head.fromOpId, regionDAG)
+              val dependerRegion = getRegions(physicalOpId, regionDAG)
                 .filter(region =>
                   region.getPorts.contains(
                     GlobalPortIdentity(
                       opId = physicalOpId,
-                      portId = nextPort,
+                      portId = dependerPort,
                       input = true
                     )
                   )
                 )
                 .head
-              fromRegions.foreach(fromRegion =>
-                regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+              // We can safely add region edges created from this dependency relationship and it should
+              // never cause cycles (since the edges of this depender port are already "cut").
+              dependeeRegions.foreach(fromRegion =>
+                regionDAG
+                  .addEdge(fromRegion, dependerRegion, RegionLink(fromRegion.id, dependerRegion.id))
               )
             } catch {
               case _: IllegalArgumentException =>
-                // a cycle is detected. it should not reach here.
+                // A cycle is detected. This logic should never be reached.
                 throw new WorkflowRuntimeException(
-                  "Cyclic dependency when trying to handle dependent ports in building a region plan"
+                  "Cyclic dependency when trying to handle input port dependencies in building a region plan"
                 )
             }
           }
