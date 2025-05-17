@@ -37,30 +37,15 @@ from proto.edu.uci.ics.amber.core import (
 class Channel:
     def __init__(self):
         self.port_id: Optional[PortIdentity] = None
-        self.completed = False
 
     def set_port_id(self, port_id: PortIdentity) -> None:
         self.port_id = port_id
 
-    def complete(self) -> None:
-        self.completed = True
-
-    def is_completed(self) -> bool:
-        return self.completed
-
 
 class WorkerPort:
     def __init__(self, schema: Schema):
-        self.channels: List[Channel] = list()
         self._schema = schema
-
-    def add_channel(self, channel: Channel) -> None:
-        self.channels.append(channel)
-
-    def is_completed(self) -> bool:
-        return bool(self.channels) and all(
-            map(lambda channel: channel.is_completed(), self.channels)
-        )
+        self.completed = False
 
     def get_schema(self) -> Schema:
         return self._schema
@@ -101,7 +86,6 @@ class InputManager:
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
-        self._ports[port_id].add_channel(channel)
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
@@ -141,21 +125,7 @@ class InputManager:
             yield StartOfInputPort()
         if isinstance(marker, EndOfInputChannel):
             channel = self._channels[self._current_channel_id]
-            channel.complete()
-            port_id = channel.port_id
-            port_completed = all(
-                map(
-                    lambda channel: channel.is_completed(),
-                    self._ports[port_id].channels,
-                )
-            )
-
-            if port_completed:
-                yield EndOfInputPort()
-
-            all_ports_completed = all(
-                map(lambda port: port.is_completed(), self._ports.values())
-            )
-
-            if all_ports_completed:
+            self._ports[channel.port_id].completed = True
+            yield EndOfInputPort()
+            if all(port.completed for port in self._ports.values()):
                 yield EndOfOutputPorts()
