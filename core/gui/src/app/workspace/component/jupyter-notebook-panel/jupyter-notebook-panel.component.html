@@ -5,18 +5,28 @@
   cdkDragBoundary="texera-workspace"
   cdkDragHandle=".panel-header">
   <div
-    class="panel-header"
-    cdkDragHandle>
+    class="panel-header" cdkDragHandle>
     <span>Jupyter Notebook</span>
-    <button
-      class="close-button"
-      (click)="closePanel()">
-      <i
-        nz-icon
-        nzType="close"
-        nzTheme="outline"></i>
-    </button>
-    <!-- Close button -->
+    <div class="panel-buttons">
+      <!-- Minimize button -->
+      <button
+        class="minimize-button"
+        (click)="minimizePanel()">
+        <i
+          nz-icon
+          nzType="minus"
+          nzTheme="outline"></i>
+      </button>
+      <!-- Close button -->
+      <button
+        class="close-button"
+        (click)="closePanel()">
+        <i
+          nz-icon
+          nzType="close"
+          nzTheme="outline"></i>
+      </button>
+    </div>
   </div>
 
   <div class="iframe-container">

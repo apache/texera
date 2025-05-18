@@ -25,12 +25,23 @@
   cursor: move;
 }
 
+.panel-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimize-button,
 .close-button {
   background: none;
   border: none;
   color: white;
   font-size: 16px;
   cursor: pointer;
+}
+
+.minimize-button:hover {
+  color: royalblue;
 }
 
 .close-button:hover {

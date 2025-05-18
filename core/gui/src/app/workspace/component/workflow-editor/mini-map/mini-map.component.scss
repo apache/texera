@@ -26,6 +26,13 @@
   z-index: 4;
 }
 
+#minimap-expand-jupyter-button {
+  position: absolute;
+  bottom: 0;
+  right: 120px;
+  z-index: 4;
+}
+
 #mini-map-container {
   position: relative;
   overflow: hidden;

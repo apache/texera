@@ -34,6 +34,13 @@
       nz-icon
       nzType="zoom-in"></i>
   </button>
+  <button
+    id="minimap-expand-jupyter-button"
+    (click)="onClickExpandJupyterNotebookPanel()"
+    nz-button
+    title="Expand Jupyter Notebook">
+    <i nz-icon nzType="expand-alt" nzTheme="outline"></i>
+  </button>
   <div
     [hidden]="hidden"
     id="mini-map-container">
