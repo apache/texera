@@ -26,5 +26,5 @@ import scala.collection.mutable
 
 case class WorkerPort(
     schema: Schema,
-    var completed: Boolean = false,
+    var completed: Boolean = false
 )

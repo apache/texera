@@ -291,8 +291,7 @@ class DataProcessor(
 
       if (command.exists(_.methodName == METHOD_END_WORKER.getBareMethodName)) {
         channelMarkerManager.currentMarker = marker
-      }
-      else {
+      } else {
         sendChannelMarker(marker)
       }
 
