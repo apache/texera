@@ -68,37 +68,6 @@ class WorkflowExecutionsResourceSpec
   private var workflowVersionDao: WorkflowVersionDao = _
   private var workflowExecutionsDao: WorkflowExecutionsDao = _
 
-  /* ------------------------------------------------------------------ *
-   * Helper: very small in‑memory implementation of VirtualDocument[T]  *
-   * that supports only the methods exercised by ResultExportService.   *
-   * ------------------------------------------------------------------ */
-  private class TinyDocument(item: Tuple) extends VirtualDocument[Tuple] {
-    override def getCount: Long = 1L
-
-    override def get(): Iterator[Tuple] = util.Collections.singletonList(item).iterator().asScala
-
-    override def getURI: URI = ???
-
-    override def clear(): Unit = ???
-  }
-
-  /* ---------- shared helpers ---------- */
-  private def callFindExtension(
-      request: ResultExportRequest,
-      doc: VirtualDocument[Tuple]
-  ): String = {
-    val service = new ResultExportService(WorkflowIdentity(0))
-    val findPrivate = PrivateMethod[String]('findExtension)
-    service invokePrivate findPrivate(request, doc)
-  }
-
-  /* Common test data for ResultExportService */
-  private val htmlSchema = Schema(List(new Attribute("body", AttributeType.STRING)))
-  private val htmlTuple = Tuple
-    .builder(htmlSchema)
-    .add("body", AttributeType.STRING, "<html><body>Hello</body></html>")
-    .build()
-
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
   }
@@ -216,22 +185,4 @@ class WorkflowExecutionsResourceSpec
     )
   }
 
-  "ResultExportService.findExtension" should
-    "detect html when the operator result contains a single HTML snippet" in {
-
-    val req = ResultExportRequest(
-      workflowId = 1,
-      workflowName = "wf",
-      destination = "local",
-      exportType = "csv", // anything other than html
-      operatorIds = List("op"),
-      filename = "",
-      datasetIds = List.empty[Int],
-      rowIndex = 0,
-      columnIndex = 0
-    )
-    val ext = callFindExtension(req, new TinyDocument(htmlTuple))
-
-    assert(ext == "html", "Expected html extension")
-  }
 }

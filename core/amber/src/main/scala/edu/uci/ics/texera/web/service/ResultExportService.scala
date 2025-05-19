@@ -29,12 +29,9 @@ import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.auth.JwtAuth
 import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
+import edu.uci.ics.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
-  WorkflowExecutionsResource,
-  WorkflowVersionResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{FilterOutputStream, IOException, OutputStream}
@@ -97,14 +94,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val successMessages = new mutable.ListBuffer[String]()
     val errorMessages = new mutable.ListBuffer[String]()
 
-    request.operatorIds.foreach { opId =>
+    request.operators.foreach { op =>
       try {
-        val (msgOpt, errOpt) = exportSingleOperatorToDataset(user, request, opId)
+        val (msgOpt, errOpt) = exportSingleOperatorToDataset(user, request, op)
         msgOpt.foreach(successMessages += _)
         errOpt.foreach(errorMessages += _)
       } catch {
         case ex: Exception =>
-          errorMessages += s"Error exporting operator $opId: ${ex.getMessage}"
+          errorMessages += s"Error exporting operator $op: ${ex.getMessage}"
       }
     }
 
@@ -122,36 +119,35 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     * Export a single operator's result and handle different export types.
     */
   private def exportSingleOperatorToDataset(
-      user: User,
-      request: ResultExportRequest,
-      operatorId: String
+                                             user: User,
+                                             request: ResultExportRequest,
+                                             operatorRequest: OperatorExportInfo
   ): (Option[String], Option[String]) = {
 
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty)
       return (None, Some(s"Workflow ${request.workflowId} has no execution result"))
 
-    val operatorDocument = getOperatorDocument(operatorId)
+    val operatorDocument = getOperatorDocument(operatorRequest.id)
     if (operatorDocument == null || operatorDocument.getCount == 0)
-      return (None, Some(s"No results to export for operator $operatorId"))
+      return (None, Some(s"No results to export for operator $operatorRequest"))
 
     val attributeNames =
       operatorDocument.getRange(0, 1).to(Iterable).head.getSchema.getAttributeNames // small cost
 
-    val extension: String = findExtension(request, operatorDocument)
-    val writer: OutputStream => Unit = extension match {
+    val writer: OutputStream => Unit = operatorRequest.outputType match {
       case "csv"   => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
       case "arrow" => out => streamDocumentAsArrow(operatorDocument, out)
       case "html"  => out => streamDocumentAsHTML(out, operatorDocument)
-      case "bin"   => out => streamCellData(out, request, operatorDocument)
+      case "data"   => out => streamCellData(out, request, operatorDocument)
       case _       => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
     }
 
     saveStreamToDataset(
-      operatorId = operatorId,
+      operatorId = operatorRequest.id,
       user = user,
       request = request,
-      extension = extension,
+      extension = operatorRequest.outputType,
       writer = writer
     )
   }
@@ -160,30 +156,28 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     * Export a single operator's results as a streaming response (e.g., for download).
     */
   def exportOperatorResultAsStream(
-      request: ResultExportRequest,
-      operatorId: String
+                                    request: ResultExportRequest,
+                                    operatorRequest: OperatorExportInfo
   ): (StreamingOutput, Option[String]) = {
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
       return (null, None)
     }
 
-    val operatorDocument = getOperatorDocument(operatorId)
+    val operatorDocument = getOperatorDocument(operatorRequest.id)
     if (operatorDocument == null || operatorDocument.getCount == 0) {
       return (null, None)
     }
 
-    val extension: String = findExtension(request, operatorDocument)
-
     val fileName =
-      if (request.filename.isEmpty) generateFileName(request, operatorId, extension)
+      if (request.filename.isEmpty) generateFileName(request, operatorRequest.id, operatorRequest.outputType)
       else request.filename
 
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
-      extension match {
+      operatorRequest.outputType match {
         case "csv"   => streamDocumentAsCSV(operatorDocument, out, None)
         case "arrow" => streamDocumentAsArrow(operatorDocument, out)
-        case "bin"   => streamCellData(out, request, operatorDocument) // handle single cell export
+        case "data"   => streamCellData(out, request, operatorDocument) // handle single cell export
         case "html" =>
           streamDocumentAsHTML(
             out,
@@ -202,7 +196,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   def exportOperatorsAsZip(
       request: ResultExportRequest
   ): (StreamingOutput, Option[String]) = {
-    if (request.operatorIds.isEmpty) {
+    if (request.operators.isEmpty) {
       return (null, None)
     }
 
@@ -222,25 +216,24 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val streamingOutput: StreamingOutput = new StreamingOutput {
       override def write(outputStream: OutputStream): Unit = {
         Using.resource(new ZipOutputStream(outputStream)) { zipOut =>
-          request.operatorIds.foreach { opId =>
-            val operatorDocument = getOperatorDocument(opId)
+          request.operators.foreach { op =>
+            val operatorDocument = getOperatorDocument(op.id)
             if (operatorDocument == null || operatorDocument.getCount == 0) {
               // create an "empty" file for this operator
-              zipOut.putNextEntry(new ZipEntry(s"$opId-empty.txt"))
-              val msg = s"Operator $opId has no results"
+              zipOut.putNextEntry(new ZipEntry(s"${op.id}-empty.txt"))
+              val msg = s"Operator ${op.id} has no results"
               zipOut.write(msg.getBytes(StandardCharsets.UTF_8))
               zipOut.closeEntry()
             } else {
-              val extension: String = findExtension(request, operatorDocument)
-              val operatorFileName = generateFileName(request, opId, extension)
+              val operatorFileName = generateFileName(request, op.id, op.outputType)
 
               zipOut.putNextEntry(new ZipEntry(operatorFileName))
               val nonClosingStream = new NonClosingOutputStream(zipOut)
 
-              extension match {
+              op.outputType match {
                 case "csv"   => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
                 case "arrow" => streamDocumentAsArrow(operatorDocument, nonClosingStream)
-                case "bin" =>
+                case "data" =>
                   streamCellData(
                     nonClosingStream,
                     request,
@@ -541,29 +534,5 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val rawName = s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extension"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
-  }
-
-  private def findExtension(
-      request: ResultExportRequest,
-      operatorDocument: VirtualDocument[Tuple]
-  ): String = {
-    // HTML should be always exported as HTML
-    // TODO: this part cause heap overflow if the result is one cell only binary data,
-    //  HTML output (output type) should be defined globally in the operator
-    if (operatorDocument.getCount == 1) {
-      val results: Iterable[Tuple] = operatorDocument.get().to(Iterable)
-      val resHead = results.head
-      val htmlCode = resHead.getField(0).toString
-      if (htmlCode.contains("<html")) {
-        return "html"
-      }
-    }
-    request.exportType match {
-      case "csv"   => "csv"
-      case "arrow" => "arrow"
-      case "data"  => "bin"
-      case "html"  => "html"
-      case _       => "dat"
-    }
   }
 }

@@ -35,7 +35,7 @@
                   nzValue="arrow"
                   nzLabel="Binary Format (.arrow)"></nz-option>
                 <nz-option
-                  *ngIf="!isVisualizationOutput && ((isTableOutput || isVisualizationOutput || containsNonBinaryData) && !containsBinaryData)"
+                  *ngIf="!isVisualizationOutput && (isTableOutput || containsNonBinaryData) && !containsBinaryData"
                   nzValue="csv"
                   nzLabel="Comma Separated Values (.csv)"></nz-option>
                 <nz-option
