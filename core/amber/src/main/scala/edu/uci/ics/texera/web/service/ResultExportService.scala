@@ -31,7 +31,10 @@ import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwt
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{FilterOutputStream, IOException, OutputStream}
@@ -119,9 +122,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     * Export a single operator's result and handle different export types.
     */
   private def exportSingleOperatorToDataset(
-                                             user: User,
-                                             request: ResultExportRequest,
-                                             operatorRequest: OperatorExportInfo
+      user: User,
+      request: ResultExportRequest,
+      operatorRequest: OperatorExportInfo
   ): (Option[String], Option[String]) = {
 
     val execIdOpt = getLatestExecutionId(workflowIdentity)
@@ -139,7 +142,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       case "csv"   => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
       case "arrow" => out => streamDocumentAsArrow(operatorDocument, out)
       case "html"  => out => streamDocumentAsHTML(out, operatorDocument)
-      case "data"   => out => streamCellData(out, request, operatorDocument)
+      case "data"  => out => streamCellData(out, request, operatorDocument)
       case _       => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
     }
 
@@ -156,8 +159,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     * Export a single operator's results as a streaming response (e.g., for download).
     */
   def exportOperatorResultAsStream(
-                                    request: ResultExportRequest,
-                                    operatorRequest: OperatorExportInfo
+      request: ResultExportRequest,
+      operatorRequest: OperatorExportInfo
   ): (StreamingOutput, Option[String]) = {
     val execIdOpt = getLatestExecutionId(workflowIdentity)
     if (execIdOpt.isEmpty) {
@@ -170,14 +173,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     val fileName =
-      if (request.filename.isEmpty) generateFileName(request, operatorRequest.id, operatorRequest.outputType)
+      if (request.filename.isEmpty)
+        generateFileName(request, operatorRequest.id, operatorRequest.outputType)
       else request.filename
 
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
       operatorRequest.outputType match {
         case "csv"   => streamDocumentAsCSV(operatorDocument, out, None)
         case "arrow" => streamDocumentAsArrow(operatorDocument, out)
-        case "data"   => streamCellData(out, request, operatorDocument) // handle single cell export
+        case "data"  => streamCellData(out, request, operatorDocument) // handle single cell export
         case "html" =>
           streamDocumentAsHTML(
             out,
