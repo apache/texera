@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterator, Optional, Union, Dict, List
+from typing import Iterator, Optional, Union, Dict
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema
 from core.models.internal_marker import (
