@@ -26,6 +26,7 @@ import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import edu.uci.ics.texera.dao.SqlServer
@@ -54,15 +55,6 @@ object WorkflowExecutionsResource {
     .getInstance()
     .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
-
-  val statusStringToCode: Map[String, Byte] = Map(
-    "initializing" -> 0,
-    "running" -> 1,
-    "paused" -> 2,
-    "completed" -> 3,
-    "failed" -> 4,
-    "killed" -> 5
-  )
 
   def getExecutionById(eId: Integer): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
@@ -600,17 +592,14 @@ class WorkflowExecutionsResource {
           .filter(_.nonEmpty)
           .map { raw =>
             val tokens = raw.split(',').map(_.trim.toLowerCase).filter(_.nonEmpty)
-            val (known, unknown) = tokens.partition(statusStringToCode.contains)
-
-            if (unknown.nonEmpty) {
-              throw new BadRequestException(
-                s"Unknown execution status value(s): ${unknown.mkString(", ")}"
-              )
+            try {
+              tokens.map(stringToAggregatedState).map(maptoStatusCode).toSet
+            } catch {
+              case e: IllegalArgumentException =>
+                throw new BadRequestException(e.getMessage)
             }
-
-            known.map(statusStringToCode).toSet
           }
-          .getOrElse(Set.empty[Byte]) // no param → no filter
+          .getOrElse(Set.empty[Byte])
       getWorkflowExecutions(wid, context, statusCodes)
     }
   }

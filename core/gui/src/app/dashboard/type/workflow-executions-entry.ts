@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import {ExecutionState} from "../../workspace/types/execute-workflow.interface";
 
 export interface WorkflowExecutionsEntry {
   eId: number;
@@ -34,10 +35,10 @@ export interface WorkflowExecutionsEntry {
 }
 
 export const EXECUTION_STATUS_CODE: Record<number, string> = {
-  0: "initializing",
-  1: "running",
-  2: "paused",
-  3: "completed",
-  4: "failed",
-  5: "killed",
+  0: ExecutionState.Initializing,
+  1: ExecutionState.Running,
+  2: ExecutionState.Paused,
+  3: ExecutionState.Completed,
+  4: ExecutionState.Failed,
+  5: ExecutionState.Killed,
 };
