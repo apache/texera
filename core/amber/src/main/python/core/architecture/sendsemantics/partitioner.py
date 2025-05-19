@@ -38,12 +38,12 @@ class Partitioner(ABC):
         pass
 
     def flush(
-            self, to: ActorVirtualIdentity, marker: Marker
+        self, to: ActorVirtualIdentity, marker: Marker
     ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
         pass
 
-    def flush_maker(
-            self, marker: Marker
+    def flush_marker(
+        self, marker: Marker
     ) -> Iterator[
         typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
