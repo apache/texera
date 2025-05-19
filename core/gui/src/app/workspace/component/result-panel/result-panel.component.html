@@ -25,7 +25,8 @@
     <li
       nz-menu-item
       (click)="closePanel()"
-      *ngIf="width">
+      *ngIf="width"
+      nz-tooltip="Close Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
       <span
         nz-icon
         nzType="minus"></span>
@@ -37,7 +38,7 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
+      nz-tooltip="Open Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
       <span
         nz-icon
         nzType="border"></span>
