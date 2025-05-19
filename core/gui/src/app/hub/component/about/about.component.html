@@ -26,45 +26,35 @@
     nz-col
     nzFlex="auto"
     class="content">
-    <h1 class="about-title">About Texera</h1>
+    <h1 class="about-title">About ADMAP</h1>
 
     <p>
-      Texera is a system for users with various backgrounds to learn and practice data science, AI, and machine
-      learning. It also allows users to share their datasets and analyze workflows.
+      The Alzheimer's Disease Multimodal Atlasing Project (ADMAP) is a collaborative initiative at the UCI Center for
+      Neural Circuit Mapping. It aims to advance research on Alzheimer's disease by providing a platform for researchers
+      to upload, explore, and download datasets.
     </p>
 
     <h2 class="content-title">Key Features</h2>
     <ul class="text-content">
-      <li>Supporting low-code/no-code data science using workflows</li>
-      <li>Parallel data-processing engine running on computing clusters</li>
-      <li>Using the Apache Pekko actor-model system</li>
-      <li>Supporting UDFs in Python, R, Java, and Scala</li>
-      <li>Supporting ML training and inference</li>
-      <li>Including a rich collection of ML operators</li>
-      <li>Interactive workflow execution model that supports pausing and resuming</li>
-      <li>Supporting collaborations with shared editing, shared execution, and version control</li>
-      <li>Supporting debugging, including line-by-line debugging in Python UDFs</li>
-      <li>Supporting reproducibility of data analysis</li>
-      <li>Region-by-region execution with full pipelining in each region</li>
-      <li>Storing execution results using Apache Iceberg</li>
-      <li>Supporting version-controlled file collections on S3-compatible storage managed by LakeFS</li>
-      <li>Adopting a microservice-based architecture using Kubernetes and Docker</li>
-      <li>Supporting computing isolation and storage isolation of multiple tenants</li>
+      <li>
+        Comprehensively characterize brain circuits susceptible to Alzheimer's disease type pathology and/or
+        neurodegeneration in mouse models of Alzheimer's disease (AD).
+      </li>
+      <li>
+        Share data on the cellular connectome in the aging and AD brain in a common reference brain cell atlas that
+        integrates both molecular and anatomical annotations.
+      </li>
+      <li>
+        Complement and extend research on vulnerable cell types to include the mapping of connectivity changes between
+        cells in aging and AD and provide a greater understanding of the mechanisms underlying resilience and
+        vulnerability in AD.
+      </li>
     </ul>
-    <img
-      class="workflow-gui-screenshot"
-      src="../../../../../assets/workflow_gui.png"
-      alt="workflow gui screenshot" />
     <h2 class="learn-more-title">Learn More</h2>
     <div class="learn-more-section">
       <p>
         To learn more, please visit <a href="http://texera.io">texera.io</a>. The
-        <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub. If you have
-        comments and questions, please send email to
-        <img
-          src="../../../../../assets/texera_email_screenshot.png"
-          alt="texera email screenshot" />
-        .
+        <a href="https://github.com/chenlica/ADMAP">source code</a> of the platform is available on GitHub.
       </p>
     </div>
     <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
