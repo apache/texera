@@ -123,4 +123,10 @@ object AmberConfig {
     if (getConfSource.hasPath("ai-assistant-server"))
       Some(getConfSource.getConfig("ai-assistant-server"))
     else None
+
+  val appDomain: Option[String] = {
+    val domain = getConfSource.getString("app.domain").trim
+    if (domain.isEmpty) None else Some(domain)
+  }
+
 }

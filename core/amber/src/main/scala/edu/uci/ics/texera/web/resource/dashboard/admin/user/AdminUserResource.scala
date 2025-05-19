@@ -24,16 +24,15 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.EmailTemplate.createRoleChangeTemplate
-import edu.uci.ics.texera.web.resource.GmailResource.{sendEmail, withDomain}
+import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
-import javax.ws.rs.core.{Context, MediaType, Response}
+import javax.ws.rs.core.{MediaType, Response}
 
 object AdminUserResource {
   final private lazy val context = SqlServer
@@ -60,7 +59,7 @@ class AdminUserResource {
 
   @PUT
   @Path("/update")
-  def updateUser(@Context request: HttpServletRequest, user: User): Unit = {
+  def updateUser(user: User): Unit = {
     val existingUser = userDao.fetchOneByEmail(user.getEmail)
     if (existingUser != null && existingUser.getUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
@@ -75,10 +74,7 @@ class AdminUserResource {
 
     if (roleChanged)
       sendEmail(
-        withDomain(
-          createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
-          request
-        ),
+        createRoleChangeTemplate(receiverEmail = updatedUser.getEmail, newRole = user.getRole),
         updatedUser.getEmail
       )
   }
