@@ -79,6 +79,16 @@ export class JupyterPanelService {
     this.jupyterNotebookPanelVisible.next(false);
   }
 
+  // Minimize the Jupyter Notebook panel
+  public minimizeJupyterNotebookPanel(): void {
+    this.jupyterNotebookPanelVisible.next(false);
+  }
+
+  // Expand the Jupyter Notebook panel
+  public openJupyterNotebookPanel(): void {
+    this.jupyterNotebookPanelVisible.next(true);
+  }
+
   // Handle messages from the Jupyter notebook iframe
   private handleNotebookMessage = (event: MessageEvent) => {
     const allowedOrigins = ["http://localhost:4200", "http://localhost:8888"];

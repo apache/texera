@@ -6,6 +6,7 @@ import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 import { PanelService } from "../../../service/panel/panel.service";
 import { CdkDrag } from "@angular/cdk/drag-drop";
+import { JupyterPanelService } from "../../../service/jupyter-panel/jupyter-panel.service";
 
 @UntilDestroy()
 @Component({
@@ -23,7 +24,8 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private jupyterPanelService: JupyterPanelService
   ) {}
 
   ngAfterViewInit() {
@@ -120,6 +122,13 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .setZoomProperty(
         this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF
       );
+  }
+
+  /**
+   * This method will expand and redisplay the jupyter notebook.
+   */
+  public onClickExpandJupyterNotebookPanel(): void {
+    this.jupyterPanelService.openJupyterNotebookPanel();
   }
 
   public triggerCenter(): void {

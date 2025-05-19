@@ -57,4 +57,10 @@ export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnD
   closePanel(): void {
     this.jupyterPanelService.closeJupyterNotebookPanel();
   }
+
+  // Minimize the jupyter notebook by invoking the service method
+  minimizePanel(): void {
+    this.isVisible = false;
+    this.jupyterPanelService.minimizeJupyterNotebookPanel();
+  }
 }
