@@ -210,8 +210,11 @@ class OutputManager:
         return chain(
             *(
                 (
-                    payload if isinstance(payload, ChannelMarkerPayload)
-                    else self.tuple_to_frame(payload)
+                    (
+                        payload
+                        if isinstance(payload, ChannelMarkerPayload)
+                        else self.tuple_to_frame(payload)
+                    )
                     for payload in partitioner.flush(to, marker)
                 )
                 for partitioner in self._partitioners.values()

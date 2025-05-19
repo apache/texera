@@ -356,7 +356,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 if scope.from_worker_id == ActorVirtualIdentity(self.context.worker_id)
             }
             if downstream_channels_in_scope:
-                for active_channel_id in self.context.output_manager.get_output_channel_ids():
+                for (
+                    active_channel_id
+                ) in self.context.output_manager.get_output_channel_ids():
                     if active_channel_id in downstream_channels_in_scope:
                         logger.info(
                             f"send marker to {active_channel_id},"
