@@ -74,11 +74,10 @@ class RangeBasedShufflePartitioner(Partitioner):
 
     @overrides
     def flush(
-        self, marker: Marker
-    ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
-    ]:
+        self, to: ActorVirtualIdentity, marker: Marker
+    ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
         for receiver, batch in self.receivers:
-            if len(batch) > 0:
-                yield receiver, batch
-            yield receiver, marker
+            if receiver == to:
+                if len(batch) > 0:
+                    yield batch
+                yield marker
