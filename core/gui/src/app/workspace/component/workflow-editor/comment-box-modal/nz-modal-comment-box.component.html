@@ -42,7 +42,8 @@
               placeholder="edit comment"
               [(ngModel)]="editValue"
               nz-input
-              [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
+              [nzAutosize]="{ minRows: 1, maxRows: 6}"
+              (keydown.enter)="editComment(item['creatorID'], item['creatorName'], item.creationTime); $event.preventDefault()"></textarea>
           </nz-input-group>
           <ng-template #suffixIconButton>
             <button
@@ -88,7 +89,8 @@
       placeholder="add new comment"
       [(ngModel)]="inputValue"
       nz-input
-      [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
+      [nzAutosize]="{ minRows: 1, maxRows: 6}"
+      (keydown.enter)="onClickAddComment(); $event.preventDefault()"></textarea>
   </nz-input-group>
   <ng-template #suffixIconButton>
     <button
