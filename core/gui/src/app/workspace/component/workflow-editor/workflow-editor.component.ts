@@ -627,15 +627,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
-      nzFooter: [
-        {
-          label: "OK",
-          onClick: () => {
-            modalRef.destroy();
-          },
-          type: "primary",
-        },
-      ],
+      nzFooter: null,
     });
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => {
       this.wrapper.unhighlightCommentBoxes(commentBoxID);
