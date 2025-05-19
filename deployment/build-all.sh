@@ -24,6 +24,31 @@ DEFAULT_TAG="latest"
 read -p "Enter the base tag for the images [${DEFAULT_TAG}]: " BASE_TAG
 BASE_TAG=${BASE_TAG:-$DEFAULT_TAG}
 
+# Prompt for which services to build
+DEFAULT_SERVICES="*"
+read -p "Enter services to build (comma-separated, '*' for all) [${DEFAULT_SERVICES}]: " SERVICES_INPUT
+SERVICES_INPUT=${SERVICES_INPUT:-$DEFAULT_SERVICES}
+
+# Convert the user input into an array for easy lookup
+IFS=',' read -ra SELECTED_SERVICES <<< "$SERVICES_INPUT"
+
+# Helper to determine whether a given service should be built
+should_build() {
+  local svc="$1"
+  # Build everything if the user specified '*'
+  if [[ "$SERVICES_INPUT" == "*" ]]; then
+    return 0
+  fi
+  for sel in "${SELECTED_SERVICES[@]}"; do
+    # Trim possible whitespace around each token
+    sel="$(echo -e "${sel}" | tr -d '[:space:]')"
+    if [[ "$svc" == "$sel" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Detect platform
 ARCH=$(uname -m)
 if [[ "$ARCH" == "x86_64" ]]; then
@@ -57,6 +82,13 @@ echo "🔨 Building and pushing Texera images for $PLATFORM..."
 
 for dockerfile in "${dockerfiles[@]}"; do
   service_name=$(basename "$dockerfile" .dockerfile)
+
+  # Skip services the user did not ask for
+  if ! should_build "$service_name"; then
+    echo "⏭️  Skipping $service_name"
+    continue
+  fi
+
   image="texera/$service_name:$FULL_TAG"
 
   echo "👉 Building $image from $dockerfile"
@@ -68,5 +100,29 @@ for dockerfile in "${dockerfiles[@]}"; do
     --push \
     ..
 done
+
+# Build pylsp service (directory: pylsp)
+if should_build "pylsp"; then
+  image="texera/pylsp:$FULL_TAG"
+  echo "👉 Building $image from pylsp/Dockerfile"
+  docker buildx build \
+    --platform "$PLATFORM" \
+    -f "pylsp/Dockerfile" \
+    -t "$image" \
+    --push \
+    ./pylsp
+fi
+
+# Build y-websocket-server service (directory: y-websocket-server, image: y-websocket-server)
+if should_build "y-websocket-server"; then
+  image="texera/y-websocket-server:$FULL_TAG"
+  echo "👉 Building $image from y-websocket-server/Dockerfile"
+  docker buildx build \
+    --platform "$PLATFORM" \
+    -f "y-websocket-server/Dockerfile" \
+    -t "$image" \
+    --push \
+    ./y-websocket-server
+fi
 
 echo "✅ All images built and pushed with tag :$FULL_TAG"

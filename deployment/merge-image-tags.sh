@@ -24,6 +24,29 @@ DEFAULT_TAG="latest"
 read -p "Enter the base tag to merge [${DEFAULT_TAG}]: " BASE_TAG
 BASE_TAG=${BASE_TAG:-$DEFAULT_TAG}
 
+# Prompt for which services' manifests to merge
+DEFAULT_SERVICES="*"
+read -p "Enter services to merge (comma-separated, '*' for all) [${DEFAULT_SERVICES}]: " SERVICES_INPUT
+SERVICES_INPUT=${SERVICES_INPUT:-$DEFAULT_SERVICES}
+
+# Convert input into array for lookup
+IFS=',' read -ra SELECTED_SERVICES <<< "$SERVICES_INPUT"
+
+# Helper to check if a service should be merged
+should_merge() {
+  local svc="$1"
+  if [[ "$SERVICES_INPUT" == "*" ]]; then
+    return 0
+  fi
+  for sel in "${SELECTED_SERVICES[@]}"; do
+    sel="$(echo -e "${sel}" | tr -d '[:space:]')"
+    if [[ "$svc" == "$sel" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 cd "$(dirname "$0")"
 
 # Detect all Dockerfiles and extract service names
@@ -40,9 +63,17 @@ for file in "${dockerfiles[@]}"; do
   services+=("$svc")
 done
 
+# Add additional services that don't have a *.dockerfile in the deployment root
+services+=("pylsp" "y-websocket-server")
+
 echo "🔗 Merging multi-arch manifests for tag :$BASE_TAG"
 
 for svc in "${services[@]}"; do
+  # Skip if not selected by user
+  if ! should_merge "$svc"; then
+    echo "⏭️  Skipping $svc"
+    continue
+  fi
   echo "🔄 Creating manifest for texera/$svc:$BASE_TAG"
   docker buildx imagetools create \
     -t texera/$svc:$BASE_TAG \
