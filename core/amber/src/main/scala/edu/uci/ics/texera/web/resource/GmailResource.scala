@@ -137,10 +137,7 @@ class GmailResource {
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")
-  def sendEmailRequest(
-      emailMessage: EmailMessage,
-      @Auth user: SessionUser
-  ): Unit = {
+  def sendEmailRequest(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
     val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
     sendEmail(emailMessage, recipientEmail)
   }
@@ -152,9 +149,7 @@ class GmailResource {
 
   @POST
   @Path("/notify-unauthorized")
-  def notifyUnauthorizedUser(
-      emailMessage: EmailMessage
-  ): Unit = {
+  def notifyUnauthorizedUser(emailMessage: EmailMessage): Unit = {
     val logger = LoggerFactory.getLogger(this.getClass)
 
     if (!isValidEmail(emailMessage.receiver)) {
