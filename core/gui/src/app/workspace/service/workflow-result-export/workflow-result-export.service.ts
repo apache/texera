@@ -128,7 +128,7 @@ export class WorkflowResultExportService {
       return {
         id: operatorId,
         outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
-      }
+      };
     });
 
     if (operatorIds.length === 0) {
