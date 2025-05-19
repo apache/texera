@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {ExecutionState} from "../../workspace/types/execute-workflow.interface";
+import { ExecutionState } from "../../workspace/types/execute-workflow.interface";
 
 export interface WorkflowExecutionsEntry {
   eId: number;

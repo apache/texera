@@ -23,6 +23,7 @@ import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowRuntimeStatistics } from "../../../type/workflow-runtime-statistics";
+import { ExecutionState } from "../../../../workspace/types/execute-workflow.interface";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -49,7 +50,7 @@ export class WorkflowExecutionsService {
    *                  (e.g. ["running", "completed"]).  If the array is empty or
    *                  omitted, no status filter is applied.
    */
-  retrieveWorkflowExecutions(wid: number, statuses?: string[]): Observable<WorkflowExecutionsEntry[]> {
+  retrieveWorkflowExecutions(wid: number, statuses?: ExecutionState[]): Observable<WorkflowExecutionsEntry[]> {
     /* -------------------------------------------------------------------- */
     /* build query-string ?status=running,completed …                        */
     /* -------------------------------------------------------------------- */

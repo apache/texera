@@ -17,9 +17,8 @@
  * under the License.
  */
 
-import { Component, OnInit, OnChanges, SimpleChanges } from "@angular/core";
-import { interval } from "rxjs";
-import { switchMap, take } from "rxjs/operators";
+import { Component, OnInit } from "@angular/core";
+import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -32,6 +31,7 @@ import { ComputingUnitStatusService } from "../../service/computing-unit-status/
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 @UntilDestroy()
 @Component({
@@ -153,7 +153,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
    */
   private updateWorkflowModificationStatus(wid: number): void {
     this.workflowExecutionsService
-      .retrieveWorkflowExecutions(wid, ["running", "initializing"])
+      .retrieveWorkflowExecutions(wid, [ExecutionState.Running, ExecutionState.Initializing])
       .pipe(take(1), untilDestroyed(this))
       .subscribe(execList => {
         if (execList.length > 0) {
