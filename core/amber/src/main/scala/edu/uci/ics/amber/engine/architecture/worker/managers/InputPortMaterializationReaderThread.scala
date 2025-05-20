@@ -19,7 +19,6 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, Marker, StartOfInputChannel}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument

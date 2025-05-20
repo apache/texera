@@ -31,7 +31,6 @@ import edu.uci.ics.amber.core.workflow.{
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   IntermediateInputPortConfig,
   OutputPortConfig,
-  PortConfig,
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}

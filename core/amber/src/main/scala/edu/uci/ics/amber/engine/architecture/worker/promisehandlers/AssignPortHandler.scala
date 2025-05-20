@@ -23,7 +23,6 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AddInputChannelRequest,
   AssignPortRequest,
   AsyncRPCContext
 }
