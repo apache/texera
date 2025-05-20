@@ -367,12 +367,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                         for batch in self.context.output_manager.emit_marker_to_channel(
                             active_channel_id.to_worker_id, marker_payload
                         ):
-                            tag = ChannelIdentity(
-                                ActorVirtualIdentity(self.context.worker_id),
-                                active_channel_id.to_worker_id,
-                                False,
-                            )
-
+                            tag = active_channel_id
                             element = (
                                 ChannelMarkerElement(tag=tag, payload=batch)
                                 if isinstance(batch, ChannelMarkerPayload)

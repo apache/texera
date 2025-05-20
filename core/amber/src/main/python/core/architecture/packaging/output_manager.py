@@ -235,7 +235,7 @@ class OutputManager:
                             else self.tuple_to_frame(payload)
                         ),
                     )
-                    for receiver, payload in partitioner.flush(marker)
+                    for receiver, payload in partitioner.flush_marker(marker)
                 )
                 for partitioner in self._partitioners.values()
             )

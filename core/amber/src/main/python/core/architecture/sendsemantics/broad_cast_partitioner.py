@@ -65,5 +65,21 @@ class BroadcastPartitioner(Partitioner):
                 yield marker
 
     @overrides
+    def flush_marker(
+        self, marker: Marker
+    ) -> Iterator[
+        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+    ]:
+        if len(self.batch) > 0:
+            for receiver in self.receivers:
+                if receiver == to:
+                    yield self.batch
+
+        self.reset()
+        for receiver in self.receivers:
+            if receiver == to:
+                yield marker
+
+    @overrides
     def reset(self) -> None:
         self.batch = list()
