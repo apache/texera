@@ -88,7 +88,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
         }
-        the_partitioning: Partitioner = get_one_of(partitioning)
+        the_partitioning: Partitioning = get_one_of(partitioning)
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
         self.partitioner: Partitioner = (
             partitioner(the_partitioning)
