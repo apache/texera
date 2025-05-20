@@ -76,7 +76,7 @@ class BroadcastPartitioner(Partitioner):
 
         self.reset()
         for receiver in self.receivers:
-            yield receiver, self.batch
+            yield receiver, marker
 
     @overrides
     def reset(self) -> None:

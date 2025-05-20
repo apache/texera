@@ -76,5 +76,5 @@ class HashBasedShufflePartitioner(Partitioner):
     ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
-                yield self.receiver, self.batch
-            yield self.receiver, marker
+                yield receiver, batch
+            yield receiver, marker
