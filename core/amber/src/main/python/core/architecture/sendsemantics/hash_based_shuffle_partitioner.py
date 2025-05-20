@@ -75,7 +75,6 @@ class HashBasedShufflePartitioner(Partitioner):
         typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
         for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield batch
-                yield marker
+            if len(batch) > 0:
+                yield self.receiver, self.batch
+            yield self.receiver, marker

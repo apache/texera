@@ -72,13 +72,11 @@ class BroadcastPartitioner(Partitioner):
     ]:
         if len(self.batch) > 0:
             for receiver in self.receivers:
-                if receiver == to:
-                    yield self.batch
+                yield receiver, self.batch
 
         self.reset()
         for receiver in self.receivers:
-            if receiver == to:
-                yield marker
+            yield receiver, self.batch
 
     @overrides
     def reset(self) -> None:

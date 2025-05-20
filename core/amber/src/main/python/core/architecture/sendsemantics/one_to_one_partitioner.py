@@ -65,9 +65,9 @@ class OneToOnePartitioner(Partitioner):
         typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
         if len(self.batch) > 0:
-            yield self.batch
+            yield self.receiver, self.batch
         self.reset()
-        yield marker
+        yield self.receiver, marker
 
     @overrides
     def reset(self) -> None:

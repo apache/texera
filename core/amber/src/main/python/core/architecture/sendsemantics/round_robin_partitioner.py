@@ -57,11 +57,10 @@ class RoundRobinPartitioner(Partitioner):
         self, to: ActorVirtualIdentity, marker: Marker
     ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
         for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield batch
-                    batch.clear()
-                yield marker
+            if len(batch) > 0:
+                yield receiver, batch
+                batch.clear()
+            yield receiver, marker
 
     @overrides
     def flush_marker(
