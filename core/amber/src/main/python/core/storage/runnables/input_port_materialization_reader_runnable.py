@@ -88,9 +88,9 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
         }
-        the_partitioning = get_one_of(partitioning)
+        the_partitioning: Partitioner = get_one_of(partitioning)
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
-        self.partitioner = (
+        self.partitioner: Partitioner = (
             partitioner(the_partitioning)
             if partitioner != OneToOnePartitioner
             else partitioner(the_partitioning, self.worker_actor_id)
@@ -144,7 +144,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         flush the remaining data batches if any. This mimics the
         iterator logic of that in output manager.
         """
-        for receiver, payload in self.partitioner.flush(marker):
+        for receiver, payload in self.partitioner.flush_marker(marker=marker):
             if receiver == self.worker_actor_id:
                 final_payload = (
                     MarkerFrame(payload)
