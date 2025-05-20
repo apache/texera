@@ -31,11 +31,11 @@
                 name="exportType"
                 nzPlaceHolder="Select export type">
                 <nz-option
-                  *ngIf="!isVisualizationOutput && (isTableOutput || containsBinaryData || containsNonBinaryData)"
+                  *ngIf="isTableOutput || containsBinaryData"
                   nzValue="arrow"
                   nzLabel="Binary Format (.arrow)"></nz-option>
                 <nz-option
-                  *ngIf="!isVisualizationOutput && (isTableOutput || containsNonBinaryData) && !containsBinaryData"
+                  *ngIf="isTableOutput"
                   nzValue="csv"
                   nzLabel="Comma Separated Values (.csv)"></nz-option>
                 <nz-option

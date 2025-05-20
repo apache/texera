@@ -49,7 +49,6 @@ export class ResultExportationComponent implements OnInit {
   isTableOutput: boolean = false;
   isVisualizationOutput: boolean = false;
   containsBinaryData: boolean = false;
-  containsNonBinaryData: boolean = false;
   inputDatasetName = "";
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
 
@@ -111,7 +110,6 @@ export class ResultExportationComponent implements OnInit {
     let allTable = true;
     let allVisualization = true;
     let anyBinaryData = false;
-    let anyNonBinaryData = false;
 
     for (const operatorId of operatorIds) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
@@ -126,15 +124,12 @@ export class ResultExportationComponent implements OnInit {
       }
       if (outputTypes.containsBinaryData) {
         anyBinaryData = true;
-      } else {
-        anyNonBinaryData = true;
       }
     }
 
     this.isTableOutput = allTable;
     this.isVisualizationOutput = allVisualization;
     this.containsBinaryData = anyBinaryData;
-    this.containsNonBinaryData = anyNonBinaryData;
   }
 
   onUserInputDatasetName(event: Event): void {
