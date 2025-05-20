@@ -650,7 +650,7 @@ class WorkflowExecutionsResource {
       @Auth user: SessionUser
   ): Response = {
 
-    if (request.operatorIds.size <= 0)
+    if (request.operators.size <= 0)
       Response
         .status(Response.Status.BAD_REQUEST)
         .`type`(MediaType.APPLICATION_JSON)
@@ -661,10 +661,10 @@ class WorkflowExecutionsResource {
       request.destination match {
         case "local" =>
           // CASE A: multiple operators => produce ZIP
-          if (request.operatorIds.size > 1) {
+          if (request.operators.size > 1) {
             val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
             val (zipStream, zipFileNameOpt) =
-              resultExportService.exportOperatorsAsZip(user.user, request)
+              resultExportService.exportOperatorsAsZip(request)
 
             if (zipStream == null) {
               throw new RuntimeException("Zip stream is null")
@@ -678,18 +678,18 @@ class WorkflowExecutionsResource {
           }
 
           // CASE B: exactly one operator => single file
-          if (request.operatorIds.size != 1) {
+          if (request.operators.size != 1) {
             return Response
               .status(Response.Status.BAD_REQUEST)
               .`type`(MediaType.APPLICATION_JSON)
               .entity(Map("error" -> "Local download does not support no operator.").asJava)
               .build()
           }
-          val singleOpId = request.operatorIds.head
+          val singleOp = request.operators.head
 
           val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
           val (streamingOutput, fileNameOpt) =
-            resultExportService.exportOperatorResultAsStream(request, singleOpId)
+            resultExportService.exportOperatorResultAsStream(request, singleOp)
 
           if (streamingOutput == null) {
             return Response
@@ -707,7 +707,8 @@ class WorkflowExecutionsResource {
         case _ =>
           // destination = "dataset" by default
           val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId))
-          val exportResponse = resultExportService.exportResultToDataset(user.user, request)
+          val exportResponse =
+            resultExportService.exportAllOperatorsResultToDataset(user.user, request)
           Response.ok(exportResponse).build()
       }
     } catch {
