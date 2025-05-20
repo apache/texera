@@ -218,13 +218,13 @@ ingress-nginx:
 yWebsocketServer:
   name: y-websocket-server
   replicaCount: 1
-  image: jxzliu/y-websocket-server:latest
+  image: texera/y-websocket-server:latest
 
 
 pythonLanguageServer:
   name: python-language-server
   replicaCount: 1
-  image: jxzliu/pylsp:latest
+  image: texera/pylsp:latest
   imagePullSecret: regcred
   resources:
     limits:
