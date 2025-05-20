@@ -29,7 +29,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
   METHOD_FLUSH_NETWORK_BUFFER,
   METHOD_OPEN_EXECUTOR
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -45,6 +48,8 @@ import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
@@ -71,7 +76,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     .toArray
 
   def mkDataProcessor: DataProcessor = {
-    val dp: DataProcessor = new DataProcessor(testWorkerId, outputHandler)
+    val dp: DataProcessor = new DataProcessor(
+      testWorkerId,
+      outputHandler,
+      inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    )
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }

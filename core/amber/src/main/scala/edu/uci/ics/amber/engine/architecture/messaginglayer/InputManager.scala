@@ -31,11 +31,13 @@ import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 
-class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
+class InputManager(
+    val actorId: ActorVirtualIdentity,
+    val inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement]
+) extends AmberLogging {
   private var inputBatch: Array[Tuple] = _
   private var currentInputIdx: Int = -1
   var currentChannelId: ChannelIdentity = _
-  var inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement] = _
 
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
