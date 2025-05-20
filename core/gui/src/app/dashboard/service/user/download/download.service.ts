@@ -123,7 +123,10 @@ export class DownloadService {
     exportType: string,
     workflowId: number,
     workflowName: string,
-    operatorIds: string[],
+    operators: {
+      id: string;
+      outputType: string;
+    }[],
     datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
@@ -135,14 +138,14 @@ export class DownloadService {
       exportType,
       workflowId,
       workflowName,
-      operatorIds,
+      operators,
       datasetIds,
       rowIndex,
       columnIndex,
       filename,
       destination,
     };
-    console.log("received cui from exportWorkflowResult", unit);
+
     const urlPath =
       unit && unit.computingUnit?.cuid
         ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`

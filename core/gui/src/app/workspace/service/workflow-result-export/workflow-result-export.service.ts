@@ -124,6 +124,13 @@ export class WorkflowResultExportService {
           .map(operator => operator.operatorID)
       : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
+    const operatorArray = operatorIds.map(operatorId => {
+      return {
+        id: operatorId,
+        outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
+      };
+    });
+
     if (operatorIds.length === 0) {
       return;
     }
@@ -137,7 +144,7 @@ export class WorkflowResultExportService {
         exportType,
         workflowId,
         workflowName,
-        operatorIds,
+        operatorArray,
         [...datasetIds],
         rowIndex,
         columnIndex,

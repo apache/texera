@@ -210,6 +210,15 @@ export class WorkflowResultService {
     };
   }
 
+  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
+    if (defaultExtension === "data") return "data";
+    var outputType = this.determineOutputTypes(operatorId);
+
+    if (outputType.isVisualizationOutput) return "html";
+    if (outputType.isTableOutput && defaultExtension === "csv") return "csv";
+    return "arrow";
+  }
+
   private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
     return paginatedResultService !== undefined;
   }

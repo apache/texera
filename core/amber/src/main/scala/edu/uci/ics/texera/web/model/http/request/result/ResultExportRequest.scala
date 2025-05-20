@@ -19,11 +19,16 @@
 
 package edu.uci.ics.texera.web.model.http.request.result
 
+case class OperatorExportInfo(
+    id: String,
+    outputType: String
+)
+
 case class ResultExportRequest(
     exportType: String, // e.g. "csv", "google_sheet", "arrow", "data"
     workflowId: Int,
     workflowName: String,
-    operatorIds: List[String], // changed from single operatorId: String -> List of strings
+    operators: List[OperatorExportInfo],
     datasetIds: List[Int],
     rowIndex: Int, // used by "data" export
     columnIndex: Int, // used by "data" export
