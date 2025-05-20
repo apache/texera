@@ -31,7 +31,7 @@
                 name="exportType"
                 nzPlaceHolder="Select export type">
                 <nz-option
-                  *ngIf="isTableOutput || containsBinaryData"
+                  *ngIf="isTableOutput"
                   nzValue="arrow"
                   nzLabel="Binary Format (.arrow)"></nz-option>
                 <nz-option
