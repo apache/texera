@@ -70,8 +70,7 @@ class RoundRobinPartitioner(Partitioner):
         typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
         for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield receiver, batch
-                    batch.clear()
-                yield receiver, marker
+            if len(batch) > 0:
+                yield receiver, batch
+                batch.clear()
+            yield receiver, marker
