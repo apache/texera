@@ -205,21 +205,17 @@ class OutputManager:
         )
 
     def emit_marker_to_channel(
-        self, channel_id: ChannelIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
+        self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
+    ) -> Iterable[DataPayload]:
         return chain(
             *(
                 (
                     (
-                        receiver,
-                        (
-                            payload
-                            if isinstance(payload, ChannelMarkerPayload)
-                            else self.tuple_to_frame(payload)
-                        ),
+                        payload
+                        if isinstance(payload, ChannelMarkerPayload)
+                        else self.tuple_to_frame(payload)
                     )
-                    for receiver, payload in partitioner.flush(marker)
-                    if receiver == channel_id.to_worker_id
+                    for payload in partitioner.flush(to, marker)
                 )
                 for partitioner in self._partitioners.values()
             )
@@ -239,7 +235,7 @@ class OutputManager:
                             else self.tuple_to_frame(payload)
                         ),
                     )
-                    for receiver, payload in partitioner.flush(marker)
+                    for receiver, payload in partitioner.flush_marker(marker)
                 )
                 for partitioner in self._partitioners.values()
             )

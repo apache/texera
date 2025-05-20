@@ -51,6 +51,15 @@ class OneToOnePartitioner(Partitioner):
 
     @overrides
     def flush(
+        self, to: ActorVirtualIdentity, marker: Marker
+    ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
+        if len(self.batch) > 0:
+            yield self.batch
+        self.reset()
+        yield marker
+
+    @overrides
+    def flush_marker(
         self, marker: Marker
     ) -> Iterator[
         typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
