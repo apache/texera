@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.operator
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
@@ -94,15 +113,18 @@ import edu.uci.ics.amber.operator.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import edu.uci.ics.amber.operator.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
+import edu.uci.ics.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
 import edu.uci.ics.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
 import edu.uci.ics.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDesc
 import edu.uci.ics.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
+import edu.uci.ics.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -148,6 +170,7 @@ trait StateTransferFunc
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
+    new Type(value = classOf[RangeSliderOpDesc], name = "RangeSlider"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
@@ -178,6 +201,7 @@ trait StateTransferFunc
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
+    new Type(value = classOf[VolcanoPlotOpDesc], name = "VolcanoPlot"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
@@ -200,6 +224,7 @@ trait StateTransferFunc
     new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
     new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
     new Type(value = classOf[DendrogramOpDesc], name = "Dendrogram"),
+    new Type(value = classOf[NestedTableOpDesc], name = "NestedTable"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),

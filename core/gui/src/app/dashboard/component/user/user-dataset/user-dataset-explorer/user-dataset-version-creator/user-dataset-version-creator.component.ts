@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, EventEmitter, inject, Input, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
@@ -89,6 +108,10 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     // Replace all characters that are not letters (a-z, A-Z), numbers (0-9) with a short dash "-"
     sanitizedDatasetName = sanitizedDatasetName.replace(/[^a-zA-Z0-9]+/g, "-");
 
+    // Lower-case everything
+    sanitizedDatasetName = sanitizedDatasetName.toLowerCase();
+
+    // Track whether user’s input be changed
     if (sanitizedDatasetName !== datasetName) {
       this.isDatasetNameSanitized = true;
     }
@@ -137,8 +160,12 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           },
         });
     } else {
+      // capture original and sanitized names
+      const originalName = this.form.get("name")?.value as string;
+      const sanitizedName = this.datasetNameSanitization(originalName);
+
       const ds: Dataset = {
-        name: this.datasetNameSanitization(this.form.get("name")?.value),
+        name: sanitizedName,
         description: this.form.get("description")?.value,
         isPublic: this.isDatasetPublic,
         did: undefined,
@@ -151,9 +178,11 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
-            this.notificationService.success(
-              `Dataset '${ds.name}' Created. ${this.isDatasetNameSanitized ? "We have sanitized your provided dataset name for the compatibility reason" : ""}`
-            );
+            const msg = this.isDatasetNameSanitized
+              ? `Dataset '${originalName}' was sanitized to '${sanitizedName}' and created successfully.`
+              : `Dataset '${sanitizedName}' created successfully.`;
+
+            this.notificationService.success(msg);
             this.isCreating = false;
             // if creation succeed, emit the created dashboard dataset
             this.modalRef.close(res);
