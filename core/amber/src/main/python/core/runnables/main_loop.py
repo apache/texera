@@ -375,18 +375,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
                             f"send marker to {active_channel_id},"
                             f" id = {marker_id}, cmd = {command}"
                         )
-                        for (
-                            to,
-                            batch,
-                        ) in self.context.output_manager.emit_marker_to_channel(
-                            active_channel_id, marker_payload
+                        for batch in self.context.output_manager.emit_marker_to_channel(
+                            active_channel_id.to_worker_id, marker_payload
                         ):
-                            tag = ChannelIdentity(
-                                ActorVirtualIdentity(self.context.worker_id),
-                                to,
-                                False,
-                            )
-
+                            tag = active_channel_id
                             element = (
                                 ChannelMarkerElement(tag=tag, payload=batch)
                                 if isinstance(batch, ChannelMarkerPayload)
