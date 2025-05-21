@@ -127,11 +127,32 @@ class RegionExecutionCoordinator(
         .contains(op.id)
     )
 
+    // initialize the operators that are uninitialized
+    val operatorsWithDependeeInputs = region.getOperators.filter(op =>
+      regionExecution.getAllOperatorExecutions
+        .filter(a => a._2.getState == WorkflowAggregatedState.UNINITIALIZED)
+        .map(_._1)
+        .toSet
+        .contains(op.id)
+    ).filter(op => op.dependeeInputs.nonEmpty)
+
+    // initialize the operators that are uninitialized
+    val otherOperators = region.getOperators.filter(op =>
+      regionExecution.getAllOperatorExecutions
+        .filter(a => a._2.getState == WorkflowAggregatedState.UNINITIALIZED)
+        .map(_._1)
+        .toSet
+        .contains(op.id)
+    ).filter(op => op.dependeeInputs.isEmpty)
+
     Future(())
       .flatMap(_ => initExecutors(operatorsToInit, resourceConfig))
+      .flatMap(_ => assignDependeePorts(region))
+      .flatMap(_ => openOperators(operatorsWithDependeeInputs))
+      .flatMap(_ => sendStarts(region))
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => connectChannels(region.getLinks))
-      .flatMap(_ => openOperators(operatorsToInit))
+      .flatMap(_ => openOperators(otherOperators))
       .flatMap(_ => sendStarts(region))
       .unit
   }
@@ -174,6 +195,62 @@ class RegionExecutionCoordinator(
           })
           .toSeq
       )
+  }
+
+  private def assignDependeePorts(region: Region): Future[Seq[EmptyReturn]] = {
+    val resourceConfig = region.resourceConfig.get
+    Future.collect(
+      region.getOperators
+        .flatMap { physicalOp: PhysicalOp =>
+          val inputPortMapping = physicalOp
+            .inputPorts
+            .filter{
+              case (portId, _) =>
+                physicalOp.dependeeInputs.contains(portId)
+            }
+            .filter {
+              // Because of the hack on input dependency, some input ports may not belong to this region.
+              case (inputPortId, _) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+                region.getPorts.contains(globalInputPortId)
+            }
+            .flatMap {
+              case (inputPortId, (_, _, Right(schema))) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+                val (storageURIs, partitionings) =
+                  resourceConfig.portConfigs.get(globalInputPortId) match {
+                    case Some(cfg: InputPortConfig) =>
+                      (
+                        cfg.storagePairs.map(_._1.toString),
+                        cfg.storagePairs.map(_._2)
+                      )
+                    case _ =>
+                      (List.empty[String], List.empty[Partitioning])
+                  }
+
+                Some(globalInputPortId -> (storageURIs, partitionings, schema))
+              case _ => None
+            }
+          inputPortMapping
+        }
+        .flatMap {
+          case (globalPortId, (storageUris, partitionings, schema)) =>
+            resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
+              workerId =>
+                asyncRPCClient.workerInterface.assignPort(
+                  AssignPortRequest(
+                    globalPortId.portId,
+                    globalPortId.input,
+                    schema.toRawSchema,
+                    storageUris,
+                    partitionings
+                  ),
+                  asyncRPCClient.mkContext(workerId)
+                )
+            }
+        }
+        .toSeq
+    )
   }
 
   private def assignPorts(region: Region): Future[Seq[EmptyReturn]] = {
@@ -277,6 +354,37 @@ class RegionExecutionCoordinator(
           }
           .toSeq
       )
+  }
+
+  private def sendOpsWithDependeeInputStarts(region: Region): Future[Seq[Unit]] = {
+    asyncRPCClient.sendToClient(
+      ExecutionStatsUpdate(
+        workflowExecution.getAllRegionExecutionsStats
+      )
+    )
+    Future.collect(
+      region.getStarterOperators
+        .map(_.id)
+        .flatMap { opId =>
+          workflowExecution
+            .getRegionExecution(region.id)
+            .getOperatorExecution(opId)
+            .getWorkerIds
+            .map { workerId =>
+              asyncRPCClient.workerInterface
+                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+                .map(resp =>
+                  // update worker state
+                  workflowExecution
+                    .getRegionExecution(region.id)
+                    .getOperatorExecution(opId)
+                    .getWorkerExecution(workerId)
+                    .setState(resp.state)
+                )
+            }
+        }
+        .toSeq
+    )
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
