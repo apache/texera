@@ -35,9 +35,15 @@ class RoundRobinPartitioner(Partitioner):
     def __init__(self, partitioning: RoundRobinPartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
+        # Must use dict.fromkeys to ensure the order of receiver workers
+        # from partitioning is preserved (using `{}` to create the dict
+        # does not preserve order and will not work with input-port
+        # materialization reader threads.)
         self.receivers = [
-            (receiver, [])
-            for receiver in {channel.to_worker_id for channel in partitioning.channels}
+            (rid, [])
+            for rid in dict.fromkeys(
+                channel.to_worker_id for channel in partitioning.channels
+            )
         ]
         self.round_robin_index = 0
 
