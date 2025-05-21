@@ -502,7 +502,7 @@ case class PhysicalOp(
     * processes the build input, then the probe input.
     */
   @JsonIgnore
-  def getInputPortsInProcessingOrder: List[PortIdentity] = {
+  def getInputPortDependencyPairs: List[PortIdentity] = {
     val dependencyDag = {
       new DirectedAcyclicGraph[PortIdentity, DefaultEdge](classOf[DefaultEdge])
     }

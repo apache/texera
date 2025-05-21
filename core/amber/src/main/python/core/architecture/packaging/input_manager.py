@@ -81,7 +81,7 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
         self._input_queue = input_queue
-        self._input_port_mat_read_threads: Dict[
+        self._input_port_mat_reader_runnables: Dict[
             PortIdentity, List[InputPortMaterializationReaderRunnable]
         ] = dict()
 
@@ -90,7 +90,7 @@ class InputManager:
     ) -> None:
         assert len(uris) == len(partitionings)
         if uris is not None:
-            reader_threads = [
+            reader_runnables = [
                 InputPortMaterializationReaderRunnable(
                     uri=uri,
                     queue=self._input_queue,
@@ -99,22 +99,23 @@ class InputManager:
                 )
                 for uri, partitioning in zip(uris, partitionings)
             ]
-            self._input_port_mat_read_threads[port_id] = reader_threads
+            self._input_port_mat_reader_runnables[port_id] = reader_runnables
 
     def get_input_port_mat_reader_threads(
         self,
     ) -> Dict[PortIdentity, List[InputPortMaterializationReaderRunnable]]:
-        return self._input_port_mat_read_threads
+        return self._input_port_mat_reader_runnables
 
     def start_input_port_mat_reader_threads(self):
-        for readers in self._input_port_mat_read_threads.values():
-            for reader in readers:
-                reader_thread = threading.Thread(
-                    target=reader.run,
+        for port_reader_runnables in self._input_port_mat_reader_runnables.values():
+            for reader_runnable in port_reader_runnables:
+                thread_for_reader_runnable = threading.Thread(
+                    target=reader_runnable.run,
                     daemon=True,
-                    name=f"port_mat_reader_thread_{reader.channel_id}",
+                    name=f"port_mat_reader_runnable_thread_"
+                    f"{reader_runnable.channel_id}",
                 )
-                reader_thread.start()
+                thread_for_reader_runnable.start()
 
     def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
         return self._channels.keys()

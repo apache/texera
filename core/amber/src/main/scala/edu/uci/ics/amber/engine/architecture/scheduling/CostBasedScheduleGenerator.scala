@@ -113,20 +113,15 @@ class CostBasedScheduleGenerator(
     *
     * @param physicalPlan the original physical plan (without materializations)
     * @param matEdges     edges to be materialized (including blocking edges)
-    * @return a set of [[Region]]s whose [[ResourceConfig]] contains only [[URI]]s for [[PortConfig]]s
-    *         ([[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning]]
-    *         to be assigned later in
-    *         [[edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.ResourceAllocator]])
-    * @see [[edu.uci.ics.amber.engine.architecture.scheduling.config.IntermediateInputPortConfig]]
+    * @return a set of `Region`s whose `ResourceConfig` contains only `URI`s for `PortConfig`s
+    *         (`Partitioning` to be assigned later in `ResourceAllocator`; see `IntermediateInputPortConfig`.)
     */
   private def createRegions(
       physicalPlan: PhysicalPlan,
       matEdges: Set[PhysicalLink]
   ): Set[Region] = {
 
-    /* ------------------------------------------------------------------
-     * Pass 0 – remove materialized edges and create connected components
-     * ------------------------------------------------------------------ */
+    // Pass 0 – remove materialized edges and create connected components
 
     val matEdgesRemovedDAG: PhysicalPlan = matEdges.foldLeft(physicalPlan)(_.removeLink(_))
 
@@ -135,13 +130,12 @@ class CostBasedScheduleGenerator(
         matEdgesRemovedDAG.dag
       ).getConnectedComponents.asScala.toSet
 
-    /* ------------------------------------------------------------
-     * Pass 1 – build Regions only output-port storage URIs
-     * ------------------------------------------------------------ */
+    // Pass 1 – build Regions only output-port storage URIs
 
     val regionsWithOnlyOutputPortURIs: Set[Region] = connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        // --- operators and intra‑region pipelined links ------------------
+        // Operators and intra‑region pipelined links
+
         val operators: Set[PhysicalOpIdentity] = connectedSubDAG.vertexSet().asScala.toSet
 
         val links: Set[PhysicalLink] = operators
@@ -154,18 +148,12 @@ class CostBasedScheduleGenerator(
 
         val physicalOps: Set[PhysicalOp] = operators.map(physicalPlan.getOperator)
 
-        /**
-          * Frontend-specified ports that need to be materailized
-          * (output ports of "eye-icon" physicalOps)
-          */
+        // Frontend-specified ports that need to be materailized (output ports of "eye-icon" physicalOps)
         val outputPortIdsToViewResult: Set[GlobalPortIdentity] =
           workflowContext.workflowSettings.outputPortsNeedingStorage
             .filter(pid => operators.contains(pid.opId))
 
-        /**
-          * Contains both frontend-specified and scheduler-decided ports
-          * that require materailizations.
-          */
+        // Contains both frontend-specified and scheduler-decided ports that require materailizations.
         val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] =
           matEdges
             .diff(physicalPlan.getDependeeLinks) // non‑dependee mat edges only
@@ -173,7 +161,7 @@ class CostBasedScheduleGenerator(
             .map(e => GlobalPortIdentity(e.fromOpId, e.fromPortId)) ++
             outputPortIdsToViewResult
 
-        // allocate an URI for each of these output ports
+        // Allocate an URI for each of these output ports
         val outputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
           outputPortIdsNeedingStorage.map { gpid =>
             val outputWriterURI = createResultURI(
@@ -186,7 +174,7 @@ class CostBasedScheduleGenerator(
 
         val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
 
-        // --- enumerate all ports belonging to the Region ------------------
+        // Enumerate all ports belonging to the Region
         val ports: Set[GlobalPortIdentity] = physicalOps.flatMap { op =>
           op.inputPorts.keys
             .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
@@ -195,7 +183,7 @@ class CostBasedScheduleGenerator(
             .toSet
         }
 
-        // build the Region skeleton (no input‑port URIs yet)
+        // Build the Region skeleton (no input‑port URIs yet)
         Region(
           id = RegionIdentity(idx),
           physicalOps = physicalOps,
@@ -214,16 +202,12 @@ class CostBasedScheduleGenerator(
         })
         .toMap
 
-    /* ------------------------------------------------------------
-     * Pass 2 – add input‑port storage configs (reader URIs)
-     * ------------------------------------------------------------ */
+    // Pass 2 – add input‑port storage configs (reader URIs)
 
     regionsWithOnlyOutputPortURIs.map { existingRegion =>
       val nonDepMatEdges: Set[PhysicalLink] = matEdges.diff(physicalPlan.getDependeeLinks)
 
-      /**
-        * MatEdges that originally connected to the input ports of this region.
-        */
+      // MatEdges that originally connected to the input ports of this region.
       val relevantMatEdges: Set[PhysicalLink] = nonDepMatEdges.filter { matEdge =>
         existingRegion.getOperators.exists(_.id == matEdge.toOpId)
       }
@@ -235,9 +219,7 @@ class CostBasedScheduleGenerator(
             val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
             val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
 
-            /**
-              * Writer‑side URI that must already exist thanks to Pass 1
-              */
+            // Writer‑side URI that must already exist thanks to Pass 1
             val inputReaderURI = allOutputPortConfigs
               .getOrElse(
                 globalOutputPortId,

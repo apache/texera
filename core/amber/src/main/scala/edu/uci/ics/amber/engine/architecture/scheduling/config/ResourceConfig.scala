@@ -26,5 +26,4 @@ case class ResourceConfig(
     operatorConfigs: Map[PhysicalOpIdentity, OperatorConfig] = Map.empty,
     linkConfigs: Map[PhysicalLink, LinkConfig] = Map.empty,
     portConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
-    // TODO: Separate into two types
 )

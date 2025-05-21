@@ -194,10 +194,10 @@ class ExpansionGreedyScheduleGenerator(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Option[Set[PhysicalLink]] = {
-    // for operators like HashJoin's Probe that have dependencies between their input ports
+    // For operators like HashJoin's Probe that have dependencies between their input ports
     physicalPlan
       .getOperator(physicalOpId)
-      .getInputPortsInProcessingOrder
+      .getInputPortDependencyPairs
       .sliding(2, 1)
       .foreach {
         case List(dependeePort, dependerPort) =>
@@ -231,14 +231,15 @@ class ExpansionGreedyScheduleGenerator(
               }
             } catch {
               case _: IllegalArgumentException =>
-                // adding the depender edge causes cycle. return the edge for materialization replacement
+                // Adding the depender edge causes cycle. return the edge for materialization replacement
                 return Some(Set(dependerEdges.head))
             }
           } else {
             // The depender port is not connected to any edges (due to materializations)
             try {
-              // Use this depender port to find regions
+              // Any region that the dependee port belongs to needs to run first.
               val dependeeRegions = getRegions(dependeeEdges.head.fromOpId, regionDAG)
+              // Any region that this depender port belongs to need to run after those dependee regions.
               val dependerRegion = getRegions(physicalOpId, regionDAG)
                 .filter(region =>
                   region.getPorts.contains(
@@ -270,8 +271,8 @@ class ExpansionGreedyScheduleGenerator(
   }
 
   /**
-    * @param matReaderWriterPairs
-    * @param regionDAG
+    * Create `PortConfig`s containing only `URI`s for both input and output ports. For the greedy scheduler, this step
+    * after a region DAG is created.
     */
   private def assignPortConfigs(
       matReaderWriterPairs: Set[(GlobalPortIdentity, GlobalPortIdentity)],
@@ -298,12 +299,12 @@ class ExpansionGreedyScheduleGenerator(
       })
 
     matReaderWriterPairs
-      // group all pairs by the input port (_2)
+      // Group all pairs by the input port (_2)
       .groupBy { case (_, inputPort) => inputPort }
-      // for each input port, build its PortConfig based on all its upstream output ports
+      // For each input port, build its PortConfig based on all its upstream output ports
       .foreach {
         case (inputPort, pairsForThisInput) =>
-          // extract all the output ports paired with this input
+          // Extract all the output ports paired with this input
           val urisToAdd: List[URI] = pairsForThisInput.map {
             case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort)
           }.toList
@@ -332,11 +333,6 @@ class ExpansionGreedyScheduleGenerator(
     )
   }
 
-  /**
-    * @param physicalLink
-    * @param writerReaderPairs
-    * @return
-    */
   private def replaceLinkWithMaterialization(
       physicalLink: PhysicalLink,
       writerReaderPairs: mutable.Set[(GlobalPortIdentity, GlobalPortIdentity)]
