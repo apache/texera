@@ -19,12 +19,16 @@
 
 package edu.uci.ics.texera.web.model.websocket.event
 
+import edu.uci.ics.amber.engine.architecture.worker.statistics.TupleMetrics
+
 case class OperatorAggregatedMetrics(
     operatorState: String,
     aggregatedInputRowCount: Long,
     aggregatedInputSize: Long,
+    inputPortMetrics: Map[String, TupleMetrics],
     aggregatedOutputRowCount: Long,
     aggregatedOutputSize: Long,
+    outputPortMetrics: Map[String, TupleMetrics],
     numWorkers: Long,
     aggregatedDataProcessingTime: Long,
     aggregatedControlProcessingTime: Long,

@@ -56,7 +56,9 @@ export class WorkflowStatusService {
         accumulator[operatorId] = {
           operatorState: OperatorState.Uninitialized,
           aggregatedInputRowCount: 0,
+          inputPortMetrics: {},
           aggregatedOutputRowCount: 0,
+          outputPortMetrics: {},
         };
         return accumulator;
       },
