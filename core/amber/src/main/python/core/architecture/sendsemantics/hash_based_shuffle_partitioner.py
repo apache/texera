@@ -40,13 +40,12 @@ class HashBasedShufflePartitioner(Partitioner):
         # Currently we are using the index of such an order to choose
         # a downstream worker to send tuples to.
         # Must use dict.fromkeys to ensure the order of receiver workers
-        # from partitioning is preserved (using `{}` to create the dict
+        # from partitioning is preserved (using `{}` to create a set
         # does not preserve order and will not work correctly.)
         self.receivers = [
             (rid, [])
             for rid in dict.fromkeys(
-                channel.to_worker_id
-                for channel in partitioning.channels
+                channel.to_worker_id for channel in partitioning.channels
             )
         ]
         self.hash_attribute_names = partitioning.hash_attribute_names

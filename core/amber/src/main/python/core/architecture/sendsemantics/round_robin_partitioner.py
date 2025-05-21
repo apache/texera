@@ -39,7 +39,7 @@ class RoundRobinPartitioner(Partitioner):
         # Currently we are using the index of such an order to choose
         # a downstream worker to send tuples to.
         # Must use dict.fromkeys to ensure the order of receiver workers
-        # from partitioning is preserved (using `{}` to create the dict
+        # from partitioning is preserved (using `{}` to create a set
         # does not preserve order and will not work with input-port
         # materialization reader threads.)
         self.receivers = [
