@@ -1,9 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.State
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
@@ -22,12 +41,15 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
+import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
+import scala.jdk.CollectionConverters._
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
@@ -117,11 +139,32 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
       markerPayload: ChannelMarkerPayload,
       from: ChannelIdentity
   ): Unit = {
-    val t = Tuple
-      .builder(Schema().add("payload", AttributeType.BINARY))
-      .add("payload", AttributeType.BINARY, markerPayload.toByteArray)
-      .build()
-    writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, "ChannelMarker").toByteArray)
+    val flightListener = new SyncPutListener
+
+    val field = new Field("payload", FieldType.nullable(new ArrowType.Binary), null)
+    val schema = new ArrowSchema(List(field).asJava)
+    val schemaRoot = VectorSchemaRoot.create(schema, allocator)
+
+    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
+    schemaRoot.allocateNew()
+
+    val vector = schemaRoot.getVector("payload").asInstanceOf[VarBinaryVector]
+    vector.setSafe(0, markerPayload.toByteArray)
+    vector.setValueCount(1)
+    schemaRoot.setRowCount(1)
+
+    writer.putNext()
+    schemaRoot.clear()
+    writer.completed()
+
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
+    ackMsgBuf.close()
+
+    flightListener.close()
   }
 
   private def sendControl(

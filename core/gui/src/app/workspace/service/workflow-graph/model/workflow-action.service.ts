@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
@@ -73,9 +92,12 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private highlightingEnabled = false;
+  private centerPoint: Point = { x: 0, y: 0 };
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
+  private resultPanelOpenSubject = new Subject<boolean>();
+  public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowSettings: WorkflowSettings;
 
@@ -155,6 +177,10 @@ export class WorkflowActionService {
    */
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getCenterPoint(): Point {
+    return this.centerPoint;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,6 +378,36 @@ export class WorkflowActionService {
   }
 
   /**
+   * Calculating the top-left (minimum x and y) position of all operators
+   */
+  public calculateTopLeftOperatorPosition(): void {
+    this.texeraGraph.bundleActions(() => {
+      this.undoRedoService.setListenJointCommand(false);
+      const allOperators = this.getTexeraGraph().getAllOperators();
+      if (allOperators.length === 0) return;
+
+      let minX = Infinity;
+      let minY = Infinity;
+
+      for (const operator of allOperators) {
+        const operatorID = operator.operatorID;
+        const position = this.jointGraphWrapper.getElementPosition(operatorID);
+
+        if (position.x < minX) {
+          minX = position.x;
+        }
+        if (position.y < minY) {
+          minY = position.y;
+        }
+      }
+
+      this.centerPoint = { x: minX, y: minY };
+
+      this.undoRedoService.setListenJointCommand(true);
+    });
+  }
+
+  /**
    * Adds a link to the workflow graph
    * Throws an Error if the link ID or the link with same source and target already exists.
    * @param link
@@ -515,6 +571,14 @@ export class WorkflowActionService {
 
   public setOperatorVersion(operatorId: string, newVersion: string): void {
     this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
+  }
+
+  public openResultPanel(): void {
+    this.resultPanelOpenSubject.next(true);
+  }
+
+  public closeResultPanel(): void {
+    this.resultPanelOpenSubject.next(false);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

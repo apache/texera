@@ -1,8 +1,27 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { Role, User, File, Workflow, MongoExecution } from "../../../../common/type/user";
+import { Role, User, File, Workflow, ExecutionQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
@@ -16,8 +35,8 @@ export const USER_CREATED_DATASETS = `${USER_BASE_URL}/created_datasets`;
 export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
 export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
-export const USER_MONGODB_SIZE = `${USER_BASE_URL}/mongodb_size`;
-export const USER_DELETE_MONGODB_COLLECTION_NAME = `${USER_BASE_URL}/deleteCollection`;
+export const USER_QUOTA_SIZE = `${USER_BASE_URL}/user_quota_size`;
+export const USER_DELETE_EXECUTION_COLLECTION = `${USER_BASE_URL}/deleteCollection`;
 
 @Injectable({
   providedIn: "root",
@@ -67,12 +86,12 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_WORKFLOWS}`, { params: params });
   }
 
-  public getMongoDBs(uid: number): Observable<ReadonlyArray<MongoExecution>> {
+  public getExecutionQuota(uid: number): Observable<ReadonlyArray<ExecutionQuota>> {
     let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<MongoExecution>>(`${USER_MONGODB_SIZE}`, { params: params });
+    return this.http.get<ReadonlyArray<ExecutionQuota>>(`${USER_QUOTA_SIZE}`, { params: params });
   }
 
-  public deleteMongoDBCollection(collectionName: string): Observable<void> {
-    return this.http.delete<void>(`${USER_DELETE_MONGODB_COLLECTION_NAME}/${collectionName}`);
+  public deleteExecutionCollection(eid: number): Observable<void> {
+    return this.http.delete<void>(`${USER_DELETE_EXECUTION_COLLECTION}/${eid.toString()}`);
   }
 }

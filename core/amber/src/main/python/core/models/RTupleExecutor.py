@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import pickle
 import datetime
 import pyarrow as pa
@@ -55,14 +72,10 @@ class RTupleExecutor(TupleOperatorV2):
             input_schema: pa.Schema = tuple_._schema.as_arrow_schema()
             input_fields: list[str] = [field.name for field in input_schema]
             non_binary_fields: list[str] = [
-                field.name
-                for field in input_schema
-                if field.type != pa.large_list(pa.binary())
+                field.name for field in input_schema if field.type != pa.binary()
             ]
             binary_fields: list[str] = [
-                field.name
-                for field in input_schema
-                if field.type == pa.large_list(pa.binary())
+                field.name for field in input_schema if field.type == pa.binary()
             ]
 
             non_binary_pyarrow_array: pa.StructArray = pa.array([], type=pa.struct([]))
@@ -80,18 +93,14 @@ class RTupleExecutor(TupleOperatorV2):
             if binary_fields:
                 binary_tuple: Tuple = tuple_.get_partial_tuple(binary_fields)
                 for k, v in binary_tuple.as_dict().items():
-                    # Process each binary item in the list
-                    processed_items = []
-                    for item in v:
-                        if isinstance(item, bytes):
-                            processed_items.append(pickle.loads(item[10:]))
-                        elif isinstance(item, datetime.datetime):
-                            processed_items.append(
-                                robjects.vectors.POSIXct.sexp_from_datetime([item])
-                            )
-                        else:
-                            processed_items.append(item)
-                    binary_r_list[k] = processed_items
+                    if isinstance(v, bytes):
+                        binary_r_list[k] = pickle.loads(v[10:])
+                    elif isinstance(v, datetime.datetime):
+                        binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime(
+                            [v]
+                        )
+                    else:
+                        binary_r_list[k] = v
 
             binary_r_list: rpy2.robjects.ListVector = robjects.vectors.ListVector(
                 binary_r_list
