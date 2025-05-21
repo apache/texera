@@ -113,6 +113,13 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.resetPanelPosition();
       this.openPanel();
     });
+    this.workflowActionService.resultPanelOpen$.pipe(untilDestroyed(this)).subscribe(open => {
+      if (open) {
+        this.openPanel();
+      } else {
+        this.closePanel();
+      }
+    });
   }
 
   @HostListener("window:beforeunload")
