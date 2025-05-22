@@ -45,7 +45,11 @@ object DashboardResource {
 
   case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
 
-  case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean, hasMismatch: Boolean = false)
+  case class DashboardSearchResult(
+      results: List[DashboardClickableFileEntry],
+      more: Boolean,
+      hasMismatch: Boolean = false
+  )
 
   /*
    The following class describe the available params from the frontend for full text search.
@@ -131,7 +135,11 @@ object DashboardResource {
           false
       }
 
-    DashboardSearchResult(results = entries, more = queryResult.size() > params.count, hasMismatch = hasMismatch)
+    DashboardSearchResult(
+      results = entries,
+      more = queryResult.size() > params.count,
+      hasMismatch = hasMismatch
+    )
   }
 
   def getOrderFields(
