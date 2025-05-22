@@ -1,14 +1,10 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.storage.model.{
-  DatasetFileDocument,
-  ReadonlyLocalFileDocument,
-  ReadonlyVirtualDocument,
-  VirtualDocument
-}
+import edu.uci.ics.amber.core.storage.model.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument, VirtualDocument}
 import FileResolver.DATASET_FILE_URI_SCHEME
 import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
 import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
+import edu.uci.ics.amber.core.storage.result.InMemoryDocument
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.util.IcebergUtil
@@ -137,13 +133,7 @@ object DocumentFactory {
                   IcebergUtil.fromRecord(record, amberSchema)
 
                 (
-                  new IcebergDocument[Tuple](
-                    StorageConfig.icebergTableNamespace,
-                    storageKey,
-                    table.schema(),
-                    serde,
-                    deserde
-                  ),
+                  new InMemoryDocument[Tuple](),
                   Some(amberSchema)
                 )
 

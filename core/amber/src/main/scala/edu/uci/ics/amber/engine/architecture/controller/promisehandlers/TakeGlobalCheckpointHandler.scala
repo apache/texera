@@ -26,7 +26,7 @@ trait TakeGlobalCheckpointHandler {
       SequentialRecordStorage.getStorage[CheckpointState](Some(destinationURI))
     if (storage.containsFolder(msg.checkpointId.toString)) {
       logger.info("skip checkpoint since its already taken")
-      estimationOnly = true
+      estimationOnly = true\
     }
     val uri = destinationURI.resolve(msg.checkpointId.toString)
     var totalSize = 0L

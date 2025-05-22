@@ -90,7 +90,7 @@ object JsonTest {
       println("Press 's' to start...")
       input = StdIn.readLine()
     }
-    doExperiment()
+    println(runExp8(AmberRuntime.actorSystem, 2, isScattered = false, "flink-sync", 1000))
   }
 
   def main(args: Array[String]): Unit = {
@@ -109,7 +109,6 @@ object JsonTest {
     AmberRuntime.startActorMaster(false)
     // Call the function
     waitForS()
-    // runExp3(AmberRuntime.actorSystem, 5, isScattered = false, "flink-sync", 1000)
 
   }
 }

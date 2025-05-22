@@ -7,35 +7,20 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.DocumentFactory.MONGODB
 import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
 import java.util.UUID
@@ -293,32 +278,32 @@ class ExecutionResultService(
 
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
-    val from = request.pageSize * (request.pageIndex - 1)
-    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
-      throw new IllegalStateException("No execution is recorded")
-    )
-    // using the first port for now. TODO: support multiple ports
-    val storageUri = VFSURIFactory.createResultURI(
-      workflowIdentity,
-      latestExecutionId,
-      OperatorIdentity(request.operatorID),
-      PortIdentity()
-    )
-    val paginationIterable = {
-      DocumentFactory
-        .openDocument(storageUri)
-        ._1
-        .asInstanceOf[VirtualDocument[Tuple]]
-        .getRange(from, from + request.pageSize)
-        .to(Iterable)
-    }
-    val mappedResults = paginationIterable
-      .map(tuple => tuple.asKeyValuePairJson())
-      .toList
-    val attributes = paginationIterable.headOption
-      .map(_.getSchema.getAttributes)
-      .getOrElse(List.empty)
-    PaginatedResultEvent.apply(request, mappedResults, attributes)
+//    val from = request.pageSize * (request.pageIndex - 1)
+//    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
+//      throw new IllegalStateException("No execution is recorded")
+//    )
+//    // using the first port for now. TODO: support multiple ports
+//    val storageUri = VFSURIFactory.createResultURI(
+//      workflowIdentity,
+//      latestExecutionId,
+//      OperatorIdentity(request.operatorID),
+//      PortIdentity()
+//    )
+//    val paginationIterable = {
+//      DocumentFactory
+//        .openDocument(storageUri)
+//        ._1
+//        .asInstanceOf[VirtualDocument[Tuple]]
+//        .getRange(from, from + request.pageSize)
+//        .to(Iterable)
+//    }
+//    val mappedResults = paginationIterable
+//      .map(tuple => tuple.asKeyValuePairJson())
+//      .toList
+//    val attributes = paginationIterable.headOption
+//      .map(_.getSchema.getAttributes)
+//      .getOrElse(List.empty)
+    PaginatedResultEvent.apply(request, List.empty, List.empty)
   }
 
   private def onResultUpdate(executionId: ExecutionIdentity, physicalPlan: PhysicalPlan): Unit = {

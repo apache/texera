@@ -87,7 +87,8 @@ class ScalaUDFOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
-      .withParallelizable(false)
+      .withParallelizable(true)
+      .withSuggestedWorkerNum(5)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
   }
 

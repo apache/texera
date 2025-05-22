@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.READY
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.operator.TestOperators.{EshopCsvPath, SNLICsvPath, getCsvScanOpDesc}
 import edu.uci.ics.amber.operator.udf.scala.ScalaUDFOpDesc
@@ -43,7 +43,7 @@ object ExpUtils {
     val completion = Promise[Unit]()
     client
       .registerCallback[ExecutionStateUpdate](evt => {
-        if (evt.state == COMPLETED) {
+        if (evt.state == READY) {
           completion.setDone()
         }
       })
@@ -317,6 +317,28 @@ object ExpUtils {
       promise.setDone()
     }
     Await.result(promise, fromMinutes(100))
+    s"$numUDF-$isScattered-$method: $durationMillis ms"
+  }
+
+
+  def runExp7(system: ActorSystem, numUDF: Int, isScattered: Boolean, method: String, processingDelayMs: Int, slow:Int = 0): String = {
+    val (opList, workflow) = createWorkflow(numUDF, processingDelayMs, slow)
+    val start = System.currentTimeMillis()
+    val (client, promise) = executeWorkflowAndCM(workflow, system)
+    // Await.result(promise, fromMinutes(100))
+    val durationMillis = System.currentTimeMillis() - start
+    client.shutdown()
+    s"$numUDF-$isScattered-$method: $durationMillis ms"
+  }
+
+
+  def runExp8(system: ActorSystem, numUDF: Int, isScattered: Boolean, method: String, processingDelayMs: Int, slow:Int = 0): String = {
+    val (opList, workflow) = createDiamondWorkflow(numUDF, processingDelayMs, slow)
+    val start = System.currentTimeMillis()
+    val (client, promise) = executeWorkflowAndCM(workflow, system)
+    // Await.result(promise, fromMinutes(100))
+    val durationMillis = System.currentTimeMillis() - start
+    client.shutdown()
     s"$numUDF-$isScattered-$method: $durationMillis ms"
   }
 
