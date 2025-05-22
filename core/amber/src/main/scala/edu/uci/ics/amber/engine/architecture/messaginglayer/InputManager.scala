@@ -95,7 +95,12 @@ class InputManager(
       }
       .values.foreach(threadList =>
       threadList.foreach(readerThread => {
-        readerThread.start()
+        try {
+          readerThread.start()
+        } catch {
+          case e: Exception =>
+            throw new RuntimeException(s"Error starting input port materialization reader thread: ${e.getMessage}", e)
+        }
       })
     )
   }
@@ -104,10 +109,16 @@ class InputManager(
 
   def isPortCompleted(portId: PortIdentity): Boolean = {
     // a port without channels is not completed.
-    if (this.ports(portId).channels.isEmpty) {
-      return false
+    // The list must exist because of setupInputPortMaterializationReaderThreads
+    if (this.inputPortMaterializationReaderThreads(portId).isEmpty) {
+      if (this.ports(portId).channels.isEmpty) {
+        return false
+      }
+      this.ports(portId).channels.values.forall(completed => completed)
+    } else {
+      val existingThread = this.inputPortMaterializationReaderThreads(portId).head
+      existingThread.isFinished
     }
-    this.ports(portId).channels.values.forall(completed => completed)
   }
 
   def hasUnfinishedInput: Boolean = inputBatch != null && currentInputIdx + 1 < inputBatch.length

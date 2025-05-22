@@ -29,5 +29,5 @@ case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: Acto
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = Iterator(0)
 
   override def allReceivers: Seq[ActorVirtualIdentity] =
-    Seq(partitioning.channels.filter(_.fromWorkerId == actorId).head.toWorkerId)
+    Seq(partitioning.channels.filter(_.toWorkerId == actorId).head.toWorkerId)
 }

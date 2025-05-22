@@ -56,6 +56,7 @@ class InputPortMaterializationReaderThread(
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
   private val batchSize = AmberConfig.defaultDataTransferBatchSize
+  var isFinished = false
 
   /**
     * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
@@ -87,6 +88,7 @@ class InputPortMaterializationReaderThread(
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
       emitMarker(EndOfInputChannel())
+      isFinished = true
     } catch {
       case e: Exception =>
         throw new RuntimeException(s"Error reading input port materializations: ${e.getMessage}", e)
