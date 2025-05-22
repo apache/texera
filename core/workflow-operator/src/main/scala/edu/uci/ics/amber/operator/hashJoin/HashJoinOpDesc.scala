@@ -98,7 +98,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           SchemaPropagationFunc(inputSchemas =>
             Map(
               PortIdentity(internal = true) -> Schema(
-                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY))
+                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.INTEGER))
               ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )

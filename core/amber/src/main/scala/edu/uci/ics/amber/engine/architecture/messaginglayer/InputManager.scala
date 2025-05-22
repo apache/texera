@@ -89,7 +89,11 @@ class InputManager(
   }
 
   def startInputPortReaderThreads(): Unit = {
-    this.inputPortMaterializationReaderThreads.values.foreach(threadList =>
+    this.inputPortMaterializationReaderThreads
+      .filter {
+        case (portId, _) => !this.isPortCompleted(portId)
+      }
+      .values.foreach(threadList =>
       threadList.foreach(readerThread => {
         readerThread.start()
       })

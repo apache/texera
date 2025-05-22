@@ -149,7 +149,7 @@ class RegionExecutionCoordinator(
       .flatMap(_ => initExecutors(operatorsToInit, resourceConfig))
       .flatMap(_ => assignDependeePorts(region))
       .flatMap(_ => openOperators(operatorsWithDependeeInputs))
-      .flatMap(_ => sendStarts(region))
+      .flatMap(_ => sendOpsWithDependeeInputStarts(region))
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(otherOperators))
@@ -259,6 +259,10 @@ class RegionExecutionCoordinator(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
           val inputPortMapping = physicalOp.inputPorts
+            .filter{
+              case (portId, _) =>
+                !physicalOp.dependeeInputs.contains(portId)
+            }
             .filter {
               // Because of the hack on input dependency, some input ports may not belong to this region.
               case (inputPortId, _) =>
@@ -364,6 +368,7 @@ class RegionExecutionCoordinator(
     )
     Future.collect(
       region.getStarterOperators
+        .filter(op => op.dependeeInputs.nonEmpty)
         .map(_.id)
         .flatMap { opId =>
           workflowExecution
