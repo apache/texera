@@ -634,9 +634,6 @@ export class MenuComponent implements OnInit, OnDestroy {
               console.log("Workflow:", workflowContent);
               console.log("Mapping:", mappingContent);
 
-              mapping["cell_to_operator"] = mappingContent["cell_to_operator"];
-              mapping["operator_to_cell"] = mappingContent["operator_to_cell"];
-
               const fileExtensionIndex = file.name.lastIndexOf(".");
               var workflowName: string;
               if (fileExtensionIndex === -1) {
@@ -660,10 +657,23 @@ export class MenuComponent implements OnInit, OnDestroy {
                 readonly: false,
               };
 
-              // Open the notebook in the Jupyter notebook panel by reloading the workflow
-              this.workflowActionService.reloadWorkflow(workflow, true);
-              this.openJupyterNotebookPanel();
-              this.notificationService.success("Successfully generated workflow and mapping from notebook.");
+              this.workflowPersistService
+                .persistWorkflow(workflow)
+                .pipe(untilDestroyed(this))
+                .subscribe((updatedWorkflow: Workflow) => {
+                    const mappingID = "mapping_wid_" + updatedWorkflow.wid;
+
+                    mapping[mappingID] = {
+                      cell_to_operator: { ...mappingContent["cell_to_operator"] },
+                      operator_to_cell: { ...mappingContent["operator_to_cell"] }
+                    };
+                    console.log("Added mapping: " + mappingID, mapping)
+
+                    this.workflowActionService.reloadWorkflow(updatedWorkflow, true);
+                    this.openJupyterNotebookPanel();
+                    this.notificationService.success("Successfully generated workflow and mapping from notebook.");
+                }
+              );
             } else {
               console.error("Result is undefined");
             }
