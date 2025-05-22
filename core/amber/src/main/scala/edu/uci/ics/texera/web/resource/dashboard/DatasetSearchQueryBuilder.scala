@@ -25,11 +25,7 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFullTextSearchFilter
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
@@ -119,16 +115,30 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
     val owner = record.into(USER).into(classOf[User])
+    var size = 0L
+    var lakeFsMissing = false
+
+    try {
+      size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+    } catch {
+      // If LakeFS repository not found, return null
+      case e: io.lakefs.clients.sdk.ApiException =>
+        val body = Option(e.getResponseBody).getOrElse("")
+        // Treat 404 or repository being deleted as mismatch, not a fatal error
+        val isNotFoundOrDeleting =
+          e.getCode == 404 ||
+            (e.getCode == 500 && body.contains("repository in deletion"))
+        if (isNotFoundOrDeleting) {
+          return null
+        }
+    }
+
     val dd = DashboardDataset(
       dataset,
       owner.getEmail,
-      record
-        .get(
-          DATASET_USER_ACCESS.PRIVILEGE,
-          classOf[PrivilegeEnum]
-        ),
+      record.get(DATASET_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]),
       dataset.getOwnerUid == uid,
-      LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+      size
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
