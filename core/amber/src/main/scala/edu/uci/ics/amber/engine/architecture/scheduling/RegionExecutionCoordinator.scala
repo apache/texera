@@ -62,11 +62,11 @@ import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 class RegionExecutionCoordinator(
-    region: Region,
-    workflowExecution: WorkflowExecution,
-    asyncRPCClient: AsyncRPCClient,
-    controllerConfig: ControllerConfig
-) {
+                                  region: Region,
+                                  workflowExecution: WorkflowExecution,
+                                  asyncRPCClient: AsyncRPCClient,
+                                  controllerConfig: ControllerConfig
+                                ) {
   def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
@@ -140,11 +140,11 @@ class RegionExecutionCoordinator(
   }
 
   private def buildOperator(
-      actorService: AkkaActorService,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      operatorExecution: OperatorExecution
-  ): Unit = {
+                             actorService: AkkaActorService,
+                             physicalOp: PhysicalOp,
+                             operatorConfig: OperatorConfig,
+                             operatorExecution: OperatorExecution
+                           ): Unit = {
     ExecutorDeployment.createWorkers(
       physicalOp,
       actorService,
@@ -156,9 +156,9 @@ class RegionExecutionCoordinator(
   }
 
   private def initExecutors(
-      operators: Set[PhysicalOp],
-      resourceConfig: ResourceConfig
-  ): Future[Seq[EmptyReturn]] = {
+                             operators: Set[PhysicalOp],
+                             resourceConfig: ResourceConfig
+                           ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -301,8 +301,8 @@ class RegionExecutionCoordinator(
   }
 
   private def createOutputPortStorageObjects(
-      portConfigs: Map[GlobalPortIdentity, PortConfig]
-  ): Unit = {
+                                              portConfigs: Map[GlobalPortIdentity, PortConfig]
+                                            ): Unit = {
     portConfigs.foreach {
       case (outputPortId, portConfig: PortConfig) =>
         val storageUriToAdd = portConfig.storageURI
