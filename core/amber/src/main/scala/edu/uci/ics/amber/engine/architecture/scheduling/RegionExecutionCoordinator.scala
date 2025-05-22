@@ -22,7 +22,6 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
@@ -34,22 +33,15 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   WorkerAssignmentUpdate
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AssignPortRequest,
   EmptyRequest,
   InitializeExecutorRequest,
-  LinkWorkersRequest,
-  PropagateChannelMarkerRequest
+  LinkWorkersRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   EmptyReturn,
-  WorkerStateResponse,
   WorkflowAggregatedState
-}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_END_WORKER,
-  METHOD_START_WORKER
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OperatorConfig,
@@ -58,7 +50,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 class RegionExecutionCoordinator(
@@ -261,43 +252,29 @@ class RegionExecutionCoordinator(
         workflowExecution.getAllRegionExecutionsStats
       )
     )
-    val response = asyncRPCClient.controllerInterface
-      .propagateChannelMarker(
-        PropagateChannelMarkerRequest(
-          region.getSourceOperators.map(_.id).toSeq,
-          ChannelMarkerIdentity("start"),
-          REQUIRE_ALIGNMENT,
-          region.getSourceOperators.map(_.id).toSeq,
-          region.getSourceOperators.map(_.id).toSeq,
-          EmptyRequest(),
-          METHOD_START_WORKER.getBareMethodName
-        ),
-        asyncRPCClient.mkContext(CONTROLLER)
-      )
-      .map { resp =>
-        resp.returns.map { x =>
-          val workerId = ActorVirtualIdentity(x._1)
+    Future.collect(
+      region.getSourceOperators
+        .map(_.id)
+        .flatMap { opId =>
           workflowExecution
             .getRegionExecution(region.id)
-            .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
-            .getWorkerExecution(workerId)
-            .setState(x._2.asInstanceOf[WorkerStateResponse].state)
-        }.toSeq
-      }
-    asyncRPCClient.controllerInterface
-      .propagateChannelMarker(
-        PropagateChannelMarkerRequest(
-          region.getSourceOperators.map(_.id).toSeq,
-          ChannelMarkerIdentity("end"),
-          REQUIRE_ALIGNMENT,
-          region.getOperators.map(_.id).toSeq,
-          region.getOperators.map(_.id).toSeq,
-          EmptyRequest(),
-          METHOD_END_WORKER.getBareMethodName
-        ),
-        asyncRPCClient.mkContext(CONTROLLER)
-      )
-    response
+            .getOperatorExecution(opId)
+            .getWorkerIds
+            .map { workerId =>
+              asyncRPCClient.workerInterface
+                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+                .map(resp =>
+                  // update worker state
+                  workflowExecution
+                    .getRegionExecution(region.id)
+                    .getOperatorExecution(opId)
+                    .getWorkerExecution(workerId)
+                    .setState(resp.state)
+                )
+            }
+        }
+        .toSeq
+    )
   }
 
   private def createOutputPortStorageObjects(
@@ -327,4 +304,5 @@ class RegionExecutionCoordinator(
         }
     }
   }
+
 }
