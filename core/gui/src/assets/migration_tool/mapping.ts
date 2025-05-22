@@ -6,8 +6,8 @@ interface MappingContent {
 const mapping: { [key: string]: MappingContent } = {
   default: {
     cell_to_operator: {},
-    operator_to_cell: {}
-  }
+    operator_to_cell: {},
+  },
 };
 
 export default mapping;

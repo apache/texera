@@ -661,19 +661,18 @@ export class MenuComponent implements OnInit, OnDestroy {
                 .persistWorkflow(workflow)
                 .pipe(untilDestroyed(this))
                 .subscribe((updatedWorkflow: Workflow) => {
-                    const mappingID = "mapping_wid_" + updatedWorkflow.wid;
+                  const mappingID = "mapping_wid_" + updatedWorkflow.wid;
 
-                    mapping[mappingID] = {
-                      cell_to_operator: { ...mappingContent["cell_to_operator"] },
-                      operator_to_cell: { ...mappingContent["operator_to_cell"] }
-                    };
-                    console.log("Added mapping: " + mappingID, mapping)
+                  mapping[mappingID] = {
+                    cell_to_operator: { ...mappingContent["cell_to_operator"] },
+                    operator_to_cell: { ...mappingContent["operator_to_cell"] },
+                  };
+                  console.log("Added mapping: " + mappingID, mapping);
 
-                    this.workflowActionService.reloadWorkflow(updatedWorkflow, true);
-                    this.openJupyterNotebookPanel();
-                    this.notificationService.success("Successfully generated workflow and mapping from notebook.");
-                }
-              );
+                  this.workflowActionService.reloadWorkflow(updatedWorkflow, true);
+                  this.openJupyterNotebookPanel();
+                  this.notificationService.success("Successfully generated workflow and mapping from notebook.");
+                });
             } else {
               console.error("Result is undefined");
             }
