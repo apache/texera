@@ -34,7 +34,7 @@ import { FileSelectionComponent } from "../../../../workspace/component/file-sel
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
-import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -150,10 +150,7 @@ export class UserDatasetComponent implements AfterViewInit {
       this.hasMismatch = results.hasMismatch ?? false;
       const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
 
-      if (
-        this.hasMismatch &&
-        !this.mismatchToastShown
-      ) {
+      if (this.hasMismatch && !this.mismatchToastShown) {
         this.mismatchToastShown = true;
         this.message.warning(
           "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
