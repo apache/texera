@@ -36,7 +36,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  REQUIRE_ALIGNMENT
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
@@ -50,9 +53,14 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
   METHOD_END_WORKER,
   METHOD_START_WORKER
 }
@@ -164,10 +172,28 @@ class DataProcessor(
     val (outputTuple, outputPortOpt) = out
 
     if (outputTuple == null) return
-
     outputTuple match {
       case FinalizeExecutor() =>
-        sendChannelMarker(channelMarkerManager.currentMarker)
+        outputGateway.getActiveChannels
+          .filter(_.toWorkerId != CONTROLLER)
+          .foreach { activeChannelId =>
+            asyncRPCClient.sendChannelMarker(
+              ChannelMarkerIdentity("EndOfInputChannel"),
+              REQUIRE_ALIGNMENT,
+              Set.empty,
+              Map(
+                activeChannelId.toWorkerId.name ->
+                  ControlInvocation(
+                    METHOD_END_CHANNEL.getBareMethodName,
+                    EmptyRequest(),
+                    asyncRPCClient.mkContext(CONTROLLER),
+                    -1
+                  )
+              ),
+              activeChannelId
+            )
+          }
+
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -289,31 +315,24 @@ class DataProcessor(
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
 
-      if (command.exists(_.methodName == METHOD_END_WORKER.getBareMethodName)) {
-        channelMarkerManager.currentMarker = marker
-      } else {
-        sendChannelMarker(marker)
+      // if this worker is not the final destination of the marker, pass it downstream
+      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
+      if (downstreamChannelsInScope.nonEmpty) {
+        outputManager.flush(Some(downstreamChannelsInScope))
+        outputGateway.getActiveChannels.foreach { activeChannelId =>
+          if (downstreamChannelsInScope.contains(activeChannelId)) {
+            logger.info(
+              s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${marker.commandMapping
+                .get(actorId.name)}"
+            )
+            outputGateway.sendTo(activeChannelId, marker)
+          }
+        }
       }
 
       // unblock input channels
       if (marker.markerType == REQUIRE_ALIGNMENT) {
         pauseManager.resume(EpochMarkerPause(marker.id))
-      }
-    }
-  }
-
-  def sendChannelMarker(marker: ChannelMarkerPayload): Unit = {
-    // if this worker is not the final destination of the marker, pass it downstream
-    val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
-    if (downstreamChannelsInScope.nonEmpty) {
-      outputManager.flush(Some(downstreamChannelsInScope))
-      outputGateway.getActiveChannels.foreach { activeChannelId =>
-        if (downstreamChannelsInScope.contains(activeChannelId)) {
-          logger.info(
-            s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${marker.commandMapping.get(actorId.name)}"
-          )
-          outputGateway.sendTo(activeChannelId, marker)
-        }
       }
     }
   }

@@ -30,7 +30,7 @@ trait StartChannelHandler {
   override def startChannel(
       request: EmptyRequest,
       ctx: AsyncRPCContext
-      ): Future[EmptyReturn] = {
+  ): Future[EmptyReturn] = {
     dp.processStartOfInputChannel()
     EmptyReturn()
   }
