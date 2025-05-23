@@ -306,6 +306,7 @@ class DataProcessor(
 
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
       logManager.markAsReplayDestination(markerId)
+      // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = $markerId, cmd = $command")
 
       if (command.isDefined) {
