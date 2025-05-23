@@ -46,7 +46,6 @@ trait StartHandler {
       dp.inputManager.addPort(PortIdentity(), null)
       dp.inputManager.currentChannelId = channelId
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
-      dp.processStartOfInputChannel()
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else {
       throw new WorkflowRuntimeException(
