@@ -36,10 +36,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
-  NO_ALIGNMENT,
-  REQUIRE_ALIGNMENT
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
@@ -170,25 +167,7 @@ class DataProcessor(
     if (outputTuple == null) return
     outputTuple match {
       case FinalizeExecutor() =>
-        outputGateway.getActiveChannels
-          .filter(_.toWorkerId != CONTROLLER)
-          .foreach { activeChannelId =>
-            asyncRPCClient.sendChannelMarker(
-              ChannelMarkerIdentity("EndOfInputChannel"),
-              REQUIRE_ALIGNMENT,
-              Set.empty,
-              Map(
-                activeChannelId.toWorkerId.name ->
-                  ControlInvocation(
-                    METHOD_END_CHANNEL.getBareMethodName,
-                    EmptyRequest(),
-                    asyncRPCClient.mkContext(CONTROLLER),
-                    -1
-                  )
-              ),
-              activeChannelId
-            )
-          }
+        asyncRPCClient.sendChannelMarkerToDataChannels(METHOD_END_CHANNEL)
 
         // Send Completed signal to worker actor.
         executor.close()
