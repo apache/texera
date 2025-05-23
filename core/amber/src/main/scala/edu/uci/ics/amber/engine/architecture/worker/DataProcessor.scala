@@ -301,12 +301,10 @@ class DataProcessor(
     if (marker.markerType == REQUIRE_ALIGNMENT) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
-
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
       logManager.markAsReplayDestination(markerId)
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = $markerId, cmd = $command")
-
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
