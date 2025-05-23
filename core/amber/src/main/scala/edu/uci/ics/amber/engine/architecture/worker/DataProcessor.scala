@@ -326,10 +326,9 @@ class DataProcessor(
           }
         }
       }
-
       // unblock input channels
       if (marker.markerType == REQUIRE_ALIGNMENT) {
-        pauseManager.resume(EpochMarkerPause(marker.id))
+        pauseManager.resume(EpochMarkerPause(markerId))
       }
     }
   }
