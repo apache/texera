@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.marker.State
 import edu.uci.ics.amber.core.tuple.{
   FinalizeExecutor,
   FinalizePort,
@@ -59,11 +59,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
   ChannelMarkerIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_END_CHANNEL,
-  METHOD_END_WORKER,
-  METHOD_START_WORKER
-}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_CHANNEL
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -299,17 +295,18 @@ class DataProcessor(
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
+    val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
 
-    logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = $command")
+    logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
 
     if (marker.markerType == REQUIRE_ALIGNMENT) {
-      pauseManager.pauseInputChannel(EpochMarkerPause(marker.id), List(channelId))
+      pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
 
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
-      logManager.markAsReplayDestination(marker.id)
-      logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = $command")
+      logManager.markAsReplayDestination(markerId)
+      logger.info(s"process marker from $channelId, id = $markerId, cmd = $command")
 
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
@@ -322,8 +319,7 @@ class DataProcessor(
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (downstreamChannelsInScope.contains(activeChannelId)) {
             logger.info(
-              s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${marker.commandMapping
-                .get(actorId.name)}"
+              s"send marker to $activeChannelId, id = $markerId, cmd = $command"
             )
             outputGateway.sendTo(activeChannelId, marker)
           }
