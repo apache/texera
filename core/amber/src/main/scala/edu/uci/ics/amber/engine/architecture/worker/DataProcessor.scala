@@ -297,9 +297,7 @@ class DataProcessor(
   ): Unit = {
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
-
     logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
-
     if (marker.markerType == REQUIRE_ALIGNMENT) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
@@ -312,7 +310,6 @@ class DataProcessor(
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
-
       // if this worker is not the final destination of the marker, pass it downstream
       val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
       if (downstreamChannelsInScope.nonEmpty) {
