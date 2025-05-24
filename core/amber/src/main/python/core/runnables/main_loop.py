@@ -288,19 +288,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         Upon receipt of an StartOfAllMarker,
         which indicates the start of any input links,
         send the StartOfInputChannel to all downstream workers.
-
-        :param _: StartOfAny Internal Marker
         """
-        for to, batch in self.context.output_manager.emit_marker(StartOfInputChannel()):
-            self._output_queue.put(
-                DataElement(
-                    tag=ChannelIdentity(
-                        ActorVirtualIdentity(self.context.worker_id), to, False
-                    ),
-                    payload=batch,
-                )
-            )
-            self._check_and_process_control()
+        self._send_channel_marker_to_data_channels("StartChannel")
 
     def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
         """
