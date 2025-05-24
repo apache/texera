@@ -69,7 +69,7 @@ from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
-    ChannelMarkerIdentity
+    ChannelMarkerIdentity,
 )
 
 
@@ -381,20 +381,24 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     ChannelMarkerIdentity(method_name),
                     ChannelMarkerType.REQUIRE_ALIGNMENT,
                     [],
-                    {active_channel_id.to_worker_id.name: ControlInvocation(
-                        method_name,
-                        ControlRequest(empty_request=EmptyRequest()),
-                        AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
-                        -1,
-                    )
-                    }
+                    {
+                        active_channel_id.to_worker_id.name: ControlInvocation(
+                            method_name,
+                            ControlRequest(empty_request=EmptyRequest()),
+                            AsyncRpcContext(
+                                ActorVirtualIdentity(), ActorVirtualIdentity()
+                            ),
+                            -1,
+                        )
+                    },
                 )
                 self._send_channel_marker(active_channel_id, marker_payload)
 
-
-    def _send_channel_marker(self, channel_id: ChannelIdentity, marker_payload: ChannelMarkerPayload) -> None:
+    def _send_channel_marker(
+        self, channel_id: ChannelIdentity, marker_payload: ChannelMarkerPayload
+    ) -> None:
         for batch in self.context.output_manager.emit_marker_to_channel(
-                channel_id.to_worker_id, marker_payload
+            channel_id.to_worker_id, marker_payload
         ):
             tag = channel_id
             element = (

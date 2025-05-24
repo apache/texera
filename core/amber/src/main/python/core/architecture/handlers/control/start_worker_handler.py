@@ -32,6 +32,7 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 from core.architecture.packaging.input_manager import InputManager
 from core.models.internal_queue import DataElement
 
+
 class StartWorkerHandler(ControlHandler):
     async def start_worker(self, req: EmptyRequest) -> WorkerStateResponse:
         if self.context.executor_manager.executor.is_source:
