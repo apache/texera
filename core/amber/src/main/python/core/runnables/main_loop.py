@@ -43,7 +43,7 @@ from core.models.internal_queue import (
     ChannelMarkerElement,
     InternalQueueElement,
 )
-from core.models.marker import State, StartOfInputChannel
+from core.models.marker import State
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
