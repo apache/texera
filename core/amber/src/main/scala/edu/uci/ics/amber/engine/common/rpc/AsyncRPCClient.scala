@@ -147,8 +147,10 @@ class AsyncRPCClient(
   }
 
   def sendChannelMarkerToDataChannels(method: MethodDescriptor[EmptyRequest, EmptyReturn]): Unit = {
-    outputGateway.getAllDataChannels.foreach { activeChannelId =>
-      sendChannelMarker(
+    outputGateway.getActiveChannels
+      .filter(!_.isControl).
+      foreach { activeChannelId =>
+        sendChannelMarker(
         ChannelMarkerIdentity(method.getBareMethodName),
         REQUIRE_ALIGNMENT,
         Set.empty,
@@ -157,7 +159,7 @@ class AsyncRPCClient(
             ControlInvocation(
               method.getBareMethodName,
               EmptyRequest(),
-              mkContext(CONTROLLER),
+              AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
               -1
             )
         ),

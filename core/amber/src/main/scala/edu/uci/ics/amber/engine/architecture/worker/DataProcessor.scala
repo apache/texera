@@ -205,8 +205,7 @@ class DataProcessor(
   }
 
   def processStartOfInputChannel(): Unit = {
-    val channelId = inputManager.currentChannelId
-    val portId = this.inputGateway.getChannel(channelId).getPortId
+    val portId = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
     asyncRPCClient.sendChannelMarkerToDataChannels(METHOD_START_CHANNEL)
     try {
       val outputState = executor.produceStateOnStart(portId.id)
@@ -253,6 +252,7 @@ class DataProcessor(
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
+    println("betgergverv",marker.commandMapping)
     inputManager.currentChannelId = channelId
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)

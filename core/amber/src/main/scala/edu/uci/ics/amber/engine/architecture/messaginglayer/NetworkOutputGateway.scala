@@ -90,8 +90,6 @@ class NetworkOutputGateway(
 
   def getActiveChannels: Iterable[ChannelIdentity] = idToSequenceNums.keys
 
-  def getAllDataChannels: Iterable[ChannelIdentity] = getActiveChannels.filter(!_.isControl)
-
   def getSequenceNumber(channelId: ChannelIdentity): Long = {
     idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
   }
