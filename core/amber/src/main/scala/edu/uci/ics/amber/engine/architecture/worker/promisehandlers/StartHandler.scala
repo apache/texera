@@ -38,14 +38,14 @@ trait StartHandler {
   ): Future[WorkerStateResponse] = {
     logger.info("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
-      val channelId =
-        ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
+      val channelId = ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
       dp.inputManager.addPort(PortIdentity(), null)
       dp.inputManager.currentChannelId = channelId
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
+      startChannel(request, ctx)
       endChannel(request, ctx)
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else {

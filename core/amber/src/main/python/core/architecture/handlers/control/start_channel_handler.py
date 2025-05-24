@@ -24,23 +24,15 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 )
 from core.models.internal_queue import DataElement
 from core.models import MarkerFrame
-from core.models.marker import EndOfInputChannel
+from core.models.marker import StartOfInputChannel
 
 
-class EndWorkerHandler(ControlHandler):
-
-    async def end_worker(self, req: EmptyRequest) -> EmptyReturn:
+class StartChannelHandler(ControlHandler):
+    async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
         input_channel_id = (
-            ChannelIdentity(
-                InputManager.SOURCE_STARTER,
-                ActorVirtualIdentity(self.context.worker_id),
-                False,
-            )
+            ChannelIdentity(InputManager.SOURCE_STARTER, ActorVirtualIdentity(self.context.worker_id), False)
             if self.context.executor_manager.executor.is_source
             else self.context.current_input_channel_id
         )
-
-        self.context.input_queue.put(
-            DataElement(tag=input_channel_id, payload=MarkerFrame(EndOfInputChannel()))
-        )
+        self.context.input_queue.put(DataElement(tag=input_channel_id, payload=MarkerFrame(StartOfInputChannel())))
         return EmptyReturn()

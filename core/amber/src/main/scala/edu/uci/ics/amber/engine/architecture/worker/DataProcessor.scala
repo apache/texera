@@ -205,8 +205,9 @@ class DataProcessor(
   }
 
   def processStartOfInputChannel(): Unit = {
+    val channelId = inputManager.currentChannelId
+    val portId = this.inputGateway.getChannel(channelId).getPortId
     asyncRPCClient.sendChannelMarkerToDataChannels(METHOD_START_CHANNEL)
-    val portId = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
     try {
       val outputState = executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
@@ -222,7 +223,6 @@ class DataProcessor(
     val channelId = inputManager.currentChannelId
     val portId = this.inputGateway.getChannel(channelId).getPortId
     this.inputManager.getPort(portId).completed = true
-
     inputManager.initBatch(channelId, Array.empty)
     try {
       val outputState = executor.produceStateOnFinish(portId.id)
@@ -253,6 +253,7 @@ class DataProcessor(
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
+    inputManager.currentChannelId = channelId
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
     logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
