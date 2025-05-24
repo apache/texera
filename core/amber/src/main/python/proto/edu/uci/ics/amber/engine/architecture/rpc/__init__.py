@@ -1197,7 +1197,7 @@ class WorkerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def end_worker(
+    async def start_channel(
         self,
         empty_request: "EmptyRequest",
         *,
@@ -1206,7 +1206,24 @@ class WorkerServiceStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "EmptyReturn":
         return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker",
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def end_channel(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel",
             empty_request,
             EmptyReturn,
             timeout=timeout,
@@ -1781,7 +1798,10 @@ class WorkerServiceBase(ServiceBase):
     ) -> "WorkerStateResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def end_worker(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+    async def start_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def end_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def debug_command(
@@ -1896,11 +1916,18 @@ class WorkerServiceBase(ServiceBase):
         response = await self.start_worker(request)
         await stream.send_message(response)
 
-    async def __rpc_end_worker(
+    async def __rpc_start_channel(
         self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.end_worker(request)
+        response = await self.start_channel(request)
+        await stream.send_message(response)
+
+    async def __rpc_end_channel(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.end_channel(request)
         await stream.send_message(response)
 
     async def __rpc_debug_command(
@@ -2011,8 +2038,14 @@ class WorkerServiceBase(ServiceBase):
                 EmptyRequest,
                 WorkerStateResponse,
             ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker": grpclib.const.Handler(
-                self.__rpc_end_worker,
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel": grpclib.const.Handler(
+                self.__rpc_start_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel": grpclib.const.Handler(
+                self.__rpc_end_channel,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
                 EmptyReturn,
