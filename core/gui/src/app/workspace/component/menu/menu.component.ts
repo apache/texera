@@ -667,7 +667,6 @@ export class MenuComponent implements OnInit, OnDestroy {
                     cell_to_operator: { ...mappingContent["cell_to_operator"] },
                     operator_to_cell: { ...mappingContent["operator_to_cell"] },
                   };
-                  console.log("Added mapping: " + mappingID, mapping);
 
                   this.workflowActionService.reloadWorkflow(updatedWorkflow, true);
                   this.openJupyterNotebookPanel();

@@ -99,7 +99,6 @@ export class JupyterPanelService {
     const wid = this.workflowActionService.getWorkflow().wid;
     if (wid != undefined && "mapping_wid_" + wid in mapping) {
       delete mapping["mapping_wid_" + wid];
-      console.log("Deleted mapping: mapping_wid_" + wid, mapping);
     }
   }
 
