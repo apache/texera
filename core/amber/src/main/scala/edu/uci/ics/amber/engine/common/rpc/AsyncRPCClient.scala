@@ -24,13 +24,23 @@ import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, EmptyReturn, ReturnInvocation, WorkerMetricsResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
+  ControlReturn,
+  EmptyReturn,
+  ReturnInvocation,
+  WorkerMetricsResponse
+}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import io.grpc.MethodDescriptor
 
@@ -148,24 +158,24 @@ class AsyncRPCClient(
 
   def sendChannelMarkerToDataChannels(method: MethodDescriptor[EmptyRequest, EmptyReturn]): Unit = {
     outputGateway.getActiveChannels
-      .filter(!_.isControl).
-      foreach { activeChannelId =>
+      .filter(!_.isControl)
+      .foreach { activeChannelId =>
         sendChannelMarker(
-        ChannelMarkerIdentity(method.getBareMethodName),
-        REQUIRE_ALIGNMENT,
-        Set.empty,
-        Map(
-          activeChannelId.toWorkerId.name ->
-            ControlInvocation(
-              method.getBareMethodName,
-              EmptyRequest(),
-              AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
-              -1
-            )
-        ),
-        activeChannelId
-      )
-    }
+          ChannelMarkerIdentity(method.getBareMethodName),
+          REQUIRE_ALIGNMENT,
+          Set.empty,
+          Map(
+            activeChannelId.toWorkerId.name ->
+              ControlInvocation(
+                method.getBareMethodName,
+                EmptyRequest(),
+                AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+                -1
+              )
+          ),
+          activeChannelId
+        )
+      }
   }
 
   def sendChannelMarker(
