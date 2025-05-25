@@ -29,8 +29,8 @@ object ConfigurationValidator extends LazyLogging {
       logger.warn(
         s"""
            |=======================================================
-           |[WARN] The app.domain is not configured, and the "Sent from:" field in the email will not include a domain!
-           |Please configure app.domain=your.domain.com or set the environment variable/system property APP_DOMAIN.
+           |[WARN] The user-sys.google.domain is not configured, and the "Sent from:" field in the email will not include a domain!
+           |Please configure user-sys.google.domain=your.domain.com or set the environment variable/system property APP_DOMAIN.
            |=======================================================
            |""".stripMargin
       )

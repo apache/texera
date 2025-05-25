@@ -104,6 +104,10 @@ object AmberConfig {
   val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
   val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")
+  val appDomain: Option[String] = {
+    val domain = getConfSource.getString("user-sys.google.domain").trim
+    if (domain.isEmpty) None else Some(domain)
+  }
 
   // Web server
   val operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
@@ -123,10 +127,4 @@ object AmberConfig {
     if (getConfSource.hasPath("ai-assistant-server"))
       Some(getConfSource.getConfig("ai-assistant-server"))
     else None
-
-  val appDomain: Option[String] = {
-    val domain = getConfSource.getString("app.domain").trim
-    if (domain.isEmpty) None else Some(domain)
-  }
-
 }
