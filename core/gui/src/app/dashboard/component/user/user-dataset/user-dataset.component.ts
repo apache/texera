@@ -77,6 +77,8 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   private masterFilterList: ReadonlyArray<string> | null = null;
+
+  // Prevents showing duplicate mismatch notification toasts
   private mismatchToastShown = false;
 
   constructor(

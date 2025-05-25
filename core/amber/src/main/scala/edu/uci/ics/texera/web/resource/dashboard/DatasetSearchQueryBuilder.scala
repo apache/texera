@@ -33,6 +33,7 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
+import org.slf4j.LoggerFactory
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -113,6 +114,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     Seq.empty
   }
 
+  private val logger = LoggerFactory.getLogger(getClass)
   override protected def toEntryImpl(
       uid: Integer,
       record: Record
@@ -120,21 +122,14 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     val dataset = record.into(DATASET).into(classOf[Dataset])
     val owner = record.into(USER).into(classOf[User])
     var size = 0L
-    var lakeFsMissing = false
 
     try {
       size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
     } catch {
-      // If LakeFS repository not found, return null
       case e: io.lakefs.clients.sdk.ApiException =>
-        val body = Option(e.getResponseBody).getOrElse("")
-        // Treat 404 or repository being deleted as mismatch, not a fatal error
-        val isNotFoundOrDeleting =
-          e.getCode == 404 ||
-            (e.getCode == 500 && body.contains("repository in deletion"))
-        if (isNotFoundOrDeleting) {
-          return null
-        }
+        // Treat all LakeFS ApiException as mismatch (repository not found, being deleted, or any fatal error)
+        logger.error(s"LakeFS ApiException for dataset '${dataset.getName}': ${e.getMessage}", e)
+        return null
     }
 
     val dd = DashboardDataset(
