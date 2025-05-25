@@ -186,7 +186,11 @@ class OutputManager:
                 channel_id.is_control = False
                 self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
-        self._partitioners[tag] = partitioner(the_partitioning, self.worker_id)
+        self._partitioners[tag] = (
+            partitioner(the_partitioning)
+            if partitioner != OneToOnePartitioner
+            else partitioner(the_partitioning, self.worker_id)
+        )
 
     def tuple_to_batch(
         self, tuple_: Tuple
