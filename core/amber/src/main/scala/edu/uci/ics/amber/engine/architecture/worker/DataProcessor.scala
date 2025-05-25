@@ -36,7 +36,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  REQUIRE_ALIGNMENT
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
@@ -50,12 +53,20 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
   METHOD_END_CHANNEL,
   METHOD_START_CHANNEL
 }
+import io.grpc.MethodDescriptor
+
+import java.time.Instant
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -150,7 +161,7 @@ class DataProcessor(
     if (outputTuple == null) return
     outputTuple match {
       case FinalizeExecutor() =>
-        asyncRPCClient.sendChannelMarkerToDataChannels(METHOD_END_CHANNEL)
+        sendChannelMarkerToDataChannels(METHOD_END_CHANNEL, alignment = true)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -223,7 +234,7 @@ class DataProcessor(
 
   def processStartOfInputChannel(): Unit = {
     val portId = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
-    asyncRPCClient.sendChannelMarkerToDataChannels(METHOD_START_CHANNEL)
+    sendChannelMarkerToDataChannels(METHOD_START_CHANNEL, alignment = false)
     try {
       val outputState = executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
@@ -269,7 +280,6 @@ class DataProcessor(
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
-    println("betgergverv", marker.commandMapping)
     inputManager.currentChannelId = channelId
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
@@ -302,6 +312,32 @@ class DataProcessor(
         pauseManager.resume(EpochMarkerPause(markerId))
       }
     }
+  }
+
+  def sendChannelMarkerToDataChannels(
+      method: MethodDescriptor[EmptyRequest, EmptyReturn],
+      alignment: Boolean
+  ): Unit = {
+    outputManager.flush()
+    outputGateway.getActiveChannels
+      .filter(!_.isControl)
+      .foreach { activeChannelId =>
+        asyncRPCClient.sendChannelMarker(
+          ChannelMarkerIdentity(method.getBareMethodName),
+          if (alignment) REQUIRE_ALIGNMENT else NO_ALIGNMENT,
+          Set(activeChannelId),
+          Map(
+            activeChannelId.toWorkerId.name ->
+              ControlInvocation(
+                method.getBareMethodName,
+                EmptyRequest(),
+                AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+                -1
+              )
+          ),
+          activeChannelId
+        )
+      }
   }
 
   private[this] def handleExecutorException(e: Throwable): Unit = {

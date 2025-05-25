@@ -289,7 +289,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         which indicates the start of any input links,
         send the StartOfInputChannel to all downstream workers.
         """
-        self._send_channel_marker_to_data_channels("StartChannel")
+        self._send_channel_marker_to_data_channels("StartChannel", alignment=False)
 
     def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
         """
@@ -302,7 +302,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         self.context.output_manager.close_port_storage_writers()
 
-        self._send_channel_marker_to_data_channels("EndChannel")
+        self._send_channel_marker_to_data_channels("EndChannel", alignment=True)
 
         # Need to send port completed even if there is no downstream link
         for port_id in self.context.output_manager.get_port_ids():
@@ -363,13 +363,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if marker_payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
-    def _send_channel_marker_to_data_channels(self, method_name: str) -> None:
+    def _send_channel_marker_to_data_channels(
+        self, method_name: str, alignment: bool
+    ) -> None:
+        if alignment:
+            marker_type = ChannelMarkerType.REQUIRE_ALIGNMENT
+        else:
+            marker_type = ChannelMarkerType.NO_ALIGNMENT
         for active_channel_id in self.context.output_manager.get_output_channel_ids():
             if not active_channel_id.is_control:
                 marker_payload = ChannelMarkerPayload(
                     ChannelMarkerIdentity(method_name),
-                    ChannelMarkerType.REQUIRE_ALIGNMENT,
-                    [],
+                    marker_type,
+                    [active_channel_id],
                     {
                         active_channel_id.to_worker_id.name: ControlInvocation(
                             method_name,
@@ -395,6 +401,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 if isinstance(batch, ChannelMarkerPayload)
                 else DataElement(tag=tag, payload=batch)
             )
+            print("efrerferf", element)
             self._output_queue.put(element)
 
     def _process_data_element(self, data_element: DataElement) -> None:

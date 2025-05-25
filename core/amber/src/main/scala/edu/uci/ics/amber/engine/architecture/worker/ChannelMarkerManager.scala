@@ -78,16 +78,12 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
   }
 
   private def getChannelsWithinScope(marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
-    if (marker.scope.isEmpty) {
-      inputGateway.getAllDataChannels
-        .map(_.channelId)
-    } else {
-      val upstreams = marker.scope.filter(_.toWorkerId == actorId)
-      inputGateway.getAllChannels
-        .map(_.channelId)
-        .filter { id =>
-          upstreams.contains(id)
-        }
-    }
-  }.toSet
+    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
+    inputGateway.getAllChannels
+      .map(_.channelId)
+      .filter { id =>
+        upstreams.contains(id)
+      }
+      .toSet
+  }
 }
