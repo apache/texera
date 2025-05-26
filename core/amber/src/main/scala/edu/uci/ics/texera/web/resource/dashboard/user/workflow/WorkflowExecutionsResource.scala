@@ -743,7 +743,8 @@ class WorkflowExecutionsResource {
         case "local" =>
           // CASE A: multiple operators => produce ZIP
           if (request.operators.size > 1) {
-            val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+            val resultExportService =
+              new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
             val (zipStream, zipFileNameOpt) =
               resultExportService.exportOperatorsAsZip(request)
 
@@ -788,7 +789,8 @@ class WorkflowExecutionsResource {
             .build()
         case _ =>
           // destination = "dataset" by default
-          val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+          val resultExportService =
+            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
           val exportResponse =
             resultExportService.exportAllOperatorsResultToDataset(user.user, request)
           Response.ok(exportResponse).build()
