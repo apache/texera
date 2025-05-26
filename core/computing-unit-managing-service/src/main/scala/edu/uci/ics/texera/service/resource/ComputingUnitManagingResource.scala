@@ -415,7 +415,17 @@ class ComputingUnitManagingResource {
 
       val units = computingUnitDao
         .fetchByUid(user.getUid)
-        .filter(_.getTerminateTime == null) // Filter out terminated units
+        .filter(_.getTerminateTime == null) // only include non-terminated
+
+        // ── filter out non-existing Kubernetes pods ──
+        .filter(unit =>
+          unit.getType match {
+            case WorkflowComputingUnitTypeEnum.kubernetes =>
+              KubernetesClient.podExists(unit.getCuid)
+            case _ =>
+              true // keep local and other types
+          }
+        )
 
       units.map { unit =>
         DashboardWorkflowComputingUnit(
