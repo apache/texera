@@ -137,7 +137,6 @@
         nz-menu-divider></li>
       <li
         nz-menu-item
-        *ngIf="!(availableComputingUnitTypes.length === 1 && availableComputingUnitTypes[0] === 'local')"
         (click)="showAddComputeUnitModalVisible()">
         <div class="create-computing-unit">
           <i
@@ -254,6 +253,15 @@
 
       <!-- Fields for Local computing units -->
       <ng-container *ngIf="selectedComputingUnitType === 'local'">
+        <div class="select-unit name-field">
+          <span>Computing Unit Name</span>
+          <input
+            [required]="true"
+            nz-input
+            placeholder="Enter the name of your local computing unit (required)"
+            [(ngModel)]="newComputingUnitName"
+            class="unit-name-input" />
+        </div>
         <div class="select-unit name-field">
           <span>Computing Unit URI</span>
           <input

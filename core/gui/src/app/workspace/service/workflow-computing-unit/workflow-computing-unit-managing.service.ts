@@ -115,11 +115,11 @@ export class WorkflowComputingUnitManagingService {
   /**
    * Create a new local workflow computing unit.
    *
-   * @param uri The URI of the local computing unit (default: http://localhost:8085).
+   * @param name The name of the computing unit.
+   * @param uri The URI of the local computing unit.
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createLocalComputingUnit(uri: string = "http://localhost:8085"): Observable<DashboardWorkflowComputingUnit> {
-    const name = "Local Computing Unit";
+  public createLocalComputingUnit(name: string, uri: string): Observable<DashboardWorkflowComputingUnit> {
     // Default resources (will be ignored for local computing units)
     const cpuLimit = "1";
     const memoryLimit = "1Gi";

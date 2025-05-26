@@ -83,6 +83,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   ngOnInit(): void {
     // Fetch available computing unit types
     this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
+    this.newComputingUnitName = "My Computing Unit";
     this.computingUnitService
       .getComputingUnitTypes()
       .pipe(untilDestroyed(this))
@@ -277,21 +278,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
   }
 
   /**
-   * Gets the computing unit name from the units URI
-   * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
-   * @return "Computing unit 85"
-   */
-  getComputingUnitId(unitURI: string): string {
-    if (unitURI.includes("localhost")) return "Local Computing Unit";
-    const re = /computing-unit-(\d+)/;
-    const match = unitURI.match(re);
-    if (match) {
-      return `Computing unit ${match[1]}`;
-    }
-    return "Unknown Computing Unit";
-  }
-
-  /**
    * Start a new computing unit.
    */
   startComputingUnit(): void {
@@ -327,7 +313,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       }
 
       this.computingUnitService
-        .createLocalComputingUnit(this.localComputingUnitUri)
+        .createLocalComputingUnit(this.newComputingUnitName, this.localComputingUnitUri)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: (unit: DashboardWorkflowComputingUnit) => {
