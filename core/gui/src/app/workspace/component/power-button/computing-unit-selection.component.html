@@ -208,27 +208,48 @@
         </nz-select>
       </div>
 
-      <div class="select-unit">
-        <span>Select #Worker Nodes</span>
-        <nz-select
-          class="node-selection"
-          [(ngModel)]="selectedNumNodes">
-          <nz-option
-            *ngFor="let option of nodeOptions"
-            [nzValue]="option">
-          </nz-option>
-        </nz-select>
+      <div class="select-unit cluster-toggle">
+        <span>Cluster Mode</span>
+        <button
+          nz-button
+          nzType="default"
+          [nzSize]="'small'"
+          (click)="isCluster = !isCluster">
+          {{ isCluster ? 'Cluster' : 'Single node' }}
+        </button>
       </div>
 
-      <div
-        *ngIf="selectedNumNodes > 0"
-        class="cluster-warning">
-        <nz-alert
-          nzType="warning"
-          nzMessage="Each node inherits the above CPU and memory limits."
-          nzShowIcon>
-        </nz-alert>
-      </div>
+      <!-- Cluster‑specific fields -->
+      <ng-container *ngIf="isCluster">
+        <!-- Node count with plus/minus -->
+        <div class="select-unit">
+          <span># Worker Nodes</span>
+          <nz-input-number
+            [(ngModel)]="selectedNumNodes"
+            [nzMin]="1"
+            [nzMax]="100"
+            [nzStep]="1">
+          </nz-input-number>
+        </div>
+
+        <!-- Disk size -->
+        <div class="select-unit">
+          <span>Disk Size</span>
+          <input nz-input type="number" min="1" [(ngModel)]="selectedDiskSize" style="width: 80px;" /> Gi
+        </div>
+
+        <!-- Summary warning -->
+        <div class="cluster-warning">
+          <nz-alert
+            nzType="warning"
+            nzMessage="This cluster will start {{ selectedNumNodes }} worker node(s) allocating a total
+           of {{ parseResourceNumber(selectedCpu) * selectedNumNodes }}{{parseResourceUnit(selectedCpu)}} CPU,
+           {{ parseResourceNumber(selectedMemory) * selectedNumNodes }}{{parseResourceUnit(selectedMemory)}} Memory,
+           and {{ selectedDiskSize }}Gi disk."
+            nzShowIcon>
+          </nz-alert>
+        </div>
+      </ng-container>
 
       <div
         *ngIf="showGpuSelection()"

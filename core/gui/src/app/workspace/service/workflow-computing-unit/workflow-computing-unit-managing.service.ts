@@ -42,6 +42,7 @@ export class WorkflowComputingUnitManagingService {
    * @param memoryLimit The memory resource limit for the computing unit.
    * @param gpuLimit The gpu resource limit for the computing unit.
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
+   * @param diskLimit
    * @param unitType
    * @param numNodes
    * @returns An Observable of the created WorkflowComputingUnit.
@@ -52,10 +53,11 @@ export class WorkflowComputingUnitManagingService {
     memoryLimit: string,
     gpuLimit: string = "0",
     jvmMemorySize: string = "1G",
+    diskLimit: string = "auto",
     numNodes: number = 0,
     unitType: string = "k8s_pod",
   ): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, unitType, numNodes };
+    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, unitType, numNodes, diskLimit };
 
     return this.http.post<DashboardWorkflowComputingUnit>(
       `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,

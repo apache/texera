@@ -31,6 +31,7 @@ object KubernetesConfig {
   val computeUnitMasterImageName: String = conf.getString("kubernetes.master-image-name")
   val computeUnitWorkerImageName: String = conf.getString("kubernetes.worker-image-name")
   val computingUnitImagePullPolicy: String = conf.getString("kubernetes.image-pull-policy")
+  val computingUnitStorageClassName: String = conf.getString("kubernetes.storage-class-name")
 
   val computeUnitPortNumber: Int = conf.getInt("kubernetes.port-num")
 

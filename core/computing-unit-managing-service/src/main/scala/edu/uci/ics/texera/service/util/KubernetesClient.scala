@@ -40,6 +40,8 @@ object KubernetesClient {
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
 
+  def generateVolumeName(cuid:Int) = s"${generatePodName(cuid)}-pvc"
+
   def generateClusterMasterServiceName(cuid:Int) = s"${generatePodName(cuid)}-master"
 
   def generateStatefulSetName(cuid: Int): String = s"${generatePodName(cuid)}-workers"
@@ -95,10 +97,45 @@ object KubernetesClient {
   // ---------------------------------------------------------------------------
   // Cluster lifecycle helpers
   // ---------------------------------------------------------------------------
+
+  def createVolume(cuid: Int, diskLimit: String): Volume = {
+    val pvcName = generateVolumeName(cuid)
+
+    // Build / create PVC if it doesn't exist yet
+    val pvc = new PersistentVolumeClaimBuilder()
+      .withNewMetadata()
+      .withName(pvcName)
+      .withNamespace(namespace)
+      .addToLabels("type", "computing-unit")
+      .addToLabels("cuid", cuid.toString)
+      .endMetadata()
+      .withNewSpec()
+      .withAccessModes("ReadWriteOnce")
+      .withNewResources()
+      .addToRequests("storage", new Quantity(diskLimit))
+      .endResources()
+      .withStorageClassName(KubernetesConfig.computingUnitStorageClassName)
+      .endSpec()
+      .build()
+
+    // idempotent create / update
+    client.persistentVolumeClaims().inNamespace(namespace).create(pvc)
+
+    // Return a Volume that points to the PVC so callers can mount it
+    new VolumeBuilder()
+      .withName(pvcName)
+      .withNewPersistentVolumeClaim()
+      .withClaimName(pvcName)
+      .endPersistentVolumeClaim()
+      .build()
+  }
+
+
   def createCluster(
                      cuid: Int,
                      cpuLimit: String,
                      memoryLimit: String,
+                     diskLimit: String,
                      numNodes: Int,
                      envVars: Map[String, Any]
                    ): Pod = {
@@ -107,10 +144,10 @@ object KubernetesClient {
       "CLUSTERING_ENABLED"           -> "true",
       "CLUSTERING_MASTER_IP_ADDRESS" -> masterIp
     )
-
-    val master = createPod(cuid, cpuLimit, memoryLimit, gpuLimit = "0", enrichedEnv)
+    val volume = createVolume(cuid, diskLimit)
+    val master = createPod(cuid, cpuLimit, memoryLimit, gpuLimit = "0", enrichedEnv, Some(volume))
     createClusterMasterService(cuid)
-    createStatefulSet(cuid, cpuLimit, memoryLimit, numNodes, enrichedEnv)
+    createStatefulSet(cuid, cpuLimit, memoryLimit, numNodes, enrichedEnv, volume)
     master // return master pod
   }
 
@@ -118,6 +155,7 @@ object KubernetesClient {
     deletePod(cuid)
     deleteClusterMasterService(cuid)
     deleteStatefulSet(cuid)
+    deleteVolume(cuid)
   }
 
   // ---------------------------------------------------------------------------
@@ -150,7 +188,8 @@ object KubernetesClient {
                                  cpuLimit: String,
                                  memoryLimit: String,
                                  numNodes: Int,
-                                 envVars: Map[String, Any]
+                                 envVars: Map[String, Any],
+                                 volume: Volume
                                ): StatefulSet = {
     val envList = envVars.map { case (k, v) =>
       new EnvVarBuilder().withName(k).withValue(v.toString).build()
@@ -165,6 +204,7 @@ object KubernetesClient {
       .withName("computing-unit-worker")
       .withImage(KubernetesConfig.computeUnitWorkerImageName)
       .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
+      .addNewVolumeMount().withName(volume.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
       .addNewPort().withContainerPort(KubernetesConfig.computeUnitPortNumber).endPort()
       .withEnv(envList)
       .withResources(resources)
@@ -208,7 +248,8 @@ object KubernetesClient {
       cpuLimit: String,
       memoryLimit: String,
       gpuLimit: String,
-      envVars: Map[String, Any]
+      envVars: Map[String, Any],
+      attachVolume: Option[Volume] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
@@ -247,6 +288,22 @@ object KubernetesClient {
       .addToLabels("name", podName)
       .addToLabels("role", "master")
 
+    // -------------- CONTAINER -------------
+    val containerB = new ContainerBuilder()
+      .withName("computing-unit-master")
+      .withImage(KubernetesConfig.computeUnitMasterImageName)
+      .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
+      .addNewPort().withContainerPort(KubernetesConfig.computeUnitPortNumber).endPort()
+      .withEnv(envList)
+      .withResources(resourceBuilder.build())
+
+    // mount PVC at /data if provided
+    attachVolume.foreach { v =>
+      containerB.addNewVolumeMount().withName(v.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
+    }
+
+    val container = containerB.build()
+
     // Start building the pod spec
     val specBuilder = podBuilder
       .endMetadata()
@@ -259,16 +316,7 @@ object KubernetesClient {
 
     // Complete the pod spec
     val pod = specBuilder
-      .addNewContainer()
-      .withName("computing-unit-master")
-      .withImage(KubernetesConfig.computeUnitMasterImageName)
-      .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
-      .addNewPort()
-      .withContainerPort(KubernetesConfig.computeUnitPortNumber)
-      .endPort()
-      .withEnv(envList)
-      .withResources(resourceBuilder.build())
-      .endContainer()
+      .withContainers(container)
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)
       .endSpec()
@@ -279,6 +327,11 @@ object KubernetesClient {
 
   def deletePod(cuid: Int): Unit = {
     client.pods().inNamespace(namespace).withName(generatePodName(cuid)).delete()
+  }
+
+
+  private def deleteVolume(cuid: Int): Unit = {
+    client.persistentVolumeClaims().inNamespace(namespace).withName(generateVolumeName(cuid)).delete()
   }
 
   private def deleteClusterMasterService(cuid: Int): Unit =

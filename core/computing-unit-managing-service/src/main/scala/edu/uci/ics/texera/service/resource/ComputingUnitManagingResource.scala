@@ -94,7 +94,8 @@ object ComputingUnitManagingResource {
       memoryLimit: String,
       gpuLimit: String,
       jvmMemorySize: String,
-      numNodes: Int
+      numNodes: Int,
+      diskLimit: String
   )
 
   case class WorkflowComputingUnitResourceLimit(
@@ -252,6 +253,7 @@ class ComputingUnitManagingResource {
             cuid,
             param.cpuLimit,
             param.memoryLimit,
+            param.diskLimit,
             param.numNodes,
             computingUnitEnvironmentVariables ++ Map(
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
@@ -259,7 +261,7 @@ class ComputingUnitManagingResource {
             )
           )
         }else{
-          // Create the pod with the generated CUID
+          // Create the pod with the generated CUID (ignoring disk limit for now)
           KubernetesClient.createPod(
             cuid,
             param.cpuLimit,
@@ -311,13 +313,12 @@ class ComputingUnitManagingResource {
         val pod = KubernetesClient.getPodByName(podName)
 
         val status = if(isCluster){
-          // master pod (Option[Pod]) + all worker pods
           val phases = (pod.toSeq ++ KubernetesClient.getClusterPodsById(cuid))
-            .map(_.getStatus.getPhase)          // Seq[String] like Seq("Running", "Running", ...)
+            .map(_.getStatus.getPhase)
 
           phases.distinct match {
-            case Seq(singlePhase) => singlePhase // all identical → return it
-            case _                => "Unknown"   // mixed or empty
+            case Seq(singlePhase) => singlePhase // all identical
+            case _                => "Unknown"   // mixed
           }
         }else{
           pod.map(_.getStatus.getPhase).getOrElse("Unknown")
