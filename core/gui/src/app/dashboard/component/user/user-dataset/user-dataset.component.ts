@@ -146,7 +146,7 @@ export class UserDatasetComponent implements AfterViewInit {
       this.hasMismatch = results.hasMismatch ?? false;
       const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
 
-      if (this.hasMismatch){
+      if (this.hasMismatch) {
         this.message.warning(
           "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
           { nzDuration: 4000 }
