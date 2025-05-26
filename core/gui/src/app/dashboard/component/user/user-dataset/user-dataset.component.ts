@@ -34,6 +34,7 @@ import { FileSelectionComponent } from "../../../../workspace/component/file-sel
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -46,6 +47,8 @@ export class UserDatasetComponent implements AfterViewInit {
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
+  public hasMismatch = false; // Display warning when there are mismatched datasets
+
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
@@ -72,13 +75,13 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   private masterFilterList: ReadonlyArray<string> | null = null;
-
   constructor(
     private modalService: NzModalService,
     private userService: UserService,
     private router: Router,
     private searchService: SearchService,
-    private datasetService: DatasetService
+    private datasetService: DatasetService,
+    private message: NzMessageService
   ) {
     this.userService
       .userChanged()
@@ -140,8 +143,18 @@ export class UserDatasetComponent implements AfterViewInit {
         )
       );
 
+      this.hasMismatch = results.hasMismatch ?? false;
+      const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
+
+      if (this.hasMismatch) {
+        this.message.warning(
+          "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
+          { nzDuration: 4000 }
+        );
+      }
+
       const userIds = new Set<number>();
-      results.results.forEach(i => {
+      filteredResults.forEach(i => {
         const ownerUid = i.dataset?.dataset?.ownerUid;
         if (ownerUid !== undefined) {
           userIds.add(ownerUid);
@@ -154,7 +167,7 @@ export class UserDatasetComponent implements AfterViewInit {
       }
 
       return {
-        entries: results.results.map(i => {
+        entries: filteredResults.map(i => {
           if (i.dataset) {
             const entry = new DashboardEntry(i.dataset);
 

@@ -45,7 +45,11 @@ object DashboardResource {
 
   case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
 
-  case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
+  case class DashboardSearchResult(
+      results: List[DashboardClickableFileEntry],
+      more: Boolean,
+      hasMismatch: Boolean = false
+  )
 
   /*
    The following class describe the available params from the frontend for full text search.
@@ -108,7 +112,7 @@ object DashboardResource {
       query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
     val queryResult = finalQuery.fetch()
 
-    val entries = queryResult.asScala.toList
+    val allEntries = queryResult.asScala.toList
       .take(params.count)
       .map(record => {
         val resourceType = record.get("resourceType", classOf[String])
@@ -122,7 +126,20 @@ object DashboardResource {
         }
       })
 
-    DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
+    val entries = allEntries.filter(_ != null)
+    val hasMismatch =
+      params.resourceType match {
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.ALL_RESOURCE_TYPE =>
+          allEntries.exists(_ == null)
+        case _ =>
+          false
+      }
+
+    DashboardSearchResult(
+      results = entries,
+      more = queryResult.size() > params.count,
+      hasMismatch = hasMismatch
+    )
   }
 
   def getOrderFields(

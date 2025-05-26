@@ -33,4 +33,5 @@ export interface SearchResultItem {
 export interface SearchResult {
   results: SearchResultItem[];
   more: boolean;
+  hasMismatch?: boolean; // Indicates whether there are mismatched datasets (added for dashboard notification)
 }
