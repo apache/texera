@@ -195,7 +195,13 @@ export class ComputingUnitSelectionComponent implements OnInit {
                 next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
-                error: (err: unknown) => {},
+                error: (err: unknown) => {
+                  // fallback: select the first available Running unit if any
+                  const runningUnit = this.computingUnits.find(unit => unit.status === "Running");
+                  if (runningUnit) {
+                    this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
+                  }
+                },
               });
           }
         }
