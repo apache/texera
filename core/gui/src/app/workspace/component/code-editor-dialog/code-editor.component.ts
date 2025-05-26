@@ -223,7 +223,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     // optionally, configure python language client.
     // it may fail if no valid connection is established, yet the failure would be ignored.
-    const languageServerWebsocketUrl = getWebsocketUrl("/python-language-server", "3000");
+    const languageServerWebsocketUrl = getWebsocketUrl("/python-language-server", "");
     if (this.language === "python") {
       userConfig.languageClientConfig = {
         languageId: this.language,
