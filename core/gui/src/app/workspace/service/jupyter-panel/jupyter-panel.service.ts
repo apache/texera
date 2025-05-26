@@ -48,9 +48,20 @@ export class JupyterPanelService {
   // Precompute the dictionary for O(1) highlighting
   private precomputeHighlightMapping(): void {
     const wid = this.workflowActionService.getWorkflow().wid;
-    const cellToOperator = mapping[wid != undefined ? "mapping_wid_" + wid : "default"].cell_to_operator;
-    const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
 
+    if (wid === undefined) {
+      console.warn("Workflow ID is undefined. Cannot compute highlight mapping.");
+      return;
+    }
+    const mappingKey = "mapping_wid_" + wid;
+
+    if (!(mappingKey in mapping)) {
+      console.warn(`Mapping key '${mappingKey}' not found. Cannot compute highlight mapping.`);
+      return;
+    }
+    const cellToOperator = mapping[mappingKey].cell_to_operator;
+
+    const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
     if (allLinks.length === 0) {
       console.warn("No links found in the graph during precompute.");
       return;
@@ -76,8 +87,6 @@ export class JupyterPanelService {
 
       this.cellToHighlightMapping[cellUUID] = { components, edges };
     }
-
-    console.log("Precomputed highlight mapping:", this.cellToHighlightMapping);
   }
 
   // Set the iframe reference (from the component's ViewChild)
