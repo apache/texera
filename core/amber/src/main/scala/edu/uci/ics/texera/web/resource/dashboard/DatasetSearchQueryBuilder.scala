@@ -33,11 +33,10 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
-import org.slf4j.LoggerFactory
-
+import com.typesafe.scalalogging.LazyLogging
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-object DatasetSearchQueryBuilder extends SearchQueryBuilder {
+object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
   override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.DATASET_RESOURCE_TYPE),
     name = DATASET.NAME,
@@ -114,7 +113,6 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     Seq.empty
   }
 
-  private val logger = LoggerFactory.getLogger(getClass)
   override protected def toEntryImpl(
       uid: Integer,
       record: Record

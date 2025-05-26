@@ -47,9 +47,7 @@ export class UserDatasetComponent implements AfterViewInit {
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
-
-  // Display warning when there are mismatched datasets
-  public hasMismatch = false;
+  public hasMismatch = false; // Display warning when there are mismatched datasets
 
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
@@ -77,10 +75,6 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   private masterFilterList: ReadonlyArray<string> | null = null;
-
-  // Prevents showing duplicate mismatch notification toasts
-  private mismatchToastShown = false;
-
   constructor(
     private modalService: NzModalService,
     private userService: UserService,
@@ -152,17 +146,11 @@ export class UserDatasetComponent implements AfterViewInit {
       this.hasMismatch = results.hasMismatch ?? false;
       const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
 
-      if (this.hasMismatch && !this.mismatchToastShown) {
-        this.mismatchToastShown = true;
+      if (this.hasMismatch){
         this.message.warning(
           "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
           { nzDuration: 4000 }
         );
-        setTimeout(() => {
-          this.mismatchToastShown = false;
-        }, 4000);
-      } else if (!this.hasMismatch) {
-        this.mismatchToastShown = false;
       }
 
       const userIds = new Set<number>();
