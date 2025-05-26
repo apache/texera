@@ -260,7 +260,7 @@ registerLocaleData(en);
     CodeDebuggerComponent,
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
-    JupyterNotebookPanelComponent
+    JupyterNotebookPanelComponent,
   ],
   imports: [
     BrowserModule,
