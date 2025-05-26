@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.workflowComputingUnitPool.masterImageName }}
             - name: KUBERNETES_WORKER_IMAGE_NAME
               value: {{ .Values.workflowComputingUnitPool.workerImageName }}
+            - name: KUBERNETES_STORAGE_CLASS_NAME
+              value: {{ .Values.workflowComputingUnitPool.storageClassName }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
