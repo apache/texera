@@ -176,8 +176,9 @@
   width: 100%;
 }
 
-.cluster-warning {
+.cluster-info {
   font-size: 0.9em;
+  grid-column: span 2;
 }
 
 .jvm-memory-slider {

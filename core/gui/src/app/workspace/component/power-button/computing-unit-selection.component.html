@@ -173,7 +173,18 @@
   <ng-template #addComputeUnitModalContent>
     <div class="create-compute-unit-container">
       <div class="select-unit name-field">
-        <span>Computing Unit Name</span>
+        <div style="display:flex; align-items:center;justify-content:space-between;width:100%;">
+          <span>Computing Unit Name</span>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>Create Cluster</span>
+            <nz-switch
+              [(ngModel)]="isCluster"
+              nzSize="default"
+              nz-tooltip
+              nzTooltipTitle="Toggle cluster mode">
+            </nz-switch>
+          </div>
+        </div>
         <input
           [required]="true"
           nz-input
@@ -181,6 +192,33 @@
           [(ngModel)]="newComputingUnitName"
           class="unit-name-input" />
       </div>
+
+      <!-- Cluster‑specific fields -->
+      <ng-container *ngIf="isCluster">
+        <!-- Node count with plus/minus -->
+        <div class="select-unit">
+          <span># of Nodes</span>
+          <nz-input-number
+            [(ngModel)]="selectedNumNodes"
+            [nzMin]="2"
+            [nzMax]="100"
+            [nzStep]="1">
+          </nz-input-number>
+        </div>
+
+        <!-- Disk size -->
+        <div class="select-unit">
+          <span>Shared Disk Size</span>
+          <nz-input-group nzSuffix="GB">
+            <input nz-input type="number" min="4" [(ngModel)]="selectedDiskSize" />
+          </nz-input-group>
+        </div>
+      </ng-container>
+
+      <div class="select-unit name-field" *ngIf="isCluster">
+        <b>Per-node Spec:</b>
+      </div>
+
       <div class="select-unit">
         <span>Select Memory Size</span>
         <nz-select
@@ -208,51 +246,8 @@
         </nz-select>
       </div>
 
-      <div class="select-unit cluster-toggle">
-        <span>Cluster Mode</span>
-        <button
-          nz-button
-          nzType="default"
-          [nzSize]="'small'"
-          (click)="isCluster = !isCluster">
-          {{ isCluster ? 'Cluster' : 'Single node' }}
-        </button>
-      </div>
-
-      <!-- Cluster‑specific fields -->
-      <ng-container *ngIf="isCluster">
-        <!-- Node count with plus/minus -->
-        <div class="select-unit">
-          <span># Worker Nodes</span>
-          <nz-input-number
-            [(ngModel)]="selectedNumNodes"
-            [nzMin]="1"
-            [nzMax]="100"
-            [nzStep]="1">
-          </nz-input-number>
-        </div>
-
-        <!-- Disk size -->
-        <div class="select-unit">
-          <span>Disk Size</span>
-          <input nz-input type="number" min="1" [(ngModel)]="selectedDiskSize" style="width: 80px;" /> Gi
-        </div>
-
-        <!-- Summary warning -->
-        <div class="cluster-warning">
-          <nz-alert
-            nzType="warning"
-            nzMessage="This cluster will start {{ selectedNumNodes }} worker node(s) allocating a total
-           of {{ parseResourceNumber(selectedCpu) * selectedNumNodes }}{{parseResourceUnit(selectedCpu)}} CPU,
-           {{ parseResourceNumber(selectedMemory) * selectedNumNodes }}{{parseResourceUnit(selectedMemory)}} Memory,
-           and {{ selectedDiskSize }}Gi disk."
-            nzShowIcon>
-          </nz-alert>
-        </div>
-      </ng-container>
-
       <div
-        *ngIf="showGpuSelection()"
+        *ngIf="!isCluster && showGpuSelection()"
         class="select-unit">
         <span>Select #GPU(s)</span>
         <nz-select
@@ -289,6 +284,18 @@
           </nz-alert>
         </div>
       </div>
+    </div>
+
+    <!-- Summary warning -->
+    <div class="cluster-info" *ngIf = isCluster>
+      <nz-alert
+        nzType="info"
+        nzMessage="This will start a cluster with {{ selectedNumNodes }} nodes, allocating a total
+           of {{ parseResourceNumber(selectedCpu) * selectedNumNodes }}{{parseResourceUnit(selectedCpu)}} CPU,
+           {{ parseResourceNumber(selectedMemory) * selectedNumNodes }}{{parseResourceUnit(selectedMemory)}} Memory,
+           and a {{ selectedDiskSize }}GiB disk shared by all nodes."
+        nzShowIcon>
+      </nz-alert>
     </div>
   </ng-template>
   <ng-template #addComputeUnitModalFooter>

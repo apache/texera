@@ -147,7 +147,7 @@ object KubernetesClient {
     val volume = createVolume(cuid, diskLimit)
     val master = createPod(cuid, cpuLimit, memoryLimit, gpuLimit = "0", enrichedEnv, Some(volume))
     createClusterMasterService(cuid)
-    createStatefulSet(cuid, cpuLimit, memoryLimit, numNodes, enrichedEnv, volume)
+    createStatefulSet(cuid, cpuLimit, memoryLimit, numNodes - 1, enrichedEnv, volume)
     master // return master pod
   }
 

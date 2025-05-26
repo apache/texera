@@ -233,7 +233,7 @@ class ComputingUnitManagingResource {
         val computingUnit = new WorkflowComputingUnit()
         val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
         computingUnit.setUid(user.getUid)
-        val name = if(param.numNodes > 0){
+        val name = if(param.numNodes > 1){
           param.name + "-cluster"
         }else{
           param.name
@@ -248,7 +248,7 @@ class ComputingUnitManagingResource {
         val cuid = ctx.lastID().intValue()
         val insertedUnit = wcDao.fetchOneByCuid(cuid)
 
-        val pod = if(param.numNodes > 0){
+        val pod = if(param.numNodes > 1){
           KubernetesClient.createCluster(
             cuid,
             param.cpuLimit,
