@@ -56,7 +56,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
   selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
-  localComputingUnitUri: string = "http://localhost:8085"; // URI for local computing unit
+  localComputingUnitUri: string = ""; // URI for local computing unit
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
@@ -82,6 +82,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   ngOnInit(): void {
     // Fetch available computing unit types
+    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
     this.computingUnitService
       .getComputingUnitTypes()
       .pipe(untilDestroyed(this))
