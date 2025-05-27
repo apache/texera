@@ -48,6 +48,9 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 ![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
 
 # Publications (Computer Science)
+*  (5/2025) **Responsive Retrieval of Consistent States in Pipelined Executions of Dataflows**  
+   Shengquan Ni, and Chen Li  
+   _To appear in HILDA Workshop at SIGMOD 2025_
 *  (11/2024) **IcedTea: Efficient and Responsive Time-Travel Debugging in Dataflow Systems**  
    Shengquan Ni, Yicong Huang, Zuozhi Wang, and Chen Li
    _To appear in VLDB 2025_
