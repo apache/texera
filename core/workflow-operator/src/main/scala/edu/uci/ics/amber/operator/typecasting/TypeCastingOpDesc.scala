@@ -29,8 +29,11 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class TypeCastingOpDesc extends MapOpDesc {
+import scala.util.chaining.scalaUtilChainingOps
+
+class TypeCastingOpDesc extends MapOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("TypeCasting Units")
@@ -62,6 +65,7 @@ class TypeCastingOpDesc extends MapOpDesc {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         }
       )
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo = {

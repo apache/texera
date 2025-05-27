@@ -29,8 +29,11 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class UnnestStringOpDesc extends FlatMapOpDesc {
+import scala.util.chaining.scalaUtilChainingOps
+
+class UnnestStringOpDesc extends FlatMapOpDesc with DesignatedLocationConfigurable {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
   @JsonPropertyDescription("string that separates the data")
   var delimiter: String = _
@@ -79,5 +82,6 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
+      .pipe(configureLocationPreference)
   }
 }

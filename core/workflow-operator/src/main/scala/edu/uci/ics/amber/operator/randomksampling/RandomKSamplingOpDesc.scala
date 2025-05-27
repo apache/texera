@@ -23,11 +23,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 import edu.uci.ics.amber.operator.filter.FilterOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
-class RandomKSamplingOpDesc extends FilterOpDesc {
+import scala.util.chaining.scalaUtilChainingOps
+
+class RandomKSamplingOpDesc extends FilterOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
@@ -49,6 +52,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

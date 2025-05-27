@@ -28,8 +28,11 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
+import scala.util.chaining.scalaUtilChainingOps
+
+class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with DesignatedLocationConfigurable {
 
   @JsonProperty(
     required = true,
@@ -77,6 +80,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     } else {
       physicalOp.withParallelizable(false)
     }
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo = {

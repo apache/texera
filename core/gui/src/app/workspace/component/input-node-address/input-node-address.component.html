@@ -1,0 +1,10 @@
+<nz-select
+  [formControl]="formControl"
+  [nzPlaceHolder]="'Select Node Address'"
+  nzAllowClear>
+  <nz-option
+    *ngFor="let addr of nodeAddresses"
+    [nzValue]="addr"
+    [nzLabel]="addr">
+  </nz-option>
+</nz-select>

@@ -32,9 +32,15 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 import edu.uci.ics.amber.operator.source.scan.text.TextSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
+
+import scala.util.chaining.scalaUtilChainingOps
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
+class FileScanSourceOpDesc
+    extends ScanSourceOpDesc
+    with TextSourceOpDesc
+    with DesignatedLocationConfigurable {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(
@@ -82,6 +88,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
   }
 
   override def sourceSchema(): Schema = {

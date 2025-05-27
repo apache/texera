@@ -22,10 +22,12 @@ package edu.uci.ics.amber.operator.distinct
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{HashPartition, InputPort, OutputPort, PhysicalOp}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class DistinctOpDesc extends LogicalOp {
+import scala.util.chaining.scalaUtilChainingOps
+
+class DistinctOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -42,7 +44,7 @@ class DistinctOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
-
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

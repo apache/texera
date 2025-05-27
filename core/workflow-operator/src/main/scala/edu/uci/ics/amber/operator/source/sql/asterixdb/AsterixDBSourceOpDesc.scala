@@ -45,9 +45,12 @@ import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
 }
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import kong.unirest.json.JSONObject
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
+
+import scala.util.chaining.scalaUtilChainingOps
 
 @JsonIgnoreProperties(value = Array("username", "password"))
-class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
+class AsterixDBSourceOpDesc extends SQLSourceOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Geo Search?")
@@ -111,7 +114,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -127,6 +130,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

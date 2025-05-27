@@ -27,15 +27,17 @@ import edu.uci.ics.amber.operator.source.sql.mysql.MySQLConnUtil.connect
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
 import java.sql.{Connection, SQLException}
+import scala.util.chaining.scalaUtilChainingOps
 
-class MySQLSourceOpDesc extends SQLSourceOpDesc {
+class MySQLSourceOpDesc extends SQLSourceOpDesc with DesignatedLocationConfigurable {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -51,6 +53,8 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

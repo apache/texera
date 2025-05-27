@@ -22,10 +22,12 @@ package edu.uci.ics.amber.operator.intersect
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class IntersectOpDesc extends LogicalOp {
+import scala.util.chaining.scalaUtilChainingOps
+
+class IntersectOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -42,6 +44,7 @@ class IntersectOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

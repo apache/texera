@@ -29,14 +29,15 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
+import scala.util.chaining.scalaUtilChainingOps
 
-class AggregateOpDesc extends LogicalOp {
+class AggregateOpDesc extends LogicalOp with DesignatedLocationConfigurable {
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
@@ -82,6 +83,7 @@ class AggregateOpDesc extends LogicalOp {
           Map(PortIdentity(internal = true) -> outputSchema)
         })
       )
+      .pipe(configureLocationPreference)
 
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
@@ -107,6 +109,7 @@ class AggregateOpDesc extends LogicalOp {
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
       .withDerivePartition(_ => HashPartition(groupByKeys))
+      .pipe(configureLocationPreference)
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),

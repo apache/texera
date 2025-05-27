@@ -55,7 +55,10 @@ class WorkflowWebsocketResource extends LazyLogging {
     val workflowState =
       WorkflowService.getOrCreate(WorkflowIdentity(wid))
     sessionState.subscribe(workflowState)
-    sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
+    val addressesStr = ClusterListener.currentAddresses.map(_.toString).toSeq
+    sessionState.send(
+      ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster, addressesStr)
+    )
     logger.info("connection open")
   }
 

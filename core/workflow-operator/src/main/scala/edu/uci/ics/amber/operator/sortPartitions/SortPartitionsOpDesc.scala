@@ -23,12 +23,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, RangePartition}
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+
+import scala.util.chaining.scalaUtilChainingOps
 
 @JsonSchemaInject(json = """
 {
@@ -39,7 +41,7 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
   }
 }
 """)
-class SortPartitionsOpDesc extends LogicalOp {
+class SortPartitionsOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -60,7 +62,7 @@ class SortPartitionsOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -76,6 +78,8 @@ class SortPartitionsOpDesc extends LogicalOp {
       .withPartitionRequirement(
         List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
       )
+      .pipe(configureLocationPreference)
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

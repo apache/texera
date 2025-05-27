@@ -32,8 +32,11 @@ import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
+import scala.util.chaining.scalaUtilChainingOps
+
+class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc with DesignatedLocationConfigurable {
 
   @JsonIgnore
   override val APIName: Option[String] = Some("Search")
@@ -52,7 +55,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
     // TODO: use multiple workers
     PhysicalOp
       .sourcePhysicalOp(
@@ -69,6 +72,8 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
+  }
 
   override def sourceSchema(): Schema = {
 

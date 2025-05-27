@@ -26,6 +26,7 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
@@ -38,9 +39,10 @@ import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
 import scala.util.Using
+import scala.util.chaining.scalaUtilChainingOps
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
-class ArrowSourceOpDesc extends ScanSourceOpDesc {
+class ArrowSourceOpDesc extends ScanSourceOpDesc with DesignatedLocationConfigurable {
 
   fileTypeName = Option("Arrow")
 
@@ -64,6 +66,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
       )
+      .pipe(configureLocationPreference)
   }
 
   /**

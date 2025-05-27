@@ -31,12 +31,18 @@ import edu.uci.ics.amber.core.workflow.{
   UnknownPartition
 }
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
+import edu.uci.ics.amber.operator.{
+  DesignatedLocationConfigurable,
+  LogicalOp,
+  PortDescription,
+  StateTransferFunc
+}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
+import scala.util.chaining.scalaUtilChainingOps
 import scala.util.{Success, Try}
-class JavaUDFOpDesc extends LogicalOp {
+class JavaUDFOpDesc extends LogicalOp with DesignatedLocationConfigurable {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -109,7 +115,7 @@ class JavaUDFOpDesc extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
-    if (workers > 1)
+    if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
@@ -125,7 +131,8 @@ class JavaUDFOpDesc extends LogicalOp {
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
         .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-    else
+        .pipe(configureLocationPreference)
+    } else {
       PhysicalOp
         .manyToOnePhysicalOp(
           workflowId,
@@ -140,6 +147,8 @@ class JavaUDFOpDesc extends LogicalOp {
         .withIsOneToManyOp(true)
         .withParallelizable(false)
         .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+        .pipe(configureLocationPreference)
+    }
   }
 
   override def operatorInfo: OperatorInfo = {

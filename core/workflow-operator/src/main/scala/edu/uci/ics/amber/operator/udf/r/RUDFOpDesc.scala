@@ -30,14 +30,20 @@ import edu.uci.ics.amber.core.workflow.{
   SchemaPropagationFunc,
   UnknownPartition
 }
-import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
+import edu.uci.ics.amber.operator.{
+  DesignatedLocationConfigurable,
+  LogicalOp,
+  PortDescription,
+  StateTransferFunc
+}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
+import scala.util.chaining.scalaUtilChainingOps
 import scala.util.{Success, Try}
 
-class RUDFOpDesc extends LogicalOp {
+class RUDFOpDesc extends LogicalOp with DesignatedLocationConfigurable {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -137,6 +143,7 @@ class RUDFOpDesc extends LogicalOp {
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+      .pipe(configureLocationPreference)
 
   }
 

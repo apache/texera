@@ -27,6 +27,7 @@ import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
@@ -34,8 +35,9 @@ import java.io._
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.util.chaining.scalaUtilChainingOps
 
-class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
+class JSONLScanSourceOpDesc extends ScanSourceOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(required = true)
   @JsonPropertyDescription("flatten nested objects and arrays")
@@ -65,6 +67,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
   }
 
   override def sourceSchema(): Schema = {

@@ -22,13 +22,15 @@ package edu.uci.ics.amber.operator.reservoirsampling
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.PhysicalOp
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
-class ReservoirSamplingOpDesc extends LogicalOp {
+import scala.util.chaining.scalaUtilChainingOps
+
+class ReservoirSamplingOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
@@ -50,6 +52,7 @@ class ReservoirSamplingOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo = {

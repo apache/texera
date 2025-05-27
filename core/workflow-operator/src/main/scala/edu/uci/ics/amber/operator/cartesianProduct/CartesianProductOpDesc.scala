@@ -23,10 +23,11 @@ import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{LogicalOp, DesignatedLocationConfigurable}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import scala.util.chaining.scalaUtilChainingOps
 
-class CartesianProductOpDesc extends LogicalOp {
+class CartesianProductOpDesc extends LogicalOp with DesignatedLocationConfigurable {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -87,7 +88,7 @@ class CartesianProductOpDesc extends LogicalOp {
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition
       .withParallelizable(false)
-
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

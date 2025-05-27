@@ -27,7 +27,7 @@ import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
+import java.net.{InetAddress, URL}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
@@ -65,7 +65,9 @@ object AmberRuntime {
     try {
       val query = new URL("http://checkip.amazonaws.com")
       val in = new BufferedReader(new InputStreamReader(query.openStream()))
-      in.readLine()
+      val ip = in.readLine()
+      val localIp = InetAddress.getLocalHost().getHostAddress()
+      ip
     } catch {
       case e: Exception => throw e
     }
@@ -75,18 +77,33 @@ object AmberRuntime {
     var localIpAddress = "localhost"
     if (clusterMode) {
       localIpAddress = getNodeIpAddress
-    }
 
-    val masterConfig = ConfigFactory
-      .parseString(s"""
+      val localPrivateIdAddress = InetAddress.getLocalHost().getHostAddress()
+
+      val masterConfig = ConfigFactory
+        .parseString(s"""
+              akka.remote.artery.canonical.port = 2552
+              akka.remote.artery.canonical.hostname = $localIpAddress
+              akka.remote.artery.bind.hostname = $localPrivateIdAddress
+              akka.remote.artery.bind.port = 2552
+              akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
+              """)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
+      createAmberSystem(masterConfig)
+    } else {
+      val masterConfig = ConfigFactory
+        .parseString(s"""
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
-      .withFallback(akkaConfig)
-      .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
-    createAmberSystem(masterConfig)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
+      createAmberSystem(masterConfig)
+    }
   }
 
   def akkaConfig: Config =
@@ -98,18 +115,35 @@ object AmberRuntime {
     val addr = mainNodeAddress.getOrElse("localhost")
     var localIpAddress = "localhost"
     if (mainNodeAddress.isDefined) {
+
       localIpAddress = getNodeIpAddress
-    }
-    val workerConfig = ConfigFactory
-      .parseString(s"""
+
+      val localPrivateIdAddress = InetAddress.getLocalHost().getHostAddress()
+
+      val workerConfig = ConfigFactory
+        .parseString(s"""
+              akka.remote.artery.canonical.hostname = $localIpAddress
+              akka.remote.artery.canonical.port = 0
+              akka.remote.artery.bind.hostname = $localPrivateIdAddress
+              akka.remote.artery.bind.port = 0
+              akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
+              """)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(addr)
+      createAmberSystem(workerConfig)
+    } else {
+      val workerConfig = ConfigFactory
+        .parseString(s"""
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.remote.artery.canonical.port = 0
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
-      .withFallback(akkaConfig)
-      .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(addr)
-    createAmberSystem(workerConfig)
+        .withFallback(akkaConfig)
+        .resolve()
+      AmberConfig.masterNodeAddr = createMasterAddress(addr)
+      createAmberSystem(workerConfig)
+    }
   }
 
   private def createAmberSystem(actorSystemConf: Config): Unit = {

@@ -30,11 +30,13 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
+import scala.util.chaining.scalaUtilChainingOps
 
-class CSVScanSourceOpDesc extends ScanSourceOpDesc {
+class CSVScanSourceOpDesc extends ScanSourceOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
@@ -74,6 +76,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
   }
 
   override def sourceSchema(): Schema = {

@@ -171,6 +171,7 @@ export type ExecutionDurationUpdateEvent = Readonly<{
 
 export type ClusterStatusUpdateEvent = Readonly<{
   numWorkers: number;
+  addresses: string[];
 }>;
 
 export type ModifyLogicResponse = Readonly<{

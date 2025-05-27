@@ -23,10 +23,12 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class DifferenceOpDesc extends LogicalOp {
+import scala.util.chaining.scalaUtilChainingOps
+
+class DifferenceOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -48,6 +50,7 @@ class DifferenceOpDesc extends LogicalOp {
         val outputSchema = inputSchemas.values.head
         operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
       }))
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

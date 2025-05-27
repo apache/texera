@@ -31,3 +31,5 @@ object PreferController extends LocationPreference
 // - Operator A: Worker 1 -> Node 1, Worker 2 -> Node 2, Worker 3 -> Node 3
 // - Operator B: Worker 1 -> Node 1, Worker 2 -> Node 2
 object RoundRobinPreference extends LocationPreference
+
+case class GoToSpecificNode(nodeAddr: String) extends LocationPreference

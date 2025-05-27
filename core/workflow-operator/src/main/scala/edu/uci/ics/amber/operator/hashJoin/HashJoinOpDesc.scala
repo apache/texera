@@ -29,7 +29,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -37,6 +37,8 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
 }
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+
+import scala.util.chaining.scalaUtilChainingOps
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
@@ -53,7 +55,7 @@ object HashJoinOpDesc {
   }
 }
 """)
-class HashJoinOpDesc[K] extends LogicalOp {
+class HashJoinOpDesc[K] extends LogicalOp with DesignatedLocationConfigurable {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -104,6 +106,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
         .withParallelizable(true)
+        .pipe(configureLocationPreference)
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
     val probeDataInputPort =
@@ -163,6 +166,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
             Map(PortIdentity() -> outputSchema)
           })
         )
+        .pipe(configureLocationPreference)
 
     PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),

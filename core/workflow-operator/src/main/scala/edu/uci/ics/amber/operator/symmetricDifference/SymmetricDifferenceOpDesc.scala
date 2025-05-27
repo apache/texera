@@ -29,11 +29,13 @@ import edu.uci.ics.amber.core.workflow.{
   PortIdentity,
   SchemaPropagationFunc
 }
-import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.{DesignatedLocationConfigurable, LogicalOp}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
-class SymmetricDifferenceOpDesc extends LogicalOp {
+import scala.util.chaining.scalaUtilChainingOps
+
+class SymmetricDifferenceOpDesc extends LogicalOp with DesignatedLocationConfigurable {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -58,6 +60,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         val outputSchema = inputSchemas.values.head
         operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
       }))
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

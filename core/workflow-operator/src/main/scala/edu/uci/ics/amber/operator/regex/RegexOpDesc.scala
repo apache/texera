@@ -29,8 +29,11 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class RegexOpDesc extends FilterOpDesc {
+import scala.util.chaining.scalaUtilChainingOps
+
+class RegexOpDesc extends FilterOpDesc with DesignatedLocationConfigurable {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to search regex on")
@@ -62,6 +65,7 @@ class RegexOpDesc extends FilterOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =

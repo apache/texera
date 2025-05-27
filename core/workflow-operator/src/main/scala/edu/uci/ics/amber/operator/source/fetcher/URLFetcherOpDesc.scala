@@ -29,8 +29,11 @@ import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort
+import edu.uci.ics.amber.operator.DesignatedLocationConfigurable
 
-class URLFetcherOpDesc extends SourceOperatorDescriptor {
+import scala.util.chaining.scalaUtilChainingOps
+
+class URLFetcherOpDesc extends SourceOperatorDescriptor with DesignatedLocationConfigurable {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL")
@@ -73,6 +76,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+      .pipe(configureLocationPreference)
   }
 
   override def operatorInfo: OperatorInfo =
