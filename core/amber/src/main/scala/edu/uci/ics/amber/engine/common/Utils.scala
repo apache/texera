@@ -25,8 +25,6 @@ import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.jooq.DSLContext
-import org.jooq.impl.DSL
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
@@ -121,6 +119,23 @@ object Utils extends LazyLogging {
     }
   }
 
+  def stringToAggregatedState(str: String): WorkflowAggregatedState = {
+    str.trim.toLowerCase match {
+      case "uninitialized" => WorkflowAggregatedState.UNINITIALIZED
+      case "ready"         => WorkflowAggregatedState.READY
+      case "initializing"  => WorkflowAggregatedState.READY // accept alias
+      case "running"       => WorkflowAggregatedState.RUNNING
+      case "pausing"       => WorkflowAggregatedState.PAUSING
+      case "paused"        => WorkflowAggregatedState.PAUSED
+      case "resuming"      => WorkflowAggregatedState.RESUMING
+      case "completed"     => WorkflowAggregatedState.COMPLETED
+      case "failed"        => WorkflowAggregatedState.FAILED
+      case "killed"        => WorkflowAggregatedState.KILLED
+      case "unknown"       => WorkflowAggregatedState.UNKNOWN
+      case other           => throw new IllegalArgumentException(s"Unrecognized state: $other")
+    }
+  }
+
   /**
     * @param state indicates the workflow state
     * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
@@ -150,16 +165,5 @@ object Utils extends LazyLogging {
     } finally {
       lock.unlock()
     }
-  }
-
-  def withTransaction[T](dsl: DSLContext)(block: DSLContext => T): T = {
-    var result: Option[T] = None
-
-    dsl.transaction(configuration => {
-      val ctx = DSL.using(configuration)
-      result = Some(block(ctx))
-    })
-
-    result.getOrElse(throw new RuntimeException("Transaction failed without result!"))
   }
 }

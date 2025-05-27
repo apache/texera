@@ -17,20 +17,21 @@
  * under the License.
  */
 
-import { Component, OnInit, OnChanges, SimpleChanges } from "@angular/core";
-import { interval } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import { Component, OnInit } from "@angular/core";
+import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
-import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { environment } from "../../../../environments/environment";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 @UntilDestroy()
 @Component({
@@ -38,13 +39,13 @@ import { NzModalService } from "ng-zorro-antd/modal";
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
 })
-export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
+export class ComputingUnitSelectionComponent implements OnInit {
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   workflowId: number | undefined;
 
+  lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   computingUnits: DashboardWorkflowComputingUnit[] = [];
-  private readonly REFRESH_INTERVAL_MS = 2000;
 
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
@@ -53,6 +54,9 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   selectedCpu: string = "";
   selectedGpu: string = "0"; // Default to no GPU
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
+  selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
+  availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
+  localComputingUnitUri: string = ""; // URI for local computing unit
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
@@ -66,67 +70,72 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   memoryOptions: string[] = [];
   gpuOptions: string[] = []; // Add GPU options array
 
-  // Add property to track user-initiated termination
-  private isUserTerminatingUnit = false;
-
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private computingUnitStatusService: ComputingUnitStatusService,
+    private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NzModalService
   ) {}
 
   ngOnInit(): void {
-    if (environment.computingUnitManagerEnabled) {
-      this.computingUnitService
-        .getComputingUnitLimitOptions()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
-            this.cpuOptions = cpuLimitOptions;
-            this.memoryOptions = memoryLimitOptions;
-            this.gpuOptions = gpuLimitOptions;
+    // Fetch available computing unit types
+    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
+    this.newComputingUnitName = "My Computing Unit";
+    this.computingUnitService
+      .getComputingUnitTypes()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ typeOptions }) => {
+          this.availableComputingUnitTypes = typeOptions;
+          // Set default selected type if available
+          if (typeOptions.includes("kubernetes")) {
+            this.selectedComputingUnitType = "kubernetes";
+          } else if (typeOptions.length > 0) {
+            this.selectedComputingUnitType = typeOptions[0];
+          }
+        },
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
+      });
 
-            // fallback defaults
-            this.selectedCpu = this.cpuOptions[0] ?? "1";
-            this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-            this.selectedGpu = this.gpuOptions[0] ?? "0";
+    this.computingUnitService
+      .getComputingUnitLimitOptions()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
+          this.cpuOptions = cpuLimitOptions;
+          this.memoryOptions = memoryLimitOptions;
+          this.gpuOptions = gpuLimitOptions;
 
-            // Initialize JVM memory slider based on selected memory
-            this.updateJvmMemorySlider();
-          },
-          error: (err: unknown) =>
-            this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
-        });
-    }
+          // fallback defaults
+          this.selectedCpu = this.cpuOptions[0] ?? "1";
+          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
+          this.selectedGpu = this.gpuOptions[0] ?? "0";
 
-    // Track if user is intentionally terminating a unit
-    this.isUserTerminatingUnit = false;
+          // Initialize JVM memory slider based on selected memory
+          this.updateJvmMemorySlider();
+        },
+        error: (err: unknown) =>
+          this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
+      });
 
     // Subscribe to the current selected unit from the status service
     this.computingUnitStatusService
       .getSelectedComputingUnit()
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
-        // Check if the status changed from Running to something else
-        if (
-          this.selectedComputingUnit?.status === "Running" &&
-          unit?.status &&
-          unit.status !== "Running" &&
-          !this.isUserTerminatingUnit
-        ) {
-          // Only show notification for unexpected status changes
-          if (unit.status === "Disconnected") {
-            this.notificationService.info(`Connecting to computing unit "${unit.computingUnit.name}"...`);
-          } else if (unit.status === "Terminating") {
-            this.notificationService.error(
-              `Computing unit "${unit.computingUnit.name}" is being terminated. Please select another unit to continue.`
-            );
-          }
+        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+
+        // ── compare with the *previous* cuid, not the one we are just about to store ──
+        if (isDefined(wid) && unit?.computingUnit.cuid !== this.lastSelectedCuid) {
+          this.updateWorkflowModificationStatus(wid);
         }
 
+        // update local caches **after** the comparison
+        this.lastSelectedCuid = unit?.computingUnit.cuid;
         this.selectedComputingUnit = unit;
       });
 
@@ -141,13 +150,30 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     this.registerWorkflowMetadataSubscription();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes["workflowId"] && isDefined(this.workflowId)) {
-      // Connecting to the workflowWebsocketService with the workflowId will trigger the computing unit service
-      if (this.selectedComputingUnit) {
-        this.connectToComputingUnit(this.selectedComputingUnit);
-      }
-    }
+  /**
+   * Helper to query backend and (de)activate modification status.
+   */
+  private updateWorkflowModificationStatus(wid: number): void {
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(wid, [ExecutionState.Running, ExecutionState.Initializing])
+      .pipe(take(1), untilDestroyed(this))
+      .subscribe(execList => {
+        if (execList.length > 0) {
+          this.notificationService.info(
+            "There are onging executions on this workflow. Modification of the workflow is currently disabled."
+          );
+          this.workflowActionService.disableWorkflowModification();
+        } else {
+          this.workflowActionService.enableWorkflowModification();
+        }
+      });
+  }
+
+  /**
+   * utility function used for displaying the computing unit
+   */
+  public trackByCuid(_idx: number, unit: DashboardWorkflowComputingUnit): number {
+    return unit.computingUnit.cuid;
   }
 
   /**
@@ -163,7 +189,23 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
-          this.connectToComputingUnit(this.selectedComputingUnit);
+          if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
+            this.workflowExecutionsService
+              .retrieveLatestWorkflowExecution(this.workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe({
+                next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
+                  this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
+                },
+                error: (err: unknown) => {
+                  // fallback: select the first available Running unit if any
+                  const runningUnit = this.computingUnits.find(unit => unit.status === "Running");
+                  if (runningUnit) {
+                    this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
+                  }
+                },
+              });
+          }
         }
       });
   }
@@ -171,14 +213,9 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   /**
    * Called whenever the selected computing unit changes.
    */
-  connectToComputingUnit(computingUnit: DashboardWorkflowComputingUnit | null): void {
-    if (computingUnit && isDefined(this.workflowId)) {
-      // First update the selection in the status service
-      this.computingUnitStatusService.selectComputingUnit(computingUnit);
-
-      // Then open the websocket connection
-      this.workflowWebsocketService.closeWebsocket();
-      this.workflowWebsocketService.openWebsocket(this.workflowId, undefined, computingUnit.computingUnit.cuid);
+  selectComputingUnit(wid: number | undefined, cuid: number | undefined): void {
+    if (isDefined(cuid) && wid !== DEFAULT_WORKFLOW.wid) {
+      this.computingUnitStatusService.selectComputingUnit(wid, cuid);
     }
   }
 
@@ -218,7 +255,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   isSelectedUnit(unit: DashboardWorkflowComputingUnit): boolean {
-    return unit.uri === this.selectedComputingUnit?.uri;
+    return unit.computingUnit.uri === this.selectedComputingUnit?.computingUnit.uri;
   }
 
   // Determines if the GPU selection dropdown should be shown
@@ -241,46 +278,55 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Gets the computing unit name from the units URI
-   * @param unitURI (i.e. "computing-unit-85.workflow-computing-unit-svc.workflow-computing-unit-pool.svc.cluster.local")
-   * @return "Computing unit 85"
-   */
-  getComputingUnitId(unitURI: string): string {
-    if (unitURI.includes("localhost")) return "Local Computing Unit";
-    const re = /computing-unit-(\d+)/;
-    const match = unitURI.match(re);
-    if (match) {
-      return `Computing unit ${match[1]}`;
-    }
-    return "Unknown Computing Unit";
-  }
-
-  /**
    * Start a new computing unit.
    */
   startComputingUnit(): void {
-    if (this.newComputingUnitName.trim() == "") {
-      this.notificationService.error("Name of the computing unit cannot be empty");
-      return;
-    }
-    const computeUnitName = this.newComputingUnitName;
-    const computeCPU = this.selectedCpu;
-    const computeMemory = this.selectedMemory;
-    const computeGPU = this.selectedGpu;
-    const computeJvmMemory = this.selectedJvmMemorySize;
+    // Validate based on computing unit type
+    if (this.selectedComputingUnitType === "kubernetes") {
+      if (this.newComputingUnitName.trim() == "") {
+        this.notificationService.error("Name of the computing unit cannot be empty");
+        return;
+      }
+      const computeUnitName = this.newComputingUnitName;
+      const computeCPU = this.selectedCpu;
+      const computeMemory = this.selectedMemory;
+      const computeGPU = this.selectedGpu;
+      const computeJvmMemory = this.selectedJvmMemorySize;
 
-    this.computingUnitService
-      .createComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit) => {
-          this.notificationService.success("Successfully created the new compute unit");
-          // Select the newly created unit
-          this.connectToComputingUnit(unit);
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
-      });
+      this.computingUnitService
+        .createKubernetesBasedComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (unit: DashboardWorkflowComputingUnit) => {
+            this.notificationService.success("Successfully created the new Kubernetes compute unit");
+            // Select the newly created unit
+            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
+          },
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to start Kubernetes computing unit: ${extractErrorMessage(err)}`),
+        });
+    } else if (this.selectedComputingUnitType === "local") {
+      // For local computing units, validate the URI
+      if (!this.localComputingUnitUri || this.localComputingUnitUri.trim() === "") {
+        this.notificationService.error("URI for local computing unit cannot be empty");
+        return;
+      }
+
+      this.computingUnitService
+        .createLocalComputingUnit(this.newComputingUnitName, this.localComputingUnitUri)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (unit: DashboardWorkflowComputingUnit) => {
+            this.notificationService.success("Successfully created the new local compute unit");
+            // Select the newly created unit
+            this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
+          },
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to start local computing unit: ${extractErrorMessage(err)}`),
+        });
+    } else {
+      this.notificationService.error("Please select a valid computing unit type");
+    }
   }
 
   /**
@@ -290,30 +336,29 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   terminateComputingUnit(cuid: number): void {
     const unit = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid);
 
-    if (!unit || !unit.uri) {
+    if (!unit || !unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");
       return;
     }
 
     const unitName = unit.computingUnit.name;
-    const unitId = this.getComputingUnitId(unit.uri);
-    const isTerminatingSelectedUnit = this.selectedComputingUnit?.computingUnit.cuid === cuid;
+    const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
+    const templates = this.unitTypeMessageTemplate[unitType];
 
     // Show confirmation modal
     this.modalService.confirm({
-      nzTitle: "Terminate Computing Unit",
-      nzContent: `
-        <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
-        <p style="color: #ff4d4f;"><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>
-      `,
-      nzOkText: "Terminate",
+      nzTitle: templates.terminateTitle,
+      nzContent: templates.terminateWarning
+        ? `
+      <p>Are you sure you want to terminate <strong>${unitName}</strong>?</p>
+      ${templates.terminateWarning}
+    `
+        : `
+      <p>Are you sure you want to disconnect from <strong>${unitName}</strong>?</p>
+    `,
+      nzOkText: unitType === "local" ? "Disconnect" : "Terminate",
       nzOkType: "primary",
       nzOnOk: () => {
-        // Set flag to avoid showing disconnection errors during intentional termination
-        if (isTerminatingSelectedUnit) {
-          this.isUserTerminatingUnit = true;
-        }
-
         // Use the ComputingUnitStatusService to handle termination
         // This will properly close the websocket before terminating the unit
         this.computingUnitStatusService
@@ -321,35 +366,13 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: (success: boolean) => {
-              // Reset the termination flag regardless of result
-              if (isTerminatingSelectedUnit) {
-                this.isUserTerminatingUnit = false;
-              }
-
               if (success) {
-                this.notificationService.success(`Terminated ${unitId}`);
-
-                // Find another running unit to select if needed
-                if (this.selectedComputingUnit === null || isTerminatingSelectedUnit) {
-                  const runningUnit = this.computingUnits.find(
-                    unit => unit.computingUnit.cuid !== cuid && unit.status === "Running"
-                  );
-
-                  if (runningUnit) {
-                    this.connectToComputingUnit(runningUnit);
-                  } else {
-                    this.selectedComputingUnit = null;
-                  }
-                }
+                this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
               } else {
                 this.notificationService.error("Failed to terminate computing unit");
               }
             },
             error: (err: unknown) => {
-              // Reset the termination flag on error
-              if (isTerminatingSelectedUnit) {
-                this.isUserTerminatingUnit = false;
-              }
               this.notificationService.error(`Failed to terminate computing unit: ${extractErrorMessage(err)}`);
             },
           });
@@ -360,7 +383,7 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
 
   parseResourceUnit(resource: string): string {
     // check if has a capacity (is a number followed by a unit)
-    if (!resource || resource === "NaN") return "N/A";
+    if (!resource || resource === "NaN") return "NaN";
     const re = /^(\d+(\.\d+)?)([a-zA-Z]*)$/;
     const match = resource.match(re);
     if (match) {
@@ -435,23 +458,23 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
   }
 
   getCurrentComputingUnitCpuUsage(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.cpuUsage : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.cpuUsage : "NaN";
   }
 
   getCurrentComputingUnitMemoryUsage(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.memoryUsage : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.metrics.memoryUsage : "NaN";
   }
 
   getCurrentComputingUnitCpuLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.cpuLimit : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.cpuLimit : "NaN";
   }
 
   getCurrentComputingUnitMemoryLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.memoryLimit : "N/A";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.memoryLimit : "NaN";
   }
 
   getCurrentComputingUnitGpuLimit(): string {
-    return this.selectedComputingUnit ? this.selectedComputingUnit.resourceLimits.gpuLimit : "0";
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.gpuLimit : "NaN";
   }
 
   /**
@@ -581,10 +604,6 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
         return "Ready to use";
       case "Pending":
         return "Computing unit is starting up";
-      case "Disconnected":
-        return "Computing unit is not connected";
-      case "Terminating":
-        return "Computing unit is being terminated";
       default:
         return unit.status;
     }
@@ -716,5 +735,32 @@ export class ComputingUnitSelectionComponent implements OnInit, OnChanges {
     }
   }
 
-  protected readonly environment = environment;
+  getCreateModalTitle(): string {
+    if (!this.selectedComputingUnitType) return "Create Computing Unit";
+    return this.unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
+  }
+
+  unitTypeMessageTemplate = {
+    local: {
+      createTitle: "Connect to a Local Computing Unit",
+      terminateTitle: "Disconnect from Local Computing Unit",
+      terminateWarning: "", // no red warning
+      createSuccess: "Successfully connected to the local computing unit",
+      createFailure: "Failed to connect to the local computing unit",
+      terminateSuccess: "Disconnected from the local computing unit",
+      terminateFailure: "Failed to disconnect from the local computing unit",
+      terminateTooltip: "Disconnect from this computing unit",
+    },
+    kubernetes: {
+      createTitle: "Create Computing Unit",
+      terminateTitle: "Terminate Computing Unit",
+      terminateWarning:
+        "<p style='color: #ff4d4f;'><strong>Warning:</strong> All execution results in this computing unit will be lost.</p>",
+      createSuccess: "Successfully created the Kubernetes computing unit",
+      createFailure: "Failed to create the Kubernetes computing unit",
+      terminateSuccess: "Terminated Kubernetes computing unit",
+      terminateFailure: "Failed to terminate Kubernetes computing unit",
+      terminateTooltip: "Terminate this computing unit",
+    },
+  } as const;
 }

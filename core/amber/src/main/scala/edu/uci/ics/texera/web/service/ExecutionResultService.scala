@@ -283,6 +283,7 @@ object ExecutionResultService {
   */
 class ExecutionResultService(
     workflowIdentity: WorkflowIdentity,
+    computingUnitId: Int,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
@@ -425,7 +426,7 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
+    val latestExecutionId = getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
       throw new IllegalStateException("No execution is recorded")
     )
 

@@ -45,12 +45,15 @@ import java.net.URI
 import scala.collection.mutable
 
 object WorkflowExecutionService {
-  def getLatestExecutionId(workflowId: WorkflowIdentity): Option[ExecutionIdentity] = {
+  def getLatestExecutionId(
+      workflowId: WorkflowIdentity,
+      computingUnitId: Int
+  ): Option[ExecutionIdentity] = {
     if (!AmberConfig.isUserSystemEnabled) {
       return Some(DEFAULT_EXECUTION_ID)
     }
     WorkflowExecutionsResource
-      .getLatestExecutionID(workflowId.id.toInt)
+      .getLatestExecutionID(workflowId.id.toInt, computingUnitId)
       .map(eid => new ExecutionIdentity(eid.longValue()))
   }
 }

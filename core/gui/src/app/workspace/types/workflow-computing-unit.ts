@@ -17,18 +17,25 @@
  * under the License.
  */
 
+export interface WorkflowComputingUnitResourceLimit {
+  cpuLimit: string;
+  memoryLimit: string;
+  gpuLimit: string;
+  jvmMemorySize: string;
+  nodeAddresses: string[];
+}
+
+export type WorkflowComputingUnitType = "local" | "kubernetes";
+
 export interface WorkflowComputingUnit {
   cuid: number;
   uid: number;
   name: string;
   creationTime: number;
   terminateTime: number | undefined;
-}
-
-export interface WorkflowComputingUnitResourceLimit {
-  cpuLimit: string;
-  memoryLimit: string;
-  gpuLimit: string;
+  type: WorkflowComputingUnitType;
+  uri: string;
+  resource: WorkflowComputingUnitResourceLimit;
 }
 
 export interface WorkflowComputingUnitMetrics {
@@ -38,8 +45,6 @@ export interface WorkflowComputingUnitMetrics {
 
 export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
-  uri: string;
-  status: string;
+  status: "Running" | "Pending";
   metrics: WorkflowComputingUnitMetrics;
-  resourceLimits: WorkflowComputingUnitResourceLimit;
 }

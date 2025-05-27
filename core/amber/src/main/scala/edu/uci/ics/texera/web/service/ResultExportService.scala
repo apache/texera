@@ -83,7 +83,7 @@ object ResultExportService {
       .trim
 }
 
-class ResultExportService(workflowIdentity: WorkflowIdentity) {
+class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: Int) {
 
   import ResultExportService._
 
@@ -127,11 +127,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       operatorRequest: OperatorExportInfo
   ): (Option[String], Option[String]) = {
 
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
-    if (execIdOpt.isEmpty)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
+    if (execIdOpt.isEmpty) {
       return (None, Some(s"Workflow ${request.workflowId} has no execution result"))
-
-    val operatorDocument = getOperatorDocument(operatorRequest.id)
+    }
+    val operatorDocument = getOperatorDocument(operatorRequest.id, computingUnitId)
     if (operatorDocument == null || operatorDocument.getCount == 0)
       return (None, Some(s"No results to export for operator $operatorRequest"))
 
@@ -162,12 +162,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       request: ResultExportRequest,
       operatorRequest: OperatorExportInfo
   ): (StreamingOutput, Option[String]) = {
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
       return (null, None)
     }
 
-    val operatorDocument = getOperatorDocument(operatorRequest.id)
+    val operatorDocument = getOperatorDocument(operatorRequest.id, computingUnitId)
     if (operatorDocument == null || operatorDocument.getCount == 0) {
       return (null, None)
     }
@@ -210,7 +210,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val zipFileName = s"${request.workflowName}-$timestamp.zip"
 
-    val execIdOpt = getLatestExecutionId(workflowIdentity)
+    val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
       throw new WebApplicationException(
         s"No execution result for workflow ${request.workflowId}"
@@ -221,7 +221,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       override def write(outputStream: OutputStream): Unit = {
         Using.resource(new ZipOutputStream(outputStream)) { zipOut =>
           request.operators.foreach { op =>
-            val operatorDocument = getOperatorDocument(op.id)
+            val operatorDocument = getOperatorDocument(op.id, computingUnitId)
             if (operatorDocument == null || operatorDocument.getCount == 0) {
               // create an "empty" file for this operator
               zipOut.putNextEntry(new ZipEntry(s"${op.id}-empty.txt"))
@@ -425,11 +425,14 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     * Generate the VirtualDocument for one operator's result.
     * Incorporates the remote code's extra parameter `None` for sub-operator ID.
     */
-  private def getOperatorDocument(operatorId: String): VirtualDocument[Tuple] = {
+  private def getOperatorDocument(
+      operatorId: String,
+      computingUnitId: Int
+  ): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
     val storageUri = WorkflowExecutionsResource.getResultUriByLogicalPortId(
-      getLatestExecutionId(workflowIdentity).get,
+      getLatestExecutionId(workflowIdentity, computingUnitId).get,
       OperatorIdentity(operatorId),
       PortIdentity()
     )

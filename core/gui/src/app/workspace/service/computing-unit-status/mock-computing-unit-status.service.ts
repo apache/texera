@@ -16,29 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ExecutionState } from "../../workspace/types/execute-workflow.interface";
 
-export interface WorkflowExecutionsEntry {
-  eId: number;
-  vId: number;
-  cuId: number;
-  sId: number;
-  userName: string;
-  googleAvatar: string;
-  name: string;
-  startingTime: number;
-  completionTime: number;
-  status: number;
-  result: string;
-  bookmarked: boolean;
-  logLocation: string;
+import { Injectable } from "@angular/core";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { Observable, of } from "rxjs";
+
+@Injectable()
+export class MockComputingUnitStatusService {
+  listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return of([]);
+  }
+
+  getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
+    return of(null);
+  }
+
+  getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
+    return null;
+  }
+
+  getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return of([]);
+  }
+
+  selectComputingUnit(): void {}
+
+  startPolling(): void {}
+
+  stopPolling(): void {}
 }
-
-export const EXECUTION_STATUS_CODE: Record<number, string> = {
-  0: ExecutionState.Initializing,
-  1: ExecutionState.Running,
-  2: ExecutionState.Paused,
-  3: ExecutionState.Completed,
-  4: ExecutionState.Failed,
-  5: ExecutionState.Killed,
-};

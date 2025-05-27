@@ -346,7 +346,9 @@
         executionState === ExecutionState.Uninitialized ||
         executionState === ExecutionState.Completed ||
         executionState === ExecutionState.Killed ||
-        executionState === ExecutionState.Failed
+        executionState === ExecutionState.Failed ||
+        (!workflowWebsocketService.isConnected &&
+       computingUnitStatus !== ComputingUnitState.NoComputingUnit)
       "
           nz-button
           nzDanger
@@ -362,7 +364,7 @@
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected && !environment.computingUnitManagerEnabled) || displayParticularWorkflowVersion"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
           nzType="primary">
@@ -404,16 +406,15 @@
             nz-tooltip=""
             nzTooltipPlacement="bottom"
             [nzTooltipTitle]="clusterInfo"
-            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running || !environment.computingUnitManagerEnabled))?'green':'red'">
+            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitState.Running))?'green':'red'">
           </nz-badge>
           <ng-template #clusterInfo>
             <b
-              >{{(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitConnectionState.Running
-              || !environment.computingUnitManagerEnabled))?"Connected":"Disconnected"}} to
-              {{environment.computingUnitManagerEnabled ? 'Computing Unit' : 'Web Server'}}</b
+              >{{(workflowWebsocketService.isConnected && (computingUnitStatus ===
+              ComputingUnitState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
             >
             <div *ngIf="workflowWebsocketService.isConnected">
-              <div *ngIf="environment.computingUnitManagerEnabled">Computing Unit Status: {{computingUnitStatus}}</div>
+              <div>Computing Unit Status: {{computingUnitStatus}}</div>
               <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>
             </div>
           </ng-template>

@@ -196,6 +196,7 @@
                   nzType="edit"></i>
               </button>
             </td>
+            <td nzEllipsis>{{ row.cuId }}</td>
             <td
               nzEllipsis
               nzTooltipTitle="{{row.startingTime | date:'zzz'}}"
@@ -226,7 +227,7 @@
                 nz-button
                 nzType="default"
                 nzSize="large"
-                (click)="showRuntimeStatistics(row.eId)"
+                (click)="showRuntimeStatistics(row.eId, row.cuId)"
                 nz-tooltip
                 nzTooltipTitle="Display Runtime Statistics"
                 nzTooltipPlacement="top">

@@ -39,6 +39,10 @@ object KubernetesClient {
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
 
+  def podExists(cuid: Int): Boolean = {
+    getPodByName(generatePodName(cuid)).isDefined
+  }
+
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
   }

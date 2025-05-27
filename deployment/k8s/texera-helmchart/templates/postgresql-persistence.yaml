@@ -17,7 +17,7 @@
 
 {{/* Define storage path configuration, please change it to your own path and make sure the path exists with the right permission*/}}
 {{/* This path only works for local-path storage class */}}
-{{- $hostBasePath := "/path/to/your/host/directory" }}
+{{- $hostBasePath := .Values.persistence.postgresqlHostLocalPath }}
 
 {{- if .Values.postgresql.primary.persistence.enabled }}
 {{- $name := "postgresql" }}
@@ -29,7 +29,7 @@
 {{- $hostPath := printf "%s/%s/%s" $hostBasePath $.Release.Name $name }}
 
 {{/* Only create PV for local-path storage class */}}
-{{- if eq $storageClass "local-path" }}
+{{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -72,7 +72,7 @@ spec:
   resources:
     requests:
       storage: {{ $size }}
-  {{- if eq $storageClass "local-path" }}
+  {{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
   volumeName: {{ $volumeName }}
   {{- end }}
 {{- end }} 

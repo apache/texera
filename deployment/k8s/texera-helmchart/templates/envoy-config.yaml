@@ -50,10 +50,17 @@ data:
                                 prefix_rewrite: "/wsapi"
                                 timeout: "0s" # disables timeout
                             - match:
-                                prefix: "/api/executions"
+                                safe_regex:
+                                  google_re2: {}
+                                  regex: "^/api/executions/\\d+/stats/\\d+$"
                               route:
                                 cluster: dynamic_service
-                                prefix_rewrite: "/api/executions"
+                                timeout: "0s"
+                            - match:
+                                prefix: "/api/executions/result/export"
+                              route:
+                                cluster: dynamic_service
+                                prefix_rewrite: "/api/executions/result/export"
                                 timeout: "0s"
                     http_filters:
                       - name: envoy.filters.http.lua

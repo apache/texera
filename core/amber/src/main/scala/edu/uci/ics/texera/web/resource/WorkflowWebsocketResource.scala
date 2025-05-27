@@ -50,10 +50,11 @@ class WorkflowWebsocketResource extends LazyLogging {
     val sessionState = new SessionState(session)
     SessionState.setState(session.getId, sessionState)
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
-      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+      WorkflowService.getOrCreate(WorkflowIdentity(wid), cuid)
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
     logger.info("connection open")

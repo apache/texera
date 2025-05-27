@@ -23,6 +23,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables;
 
 import edu.uci.ics.texera.dao.jooq.generated.Keys;
 import edu.uci.ics.texera.dao.jooq.generated.TexeraDb;
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
 
 import java.sql.Timestamp;
@@ -34,7 +35,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row8;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -90,6 +91,21 @@ public class WorkflowComputingUnit extends TableImpl<WorkflowComputingUnitRecord
      * The column <code>texera_db.workflow_computing_unit.terminate_time</code>.
      */
     public final TableField<WorkflowComputingUnitRecord, Timestamp> TERMINATE_TIME = createField(DSL.name("terminate_time"), SQLDataType.TIMESTAMP(0), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_computing_unit.type</code>.
+     */
+    public final TableField<WorkflowComputingUnitRecord, WorkflowComputingUnitTypeEnum> TYPE = createField(DSL.name("type"), SQLDataType.VARCHAR.asEnumDataType(edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum.class), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_computing_unit.uri</code>.
+     */
+    public final TableField<WorkflowComputingUnitRecord, String> URI = createField(DSL.name("uri"), SQLDataType.CLOB.nullable(false).defaultValue(DSL.field("''::text", SQLDataType.CLOB)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_computing_unit.resource</code>.
+     */
+    public final TableField<WorkflowComputingUnitRecord, String> RESOURCE = createField(DSL.name("resource"), SQLDataType.CLOB.defaultValue(DSL.field("''::text", SQLDataType.CLOB)), this, "");
 
     private WorkflowComputingUnit(Name alias, Table<WorkflowComputingUnitRecord> aliased) {
         this(alias, aliased, null);
@@ -185,11 +201,11 @@ public class WorkflowComputingUnit extends TableImpl<WorkflowComputingUnitRecord
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row8 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<Integer, String, Integer, Timestamp, Timestamp> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row8<Integer, String, Integer, Timestamp, Timestamp, WorkflowComputingUnitTypeEnum, String, String> fieldsRow() {
+        return (Row8) super.fieldsRow();
     }
 }
