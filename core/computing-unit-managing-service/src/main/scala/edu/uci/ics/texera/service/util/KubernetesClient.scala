@@ -233,6 +233,7 @@ object KubernetesClient {
           .addToLabels("role", "worker")
           .endMetadata()
           .withNewSpec()
+          .addToVolumes(volume)
           .withContainers(container)
           .endSpec()
           .endTemplate()
