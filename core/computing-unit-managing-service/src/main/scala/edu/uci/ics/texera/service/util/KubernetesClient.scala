@@ -297,17 +297,18 @@ object KubernetesClient {
       .withEnv(envList)
       .withResources(resourceBuilder.build())
 
-    // mount PVC at /data if provided
-    attachVolume.foreach { v =>
-      containerB.addNewVolumeMount().withName(v.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
-    }
-
-    val container = containerB.build()
-
     // Start building the pod spec
     val specBuilder = podBuilder
       .endMetadata()
       .withNewSpec()
+
+    // mount PVC at /data if provided
+    attachVolume.foreach { v =>
+      containerB.addNewVolumeMount().withName(v.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
+      specBuilder.addToVolumes(v)
+    }
+
+    val container = containerB.build()
 
     // Only add runtimeClassName when using NVIDIA GPU
     if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
