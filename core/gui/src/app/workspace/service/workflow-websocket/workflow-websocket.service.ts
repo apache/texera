@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { interval, Observable, Subject, Subscription, timer } from "rxjs";
+import { BehaviorSubject, interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
   TexeraWebsocketEvent,
@@ -43,18 +43,21 @@ export const WS_RECONNECT_INTERVAL_MS = 3000;
 export class WorkflowWebsocketService {
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
 
-  public isConnected: boolean = false;
   public numWorkers: number = -1;
-  private connectedWid: number = 0;
-  private connectedCuid?: number;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
+  private readonly connectionStatusSubject = new BehaviorSubject<boolean>(false);
 
   constructor() {
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
+  }
+
+  /** Emit `true` when the socket is up, `false` when it is closed or lost. */
+  public getConnectionStatusStream(): Observable<boolean> {
+    return this.connectionStatusSubject.asObservable();
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -81,13 +84,19 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
+  public get isConnected(): boolean {
+    return this.connectionStatusSubject.value;
+  }
+
   public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
-    this.connectedCuid = undefined;
+    this.updateConnectionStatus(false);
   }
 
   public openWebsocket(wId: number, uId?: number, cuId?: number) {
+    this.closeWebsocket();
+
     if (uId == undefined) {
       console.log(`uId is ${uId}, defaulting to uId = 1`);
       uId = 1;
@@ -108,7 +117,7 @@ export class WorkflowWebsocketService {
     const wsWithReconnect = this.websocket.pipe(
       retryWhen(errors =>
         errors.pipe(
-          tap(_ => (this.isConnected = false)), // update connection status
+          tap(_ => this.updateConnectionStatus(false)), // update connection status
           tap(_ =>
             console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
           ),
@@ -129,9 +138,13 @@ export class WorkflowWebsocketService {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }
-      this.isConnected = true;
-      this.connectedWid = wId;
-      if (isDefined(cuId)) this.connectedCuid = cuId;
+      this.updateConnectionStatus(true);
     });
+  }
+
+  private updateConnectionStatus(connected: boolean) {
+    if (this.isConnected !== connected) {
+      this.connectionStatusSubject.next(connected);
+    }
   }
 }

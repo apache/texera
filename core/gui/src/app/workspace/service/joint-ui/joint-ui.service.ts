@@ -280,10 +280,20 @@ export class JointUIService {
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    statistics: OperatorStatistics,
+    statistics: OperatorStatistics | undefined,
     isSource: boolean,
     isSink: boolean
   ): void {
+    if (!statistics) {
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorProcessedCountClass}`]: { text: "" },
+        [`.${operatorOutputCountClass}`]: { text: "" },
+        [`.${operatorAbbreviatedCountClass}`]: { text: "" },
+      });
+      this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
+      return;
+    }
+
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
     const processedText = isSource ? "" : "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
