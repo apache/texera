@@ -66,7 +66,7 @@ class Context:
             self.input_queue, state_manager=self.state_manager
         )
         self.output_manager = OutputManager(worker_id)
-        self.input_manager = InputManager()
+        self.input_manager = InputManager(worker_id, self.input_queue)
         self.channel_marker_manager = ChannelMarkerManager(
             ActorVirtualIdentity(worker_id), self.input_manager
         )

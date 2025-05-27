@@ -87,6 +87,34 @@ class OutputManager:
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
 
+    def is_missing_output_ports(self):
+        """
+        This method is only needed because of the current hacky design of
+        enforcing input port dependencies.
+        An operator with an input-port dependency relationship currently
+        belongs to two regions R1->R2.
+        In a previous design (before #3312), the depender port and the
+        output port of this operator also belongs to R1, so the completion
+        of the dependee port in R1 does not trigger finalizeOutput on the worker.
+        After #3312, R1 contains ONLY the dependee input port and no output
+        ports, so the completion of the dependee input port will trigger
+        finalizeOutput and indicate R1 is completed, causing the workers
+        of this operator to be closed prematurely.
+        An additional check is needed to ensure the workers of such an
+        operator is not finalized in R1 as it needs to remain open when
+        R2 is scheduled to execute: when a worker does not have any
+        output port (this will ONLY be true for the workers of this
+        operator in R1 as we no longer have sinks operators), this
+        worker needs to remain open. When the workers of this
+        operator is executed again in R2, the output port will
+        be assigned, and this check will pass.
+        TODO: Remove after implementation of a cleaner design of enforcing
+        input port dependencies that does not allow a worker to belong to
+        two regions.
+        :return: Whether this worker does not have any output port.
+        """
+        return not self._ports
+
     def add_output_port(
         self,
         port_id: PortIdentity,
@@ -179,11 +207,12 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         for channel_id in the_partitioning.channels:
-            # Explicitly set is_control to trigger lazy computation.
-            # If not set, it may be computed at different times,
-            # causing hash inconsistencies.
-            channel_id.is_control = False
-            self._channels[channel_id] = Channel()
+            if channel_id.from_worker_id.name == self.worker_id:
+                # Explicitly set is_control to trigger lazy computation.
+                # If not set, it may be computed at different times,
+                # causing hash inconsistencies.
+                channel_id.is_control = False
+                self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
         self._partitioners[tag] = (
             partitioner(the_partitioning)

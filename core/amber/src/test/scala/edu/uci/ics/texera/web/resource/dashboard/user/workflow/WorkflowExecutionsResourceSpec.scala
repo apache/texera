@@ -19,9 +19,6 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
@@ -36,19 +33,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
   WorkflowVersion
 }
-import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
-import edu.uci.ics.texera.web.service.ResultExportService
-import org.scalatest.PrivateMethodTester.PrivateMethod
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
-import java.net.URI
 import java.sql.Timestamp
-import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 
 class WorkflowExecutionsResourceSpec
     extends AnyFlatSpec
