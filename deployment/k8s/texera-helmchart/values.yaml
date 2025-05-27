@@ -27,6 +27,8 @@ global:
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
   removeAfterUninstall: true
+  minioHostLocalPath: ""
+  postgresqlHostLocalPath: ""
 
 # Part 1: the configuration of Postgres, Minio and LakeFS
 postgresql:
@@ -191,6 +193,12 @@ texeraEnvVars:
     value: "2Gi"
   - name: KUBERNETES_COMPUTING_UNIT_GPU_LIMIT_OPTIONS
     value: "0"
+  - name: COMPUTING_UNIT_LOCAL_ENABLED
+    value: "false"
+  - name: KUBERNETES_COMPUTING_UNIT_ENABLED
+    value: "true"
+  - name: KUBERNETES_IMAGE_PULL_POLICY
+    value: "IfNotPresent"
 
 # Ingress dependency configs
 ingress-nginx:
@@ -251,7 +259,7 @@ metrics-server:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
-  hostname: "localhost"
+  hostname: ""
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
   # Optional Issuer name for cert-manager
@@ -272,7 +280,11 @@ ingressPaths:
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
-    - path: /api/executions
+    - path: /api/executions/[0-9]+/stats/[0-9]+$
+      pathType: ImplementationSpecific
+      serviceName: envoy-svc
+      servicePort: 10000
+    - path: /api/executions/result/export
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api

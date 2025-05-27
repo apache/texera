@@ -23,13 +23,18 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 
 import { OperatorMenuService } from "./operator-menu.service";
 import { HttpClientModule } from "@angular/common/http";
+import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
 
 describe("OperatorMenuService", () => {
   let service: OperatorMenuService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }],
+      providers: [
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+      ],
       imports: [HttpClientModule],
     });
     service = TestBed.inject(OperatorMenuService);
