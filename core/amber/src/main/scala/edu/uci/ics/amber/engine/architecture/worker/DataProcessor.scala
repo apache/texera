@@ -41,7 +41,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerTy
   REQUIRE_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -68,9 +71,12 @@ import io.grpc.MethodDescriptor
 
 import java.time.Instant
 
+import java.util.concurrent.LinkedBlockingQueue
+
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
+    inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement]
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
@@ -86,7 +92,7 @@ class DataProcessor(
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
   val pauseManager: PauseManager = wire[PauseManager]
   val stateManager: WorkerStateManager = new WorkerStateManager(actorId)
-  val inputManager: InputManager = new InputManager(actorId)
+  val inputManager: InputManager = new InputManager(actorId, inputMessageQueue)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
   val serializationManager: SerializationManager = new SerializationManager(actorId)

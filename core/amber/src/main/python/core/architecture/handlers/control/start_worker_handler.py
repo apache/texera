@@ -43,7 +43,9 @@ class StartWorkerHandler(ControlHandler):
                 False,
             )
             port_id = PortIdentity(0, False)
-            self.context.input_manager.add_input_port(port_id, Schema())
+            self.context.input_manager.add_input_port(
+                port_id=port_id, schema=Schema(), storage_uris=[], partitionings=[]
+            )
             self.context.input_manager.register_input(input_channel_id, port_id)
             self.context.input_queue.put(
                 DataElement(
@@ -51,6 +53,10 @@ class StartWorkerHandler(ControlHandler):
                     payload=None,
                 )
             )
+        elif self.context.input_manager.get_input_port_mat_reader_threads():
+            self.context.input_manager.start_input_port_mat_reader_threads()
+
         self.start_channel()
         self.end_channel()
         return WorkerStateResponse(self.context.state_manager.get_current_state())
+      

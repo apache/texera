@@ -25,13 +25,11 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
-  PortConfig,
-  ResourceConfig
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config._
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
+import java.net.URI
 import scala.collection.mutable
 
 trait ResourceAllocator {
@@ -96,11 +94,41 @@ class DefaultResourceAllocator(
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val portConfigs = region.resourceConfig match {
-      case Some(existingResourceConfig) => existingResourceConfig.portConfigs
+    val portConfigs: Map[GlobalPortIdentity, PortConfig] = region.resourceConfig match {
+      case Some(existing) =>
+        val upgradedInputPortConfigs: Map[GlobalPortIdentity, InputPortConfig] =
+          existing.portConfigs.collect {
+            case (globalPortId, rawInConfig: IntermediateInputPortConfig) if globalPortId.input =>
+              val uris: List[URI] = rawInConfig.storageURIs
+              // derive partitionings for each upstream materialization
+              val portPartitionings: List[Partitioning] = uris.map { inputMatUri =>
+                val toWorkerActorIds =
+                  operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId)
+                val fromVirtualThreadActorIds = toWorkerActorIds.map(toWorkerActorId =>
+                  getFromActorIdForInputPortStorage(inputMatUri.toString, toWorkerActorId)
+                )
+                // Extract the input port partitionInfo defined in the physicalOp, defaulting to UnknownPartition.
+                val inputPortPartitionInfo = region
+                  .getOperator(globalPortId.opId)
+                  .partitionRequirement
+                  .applyOrElse(globalPortId.portId.id, (_: Int) => None)
+                  .getOrElse(UnknownPartition())
+
+                toPartitioning(
+                  fromVirtualThreadActorIds,
+                  toWorkerActorIds,
+                  inputPortPartitionInfo,
+                  workflowSettings.dataTransferBatchSize
+                )
+              }
+              // new InputPortConfig that carries both URIs and per-URI partitionings
+              globalPortId -> InputPortConfig(uris.zip(portPartitionings))
+          }
+
+        existing.portConfigs ++ upgradedInputPortConfigs
+
       case None =>
-        val newPortConfigs: Map[GlobalPortIdentity, PortConfig] = Map.empty
-        newPortConfigs
+        Map.empty[GlobalPortIdentity, PortConfig]
     }
 
     val resourceConfig = ResourceConfig(

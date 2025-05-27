@@ -300,6 +300,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
+        # Special case for the hack of input port dependency.
+        # See documentation of is_missing_output_ports
+        if self.context.output_manager.is_missing_output_ports():
+            return
         self.context.output_manager.close_port_storage_writers()
 
         self._send_channel_marker_to_data_channels("EndChannel", alignment=True)
