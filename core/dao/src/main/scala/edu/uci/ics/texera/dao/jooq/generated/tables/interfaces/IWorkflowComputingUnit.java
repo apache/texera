@@ -21,6 +21,8 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum;
+
 import java.io.Serializable;
 import java.sql.Timestamp;
 
@@ -80,6 +82,36 @@ public interface IWorkflowComputingUnit extends Serializable {
      * Getter for <code>texera_db.workflow_computing_unit.terminate_time</code>.
      */
     public Timestamp getTerminateTime();
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.type</code>.
+     */
+    public void setType(WorkflowComputingUnitTypeEnum value);
+
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.type</code>.
+     */
+    public WorkflowComputingUnitTypeEnum getType();
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.uri</code>.
+     */
+    public void setUri(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.uri</code>.
+     */
+    public String getUri();
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.resource</code>.
+     */
+    public void setResource(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.resource</code>.
+     */
+    public String getResource();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
