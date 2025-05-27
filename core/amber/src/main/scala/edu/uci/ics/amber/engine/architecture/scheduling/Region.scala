@@ -83,4 +83,26 @@ case class Region(
 
   }
 
+  /**
+    * Operators that should be started first. An operator need to start first either because it is a source operator,
+    * or because it has an input port that needs to read from materialization.
+    */
+  def getStarterOperators: Set[PhysicalOp] = {
+    val opsReadingFromMaterialization = resourceConfig match {
+      case Some(config) =>
+        config.portConfigs
+          .filter {
+            case (globalPortId, config) =>
+              globalPortId.input && config.storageURIs.nonEmpty
+          }
+          .map {
+            case (globalPortId, _) => globalPortId.opId
+          }
+          .toSet
+          .map(opId => getOperator(opId))
+      case None => Set.empty
+    }
+    opsReadingFromMaterialization ++ getSourceOperators
+  }
+
 }

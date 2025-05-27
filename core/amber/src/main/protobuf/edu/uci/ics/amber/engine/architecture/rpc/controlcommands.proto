@@ -244,7 +244,8 @@ message AssignPortRequest {
   core.PortIdentity portId = 1 [(scalapb.field).no_box = true];
   bool input = 2;
   map<string, string> schema = 3;
-  string storageUri = 4;
+  repeated string storageUris = 4;
+  repeated sendsemantics.Partitioning partitionings = 5;
 }
 
 message FinalizeCheckpointRequest {

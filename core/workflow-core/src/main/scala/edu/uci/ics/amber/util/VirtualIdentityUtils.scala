@@ -32,6 +32,7 @@ object VirtualIdentityUtils {
 
   private val workerNamePattern: Regex = raw"Worker:WF(\d+)-(.+)-(\w+)-(\d+)".r
   private val operatorUUIDPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
+  private val MATERIALIZATION_READER_ACTOR_PREFIX: String = "MATERIALIZATION_READER_"
   def createWorkerIdentity(
       workflowId: WorkflowIdentity,
       operator: String,
@@ -89,5 +90,19 @@ object VirtualIdentityUtils {
         s"WF$workflowId-$shorterName-$layerName-$workerIndex"
       case _ => workerId.name
     }
+  }
+
+  /**
+    * An input port materialization reader thread mimics the behavior of an upstream worker.
+    * Each thread has a virtual actor id. This method creates such a virtual actor id.
+    * @param storageURIStr The materialization location to read from.
+    * @param toWorkerActorId The worker actor that the thread belongs to.
+    * @return
+    */
+  def getFromActorIdForInputPortStorage(
+      storageURIStr: String,
+      toWorkerActorId: ActorVirtualIdentity
+  ): ActorVirtualIdentity = {
+    ActorVirtualIdentity(MATERIALIZATION_READER_ACTOR_PREFIX + storageURIStr + toWorkerActorId.name)
   }
 }

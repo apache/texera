@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import threading
 from typing import Iterator, Optional, Union, Dict, List
 from pyarrow.lib import Table
-from core.models import Tuple, ArrowTableTupleProvider, Schema
+from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
 from core.models.internal_marker import (
     InternalMarker,
     StartOfOutputPorts,
@@ -27,11 +28,15 @@ from core.models.internal_marker import (
 )
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
+from core.storage.runnables.input_port_materialization_reader_runnable import (
+    InputPortMaterializationReaderRunnable,
+)
 from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
 )
+from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 
 
 class Channel:
@@ -69,16 +74,59 @@ class WorkerPort:
 class InputManager:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
-    def __init__(self):
+    def __init__(self, worker_id: str, input_queue: InternalQueue):
+        self.worker_id = worker_id
         self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
+        self._input_queue = input_queue
+        self._input_port_mat_reader_runnables: Dict[
+            PortIdentity, List[InputPortMaterializationReaderRunnable]
+        ] = dict()
+
+    def set_up_input_port_mat_reader_threads(
+        self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
+    ) -> None:
+        assert len(uris) == len(partitionings)
+        if uris is not None:
+            reader_runnables = [
+                InputPortMaterializationReaderRunnable(
+                    uri=uri,
+                    queue=self._input_queue,
+                    worker_actor_id=ActorVirtualIdentity(self.worker_id),
+                    partitioning=partitioning,
+                )
+                for uri, partitioning in zip(uris, partitionings)
+            ]
+            self._input_port_mat_reader_runnables[port_id] = reader_runnables
+
+    def get_input_port_mat_reader_threads(
+        self,
+    ) -> Dict[PortIdentity, List[InputPortMaterializationReaderRunnable]]:
+        return self._input_port_mat_reader_runnables
+
+    def start_input_port_mat_reader_threads(self):
+        for port_reader_runnables in self._input_port_mat_reader_runnables.values():
+            for reader_runnable in port_reader_runnables:
+                thread_for_reader_runnable = threading.Thread(
+                    target=reader_runnable.run,
+                    daemon=True,
+                    name=f"port_mat_reader_runnable_thread_"
+                    f"{reader_runnable.channel_id}",
+                )
+                thread_for_reader_runnable.start()
 
     def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
         return self._channels.keys()
 
-    def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
+    def add_input_port(
+        self,
+        port_id: PortIdentity,
+        schema: Schema,
+        storage_uris: List[str],
+        partitionings: List[Partitioning],
+    ) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
@@ -87,6 +135,8 @@ class InputManager:
         # each port can only be added and initialized once.
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
+
+        self.set_up_input_port_mat_reader_threads(port_id, storage_uris, partitionings)
 
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id

@@ -44,10 +44,12 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   WorkflowAggregatedState
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
   OperatorConfig,
-  PortConfig,
+  OutputPortConfig,
   ResourceConfig
 }
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
@@ -64,7 +66,11 @@ class RegionExecutionCoordinator(
     val resourceConfig = region.resourceConfig.get
 
     // Create storage objects for output ports of the region
-    createOutputPortStorageObjects(resourceConfig.portConfigs)
+    createOutputPortStorageObjects(
+      resourceConfig.portConfigs.collect { // keep only output-port configs
+        case (id, cfg: OutputPortConfig) => id -> cfg
+      }
+    )
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
@@ -176,32 +182,58 @@ class RegionExecutionCoordinator(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
           val inputPortMapping = physicalOp.inputPorts
+            .filter {
+              // Because of the hack on input dependency, some input ports may not belong to this region.
+              case (inputPortId, _) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+                region.getPorts.contains(globalInputPortId)
+            }
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
-                // Currently input ports do not have URIs associated with them because
-                // we are using cache read operators to read materialized port storage.
-                // TODO: also add storageURI for input ports when cache read ops are removed.
-                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+                val (storageURIs, partitionings) =
+                  resourceConfig.portConfigs.get(globalInputPortId) match {
+                    case Some(cfg: InputPortConfig) =>
+                      (
+                        cfg.storagePairs.map(_._1.toString),
+                        cfg.storagePairs.map(_._2)
+                      )
+                    case _ =>
+                      (List.empty[String], List.empty[Partitioning])
+                  }
+
+                Some(globalInputPortId -> (storageURIs, partitionings, schema))
               case _ => None
             }
+          // Currently an output port uses the same AssignPortRequest as an Input port.
+          // However, an output port does not need a list of URIs or partitionings.
+          // TODO: Separate AssignPortRequest for Input and Output Ports
           val outputPortMapping = physicalOp.outputPorts
+            .filter {
+              case (outputPortId, _) =>
+                val globalInputPortId = GlobalPortIdentity(physicalOp.id, outputPortId)
+                region.getPorts.contains(globalInputPortId)
+            }
             .flatMap {
               case (outputPortId, (_, _, Right(schema))) =>
-                val storageURI = resourceConfig.portConfigs.get(
-                  GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId)
-                ) match {
-                  case Some(portConfig) => portConfig.storageURI.toString
-                  case None             => ""
-                }
+                val storageURI = resourceConfig.portConfigs
+                  .collectFirst {
+                    case (gid, cfg: OutputPortConfig)
+                        if gid == GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId) =>
+                      cfg.storageURI.toString
+                  }
+                  .getOrElse("")
                 Some(
-                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (storageURI, schema)
+                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(
+                    storageURI
+                  ), List.empty, schema)
                 )
               case _ => None
             }
           inputPortMapping ++ outputPortMapping
         }
         .flatMap {
-          case (globalPortId, (storageUri, schema)) =>
+          case (globalPortId, (storageUris, partitionings, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
                 asyncRPCClient.workerInterface.assignPort(
@@ -209,7 +241,8 @@ class RegionExecutionCoordinator(
                     globalPortId.portId,
                     globalPortId.input,
                     schema.toRawSchema,
-                    storageUri
+                    storageUris,
+                    partitionings
                   ),
                   asyncRPCClient.mkContext(workerId)
                 )
@@ -253,7 +286,7 @@ class RegionExecutionCoordinator(
       )
     )
     Future.collect(
-      region.getSourceOperators
+      region.getStarterOperators
         .map(_.id)
         .flatMap { opId =>
           workflowExecution
@@ -278,30 +311,22 @@ class RegionExecutionCoordinator(
   }
 
   private def createOutputPortStorageObjects(
-      portConfigs: Map[GlobalPortIdentity, PortConfig]
+      portConfigs: Map[GlobalPortIdentity, OutputPortConfig]
   ): Unit = {
     portConfigs.foreach {
-      case (outputPortId, portConfig: PortConfig) =>
+      case (outputPortId, portConfig) =>
         val storageUriToAdd = portConfig.storageURI
         val (_, eid, _, _) = decodeURI(storageUriToAdd)
-        val existingStorageUri =
-          WorkflowExecutionsResource.getResultUriByGlobalPortId(
-            eid = eid,
-            globalPortId = outputPortId
-          )
-        if (existingStorageUri.isEmpty) {
-          // Avoid duplicate creation bacause of operators with dependee inputs belonging to two regions
-          val schemaOptional =
-            region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
-          val schema =
-            schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
-          DocumentFactory.createDocument(storageUriToAdd, schema)
-          WorkflowExecutionsResource.insertOperatorPortResultUri(
-            eid = eid,
-            globalPortId = outputPortId,
-            uri = storageUriToAdd
-          )
-        }
+        val schemaOptional =
+          region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._3
+        val schema =
+          schemaOptional.getOrElse(throw new IllegalStateException("Schema is missing"))
+        DocumentFactory.createDocument(storageUriToAdd, schema)
+        WorkflowExecutionsResource.insertOperatorPortResultUri(
+          eid = eid,
+          globalPortId = outputPortId,
+          uri = storageUriToAdd
+        )
     }
   }
 
