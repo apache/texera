@@ -132,7 +132,6 @@ object KubernetesClient {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
-    // --- build container so we can add volumeMount conditionally
     val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")

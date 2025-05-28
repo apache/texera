@@ -93,7 +93,7 @@ object ComputingUnitManagingResource {
       memoryLimit: String,
       gpuLimit: String,
       jvmMemorySize: String,
-      shmSize: String, // ← NEW (required)
+      shmSize: String,
       uri: Option[String] = None
   )
 
@@ -276,7 +276,7 @@ class ComputingUnitManagingResource {
               s"Valid options: ${gpuLimitOptions.mkString(", ")}"
           )
 
-        // ── parse quantities with Fabric8 for robust validation ──────────────────
+        // Check if the shared-memory size is the valid size representation
         val shmQuantity =
           try {
             Quantity.parse(param.shmSize)

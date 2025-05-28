@@ -74,7 +74,7 @@ export class WorkflowComputingUnitManagingService {
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
    * @param unitType The type of computing unit (e.g. "local", "kubernetes")
    * @param shmSize The shared memory size
-   * @param uri
+   * @param uri The URI of the local computing unit; for kubernetes-based computing units, this is not used in the backend.
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   private createComputingUnit(
