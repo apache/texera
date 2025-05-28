@@ -50,7 +50,6 @@ trait AssignPortHandler {
           ChannelIdentity(fromWorkerId = fromActorId, toWorkerId = toActorId, isControl = false)
         // Same as AddInputChannelHandler
         dp.inputGateway.getChannel(channelId).setPortId(msg.portId)
-        dp.inputManager.getPort(msg.portId).channels(channelId) = false
         dp.stateManager.assertState(READY, RUNNING, PAUSED)
       }
     } else {
