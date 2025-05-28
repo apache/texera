@@ -493,6 +493,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
     return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.gpuLimit : "NaN";
   }
 
+  getCurrentComputingUnitJvmMemorySize(): string {
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.jvmMemorySize : "NaN";
+  }
+
+  getCurrentSharedMemorySize(): string {
+    return this.selectedComputingUnit ? this.selectedComputingUnit.computingUnit.resource.shmSize : "NaN";
+  }
+
   /**
    * Returns the badge color based on computing unit status
    */
@@ -513,6 +521,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getGpuLimit(): string {
     return this.getCurrentComputingUnitGpuLimit();
+  }
+
+  getJvmMemorySize(): string {
+    return this.getCurrentComputingUnitJvmMemorySize();
+  }
+
+  getSharedMemorySize(): string {
+    return this.getCurrentSharedMemorySize();
   }
 
   getCpuLimitUnit(): string {
