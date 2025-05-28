@@ -46,11 +46,6 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   /**
-   * whether workflow computing unit manager is enabled (requires k8s)
-   */
-  computingUnitManagerEnabled: false,
-
-  /**
    * whether selecting files from datasets instead of the local file system.
    * The user system must be enabled to make this flag work!
    */

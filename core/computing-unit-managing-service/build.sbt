@@ -38,8 +38,8 @@ libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.4.1",
   "mysql" % "mysql-connector-java" % "8.0.33",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6",
-  "com.lihaoyi" %% "upickle" % "3.1.0",
   "com.typesafe" % "config" % "1.4.2",
+  "com.typesafe.play" %% "play-json" % "2.10.6",
   "io.fabric8" % "kubernetes-client" % "6.12.1"
 )
 
