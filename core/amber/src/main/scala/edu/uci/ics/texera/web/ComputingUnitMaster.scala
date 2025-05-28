@@ -38,7 +38,7 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
+import edu.uci.ics.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.Configuration
@@ -145,6 +145,11 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment.jersey.register(
       classOf[org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature]
     )
+    environment
+      .servlets()
+      .addServletListeners(
+        new WebsocketPayloadSizeTuner(AmberConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
+      )
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs

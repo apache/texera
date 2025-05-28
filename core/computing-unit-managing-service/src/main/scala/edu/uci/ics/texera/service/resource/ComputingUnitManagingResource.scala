@@ -82,6 +82,9 @@ object ComputingUnitManagingResource {
       .get,
     EnvironmentalVariable.ENV_USER_SYS_ENABLED -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_USER_SYS_ENABLED)
+      .get,
+    EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
+      .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
       .get
   )
 
