@@ -22,6 +22,7 @@ export interface WorkflowComputingUnitResourceLimit {
   memoryLimit: string;
   gpuLimit: string;
   jvmMemorySize: string;
+  shmSize: string;
   nodeAddresses: string[];
 }
 
