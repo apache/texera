@@ -185,7 +185,7 @@
             class="unit-name-input" />
         </div>
         <div class="select-unit">
-          <span>Select Memory Size</span>
+          <span>Select RAM Size</span>
           <nz-select
             class="memory-selection"
             [(ngModel)]="selectedMemory"
@@ -224,6 +224,44 @@
               [nzLabel]="option">
             </nz-option>
           </nz-select>
+        </div>
+
+        <div class="select-unit shared-memory-group">
+          <span>
+            Adjust the Shared Memory Size
+            <i
+              nz-icon
+              nzType="info-circle"
+              nz-tooltip
+              [nzTooltipTitle]="
+                'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
+              ">
+            </i>
+          </span>
+          <div class="shm-input-row">
+            <input
+              nz-input
+              type="number"
+              min="0"
+              [(ngModel)]="shmSizeValue"
+              class="shm-size-input"
+              placeholder="e.g. 512" />
+            <nz-select
+              class="shm-unit-select"
+              [(ngModel)]="shmSizeUnit">
+              <nz-option
+                nzValue="Mi"
+                nzLabel="Mi"></nz-option>
+              <nz-option
+                nzValue="Gi"
+                nzLabel="Gi"></nz-option>
+            </nz-select>
+          </div>
+          <div
+            *ngIf="isShmTooLarge()"
+            class="shm-warning">
+            Shared memory cannot be greater than total memory.
+          </div>
         </div>
 
         <div class="select-unit name-field">

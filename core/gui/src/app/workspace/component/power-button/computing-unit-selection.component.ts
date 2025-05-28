@@ -55,6 +55,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedGpu: string = "0"; // Default to no GPU
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
   selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
+  selectedShmSize: string = "64Mi"; // Shared memory size
+  shmSizeValue: number = 64; // default to 64
+  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
 
@@ -277,6 +280,15 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.addComputeUnitModalVisible = false;
   }
 
+  isShmTooLarge(): boolean {
+    const total = this.parseResourceNumber(this.selectedMemory);
+    const unit = this.parseResourceUnit(this.selectedMemory);
+    const memoryInMi = unit === "Gi" ? total * 1024 : total;
+    const shmInMi = this.shmSizeUnit === "Gi" ? this.shmSizeValue * 1024 : this.shmSizeValue;
+
+    return shmInMi > memoryInMi;
+  }
+
   /**
    * Start a new computing unit.
    */
@@ -287,14 +299,18 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.notificationService.error("Name of the computing unit cannot be empty");
         return;
       }
-      const computeUnitName = this.newComputingUnitName;
-      const computeCPU = this.selectedCpu;
-      const computeMemory = this.selectedMemory;
-      const computeGPU = this.selectedGpu;
-      const computeJvmMemory = this.selectedJvmMemorySize;
+
+      this.selectedShmSize = `${this.shmSizeValue}${this.shmSizeUnit}`;
 
       this.computingUnitService
-        .createKubernetesBasedComputingUnit(computeUnitName, computeCPU, computeMemory, computeGPU, computeJvmMemory)
+        .createKubernetesBasedComputingUnit(
+          this.newComputingUnitName,
+          this.selectedCpu,
+          this.selectedMemory,
+          this.selectedGpu,
+          this.selectedJvmMemorySize,
+          this.selectedShmSize
+        )
         .pipe(untilDestroyed(this))
         .subscribe({
           next: (unit: DashboardWorkflowComputingUnit) => {
