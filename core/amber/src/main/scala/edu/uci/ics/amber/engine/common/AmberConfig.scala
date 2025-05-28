@@ -49,6 +49,8 @@ object AmberConfig {
   val MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
   val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
+  val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
+    getConfSource.getInt("constants.max-workflow-websocket-request-payload-size-kb")
 
   // Flow control
   val maxCreditAllowedInBytesPerChannel: Long =
