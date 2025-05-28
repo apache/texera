@@ -107,10 +107,10 @@ class ExecutionStatsService(
             case x =>
               val metrics = x._2
               val inMap  = metrics.operatorStatistics.inputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics)
+                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
                 .toMap
               val outMap = metrics.operatorStatistics.outputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics)
+                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
                 .toMap
 
               val res = OperatorAggregatedMetrics(

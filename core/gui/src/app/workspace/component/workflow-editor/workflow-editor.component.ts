@@ -271,7 +271,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(status => {
-        console.log("Operator stats update:", status);
         Object.keys(status).forEach(operatorID => {
           if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
             return;

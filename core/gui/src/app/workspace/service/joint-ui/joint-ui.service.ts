@@ -113,6 +113,7 @@ export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-ch
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
+export const operatorPortMetricsClass = "texera-operator-port-metrics"
 
 export const linkPathStrokeColor = "#919191";
 
@@ -129,6 +130,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <image class="${operatorIconClass}"></image>
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
+      <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorAbbreviatedCountClass}"></text>
@@ -291,10 +293,15 @@ export class JointUIService {
     const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
+    const inputLines = Object.entries(statistics.inputPortMetrics)
+      .map(([portId, count]) => `Port ID ${portId}: ${count}`)
+      .join("\n");
+
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorOutputCountClass}`]: { text: outputText },
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
+      [`.${operatorPortMetricsClass}`]: {text: inputLines},
     });
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -303,6 +310,7 @@ export class JointUIService {
       [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
       [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
+      [`.${operatorPortMetricsClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
       ".add-output-port-button": { visibility: "hidden" },
@@ -317,6 +325,7 @@ export class JointUIService {
       [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
       [`.${operatorOutputCountClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
+      [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
       ".add-output-port-button": { visibility: "visible" },
@@ -352,6 +361,7 @@ export class JointUIService {
       [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
       [`.${operatorProcessedCountClass}`]: { fill: fillColor },
       [`.${operatorOutputCountClass}`]: { fill: fillColor },
+      [`.${operatorPortMetricsClass}`]: { fill: fillColor },
     });
   }
 
@@ -666,6 +676,17 @@ export class JointUIService {
         visibility: "visible",
         "ref-x": 0.5,
         "ref-y": -30,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-port-metrics": {
+        text: "",
+        fill: "green",
+        "font-size": "14px",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": -70,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
