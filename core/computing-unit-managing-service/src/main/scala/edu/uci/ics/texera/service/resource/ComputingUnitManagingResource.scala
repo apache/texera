@@ -39,6 +39,7 @@ import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
+import io.fabric8.kubernetes.api.model.Quantity
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
@@ -95,6 +96,7 @@ object ComputingUnitManagingResource {
       memoryLimit: String,
       gpuLimit: String,
       jvmMemorySize: String,
+      shmSize: String,
       uri: Option[String] = None
   )
 
@@ -277,7 +279,28 @@ class ComputingUnitManagingResource {
               s"Valid options: ${gpuLimitOptions.mkString(", ")}"
           )
 
-        // JVM memory ≤ total mem limit
+        // Check if the shared-memory size is the valid size representation
+        val shmQuantity =
+          try {
+            Quantity.parse(param.shmSize)
+          } catch {
+            case _: IllegalArgumentException =>
+              throw new ForbiddenException(
+                s"Shared-memory size '${param.shmSize}' is not a valid Kubernetes quantity " +
+                  s"(examples: 64Mi, 2Gi)."
+              )
+          }
+
+        val memQuantity = Quantity.parse(param.memoryLimit)
+
+        // ensure /dev/shm upper bound ≤ container memory limit
+        if (shmQuantity.compareTo(memQuantity) > 0)
+          throw new ForbiddenException(
+            s"Shared-memory size (${param.shmSize}) cannot exceed the total memory limit " +
+              s"(${param.memoryLimit})."
+          )
+
+        // JVM heap ≤ total memory
         val jvmGB = param.jvmMemorySize.replaceAll("[^0-9]", "").toInt
         val memGB =
           if (param.memoryLimit.endsWith("Gi")) param.memoryLimit.replaceAll("[^0-9]", "").toInt
@@ -288,7 +311,7 @@ class ComputingUnitManagingResource {
         if (jvmGB > memGB)
           throw new ForbiddenException(
             s"JVM memory size (${param.jvmMemorySize}) cannot exceed the " +
-              s"total memory limit (${param.memoryLimit})"
+              s"total memory limit (${param.memoryLimit})."
           )
 
       // Local-specific checks
@@ -325,8 +348,8 @@ class ComputingUnitManagingResource {
               "memoryLimit" -> param.memoryLimit,
               "gpuLimit" -> param.gpuLimit,
               "jvmMemorySize" -> param.jvmMemorySize,
-              // filled later, placeholder for now
-              "nodeAddresses" -> Json.arr()
+              "shmSize" -> param.shmSize,
+              "nodeAddresses" -> Json.arr() // filled in later
             )
           )
 
@@ -338,6 +361,7 @@ class ComputingUnitManagingResource {
               "memoryLimit" -> "NaN",
               "gpuLimit" -> "NaN",
               "jvmMemorySize" -> "NaN",
+              "shmSize" -> "NaN",
               // user-supplied URI goes straight in
               "nodeAddresses" -> Json.arr(param.uri.get)
             )
@@ -388,7 +412,8 @@ class ComputingUnitManagingResource {
           computingUnitEnvironmentVariables ++ Map(
             EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
             EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-          )
+          ),
+          Some(param.shmSize)
         )
       }
 
