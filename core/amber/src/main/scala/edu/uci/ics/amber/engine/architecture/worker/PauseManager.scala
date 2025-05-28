@@ -55,7 +55,7 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
     }
     // global pause is empty, specific input pause is also empty, resume all
     if (specificInputPauses.isEmpty) {
-      inputGateway.getAllChannels.foreach(_.enable(true))
+      inputGateway.getAllDataChannels.foreach(_.enable(true))
       return
     }
     // need to resume specific input channels

@@ -20,9 +20,11 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.core.tuple.FinalizePort
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.error.ErrorUtils.safely
 
 trait EndChannelHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -31,7 +33,32 @@ trait EndChannelHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    dp.processEndOfInputChannel()
+    val channelId = dp.inputManager.currentChannelId
+    val portId = dp.inputGateway.getChannel(channelId).getPortId
+    dp.inputManager.getPort(portId).completed = true
+    dp.inputManager.initBatch(channelId, Array.empty)
+    try {
+      val outputState = dp.executor.produceStateOnFinish(portId.id)
+      if (outputState.isDefined) {
+        dp.outputManager.emitMarker(outputState.get)
+      }
+      dp.outputManager.outputIterator.setTupleOutput(
+        dp.executor.onFinishMultiPort(portId.id)
+      )
+    } catch safely {
+      case e =>
+        // forward input tuple to the user and pause DP thread
+        dp.handleExecutorException(e)
+    }
+
+    dp.outputManager.outputIterator.appendSpecialTupleToEnd(
+      FinalizePort(portId, input = true)
+    )
+
+    if (dp.inputManager.getAllPorts.forall(portId => dp.inputManager.getPort(portId).completed)) {
+      // assuming all the output ports finalize after all input ports are finalized.
+      dp.outputManager.finalizeOutput()
+    }
     EmptyReturn()
   }
 }

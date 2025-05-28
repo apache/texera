@@ -46,7 +46,7 @@ trait StartHandler {
       dp.inputManager.addPort(PortIdentity(), null, urisToRead = List.empty, partitionings = List.empty)
       dp.inputManager.currentChannelId = channelId
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
-      startChannel(request, ctx)
+      //startChannel(request, ctx)
       endChannel(request, ctx)
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {

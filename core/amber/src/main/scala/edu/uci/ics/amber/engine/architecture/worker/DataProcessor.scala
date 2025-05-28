@@ -68,9 +68,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
   METHOD_START_CHANNEL
 }
 import io.grpc.MethodDescriptor
-
-import java.time.Instant
-
 import java.util.concurrent.LinkedBlockingQueue
 
 class DataProcessor(
@@ -252,35 +249,6 @@ class DataProcessor(
     }
   }
 
-  def processEndOfInputChannel(): Unit = {
-    val channelId = inputManager.currentChannelId
-    val portId = this.inputGateway.getChannel(channelId).getPortId
-    this.inputManager.getPort(portId).completed = true
-    inputManager.initBatch(channelId, Array.empty)
-    try {
-      val outputState = executor.produceStateOnFinish(portId.id)
-      if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
-      }
-      outputManager.outputIterator.setTupleOutput(
-        executor.onFinishMultiPort(portId.id)
-      )
-    } catch safely {
-      case e =>
-        // forward input tuple to the user and pause DP thread
-        handleExecutorException(e)
-    }
-
-    outputManager.outputIterator.appendSpecialTupleToEnd(
-      FinalizePort(portId, input = true)
-    )
-
-    if (inputManager.getAllPorts.forall(portId => this.inputManager.getPort(portId).completed)) {
-      // assuming all the output ports finalize after all input ports are finalized.
-      outputManager.finalizeOutput()
-    }
-  }
-
   def processChannelMarker(
       channelId: ChannelIdentity,
       marker: ChannelMarkerPayload,
@@ -320,7 +288,7 @@ class DataProcessor(
     }
   }
 
-  def sendChannelMarkerToDataChannels(
+  private[this] def sendChannelMarkerToDataChannels(
       method: MethodDescriptor[EmptyRequest, EmptyReturn],
       alignment: Boolean
   ): Unit = {
@@ -346,7 +314,7 @@ class DataProcessor(
       }
   }
 
-  private[this] def handleExecutorException(e: Throwable): Unit = {
+  def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.controllerInterface.consoleMessageTriggered(
       ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
       asyncRPCClient.mkContext(CONTROLLER)
