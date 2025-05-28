@@ -49,8 +49,6 @@ object AmberConfig {
   val MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
   val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
-  val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
-    getConfSource.getInt("constants.max-workflow-websocket-request-payload-size-kb")
 
   // Flow control
   val maxCreditAllowedInBytesPerChannel: Long =
@@ -119,6 +117,8 @@ object AmberConfig {
     getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
+  val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
+    getConfSource.getInt("web-server.max-workflow-websocket-request-payload-size-kb")
 
   // AI Assistant
   val aiAssistantConfig: Option[Config] =
