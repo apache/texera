@@ -92,6 +92,7 @@ message ControlInvocation {
 enum ChannelMarkerType {
   REQUIRE_ALIGNMENT = 0;
   NO_ALIGNMENT = 1;
+  PORT_ALIGNMENT = 2;
 }
 
 // Message for ChannelMarkerPayload

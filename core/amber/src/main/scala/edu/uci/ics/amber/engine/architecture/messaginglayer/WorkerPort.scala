@@ -23,8 +23,8 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import scala.collection.mutable
-
 case class WorkerPort(
     schema: Schema,
+    channels: mutable.Set[ChannelIdentity] = mutable.Set(),
     var completed: Boolean = false
 )

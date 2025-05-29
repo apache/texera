@@ -16,7 +16,7 @@
 # under the License.
 
 import threading
-from typing import Iterator, Optional, Union, Dict, List
+from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
 from core.models.internal_marker import (
@@ -50,7 +50,11 @@ class Channel:
 class WorkerPort:
     def __init__(self, schema: Schema):
         self._schema = schema
+        self.channels: Set[Channel] = set()
         self.completed = False
+
+    def add_channel(self, channel: Channel) -> None:
+        self.channels.add(channel)
 
     def get_schema(self) -> Schema:
         return self._schema
@@ -136,6 +140,7 @@ class InputManager:
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
+        self._ports[port_id].add_channel(channel)
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
