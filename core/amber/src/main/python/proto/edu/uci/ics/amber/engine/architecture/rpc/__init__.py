@@ -52,6 +52,7 @@ class ChannelMarkerType(betterproto.Enum):
 
     REQUIRE_ALIGNMENT = 0
     NO_ALIGNMENT = 1
+    PORT_ALIGNMENT = 2
 
 
 class ConsoleMessageType(betterproto.Enum):
