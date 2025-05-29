@@ -289,7 +289,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         which indicates the start of any input links,
         send the StartOfInputChannel to all downstream workers.
         """
-        self._send_channel_marker_to_data_channels("StartChannel", alignment=False)
+        self._send_channel_marker_to_data_channels("StartChannel", ChannelMarkerType.NO_ALIGNMENT)
 
     def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
         """
@@ -306,7 +306,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
         self.context.output_manager.close_port_storage_writers()
 
-        self._send_channel_marker_to_data_channels("EndChannel", alignment=True)
+        self._send_channel_marker_to_data_channels("EndChannel", ChannelMarkerType.PORT_ALIGNMENT)
 
         # Need to send port completed even if there is no downstream link
         for port_id in self.context.output_manager.get_port_ids():
@@ -368,18 +368,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
     def _send_channel_marker_to_data_channels(
-        self, method_name: str, alignment: bool
+        self, method_name: str, alignment: ChannelMarkerType
     ) -> None:
-        if alignment:
-            marker_type = ChannelMarkerType.REQUIRE_ALIGNMENT
-        else:
-            marker_type = ChannelMarkerType.NO_ALIGNMENT
         for active_channel_id in self.context.output_manager.get_output_channel_ids():
             if not active_channel_id.is_control:
                 marker_payload = ChannelMarkerPayload(
                     ChannelMarkerIdentity(method_name),
                     marker_type,
-                    [active_channel_id],
+                    [],
                     {
                         active_channel_id.to_worker_id.name: ControlInvocation(
                             method_name,
