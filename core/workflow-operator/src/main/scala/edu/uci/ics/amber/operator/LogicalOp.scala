@@ -24,11 +24,7 @@ import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
@@ -39,22 +35,14 @@ import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
-import edu.uci.ics.amber.operator.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceTextSummarizationOpDesc
-}
+import edu.uci.ics.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
 import edu.uci.ics.amber.operator.ifStatement.IfOpDesc
 import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
-  SklearnAdvancedKNNClassifierTrainerOpDesc,
-  SklearnAdvancedKNNRegressorTrainerOpDesc
-}
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
@@ -66,10 +54,7 @@ import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.amber.operator.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
@@ -124,6 +109,7 @@ import edu.uci.ics.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
@@ -215,6 +201,7 @@ trait StateTransferFunc
     new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
+    new Type(value = classOf[Histogram2DOpDesc], name = "Histogram2D"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
