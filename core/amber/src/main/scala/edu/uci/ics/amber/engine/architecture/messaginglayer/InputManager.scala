@@ -20,29 +20,80 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
+import edu.uci.ics.amber.engine.architecture.worker.managers.InputPortMaterializationReaderThread
+import edu.uci.ics.amber.engine.common.AmberLogging
 
+import java.net.URI
+import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 
-class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
+class InputManager(
+    val actorId: ActorVirtualIdentity,
+    val inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement]
+) extends AmberLogging {
   private var inputBatch: Array[Tuple] = _
   private var currentInputIdx: Int = -1
   var currentChannelId: ChannelIdentity = _
 
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
+  private val inputPortMaterializationReaderThreads
+      : mutable.HashMap[PortIdentity, List[InputPortMaterializationReaderThread]] =
+    mutable.HashMap()
+
   def getAllPorts: Set[PortIdentity] = {
     this.ports.keys.toSet
   }
 
-  def addPort(portId: PortIdentity, schema: Schema): Unit = {
+  def addPort(
+      portId: PortIdentity,
+      schema: Schema,
+      urisToRead: List[URI],
+      partitionings: List[Partitioning]
+  ): Unit = {
+    assert(urisToRead.size == partitionings.size)
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
     this.ports(portId) = WorkerPort(schema)
+
+    // if a materialization URI is provided, set up a materialization reader thread
+    setupInputPortMaterializationReaderThreads(portId, urisToRead, partitionings)
+  }
+
+  private def setupInputPortMaterializationReaderThreads(
+      portId: PortIdentity,
+      uris: List[URI],
+      partitionings: List[Partitioning]
+  ): Unit = {
+    val readerThreads = uris.zip(partitionings).map {
+      case (uri, partitioning) =>
+        new InputPortMaterializationReaderThread(
+          uri = uri,
+          inputMessageQueue = this.inputMessageQueue,
+          workerActorId = this.actorId,
+          partitioning = partitioning
+        )
+    }
+
+    inputPortMaterializationReaderThreads(portId) = readerThreads
+  }
+
+  def getInputPortReaderThreads: Map[PortIdentity, List[InputPortMaterializationReaderThread]] = {
+    this.inputPortMaterializationReaderThreads.toMap
+  }
+
+  def startInputPortReaderThreads(): Unit = {
+    this.inputPortMaterializationReaderThreads.values.foreach(threadList =>
+      threadList.foreach(readerThread => {
+        readerThread.start()
+      })
+    )
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)

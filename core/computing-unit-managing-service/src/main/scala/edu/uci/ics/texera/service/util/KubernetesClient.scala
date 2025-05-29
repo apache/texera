@@ -40,11 +40,15 @@ object KubernetesClient {
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
 
-  def generateVolumeName(cuid:Int) = s"${generatePodName(cuid)}-pvc"
+  private def generateVolumeName(cuid:Int) = s"${generatePodName(cuid)}-pvc"
 
-  def generateClusterMasterServiceName(cuid:Int) = s"${generatePodName(cuid)}-master"
+  private def generateClusterMasterServiceName(cuid:Int) = s"${generatePodName(cuid)}-master"
 
-  def generateStatefulSetName(cuid: Int): String = s"${generatePodName(cuid)}-workers"
+  private def generateStatefulSetName(cuid: Int): String = s"${generatePodName(cuid)}-workers"
+
+  def podExists(cuid: Int): Boolean = {
+    getPodByName(generatePodName(cuid)).isDefined
+  }
 
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
@@ -145,7 +149,7 @@ object KubernetesClient {
       "CLUSTERING_MASTER_IP_ADDRESS" -> masterIp
     )
     val volume = createVolume(cuid, diskLimit)
-    val master = createPod(cuid, cpuLimit, memoryLimit, gpuLimit = "0", enrichedEnv, Some(volume))
+    val master = createPod(cuid, cpuLimit, memoryLimit, enrichedEnv, volume)
     createClusterMasterService(cuid)
     createStatefulSet(cuid, cpuLimit, memoryLimit, numNodes - 1, enrichedEnv, volume)
     master // return master pod
@@ -248,9 +252,10 @@ object KubernetesClient {
       cuid: Int,
       cpuLimit: String,
       memoryLimit: String,
-      gpuLimit: String,
       envVars: Map[String, Any],
-      attachVolume: Option[Volume] = None
+      attachVolume: Volume,
+      gpuLimit: Option[String] = None,
+      shmSize: Option[String] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
@@ -274,9 +279,9 @@ object KubernetesClient {
       .addToLimits("memory", new Quantity(memoryLimit))
 
     // Only add GPU resources if the requested amount is greater than 0
-    if (gpuLimit != "0") {
+    if (gpuLimit.isDefined) {
       // Use the configured GPU resource key directly
-      resourceBuilder.addToLimits(KubernetesConfig.gpuResourceKey, new Quantity(gpuLimit))
+      resourceBuilder.addToLimits(KubernetesConfig.gpuResourceKey, new Quantity(gpuLimit.get))
     }
 
     // Build the pod with metadata
@@ -290,7 +295,7 @@ object KubernetesClient {
       .addToLabels("role", "master")
 
     // -------------- CONTAINER -------------
-    val containerB = new ContainerBuilder()
+    val containerBuilder = new ContainerBuilder()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitMasterImageName)
       .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
@@ -304,19 +309,39 @@ object KubernetesClient {
       .withNewSpec()
 
     // mount PVC at /data if provided
-    attachVolume.foreach { v =>
-      containerB.addNewVolumeMount().withName(v.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
-      specBuilder.addToVolumes(v)
-    }
-
-    val container = containerB.build()
+      containerBuilder.addNewVolumeMount().withName(attachVolume.getName).withMountPath("/core/amber/user-resources").endVolumeMount()
+      specBuilder.addToVolumes(attachVolume)
 
     // Only add runtimeClassName when using NVIDIA GPU
-    if (gpuLimit != "0" && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
+    if (gpuLimit.isDefined && KubernetesConfig.gpuResourceKey.contains("nvidia")) {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
-    // Complete the pod spec
+    // If shmSize requested, mount /dev/shm
+    shmSize.foreach { _ =>
+      containerBuilder
+        .addNewVolumeMount()
+        .withName("dshm")
+        .withMountPath("/dev/shm")
+        .endVolumeMount()
+    }
+
+    val container = containerBuilder.build()
+
+    // Add tmpfs volume if needed
+    shmSize.foreach { size =>
+      specBuilder
+        .addNewVolume()
+        .withName("dshm")
+        .withEmptyDir(
+          new EmptyDirVolumeSourceBuilder()
+            .withMedium("Memory")
+            .withSizeLimit(new Quantity(size))
+            .build()
+        )
+        .endVolume()
+    }
+
     val pod = specBuilder
       .withContainers(container)
       .withHostname(podName)
@@ -332,7 +357,7 @@ object KubernetesClient {
   }
 
 
-  private def deleteVolume(cuid: Int): Unit = {
+  def deleteVolume(cuid: Int): Unit = {
     client.persistentVolumeClaims().inNamespace(namespace).withName(generateVolumeName(cuid)).delete()
   }
 

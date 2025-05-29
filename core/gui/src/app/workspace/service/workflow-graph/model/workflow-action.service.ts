@@ -100,6 +100,7 @@ export class WorkflowActionService {
   public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowSettings: WorkflowSettings;
+  private workflowResetSubject = new Subject<void>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -688,7 +689,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
-      this.getTexeraGraph().getPortPropertyChangedStream()
+      this.getTexeraGraph().getPortPropertyChangedStream(),
+      this.workflowResetSubject.asObservable()
     );
   }
 
@@ -816,6 +818,7 @@ export class WorkflowActionService {
   public resetAsNewWorkflow() {
     this.destroySharedModel();
     this.reloadWorkflow(undefined);
+    this.workflowResetSubject.next();
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

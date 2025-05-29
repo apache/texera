@@ -33,5 +33,7 @@ case class ResultExportRequest(
     rowIndex: Int, // used by "data" export
     columnIndex: Int, // used by "data" export
     filename: String, // optional filename override
-    destination: String // "dataset" or "local"
+    destination: String, // "dataset" or "local"
+    // TODO: remove it once the lifecycle of result and compute are unbundled
+    computingUnitId: Int // the id of the computing unit
 )

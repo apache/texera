@@ -19,9 +19,9 @@
 
 <div
   class="computing-units-selection"
-  [ngClass]="{ 'metrics-visible': environment.computingUnitManagerEnabled && isComputingUnitRunning() }">
+  [ngClass]="{ 'metrics-visible': isComputingUnitRunning() }">
   <div
-    *ngIf="environment.computingUnitManagerEnabled && isComputingUnitRunning()"
+    *ngIf="isComputingUnitRunning() && selectedComputingUnit && selectedComputingUnit.computingUnit.type !== 'local'"
     nz-button
     nz-popover
     [nzPopoverContent]="selectedComputingUnit ? metricsTemplate : undefined"
@@ -62,7 +62,7 @@
     nz-button
     nz-dropdown
     nzTrigger="click"
-    [nzDropdownMenu]="environment.computingUnitManagerEnabled ? menu : null"
+    [nzDropdownMenu]="menu"
     [nzPlacement]="'bottomRight'"
     class="computing-units-dropdown-button">
     <div class="button-content">
@@ -84,7 +84,6 @@
       >
       <i
         nz-icon
-        *ngIf="environment.computingUnitManagerEnabled"
         nzType="down"></i>
     </div>
   </button>
@@ -95,18 +94,16 @@
       class="computing-units-dropdown">
       <li
         nz-menu-item
-        *ngFor="let unit of computingUnits"
+        *ngFor="let unit of computingUnits; trackBy: trackByCuid"
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
         [ngClass]="{
           'unit-selected': isSelectedUnit(unit),
           'unit-connecting': unit.status === 'Pending',
-          'unit-disconnected': unit.status === 'Disconnected',
-          'unit-terminating': unit.status === 'Terminating'
         }"
         [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
-        (click)="selectedComputingUnit = unit; connectToComputingUnit(unit)">
+        (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
         <div class="computing-unit-row">
           <div class="computing-unit-name">
             <nz-badge
@@ -114,22 +111,12 @@
               [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
               nz-tooltip
-              [nzTooltipTitle]="unit.computingUnit.name">
+              [nzTooltipTitle]="unit.computingUnit.uri">
               {{ unit.computingUnit.name }}
               <span
                 *ngIf="unit.status === 'Pending'"
                 class="unit-status-indicator"
                 >(Connecting)</span
-              >
-              <span
-                *ngIf="unit.status === 'Disconnected'"
-                class="unit-status-indicator"
-                >(Disconnected)</span
-              >
-              <span
-                *ngIf="unit.status === 'Terminating'"
-                class="unit-status-indicator"
-                >(Terminating)</span
               >
             </span>
           </div>
@@ -138,7 +125,7 @@
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
-            [nzTooltipTitle]="'Terminate ' + unit.computingUnit.name"
+            [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
             (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
             aria-label="Terminate computing unit">
@@ -164,45 +151,51 @@
 
 <!-- Panel for creating the computing unit -->
 <nz-modal
-  [nzVisible]="addComputeUnitModalVisible && environment.computingUnitManagerEnabled"
-  [nzTitle]="addComputeUnitModalTitle"
+  [nzVisible]="addComputeUnitModalVisible"
+  [nzTitle]="getCreateModalTitle()"
   [nzContent]="addComputeUnitModalContent"
   [nzFooter]="addComputeUnitModalFooter"
   (nzOnCancel)="handleAddComputeUnitModalCancel()">
   <ng-template #addComputeUnitModalTitle>Create Computing Unit</ng-template>
   <ng-template #addComputeUnitModalContent>
     <div class="create-compute-unit-container">
-      <div class="select-unit name-field">
-        <div style="display:flex; align-items:center;justify-content:space-between;width:100%;">
-          <span>Computing Unit Name</span>
-          <div style="display:flex; align-items:center; gap:4px;">
-            <span>Create Cluster</span>
-            <nz-switch
-              [(ngModel)]="isCluster"
-              nzSize="default"
-              nz-tooltip
-              nzTooltipTitle="Toggle cluster mode">
-            </nz-switch>
-          </div>
-        </div>
-        <input
-          [required]="true"
-          nz-input
-          placeholder="Enter the name of your computing unit (required)"
-          [(ngModel)]="newComputingUnitName"
-          class="unit-name-input" />
+      <!-- Computing unit type selection -->
+      <div class="select-unit">
+        <span>Computing Unit Type</span>
+        <nz-select
+          class="type-selection"
+          [(ngModel)]="selectedComputingUnitType">
+          <nz-option
+            *ngFor="let type of availableComputingUnitTypes"
+            [nzValue]="type"
+            [nzLabel]="type | titlecase">
+          </nz-option>
+        </nz-select>
       </div>
 
+      <!-- Fields for Kubernetes computing units -->
+      <ng-container *ngIf="selectedComputingUnitType === 'kubernetes'">
+        <div class="select-unit name-field">
+          <span>Computing Unit Name</span>
+          <input
+            [required]="true"
+            nz-input
+            placeholder="Enter the name of your computing unit (required)"
+            [(ngModel)]="newComputingUnitName"
+            class="unit-name-input" />
+        </div>
+
       <!-- Cluster‑specific fields -->
-      <ng-container *ngIf="isCluster">
+      <ng-container>
         <!-- Node count with plus/minus -->
         <div class="select-unit">
           <span># of Nodes</span>
           <nz-input-number
             [(ngModel)]="selectedNumNodes"
-            [nzMin]="2"
+            [nzMin]="1"
             [nzMax]="100"
-            [nzStep]="1">
+            [nzStep]="1"
+            (ngModelChange)="onNumNodesChange($event)">
           </nz-input-number>
         </div>
 
@@ -215,85 +208,158 @@
         </div>
       </ng-container>
 
-      <div class="select-unit name-field" *ngIf="isCluster">
+      <div class="select-unit name-field">
         <b>Per-node Spec:</b>
       </div>
 
-      <div class="select-unit">
-        <span>Select Memory Size</span>
-        <nz-select
-          class="memory-selection"
-          [(ngModel)]="selectedMemory"
-          (ngModelChange)="onMemorySelectionChange()">
-          <nz-option
-            *ngFor="let option of memoryOptions"
-            [nzValue]="option"
-            [nzLabel]="option">
-          </nz-option>
-        </nz-select>
-      </div>
-
-      <div class="select-unit">
-        <span>Select #CPU Core(s)</span>
-        <nz-select
-          class="cpu-selection"
-          [(ngModel)]="selectedCpu">
-          <nz-option
-            *ngFor="let option of cpuOptions"
-            [nzValue]="option"
-            [nzLabel]="option">
-          </nz-option>
-        </nz-select>
-      </div>
-
-      <div
-        *ngIf="!isCluster && showGpuSelection()"
-        class="select-unit">
-        <span>Select #GPU(s)</span>
-        <nz-select
-          class="gpu-selection"
-          [(ngModel)]="selectedGpu">
-          <nz-option
-            *ngFor="let option of gpuOptions"
-            [nzValue]="option"
-            [nzLabel]="option">
-          </nz-option>
-        </nz-select>
-      </div>
-
-      <div class="select-unit name-field">
-        <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
-        <nz-slider
-          *ngIf="showJvmMemorySlider"
-          class="jvm-memory-slider"
-          [nzMarks]="jvmMemoryMarks"
-          [nzMin]="jvmMemorySteps[0] || 2"
-          [nzMax]="jvmMemoryMax"
-          [nzStep]="null"
-          [nzIncluded]="false"
-          [ngModel]="jvmMemorySliderValue"
-          (ngModelChange)="onJvmMemorySliderChange($event)">
-        </nz-slider>
-        <div
-          *ngIf="isMaxJvmMemorySelected()"
-          class="memory-warning">
-          <nz-alert
-            nzType="warning"
-            nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
-            nzShowIcon>
-          </nz-alert>
+        <div class="select-unit">
+          <span>Select RAM Size</span>
+          <nz-select
+            class="memory-selection"
+            [(ngModel)]="selectedMemory"
+            (ngModelChange)="onMemorySelectionChange()">
+            <nz-option
+              *ngFor="let option of memoryOptions"
+              [nzValue]="option"
+              [nzLabel]="option">
+            </nz-option>
+          </nz-select>
         </div>
-      </div>
+
+        <div class="select-unit">
+          <span>Select #CPU Core(s)</span>
+          <nz-select
+            class="cpu-selection"
+            [(ngModel)]="selectedCpu">
+            <nz-option
+              *ngFor="let option of cpuOptions"
+              [nzValue]="option"
+              [nzLabel]="option">
+            </nz-option>
+          </nz-select>
+        </div>
+            <div
+              *ngIf="true"
+              class="select-unit">
+              <div class="toggle-row">
+              <span>Select #GPU(s)</span>
+              <nz-switch [(ngModel)]="enabledGPUSelection" [disabled]="isCluster()" nzSize="small"></nz-switch>
+              </div>
+              <nz-select [disabled]="!enabledGPUSelection"
+                class="gpu-selection"
+                [(ngModel)]="selectedGpu">
+                <nz-option
+                  *ngFor="let option of gpuOptions"
+                  [nzValue]="option"
+                  [nzLabel]="option">
+                </nz-option>
+              </nz-select>
+            </div>
+
+        <div class="select-unit shared-memory-group">
+          <div class="toggle-row">
+            <span>
+            Shared Memory Size
+            <i
+              nz-icon
+              nzType="info-circle"
+              nz-tooltip
+              [nzTooltipTitle]="
+                'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
+              ">
+            </i>
+          </span>
+            <nz-switch [(ngModel)]="enabledShmAdjustment" [disabled]="isCluster()" nzSize="small"></nz-switch>
+          </div>
+          <div class="shm-input-row">
+            <input
+              nz-input
+              [disabled]="!enabledShmAdjustment"
+              type="number"
+              min="0"
+              [(ngModel)]="shmSizeValue"
+              class="shm-size-input"
+              placeholder="e.g. 512" />
+            <nz-select
+              [disabled]="!enabledShmAdjustment"
+              class="shm-unit-select"
+              [(ngModel)]="shmSizeUnit">
+              <nz-option
+                nzValue="Mi"
+                nzLabel="Mi"></nz-option>
+              <nz-option
+                nzValue="Gi"
+                nzLabel="Gi"></nz-option>
+            </nz-select>
+          </div>
+        </div>
+            <div class="select-unit name-field">
+              <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
+              <nz-slider
+                *ngIf="showJvmMemorySlider && !isCluster()"
+                class="jvm-memory-slider"
+                [nzMarks]="jvmMemoryMarks"
+                [nzMin]="jvmMemorySteps[0] || 2"
+                [nzMax]="jvmMemoryMax"
+                [nzStep]="null"
+                [nzIncluded]="false"
+                [ngModel]="jvmMemorySliderValue"
+                (ngModelChange)="onJvmMemorySliderChange($event)">
+              </nz-slider>
+            </div>
+      </ng-container>
+
+      <!-- Fields for Local computing units -->
+      <ng-container *ngIf="selectedComputingUnitType === 'local'">
+        <div class="select-unit name-field">
+          <span>Computing Unit Name</span>
+          <input
+            [required]="true"
+            nz-input
+            placeholder="Enter the name of your local computing unit (required)"
+            [(ngModel)]="newComputingUnitName"
+            class="unit-name-input" />
+        </div>
+        <div class="select-unit name-field">
+          <span>Computing Unit URI</span>
+          <input
+            [required]="true"
+            nz-input
+            placeholder="URI of the local computing unit (e.g. http://localhost:8085)"
+            [(ngModel)]="localComputingUnitUri"
+            class="unit-uri-input" />
+        </div>
+      </ng-container>
     </div>
 
     <!-- Summary warning -->
-    <div class="cluster-info" *ngIf = isCluster>
+    <div class="configuration-hint" *ngIf="isCluster()">
       <nz-alert
         nzType="info"
         nzMessage="This will start a cluster with {{ selectedNumNodes }} nodes, allocating a total
            of {{ parseResourceNumber(selectedCpu) * selectedNumNodes }}{{parseResourceUnit(selectedCpu)}} CPU,
            {{ parseResourceNumber(selectedMemory) * selectedNumNodes }}{{parseResourceUnit(selectedMemory)}} Memory,
            and a {{ selectedDiskSize }}GiB disk shared by all nodes."
+        nzShowIcon>
+      </nz-alert>
+    </div>
+
+    <div
+      *ngIf="enabledShmAdjustment && isShmTooLarge()"
+      class="configuration-hint">
+      <nz-alert
+        nzType="error"
+        nzMessage="Shared memory cannot be greater than total memory."
+        nzShowIcon>
+      </nz-alert>
+    </div>
+
+    <div
+      *ngIf="isMaxJvmMemorySelected()"
+      class="configuration-hint">
+      <nz-alert
+        nzType="warning"
+        nzMessage="Using maximum JVM memory may affect the performance of Python-based operators."
         nzShowIcon>
       </nz-alert>
     </div>
@@ -325,7 +391,7 @@
       </p>
     </div>
     <div class="memory-metric general-metric">
-      <p class="metric-name">Memory</p>
+      <p class="metric-name">RAM</p>
       <p class="metric-value">
         {{getMemoryValue() | number:'1.4-4'}}
         <span class="metric-unit">/ {{getMemoryLimit()}} {{getMemoryLimitUnit()}}</span>
@@ -333,10 +399,22 @@
       </p>
     </div>
     <div
-      *ngIf="getGpuLimit() !== '0' && getGpuLimit() !== 'N/A' && showGpuSelection()"
+      *ngIf="getGpuLimit() !== '0' && getGpuLimit() !== 'NaN' && showGpuSelection()"
       class="gpu-metric general-metric">
       <p class="metric-name">GPU</p>
       <p class="metric-value">{{getGpuLimit()}} GPU(s)</p>
+    </div>
+    <div
+      *ngIf="getJvmMemorySize() !== '0' && getJvmMemorySize() !== 'NaN'"
+      class="gpu-metric general-metric">
+      <p class="metric-name">JVM Memory Size</p>
+      <p class="metric-value">{{getJvmMemorySize()}}</p>
+    </div>
+    <div
+      *ngIf="getSharedMemorySize() !== '0' && getSharedMemorySize() !== 'NaN'"
+      class="gpu-metric general-metric">
+      <p class="metric-name">Shared Memory Size</p>
+      <p class="metric-value">{{getSharedMemorySize()}}</p>
     </div>
   </div>
 </ng-template>

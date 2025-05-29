@@ -40,6 +40,7 @@ import { NzContextMenuService } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
+import { isDefined } from "../../../common/util/predicate";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -271,25 +272,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(status => {
-        Object.keys(status).forEach(operatorID => {
-          if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
-            return;
-          }
-          if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
-            status[operatorID] = {
-              ...status[operatorID],
-              operatorState: OperatorState.Recovering,
-            };
-          }
+        this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .forEach(op => {
+            if (
+              isDefined(status[op.operatorID]) &&
+              this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering
+            ) {
+              status[op.operatorID] = {
+                ...status[op.operatorID],
+                operatorState: OperatorState.Recovering,
+              };
+            }
 
-          this.jointUIService.changeOperatorStatistics(
-            this.paper,
-            operatorID,
-            status[operatorID],
-            this.isSource(operatorID),
-            this.isSink(operatorID)
-          );
-        });
+            this.jointUIService.changeOperatorStatistics(
+              this.paper,
+              op.operatorID,
+              status[op.operatorID],
+              this.isSource(op.operatorID),
+              this.isSink(op.operatorID)
+            );
+          });
       });
 
     this.executeWorkflowService

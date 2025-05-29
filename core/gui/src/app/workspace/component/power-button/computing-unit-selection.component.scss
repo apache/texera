@@ -176,19 +176,25 @@
   width: 100%;
 }
 
-.cluster-info {
+.configuration-hint {
   font-size: 0.9em;
   grid-column: span 2;
+}
+
+.advanced-setting-collapse {
+  grid-column: span 2;
+  .ant-collapse-header {
+    border-top: 1px solid #d9d9d9; /* or your preferred color */
+    border-radius: 0; /* optional: remove rounded corners if needed */
+  }
+  .collapse-panel-body {
+    padding: 0 16px; // adds 16px left and right padding
+  }
 }
 
 .jvm-memory-slider {
   width: 100%;
   margin: 10px 0;
-}
-
-.memory-warning {
-  margin-top: 10px;
-  font-size: 0.9em;
 }
 
 .create-compute-unit-container {
@@ -227,6 +233,13 @@
   align-items: center;
   width: 100%;
   height: 100%;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  width: 100%;
 }
 
 .unit-name-text,
@@ -348,4 +361,27 @@
 
 .metric-value {
   margin: 0;
+}
+
+.shared-memory-group {
+  width: 100%;
+
+  .shm-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .shm-size-input {
+    width: 60px;
+    min-width: 50px;
+    flex-shrink: 0;
+  }
+
+  .shm-unit-select {
+    width: 80px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
 }

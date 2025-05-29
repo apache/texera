@@ -25,6 +25,8 @@ object KubernetesConfig {
 
   private val conf: Config = ConfigFactory.parseResources("kubernetes.conf").resolve()
 
+  val kubernetesComputingUnitEnabled: Boolean = conf.getBoolean("kubernetes.enabled")
+
   // Access the Kubernetes settings with environment variable fallback
   val computeUnitServiceName: String = conf.getString("kubernetes.compute-unit-service-name")
   val computeUnitPoolNamespace: String = conf.getString("kubernetes.compute-unit-pool-namespace")
