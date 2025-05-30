@@ -20,7 +20,8 @@
 import { Component, OnInit } from "@angular/core";
 import { SiteSettingsService, SiteSetting } from "../../../service/admin/site-settings/admin-site-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+@UntilDestroy()
 @Component({
   selector: "texera-site-settings",
   templateUrl: "./site-settings.component.html",
@@ -35,14 +36,16 @@ export class SiteSettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Use the correct injected service and method
-    this.settingsSvc.getAllSettings().subscribe({
-      next: data => {
-        this.settings = data;
-      },
-      error: (err: any) => {
-        this.message.error("Failed to load site settings. Please try again later.");
-      },
-    });
+    this.settingsSvc
+      .getAllSettings()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: data => {
+          this.settings = data;
+        },
+        error: (err: unknown) => {
+          this.message.error("Failed to load site settings. Please try again later.");
+        },
+      });
   }
 }
