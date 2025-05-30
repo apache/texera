@@ -21,16 +21,24 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  IntermediateInputPortConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
+import java.net.URI
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -143,7 +151,7 @@ class ExpansionGreedyScheduleGenerator(
     physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
-        (handleDependentLinks(physicalOpId, regionDAG))
+        handleInputPortDependencies(physicalOpId, regionDAG)
           .map(links => return Right(links))
       })
 
@@ -152,33 +160,201 @@ class ExpansionGreedyScheduleGenerator(
     Left(regionDAG)
   }
 
-  private def handleDependentLinks(
+  /**
+    * A dependee input port is one that is depended on by another input port of the same operator.
+    * The incoming edge of a dependee input port is called a dependee edge.
+    * Similarly, the other port of this dependency relationship is called a depender input port and connects
+    * to a depender edge.
+    *
+    * Core design: a dependee edge needs to be materialized, and is mapped to a region edge in the region DAG.
+    * Note: currently we assume there CANNOT be dependencies between two dependee input ports.
+    * This method reasons about the input port dependencies of a given operator during the greedy expansion-based
+    * construction of a region DAG.
+    *
+    * This method first reasons about the dependencies of the input ports of the given operator to find
+    * pairs of dependency relationships, and then enforces the dependency of each pair:
+    * All the incoming edges of a dependee port will be added to the partial region DAG as a region edge.
+    * If adding a dependee edge results in a cycle that breaks the region DAG, we use a heurestic which is to
+    * return the other depender edge and indicate that this depender edge needs to be materialized. This will
+    * break the cycle and maintain the acyclicity of the region DAG.
+    *
+    * Previously we relied purely on edges and cache read operators for implementing materializations for
+    * materialized edges and find regions in this method.
+    *
+    * After introducing materailizations on output and input ports, materializing an
+    * edge could result in an operator that does not have any edges connected to one or more of its input
+    * ports (i.e., it becomes a "starter" operator in a region). For such input ports, we can only use port to
+    * find regions.
+    *
+    * @param physicalOpId The id of the input physical operator on which we need to handle input port dependies.
+    * @param regionDAG The partial region DAG that is always acyclic.
+    * @return Optionally a set of [[PhysicalLink]]s to do materialization-replacements on.
+    */
+  private def handleInputPortDependencies(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Option[Set[PhysicalLink]] = {
-    // for operators like HashJoin that have an order among their blocking and pipelined inputs
+    // For operators like HashJoin's Probe that have dependencies between their input ports
     physicalPlan
       .getOperator(physicalOpId)
-      .getInputLinksInProcessingOrder
+      .getInputPortDependencyPairs
       .sliding(2, 1)
       .foreach {
-        case List(prevLink, nextLink) =>
+        case List(dependeePort, dependerPort) =>
           // Create edges between regions
-          val regionOrderPairs = toRegionOrderPairs(prevLink.fromOpId, nextLink.fromOpId, regionDAG)
-          // Attempt to add edges to regionDAG
-          try {
-            regionOrderPairs.foreach {
-              case (fromRegion, toRegion) =>
-                regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+          val dependeeEdges =
+            physicalPlan
+              .getUpstreamPhysicalLinks(physicalOpId)
+              .filter(l => l.toPortId == dependeePort)
+          val dependerEdges =
+            physicalPlan
+              .getUpstreamPhysicalLinks(physicalOpId)
+              .filter(l => l.toPortId == dependerPort)
+
+          if (dependerEdges.nonEmpty) {
+            // The depender port is connected to some edges of this same region
+            val regionOrderPairs =
+              toRegionOrderPairs(
+                dependeeEdges.head.fromOpId,
+                dependerEdges.head.fromOpId,
+                regionDAG
+              )
+            // Attempt to add these depender edges to regionDAG
+            try {
+              regionOrderPairs.foreach {
+                case (dependeeRegion, dependerRegion) =>
+                  regionDAG.addEdge(
+                    dependeeRegion,
+                    dependerRegion,
+                    RegionLink(dependeeRegion.id, dependerRegion.id)
+                  )
+              }
+            } catch {
+              case _: IllegalArgumentException =>
+                // Adding the depender edge causes cycle. return the edge for materialization replacement
+                return Some(Set(dependerEdges.head))
             }
-          } catch {
-            case _: IllegalArgumentException =>
-              // adding the edge causes cycle. return the link for materialization replacement
-              return Some(Set(nextLink))
+          } else {
+            // The depender port is not connected to any edges (due to materializations)
+            try {
+              // Any region that the dependee port belongs to needs to run first.
+              val dependeeRegions = getRegions(dependeeEdges.head.fromOpId, regionDAG)
+              // Any region that this depender port belongs to need to run after those dependee regions.
+              val dependerRegion = getRegions(physicalOpId, regionDAG)
+                .filter(region =>
+                  region.getPorts.contains(
+                    GlobalPortIdentity(
+                      opId = physicalOpId,
+                      portId = dependerPort,
+                      input = true
+                    )
+                  )
+                )
+                .head
+              // We can safely add region edges created from this dependency relationship and it should
+              // never cause cycles (since the edges of this depender port are already "cut").
+              dependeeRegions.foreach(fromRegion =>
+                regionDAG
+                  .addEdge(fromRegion, dependerRegion, RegionLink(fromRegion.id, dependerRegion.id))
+              )
+            } catch {
+              case _: IllegalArgumentException =>
+                // A cycle is detected. This logic should never be reached.
+                throw new WorkflowRuntimeException(
+                  "Cyclic dependency when trying to handle input port dependencies in building a region plan"
+                )
+            }
           }
         case _ =>
       }
     None
+  }
+
+  /**
+    * Create `PortConfig`s containing only `URI`s for both input and output ports. For the greedy scheduler, this step
+    * after a region DAG is created.
+    */
+  private def assignPortConfigs(
+      matReaderWriterPairs: Set[(GlobalPortIdentity, GlobalPortIdentity)],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+
+    val outputPortsToMaterialize = matReaderWriterPairs.map(_._1)
+
+    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
+      .foreach(outputPortId => {
+        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
+          val portConfigToAdd = outputPortId -> {
+            val uriToAdd = getStorageURIFromGlobalOutputPortId(outputPortId)
+            OutputPortConfig(uriToAdd)
+          }
+          val newResourceConfig = fromRegion.resourceConfig match {
+            case Some(existingConfig) =>
+              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+          }
+          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
+          replaceVertex(regionDAG, fromRegion, newFromRegion)
+        })
+      })
+
+    matReaderWriterPairs
+      // Group all pairs by the input port (_2)
+      .groupBy { case (_, inputPort) => inputPort }
+      // For each input port, build its PortConfig based on all its upstream output ports
+      .foreach {
+        case (inputPort, pairsForThisInput) =>
+          // Extract all the output ports paired with this input
+          val urisToAdd: List[URI] = pairsForThisInput.map {
+            case (outputPort, _) => getStorageURIFromGlobalOutputPortId(outputPort)
+          }.toList
+
+          val portConfigToAdd =
+            inputPort -> IntermediateInputPortConfig(urisToAdd)
+
+          getRegions(inputPort.opId, regionDAG).foreach(toRegion => {
+            val newResourceConfig = toRegion.resourceConfig match {
+              case Some(existingConfig) =>
+                existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
+              case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
+            }
+            val newToRegion = toRegion.copy(resourceConfig = Some(newResourceConfig))
+            replaceVertex(regionDAG, toRegion, newToRegion)
+          })
+      }
+  }
+
+  private def getStorageURIFromGlobalOutputPortId(outputPortId: GlobalPortIdentity) = {
+    assert(!outputPortId.input)
+    createResultURI(
+      workflowId = workflowContext.workflowId,
+      executionId = workflowContext.executionId,
+      globalPortId = outputPortId
+    )
+  }
+
+  private def replaceLinkWithMaterialization(
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.Set[(GlobalPortIdentity, GlobalPortIdentity)]
+  ): PhysicalPlan = {
+    val outputGlobalPortId = GlobalPortIdentity(
+      physicalLink.fromOpId,
+      physicalLink.fromPortId
+    )
+
+    val inputGlobalPortId = GlobalPortIdentity(
+      physicalLink.toOpId,
+      physicalLink.toPortId,
+      input = true
+    )
+
+    val pair = (outputGlobalPortId, inputGlobalPortId)
+
+    writerReaderPairs += pair
+
+    val newPhysicalPlan = physicalPlan
+      .removeLink(physicalLink)
+    newPhysicalPlan
   }
 
   /**
@@ -192,10 +368,8 @@ class ExpansionGreedyScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    val matReaderWriterPairs =
-      new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-
-    val outputPortsToMaterialize = new mutable.HashSet[GlobalPortIdentity]()
+    val materializedOutputInputPortPairs =
+      new mutable.HashSet[(GlobalPortIdentity, GlobalPortIdentity)]()
 
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
@@ -205,11 +379,7 @@ class ExpansionGreedyScheduleGenerator(
           links.foreach { link =>
             physicalPlan = replaceLinkWithMaterialization(
               link,
-              matReaderWriterPairs
-            )
-            outputPortsToMaterialize += GlobalPortIdentity(
-              opId = link.fromOpId,
-              portId = link.fromPortId
+              materializedOutputInputPortPairs
             )
           }
           recConnectRegionDAG()
@@ -221,9 +391,9 @@ class ExpansionGreedyScheduleGenerator(
 
     // try to add dependencies between materialization writer and reader regions
     try {
-      matReaderWriterPairs.foreach {
-        case (writer, reader) =>
-          toRegionOrderPairs(writer, reader, regionDAG).foreach {
+      materializedOutputInputPortPairs.foreach {
+        case (upstreamOutputPort, downstreamInputPort) =>
+          toRegionOrderPairs(upstreamOutputPort.opId, downstreamInputPort.opId, regionDAG).foreach {
             case (fromRegion, toRegion) =>
               regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
           }
@@ -236,10 +406,10 @@ class ExpansionGreedyScheduleGenerator(
         )
     }
 
+    assignPortConfigs(materializedOutputInputPortPairs.toSet, regionDAG)
+
     // mark links that go to downstream regions
     populateDependeeLinks(regionDAG)
-
-    updateRegionsWithOutputPortStorage(outputPortsToMaterialize.toSet, regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)

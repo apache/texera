@@ -104,9 +104,13 @@ export class WorkflowResultExportService {
     // we should export all operators, otherwise, only highlighted ones
     // which means export button is selected from context-menu
     destination: "dataset" | "local" = "dataset", // default to dataset
-    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
   ): void {
     if (!environment.exportExecutionResultEnabled) {
+      return;
+    }
+    if (unit === null) {
+      this.notificationService.error("Cannot export result: computing unit is not available");
       return;
     }
 
@@ -124,6 +128,13 @@ export class WorkflowResultExportService {
           .map(operator => operator.operatorID)
       : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
+    const operatorArray = operatorIds.map(operatorId => {
+      return {
+        id: operatorId,
+        outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
+      };
+    });
+
     if (operatorIds.length === 0) {
       return;
     }
@@ -137,7 +148,7 @@ export class WorkflowResultExportService {
         exportType,
         workflowId,
         workflowName,
-        operatorIds,
+        operatorArray,
         [...datasetIds],
         rowIndex,
         columnIndex,
