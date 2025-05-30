@@ -209,20 +209,6 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  def processStartOfInputChannel(): Unit = {
-    val portId = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
-    sendChannelMarkerToDataChannels(METHOD_START_CHANNEL, NO_ALIGNMENT)
-    try {
-      val outputState = executor.produceStateOnStart(portId.id)
-      if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
-      }
-    } catch safely {
-      case e =>
-        handleExecutorException(e)
-    }
-  }
-
   def processChannelMarker(
       channelId: ChannelIdentity,
       marker: ChannelMarkerPayload,
@@ -262,7 +248,7 @@ class DataProcessor(
     }
   }
 
-  private[this] def sendChannelMarkerToDataChannels(
+  def sendChannelMarkerToDataChannels(
       method: MethodDescriptor[EmptyRequest, EmptyReturn],
       alignment: ChannelMarkerType
   ): Unit = {
