@@ -17,19 +17,31 @@
  * under the License.
  */
 
-.site-settings-section-title {
-  background-color: lightcoral;
-  border-radius: 4px;
-  margin-bottom: 12px;
+import { Injectable } from "@angular/core";
+import { HttpClient } from "@angular/common/http";
+import { Observable } from "rxjs";
 
-  .page-title {
-    color: #fff;
-    margin: 0;
-  }
+/**
+ * Represents a single site setting as a key/value pair.
+ */
+export interface SiteSetting {
+  key: string;
+  value: string;
 }
 
-.settings-placeholder {
-  padding: 24px;
-  text-align: center;
-  color: rgba(0, 0, 0, 0.45);
+@Injectable({
+  providedIn: "root",
+})
+export class SiteSettingsService {
+  constructor(private http: HttpClient) {}
+
+  /** Fetch all site settings from the backend API */
+  getAllSettings(): Observable<SiteSetting[]> {
+    return this.http.get<SiteSetting[]>("/api/admin/site-settings", { withCredentials: true });
+  }
+
+  /** Update (save) all site settings via the backend API */
+  updateSettings(settings: SiteSetting[]): Observable<void> {
+    return this.http.put<void>("/api/admin/site-settings", settings, { withCredentials: true });
+  }
 }

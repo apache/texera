@@ -31,6 +31,7 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
+import edu.uci.ics.texera.web.resource.dashboard.admin.sitesettings.SiteSettingsResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
@@ -144,6 +145,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[GmailResource])
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
+    environment.jersey.register(classOf[SiteSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
 
     if (AmberConfig.isUserSystemEnabled) {

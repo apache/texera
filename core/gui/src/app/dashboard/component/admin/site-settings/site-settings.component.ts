@@ -17,127 +17,32 @@
  * under the License.
  */
 
-import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
+import { SiteSettingsService, SiteSetting } from "../../../service/admin/site-settings/admin-site-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 
 @Component({
-  selector: "site-settings",
+  selector: "texera-site-settings",
   templateUrl: "./site-settings.component.html",
   styleUrls: ["./site-settings.component.scss"],
 })
 export class SiteSettingsComponent implements OnInit {
-  // Main and mini logo states (for preview before saving)
-  logoPreview: string | null = null;
-  miniLogoPreview: string | null = null;
-  showLogoUpload = false;
-  editMiniLogo = false; // checkbox for uploading separate mini logo
+  settings: SiteSetting[] = [];
 
-  readonly LOCAL_LOGO_KEY = "customSiteLogo";
-  readonly LOCAL_MINI_LOGO_KEY = "customMiniLogo";
+  constructor(
+    private settingsSvc: SiteSettingsService,
+    private message: NzMessageService
+  ) {}
 
-  @ViewChild("logoInput") logoInputRef!: ElementRef<HTMLInputElement>;
-  @ViewChild("miniLogoInput") miniLogoInputRef!: ElementRef<HTMLInputElement>;
-
-  constructor(private message: NzMessageService) {}
-
-  ngOnInit(): void {}
-
-  toggleLogoUpload(): void {
-    this.showLogoUpload = !this.showLogoUpload;
-    if (this.showLogoUpload) {
-      this.logoPreview = null;
-      this.miniLogoPreview = null;
-      this.editMiniLogo = false;
-      setTimeout(() => {
-        if (this.logoInputRef) this.logoInputRef.nativeElement.value = "";
-        if (this.miniLogoInputRef) this.miniLogoInputRef.nativeElement.value = "";
-      });
-    }
-  }
-
-  // Main logo file input
-  onLogoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      this.message.error("Please upload a valid image file.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = e => (this.logoPreview = typeof e.target?.result === "string" ? e.target.result : null);
-    reader.readAsDataURL(file);
-  }
-
-  // Mini logo file input
-  onMiniLogoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      this.message.error("Please upload an image file.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = e => (this.miniLogoPreview = typeof e.target?.result === "string" ? e.target.result : null);
-    reader.readAsDataURL(file);
-  }
-
-  // Checkbox toggle for mini logo
-  onMiniLogoCheckboxChange(): void {
-    if (!this.editMiniLogo) {
-      this.miniLogoPreview = null;
-      localStorage.removeItem(this.LOCAL_MINI_LOGO_KEY);
-      if (this.miniLogoInputRef) this.miniLogoInputRef.nativeElement.value = "";
-    }
-  }
-
-  // Save main and mini logos to localStorage
-  saveAllLogos(): void {
-    if (this.logoPreview) {
-      localStorage.setItem(this.LOCAL_LOGO_KEY, this.logoPreview);
-      if (!this.editMiniLogo) {
-        localStorage.setItem(this.LOCAL_MINI_LOGO_KEY, this.logoPreview);
-        this.miniLogoPreview = this.logoPreview;
-      }
-    } else {
-      localStorage.removeItem(this.LOCAL_LOGO_KEY);
-      if (!this.editMiniLogo) {
-        localStorage.removeItem(this.LOCAL_MINI_LOGO_KEY);
-        this.miniLogoPreview = null;
-      }
-    }
-    if (this.editMiniLogo && this.miniLogoPreview) {
-      localStorage.setItem(this.LOCAL_MINI_LOGO_KEY, this.miniLogoPreview);
-    }
-    this.message.success("Logos saved!");
-    this.showLogoUpload = false;
-  }
-
-  // Reset both logos
-  resetAllLogos(): void {
-    localStorage.removeItem(this.LOCAL_LOGO_KEY);
-    localStorage.removeItem(this.LOCAL_MINI_LOGO_KEY);
-    this.logoPreview = null;
-    this.miniLogoPreview = null;
-    this.editMiniLogo = false;
-    this.showLogoUpload = false;
-    this.message.info("All logos reset to default.");
-    setTimeout(() => {
-      if (this.logoInputRef) this.logoInputRef.nativeElement.value = "";
-      if (this.miniLogoInputRef) this.miniLogoInputRef.nativeElement.value = "";
+  ngOnInit(): void {
+    // Use the correct injected service and method
+    this.settingsSvc.getAllSettings().subscribe({
+      next: data => {
+        this.settings = data;
+      },
+      error: err => {
+        this.message.error("Failed to load site settings. Please try again later.");
+      },
     });
-  }
-
-  // Main logo for sidebar (or default)
-  getSidebarLogo(): string {
-    return localStorage.getItem(this.LOCAL_LOGO_KEY) || "assets/logos/logo.png";
-  }
-
-  // Mini logo for sidebar, or fallback to main logo, or default mini icon
-  getMiniLogo(): string {
-    const mini = localStorage.getItem(this.LOCAL_MINI_LOGO_KEY);
-    if (mini) return mini;
-    const main = localStorage.getItem(this.LOCAL_LOGO_KEY);
-    if (main) return main;
-    return "assets/logos/favicon-32x32.png";
   }
 }
