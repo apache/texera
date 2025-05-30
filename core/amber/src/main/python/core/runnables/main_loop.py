@@ -289,7 +289,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         which indicates the start of any input links,
         send the StartOfInputChannel to all downstream workers.
         """
-        self._send_channel_marker_to_data_channels("StartChannel", ChannelMarkerType.NO_ALIGNMENT)
+        self._send_channel_marker_to_data_channels(
+            "StartChannel", ChannelMarkerType.NO_ALIGNMENT
+        )
 
     def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
         """
@@ -306,7 +308,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
         self.context.output_manager.close_port_storage_writers()
 
-        self._send_channel_marker_to_data_channels("EndChannel", ChannelMarkerType.PORT_ALIGNMENT)
+        self._send_channel_marker_to_data_channels(
+            "EndChannel", ChannelMarkerType.PORT_ALIGNMENT
+        )
 
         # Need to send port completed even if there is no downstream link
         for port_id in self.context.output_manager.get_port_ids():
@@ -332,7 +336,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             f"receive channel marker from {channel_id},"
             f" id = {marker_id}, cmd = {command}"
         )
-        if marker_payload.marker_type in (ChannelMarkerType.REQUIRE_ALIGNMENT, ChannelMarkerType.PORT_ALIGNMENT):
+        if marker_payload.marker_type in (
+            ChannelMarkerType.REQUIRE_ALIGNMENT,
+            ChannelMarkerType.PORT_ALIGNMENT,
+        ):
             self.context.pause_manager.pause_input_channel(
                 PauseType.MARKER_PAUSE, channel_id
             )
@@ -364,7 +371,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
                         )
                         self._send_channel_marker(active_channel_id, marker_payload)
 
-            if marker_payload.marker_type in (ChannelMarkerType.REQUIRE_ALIGNMENT, ChannelMarkerType.PORT_ALIGNMENT):
+            if marker_payload.marker_type in (
+                ChannelMarkerType.REQUIRE_ALIGNMENT,
+                ChannelMarkerType.PORT_ALIGNMENT,
+            ):
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
     def _send_channel_marker_to_data_channels(

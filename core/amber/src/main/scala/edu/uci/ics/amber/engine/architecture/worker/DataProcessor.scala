@@ -22,24 +22,52 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.marker.State
-import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{NO_ALIGNMENT, PORT_ALIGNMENT, REQUIRE_ALIGNMENT}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputManager,
+  OutputManager,
+  WorkerTimerService
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  PORT_ALIGNMENT,
+  REQUIRE_ALIGNMENT
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  READY,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_CHANNEL, METHOD_START_CHANNEL}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
+  METHOD_START_CHANNEL
+}
 import io.grpc.MethodDescriptor
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -65,7 +93,8 @@ class DataProcessor(
   val stateManager: WorkerStateManager = new WorkerStateManager(actorId)
   val inputManager: InputManager = new InputManager(actorId, inputMessageQueue)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
-  val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway, inputManager)
+  val channelMarkerManager: ChannelMarkerManager =
+    new ChannelMarkerManager(actorId, inputGateway, inputManager)
   val serializationManager: SerializationManager = new SerializationManager(actorId)
 
   def getQueuedCredit(channelId: ChannelIdentity): Long = {

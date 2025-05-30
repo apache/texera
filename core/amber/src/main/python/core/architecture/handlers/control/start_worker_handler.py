@@ -59,4 +59,3 @@ class StartWorkerHandler(ControlHandler):
         self.start_channel()
         self.end_channel()
         return WorkerStateResponse(self.context.state_manager.get_current_state())
-      

@@ -21,17 +21,31 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputGateway, InputManager}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{NO_ALIGNMENT, PORT_ALIGNMENT, REQUIRE_ALIGNMENT}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  PORT_ALIGNMENT,
+  REQUIRE_ALIGNMENT
+}
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 
-class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway, inputManager: InputManager)
-    extends AmberLogging {
+class ChannelMarkerManager(
+    val actorId: ActorVirtualIdentity,
+    inputGateway: InputGateway,
+    inputManager: InputManager
+) extends AmberLogging {
 
-  private val markerReceived = new mutable.HashMap[ChannelMarkerIdentity, mutable.HashMap[PortIdentity, Set[ChannelIdentity]]]()
+  private val markerReceived =
+    new mutable.HashMap[ChannelMarkerIdentity, mutable.HashMap[PortIdentity, Set[
+      ChannelIdentity
+    ]]]()
 
   val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
 
@@ -68,14 +82,14 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
           markerReceived.remove(markerId) // clean up if all markers are received
         }
         markerReceivedFromAllChannels
-      case PORT_ALIGNMENT    =>
+      case PORT_ALIGNMENT =>
         val markerReceivedFromCurrentPort =
           getChannelsWithinPort(marker, portId).subsetOf(portMap(portId))
         if (markerReceivedFromCurrentPort) {
           portMap.remove(portId)
         }
         markerReceivedFromCurrentPort
-      case NO_ALIGNMENT      =>
+      case NO_ALIGNMENT =>
         markerReceived(markerId).size == 1 // only the first marker triggers
       case _ =>
         throw new IllegalArgumentException(
@@ -85,7 +99,10 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     epochMarkerCompleted
   }
 
-  private def filterChannels(channels: Iterable[ChannelIdentity], marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
+  private def filterChannels(
+      channels: Iterable[ChannelIdentity],
+      marker: ChannelMarkerPayload
+  ): Set[ChannelIdentity] = {
     if (marker.scope.isEmpty) channels.toSet
     else {
       val upstreams = marker.scope.filter(_.toWorkerId == actorId).toSet
@@ -97,7 +114,10 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     filterChannels(inputGateway.getAllDataChannels.map(_.channelId), marker)
   }
 
-  private def getChannelsWithinPort(marker: ChannelMarkerPayload, portId: PortIdentity): Set[ChannelIdentity] = {
+  private def getChannelsWithinPort(
+      marker: ChannelMarkerPayload,
+      portId: PortIdentity
+  ): Set[ChannelIdentity] = {
     filterChannels(inputManager.getPort(portId).channels, marker)
   }
 }

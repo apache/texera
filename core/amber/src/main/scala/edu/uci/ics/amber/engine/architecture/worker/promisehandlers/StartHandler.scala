@@ -43,7 +43,12 @@ trait StartHandler {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
-      dp.inputManager.addPort(PortIdentity(), null, urisToRead = List.empty, partitionings = List.empty)
+      dp.inputManager.addPort(
+        PortIdentity(),
+        null,
+        urisToRead = List.empty,
+        partitionings = List.empty
+      )
       dp.inputManager.currentChannelId = channelId
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
       startChannel(request, ctx)
