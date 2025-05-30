@@ -167,6 +167,7 @@ import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { NzSliderModule } from "ng-zorro-antd/slider";
+import { SiteSettingsComponent } from "./dashboard/component/admin/site-settings/site-settings.component";
 
 registerLocaleData(en);
 
@@ -257,6 +258,7 @@ registerLocaleData(en);
     CodeDebuggerComponent,
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
+    SiteSettingsComponent,
   ],
   imports: [
     BrowserModule,

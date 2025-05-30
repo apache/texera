@@ -1,0 +1,123 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.site-settings-section-title {
+  background-color: lightcoral;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  .page-title {
+    color: #fff;
+    margin: 0;
+  }
+}
+
+.logo-upload-card {
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+
+    .card-title {
+      font-weight: 500;
+      font-size: 1.1rem;
+    }
+    .change-btn {
+      font-size: 13px;
+      padding: 0 14px;
+    }
+  }
+
+  .logo-divider {
+    margin-bottom: 18px;
+    margin-top: 0;
+  }
+
+  .logo-current-box {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
+
+    .current-logo-label {
+      font-weight: 500;
+      margin-right: 18px;
+    }
+    .logo-preview-img {
+      max-height: 40px;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      background: #fafafa;
+      padding: 2px 6px;
+    }
+  }
+
+  .upload-area {
+    margin-top: 10px;
+
+    .upload-row {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      .upload-label {
+        font-weight: 500;
+        margin-bottom: 6px;
+        margin-right: 14px;
+      }
+      .logo-file-input {
+        margin-bottom: 4px;
+      }
+    }
+
+    .logo-preview-block {
+      margin-top: 2px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      b {
+        margin-bottom: 6px;
+      }
+      .logo-preview-img {
+        max-height: 80px;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        background: #fafafa;
+        padding: 6px;
+      }
+    }
+
+    .mini-logo-checkbox-label {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upload-btn-row {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+    }
+  }
+}

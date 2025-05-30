@@ -164,6 +164,14 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  getSidebarLogo(): string {
+    return localStorage.getItem("customSiteLogo") || "assets/logos/logo.png";
+  }
+
+  getMiniLogo(): string {
+    return localStorage.getItem("customMiniLogo") || "assets/logos/favicon-32x32.png";
+  }
+
   protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
   protected readonly String = String;
 }

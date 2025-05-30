@@ -40,6 +40,7 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW, DASHBOARD_ABOUT } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { SiteSettingsComponent } from "./dashboard/component/admin/site-settings/site-settings.component";
 
 const routes: Routes = [];
 
@@ -144,6 +145,10 @@ if (environment.userSystemEnabled) {
           {
             path: "execution",
             component: AdminExecutionComponent,
+          },
+          {
+            path: "site-settings",
+            component: SiteSettingsComponent,
           },
         ],
       },

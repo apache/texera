@@ -31,12 +31,13 @@
         <img
           *ngIf="isCollpased"
           alt="mini-logo"
-          src="../../../../assets/logos/favicon-32x32.png" />
+          height="32"
+          [src]="getMiniLogo()" />
         <img
           *ngIf="!isCollpased"
           alt="logo"
           height="50"
-          src="../../../../assets/logos/logo.png" />
+          [src]="getSidebarLogo()" />
       </li>
 
       <li
@@ -152,6 +153,17 @@
                   nz-icon
                   nzType="mail"></span>
                 <span>Gmail</span>
+              </li>
+              <li
+                nz-menu-item
+                nz-tooltip="Site Settings"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                [routerLink]="['/dashboard/admin/site-settings']">
+                <span
+                  nz-icon
+                  nzType="edit"></span>
+                <span>Site Settings</span>
               </li>
             </ul>
           </li>
