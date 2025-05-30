@@ -19,7 +19,7 @@
 package edu.uci.ics.amber.operator.visualization.histogram2d
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
