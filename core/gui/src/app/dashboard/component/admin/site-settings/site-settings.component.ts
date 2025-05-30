@@ -40,7 +40,7 @@ export class SiteSettingsComponent implements OnInit {
       next: data => {
         this.settings = data;
       },
-      error: err => {
+      error: (err: any) => {
         this.message.error("Failed to load site settings. Please try again later.");
       },
     });
