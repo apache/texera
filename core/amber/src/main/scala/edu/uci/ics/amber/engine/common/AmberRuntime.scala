@@ -83,16 +83,17 @@ object AmberRuntime {
   def akkaConfig: Config =
     ConfigFactory.load("cluster").withFallback(defaultApplication()).resolve()
 
-  private def createMasterAddress(addr: String, port:Int): Address = Address("akka", "Amber", addr, port)
+  private def createMasterAddress(addr: String, port: Int): Address =
+    Address("akka", "Amber", addr, port)
 
-  def startActorWorker(clusterMode:Boolean): Unit = {
+  def startActorWorker(clusterMode: Boolean): Unit = {
     var masterIpAddress = "localhost"
     var masterPort = 2552
     var nodeIp = "localhost"
     if (clusterMode) {
       masterIpAddress = AmberConfig.masterIpAddress
       masterPort = AmberConfig.masterPort
-      nodeIp = "hostname -i".!!.trim  // only supported by linux/unix
+      nodeIp = "hostname -i".!!.trim // only supported by linux/unix
     }
     val workerConfig = ConfigFactory
       .parseString(s"""

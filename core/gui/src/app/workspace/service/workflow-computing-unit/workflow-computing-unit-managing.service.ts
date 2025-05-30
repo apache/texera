@@ -122,7 +122,18 @@ export class WorkflowComputingUnitManagingService {
     diskLimit: string,
     numNodes: number
   ): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, "", diskLimit, numNodes, "kubernetes");
+    return this.createComputingUnit(
+      name,
+      cpuLimit,
+      memoryLimit,
+      gpuLimit,
+      jvmMemorySize,
+      shmSize,
+      "",
+      diskLimit,
+      numNodes,
+      "kubernetes"
+    );
   }
 
   /**
@@ -133,7 +144,7 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createLocalComputingUnit(name: string, uri: string): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, "NaN", "NaN", undefined, "NaN", undefined, uri,"NaN", 1, "local");
+    return this.createComputingUnit(name, "NaN", "NaN", undefined, "NaN", undefined, uri, "NaN", 1, "local");
   }
 
   /**

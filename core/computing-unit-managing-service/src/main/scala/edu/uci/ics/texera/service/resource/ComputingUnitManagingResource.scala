@@ -28,7 +28,12 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.service.{ComputingUnitConfig, KubernetesConfig}
-import edu.uci.ics.texera.service.KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
+import edu.uci.ics.texera.service.KubernetesConfig.{
+  cpuLimitOptions,
+  gpuLimitOptions,
+  maxNumOfRunningComputingUnitsPerUser,
+  memoryLimitOptions
+}
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
 import edu.uci.ics.texera.service.util.KubernetesClient
@@ -141,10 +146,12 @@ class ComputingUnitManagingResource {
     getComputingUnitByCuid(ctx, cuid).getUid == uid
   }
 
-  private def isCluster(unit:WorkflowComputingUnit): Boolean = {
+  private def isCluster(unit: WorkflowComputingUnit): Boolean = {
     Json
       .parse(unit.getResource)
-      .as[JsObject].value("numNodes").as[Int] > 1
+      .as[JsObject]
+      .value("numNodes")
+      .as[Int] > 1
   }
 
   private def getSupportedComputingUnitTypes: List[String] = {
@@ -281,14 +288,14 @@ class ComputingUnitManagingResource {
           )
 
         // disallowing shm and gpu configuration for a cluster for now.
-        if(param.numNodes > 1 && (param.shmSize.isDefined || param.gpuLimit.isDefined)){
+        if (param.numNodes > 1 && (param.shmSize.isDefined || param.gpuLimit.isDefined)) {
           throw new ForbiddenException(
             s"It is not allowed to configure shared memory or GPU in a cluster."
           )
         }
 
         // Check if the shared-memory size is the valid size representation
-        if(param.shmSize.isDefined){
+        if (param.shmSize.isDefined) {
           val shmQuantity =
             try {
               Quantity.parse(param.shmSize.get)
@@ -411,7 +418,7 @@ class ComputingUnitManagingResource {
           EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
         )
 
-        if(param.numNodes > 1){
+        if (param.numNodes > 1) {
           KubernetesClient.createCluster(
             cuid,
             param.cpuLimit,
@@ -420,7 +427,7 @@ class ComputingUnitManagingResource {
             param.numNodes,
             envVars
           )
-        }else {
+        } else {
           val volume = KubernetesClient.createVolume(cuid, param.diskLimit)
           KubernetesClient.createPod(
             cuid,
@@ -429,7 +436,8 @@ class ComputingUnitManagingResource {
             envVars,
             volume,
             param.gpuLimit,
-            param.shmSize)
+            param.shmSize
+          )
         }
       }
 
@@ -476,15 +484,15 @@ class ComputingUnitManagingResource {
         val podName = KubernetesClient.generatePodName(cuid)
         val pod = KubernetesClient.getPodByName(podName)
 
-        val status = if(isCluster(unit)){
+        val status = if (isCluster(unit)) {
           val phases = (pod.toSeq ++ KubernetesClient.getClusterPodsById(cuid))
             .map(_.getStatus.getPhase)
 
           phases.distinct match {
             case Seq(singlePhase) => singlePhase // all identical
-            case _                => "Unknown"   // mixed
+            case _                => "Unknown" // mixed
           }
-        }else{
+        } else {
           getComputingUnitStatus(unit).toString
         }
 
@@ -552,9 +560,9 @@ class ComputingUnitManagingResource {
 
       // if the computing unit is kubernetes pod, then kill the pod
       if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
-        if(isCluster(unit)){
+        if (isCluster(unit)) {
           KubernetesClient.deleteCluster(cuid)
-        }else{
+        } else {
           KubernetesClient.deleteVolume(cuid)
           KubernetesClient.deletePod(cuid)
         }

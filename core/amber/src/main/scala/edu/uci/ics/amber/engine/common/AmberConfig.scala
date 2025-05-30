@@ -60,7 +60,6 @@ object AmberConfig {
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
-
   // clustering
   val amberClusterEnabled: Boolean = getConfSource.getBoolean("clustering.enabled")
   val masterIpAddress: String = getConfSource.getString("clustering.master-ip-address")

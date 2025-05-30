@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import {Component, Input, OnChanges, OnInit, SimpleChanges} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
@@ -318,9 +318,9 @@ export class ComputingUnitSelectionComponent implements OnInit {
           this.newComputingUnitName,
           this.selectedCpu,
           this.selectedMemory,
-          this.enabledGPUSelection? this.selectedGpu: undefined,
+          this.enabledGPUSelection ? this.selectedGpu : undefined,
           this.selectedJvmMemorySize,
-          this.enabledShmAdjustment? selectedShmSize: undefined,
+          this.enabledShmAdjustment ? selectedShmSize : undefined,
           this.selectedDiskSize + "Gi",
           this.selectedNumNodes
         )
@@ -659,7 +659,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
     this.resetJvmMemorySlider();
   }
 
-  isCluster():boolean {
+  isCluster(): boolean {
     return this.selectedNumNodes > 1;
   }
 
