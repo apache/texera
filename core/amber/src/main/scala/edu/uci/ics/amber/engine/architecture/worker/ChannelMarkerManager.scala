@@ -59,51 +59,45 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     }
     portMap.update(portId, portMap(portId) + from)
     // check if the epoch marker is completed
-    val markerReceivedFromAllChannels =
-      getChannelsWithinScope(marker).subsetOf(portMap.values.flatten.toSet)
-    val markerReceivedFromCurrentPort =
-      getChannelsWithinPort(marker, portId).subsetOf(portMap(portId))
+
     val epochMarkerCompleted = marker.markerType match {
-      case REQUIRE_ALIGNMENT => markerReceivedFromAllChannels
-      case PORT_ALIGNMENT    => markerReceivedFromCurrentPort
-      case NO_ALIGNMENT      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case REQUIRE_ALIGNMENT =>
+        val markerReceivedFromAllChannels =
+          getChannelsWithinScope(marker).subsetOf(portMap.values.flatten.toSet)
+        if (markerReceivedFromAllChannels) {
+          markerReceived.remove(markerId) // clean up if all markers are received
+        }
+        markerReceivedFromAllChannels
+      case PORT_ALIGNMENT    =>
+        val markerReceivedFromCurrentPort =
+          getChannelsWithinPort(marker, portId).subsetOf(portMap(portId))
+        if (markerReceivedFromCurrentPort) {
+          portMap.remove(portId)
+        }
+        markerReceivedFromCurrentPort
+      case NO_ALIGNMENT      =>
+        markerReceived(markerId).size == 1 // only the first marker triggers
       case _ =>
         throw new IllegalArgumentException(
           s"Unsupported marker type: ${marker.markerType}"
         )
     }
-    if (markerReceivedFromAllChannels) {
-      markerReceived.remove(markerId) // clean up if all markers are received
-    }
-    if (markerReceivedFromCurrentPort) {
-      portMap.remove(portId)
-    }
     epochMarkerCompleted
   }
 
-  private def getChannelsWithinScope(marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
-    if (marker.scope.isEmpty) {
-      inputGateway.getAllDataChannels
-        .map(_.channelId)
-    } else {
-      val upstreams = marker.scope.filter(_.toWorkerId == actorId)
-      inputGateway.getAllChannels
-        .map(_.channelId)
-        .filter { id =>
-          upstreams.contains(id)
-        }
+  private def filterChannels(channels: Iterable[ChannelIdentity], marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
+    if (marker.scope.isEmpty) channels.toSet
+    else {
+      val upstreams = marker.scope.filter(_.toWorkerId == actorId).toSet
+      channels.filter(upstreams.contains).toSet
     }
-  }.toSet
+  }
+
+  private def getChannelsWithinScope(marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
+    filterChannels(inputGateway.getAllDataChannels.map(_.channelId), marker)
+  }
 
   private def getChannelsWithinPort(marker: ChannelMarkerPayload, portId: PortIdentity): Set[ChannelIdentity] = {
-    if (marker.scope.isEmpty) {
-      inputManager.getPort(portId).channels
-    } else {
-      val upstreams = marker.scope.filter(_.toWorkerId == actorId)
-      inputManager.getPort(portId).channels
-        .filter { id =>
-          upstreams.contains(id)
-        }
-    }
-  }.toSet
+    filterChannels(inputManager.getPort(portId).channels, marker)
+  }
 }
