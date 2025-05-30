@@ -332,7 +332,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             f"receive channel marker from {channel_id},"
             f" id = {marker_id}, cmd = {command}"
         )
-        if marker_payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
+        if marker_payload.marker_type in (ChannelMarkerType.REQUIRE_ALIGNMENT, ChannelMarkerType.PORT_ALIGNMENT):
             self.context.pause_manager.pause_input_channel(
                 PauseType.MARKER_PAUSE, channel_id
             )
@@ -364,7 +364,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                         )
                         self._send_channel_marker(active_channel_id, marker_payload)
 
-            if marker_payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
+            if marker_payload.marker_type in (ChannelMarkerType.REQUIRE_ALIGNMENT, ChannelMarkerType.PORT_ALIGNMENT):
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
     def _send_channel_marker_to_data_channels(
@@ -374,7 +374,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not active_channel_id.is_control:
                 marker_payload = ChannelMarkerPayload(
                     ChannelMarkerIdentity(method_name),
-                    marker_type,
+                    alignment,
                     [],
                     {
                         active_channel_id.to_worker_id.name: ControlInvocation(
@@ -401,7 +401,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 if isinstance(batch, ChannelMarkerPayload)
                 else DataElement(tag=tag, payload=batch)
             )
-            print("efrerferf", element)
             self._output_queue.put(element)
 
     def _process_data_element(self, data_element: DataElement) -> None:

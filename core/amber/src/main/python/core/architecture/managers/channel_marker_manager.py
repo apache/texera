@@ -19,18 +19,19 @@ from collections import defaultdict
 from typing import Set, Dict
 
 from core.architecture.packaging.input_manager import Channel
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity, PortIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ChannelMarkerPayload,
     ChannelMarkerType,
 )
+from pampy import match
 
 
 class ChannelMarkerManager:
     def __init__(self, actor_id: ActorVirtualIdentity, input_gateway):
         self.actor_id = actor_id
         self.input_gateway = input_gateway
-        self.marker_received: Dict[str, Set[ChannelIdentity]] = defaultdict(set)
+        self.marker_received: Dict[str, Dict[PortIdentity, Set[ChannelIdentity]]] = defaultdict(lambda: defaultdict(set))
 
     def is_marker_aligned(
         self, from_channel: ChannelIdentity, marker: ChannelMarkerPayload
@@ -50,32 +51,53 @@ class ChannelMarkerManager:
                   continue, False otherwise.
         """
         marker_id = marker.id
-        self.marker_received[marker_id].add(from_channel)
-
-        marker_received_from_all_channels = self.get_channels_within_scope(
-            marker
-        ).issubset(self.marker_received[marker_id])
+        port_id = self.input_gateway.get_port_id(from_channel)
+        port_map = self.marker_received[marker_id]
+        port_map[port_id].add(from_channel)
 
         if marker.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
+            marker_received_from_all_channels = self.get_channels_within_scope(
+                marker
+            ).issubset(set().union(*port_map.values()))
             epoch_marker_completed = marker_received_from_all_channels
+            if marker_received_from_all_channels:
+                del self.marker_received[marker_id]  # Clean up if all markers are received
+        elif marker.marker_type == ChannelMarkerType.PORT_ALIGNMENT:
+            marker_received_from_current_port = self.get_channels_within_port(
+                marker, port_id
+            ).issubset(port_map[port_id])
+            epoch_marker_completed = marker_received_from_current_port
+            if marker_received_from_current_port:
+                del port_map[port_id]
         elif marker.marker_type == ChannelMarkerType.NO_ALIGNMENT:
-            epoch_marker_completed = (
-                len(self.marker_received[marker_id]) == 1
-            )  # Only the first marker triggers
+            epoch_marker_completed = len(self.marker_received[marker_id]) == 1 # Only the first marker triggers
         else:
             raise ValueError(f"Unsupported marker type: {marker.marker_type}")
 
-        if marker_received_from_all_channels:
-            del self.marker_received[marker_id]  # Clean up if all markers are received
-
         return epoch_marker_completed
 
+    def _filter_channels_within_scope(
+            self, channels: set, marker: ChannelMarkerPayload
+    ) -> set:
+        if marker.scope:
+            upstreams = {
+                channel_id
+                for channel_id in marker.scope
+                if channel_id.to_worker_id == self.actor_id
+            }
+            return channels & upstreams
+        return channels
+
     def get_channels_within_scope(
-        self, marker: ChannelMarkerPayload
+            self, marker: ChannelMarkerPayload
     ) -> Dict["ChannelIdentity", "Channel"].keys:
-        upstreams = {
-            channel_id
-            for channel_id in marker.scope
-            if channel_id.to_worker_id == self.actor_id
-        }
-        return self.input_gateway.get_all_channel_ids() & upstreams
+        return self._filter_channels_within_scope(
+            set(self.input_gateway.get_all_channel_ids()), marker
+        )
+
+    def get_channels_within_port(
+            self, marker: ChannelMarkerPayload, port_id: PortIdentity
+    ) -> Dict["ChannelIdentity", "Channel"].keys:
+        return self._filter_channels_within_scope(
+            self.input_gateway.get_port(port_id).get_channels(), marker
+        )

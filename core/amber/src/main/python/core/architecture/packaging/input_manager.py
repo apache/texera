@@ -50,11 +50,14 @@ class Channel:
 class WorkerPort:
     def __init__(self, schema: Schema):
         self._schema = schema
-        self.channels: Set[Channel] = set()
+        self._channels: Set[ChannelIdentity] = set()
         self.completed = False
 
-    def add_channel(self, channel: Channel) -> None:
-        self.channels.add(channel)
+    def add_channel(self, channel: ChannelIdentity) -> None:
+        self._channels.add(channel)
+
+    def get_channels(self) -> Set[ChannelIdentity]:
+        return self._channels
 
     def get_schema(self) -> Schema:
         return self._schema
@@ -130,6 +133,9 @@ class InputManager:
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id
 
+    def get_port(self, port_id: PortIdentity) -> WorkerPort:
+        return self._ports[port_id]
+
     def register_input(
         self, channel_id: ChannelIdentity, port_id: PortIdentity
     ) -> None:
@@ -140,7 +146,7 @@ class InputManager:
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
-        self._ports[port_id].add_channel(channel)
+        self._ports[port_id].add_channel(channel_id)
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
