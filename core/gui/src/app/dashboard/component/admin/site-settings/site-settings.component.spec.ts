@@ -18,17 +18,23 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-
 import { SiteSettingsComponent } from "./site-settings.component";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { NzMessageModule } from "ng-zorro-antd/message";
+import { NzCardModule } from "ng-zorro-antd/card";
 
 describe("SiteSettingsComponent", () => {
   let component: SiteSettingsComponent;
   let fixture: ComponentFixture<SiteSettingsComponent>;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       declarations: [SiteSettingsComponent],
-    });
+      imports: [HttpClientTestingModule, NzMessageModule, NzCardModule],
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
     fixture = TestBed.createComponent(SiteSettingsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
