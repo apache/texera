@@ -67,7 +67,7 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "2D Histogram",
       "Displays a bivariate histogram as a density heatmap",
-      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
+      OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
