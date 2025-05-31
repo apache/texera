@@ -337,7 +337,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             f" id = {marker_id}, cmd = {command}"
         )
         if marker_payload.marker_type in (
-            ChannelMarkerType.REQUIRE_ALIGNMENT,
+            ChannelMarkerType.ALL_ALIGNMENT,
             ChannelMarkerType.PORT_ALIGNMENT,
         ):
             self.context.pause_manager.pause_input_channel(
@@ -372,7 +372,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                         self._send_channel_marker(active_channel_id, marker_payload)
 
             if marker_payload.marker_type in (
-                ChannelMarkerType.REQUIRE_ALIGNMENT,
+                ChannelMarkerType.ALL_ALIGNMENT,
                 ChannelMarkerType.PORT_ALIGNMENT,
             ):
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)

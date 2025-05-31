@@ -39,7 +39,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
   NO_ALIGNMENT,
   PORT_ALIGNMENT,
-  REQUIRE_ALIGNMENT
+  ALL_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -247,7 +247,7 @@ class DataProcessor(
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
     logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
-    if (marker.markerType == REQUIRE_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
+    if (marker.markerType == ALL_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
@@ -271,7 +271,7 @@ class DataProcessor(
         }
       }
       // unblock input channels
-      if (marker.markerType == REQUIRE_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
+      if (marker.markerType == ALL_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
         pauseManager.resume(EpochMarkerPause(markerId))
       }
     }

@@ -1142,7 +1142,7 @@ class TestMainLoop:
             )
         }
         test_marker = ChannelMarkerPayload(
-            "test_marker", ChannelMarkerType.REQUIRE_ALIGNMENT, scope, command_mapping
+            "test_marker", ChannelMarkerType.ALL_ALIGNMENT, scope, command_mapping
         )
         input_queue.put(
             ChannelMarkerElement(tag=mock_control_input_channel, payload=test_marker)

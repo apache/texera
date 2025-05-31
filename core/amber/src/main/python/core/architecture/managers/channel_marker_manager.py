@@ -61,7 +61,7 @@ class ChannelMarkerManager:
         port_map = self.marker_received[marker_id]
         port_map[port_id].add(from_channel)
 
-        if marker.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
+        if marker.marker_type == ChannelMarkerType.ALL_ALIGNMENT:
             marker_received_from_all_channels = self.get_channels_within_scope(
                 marker
             ).issubset(set().union(*port_map.values()))

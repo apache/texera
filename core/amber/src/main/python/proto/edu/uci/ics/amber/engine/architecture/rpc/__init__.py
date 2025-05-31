@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 class ChannelMarkerType(betterproto.Enum):
     """Enum for ChannelMarkerType"""
 
-    REQUIRE_ALIGNMENT = 0
+    ALL_ALIGNMENT = 0
     NO_ALIGNMENT = 1
     PORT_ALIGNMENT = 2
 

@@ -24,7 +24,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPa
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
   NO_ALIGNMENT,
   PORT_ALIGNMENT,
-  REQUIRE_ALIGNMENT
+  ALL_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.core.virtualidentity.{
@@ -75,7 +75,7 @@ class ChannelMarkerManager(
     // check if the epoch marker is completed
 
     val epochMarkerCompleted = marker.markerType match {
-      case REQUIRE_ALIGNMENT =>
+      case ALL_ALIGNMENT =>
         val markerReceivedFromAllChannels =
           getChannelsWithinScope(marker).subsetOf(portMap.values.flatten.toSet)
         if (markerReceivedFromAllChannels) {
