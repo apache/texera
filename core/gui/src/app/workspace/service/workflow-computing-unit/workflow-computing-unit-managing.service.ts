@@ -57,6 +57,7 @@ export class WorkflowComputingUnitManagingService {
           memoryLimit: "NaN",
           gpuLimit: "NaN",
           jvmMemorySize: "NaN",
+          shmSize: "NaN",
           nodeAddresses: [],
         };
       }
@@ -72,22 +73,25 @@ export class WorkflowComputingUnitManagingService {
    * @param gpuLimit The gpu resource limit for the computing unit.
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
    * @param unitType The type of computing unit (e.g. "local", "kubernetes")
+   * @param shmSize The shared memory size
+   * @param uri The URI of the local computing unit; for kubernetes-based computing units, this is not used in the backend.
    * @returns An Observable of the created WorkflowComputingUnit.
    */
-  public createComputingUnit(
+  private createComputingUnit(
     name: string,
     cpuLimit: string,
     memoryLimit: string,
-    gpuLimit: string = "0",
-    jvmMemorySize: string = "1G",
-    unitType: string = "kubernetes"
+    gpuLimit: string,
+    jvmMemorySize: string,
+    shmSize: string,
+    uri: string,
+    unitType: "kubernetes" | "local"
   ): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, unitType };
+    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, uri, unitType };
 
-    return this.http.post<DashboardWorkflowComputingUnit>(
-      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`,
-      body
-    );
+    return this.http
+      .post<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`, body)
+      .pipe(map(raw => this.parseDashboardUnit(raw)));
   }
 
   /**
@@ -98,18 +102,18 @@ export class WorkflowComputingUnitManagingService {
    * @param memoryLimit The memory resource limit for the computing unit.
    * @param gpuLimit The gpu resource limit for the computing unit.
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
+   * @param shmSize The shared memory size
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createKubernetesBasedComputingUnit(
     name: string,
     cpuLimit: string,
     memoryLimit: string,
-    gpuLimit: string = "0",
-    jvmMemorySize: string = "1G"
+    gpuLimit: string,
+    jvmMemorySize: string,
+    shmSize: string
   ): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, "kubernetes").pipe(
-      map(raw => this.parseDashboardUnit(raw))
-    );
+    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, "", "kubernetes");
   }
 
   /**
@@ -120,26 +124,7 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createLocalComputingUnit(name: string, uri: string): Observable<DashboardWorkflowComputingUnit> {
-    // Default resources (will be ignored for local computing units)
-    const cpuLimit = "1";
-    const memoryLimit = "1Gi";
-    const gpuLimit = "0";
-    const jvmMemorySize = "1G";
-
-    // Additional information for local units
-    const body = {
-      name,
-      cpuLimit,
-      memoryLimit,
-      gpuLimit,
-      jvmMemorySize,
-      unitType: "local",
-      uri,
-    };
-
-    return this.http
-      .post<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`, body)
-      .pipe(map(raw => this.parseDashboardUnit(raw)));
+    return this.createComputingUnit(name, "NaN", "NaN", "NaN", "NaN", "NaN", uri, "local");
   }
 
   /**

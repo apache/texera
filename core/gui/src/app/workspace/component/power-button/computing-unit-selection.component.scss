@@ -342,3 +342,33 @@
 .metric-value {
   margin: 0;
 }
+
+.shared-memory-group {
+  width: 100%;
+
+  .shm-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .shm-size-input {
+    width: 60px;
+    min-width: 50px;
+    flex-shrink: 0;
+  }
+
+  .shm-unit-select {
+    width: 80px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .shm-warning {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #faad14;
+    white-space: nowrap;
+  }
+}
