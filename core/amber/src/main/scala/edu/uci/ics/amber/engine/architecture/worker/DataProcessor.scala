@@ -247,7 +247,7 @@ class DataProcessor(
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
     logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
-    if (marker.markerType == ALL_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
+    if (marker.markerType != NO_ALIGNMENT) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
     if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
@@ -271,7 +271,7 @@ class DataProcessor(
         }
       }
       // unblock input channels
-      if (marker.markerType == ALL_ALIGNMENT || marker.markerType == PORT_ALIGNMENT) {
+      if (marker.markerType != NO_ALIGNMENT) {
         pauseManager.resume(EpochMarkerPause(markerId))
       }
     }
