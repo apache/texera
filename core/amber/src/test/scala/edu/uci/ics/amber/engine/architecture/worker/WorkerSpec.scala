@@ -37,6 +37,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
   MainThreadDelegateMessage,
   WorkerReplayInitialization
 }
@@ -48,7 +49,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue}
 import scala.collection.mutable
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
@@ -146,7 +147,11 @@ class WorkerSpec
         WorkerConfig(identifier1),
         WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
-        this.dp = new DataProcessor(identifier1, mockHandler)
+        this.dp = new DataProcessor(
+          identifier1,
+          mockHandler,
+          inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+        )
         this.dp.initTimerService(timerService)
         dpThread = new DPThread(
           actorId,
@@ -164,13 +169,13 @@ class WorkerSpec
     )
     val addPort1 = AsyncRPCClient.ControlInvocation(
       METHOD_ASSIGN_PORT,
-      AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema, ""),
+      AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema, List(""), List()),
       AsyncRPCContext(CONTROLLER, identifier1),
       1
     )
     val addPort2 = AsyncRPCClient.ControlInvocation(
       METHOD_ASSIGN_PORT,
-      AssignPortRequest(mockPortId, input = false, mkSchema(1).toRawSchema, ""),
+      AssignPortRequest(mockPortId, input = false, mkSchema(1).toRawSchema, List(""), List()),
       AsyncRPCContext(CONTROLLER, identifier1),
       2
     )

@@ -120,6 +120,7 @@ import edu.uci.ics.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
+import edu.uci.ics.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
@@ -200,6 +201,7 @@ trait StateTransferFunc
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
+    new Type(value = classOf[VolcanoPlotOpDesc], name = "VolcanoPlot"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),

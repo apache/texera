@@ -66,4 +66,9 @@ export class WorkflowStatusService {
     );
     this.statusSubject.next(initStatus);
   }
+
+  public clearStatus(): void {
+    this.currentStatus = {};
+    this.statusSubject.next({});
+  }
 }

@@ -45,7 +45,12 @@ trait StartHandler {
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
       val dummyInputPortId = PortIdentity()
-      dp.inputManager.addPort(dummyInputPortId, null)
+      dp.inputManager.addPort(
+        dummyInputPortId,
+        null,
+        urisToRead = List.empty,
+        partitionings = List.empty
+      )
       dp.inputGateway
         .getChannel(ChannelIdentity(SOURCE_STARTER_ACTOR, actorId, isControl = false))
         .setPortId(dummyInputPortId)
@@ -57,6 +62,11 @@ trait StartHandler {
         ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
         MarkerFrame(EndOfInputChannel())
       )
+      WorkerStateResponse(dp.stateManager.getCurrentState)
+    } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {
+      // This means the worker should read from materialized storage for its input ports.
+      // Start the reader threads
+      dp.inputManager.startInputPortReaderThreads()
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else {
       throw new WorkflowRuntimeException(

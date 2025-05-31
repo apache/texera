@@ -74,13 +74,14 @@ object WorkflowService {
 
   def getOrCreate(
       workflowId: WorkflowIdentity,
+      computingUnitId: Int,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
     workflowServiceMapping.compute(
       mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
-          new WorkflowService(workflowId, cleanupTimeout)
+          new WorkflowService(workflowId, computingUnitId, cleanupTimeout)
         } else {
           v
         }
@@ -91,6 +92,7 @@ object WorkflowService {
 
 class WorkflowService(
     val workflowId: WorkflowIdentity,
+    val computingUnitId: Int,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -100,15 +102,15 @@ class WorkflowService(
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: ExecutionResultService = new ExecutionResultService(workflowId, stateStore)
-  val exportService: ResultExportService = new ResultExportService(workflowId)
+  val resultService: ExecutionResultService =
+    new ExecutionResultService(workflowId, computingUnitId, stateStore)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
       // clear the storage resources associated with the latest execution
       WorkflowExecutionService
-        .getLatestExecutionId(workflowId)
+        .getLatestExecutionId(workflowId, computingUnitId)
         .foreach(eid => {
           clearExecutionResources(eid)
         })
@@ -191,7 +193,8 @@ class WorkflowService(
     var controllerConf = ControllerConfig.default
 
     // clean up results from previous run
-    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    val previousExecutionId =
+      WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
     previousExecutionId.foreach(eid => {
       clearExecutionResources(eid)
     }) // TODO: change this behavior after enabling cache.
@@ -200,7 +203,8 @@ class WorkflowService(
       workflowContext.workflowId,
       uidOpt,
       req.executionName,
-      convertToJson(req.engineVersion)
+      convertToJson(req.engineVersion),
+      req.computingUnitId
     )
 
     if (AmberConfig.isUserSystemEnabled) {
