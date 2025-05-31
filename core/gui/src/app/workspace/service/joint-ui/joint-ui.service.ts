@@ -303,15 +303,39 @@ export class JointUIService {
     const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
-    const inputLines = Object.entries(statistics.inputPortMetrics)
-      .map(([portId, count]) => `Port ID ${portId}: ${count}`)
-      .join("\n");
+
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    const allPorts = element.getPorts();
+    const inPorts = allPorts.filter((p) => p.group === "in");
+    const inputMetrics = statistics.inputPortMetrics;
+
+    inPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
+
+        const count: number = inputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":")
+          ? oldText.split(":", 1)[0].trim()
+          : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = `${originalName}: ${count}`;
+
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
+    });
 
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorOutputCountClass}`]: { text: outputText },
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
-      [`.${operatorPortMetricsClass}`]: {text: inputLines},
     });
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -372,6 +396,14 @@ export class JointUIService {
       [`.${operatorProcessedCountClass}`]: { fill: fillColor },
       [`.${operatorOutputCountClass}`]: { fill: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
+    });
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    const allPorts = element.getPorts();
+    const inPorts = allPorts.filter(p => p.group === "in");
+    inPorts.forEach(p => {
+      if (p.id != null) {
+        element.portProp(p.id, "attrs/.port-label/fill", fillColor);
+      }
     });
   }
 
