@@ -281,9 +281,9 @@ class ComputingUnitManagingResource {
             s"Memory quantity '${param.memoryLimit}' is not allowed. " +
               s"Valid options: ${memoryLimitOptions.mkString(", ")}"
           )
-        if (!gpuLimitOptions.contains(param.gpuLimit))
+        if (param.gpuLimit.isDefined && !gpuLimitOptions.contains(param.gpuLimit))
           throw new ForbiddenException(
-            s"GPU quantity '${param.gpuLimit}' is not allowed. " +
+            s"GPU quantity '${param.gpuLimit.get}' is not allowed. " +
               s"Valid options: ${gpuLimitOptions.mkString(", ")}"
           )
 
