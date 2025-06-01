@@ -109,8 +109,11 @@ class InputManager:
                 )
                 thread_for_reader_runnable.start()
 
-    def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
+    def get_all_channel_ids(self) -> Dict[ChannelIdentity, Channel].keys:
         return self._channels.keys()
+
+    def get_all_data_channel_ids(self) -> Set[ChannelIdentity]:
+        return {key for key in self._channels if not key.is_control}
 
     def add_input_port(
         self,

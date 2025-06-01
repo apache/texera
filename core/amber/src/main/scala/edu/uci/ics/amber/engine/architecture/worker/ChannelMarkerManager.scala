@@ -32,7 +32,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
   ChannelIdentity,
   ChannelMarkerIdentity
 }
-import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -42,10 +41,7 @@ class ChannelMarkerManager(
     inputManager: InputManager
 ) extends AmberLogging {
 
-  private val markerReceived =
-    new mutable.HashMap[ChannelMarkerIdentity, mutable.HashMap[PortIdentity, Set[
-      ChannelIdentity
-    ]]]()
+  private val markerReceived = new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]()
 
   val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
 
@@ -65,30 +61,17 @@ class ChannelMarkerManager(
     val markerId = marker.id
     val portId = inputGateway.getChannel(from).getPortId
     if (!markerReceived.contains(markerId)) {
-      markerReceived(markerId) = new mutable.HashMap[PortIdentity, Set[ChannelIdentity]]()
+      markerReceived(markerId) = Set()
     }
-    val portMap = markerReceived(markerId)
-    if (!portMap.contains(portId)) {
-      portMap(portId) = Set()
-    }
-    portMap.update(portId, portMap(portId) + from)
+    markerReceived.update(markerId, markerReceived(markerId) + from)
+    val markerReceivedFromAllChannels =
+      getChannelsWithinScope(marker).subsetOf(markerReceived(markerId))
     // check if the epoch marker is completed
-
     val epochMarkerCompleted = marker.markerType match {
       case ALL_ALIGNMENT =>
-        val markerReceivedFromAllChannels =
-          getChannelsWithinScope(marker).subsetOf(portMap.values.flatten.toSet)
-        if (markerReceivedFromAllChannels) {
-          markerReceived.remove(markerId) // clean up if all markers are received
-        }
         markerReceivedFromAllChannels
       case PORT_ALIGNMENT =>
-        val markerReceivedFromCurrentPort =
-          getChannelsWithinPort(marker, portId).subsetOf(portMap(portId))
-        if (markerReceivedFromCurrentPort) {
-          portMap.remove(portId)
-        }
-        markerReceivedFromCurrentPort
+        inputManager.getPort(portId).channels.subsetOf(markerReceived(markerId))
       case NO_ALIGNMENT =>
         markerReceived(markerId).size == 1 // only the first marker triggers
       case _ =>
@@ -96,28 +79,21 @@ class ChannelMarkerManager(
           s"Unsupported marker type: ${marker.markerType}"
         )
     }
+    if (markerReceivedFromAllChannels) {
+      markerReceived.remove(markerId) // clean up if all markers are received
+    }
     epochMarkerCompleted
   }
 
-  private def filterChannels(
-      channels: Iterable[ChannelIdentity],
-      marker: ChannelMarkerPayload
-  ): Set[ChannelIdentity] = {
-    if (marker.scope.isEmpty) channels.toSet
-    else {
-      val upstreams = marker.scope.filter(_.toWorkerId == actorId).toSet
-      channels.filter(upstreams.contains).toSet
-    }
-  }
-
   private def getChannelsWithinScope(marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
-    filterChannels(inputGateway.getAllDataChannels.map(_.channelId), marker)
-  }
-
-  private def getChannelsWithinPort(
-      marker: ChannelMarkerPayload,
-      portId: PortIdentity
-  ): Set[ChannelIdentity] = {
-    filterChannels(inputManager.getPort(portId).channels, marker)
-  }
+    if (marker.scope.isEmpty) inputGateway.getAllDataChannels.map(_.channelId)
+    else {
+      val upstreams = marker.scope.filter(_.toWorkerId == actorId)
+      inputGateway.getAllChannels
+        .map(_.channelId)
+        .filter { id =>
+          upstreams.contains(id)
+        }
+    }
+  }.toSet
 }
