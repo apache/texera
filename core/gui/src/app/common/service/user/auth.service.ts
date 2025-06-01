@@ -42,7 +42,6 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
   providedIn: "root",
 })
 export class AuthService {
-  private inviteOnly: boolean;
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
@@ -57,9 +56,7 @@ export class AuthService {
     private notificationService: NotificationService,
     private gmailService: GmailService,
     private config: GuiConfigService
-  ) {
-    this.inviteOnly = this.config.env.inviteOnly;
-  }
+  ) {}
 
   /**
    * This method will handle the request for user registration.
@@ -133,7 +130,7 @@ export class AuthService {
 
     const role = this.jwtHelperService.decodeToken(token).role;
     const email = this.jwtHelperService.decodeToken(token).email;
-    if (this.inviteOnly && role == Role.INACTIVE) {
+    if (this.config.env.inviteOnly && role == Role.INACTIVE) {
       alert("The account request of " + email + " is received and pending.");
       this.gmailService.notifyUnauthorizedLogin(email);
       return this.logout();

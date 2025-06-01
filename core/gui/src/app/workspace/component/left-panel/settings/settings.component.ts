@@ -36,7 +36,6 @@ export class SettingsComponent implements OnInit {
   settingsForm!: FormGroup;
   currentDataTransferBatchSize!: number;
   isSaving: boolean = false;
-  private defaultSettings!: number;
 
   constructor(
     private fb: FormBuilder,
@@ -45,13 +44,12 @@ export class SettingsComponent implements OnInit {
     private userService: UserService,
     private notificationService: NotificationService,
     private config: GuiConfigService
-  ) {
-    this.defaultSettings = this.config.env.defaultDataTransferBatchSize;
-  }
+  ) {}
 
   ngOnInit(): void {
     this.currentDataTransferBatchSize =
-      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || this.defaultSettings;
+      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+      this.config.env.defaultDataTransferBatchSize;
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
@@ -62,7 +60,8 @@ export class SettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentDataTransferBatchSize =
-          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || this.defaultSettings;
+          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+          this.config.env.defaultDataTransferBatchSize;
         this.settingsForm.patchValue(
           { dataTransferBatchSize: this.currentDataTransferBatchSize },
           { emitEvent: false }
@@ -91,6 +90,6 @@ export class SettingsComponent implements OnInit {
   }
 
   onClickReset() {
-    this.settingsForm.patchValue({ dataTransferBatchSize: this.defaultSettings });
+    this.settingsForm.patchValue({ dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize });
   }
 }

@@ -80,7 +80,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
-  public emailNotificationEnabled: boolean = false;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
@@ -105,9 +104,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public executionDuration = 0;
   private durationUpdateSubscription: Subscription = new Subscription();
 
-  // whether user dashboard is enabled and accessible from the workspace
-  public userSystemEnabled: boolean = false;
-  public timetravelEnabled: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
@@ -139,11 +135,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private config: GuiConfigService
+    protected config: GuiConfigService
   ) {
-    this.emailNotificationEnabled = this.config.env.workflowEmailNotificationEnabled;
-    this.userSystemEnabled = this.config.env.userSystemEnabled;
-    this.timetravelEnabled = this.config.env.timetravelEnabled;
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
       .pipe(untilDestroyed(this))
@@ -723,7 +716,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     // Regular workflow execution - already connected
     this.executeWorkflowService.executeWorkflowWithEmailNotification(
       this.currentExecutionName || "Untitled Execution",
-      this.emailNotificationEnabled && this.userSystemEnabled
+      this.config.env.workflowEmailNotificationEnabled && this.config.env.userSystemEnabled
     );
   }
 }
