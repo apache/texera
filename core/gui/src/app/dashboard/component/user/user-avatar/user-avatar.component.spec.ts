@@ -24,6 +24,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("UserAvatarComponent", () => {
   let component: UserAvatarComponent;
@@ -33,7 +34,7 @@ describe("UserAvatarComponent", () => {
     await TestBed.configureTestingModule({
       declarations: [UserAvatarComponent],
       imports: [HttpClientModule, HttpClientTestingModule, NzAvatarModule],
-      providers: [{ provide: UserService, useClass: StubUserService }],
+      providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
     }).compileComponents();
   });
 

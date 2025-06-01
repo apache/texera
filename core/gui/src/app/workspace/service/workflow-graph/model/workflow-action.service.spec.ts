@@ -42,6 +42,7 @@ import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { join } from "lodash";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -60,6 +61,7 @@ describe("WorkflowActionService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
       imports: [],
     });

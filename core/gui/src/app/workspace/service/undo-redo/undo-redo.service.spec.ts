@@ -26,6 +26,7 @@ import { TestBed, inject } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("UndoRedoService", () => {
   let service: UndoRedoService;
@@ -41,6 +42,7 @@ describe("UndoRedoService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
     service = TestBed.get(UndoRedoService);

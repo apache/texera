@@ -38,6 +38,7 @@ import { StubOperatorMetadataService } from "../../operator-metadata/stub-operat
 import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;
@@ -55,6 +56,7 @@ describe("JointGraphWrapperService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
     jointGraph = new joint.dia.Graph();

@@ -30,6 +30,7 @@ import { NzModalModule } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
@@ -43,6 +44,7 @@ describe("UserWorkflowListItemComponent", () => {
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
+        ...commonTestProviders,
       ],
     }).compileComponents();
   });
