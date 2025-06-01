@@ -93,6 +93,11 @@ export interface GuiConfig {
   productionSharedEditingServer: boolean;
 
   /**
+   * The port of the python language server. If not set, no port will be used in the final url
+   */
+  pythonLanguageServerPort: string;
+
+  /**
    * the file size limit for dataset upload
    */
   singleFileUploadMaximumSizeMB: number;

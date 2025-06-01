@@ -53,6 +53,7 @@ class GuiConfigResource {
       "forumEnabled" -> AmberConfig.guiDashboardForumEnabled,
       "projectEnabled" -> AmberConfig.guiDashboardProjectEnabled,
       "operatorConsoleMessageBufferSize" -> AmberConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
+      "pythonLanguageServerPort" -> AmberConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "defaultLocalUser" -> Map(
         "username" -> AmberConfig.guiLoginDefaultLocalUserUsername,
         "password" -> AmberConfig.guiLoginDefaultLocalUserPassword

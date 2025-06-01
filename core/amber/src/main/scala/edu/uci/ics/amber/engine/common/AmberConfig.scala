@@ -188,6 +188,8 @@ object AmberConfig {
     getConfSource.getBoolean("gui.workflow-workspace.timetravel-enabled")
   val guiWorkflowWorkspaceProductionSharedEditingServer: Boolean =
     getConfSource.getBoolean("gui.workflow-workspace.production-shared-editing-server")
+  val guiWorkflowWorkspacePythonLanguageServerPort: String =
+    getConfSource.getString("gui.workflow-workspace.python-language-server-port")
   val guiWorkflowWorkspaceOperatorConsoleMessageBufferSize: Int =
     getConfSource.getInt("gui.workflow-workspace.operator-console-message-buffer-size")
   val guiWorkflowWorkspaceWorkflowEmailNotificationEnabled: Boolean =
