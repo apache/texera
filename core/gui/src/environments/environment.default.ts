@@ -18,7 +18,17 @@
 // The file contains the default environment template
 // it's used to store app settings and flags to turn on or off different features
 
-export const defaultEnvironment = {
+import { GuiConfig } from "../app/common/type/gui-config";
+
+// AppEnv extends GuiConfig with the build-time production flag
+export type AppEnv = GuiConfig & {
+  /**
+   * whether we are in production mode, this is a build-time flag
+   */
+  production: boolean;
+};
+
+export const defaultEnvironment: AppEnv = {
   /**
    * whether we are in production mode, default is false
    */
@@ -148,5 +158,3 @@ export const defaultEnvironment = {
    */
   operatorConsoleMessageBufferSize: 100,
 };
-
-export type AppEnv = typeof defaultEnvironment;

@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { NgModule } from "@angular/core";
+import { APP_INITIALIZER, NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -52,6 +52,7 @@ import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
+import { GuiConfigService } from "./common/service/gui-config.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -329,8 +330,25 @@ registerLocaleData(en);
     AdminGuardService,
     DatePipe,
     UserService,
+    GuiConfigService,
     FileSaverService,
     ReportGenerationService,
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (guiConfigService: GuiConfigService) => () => {
+        return guiConfigService
+          .load()
+          .toPromise()
+          .catch(error => {
+            console.error("Failed to load GUI configuration from backend:", error);
+            alert("Failed to load application configuration. Please ensure the backend server is running.");
+            // Re-throw the error to prevent app initialization
+            throw new Error("Application initialization failed: Unable to load GUI configuration");
+          });
+      },
+      deps: [GuiConfigService],
+      multi: true,
+    },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,

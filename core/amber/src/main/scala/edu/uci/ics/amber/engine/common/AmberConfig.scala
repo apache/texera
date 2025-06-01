@@ -145,4 +145,59 @@ object AmberConfig {
     if (getConfSource.hasPath("ai-assistant-server"))
       Some(getConfSource.getConfig("ai-assistant-server"))
     else None
+
+  // GUI Configuration
+  val guiApiUrl: String = getConfSource.getString("gui.api-url")
+
+  // GUI Login Configuration
+  val guiLoginAllowUsernamePassword: Boolean =
+    getConfSource.getBoolean("gui.login.allow-username-password")
+  val guiLoginAllowGoogleAccount: Boolean =
+    getConfSource.getBoolean("gui.login.allow-google-account")
+  val guiLoginDefaultLocalUserUsername: String =
+    if (getConfSource.hasPath("gui.login.default-local-user.username"))
+      getConfSource.getString("gui.login.default-local-user.username")
+    else ""
+  val guiLoginDefaultLocalUserPassword: String =
+    if (getConfSource.hasPath("gui.login.default-local-user.password"))
+      getConfSource.getString("gui.login.default-local-user.password")
+    else ""
+
+  // GUI Dashboard Configuration
+  val guiDashboardHubEnabled: Boolean = getConfSource.getBoolean("gui.dashboard.hub-enabled")
+  val guiDashboardForumEnabled: Boolean = getConfSource.getBoolean("gui.dashboard.forum-enabled")
+  val guiDashboardProjectEnabled: Boolean =
+    getConfSource.getBoolean("gui.dashboard.project-enabled")
+
+  // GUI Workflow Workspace Configuration
+  val guiWorkflowWorkspaceUserPresetEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.user-preset-enabled")
+  val guiWorkflowWorkspaceExportExecutionResultEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.export-execution-result-enabled")
+  val guiWorkflowWorkspaceAutoAttributeCorrectionEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.auto-attribute-correction-enabled")
+  val guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.selecting-files-from-datasets-enabled")
+  val guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.workflow-executions-tracking-enabled")
+  val guiWorkflowWorkspaceLinkBreakpointEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.link-breakpoint-enabled")
+  val guiWorkflowWorkspaceAsyncRenderingEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.async-rendering-enabled")
+  val guiWorkflowWorkspaceTimetravelEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.timetravel-enabled")
+  val guiWorkflowWorkspaceProductionSharedEditingServer: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.production-shared-editing-server")
+  val guiWorkflowWorkspaceOperatorConsoleMessageBufferSize: Int =
+    getConfSource.getInt("gui.workflow-workspace.operator-console-message-buffer-size")
+  val guiWorkflowWorkspaceWorkflowEmailNotificationEnabled: Boolean =
+    getConfSource.getBoolean("gui.workflow-workspace.workflow-email-notification-enabled")
+
+  // GUI Dataset Configuration
+  val guiDatasetSingleFileUploadMaximumSizeMB: Int =
+    getConfSource.getInt("gui.dataset.single-file-upload-maximum-size-mb")
+  val guiDatasetMaxNumberOfConcurrentUploadingFileChunks: Int =
+    getConfSource.getInt("gui.dataset.max-number-of-concurrent-uploading-file-chunks")
+  val guiDatasetMultipartUploadChunkSizeByte: Long =
+    getConfSource.getLong("gui.dataset.multipart-upload-chunk-size-byte")
 }

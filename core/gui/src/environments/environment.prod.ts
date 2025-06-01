@@ -19,6 +19,10 @@
 
 import { AppEnv, defaultEnvironment } from "./environment.default";
 
+/**
+ * Production environment configuration.
+ * These values will be overridden by backend configuration at runtime.
+ */
 export const environment: AppEnv = {
   ...defaultEnvironment,
   production: true,

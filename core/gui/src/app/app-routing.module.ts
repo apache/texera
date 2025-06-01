@@ -17,9 +17,8 @@
  * under the License.
  */
 
-import { NgModule } from "@angular/core";
+import { NgModule, inject } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
-import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
@@ -40,13 +39,26 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW, DASHBOARD_ABOUT } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { GuiConfigService } from "./common/service/gui-config.service";
 
-const routes: Routes = [];
+// Guard to check if user system is enabled
+const userSystemEnabledGuard = () => {
+  const guiConfigService = inject(GuiConfigService);
+  return guiConfigService.env.userSystemEnabled;
+};
 
-if (environment.userSystemEnabled) {
-  routes.push({
+// Guard to check if user system is disabled
+const userSystemDisabledGuard = () => {
+  const guiConfigService = inject(GuiConfigService);
+  return !guiConfigService.env.userSystemEnabled;
+};
+
+const routes: Routes = [
+  // Dashboard routes (only matched when user system is enabled)
+  {
     path: "dashboard",
     component: DashboardComponent,
+    canMatch: [userSystemEnabledGuard],
     children: [
       {
         path: "home",
@@ -152,25 +164,26 @@ if (environment.userSystemEnabled) {
         component: SearchComponent,
       },
     ],
-  });
-
-  routes.push({
+  },
+  // Root redirect when user system is enabled
+  {
     path: "",
     redirectTo: DASHBOARD_ABOUT,
     pathMatch: "full",
-  });
-} else {
-  routes.push({
+    canMatch: [userSystemEnabledGuard],
+  },
+  // Root path when user system is disabled
+  {
     path: "",
     component: WorkspaceComponent,
-  });
-}
-
-// redirect all other paths to index.
-routes.push({
-  path: "**",
-  redirectTo: DASHBOARD_USER_WORKFLOW,
-});
+    canMatch: [userSystemDisabledGuard],
+  },
+  // Catch-all redirect
+  {
+    path: "**",
+    redirectTo: DASHBOARD_USER_WORKFLOW,
+  },
+];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],
