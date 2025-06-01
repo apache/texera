@@ -24,7 +24,7 @@ import { Subject } from "rxjs";
 import { Observable } from "rxjs";
 import { RingBuffer } from "ring-buffer-ts";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { environment } from "../../../../environments/environment";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
   providedIn: "root",
@@ -33,7 +33,10 @@ export class WorkflowConsoleService {
   private consoleMessages: Map<string, RingBuffer<ConsoleMessage>> = new Map();
   private consoleMessagesUpdateStream = new Subject<void>();
 
-  constructor(private workflowWebsocketService: WorkflowWebsocketService) {
+  constructor(
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private config: GuiConfigService
+  ) {
     this.registerAutoClearConsoleMessages();
     this.registerPythonConsoleUpdateEventHandler();
   }
@@ -45,7 +48,7 @@ export class WorkflowConsoleService {
         const operatorId = pythonConsoleUpdateEvent.operatorId;
         const messages =
           this.consoleMessages.get(operatorId) ||
-          new RingBuffer<ConsoleMessage>(environment.operatorConsoleMessageBufferSize);
+          new RingBuffer<ConsoleMessage>(this.config.env.operatorConsoleMessageBufferSize);
         messages.add(...pythonConsoleUpdateEvent.messages);
         this.consoleMessages.set(operatorId, messages);
         this.consoleMessagesUpdateStream.next();

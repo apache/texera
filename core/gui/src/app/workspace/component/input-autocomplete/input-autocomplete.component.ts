@@ -17,15 +17,16 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
-import { environment } from "../../../../environments/environment";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -37,7 +38,10 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   constructor(
     private modalService: NzModalService,
     public workflowActionService: WorkflowActionService,
-    public datasetService: DatasetService
+    public datasetService: DatasetService,
+    private operatorMetadataService: OperatorMetadataService,
+    private cdr: ChangeDetectorRef,
+    private config: GuiConfigService
   ) {
     super();
   }
@@ -68,8 +72,12 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
     });
   }
 
+  get enableDatasetSource(): boolean {
+    return this.config.env.userSystemEnabled && this.config.env.selectingFilesFromDatasetsEnabled;
+  }
+
   get isFileSelectionEnabled(): boolean {
-    return environment.userSystemEnabled && environment.selectingFilesFromDatasetsEnabled;
+    return this.enableDatasetSource;
   }
 
   get selectedFilePath(): string | null {

@@ -95,7 +95,7 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-  public sharedModel: SharedModel = new SharedModel();
+  public sharedModel!: SharedModel;
   public newYDocLoadedSubject = new Subject();
   private readonly centerEventSubject = new Subject<void>();
 
@@ -163,6 +163,9 @@ export class WorkflowGraph {
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
+    // Initialize sharedModel in constructor to ensure config is loaded
+    this.sharedModel = new SharedModel();
+
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox =>
@@ -245,10 +248,11 @@ export class WorkflowGraph {
    * Replaces current <code>{@link sharedModel}</code>  with a new one and destroy the old model if any.
    * @param workflowId optional, but needed if you want to join shared editing.
    * @param user optional, but needed if you want to have user presence.
+   * @param productionSharedEditingServer whether to use production shared editing server
    */
-  public loadNewYModel(workflowId?: number, user?: User) {
+  public loadNewYModel(workflowId?: number, user?: User, productionSharedEditingServer?: boolean) {
     this.destroyYModel();
-    this.sharedModel = new SharedModel(workflowId, user);
+    this.sharedModel = new SharedModel(workflowId, user, productionSharedEditingServer);
     this.newYDocLoadedSubject.next(undefined);
   }
 
