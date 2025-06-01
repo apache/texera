@@ -19,7 +19,6 @@
 
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { PropertyEditorComponent } from "./property-editor.component";
-import { environment } from "../../../../environments/environment";
 import {
   mockPoint,
   mockResultPredicate,

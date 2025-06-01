@@ -28,7 +28,7 @@ import { GuiConfig } from "../type/gui-config";
 @Injectable()
 export class MockGuiConfigService {
   private _config: GuiConfig = {
-    apiUrl: "http://localhost:8080",
+    apiUrl: "api",
     exportExecutionResultEnabled: false,
     autoAttributeCorrectionEnabled: false,
     userSystemEnabled: true,

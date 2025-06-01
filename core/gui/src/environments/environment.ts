@@ -24,11 +24,6 @@
 
 import { AppEnv, defaultEnvironment } from "./environment.default";
 
-/**
- * This environment object starts with default values but will be populated
- * with actual configuration from the backend during app initialization.
- * The GuiConfigService.load() method will merge backend config into this object.
- */
 export const environment: AppEnv = {
   ...defaultEnvironment,
 };

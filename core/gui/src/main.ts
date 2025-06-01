@@ -31,10 +31,9 @@ platformBrowserDynamic()
   .bootstrapModule(AppModule)
   .then(() => {
     console.log("Texera application bootstrap completed successfully");
-    console.log("Loaded configuration:", environment);
   })
   .catch(err => {
     console.error("Texera application bootstrap failed:", err);
-    // Let the error propagate so our index.html error handler can catch it
+    // Let the error propagate so index.html error handler can catch it
     throw err;
   });

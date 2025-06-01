@@ -39,7 +39,6 @@ import {
   DASHBOARD_USER_WORKFLOW,
   DASHBOARD_HUB_WORKFLOW,
 } from "../../app-routing.constant";
-import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
 
 @Component({
@@ -68,7 +67,6 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
   protected readonly DASHBOARD_HUB_WORKFLOW = DASHBOARD_HUB_WORKFLOW;
-  protected readonly environment = environment;
 
   constructor(
     private userService: UserService,

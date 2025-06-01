@@ -41,7 +41,6 @@ import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
-import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";

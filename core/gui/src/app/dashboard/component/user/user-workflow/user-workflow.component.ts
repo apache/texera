@@ -41,7 +41,6 @@ import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { map, mergeMap, switchMap, tap } from "rxjs/operators";
-import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
