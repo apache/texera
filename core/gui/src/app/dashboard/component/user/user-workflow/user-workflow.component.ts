@@ -45,6 +45,7 @@ import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -119,7 +120,8 @@ export class UserWorkflowComponent implements AfterViewInit {
     private modalService: NzModalService,
     private router: Router,
     private downloadService: DownloadService,
-    private searchService: SearchService
+    private searchService: SearchService,
+    private config: GuiConfigService
   ) {
     this.userService
       .userChanged()
@@ -258,7 +260,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       commentBoxes: [],
       links: [],
       operatorPositions: {},
-      settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
+      settings: { dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize },
     };
     let localPid = this.pid;
     this.workflowPersistService

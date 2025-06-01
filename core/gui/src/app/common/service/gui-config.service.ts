@@ -15,8 +15,6 @@ export class GuiConfigService {
     return this.http.get<GuiConfig>("/api/gui/config").pipe(
       tap(config => {
         this.config = config;
-        // Assign all config properties to the environment object
-        Object.assign(environment, config);
         console.log("GUI configuration loaded successfully from backend");
       }),
       map(() => void 0),

@@ -20,7 +20,6 @@
 import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
 import { ActivatedRoute, Router, Params } from "@angular/router";
-import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
@@ -60,7 +59,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
-  userSystemEnabled = false;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
@@ -91,9 +89,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
     private config: GuiConfigService
-  ) {
-    this.userSystemEnabled = this.config.env.userSystemEnabled;
-  }
+  ) {}
 
   ngOnInit() {
     /**
@@ -136,7 +132,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
-    if (this.userSystemEnabled) {
+    if (this.config.env.userSystemEnabled) {
       // if a workflow id is present in the route, display loading spinner immediately while loading
       const widInRoute = this.route.snapshot.params.id;
       if (widInRoute) {

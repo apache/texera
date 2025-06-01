@@ -19,7 +19,6 @@
 
 import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
@@ -33,13 +32,13 @@ import { DownloadService } from "../../../dashboard/service/user/download/downlo
 import { HttpResponse } from "@angular/common/http";
 import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
-  exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -47,7 +46,8 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private downloadService: DownloadService
+    private downloadService: DownloadService,
+    private config: GuiConfigService
   ) {
     this.registerResultToExportUpdateHandler();
   }
@@ -106,7 +106,7 @@ export class WorkflowResultExportService {
     destination: "dataset" | "local" = "dataset", // default to dataset
     unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
   ): void {
-    if (!environment.exportExecutionResultEnabled) {
+    if (!this.config.env.exportExecutionResultEnabled) {
       return;
     }
     if (unit === null) {
