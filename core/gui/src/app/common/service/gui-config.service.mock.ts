@@ -42,6 +42,7 @@ export class MockGuiConfigService {
     asyncRenderingEnabled: false,
     timetravelEnabled: false,
     productionSharedEditingServer: false,
+    pythonLanguageServerPort: "3000",
     singleFileUploadMaximumSizeMB: 100,
     maxNumberOfConcurrentUploadingFileChunks: 5,
     multipartUploadChunkSizeByte: 1048576, // 1MB
