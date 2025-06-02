@@ -31,12 +31,13 @@
         <img
           *ngIf="isCollpased"
           alt="mini-logo"
-          src="../../../../assets/logos/favicon-32x32.png" />
+          [src]="miniLogo"
+          style="max-width: 32px; max-height: 32px; object-fit: contain" />
         <img
           *ngIf="!isCollpased"
           alt="logo"
           height="50"
-          src="../../../../assets/logos/logo.png" />
+          [src]="mainLogo" />
       </li>
 
       <li

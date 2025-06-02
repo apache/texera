@@ -28,8 +28,26 @@
   }
 }
 
-.settings-placeholder {
-  padding: 24px;
-  text-align: center;
-  color: rgba(0, 0, 0, 0.45);
+.logo-current-box {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+.logo-preview-img {
+  max-width: 100px;
+  max-height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #f9f9f9;
+  margin-left: 12px;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 10px;
 }

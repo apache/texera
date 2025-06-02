@@ -23,21 +23,18 @@ import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-
 import io.dropwizard.auth.Auth
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import org.jooq.impl.DSL
+import com.fasterxml.jackson.annotation.JsonProperty
 
 case class SiteSettingsPojo(
-    settingKey: String,
-    settingValue: String,
-    updatedBy: String,
-    updatedAt: java.sql.Timestamp
+    @JsonProperty("key") settingKey: String,
+    @JsonProperty("value") settingValue: String
 )
 
 @Path("/admin/site-settings")
-@RolesAllowed(Array("ADMIN"))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class SiteSettingsResource {
 
@@ -48,16 +45,11 @@ class SiteSettingsResource {
   private val BY = DSL.field("updated_by", classOf[String])
   private val AT = DSL.field("updated_at", classOf[java.sql.Timestamp])
 
-  /**
-    * GET /admin/site-settings
-    * List out all site settings. We include `@Auth` so the filter runs
-    * and enforces ADMIN role.
-    */
   @GET
-  def listAll(@Auth currentUser: SessionUser): util.List[SiteSettingsPojo] = {
+  def listAll(): util.List[SiteSettingsPojo] = {
     import scala.jdk.CollectionConverters._
     ctx
-      .select(KEY, VAL, BY, AT)
+      .select(KEY, VAL)
       .from(SS)
       .fetchInto(classOf[SiteSettingsPojo])
       .asScala
@@ -65,11 +57,8 @@ class SiteSettingsResource {
       .asJava
   }
 
-  /**
-    * PUT /admin/site-settings
-    * Upsert a batch of settings, recording who did it.
-    */
   @PUT
+  @RolesAllowed(Array("ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def updateAll(
       @Auth currentUser: SessionUser,
@@ -78,17 +67,45 @@ class SiteSettingsResource {
     import scala.jdk.CollectionConverters._
 
     val updatedBy = currentUser.getName
+    val now = java.sql.Timestamp.from(java.time.Instant.now())
 
     ctx.transaction { _ =>
-      settings.asScala.foreach { s =>
-        ctx
-          .insertInto(SS, KEY, VAL, BY)
-          .values(s.settingKey, s.settingValue, updatedBy)
-          .onDuplicateKeyUpdate()
-          .set(VAL, s.settingValue)
-          .set(BY, updatedBy)
-          .execute()
-      }
+      settings.asScala
+        .filter(s => Option(s.settingKey).exists(_.nonEmpty))
+        .foreach { s =>
+          ctx
+            .insertInto(SS)
+            .set(KEY, s.settingKey)
+            .set(VAL, s.settingValue)
+            .set(BY, updatedBy)
+            .set(AT, now)
+            .onConflict(KEY)
+            .doUpdate()
+            .set(VAL, s.settingValue)
+            .set(BY, updatedBy)
+            .set(AT, now)
+            .execute()
+        }
+    }
+    Response.ok().build()
+  }
+
+  @POST
+  @Path("/delete")
+  @RolesAllowed(Array("ADMIN"))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def deleteSettings(
+      keys: util.List[String]
+  ): Response = {
+    import scala.jdk.CollectionConverters._
+    val validKeysJava: java.util.List[String] =
+      keys.asScala.filter(k => Option(k).exists(_.nonEmpty)).asJava
+
+    if (!validKeysJava.isEmpty) {
+      ctx
+        .delete(SS)
+        .where(KEY.in(validKeysJava))
+        .execute()
     }
     Response.ok().build()
   }

@@ -28,7 +28,7 @@ BEGIN
         WHERE table_schema = 'texera_db' AND table_name = 'site_settings'
     ) THEN
 CREATE TABLE site_settings (
-                               setting_key   VARCHAR(100)  PRIMARY KEY,
+                               setting_key   VARCHAR(255)  PRIMARY KEY,
                                setting_value TEXT          NOT NULL,
                                updated_by    VARCHAR(50),
                                updated_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP

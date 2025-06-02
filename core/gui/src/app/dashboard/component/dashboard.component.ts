@@ -39,6 +39,7 @@ import {
 } from "../../app-routing.constant";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
+import { SiteSettingsService } from "../service/admin/site-settings/admin-site-settings.service";
 
 @Component({
   selector: "texera-dashboard",
@@ -58,6 +59,9 @@ export class DashboardComponent implements OnInit {
   isCollpased: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
+  mainLogo: string = "assets/logos/logo.png";
+  miniLogo: string = "assets/logos/favicon-32x32.png";
+
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
@@ -75,7 +79,8 @@ export class DashboardComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private siteSettingsService: SiteSettingsService
   ) {}
 
   ngOnInit(): void {
@@ -114,6 +119,16 @@ export class DashboardComponent implements OnInit {
           });
         });
     });
+
+    this.siteSettingsService
+      .getAllSettings()
+      .pipe(untilDestroyed(this))
+      .subscribe(settings => {
+        const main = settings.find(s => s.key === "main_logo")?.value;
+        const mini = settings.find(s => s.key === "mini_logo")?.value;
+        this.mainLogo = main || "assets/logos/logo.png";
+        this.miniLogo = mini || main || "assets/logos/favicon-32x32.png";
+      });
   }
 
   forumLogin() {

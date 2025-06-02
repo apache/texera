@@ -33,15 +33,24 @@ export interface SiteSetting {
   providedIn: "root",
 })
 export class SiteSettingsService {
+  private readonly BASE_URL = "/api/admin/site-settings";
   constructor(private http: HttpClient) {}
 
-  /** Fetch all site settings from the backend API */
   getAllSettings(): Observable<SiteSetting[]> {
-    return this.http.get<SiteSetting[]>("/api/admin/site-settings", { withCredentials: true });
+    return this.http.get<SiteSetting[]>(`${this.BASE_URL}`, {
+      withCredentials: true,
+    });
   }
 
-  /** Update (save) all site settings via the backend API */
   updateSettings(settings: SiteSetting[]): Observable<void> {
-    return this.http.put<void>("/api/admin/site-settings", settings, { withCredentials: true });
+    return this.http.put<void>(`${this.BASE_URL}`, settings, {
+      withCredentials: true,
+    });
+  }
+
+  deleteSettings(keys: string[]): Observable<void> {
+    return this.http.post<void>(`${this.BASE_URL}/delete`, keys, {
+      withCredentials: true,
+    });
   }
 }
