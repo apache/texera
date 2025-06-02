@@ -100,26 +100,31 @@ export class SiteSettingsComponent implements OnInit {
       { key: "mini_logo", value: miniValue },
     ];
 
-    this.settingsSvc.updateSettings(settings).subscribe({
-      next: () => {
-        this.message.success("Logos updated!");
-        window.location.reload();
-      },
-      error: () => this.message.error("Failed to save logos."),
-    });
+    this.settingsSvc
+      .updateSettings(settings)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.message.success("Logos updated!");
+          window.location.reload();
+        },
+        error: () => this.message.error("Failed to save logos."),
+      });
   }
 
   resetAllLogos(): void {
     this.mainLogoPreview = null;
     this.miniLogoPreview = null;
     this.editMiniLogo = false;
-
-    this.settingsSvc.deleteSettings(["main_logo", "mini_logo"]).subscribe({
-      next: () => {
-        this.message.info("All logos reset to default.");
-        window.location.reload();
-      },
-      error: () => this.message.error("Failed to reset logos."),
-    });
+    this.settingsSvc
+      .deleteSettings(["main_logo", "mini_logo"])
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.message.info("All logos reset to default.");
+          window.location.reload();
+        },
+        error: () => this.message.error("Failed to reset logos."),
+      });
   }
 }
