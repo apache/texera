@@ -351,6 +351,17 @@ export class JointUIService {
       ".remove-input-port-button": { visibility: "hidden" },
       ".remove-output-port-button": { visibility: "hidden" },
     });
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    if (!element) {
+      return;
+    }
+    const ports = element.getPorts();
+    ports.forEach(p => {
+      const pid = p.id;
+      if (pid) {
+        element.portProp(pid, "attrs/.port-label/visibility", "hidden");
+      }
+    });
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -365,6 +376,18 @@ export class JointUIService {
       ".add-output-port-button": { visibility: "visible" },
       ".remove-input-port-button": { visibility: "visible" },
       ".remove-output-port-button": { visibility: "visible" },
+    });
+
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    if (!element) {
+      return;
+    }
+    const ports = element.getPorts();
+    ports.forEach(p => {
+      const pid = p.id;
+      if (pid) {
+        element.portProp(pid, "attrs/.port-label/visibility", "visible");
+      }
     });
   }
 
@@ -620,6 +643,7 @@ export class JointUIService {
         stroke: "none",
       },
       ".port-label": {
+        visibility: "hidden",
         event: "input-label:evt",
         dblclick: "input-label:dbclick",
         pointerdblclick: "input-label:pointerdblclick",
