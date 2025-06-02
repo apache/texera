@@ -36,6 +36,7 @@ import {
   Data,
 } from "@angular/router";
 import { convertToParamMap } from "@angular/router";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -111,6 +112,7 @@ describe("DashboardComponent", () => {
 
     await TestBed.configureTestingModule({
       declarations: [DashboardComponent],
+      imports: [HttpClientTestingModule],
       providers: [
         { provide: UserService, useValue: userServiceMock },
         { provide: Router, useValue: routerMock },
