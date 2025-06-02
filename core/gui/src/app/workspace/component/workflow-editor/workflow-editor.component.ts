@@ -18,7 +18,7 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular/core";
-import { fromEvent, merge, Subject } from "rxjs";
+import { fromEvent, merge, Subject, Subscription } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { environment } from "../../../../environments/environment";
@@ -91,6 +91,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
+  private toggleSub?: Subscription;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -151,6 +152,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleOperatorSelectionEvents();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
+
     this.handleOperatorStatisticsUpdate();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
@@ -167,6 +169,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleURLFragment();
     this.invokeResize();
     this.handleCenterEvent();
+
+    this.toggleSub = this.jointUIService.showPortCount.pipe(untilDestroyed(this)).subscribe(show => {
+      console.log("toggle!")
+      this.handleOperatorStatisticsUpdate();
+    });
   }
 
   ngOnDestroy(): void {

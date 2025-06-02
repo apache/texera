@@ -307,6 +307,13 @@
               nz-icon
               nzType="redo"></i>
           </button>
+          <nz-switch
+            [ngModel]="show"
+            (ngModelChange)="onToggleShowPortCount($event)"
+            nzCheckedChildren="Show Count"
+            nzUnCheckedChildren="Hide Count"
+            title="Toggle input count visibility"
+          ></nz-switch>
         </nz-button-group>
       </ng-template>
       <nz-dropdown-menu #menu="nzDropdownMenu">

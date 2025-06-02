@@ -54,6 +54,7 @@ import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -137,7 +138,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    public jointUIService: JointUIService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -166,6 +168,13 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     // Subscribe to computing unit status changes
     this.subscribeToComputingUnitStatus();
+  }
+
+  public show = false;
+
+  onToggleShowPortCount(checked: boolean): void {
+    this.show = checked;
+    this.jointUIService.toggleShowCount(checked);
   }
 
   public ngOnInit(): void {

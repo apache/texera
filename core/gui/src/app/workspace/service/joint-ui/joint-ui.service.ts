@@ -24,7 +24,7 @@ import { abbreviateNumber } from "js-abbreviation-number";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
-import { fromEventPattern, Observable } from "rxjs";
+import { BehaviorSubject, fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 /**
@@ -188,13 +188,25 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
-
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
+
+  // public showPortCount = false;
+  private showCountSubject = new BehaviorSubject<boolean>(false);
+  public readonly showPortCount = this.showCountSubject.asObservable();
+
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(value => (this.operatorSchemas = value.operators));
+  }
+
+  public toggleShowCount(show: boolean): void {
+    this.showCountSubject.next(show);
+  }
+
+  private get showPortCountNow(): boolean {
+    return this.showCountSubject.getValue();
   }
 
   /**
@@ -251,18 +263,21 @@ export class JointUIService {
     operatorElement.set("id", operator.operatorID);
 
     // set the input ports and output ports based on operator predicate
-    operator.inputPorts.forEach(port =>
+    operator.inputPorts.forEach(port => {
+      const baseText = port.displayName ?? "";
+      const labelText = this.showPortCountNow ? `${baseText}: 0` : baseText;
+
       operatorElement.addPort({
         group: "in",
         id: port.portID,
         attrs: {
           ".port-label": {
-            text: port.displayName ?? "",
+            text: labelText,
             event: "input-port-label:pointerdown",
           },
         },
       })
-    );
+    });
     operator.outputPorts.forEach(port =>
       operatorElement.addPort({
         group: "out",
@@ -286,6 +301,8 @@ export class JointUIService {
     isSource: boolean,
     isSink: boolean
   ): void {
+
+    console.log("in changeOperator statistics")
     if (!statistics) {
       jointPaper.getModelById(operatorID).attr({
         [`.${operatorProcessedCountClass}`]: { text: "" },
@@ -325,9 +342,7 @@ export class JointUIService {
         if (!originalName) {
           originalName = portId;
         }
-
-        const labelText = `${originalName}: ${count}`;
-
+        const labelText = this.showPortCountNow ? `${originalName}: ${count}` : originalName;
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
