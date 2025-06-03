@@ -46,28 +46,39 @@ class WorkflowExecutionCoordinator(
     * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
     */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
+    // First check if any region is in the state of executing dependee input ports.
+    if (regionExecutionCoordinators.values.exists(rc=>rc.executingDependeeInputPorts)) {
+      return Future
+        .collect({
+          regionExecutionCoordinators.values.filter(_.executingDependeeInputPorts)
+            .map(_.execute(actorService))
+            .toSeq
+        }).unit
+    }
     if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
       return Future(())
     }
-    Future
-      .collect({
-        val nextRegions = getNextRegions()
-        executedRegions.append(nextRegions)
-        nextRegions
-          .map(region => {
-            workflowExecution.initRegionExecution(region)
-            regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
-              region,
-              workflowExecution,
-              asyncRPCClient,
-              controllerConfig
-            )
-            regionExecutionCoordinators(region.id)
-          })
-          .map(_.execute(actorService))
-          .toSeq
-      })
-      .unit
+     {
+      Future
+        .collect({
+          val nextRegions = getNextRegions()
+          executedRegions.append(nextRegions)
+          nextRegions
+            .map(region => {
+              workflowExecution.initRegionExecution(region)
+              regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
+                region,
+                workflowExecution,
+                asyncRPCClient,
+                controllerConfig
+              )
+              regionExecutionCoordinators(region.id)
+            })
+            .map(_.execute(actorService))
+            .toSeq
+        })
+        .unit
+    }
   }
 
   def getRegionOfLink(link: PhysicalLink): Region = {
