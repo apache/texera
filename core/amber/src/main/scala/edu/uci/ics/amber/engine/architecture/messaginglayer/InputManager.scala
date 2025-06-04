@@ -70,6 +70,7 @@ class InputManager(
       uris: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
+    if (uris.isEmpty || partitionings.isEmpty || uris.size != partitionings.size) return
     val readerThreads = uris.zip(partitionings).map {
       case (uri, partitioning) =>
         new InputPortMaterializationReaderThread(
