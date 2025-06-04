@@ -113,8 +113,10 @@ class InputManager(
 
   def isPortCompleted(portId: PortIdentity): Boolean = {
     // a port without channels is not completed.
-    // The list must exist because of setupInputPortMaterializationReaderThreads
-    if (this.inputPortMaterializationReaderThreads(portId).isEmpty) {
+    if (
+      !this.inputPortMaterializationReaderThreads
+        .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
+    ) {
       if (this.ports(portId).channels.isEmpty) {
         return false
       }
