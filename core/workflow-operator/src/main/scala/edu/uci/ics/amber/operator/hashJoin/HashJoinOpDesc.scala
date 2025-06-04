@@ -129,7 +129,10 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withOutputPorts(List(probeOutputPort))
         .withPartitionRequirement(
-          List(Option(HashPartition(List(buildAttributeName))), Option(HashPartition(List(probeAttributeName))))
+          List(
+            Option(HashPartition(List(buildAttributeName))),
+            Option(HashPartition(List(probeAttributeName)))
+          )
         )
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)

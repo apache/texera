@@ -24,12 +24,28 @@ import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.READY
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkflowAggregatedState}
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{InputPortConfig, OperatorConfig, OutputPortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
+  OperatorConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -42,8 +58,8 @@ class RegionExecutionCoordinator(
     controllerConfig: ControllerConfig
 ) {
 
-  var executingDependeeInputPorts=false
-  var statesAlreadySet=false
+  var executingDependeeInputPorts = false
+  var statesAlreadySet = false
 
   def executeDependeeInputPorts(actorService: AkkaActorService): Future[Unit] = {
     // fetch resource config
@@ -74,7 +90,7 @@ class RegionExecutionCoordinator(
       }
     })
 
-    statesAlreadySet=true
+    statesAlreadySet = true
 
     // update UI
     asyncRPCClient.sendToClient(
@@ -85,7 +101,7 @@ class RegionExecutionCoordinator(
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
-          .filter(op=>op.dependeeInputs.nonEmpty)
+          .filter(op => op.dependeeInputs.nonEmpty)
           .map(_.id)
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> regionExecution
@@ -99,12 +115,14 @@ class RegionExecutionCoordinator(
     )
 
     // initialize the operators that are uninitialized
-    val operatorsWithDependeeInputs = region.getOperators.filter(op =>
-      regionExecution.getAllOperatorExecutions
-        .map(_._1)
-        .toSet
-        .contains(op.id)
-    ).filter(op => op.dependeeInputs.nonEmpty)
+    val operatorsWithDependeeInputs = region.getOperators
+      .filter(op =>
+        regionExecution.getAllOperatorExecutions
+          .map(_._1)
+          .toSet
+          .contains(op.id)
+      )
+      .filter(op => op.dependeeInputs.nonEmpty)
 
     Future(())
       .flatMap(_ => initExecutors(operatorsWithDependeeInputs, resourceConfig))
@@ -115,7 +133,9 @@ class RegionExecutionCoordinator(
   }
 
   def execute(actorService: AkkaActorService): Future[Unit] = {
-    if (!executingDependeeInputPorts && region.getOperators.exists(op=>op.dependeeInputs.nonEmpty)) {
+    if (
+      !executingDependeeInputPorts && region.getOperators.exists(op => op.dependeeInputs.nonEmpty)
+    ) {
       // First pass of region execution
       executingDependeeInputPorts = true
       return executeDependeeInputPorts(actorService)
@@ -137,28 +157,28 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
     if (!statesAlreadySet)
-    region.getOperators.foreach(physicalOp => {
-      // Check for existing execution for this operator
-      val existOpExecution =
-        workflowExecution.getAllRegionExecutions.exists(_.hasOperatorExecution(physicalOp.id))
+      region.getOperators.foreach(physicalOp => {
+        // Check for existing execution for this operator
+        val existOpExecution =
+          workflowExecution.getAllRegionExecutions.exists(_.hasOperatorExecution(physicalOp.id))
 
-      // Initialize operator execution, reusing existing execution if available
-      val operatorExecution = regionExecution.initOperatorExecution(
-        physicalOp.id,
-        if (existOpExecution) Some(workflowExecution.getLatestOperatorExecution(physicalOp.id))
-        else None
-      )
-
-      // If no existing execution, build the operator with specified config
-      if (!existOpExecution) {
-        buildOperator(
-          actorService,
-          physicalOp,
-          resourceConfig.operatorConfigs(physicalOp.id),
-          operatorExecution
+        // Initialize operator execution, reusing existing execution if available
+        val operatorExecution = regionExecution.initOperatorExecution(
+          physicalOp.id,
+          if (existOpExecution) Some(workflowExecution.getLatestOperatorExecution(physicalOp.id))
+          else None
         )
-      }
-    })
+
+        // If no existing execution, build the operator with specified config
+        if (!existOpExecution) {
+          buildOperator(
+            actorService,
+            physicalOp,
+            resourceConfig.operatorConfigs(physicalOp.id),
+            operatorExecution
+          )
+        }
+      })
 
     // update UI
     asyncRPCClient.sendToClient(
@@ -169,7 +189,7 @@ class RegionExecutionCoordinator(
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
-          .filter(op=>op.dependeeInputs.isEmpty)
+          .filter(op => op.dependeeInputs.isEmpty)
           .map(_.id)
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> regionExecution
@@ -183,12 +203,14 @@ class RegionExecutionCoordinator(
     )
 
     // initialize the operators that are uninitialized
-    val otherOperators = region.getOperators.filter(op =>
-      regionExecution.getAllOperatorExecutions
-        .map(_._1)
-        .toSet
-        .contains(op.id)
-    ).filter(op => op.dependeeInputs.isEmpty)
+    val otherOperators = region.getOperators
+      .filter(op =>
+        regionExecution.getAllOperatorExecutions
+          .map(_._1)
+          .toSet
+          .contains(op.id)
+      )
+      .filter(op => op.dependeeInputs.isEmpty)
 
     Future(())
       .flatMap(_ => initExecutors(otherOperators, resourceConfig))
@@ -244,9 +266,8 @@ class RegionExecutionCoordinator(
     Future.collect(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
-          val inputPortMapping = physicalOp
-            .inputPorts
-            .filter{
+          val inputPortMapping = physicalOp.inputPorts
+            .filter {
               case (portId, _) =>
                 physicalOp.dependeeInputs.contains(portId)
             }
@@ -301,7 +322,7 @@ class RegionExecutionCoordinator(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
           val inputPortMapping = physicalOp.inputPorts
-            .filter{
+            .filter {
               case (portId, _) =>
                 !physicalOp.dependeeInputs.contains(portId)
             }

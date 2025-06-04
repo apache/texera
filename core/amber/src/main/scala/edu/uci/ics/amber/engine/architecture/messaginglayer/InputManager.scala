@@ -93,16 +93,20 @@ class InputManager(
       .filter {
         case (portId, _) => !this.isPortCompleted(portId)
       }
-      .values.foreach(threadList =>
-      threadList.foreach(readerThread => {
-        try {
-          readerThread.start()
-        } catch {
-          case e: Exception =>
-            throw new RuntimeException(s"Error starting input port materialization reader thread: ${e.getMessage}", e)
-        }
-      })
-    )
+      .values
+      .foreach(threadList =>
+        threadList.foreach(readerThread => {
+          try {
+            readerThread.start()
+          } catch {
+            case e: Exception =>
+              throw new RuntimeException(
+                s"Error starting input port materialization reader thread: ${e.getMessage}",
+                e
+              )
+          }
+        })
+      )
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
