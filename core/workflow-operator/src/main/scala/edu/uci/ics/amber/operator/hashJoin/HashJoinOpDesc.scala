@@ -22,7 +22,7 @@ package edu.uci.ics.amber.operator.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -98,7 +98,14 @@ class HashJoinOpDesc[K] extends LogicalOp {
           SchemaPropagationFunc(inputSchemas =>
             Map(
               PortIdentity(internal = true) -> Schema(
-                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.INTEGER))
+                List(
+                  new Attribute(
+                    HASH_JOIN_INTERNAL_KEY_NAME,
+                    inputSchemas(operatorInfo.inputPorts.head.id)
+                      .getAttribute(buildAttributeName)
+                      .getType
+                  )
+                )
               ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )
