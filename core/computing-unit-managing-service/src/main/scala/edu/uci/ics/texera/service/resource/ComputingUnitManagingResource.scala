@@ -149,9 +149,11 @@ class ComputingUnitManagingResource {
   private def isCluster(unit: WorkflowComputingUnit): Boolean = {
     Json
       .parse(unit.getResource)
-      .as[JsObject]
-      .value("numNodes")
-      .as[Int] > 1
+      .asOpt[JsObject]
+      .getOrElse(JsObject.empty)
+      .\("numNodes") // lookup operation
+      .asOpt[Int]
+      .getOrElse(1) > 1 // for backward compatibility
   }
 
   private def getSupportedComputingUnitTypes: List[String] = {
