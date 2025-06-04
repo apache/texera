@@ -89,7 +89,10 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PhysicalOpIdentity(
+                    logicalOpId = terminalOpId,
+                    layerName = if (terminalOpId.id.contains("HashJoin")) "probe" else "main"
+                  ),
                   PortIdentity()
                 )
               )
@@ -105,7 +108,10 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PhysicalOpIdentity(
+                    logicalOpId = terminalOpId,
+                    layerName = if (terminalOpId.id.contains("HashJoin")) "probe" else "main"
+                  ),
                   PortIdentity()
                 )
               )
@@ -121,7 +127,7 @@ class DataProcessingSpec
         }
       })
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    Await.result(completion, Duration.fromMinutes(2))
+    Await.result(completion, Duration.fromMinutes(1))
     results
   }
 
