@@ -242,68 +242,77 @@
             </nz-option>
           </nz-select>
         </div>
-        <div
-          *ngIf="true"
-          class="select-unit">
-          <div class="toggle-row">
-            <span>Select #GPU(s)</span>
-            <nz-switch
-              [(ngModel)]="enabledGPUSelection"
-              [disabled]="isCluster()"
-              nzSize="small"></nz-switch>
-          </div>
-          <nz-select
-            [disabled]="!enabledGPUSelection"
-            class="gpu-selection"
-            [(ngModel)]="selectedGpu">
-            <nz-option
-              *ngFor="let option of gpuOptions"
-              [nzValue]="option"
-              [nzLabel]="option">
-            </nz-option>
-          </nz-select>
-        </div>
+        <nz-collapse
+          [nzBordered]="false"
+          class="advanced-collapse">
+          <nz-collapse-panel
+            [nzHeader]="'Advanced Options'"
+            [nzShowArrow]="true"
+            [nzActive]="false">
+            <div
+              *ngIf="showGpuSelection()"
+              class="select-unit">
+              <div class="toggle-row">
+                <span>Select #GPU(s)</span>
+                <nz-switch
+                  [(ngModel)]="enabledGPUSelection"
+                  [disabled]="isCluster()"
+                  nzSize="small"></nz-switch>
+              </div>
+              <nz-select
+                [disabled]="!enabledGPUSelection"
+                class="gpu-selection"
+                [(ngModel)]="selectedGpu">
+                <nz-option
+                  *ngFor="let option of gpuOptions"
+                  [nzValue]="option"
+                  [nzLabel]="option">
+                </nz-option>
+              </nz-select>
+            </div>
 
-        <div class="select-unit shared-memory-group">
-          <div class="toggle-row">
-            <span>
-              Shared Memory for IPC
-              <i
-                nz-icon
-                nzType="info-circle"
-                nz-tooltip
-                [nzTooltipTitle]="
-                'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
-              ">
-              </i>
-            </span>
-            <nz-switch
-              [(ngModel)]="enabledShmAdjustment"
-              [disabled]="isCluster()"
-              nzSize="small"></nz-switch>
-          </div>
-          <div class="shm-input-row">
-            <input
-              nz-input
-              [disabled]="!enabledShmAdjustment"
-              type="number"
-              min="0"
-              [(ngModel)]="shmSizeValue"
-              class="shm-size-input"
-              placeholder="e.g. 512" />
-            <nz-select
-              [disabled]="!enabledShmAdjustment"
-              class="shm-unit-select"
-              [(ngModel)]="shmSizeUnit">
-              <nz-option
-                nzValue="Mi"
-                nzLabel="Mi"></nz-option>
-              <nz-option
-                nzValue="Gi"
-                nzLabel="Gi"></nz-option>
-            </nz-select>
-          </div>
-        </div>
+            <div class="select-unit shared-memory-group">
+              <div class="toggle-row">
+                <span>
+                  Shared Memory for IPC
+                  <i
+                    nz-icon
+                    nzType="info-circle"
+                    nz-tooltip
+                    [nzTooltipTitle]="
+            'Shared memory (/dev/shm) is used for inter-process communication. If you plan to run ML tasks (e.g., using PyTorch), consider increasing this size. Learn more: https://man7.org/linux/man-pages/man7/shm_overview.7.html'
+          ">
+                  </i>
+                </span>
+                <nz-switch
+                  [(ngModel)]="enabledShmAdjustment"
+                  [disabled]="isCluster()"
+                  nzSize="small"></nz-switch>
+              </div>
+              <div class="shm-input-row">
+                <input
+                  nz-input
+                  [disabled]="!enabledShmAdjustment"
+                  type="number"
+                  min="0"
+                  [(ngModel)]="shmSizeValue"
+                  class="shm-size-input"
+                  placeholder="e.g. 512" />
+                <nz-select
+                  [disabled]="!enabledShmAdjustment"
+                  class="shm-unit-select"
+                  [(ngModel)]="shmSizeUnit">
+                  <nz-option
+                    nzValue="Mi"
+                    nzLabel="Mi"></nz-option>
+                  <nz-option
+                    nzValue="Gi"
+                    nzLabel="Gi"></nz-option>
+                </nz-select>
+              </div>
+            </div>
+          </nz-collapse-panel>
+        </nz-collapse>
         <div class="select-unit name-field">
           <span>JVM Memory Size: {{selectedJvmMemorySize}}</span>
           <nz-slider
