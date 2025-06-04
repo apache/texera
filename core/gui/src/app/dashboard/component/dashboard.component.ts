@@ -25,6 +25,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 
 import {
   DASHBOARD_ABOUT,
@@ -39,7 +40,6 @@ import {
 } from "../../app-routing.constant";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
-import { SiteSettingsService } from "../service/admin/site-settings/admin-site-settings.service";
 
 @Component({
   selector: "texera-dashboard",
@@ -59,8 +59,8 @@ export class DashboardComponent implements OnInit {
   isCollpased: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
-  mainLogo: string = "assets/logos/logo.png";
-  miniLogo: string = "assets/logos/favicon-32x32.png";
+  logo: string = "assets/logos/logo.png";
+  favicon: string = "assets/logos/favicon-32x32.png";
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -80,7 +80,7 @@ export class DashboardComponent implements OnInit {
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
-    private siteSettingsService: SiteSettingsService
+    private adminSettingsService: AdminSettingsService
   ) {}
 
   ngOnInit(): void {
@@ -120,14 +120,14 @@ export class DashboardComponent implements OnInit {
         });
     });
 
-    this.siteSettingsService
+    this.adminSettingsService
       .getAllSettings()
       .pipe(untilDestroyed(this))
       .subscribe(settings => {
-        const main = settings.find(s => s.key === "main_logo")?.value;
-        const mini = settings.find(s => s.key === "mini_logo")?.value;
-        this.mainLogo = main || "assets/logos/logo.png";
-        this.miniLogo = mini || main || "assets/logos/favicon-32x32.png";
+        const main = settings.find(s => s.key === "logo")?.value;
+        const mini = settings.find(s => s.key === "favicon")?.value;
+        this.logo = main || "assets/logos/logo.png";
+        this.favicon = mini || "assets/logos/favicon-32x32.png";
       });
   }
 

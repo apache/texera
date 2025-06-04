@@ -32,8 +32,8 @@ export interface SiteSetting {
 @Injectable({
   providedIn: "root",
 })
-export class SiteSettingsService {
-  private readonly BASE_URL = "/api/admin/site-settings";
+export class AdminSettingsService {
+  private readonly BASE_URL = "/api/admin/settings";
   constructor(private http: HttpClient) {}
 
   getAllSettings(): Observable<SiteSetting[]> {

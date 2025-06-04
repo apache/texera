@@ -17,37 +17,34 @@
  * under the License.
  */
 
-.site-settings-section-title {
+.section-title {
   background-color: lightcoral;
-  border-radius: 4px;
-  margin-bottom: 12px;
-
-  .page-title {
-    color: #fff;
-    margin: 0;
-  }
 }
 
-.logo-current-box {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin-bottom: 16px;
-}
-
-.logo-preview-img {
-  max-width: 100px;
-  max-height: 40px;
-  object-fit: contain;
-  border-radius: 6px;
-  background: #f9f9f9;
-  margin-left: 12px;
+.section-title .page-title {
+  color: white;
 }
 
 .upload-row {
+  display: grid;
+  grid-template-columns: 80px 220px 32px;
+  column-gap: 6px;
+  margin-bottom: 4px;
+}
+
+.preview-img {
+  margin-left: 8px;
+  height: 32px;
+}
+
+.help-text {
+  margin-left: 88px;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 24px;
+}
+
+.button-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  margin-bottom: 10px;
+  gap: 14px;
 }

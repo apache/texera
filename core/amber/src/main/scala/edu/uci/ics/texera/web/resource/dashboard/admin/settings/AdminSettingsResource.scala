@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package edu.uci.ics.texera.web.resource.dashboard.admin.sitesettings
+package edu.uci.ics.texera.web.resource.dashboard.admin.settings
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -29,32 +29,27 @@ import edu.uci.ics.texera.dao.SqlServer
 import org.jooq.impl.DSL
 import com.fasterxml.jackson.annotation.JsonProperty
 
-case class SiteSettingsPojo(
+case class AdminSettingsPojo(
     @JsonProperty("key") settingKey: String,
     @JsonProperty("value") settingValue: String
 )
 
-@Path("/admin/site-settings")
+@Path("/admin/settings")
 @Produces(Array(MediaType.APPLICATION_JSON))
-class SiteSettingsResource {
+class AdminSettingsResource {
 
   private val ctx = SqlServer.getInstance().createDSLContext()
   private val SS = DSL.table("site_settings")
-  private val KEY = DSL.field("setting_key", classOf[String])
-  private val VAL = DSL.field("setting_value", classOf[String])
+  private val KEY = DSL.field("key", classOf[String])
+  private val VAL = DSL.field("value", classOf[String])
   private val BY = DSL.field("updated_by", classOf[String])
-  private val AT = DSL.field("updated_at", classOf[java.sql.Timestamp])
 
   @GET
-  def listAll(): util.List[SiteSettingsPojo] = {
-    import scala.jdk.CollectionConverters._
+  def listAll(): util.List[AdminSettingsPojo] = {
     ctx
       .select(KEY, VAL)
       .from(SS)
-      .fetchInto(classOf[SiteSettingsPojo])
-      .asScala
-      .toList
-      .asJava
+      .fetchInto(classOf[AdminSettingsPojo])
   }
 
   @PUT
@@ -62,31 +57,25 @@ class SiteSettingsResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def updateAll(
       @Auth currentUser: SessionUser,
-      settings: util.List[SiteSettingsPojo]
+      settings: util.List[AdminSettingsPojo]
   ): Response = {
-    import scala.jdk.CollectionConverters._
-
     val updatedBy = currentUser.getName
-    val now = java.sql.Timestamp.from(java.time.Instant.now())
 
-    ctx.transaction { _ =>
-      settings.asScala
-        .filter(s => Option(s.settingKey).exists(_.nonEmpty))
-        .foreach { s =>
-          ctx
-            .insertInto(SS)
-            .set(KEY, s.settingKey)
-            .set(VAL, s.settingValue)
-            .set(BY, updatedBy)
-            .set(AT, now)
-            .onConflict(KEY)
-            .doUpdate()
-            .set(VAL, s.settingValue)
-            .set(BY, updatedBy)
-            .set(AT, now)
-            .execute()
-        }
-    }
+    settings
+      .stream()
+      .filter(s => s.settingKey != null && s.settingKey.nonEmpty)
+      .forEach { s =>
+        ctx
+          .insertInto(SS)
+          .set(KEY, s.settingKey)
+          .set(VAL, s.settingValue)
+          .set(BY, updatedBy)
+          .onConflict(KEY)
+          .doUpdate()
+          .set(VAL, s.settingValue)
+          .set(BY, updatedBy)
+          .execute()
+      }
     Response.ok().build()
   }
 
@@ -97,14 +86,16 @@ class SiteSettingsResource {
   def deleteSettings(
       keys: util.List[String]
   ): Response = {
-    import scala.jdk.CollectionConverters._
-    val validKeysJava: java.util.List[String] =
-      keys.asScala.filter(k => Option(k).exists(_.nonEmpty)).asJava
+    val validKeysArray: Array[String] =
+      keys
+        .stream()
+        .filter(k => k != null && k.nonEmpty)
+        .toArray((size: Int) => new Array[String](size))
 
-    if (!validKeysJava.isEmpty) {
+    if (validKeysArray.nonEmpty) {
       ctx
         .delete(SS)
-        .where(KEY.in(validKeysJava))
+        .where(KEY.in(validKeysArray: _*))
         .execute()
     }
     Response.ok().build()

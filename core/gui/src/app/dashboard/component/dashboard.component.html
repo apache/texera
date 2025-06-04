@@ -31,13 +31,13 @@
         <img
           *ngIf="isCollpased"
           alt="mini-logo"
-          [src]="miniLogo"
-          style="max-width: 32px; max-height: 32px; object-fit: contain" />
+          [src]="favicon"
+          class="collapsed-logo" />
         <img
           *ngIf="!isCollpased"
           alt="logo"
           height="50"
-          [src]="mainLogo" />
+          [src]="logo" />
       </li>
 
       <li
@@ -156,14 +156,14 @@
               </li>
               <li
                 nz-menu-item
-                nz-tooltip="Site Settings"
+                nz-tooltip="Settings"
                 nzMatchRouter="true"
                 nzTooltipPlacement="right"
-                [routerLink]="['/dashboard/admin/site-settings']">
+                [routerLink]="['/dashboard/admin/settings']">
                 <span
                   nz-icon
                   nzType="edit"></span>
-                <span>Site Settings</span>
+                <span>Settings</span>
               </li>
             </ul>
           </li>

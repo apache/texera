@@ -27,11 +27,12 @@ BEGIN
         FROM information_schema.tables
         WHERE table_schema = 'texera_db' AND table_name = 'site_settings'
     ) THEN
-CREATE TABLE site_settings (
-                               setting_key   VARCHAR(255)  PRIMARY KEY,
-                               setting_value TEXT          NOT NULL,
-                               updated_by    VARCHAR(50),
-                               updated_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE site_settings
+(
+    key         VARCHAR(255)  PRIMARY KEY,
+    value TEXT  NOT NULL,
+    updated_by  VARCHAR(50),
+    updated_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 );
 END IF;
 END
