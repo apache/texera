@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { AdminSettingsService, SiteSetting } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -28,7 +28,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./admin-settings.component.html",
   styleUrls: ["./admin-settings.component.scss"],
 })
-export class AdminSettingsComponent implements OnInit {
+export class AdminSettingsComponent {
   logoData: string | null = null;
   faviconData: string | null = null;
 
@@ -36,8 +36,6 @@ export class AdminSettingsComponent implements OnInit {
     private settingsSvc: AdminSettingsService,
     private message: NzMessageService
   ) {}
-
-  ngOnInit(): void {}
 
   onFileChange(type: "logo" | "favicon", event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
