@@ -1,0 +1,16 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 9094
+  adminConnectors: []
+
+logging:
+  level: INFO
+  appenders:
+    - type: console
+      threshold: INFO
+    - type: file
+      currentLogFilename: logs/config-service.log
+      archive: true
+      archivedLogFilenamePattern: logs/config-service-%d.log.gz
+      archivedFileCount: 5 
