@@ -20,11 +20,6 @@
 // GUI configuration interface that matches the backend application.conf structure
 export interface GuiConfig {
   /**
-   * root API URL of the backend
-   */
-  apiUrl: string;
-
-  /**
    * whether export execution result is supported
    */
   exportExecutionResultEnabled: boolean;

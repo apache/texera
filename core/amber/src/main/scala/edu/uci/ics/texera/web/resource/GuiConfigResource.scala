@@ -30,13 +30,12 @@ class GuiConfigResource {
   @GET
   def getGuiConfig: Map[String, Any] =
     Map(
-      "apiUrl" -> AmberConfig.guiApiUrl,
       "exportExecutionResultEnabled" -> AmberConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
       "autoAttributeCorrectionEnabled" -> AmberConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
       "userSystemEnabled" -> AmberConfig.isUserSystemEnabled,
       "selectingFilesFromDatasetsEnabled" -> AmberConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled,
-      "localLogin" -> AmberConfig.guiLoginAllowUsernamePassword,
-      "googleLogin" -> AmberConfig.guiLoginAllowGoogleAccount,
+      "localLogin" -> AmberConfig.guiLoginLocalLogin,
+      "googleLogin" -> AmberConfig.guiLoginGoogleLogin,
       "inviteOnly" -> AmberConfig.inviteOnly,
       "userPresetEnabled" -> AmberConfig.guiWorkflowWorkspaceUserPresetEnabled,
       "workflowExecutionsTrackingEnabled" -> AmberConfig.guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled,

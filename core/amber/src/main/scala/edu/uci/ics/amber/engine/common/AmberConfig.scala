@@ -147,13 +147,11 @@ object AmberConfig {
     else None
 
   // GUI Configuration
-  val guiApiUrl: String = getConfSource.getString("gui.api-url")
-
   // GUI Login Configuration
-  val guiLoginAllowUsernamePassword: Boolean =
-    getConfSource.getBoolean("gui.login.allow-username-password")
-  val guiLoginAllowGoogleAccount: Boolean =
-    getConfSource.getBoolean("gui.login.allow-google-account")
+  val guiLoginLocalLogin: Boolean =
+    getConfSource.getBoolean("gui.login.local-login")
+  val guiLoginGoogleLogin: Boolean =
+    getConfSource.getBoolean("gui.login.google-login")
   val guiLoginDefaultLocalUserUsername: String =
     if (getConfSource.hasPath("gui.login.default-local-user.username"))
       getConfSource.getString("gui.login.default-local-user.username")

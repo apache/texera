@@ -22,6 +22,7 @@ import { Injectable } from "@angular/core";
 import { GuiConfig } from "../type/gui-config";
 import { Observable, tap, map, catchError } from "rxjs";
 import { throwError } from "rxjs";
+import { AppSettings } from "../app-setting";
 
 @Injectable({ providedIn: "root" })
 export class GuiConfigService {
@@ -30,7 +31,7 @@ export class GuiConfigService {
   constructor(private http: HttpClient) {}
 
   load(): Observable<void> {
-    return this.http.get<GuiConfig>("/api/gui/config").pipe(
+    return this.http.get<GuiConfig>(`${AppSettings.getApiEndpoint()}/gui/config`).pipe(
       tap(config => {
         this.config = config;
         console.log("GUI configuration loaded successfully from backend");
