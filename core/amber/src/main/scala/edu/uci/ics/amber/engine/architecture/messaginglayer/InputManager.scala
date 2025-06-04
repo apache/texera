@@ -56,7 +56,7 @@ class InputManager(
       partitionings: List[Partitioning]
   ): Unit = {
     if (urisToRead.size != partitionings.size) println("Unmatched: ", urisToRead, partitionings)
-    if(urisToRead.nonEmpty || partitionings.nonEmpty)
+    if (urisToRead.nonEmpty || partitionings.nonEmpty)
       assert(urisToRead.size == partitionings.size)
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
