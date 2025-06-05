@@ -98,7 +98,10 @@ class DataProcessingSpec
               )
               println("Expecting result: ", uri)
               // expecting the first output port only.
-              println("ERM:", ExecutionResourcesMapping.getResourceURIs(workflowContext.executionId))
+              println(
+                "ERM:",
+                ExecutionResourcesMapping.getResourceURIs(workflowContext.executionId)
+              )
               ExecutionResourcesMapping
                 .getResourceURIs(workflowContext.executionId)
                 .contains(uri)
