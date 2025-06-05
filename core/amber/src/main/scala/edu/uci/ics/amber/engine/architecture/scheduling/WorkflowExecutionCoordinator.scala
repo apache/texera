@@ -47,20 +47,18 @@ class WorkflowExecutionCoordinator(
     */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
     // First check if any region is in the state of executing dependee input ports.
-    if (regionExecutionCoordinators.values.exists(rc => rc.executingDependeeInputPorts)) {
-      return Future
+    if (regionExecutionCoordinators.values.exists(_.isInDependeePhase)) {
+      Future
         .collect({
           regionExecutionCoordinators.values
-            .filter(_.executingDependeeInputPorts)
-            .map(_.execute(actorService))
+            .filter(_.isInDependeePhase)
+            .map(_.execute())
             .toSeq
         })
         .unit
-    }
-    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
-      return Future(())
-    }
-    {
+    } else if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
+      Future(())
+    } else {
       Future
         .collect({
           val nextRegions = getNextRegions()
@@ -72,11 +70,12 @@ class WorkflowExecutionCoordinator(
                 region,
                 workflowExecution,
                 asyncRPCClient,
-                controllerConfig
+                controllerConfig,
+                actorService
               )
               regionExecutionCoordinators(region.id)
             })
-            .map(_.execute(actorService))
+            .map(_.execute())
             .toSeq
         })
         .unit
