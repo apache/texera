@@ -209,6 +209,8 @@ texeraEnvVars:
     value: "true"
   - name: KUBERNETES_IMAGE_PULL_POLICY
     value: "IfNotPresent"
+  - name: GUI_WORKFLOW_WORKSPACE_PYTHON_LANGUAGE_SERVER_PORT
+    value: ""
   - name: GUI_LOGIN_LOCAL_LOGIN
     value: "true"
   - name: GUI_LOGIN_GOOGLE_LOGIN
