@@ -149,6 +149,14 @@ fileService:
     type: ClusterIP
     port: 9092
 
+configService:
+  name: config-service
+  numOfPods: 1
+  imageName: bobbai/config-service:add-conf
+  service:
+    type: ClusterIP
+    port: 9094
+
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
   replicas: 1
@@ -201,6 +209,16 @@ texeraEnvVars:
     value: "true"
   - name: KUBERNETES_IMAGE_PULL_POLICY
     value: "IfNotPresent"
+  - name: GUI_LOGIN_LOCAL_LOGIN
+    value: "true"
+  - name: GUI_LOGIN_GOOGLE_LOGIN
+    value: "true"
+  - name: GUI_DATASET_SINGLE_FILE_UPLOAD_MAXIMUM_SIZE_MB
+    value: "1024"
+  - name: GUI_WORKFLOW_WORKSPACE_EXPORT_EXECUTION_RESULT_ENABLED
+    value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_WORKFLOW_EXECUTIONS_TRACKING_ENABLED
+    value: "true"
 
 # Ingress dependency configs
 ingress-nginx:
@@ -279,6 +297,9 @@ ingressPaths:
     - path: /api/access/dataset
       serviceName: file-service-svc
       servicePort: 9092
+    - path: /api/user-config
+      serviceName: config-service-svc
+      servicePort: 9094
     - path: /wsapi/workflow-websocket
       serviceName: envoy-svc
       servicePort: 10000
