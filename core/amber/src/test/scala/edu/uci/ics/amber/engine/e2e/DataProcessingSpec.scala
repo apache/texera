@@ -82,7 +82,6 @@ class DataProcessingSpec
 
     client
       .registerCallback[ExecutionStateUpdate](evt => {
-        println("EVENT: ", evt)
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
@@ -90,19 +89,11 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 GlobalPortIdentity(
-                  PhysicalOpIdentity(
-                    logicalOpId = terminalOpId,
-                    layerName = if (terminalOpId.id.contains("HashJoin")) "probe" else "main"
-                  ),
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
                   PortIdentity()
                 )
               )
-              println("Expecting result: ", uri)
               // expecting the first output port only.
-              println(
-                "ERM:",
-                ExecutionResourcesMapping.getResourceURIs(workflowContext.executionId)
-              )
               ExecutionResourcesMapping
                 .getResourceURIs(workflowContext.executionId)
                 .contains(uri)
@@ -114,14 +105,10 @@ class DataProcessingSpec
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 GlobalPortIdentity(
-                  PhysicalOpIdentity(
-                    logicalOpId = terminalOpId,
-                    layerName = if (terminalOpId.id.contains("HashJoin")) "probe" else "main"
-                  ),
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
                   PortIdentity()
                 )
               )
-              println("TerminalOpId: ", terminalOpId)
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
                 ._1
@@ -130,7 +117,6 @@ class DataProcessingSpec
                 .toList
             })
             .toMap
-          println("Results", results)
           completion.setDone()
         }
       })
