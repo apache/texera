@@ -105,8 +105,6 @@ object AmberConfig {
     getConfSource.getInt("web-server.workflow-result-pulling-in-seconds")
   val executionStateCleanUpInSecs: Int =
     getConfSource.getInt("web-server.workflow-state-cleanup-in-seconds")
-  val workflowVersionCollapseIntervalInMinutes: Int =
-    getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
   val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
