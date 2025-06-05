@@ -82,6 +82,7 @@ class DataProcessingSpec
 
     client
       .registerCallback[ExecutionStateUpdate](evt => {
+        println("EVENT: ", evt)
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
