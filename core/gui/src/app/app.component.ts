@@ -27,7 +27,9 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-root",
   template: `
-    <div *ngIf="configLoaded === false" id="config-error">
+    <div
+      *ngIf="configLoaded === false"
+      id="config-error">
       <h1>Configuration Error</h1>
       <p>Failed to load application configuration.</p>
       <p>Please ensure the backend server is running and accessible.</p>
@@ -45,7 +47,10 @@ export class AppComponent implements OnInit {
    */
   configLoaded?: boolean;
 
-  constructor(private config: GuiConfigService, private router: Router) {}
+  constructor(
+    private config: GuiConfigService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.config
@@ -58,7 +63,7 @@ export class AppComponent implements OnInit {
             this.router.navigateByUrl(DASHBOARD_ABOUT);
           }
         },
-        error: (err) => {
+        error: (err: unknown) => {
           console.error("GUI config failed to load:", err);
           this.configLoaded = false;
         },
