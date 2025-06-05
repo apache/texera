@@ -30,13 +30,12 @@ export class GuiConfigService {
 
   constructor(private http: HttpClient) {}
 
-  load(): Observable<void> {
+  load(): Observable<GuiConfig> {
     return this.http.get<GuiConfig>(`${AppSettings.getApiEndpoint()}/user-config/gui`).pipe(
       tap(config => {
         this.config = config;
         console.log("GUI configuration loaded successfully from backend");
       }),
-      map(() => void 0),
       catchError((error: unknown) => {
         console.error("Failed to load GUI configuration:", error);
         return throwError(() => new Error(`Failed to load GUI configuration from backend: ${error}`));

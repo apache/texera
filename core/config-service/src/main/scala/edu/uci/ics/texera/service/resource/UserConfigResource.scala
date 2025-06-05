@@ -59,6 +59,6 @@ class UserConfigResource {
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
-      ).filter { case (_, v) => v.nonEmpty } // Only include non-empty values
+      )
     )
 }

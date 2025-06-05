@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { NgModule, inject } from "@angular/core";
+import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
@@ -37,153 +37,133 @@ import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
-import { DASHBOARD_USER_WORKFLOW, DASHBOARD_ABOUT } from "./app-routing.constant";
+import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
-import { GuiConfigService } from "./common/service/gui-config.service";
 
-// Guard to check if user system is enabled
-const userSystemEnabledGuard = () => {
-  const guiConfigService = inject(GuiConfigService);
-  return guiConfigService.env.userSystemEnabled;
-};
+const routes: Routes = [];
 
-// Guard to check if user system is disabled
-const userSystemDisabledGuard = () => {
-  const guiConfigService = inject(GuiConfigService);
-  return !guiConfigService.env.userSystemEnabled;
-};
+routes.push({
+  path: "dashboard",
+  component: DashboardComponent,
+  children: [
+    {
+      path: "home",
+      component: LandingPageComponent,
+    },
+    {
+      path: "about",
+      component: AboutComponent,
+    },
+    {
+      path: "hub",
+      children: [
+        {
+          path: "workflow",
+          children: [
+            {
+              path: "result",
+              component: HubSearchResultComponent,
+            },
+            {
+              path: "result/detail/:id",
+              component: HubWorkflowDetailComponent,
+            },
+          ],
+        },
+        {
+          path: "dataset",
+          children: [
+            {
+              path: "result",
+              component: HubSearchResultComponent,
+            },
+            {
+              path: "result/detail/:did",
+              component: DatasetDetailComponent,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      path: "user",
+      canActivate: [AuthGuardService],
+      children: [
+        {
+          path: "project",
+          component: UserProjectComponent,
+        },
+        {
+          path: "project/:pid",
+          component: UserProjectSectionComponent,
+        },
+        {
+          path: "workspace/:id",
+          component: WorkspaceComponent,
+        },
+        {
+          path: "workflow",
+          component: UserWorkflowComponent,
+        },
+        {
+          path: "dataset",
+          component: UserDatasetComponent,
+        },
+        {
+          path: "dataset/:did",
+          component: DatasetDetailComponent,
+        },
+        {
+          path: "dataset/create",
+          component: DatasetDetailComponent,
+        },
+        {
+          path: "quota",
+          component: UserQuotaComponent,
+        },
+        {
+          path: "discussion",
+          component: FlarumComponent,
+        },
+      ],
+    },
+    {
+      path: "admin",
+      canActivate: [AdminGuardService],
+      children: [
+        {
+          path: "user",
+          component: AdminUserComponent,
+        },
+        {
+          path: "gmail",
+          component: AdminGmailComponent,
+        },
+        {
+          path: "execution",
+          component: AdminExecutionComponent,
+        },
+      ],
+    },
+    {
+      path: "search",
+      component: SearchComponent,
+    },
+  ],
+});
 
-const routes: Routes = [
-  // Dashboard routes (only matched when user system is enabled)
-  {
-    path: "dashboard",
-    component: DashboardComponent,
-    canMatch: [userSystemEnabledGuard],
-    children: [
-      {
-        path: "home",
-        component: LandingPageComponent,
-      },
-      {
-        path: "about",
-        component: AboutComponent,
-      },
-      {
-        path: "hub",
-        children: [
-          {
-            path: "workflow",
-            children: [
-              {
-                path: "result",
-                component: HubSearchResultComponent,
-              },
-              {
-                path: "result/detail/:id",
-                component: HubWorkflowDetailComponent,
-              },
-            ],
-          },
-          {
-            path: "dataset",
-            children: [
-              {
-                path: "result",
-                component: HubSearchResultComponent,
-              },
-              {
-                path: "result/detail/:did",
-                component: DatasetDetailComponent,
-              },
-            ],
-          },
-        ],
-      },
-      {
-        path: "user",
-        canActivate: [AuthGuardService],
-        children: [
-          {
-            path: "project",
-            component: UserProjectComponent,
-          },
-          {
-            path: "project/:pid",
-            component: UserProjectSectionComponent,
-          },
-          {
-            path: "workspace/:id",
-            component: WorkspaceComponent,
-          },
-          {
-            path: "workflow",
-            component: UserWorkflowComponent,
-          },
-          {
-            path: "dataset",
-            component: UserDatasetComponent,
-          },
-          {
-            path: "dataset/:did",
-            component: DatasetDetailComponent,
-          },
-          {
-            path: "dataset/create",
-            component: DatasetDetailComponent,
-          },
-          {
-            path: "quota",
-            component: UserQuotaComponent,
-          },
-          {
-            path: "discussion",
-            component: FlarumComponent,
-          },
-        ],
-      },
-      {
-        path: "admin",
-        canActivate: [AdminGuardService],
-        children: [
-          {
-            path: "user",
-            component: AdminUserComponent,
-          },
-          {
-            path: "gmail",
-            component: AdminGmailComponent,
-          },
-          {
-            path: "execution",
-            component: AdminExecutionComponent,
-          },
-        ],
-      },
-      {
-        path: "search",
-        component: SearchComponent,
-      },
-    ],
-  },
-  // Root redirect when user system is enabled
-  {
-    path: "",
-    redirectTo: DASHBOARD_ABOUT,
-    pathMatch: "full",
-    canMatch: [userSystemEnabledGuard],
-  },
-  // Root path when user system is disabled
-  {
-    path: "",
-    component: WorkspaceComponent,
-    canMatch: [userSystemDisabledGuard],
-  },
-  // Catch-all redirect
-  {
-    path: "**",
-    redirectTo: DASHBOARD_USER_WORKFLOW,
-  },
-];
+// default route renders the workspace editor directly; if userSystem is enabled at runtime,
+// AppComponent will navigate to DASHBOARD_ABOUT instead.
+routes.push({
+  path: "",
+  component: WorkspaceComponent,
+});
+
+// redirect all other paths to index.
+routes.push({
+  path: "**",
+  redirectTo: DASHBOARD_USER_WORKFLOW,
+});
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],

@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { APP_INITIALIZER, NgModule } from "@angular/core";
+import { NgModule } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -272,7 +272,7 @@ registerLocaleData(en);
       },
     }),
     BrowserAnimationsModule,
-    RouterModule.forRoot([]),
+    RouterModule,
     FormsModule,
     ReactiveFormsModule,
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -333,22 +333,6 @@ registerLocaleData(en);
     GuiConfigService,
     FileSaverService,
     ReportGenerationService,
-    {
-      provide: APP_INITIALIZER,
-      useFactory: (guiConfigService: GuiConfigService) => () => {
-        return guiConfigService
-          .load()
-          .toPromise()
-          .catch(error => {
-            console.error("Failed to load GUI configuration from backend:", error);
-            alert("Failed to load application configuration. Please ensure the backend server is running.");
-            // Re-throw the error to prevent app initialization
-            throw new Error("Application initialization failed: Unable to load GUI configuration");
-          });
-      },
-      deps: [GuiConfigService],
-      multi: true,
-    },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,

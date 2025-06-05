@@ -52,10 +52,10 @@
 
     <!-- Add Angular Material Fonts -->
     <link
-      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500&display=swap"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"
       rel="stylesheet" />
     <link
-      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block"
       rel="stylesheet" />
 
     <!-- Add JSON Editor CSS and JS -->
@@ -64,59 +64,8 @@
       rel="stylesheet"
       type="text/css" />
     <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.js"></script>
-
-    <style>
-      #config-error {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        font-family: Arial, sans-serif;
-        padding: 40px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-      #config-error h1 {
-        color: #d32f2f;
-        margin-bottom: 20px;
-      }
-      #config-error p {
-        color: #666;
-        margin-bottom: 20px;
-      }
-      #config-error button {
-        background: #1976d2;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      #config-error button:hover {
-        background: #1565c0;
-      }
-    </style>
   </head>
   <body>
     <texera-root></texera-root>
-    <div id="config-error">
-      <h1>Configuration Error</h1>
-      <p>Failed to load application configuration.</p>
-      <p>Please ensure the backend server is running and accessible.</p>
-      <button onclick="location.reload()">Retry</button>
-    </div>
-    <script>
-      // Show error UI if app fails to bootstrap
-      window.addEventListener("error", function (event) {
-        if (event.error && event.error.message && event.error.message.includes("GUI configuration")) {
-          document.getElementById("config-error").style.display = "block";
-          document.querySelector("texera-root").style.display = "none";
-        }
-      });
-    </script>
   </body>
 </html>

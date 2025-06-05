@@ -88,8 +88,4 @@ export class SettingsComponent implements OnInit {
       })
       .add(() => (this.isSaving = false));
   }
-
-  onClickReset() {
-    this.settingsForm.patchValue({ dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize });
-  }
 }
