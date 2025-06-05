@@ -96,7 +96,9 @@ class DataProcessingSpec
                   PortIdentity()
                 )
               )
+              println("Expecting result: ", uri)
               // expecting the first output port only.
+              println("ERM:", ExecutionResourcesMapping.getResourceURIs(workflowContext.executionId))
               ExecutionResourcesMapping
                 .getResourceURIs(workflowContext.executionId)
                 .contains(uri)
@@ -115,6 +117,7 @@ class DataProcessingSpec
                   PortIdentity()
                 )
               )
+              println("TerminalOpId: ", terminalOpId)
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
                 ._1
@@ -123,6 +126,7 @@ class DataProcessingSpec
                 .toList
             })
             .toMap
+          println("Results", results)
           completion.setDone()
         }
       })
