@@ -33,13 +33,15 @@ class UserConfigResource {
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
+      // flags from the user-system.conf
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled,
+      // flags from the gui.conf
       "exportExecutionResultEnabled" -> GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
       "autoAttributeCorrectionEnabled" -> GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
-      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled,
       "selectingFilesFromDatasetsEnabled" -> GuiConfig.guiWorkflowWorkspaceSelectingFilesFromDatasetsEnabled,
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
-      "inviteOnly" -> UserSystemConfig.inviteOnly,
       "userPresetEnabled" -> GuiConfig.guiWorkflowWorkspaceUserPresetEnabled,
       "workflowExecutionsTrackingEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowExecutionsTrackingEnabled,
       "linkBreakpointEnabled" -> GuiConfig.guiWorkflowWorkspaceLinkBreakpointEnabled,
