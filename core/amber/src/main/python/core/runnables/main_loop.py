@@ -308,7 +308,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
-        # Special case for the hack of input port dependency.
+        # Special case for handling input port dependency relationships.
         # See documentation of is_missing_output_ports
         if self.context.output_manager.is_missing_output_ports():
             return

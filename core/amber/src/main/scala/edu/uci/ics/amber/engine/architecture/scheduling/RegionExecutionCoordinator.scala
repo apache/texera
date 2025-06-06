@@ -52,6 +52,29 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
+/**
+  * The executor of a region.
+  *
+  * We currently use a two-phase execution scheme to handle input-port dependency relationships. This is based on two
+  * assumptions:
+  *
+  *  - We only allow input port dependencies where the input ports of a region can be grouped as two layers, with one
+  *    layer of “dependee” ports and another layer of “depender” ports. We do not allow the case where an input port
+  *    can both be a dependee and a depender.
+  *  - We only allow depender ports to send data to output ports. Depenee input ports cannot send data to output ports.
+  *  - All the physical operators must have output ports so that we can use the existence of output ports to decide
+  *    whether to `FinalizeExecutor()` for a worker. (See `OutputManager.finalizeOutput()`)
+  *
+  * Under these assumptions, we can execute a region in two phases:
+  *
+  * 1. In the `ExecutingDependeePorts` phase (if applicable), all the dependee input
+  *    ports are executed first until they complete. The corresponding workers of
+  *    those input ports are also started in this phase. No output ports are allowed.
+  *
+  * 2. In the `ExecutingNonDependeePorts` phase, all other ports (non-dependee input
+  *    ports, output ports) and their workers are executed. Region completion is
+  *    indicated by the completion of all the ports in this phase.
+  */
 class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,
@@ -62,37 +85,48 @@ class RegionExecutionCoordinator(
 
   initRegionExecution()
 
-  private sealed trait RegionState
-  private case object Unexecuted extends RegionState
-  private case object ExecutingDependeePorts extends RegionState
-  private case object ExecutingNonDependeePorts extends RegionState
+  private sealed trait RegionExecutionPhase
+  private case object Unexecuted extends RegionExecutionPhase
+  private case object ExecutingDependeePorts extends RegionExecutionPhase
+  private case object ExecutingNonDependeePorts extends RegionExecutionPhase
 
-  private val stateRef: AtomicReference[RegionState] =
-    new AtomicReference(Unexecuted)
+  private val currentPhaseRef: AtomicReference[RegionExecutionPhase] = new AtomicReference(
+    Unexecuted
+  )
 
-  def isInDependeePhase: Boolean = stateRef.get() == ExecutingDependeePorts
+  def isInDependeePhase: Boolean = currentPhaseRef.get == ExecutingDependeePorts
 
+  /**
+    * This will transition the region execution phase from one to another depending on its current phase. Only these 3
+    * transitions will happen:
+    *
+    * 1. `Unexecuted` -> `ExecutingDependeePorts`
+    *
+    * 2. `Unexecuted` -> `ExecutingNonDependeePorts`
+    *
+    * 3. `ExecutingDependeePorts` -> `ExecutingNonDependeePorts`
+    */
   def execute(): Future[Unit] =
-    stateRef.get() match {
+    currentPhaseRef.get match {
       case Unexecuted =>
         if (region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
-          stateRef.set(ExecutingDependeePorts)
-          executeDependeePorts()
+          currentPhaseRef.set(ExecutingDependeePorts)
+          executeDependeePortPhase()
         } else {
-          stateRef.set(ExecutingNonDependeePorts)
-          executeNonDependeePorts()
+          currentPhaseRef.set(ExecutingNonDependeePorts)
+          executeNonDependeePortPhase()
         }
       case ExecutingDependeePorts =>
-        stateRef.set(ExecutingNonDependeePorts)
-        executeNonDependeePorts()
+        currentPhaseRef.set(ExecutingNonDependeePorts)
+        executeNonDependeePortPhase()
       case ExecutingNonDependeePorts =>
         Future.Unit
     }
 
-  private def executeDependeePorts(): Future[Unit] = {
+  private def executeDependeePortPhase(): Future[Unit] = {
     val ops = region.getOperators.filter(_.dependeeInputs.nonEmpty)
 
-    prepareAndLaunch(
+    launchPhaseExecutionInternal(
       ops,
       () => assignPorts(region, dependeePhase = true),
       () => Future.value(Seq.empty),
@@ -100,7 +134,8 @@ class RegionExecutionCoordinator(
     )
   }
 
-  private def executeNonDependeePorts(): Future[Unit] = {
+  private def executeNonDependeePortPhase(): Future[Unit] = {
+    // Allocate output port storage objects
     region.resourceConfig.get.portConfigs
       .collect {
         case (id, cfg: OutputPortConfig) => id -> cfg
@@ -112,7 +147,7 @@ class RegionExecutionCoordinator(
 
     val ops = region.getOperators.filter(_.dependeeInputs.isEmpty)
 
-    prepareAndLaunch(
+    launchPhaseExecutionInternal(
       ops,
       () => assignPorts(region, dependeePhase = false),
       () => connectChannels(region.getLinks),
@@ -120,11 +155,14 @@ class RegionExecutionCoordinator(
     )
   }
 
-  private def prepareAndLaunch(
+  /**
+    * Unified logic for launching either of the two phases asynchronously.
+    */
+  private def launchPhaseExecutionInternal(
       operatorsToRun: Set[PhysicalOp],
-      assignPortLogic: () => Future[Seq[EmptyReturn]],
-      connectLinkLogic: () => Future[Seq[EmptyReturn]],
-      startWorkerLogic: () => Future[Seq[Unit]]
+      assignPortsLogic: () => Future[Seq[EmptyReturn]],
+      connectChannelsLogic: () => Future[Seq[EmptyReturn]],
+      startWorkersLogic: () => Future[Seq[Unit]]
   ): Future[Unit] = {
 
     val resourceConfig = region.resourceConfig.get
@@ -149,13 +187,16 @@ class RegionExecutionCoordinator(
     )
     Future(())
       .flatMap(_ => initExecutors(operatorsToRun, resourceConfig))
-      .flatMap(_ => assignPortLogic())
-      .flatMap(_ => connectLinkLogic())
+      .flatMap(_ => assignPortsLogic())
+      .flatMap(_ => connectChannelsLogic())
       .flatMap(_ => openOperators(operatorsToRun))
-      .flatMap(_ => startWorkerLogic())
+      .flatMap(_ => startWorkersLogic())
       .unit
   }
 
+  /**
+    * Initialize the execution states of all the operators in the region, and also create workers for each operator.
+    */
   private def initRegionExecution(): Unit = {
     val resourceConfig = region.resourceConfig.get
     val regionExecution = workflowExecution.getRegionExecution(region.id)
