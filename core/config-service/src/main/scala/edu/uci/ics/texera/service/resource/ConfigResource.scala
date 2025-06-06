@@ -68,6 +68,6 @@ class ConfigResource {
     Map(
       // flags from the user-system.conf
       "inviteOnly" -> UserSystemConfig.inviteOnly,
-      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled,
+      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled
     )
 }
