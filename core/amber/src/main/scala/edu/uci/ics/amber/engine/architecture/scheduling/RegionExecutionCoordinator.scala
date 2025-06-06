@@ -77,32 +77,30 @@ class RegionExecutionCoordinator(
       case Unexecuted =>
         if (region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
           stateRef.set(ExecutingDependeePorts)
-          executeDependeePorts(actorService)
+          executeDependeePorts()
         } else {
           stateRef.set(ExecutingNonDependeePorts)
-          executeNonDependeePorts(actorService)
+          executeNonDependeePorts()
         }
       case ExecutingDependeePorts =>
         stateRef.set(ExecutingNonDependeePorts)
-        executeNonDependeePorts(actorService)
+        executeNonDependeePorts()
       case ExecutingNonDependeePorts =>
         Future.Unit
     }
 
-  private def executeDependeePorts(actorService: AkkaActorService): Future[Unit] = {
+  private def executeDependeePorts(): Future[Unit] = {
     val ops = region.getOperators.filter(_.dependeeInputs.nonEmpty)
 
     prepareAndLaunch(
-      actorService,
       ops,
       () => assignPorts(region, dependeePhase = true),
-      () => Future.value(Seq.empty), // no links in pass-1
+      () => Future.value(Seq.empty),
       () => sendStarts(region, dependeePhase = true)
     )
   }
 
-  private def executeNonDependeePorts(actorService: AkkaActorService): Future[Unit] = {
-    // create storage for output ports – original behaviour
+  private def executeNonDependeePorts(): Future[Unit] = {
     region.resourceConfig.get.portConfigs
       .collect {
         case (id, cfg: OutputPortConfig) => id -> cfg
@@ -115,7 +113,6 @@ class RegionExecutionCoordinator(
     val ops = region.getOperators.filter(_.dependeeInputs.isEmpty)
 
     prepareAndLaunch(
-      actorService,
       ops,
       () => assignPorts(region, dependeePhase = false),
       () => connectChannels(region.getLinks),
@@ -124,7 +121,6 @@ class RegionExecutionCoordinator(
   }
 
   private def prepareAndLaunch(
-      actorService: AkkaActorService,
       operatorsToRun: Set[PhysicalOp],
       assignPortLogic: () => Future[Seq[EmptyReturn]],
       connectLinkLogic: () => Future[Seq[EmptyReturn]],
@@ -228,9 +224,9 @@ class RegionExecutionCoordinator(
   }
 
   private def assignPorts(
-                                   region: Region,
-                                   dependeePhase: Boolean
-                                 ): Future[Seq[EmptyReturn]] = {
+      region: Region,
+      dependeePhase: Boolean
+  ): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
       region.getOperators
@@ -261,6 +257,10 @@ class RegionExecutionCoordinator(
               case _ => None
             }
 
+          // Currently an output port uses the same AssignPortRequest as an Input port.
+          // However, an output port does not need a list of URIs or partitionings.
+          // TODO: Separate AssignPortRequest for Input and Output Ports
+
           // assign ports (only for non-dependee phase)
           val outputPortMapping =
             if (dependeePhase) Iterable.empty
@@ -276,14 +276,17 @@ class RegionExecutionCoordinator(
                     val storageURI = resourceConfig.portConfigs
                       .collectFirst {
                         case (gid, cfg: OutputPortConfig)
-                          if gid == GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId) =>
+                            if gid == GlobalPortIdentity(
+                              opId = physicalOp.id,
+                              portId = outputPortId
+                            ) =>
                           cfg.storageURI.toString
                       }
                       .getOrElse("")
                     Some(
-                  GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(
-                    storageURI
-                  ), List.empty, schema)
+                      GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(
+                        storageURI
+                      ), List.empty, schema)
                     )
                   case _ => None
                 }
@@ -339,9 +342,9 @@ class RegionExecutionCoordinator(
   }
 
   private def sendStarts(
-                                  region: Region,
-                                  dependeePhase: Boolean
-                                ): Future[Seq[Unit]] = {
+      region: Region,
+      dependeePhase: Boolean
+  ): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
         workflowExecution.getAllRegionExecutionsStats
