@@ -95,7 +95,7 @@ class RegionExecutionCoordinator(
     prepareAndLaunch(
       actorService,
       ops,
-      () => assignDependeePorts(region),
+      () => assignPortsInternal(region, dependeePhase = true),
       () => Future.value(Seq.empty), // no links in pass-1
       () => sendOpsWithDependeeInputStarts(region)
     )
@@ -117,7 +117,7 @@ class RegionExecutionCoordinator(
     prepareAndLaunch(
       actorService,
       ops,
-      () => assignPorts(region),
+      () => assignPortsInternal(region, dependeePhase = false),
       () => connectChannels(region.getLinks),
       () => sendStarts(region)
     )
@@ -227,15 +227,27 @@ class RegionExecutionCoordinator(
       )
   }
 
-  private def assignDependeePorts(region: Region): Future[Seq[EmptyReturn]] = {
+  /* ---------- unified helpers ---------- */
+
+  /** Consolidated implementation used by both `assignDependeePorts` and `assignPorts`.
+   *
+   * @param dependeePhase  true  ⇒ handle **dependee** input ports only
+   *                       false ⇒ handle **normal** input ports + all output ports
+   */
+  private def assignPortsInternal(
+                                   region: Region,
+                                   dependeePhase: Boolean
+                                 ): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
+          // assign input ports
           val inputPortMapping = physicalOp.inputPorts
             .filter {
               case (portId, _) =>
-                physicalOp.dependeeInputs.contains(portId)
+                // keep only the ports that belong to the requested phase
+                dependeePhase == physicalOp.dependeeInputs.contains(portId)
             }
             .filter {
               // Because of the hack on input dependency, some input ports may not belong to this region.
@@ -249,99 +261,43 @@ class RegionExecutionCoordinator(
                 val (storageURIs, partitionings) =
                   resourceConfig.portConfigs.get(globalInputPortId) match {
                     case Some(cfg: InputPortConfig) =>
-                      (
-                        cfg.storagePairs.map(_._1.toString),
-                        cfg.storagePairs.map(_._2)
-                      )
-                    case _ =>
-                      (List.empty[String], List.empty[Partitioning])
+                      (cfg.storagePairs.map(_._1.toString), cfg.storagePairs.map(_._2))
+                    case _ => (List.empty[String], List.empty[Partitioning])
                   }
-
                 Some(globalInputPortId -> (storageURIs, partitionings, schema))
               case _ => None
             }
-          inputPortMapping
-        }
-        .flatMap {
-          case (globalPortId, (storageUris, partitionings, schema)) =>
-            resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
-              workerId =>
-                asyncRPCClient.workerInterface.assignPort(
-                  AssignPortRequest(
-                    globalPortId.portId,
-                    globalPortId.input,
-                    schema.toRawSchema,
-                    storageUris,
-                    partitionings
-                  ),
-                  asyncRPCClient.mkContext(workerId)
-                )
-            }
-        }
-        .toSeq
-    )
-  }
 
-  private def assignPorts(region: Region): Future[Seq[EmptyReturn]] = {
-    val resourceConfig = region.resourceConfig.get
-    Future.collect(
-      region.getOperators
-        .flatMap { physicalOp: PhysicalOp =>
-          val inputPortMapping = physicalOp.inputPorts
-            .filter {
-              case (portId, _) =>
-                !physicalOp.dependeeInputs.contains(portId)
-            }
-            .filter {
-              // Because of the hack on input dependency, some input ports may not belong to this region.
-              case (inputPortId, _) =>
-                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-                region.getPorts.contains(globalInputPortId)
-            }
-            .flatMap {
-              case (inputPortId, (_, _, Right(schema))) =>
-                val globalInputPortId = GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-                val (storageURIs, partitionings) =
-                  resourceConfig.portConfigs.get(globalInputPortId) match {
-                    case Some(cfg: InputPortConfig) =>
-                      (
-                        cfg.storagePairs.map(_._1.toString),
-                        cfg.storagePairs.map(_._2)
-                      )
-                    case _ =>
-                      (List.empty[String], List.empty[Partitioning])
-                  }
-
-                Some(globalInputPortId -> (storageURIs, partitionings, schema))
-              case _ => None
-            }
-          // Currently an output port uses the same AssignPortRequest as an Input port.
-          // However, an output port does not need a list of URIs or partitionings.
-          // TODO: Separate AssignPortRequest for Input and Output Ports
-          val outputPortMapping = physicalOp.outputPorts
-            .filter {
-              case (outputPortId, _) =>
-                val globalInputPortId = GlobalPortIdentity(physicalOp.id, outputPortId)
-                region.getPorts.contains(globalInputPortId)
-            }
-            .flatMap {
-              case (outputPortId, (_, _, Right(schema))) =>
-                val storageURI = resourceConfig.portConfigs
-                  .collectFirst {
-                    case (gid, cfg: OutputPortConfig)
-                        if gid == GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId) =>
-                      cfg.storageURI.toString
-                  }
-                  .getOrElse("")
-                Some(
+          // assign ports (only for non-dependee phase)
+          val outputPortMapping =
+            if (dependeePhase) Iterable.empty
+            else
+              physicalOp.outputPorts
+                .filter {
+                  case (outputPortId, _) =>
+                    val globalInputPortId = GlobalPortIdentity(physicalOp.id, outputPortId)
+                    region.getPorts.contains(globalInputPortId)
+                }
+                .flatMap {
+                  case (outputPortId, (_, _, Right(schema))) =>
+                    val storageURI = resourceConfig.portConfigs
+                      .collectFirst {
+                        case (gid, cfg: OutputPortConfig)
+                          if gid == GlobalPortIdentity(opId = physicalOp.id, portId = outputPortId) =>
+                          cfg.storageURI.toString
+                      }
+                      .getOrElse("")
+                    Some(
                   GlobalPortIdentity(physicalOp.id, outputPortId) -> (List(
                     storageURI
                   ), List.empty, schema)
-                )
-              case _ => None
-            }
+                    )
+                  case _ => None
+                }
+
           inputPortMapping ++ outputPortMapping
         }
+        // Issue AssignPort control messages to each worker.
         .flatMap {
           case (globalPortId, (storageUris, partitionings, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
