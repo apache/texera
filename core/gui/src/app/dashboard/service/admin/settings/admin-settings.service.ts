@@ -36,21 +36,25 @@ export class AdminSettingsService {
   private readonly BASE_URL = "/api/admin/settings";
   constructor(private http: HttpClient) {}
 
-  getAllSettings(): Observable<SiteSetting[]> {
-    return this.http.get<SiteSetting[]>(`${this.BASE_URL}`, {
+  getSetting(key: string): Observable<SiteSetting> {
+    return this.http.get<SiteSetting>(`${this.BASE_URL}/${key}`, {
       withCredentials: true,
     });
   }
 
-  updateSettings(settings: SiteSetting[]): Observable<void> {
-    return this.http.put<void>(`${this.BASE_URL}`, settings, {
+  updateSetting(setting: SiteSetting): Observable<void> {
+    return this.http.put<void>(`${this.BASE_URL}/${setting.key}`, setting, {
       withCredentials: true,
     });
   }
 
-  deleteSettings(keys: string[]): Observable<void> {
-    return this.http.post<void>(`${this.BASE_URL}/delete`, keys, {
-      withCredentials: true,
-    });
+  deleteSetting(key: string): Observable<void> {
+    return this.http.post<void>(
+      `${this.BASE_URL}/delete/${key}`,
+      {},
+      {
+        withCredentials: true,
+      }
+    );
   }
 }

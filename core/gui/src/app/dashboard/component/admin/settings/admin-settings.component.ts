@@ -18,7 +18,7 @@
  */
 
 import { Component } from "@angular/core";
-import { AdminSettingsService, SiteSetting } from "../../../service/admin/settings/admin-settings.service";
+import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -33,7 +33,7 @@ export class AdminSettingsComponent {
   faviconData: string | null = null;
 
   constructor(
-    private settingsSvc: AdminSettingsService,
+    private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
 
@@ -56,35 +56,52 @@ export class AdminSettingsComponent {
   }
 
   saveLogos(): void {
-    const settings: SiteSetting[] = [];
-    if (this.logoData) settings.push({ key: "logo", value: this.logoData });
-    if (this.faviconData) settings.push({ key: "favicon", value: this.faviconData });
-    if (settings.length === 0) {
-      this.message.info("No changes to save.");
-      return;
+    if (this.logoData) {
+      this.adminSettingsService
+        .updateSetting({ key: "logo", value: this.logoData })
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => this.message.success("Logo saved successfully."),
+          error: () => this.message.error("Failed to save logo."),
+        });
     }
-    this.settingsSvc
-      .updateSettings(settings)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.message.success("Logo settings saved.");
-          window.location.reload();
-        },
-        error: () => this.message.error("Failed to save logos."),
-      });
+    if (this.faviconData) {
+      this.adminSettingsService
+        .updateSetting({ key: "favicon", value: this.faviconData })
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => this.message.success("Favicon saved successfully."),
+          error: () => this.message.error("Failed to save favicon."),
+        });
+    }
+    if (this.logoData || this.faviconData) {
+      window.location.reload();
+    }
   }
 
   resetToDefault(): void {
-    this.settingsSvc
-      .deleteSettings(["logo", "favicon"])
+    this.adminSettingsService
+      .deleteSetting("logo")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.message.success("Logos reset to default.");
-          window.location.reload();
+          this.logoData = null;
+          this.message.success("Logo reset to default.");
         },
-        error: () => this.message.error("Failed to reset logos."),
+        error: () => this.message.error("Failed to reset logo."),
       });
+
+    this.adminSettingsService
+      .deleteSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.faviconData = null;
+          this.message.success("Favicon reset to default.");
+        },
+        error: () => this.message.error("Failed to reset favicon."),
+      });
+
+    setTimeout(() => window.location.reload(), 500);
   }
 }

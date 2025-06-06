@@ -19,7 +19,6 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.admin.settings
 
-import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -39,63 +38,53 @@ case class AdminSettingsPojo(
 class AdminSettingsResource {
 
   private val ctx = SqlServer.getInstance().createDSLContext()
-  private val SS = DSL.table("site_settings")
-  private val KEY = DSL.field("key", classOf[String])
-  private val VAL = DSL.field("value", classOf[String])
-  private val BY = DSL.field("updated_by", classOf[String])
+  private val siteSettings = DSL.table("site_settings")
+  private val key = DSL.field("key", classOf[String])
+  private val value = DSL.field("value", classOf[String])
+  private val updatedBy = DSL.field("updated_by", classOf[String])
 
   @GET
-  def listAll(): util.List[AdminSettingsPojo] = {
+  @Path("{key}")
+  def getSetting(@PathParam("key") keyParam: String): AdminSettingsPojo = {
     ctx
-      .select(KEY, VAL)
-      .from(SS)
-      .fetchInto(classOf[AdminSettingsPojo])
+      .select(key, value)
+      .from(siteSettings)
+      .where(key.eq(keyParam))
+      .fetchOneInto(classOf[AdminSettingsPojo])
   }
 
   @PUT
+  @Path("{key}")
   @RolesAllowed(Array("ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def updateAll(
+  def updateSetting(
       @Auth currentUser: SessionUser,
-      settings: util.List[AdminSettingsPojo]
+      @PathParam("key") keyParam: String,
+      setting: AdminSettingsPojo
   ): Response = {
-    val updatedBy = currentUser.getName
-
-    settings
-      .stream()
-      .filter(s => s.settingKey != null && s.settingKey.nonEmpty)
-      .forEach { s =>
-        ctx
-          .insertInto(SS)
-          .set(KEY, s.settingKey)
-          .set(VAL, s.settingValue)
-          .set(BY, updatedBy)
-          .onConflict(KEY)
-          .doUpdate()
-          .set(VAL, s.settingValue)
-          .set(BY, updatedBy)
-          .execute()
-      }
+    if (setting.settingValue != null && keyParam.nonEmpty) {
+      ctx
+        .insertInto(siteSettings)
+        .set(key, keyParam)
+        .set(value, setting.settingValue)
+        .set(updatedBy, currentUser.getName)
+        .onConflict(key)
+        .doUpdate()
+        .set(value, setting.settingValue)
+        .set(updatedBy, currentUser.getName)
+        .execute()
+    }
     Response.ok().build()
   }
 
   @POST
-  @Path("/delete")
+  @Path("/delete/{key}")
   @RolesAllowed(Array("ADMIN"))
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def deleteSettings(
-      keys: util.List[String]
-  ): Response = {
-    val validKeysArray: Array[String] =
-      keys
-        .stream()
-        .filter(k => k != null && k.nonEmpty)
-        .toArray((size: Int) => new Array[String](size))
-
-    if (validKeysArray.nonEmpty) {
+  def deleteSetting(@PathParam("key") keyParam: String): Response = {
+    if (keyParam != null && keyParam.nonEmpty) {
       ctx
-        .delete(SS)
-        .where(KEY.in(validKeysArray: _*))
+        .delete(siteSettings)
+        .where(key.eq(keyParam))
         .execute()
     }
     Response.ok().build()

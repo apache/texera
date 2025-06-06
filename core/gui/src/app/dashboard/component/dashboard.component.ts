@@ -56,7 +56,7 @@ export class DashboardComponent implements OnInit {
   public gitCommitHash: string = Version.raw;
   displayForum: boolean = true;
   displayNavbar: boolean = true;
-  isCollpased: boolean = false;
+  isCollapsed: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
   logo: string = "assets/logos/logo.png";
@@ -84,7 +84,7 @@ export class DashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isCollpased = false;
+    this.isCollapsed = false;
 
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
@@ -120,14 +120,38 @@ export class DashboardComponent implements OnInit {
         });
     });
 
+    this.loadLogos();
+  }
+
+  loadLogos(): void {
     this.adminSettingsService
-      .getAllSettings()
+      .getSetting("logo")
       .pipe(untilDestroyed(this))
-      .subscribe(settings => {
-        const main = settings.find(s => s.key === "logo")?.value;
-        const mini = settings.find(s => s.key === "favicon")?.value;
-        this.logo = main || "assets/logos/logo.png";
-        this.favicon = mini || "assets/logos/favicon-32x32.png";
+      .subscribe({
+        next: setting => {
+          this.logo = setting && setting.value ? setting.value : "assets/logos/logo.png";
+        },
+        error: () => {
+          this.logo = "assets/logos/logo.png";
+        },
+      });
+
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: setting => {
+          if (setting && setting.value) {
+            this.favicon = setting.value;
+            const links = document.querySelectorAll("link[rel*='icon']");
+            links.forEach(link => {
+              (link as HTMLLinkElement).setAttribute("href", setting.value);
+            });
+          }
+        },
+        error: () => {
+          this.favicon = "assets/logos/favicon-32x32.png";
+        },
       });
   }
 
@@ -169,7 +193,7 @@ export class DashboardComponent implements OnInit {
   }
 
   handleCollapseChange(collapsed: boolean) {
-    this.isCollpased = collapsed;
+    this.isCollapsed = collapsed;
     const resizeEvent = new Event("resize");
     const editor = document.getElementById("workflow-editor");
     if (editor) {
