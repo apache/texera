@@ -58,8 +58,8 @@ export class MockGuiConfigService {
     return this._config;
   }
 
-  load(): Observable<void> {
-    return of(undefined);
+  load(): Observable<GuiConfig> {
+    return of(this._config);
   }
 
   setConfig(config: Partial<GuiConfig>): void {

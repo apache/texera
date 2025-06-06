@@ -14,7 +14,7 @@
     "secure": false,
     "changeOrigin": true
   },
-  "/api/user-config/**": {
+  "/api/config/**": {
     "target": "http://localhost:9094",
     "secure": false,
     "changeOrigin": true

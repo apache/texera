@@ -26,7 +26,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.util.PathUtils.configServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
-import edu.uci.ics.texera.service.resource.{HealthCheckResource, UserConfigResource}
+import edu.uci.ics.texera.service.resource.{HealthCheckResource, ConfigResource}
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
@@ -55,7 +55,7 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
       new io.dropwizard.auth.AuthValueFactoryProvider.Binder(classOf[SessionUser])
     )
 
-    environment.jersey.register(new UserConfigResource)
+    environment.jersey.register(new ConfigResource)
   }
 }
 

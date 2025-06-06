@@ -24,18 +24,15 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
-@RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/user-config")
+@Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))
-class UserConfigResource {
+class ConfigResource {
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/gui")
   def getGuiConfig: Map[String, Any] =
     Map(
-      // flags from the user-system.conf
-      "inviteOnly" -> UserSystemConfig.inviteOnly,
-      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled,
       // flags from the gui.conf
       "exportExecutionResultEnabled" -> GuiConfig.guiWorkflowWorkspaceExportExecutionResultEnabled,
       "autoAttributeCorrectionEnabled" -> GuiConfig.guiWorkflowWorkspaceAutoAttributeCorrectionEnabled,
@@ -62,5 +59,15 @@ class UserConfigResource {
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       )
+    )
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/user-system")
+  def getUserSystemConfig: Map[String, Any] =
+    Map(
+      // flags from the user-system.conf
+      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled,
     )
 }

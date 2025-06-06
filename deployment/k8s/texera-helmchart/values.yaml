@@ -301,7 +301,7 @@ ingressPaths:
     - path: /api/access/dataset
       serviceName: file-service-svc
       servicePort: 9092
-    - path: /api/user-config
+    - path: /api/config
       serviceName: config-service-svc
       servicePort: 9094
     - path: /wsapi/workflow-websocket
