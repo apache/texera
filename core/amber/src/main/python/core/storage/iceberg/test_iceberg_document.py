@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import datetime
 import random
 import uuid
@@ -15,12 +32,14 @@ from proto.edu.uci.ics.amber.core import (
     ExecutionIdentity,
     OperatorIdentity,
     PortIdentity,
+    GlobalPortIdentity,
+    PhysicalOpIdentity,
 )
 
 # Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
     postgres_uri_without_scheme="localhost:5432/texera_iceberg_catalog",
-    postgres_username="texera_iceberg_admin",
+    postgres_username="texera",
     postgres_password="password",
     table_result_namespace="operator-port-result",
     directory_path="../../../../../../core/amber/user-resources/workflow-results",
@@ -55,9 +74,14 @@ class TestIcebergDocument:
         uri = VFSURIFactory.create_result_uri(
             WorkflowIdentity(id=0),
             ExecutionIdentity(id=0),
-            OperatorIdentity(id=f"test_table_{operator_uuid}"),
-            "main",
-            PortIdentity(id=0),
+            GlobalPortIdentity(
+                op_id=PhysicalOpIdentity(
+                    logical_op_id=OperatorIdentity(id=f"test_table_{operator_uuid}"),
+                    layer_name="main",
+                ),
+                port_id=PortIdentity(id=0),
+                input=False,
+            ),
         )
         DocumentFactory.create_document(uri, amber_schema)
         document, _ = DocumentFactory.open_document(uri)

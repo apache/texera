@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <div id="menu-container">
   <div
     *ngIf="!userSystemEnabled"
@@ -30,7 +49,9 @@
             *ngIf="workflowId"
             [nzText]="workflowId.toString() || ''"></nz-avatar>
           <input
+            #workflowNameInput
             *ngIf="!displayParticularWorkflowVersion"
+            (input)="adjustWorkflowNameWidth()"
             (change)="onWorkflowNameChange()"
             [(ngModel)]="currentWorkflowName"
             class="workflow-name"
@@ -325,14 +346,16 @@
         executionState === ExecutionState.Uninitialized ||
         executionState === ExecutionState.Completed ||
         executionState === ExecutionState.Killed ||
-        executionState === ExecutionState.Failed
+        executionState === ExecutionState.Failed ||
+        (!workflowWebsocketService.isConnected &&
+       computingUnitStatus !== ComputingUnitState.NoComputingUnit)
       "
           nz-button
           nzDanger
           nzType="primary">
           <i
             nz-icon
-            nzType="exclamation-circle"></i>
+            nzType="close-circle"></i>
         </button>
         <button
           (click)="onClickRunHandler()"
@@ -341,14 +364,14 @@
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
+          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion"
           id="run-button"
           nz-button
           nzType="primary">
           <i
             nz-icon
             nzType="{{ runIcon }}"></i>
-          <span> {{ runButtonText }} </span>
+          <span> {{ runButtonText }}</span>
         </button>
         <button
           *ngIf="userSystemEnabled && environment.timetravelEnabled"
@@ -383,12 +406,16 @@
             nz-tooltip=""
             nzTooltipPlacement="bottom"
             [nzTooltipTitle]="clusterInfo"
-            [nzColor]="workflowWebsocketService.isConnected?'green':'red'">
+            [nzColor]="(workflowWebsocketService.isConnected && (computingUnitStatus === ComputingUnitState.Running))?'green':'red'">
           </nz-badge>
           <ng-template #clusterInfo>
-            <b>{{workflowWebsocketService.isConnected?"Connected":"Disconnected"}} to Web Server</b>
+            <b
+              >{{(workflowWebsocketService.isConnected && (computingUnitStatus ===
+              ComputingUnitState.Running))?"Connected":"Disconnected"}} to Computing Unit</b
+            >
             <div *ngIf="workflowWebsocketService.isConnected">
-              Number of Machines: {{workflowWebsocketService.numWorkers}}
+              <div>Computing Unit Status: {{computingUnitStatus}}</div>
+              <div>Number of Machines: {{workflowWebsocketService.numWorkers}}</div>
             </div>
           </ng-template>
         </div>

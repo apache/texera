@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
@@ -38,6 +57,7 @@ class WorkflowResourceSpec
     user.setName("test_user")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment")
     user
   }
 
@@ -47,6 +67,7 @@ class WorkflowResourceSpec
     user.setName("test_user2")
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment2")
     user
   }
 

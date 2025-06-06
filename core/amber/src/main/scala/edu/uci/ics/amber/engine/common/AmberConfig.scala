@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.Address
@@ -16,11 +35,11 @@ object AmberConfig {
   // Perform lazy reload
   private def getConfSource: Config = {
     if (lastModifiedTime == configFile.lastModified()) {
-      conf
+      conf.resolve()
     } else {
       lastModifiedTime = configFile.lastModified()
       conf = ConfigFactory.parseFile(configFile).withFallback(ConfigFactory.load())
-      conf
+      conf.resolve()
     }
   }
 
@@ -80,13 +99,16 @@ object AmberConfig {
 
   // User system
   val isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
-  val jWTConfig: Config = getConfSource.getConfig("user-sys.jwt")
+  val adminUsername: String = getConfSource.getString("user-sys.admin-username")
+  val adminPassword: String = getConfSource.getString("user-sys.admin-password")
   val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
   val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")
 
   // Web server
   val operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
+  val consoleMessageDisplayLength: Int =
+    getConfSource.getInt("web-server.console-message-max-display-length")
   val executionResultPollingInSecs: Int =
     getConfSource.getInt("web-server.workflow-result-pulling-in-seconds")
   val executionStateCleanUpInSecs: Int =
@@ -95,6 +117,8 @@ object AmberConfig {
     getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
+  val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
+    getConfSource.getInt("web-server.max-workflow-websocket-request-payload-size-kb")
 
   // AI Assistant
   val aiAssistantConfig: Option[Config] =

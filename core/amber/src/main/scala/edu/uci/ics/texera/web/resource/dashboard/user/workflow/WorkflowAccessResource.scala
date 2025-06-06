@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -11,7 +30,10 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
+  context,
+  hasWriteAccess
+}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
@@ -155,10 +177,25 @@ class WorkflowAccessResource() {
     if (email.equals(user.getEmail)) {
       throw new BadRequestException("You cannot grant access to yourself!")
     }
+
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
+    val userUid = userDao.fetchOneByEmail(email).getUid
+    val workflowOwnerUid = context
+      .select(WORKFLOW_OF_USER.UID)
+      .from(WORKFLOW_OF_USER)
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetchOneInto(classOf[Integer])
+    if (userUid == workflowOwnerUid) {
+      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    }
+
     try {
       workflowUserAccessDao.merge(
         new WorkflowUserAccess(
-          userDao.fetchOneByEmail(email).getUid,
+          userUid,
           wid,
           PrivilegeEnum.valueOf(privilege)
         )
@@ -167,7 +204,6 @@ class WorkflowAccessResource() {
       case _: NullPointerException =>
         throw new BadRequestException(s"User $email Not Found!")
     }
-
   }
 
   /**
@@ -181,8 +217,13 @@ class WorkflowAccessResource() {
   @Path("/revoke/{wid}/{email}")
   def revokeAccess(
       @PathParam("wid") wid: Integer,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (!hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
     context
       .delete(WORKFLOW_USER_ACCESS)
       .where(

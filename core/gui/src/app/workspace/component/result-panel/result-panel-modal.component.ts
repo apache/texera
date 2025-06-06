@@ -1,8 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, inject, OnChanges } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { trimDisplayJsonData } from "src/app/common/util/json";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 
@@ -45,7 +62,7 @@ export class RowModalComponent implements OnChanges {
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
-        this.currentDisplayRowData = trimDisplayJsonData(res.tuple, res.schema, PRETTY_JSON_TEXT_LIMIT);
+        this.currentDisplayRowData = res.tuple;
       });
   }
 }

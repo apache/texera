@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.service
 
 import akka.actor.Cancellable
@@ -8,7 +27,7 @@ import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -34,6 +53,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import edu.uci.ics.texera.web.service.ExecutionResultService.convertTuplesToJson
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
@@ -46,13 +66,92 @@ object ExecutionResultService {
   private val defaultPageSize: Int = 5
 
   /**
+    * Converts a collection of Tuples to a list of JSON ObjectNodes.
+    *
+    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
+    * For binary data, it formats the bytes into a readable hex string representation with length info.
+    * For string values longer than maxStringLength (100), it truncates them.
+    * NULL values are converted to the string "NULL".
+    *
+    * @param tuples The collection of Tuples to convert
+    * @param isVisualization Whether this is for visualization rendering (affects string truncation)
+    * @return A List of ObjectNodes containing the JSON representation of the tuples
+    */
+  def convertTuplesToJson(
+      tuples: Iterable[Tuple],
+      isVisualization: Boolean = false
+  ): List[ObjectNode] = {
+    val maxStringLength = 100
+
+    tuples.map { tuple =>
+      val processedFields = tuple.schema.getAttributes.zipWithIndex
+        .map {
+          case (attr, idx) =>
+            val fieldValue = tuple.getField[AnyRef](idx)
+
+            Option(fieldValue) match {
+              case None => "NULL"
+              case Some(value) =>
+                attr.getType match {
+                  case AttributeType.BINARY =>
+                    value match {
+                      case byteArray: Array[Byte] =>
+                        val totalSize = byteArray.length
+                        val hexString = byteArrayToHexString(byteArray)
+
+                        // 39 = 30 (leading bytes) + 9 (trailing bytes)
+                        // 30 bytes = space for 10 hex values (each hex value takes 2 chars + 1 space)
+                        // 9 bytes = space for 3 hex values at the end (2 chars each + 1 space)
+                        if (hexString.length < 39) {
+                          s"bytes'$hexString' (length: $totalSize)"
+                        } else {
+                          val leadingBytes = hexString.take(30)
+                          val trailingBytes = hexString.takeRight(9)
+                          s"bytes'$leadingBytes...$trailingBytes' (length: $totalSize)"
+                        }
+
+                      case _ =>
+                        throw new RuntimeException(
+                          s"Expected byte array for binary type field, but got: ${value.getClass.getName}"
+                        )
+                    }
+                  case AttributeType.STRING =>
+                    val stringValue = value.asInstanceOf[String]
+                    if (stringValue.length > maxStringLength && !isVisualization)
+                      stringValue.take(maxStringLength) + "..."
+                    else
+                      stringValue
+                  case _ => value
+                }
+            }
+        }
+        .toArray[Any]
+
+      TupleUtils.tuple2json(tuple.schema, processedFields)
+    }.toList
+  }
+
+  /**
+    * Converts a byte array to a hex string representation.
+    *
+    * This helper function takes a byte array and converts its contents to a space-separated
+    * string of hexadecimal values. Each byte is formatted as a two-digit uppercase hex number.
+    *
+    * @param byteArray The byte array to convert
+    * @return A string containing the hex representation of the byte array's contents
+    */
+  private def byteArrayToHexString(byteArray: Array[Byte]): String = {
+    byteArray.map(b => String.format("%02X", Byte.box(b))).mkString(" ")
+  }
+
+  /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
       table: List[Tuple]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
+    val tableInJson = convertTuplesToJson(table, mode == SetSnapshotMode())
     WebDataUpdate(mode, tableInJson)
   }
 
@@ -94,11 +193,9 @@ object ExecutionResultService {
 
     // Cannot assume the storage is available at this point. The storage object is only available
     // after a region is scheduled to execute.
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       executionId,
       physicalOps.head.id.logicalOpId,
-      None,
       PortIdentity()
     )
     storageUriOption match {
@@ -186,6 +283,7 @@ object ExecutionResultService {
   */
 class ExecutionResultService(
     workflowIdentity: WorkflowIdentity,
+    computingUnitId: Int,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
@@ -287,16 +385,24 @@ class ExecutionResultService(
                   case None                         => "main"
                 }
                 val storageUri = WorkflowExecutionsResource
-                  .getResultUriByExecutionAndPort(
-                    workflowIdentity,
+                  .getResultUriByLogicalPortId(
                     executionId,
                     opId,
-                    None,
                     PortIdentity()
                   )
+
                 if (storageUri.nonEmpty) {
+                  val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(storageUri.get)
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
+
                   allTableStats(opId.id) = opStorage.getTableStatistics
+                  WorkflowExecutionsResource.updateResultSize(
+                    executionId,
+                    globalPortIdOption.get,
+                    opStorage.getTotalFileSize
+                  )
+                  WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
+                  WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
                 }
               }
           }
@@ -320,15 +426,13 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val latestExecutionId = getLatestExecutionId(workflowIdentity).getOrElse(
+    val latestExecutionId = getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
       throw new IllegalStateException("No execution is recorded")
     )
 
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      workflowIdentity,
+    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       latestExecutionId,
       OperatorIdentity(request.operatorID),
-      None,
       PortIdentity()
     )
 
@@ -342,9 +446,7 @@ class ExecutionResultService(
             .getRange(from, from + request.pageSize)
             .to(Iterable)
         }
-        val mappedResults = paginationIterable
-          .map(tuple => tuple.asKeyValuePairJson())
-          .toList
+        val mappedResults = convertTuplesToJson(paginationIterable)
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
           .getOrElse(List.empty)
@@ -364,12 +466,12 @@ class ExecutionResultService(
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, _, storagePortId, _) = VFSURIFactory.decodeURI(uri)
+            val (_, _, globalPortIdOption, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(opId.get)
-              .flatMap(_.outputPorts.get(storagePortId.get))
+              .getPhysicalOpsOfLogicalOp(globalPortIdOption.get.opId.logicalOpId)
+              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
               .map(_._1.mode)
               .head
 
@@ -377,7 +479,7 @@ class ExecutionResultService(
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (opId.get, OperatorResultMetadata(count, changeDetector))
+            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
           })
           .toMap
       }

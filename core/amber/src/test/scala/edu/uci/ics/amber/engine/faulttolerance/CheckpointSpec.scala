@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.{ActorSystem, Props}
@@ -5,6 +24,7 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState}
@@ -13,6 +33,8 @@ import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
@@ -51,7 +73,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   }
 
   "Default worker state" should "be serializable" in {
-    val dp = new DataProcessor(SELF, msg => {})
+    val dp = new DataProcessor(
+      SELF,
+      msg => {},
+      inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    )
     val chkpt = new CheckpointState()
     chkpt.save(DP_STATE_KEY, dp)
   }

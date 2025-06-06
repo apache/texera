@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
@@ -55,13 +74,14 @@ object WorkflowService {
 
   def getOrCreate(
       workflowId: WorkflowIdentity,
+      computingUnitId: Int,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
     workflowServiceMapping.compute(
       mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
-          new WorkflowService(workflowId, cleanupTimeout)
+          new WorkflowService(workflowId, computingUnitId, cleanupTimeout)
         } else {
           v
         }
@@ -72,6 +92,7 @@ object WorkflowService {
 
 class WorkflowService(
     val workflowId: WorkflowIdentity,
+    val computingUnitId: Int,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -81,28 +102,17 @@ class WorkflowService(
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: ExecutionResultService = new ExecutionResultService(workflowId, stateStore)
-  val exportService: ResultExportService = new ResultExportService(workflowId)
+  val resultService: ExecutionResultService =
+    new ExecutionResultService(workflowId, computingUnitId, stateStore)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
       // clear the storage resources associated with the latest execution
       WorkflowExecutionService
-        .getLatestExecutionId(workflowId)
+        .getLatestExecutionId(workflowId, computingUnitId)
         .foreach(eid => {
-          val uris = WorkflowExecutionsResource
-            .getResultUrisByExecutionId(eid)
-          WorkflowExecutionsResource.clearUris(eid)
-          uris.foreach(uri =>
-            try {
-              DocumentFactory.openDocument(uri)._1.clear()
-            } catch {
-              case _: Throwable => // exception can be raised if the document is already cleared
-            }
-          )
-
-          expireSnapshotsForExecution(eid)
+          clearExecutionResources(eid)
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
@@ -183,26 +193,18 @@ class WorkflowService(
     var controllerConf = ControllerConfig.default
 
     // clean up results from previous run
-    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    val previousExecutionId =
+      WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
     previousExecutionId.foreach(eid => {
-      val uris = WorkflowExecutionsResource
-        .getResultUrisByExecutionId(eid)
-      WorkflowExecutionsResource.clearUris(eid)
-      uris.foreach(uri =>
-        try {
-          DocumentFactory.openDocument(uri)._1.clear()
-        } catch { // exception can happen if the resource is already cleared
-          case _: Throwable =>
-        }
-      )
-      expireSnapshotsForExecution(eid)
+      clearExecutionResources(eid)
     }) // TODO: change this behavior after enabling cache.
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
       uidOpt,
       req.executionName,
-      convertToJson(req.engineVersion)
+      convertToJson(req.engineVersion),
+      req.computingUnitId
     )
 
     if (AmberConfig.isUserSystemEnabled) {
@@ -301,24 +303,50 @@ class WorkflowService(
     resultService.unsubscribeAll()
   }
 
-  private def expireSnapshots(uri: URI): Unit = {
-    try {
-      DocumentFactory.openDocument(uri)._1 match {
-        case iceberg: OnIceberg =>
-          iceberg.expireSnapshots()
-        case other =>
-          logger.error(
-            s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. Expected an instance of ${classOf[OnIceberg].getName}."
-          )
-      }
-    } catch {
-      case _: Throwable => logger.error("Cannot expire snapshots")
-    }
-  }
+  /**
+    * Cleans up all resources associated with a workflow execution.
+    *
+    * This method performs resource cleanup in the following sequence:
+    *  1. Retrieves all document URIs associated with the execution
+    *  2. Clears URI references from the execution registry
+    *  3. Safely clears all result and console message documents
+    *  4. Expires Iceberg snapshots for runtime statistics
+    *
+    * @param eid The execution identity to clean up resources for
+    */
+  private def clearExecutionResources(eid: ExecutionIdentity): Unit = {
+    // Retrieve URIs for all resources associated with this execution
+    val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
+    val consoleMessagesUris = WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid)
 
-  private def expireSnapshotsForExecution(eid: ExecutionIdentity): Unit = {
-    WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(eid).foreach(expireSnapshots)
-    WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach(expireSnapshots)
+    // Remove references from registry first
+    WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(eid)
+
+    // Clean up all result and console message documents
+    (resultUris ++ consoleMessagesUris).foreach { uri =>
+      try DocumentFactory.openDocument(uri)._1.clear()
+      catch {
+        case error: Throwable =>
+          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+      }
+    }
+
+    // Expire any Iceberg snapshots for runtime statistics
+    WorkflowExecutionsResource.getRuntimeStatsUriByExecutionId(eid).foreach { uri =>
+      try {
+        DocumentFactory.openDocument(uri)._1 match {
+          case iceberg: OnIceberg => iceberg.expireSnapshots()
+          case other =>
+            logger.error(
+              s"Cannot expire snapshots: document from URI [$uri] is of type ${other.getClass.getName}. " +
+                s"Expected an instance of ${classOf[OnIceberg].getName}."
+            )
+        }
+      } catch {
+        case error: Throwable =>
+          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+      }
+    }
   }
 
 }

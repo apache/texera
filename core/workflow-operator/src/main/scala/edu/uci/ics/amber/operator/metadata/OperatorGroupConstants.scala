@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.operator.metadata
 
 object OperatorGroupConstants {
@@ -12,6 +31,12 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val API_GROUP = "External API"
   final val VISUALIZATION_GROUP = "Visualization"
+  final val VISUALIZATION_BASIC_GROUP = "Basic"
+  final val VISUALIZATION_STATISTICAL_GROUP = "Statistical"
+  final val VISUALIZATION_SCIENTIFIC_GROUP = "Scientific"
+  final val VISUALIZATION_FINANCIAL_GROUP = "Financial"
+  final val VISUALIZATION_MEDIA_GROUP = "Media"
+  final val VISUALIZATION_ADVANCED_GROUP = "Advanced"
   final val MACHINE_LEARNING_GROUP = "Machine Learning"
   final val ADVANCED_SKLEARN_GROUP = "Advanced Sklearn"
   final val HUGGINGFACE_GROUP = "Hugging Face"
@@ -47,7 +72,17 @@ object OperatorGroupConstants {
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
     GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
-    GroupInfo(VISUALIZATION_GROUP),
+    GroupInfo(
+      VISUALIZATION_GROUP,
+      List(
+        GroupInfo(VISUALIZATION_BASIC_GROUP),
+        GroupInfo(VISUALIZATION_STATISTICAL_GROUP),
+        GroupInfo(VISUALIZATION_SCIENTIFIC_GROUP),
+        GroupInfo(VISUALIZATION_FINANCIAL_GROUP),
+        GroupInfo(VISUALIZATION_MEDIA_GROUP),
+        GroupInfo(VISUALIZATION_ADVANCED_GROUP)
+      )
+    ),
     GroupInfo(CONTROL_GROUP)
   )
 }

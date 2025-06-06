@@ -1,14 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.tuple
 
 import Tuple.checkSchemaMatchesFields
-import TupleUtils.document2Tuple
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.amber.util.JSONUtils
 import org.ehcache.sizeof.SizeOf
-import org.bson.Document
 
 import java.util
 import scala.collection.mutable
@@ -94,39 +108,9 @@ case class Tuple @JsonCreator() (
 
   override def toString: String =
     s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
-
-  def asKeyValuePairJson(): ObjectNode = {
-    val objectNode = JSONUtils.objectMapper.createObjectNode()
-    this.schema.getAttributeNames.foreach { attrName =>
-      val valueNode =
-        JSONUtils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
-      objectNode.set[ObjectNode](attrName, valueNode)
-    }
-    objectNode
-  }
-
-  def asDocument(): Document = {
-    val doc = new Document()
-    this.schema.getAttributeNames.foreach { attrName =>
-      doc.put(attrName, this.getField(attrName))
-    }
-    doc
-  }
 }
 
 object Tuple {
-  val toDocument: Tuple => Document = (tuple: Tuple) => {
-    val doc = new Document()
-    tuple.schema.getAttributeNames.foreach { attrName =>
-      doc.put(attrName, tuple.getField(attrName))
-    }
-    doc
-  }
-
-  val fromDocument: Schema => Document => Tuple = (schema: Schema) =>
-    (doc: Document) => {
-      document2Tuple(doc, schema)
-    }
 
   /**
     * Validates that the provided attributes match the provided fields in type and order.

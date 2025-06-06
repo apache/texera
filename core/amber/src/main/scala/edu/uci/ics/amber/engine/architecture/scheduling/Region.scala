@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
@@ -62,6 +81,28 @@ case class Region(
           .forall(upstreamOpId => !getOperators.map(_.id).contains(upstreamOpId))
       )
 
+  }
+
+  /**
+    * Operators that should be started first. An operator need to start first either because it is a source operator,
+    * or because it has an input port that needs to read from materialization.
+    */
+  def getStarterOperators: Set[PhysicalOp] = {
+    val opsReadingFromMaterialization = resourceConfig match {
+      case Some(config) =>
+        config.portConfigs
+          .filter {
+            case (globalPortId, config) =>
+              globalPortId.input && config.storageURIs.nonEmpty
+          }
+          .map {
+            case (globalPortId, _) => globalPortId.opId
+          }
+          .toSet
+          .map(opId => getOperator(opId))
+      case None => Set.empty
+    }
+    opsReadingFromMaterialization ++ getSourceOperators
   }
 
 }

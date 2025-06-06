@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.storage.util
 
 import io.lakefs.clients.sdk._
@@ -115,6 +134,14 @@ object LakeFSStorageClient {
     objectsApi.uploadObject(repoName, branchName, filePath).content(tempFilePath.toFile).execute()
   }
 
+  /**
+    * Retrieves a file from a specific repository and commit.
+    *
+    * @param repoName     Repository name.
+    * @param versionHash  Commit hash of the version.
+    * @param filePath     Path to the file in the repository.
+    * @return             The file retrieved from LakeFS.
+    */
   def getFileFromRepo(repoName: String, versionHash: String, filePath: String): File = {
     objectsApi.getObject(repoName, versionHash, filePath).execute()
   }
@@ -170,15 +197,13 @@ object LakeFSStorageClient {
     objectsApi.statObject(repoName, commitHash, filePath).presign(true).execute().getPhysicalAddress
   }
 
-  def getFilePresignedUploadUrl(repoName: String, filePath: String): String = {
-    stagingApi
-      .getPhysicalAddress(repoName, branchName, filePath)
-      .presign(true)
-      .execute()
-      .getPresignedUrl
-  }
-
   /**
+    * Initiates a presigned multipart upload for a file in LakeFS.
+    *
+    * @param repoName     Repository name.
+    * @param filePath     File path within the repository.
+    * @param numberOfParts Number of parts to upload.
+    * @return              Multipart upload information.
     */
   def initiatePresignedMultipartUploads(
       repoName: String,
@@ -192,6 +217,16 @@ object LakeFSStorageClient {
 
   }
 
+  /**
+    * Completes a previously initiated multipart upload.
+    *
+    * @param repoName        Repository name.
+    * @param filePath        File path within the repository.
+    * @param uploadId        Multipart upload ID.
+    * @param partsList       List of (part number, ETag) pairs.
+    * @param physicalAddress Physical location of the file in storage.
+    * @return                Object metadata after completion.
+    */
   def completePresignedMultipartUploads(
       repoName: String,
       filePath: String,
@@ -224,6 +259,14 @@ object LakeFSStorageClient {
       .execute()
   }
 
+  /**
+    * Aborts a multipart upload operation for a given file.
+    *
+    * @param repoName        Repository name.
+    * @param filePath        File path within the repository.
+    * @param uploadId        Multipart upload ID.
+    * @param physicalAddress Physical address of the file.
+    */
   def abortPresignedMultipartUploads(
       repoName: String,
       filePath: String,

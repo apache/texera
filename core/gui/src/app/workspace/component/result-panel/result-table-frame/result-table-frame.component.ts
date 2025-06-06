@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -9,13 +28,9 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
-import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
-
-export const TABLE_COLUMN_TEXT_LIMIT = 100;
-export const PRETTY_JSON_TEXT_LIMIT = 50000;
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -201,11 +216,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     const rowHeight = 39; // use the rendered height of a row.
     let extra: number;
 
-    if (this.sinkStorageMode == "mongodb") {
-      extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
-    } else {
-      extra = Math.floor((panelHeight - 170) / rowHeight);
-    }
+    extra = Math.floor((panelHeight - 170) / rowHeight);
 
     if (extra < 0) {
       extra = 0;
@@ -355,20 +366,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] === null) {
-          return "NULL"; // Explicitly show NULL for null values
-        } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey], this.schema[index].attributeType);
-        } else {
-          return ""; // Keep empty string for undefined values
-        }
-      },
+      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
-  }
-
-  trimTableCell(cellContent: any, attributeType: AttributeType): string {
-    return trimAndFormatData(cellContent, attributeType, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {

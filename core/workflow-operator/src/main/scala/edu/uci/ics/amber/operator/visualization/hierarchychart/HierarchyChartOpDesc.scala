@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.operator.visualization.hierarchychart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
@@ -21,19 +40,19 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
-  @JsonPropertyDescription("treemap or sunburst")
+  @JsonPropertyDescription("Treemap or Sunburst")
   var hierarchyChartType: HierarchyChartType = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Hierarchy Path")
   @JsonPropertyDescription(
-    "hierarchy of attributes from a higher-level category to lower-level category"
+    "Hierarchy of attributes from a higher-level category to lower-level category"
   )
   var hierarchy: List[HierarchySection] = List()
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the value associated with the size of each sector in the chart")
+  @JsonPropertyDescription("The value associated with the size of each sector in the chart")
   @AutofillAttributeName
   var value: String = ""
 
@@ -50,7 +69,7 @@ class HierarchyChartOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hierarchy Chart",
       "Visualize data in hierarchy",
-      OperatorGroupConstants.VISUALIZATION_GROUP,
+      OperatorGroupConstants.VISUALIZATION_BASIC_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )

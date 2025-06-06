@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.util
 
 import com.typesafe.scalalogging.LazyLogging
@@ -18,13 +37,18 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 
 import java.nio.charset.StandardCharsets
 import java.util
+import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
+
+  // Create a single allocator for the entire utility
+  private val allocator: BufferAllocator = new RootAllocator()
 
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
 
@@ -68,7 +92,6 @@ object ArrowUtils extends LazyLogging {
           .toArray
       )
       .build()
-
   }
 
   /**
@@ -250,9 +273,9 @@ object ArrowUtils extends LazyLogging {
 
       case AttributeType.STRING | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE
+
       case _ =>
         throw new AttributeTypeUtils.AttributeTypeException("Unexpected value: " + srcType)
     }
   }
-
 }

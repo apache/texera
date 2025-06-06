@@ -1,5 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.storage.model
 
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken
@@ -18,13 +39,14 @@ object DatasetFileDocument {
   // Since requests need to be sent to the FileService in order to read the file, we store USER_JWT_TOKEN in the environment vars
   // This variable should be NON-EMPTY in the dynamic-computing-unit architecture, i.e. each user-created computing unit should store user's jwt token.
   // In the local development or other architectures, this token can be empty.
-  lazy val userJwtToken: String = sys.env.getOrElse("USER_JWT_TOKEN", "").trim
+  lazy val userJwtToken: String =
+    sys.env.getOrElse(EnvironmentalVariable.ENV_USER_JWT_TOKEN, "").trim
 
   // The endpoint of getting presigned url from the file service, also stored in the environment vars.
   lazy val fileServiceGetPresignURLEndpoint: String =
     sys.env
       .getOrElse(
-        "FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT",
+        EnvironmentalVariable.ENV_FILE_SERVICE_GET_PRESIGNED_URL_ENDPOINT,
         "http://localhost:9092/api/dataset/presign-download"
       )
       .trim
@@ -32,7 +54,8 @@ object DatasetFileDocument {
 
 private[storage] class DatasetFileDocument(uri: URI)
     extends VirtualDocument[Nothing]
-    with OnDataset {
+    with OnDataset
+    with LazyLogging {
   // Utility function to parse and decode URI segments into individual components
   private def parseUri(uri: URI): (String, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
@@ -57,50 +80,61 @@ private[storage] class DatasetFileDocument(uri: URI)
   override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    if (userJwtToken.isEmpty) {
-      val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+
+    def fallbackToLakeFS(exception: Throwable): InputStream = {
+      logger.warn(s"${exception.getMessage}. Falling back to LakeFS direct file fetch.", exception)
+      val file = LakeFSStorageClient.getFileFromRepo(
         getDatasetName(),
         getVersionHash(),
         getFileRelativePath()
       )
-      return new URL(presignUrl).openStream()
+      Files.newInputStream(file.toPath)
     }
 
-    // Step 1: Get the presigned URL from the file service
-    val presignRequestUrl =
-      s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
-        .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
-
-    val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
-    connection.setRequestMethod("GET")
-    connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
-
-    try {
-      if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
-        throw new RuntimeException(
-          s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+    if (userJwtToken.isEmpty) {
+      try {
+        val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
+          getDatasetName(),
+          getVersionHash(),
+          getFileRelativePath()
         )
+        new URL(presignUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
       }
+    } else {
+      val presignRequestUrl =
+        s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+          .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
 
-      // Read response body as a string
-      val responseBody =
-        new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
+      connection.setRequestMethod("GET")
+      connection.setRequestProperty("Authorization", s"Bearer $userJwtToken")
 
-      // Extract presigned URL from JSON response
-      val presignedUrl = responseBody
-        .split("\"presignedUrl\"\\s*:\\s*\"")(1)
-        .split("\"")(0)
+      try {
+        if (connection.getResponseCode != HttpURLConnection.HTTP_OK) {
+          throw new RuntimeException(
+            s"Failed to retrieve presigned URL: HTTP ${connection.getResponseCode}"
+          )
+        }
 
-      // Step 2: Fetch the file using the retrieved presigned URL
-      new URL(presignedUrl).openStream()
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(
-          s"Failed to retrieve presigned URL from $fileServiceGetPresignURLEndpoint: ${e.getMessage}",
-          e
-        )
-    } finally {
-      connection.disconnect()
+        // Read response body as a string
+        val responseBody =
+          new String(connection.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+
+        // Extract presigned URL from JSON response
+        val presignedUrl = responseBody
+          .split("\"presignedUrl\"\\s*:\\s*\"")(1)
+          .split("\"")(0)
+
+        new URL(presignedUrl).openStream()
+      } catch {
+        case e: Exception =>
+          fallbackToLakeFS(e)
+      } finally {
+        connection.disconnect()
+      }
     }
   }
 

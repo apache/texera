@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.core.storage
 
 import edu.uci.ics.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
@@ -14,7 +33,6 @@ import java.net.URI
 
 object DocumentFactory {
 
-  val MONGODB = "mongodb"
   val ICEBERG = "iceberg"
 
   private def sanitizeURIPath(uri: URI): String =
@@ -46,7 +64,7 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, _, resourceType) = decodeURI(uri)
+        val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {
@@ -100,7 +118,7 @@ object DocumentFactory {
     uri.getScheme match {
       case DATASET_FILE_URI_SCHEME => (new DatasetFileDocument(uri), None)
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, _, resourceType) = decodeURI(uri)
+        val (_, _, _, resourceType) = decodeURI(uri)
         val storageKey = sanitizeURIPath(uri)
 
         val namespace = resourceType match {

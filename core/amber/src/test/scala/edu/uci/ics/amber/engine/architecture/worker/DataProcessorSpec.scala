@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
@@ -10,7 +29,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
   METHOD_FLUSH_NETWORK_BUFFER,
   METHOD_OPEN_EXECUTOR
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -26,6 +48,8 @@ import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
@@ -52,7 +76,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     .toArray
 
   def mkDataProcessor: DataProcessor = {
-    val dp: DataProcessor = new DataProcessor(testWorkerId, outputHandler)
+    val dp: DataProcessor = new DataProcessor(
+      testWorkerId,
+      outputHandler,
+      inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    )
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }
@@ -91,7 +119,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
-    dp.inputManager.addPort(inputPortId, schema)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
@@ -150,7 +178,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     )
       .expects(0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
-    dp.inputManager.addPort(inputPortId, schema)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)

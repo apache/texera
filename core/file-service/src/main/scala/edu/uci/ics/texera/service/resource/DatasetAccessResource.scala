@@ -1,5 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.service.resource
 
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
@@ -7,11 +27,19 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
-import edu.uci.ics.texera.service.resource.DatasetAccessResource.{AccessEntry, context, getOwner}
+import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
+  AccessEntry,
+  context,
+  getOwner,
+  userHasWriteAccess
+}
+import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.{GET, DELETE, PUT, Path, PathParam, Produces}
+import jakarta.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.jooq.{DSLContext, EnumType}
+
+import javax.ws.rs.ForbiddenException
 
 object DatasetAccessResource {
   private lazy val context: DSLContext = SqlServer
@@ -143,9 +171,13 @@ class DatasetAccessResource {
   def grantAccess(
       @PathParam("did") did: Integer,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, user.getUid)) {
+        throw new ForbiddenException(s"You do not have permission to modify dataset $did")
+      }
       val datasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
       val userDao = new UserDao(ctx.configuration())
       datasetUserAccessDao.merge(
@@ -170,9 +202,14 @@ class DatasetAccessResource {
   @Path("/revoke/{did}/{email}")
   def revokeAccess(
       @PathParam("did") did: Integer,
-      @PathParam("email") email: String
+      @PathParam("email") email: String,
+      @Auth user: SessionUser
   ): Response = {
     withTransaction(context) { ctx =>
+      if (!userHasWriteAccess(ctx, did, user.getUid)) {
+        throw new ForbiddenException(s"You do not have permission to modify dataset $did")
+      }
+
       val userDao = new UserDao(ctx.configuration())
 
       ctx

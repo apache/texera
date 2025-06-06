@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 #menu-container {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   width: 100%;
@@ -19,10 +38,12 @@
 }
 
 .workflow-name {
-  margin-top: 1px;
-  padding: 2px 8px;
+  min-width: 100px;
+  max-width: 800px;
   font-size: 18px;
+  padding: 2px 8px;
   border: none;
+  box-sizing: content-box;
 
   &:hover {
     box-shadow: 0 0 0 1px rgb(202, 202, 202);
@@ -90,6 +111,44 @@ i {
   padding-left: 10px;
   width: 140px;
   text-align: left;
+
+  &[disabled] {
+    // Styles for computing unit status display when disabled
+    &.computing-unit-status {
+      color: rgba(0, 0, 0, 0.5);
+      border-color: #d9d9d9;
+      background-color: #f5f5f5;
+      text-shadow: none;
+      box-shadow: none;
+    }
+  }
+
+  // Animation for loading states
+  .anticon-loading {
+    animation: loading 1.4s infinite linear;
+  }
+
+  // Special icon styles
+  .anticon-cloud-server {
+    color: #1890ff;
+  }
+
+  .anticon-disconnect {
+    color: #ff4d4f;
+  }
+
+  .anticon-exclamation-circle {
+    color: #faad14;
+  }
+}
+
+@keyframes loading {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 #expanded-utilities {

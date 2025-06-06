@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
@@ -46,6 +65,62 @@ import java.util.concurrent.{ExecutorService, Executors}
 import java.time.Instant
 import scala.collection.mutable
 
+/**
+  * Utility object for processing console messages
+  * This is extracted to allow for easier testing and reuse
+  */
+object ConsoleMessageProcessor {
+
+  /**
+    * Processes a console message for display, performing truncation if needed.
+    *
+    * @param consoleMessage The original console message to process
+    * @param displayLength The maximum display length for the message title
+    * @return The truncated console message
+    */
+  def processConsoleMessage(
+      consoleMessage: ConsoleMessage,
+      displayLength: Int
+  ): ConsoleMessage = {
+    // Truncate message title if it exceeds the display length
+    val title = consoleMessage.title
+    if (title.getBytes.length > displayLength) {
+      val truncateIndicator = "..."
+      val truncatedTitle = title
+        .take(displayLength - truncateIndicator.length) + truncateIndicator
+      consoleMessage.copy(title = truncatedTitle)
+    } else {
+      consoleMessage
+    }
+  }
+
+  /**
+    * Updates the console store by adding a console message to an operator's console.
+    *
+    * @param consoleStore The console store to update
+    * @param opId The operator ID
+    * @param processedMessage The processed console message
+    * @param bufferSize The maximum number of messages to keep in the buffer
+    * @return The updated console store
+    */
+  def addMessageToOperatorConsole(
+      consoleStore: ExecutionConsoleStore,
+      opId: String,
+      processedMessage: ConsoleMessage,
+      bufferSize: Int
+  ): ExecutionConsoleStore = {
+    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
+
+    val updatedOpInfo = if (opInfo.consoleMessages.size < bufferSize) {
+      opInfo.addConsoleMessages(processedMessage)
+    } else {
+      opInfo.withConsoleMessages(opInfo.consoleMessages.tail :+ processedMessage)
+    }
+
+    consoleStore.addOperatorConsole(opId -> updatedOpInfo)
+  }
+}
+
 class ExecutionConsoleService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
@@ -53,9 +128,11 @@ class ExecutionConsoleService(
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
+
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
+  val consoleMessageDisplayLength: Int = AmberConfig.consoleMessageDisplayLength
 
   private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
     mutable.Map()
@@ -106,7 +183,7 @@ class ExecutionConsoleService(
     })
   )
 
-  private[this] def registerCallbackOnPythonConsoleMessage(): Unit = {
+  protected def registerCallbackOnPythonConsoleMessage(): Unit = {
     addSubscription(
       client
         .registerCallback[ConsoleMessage]((evt: ConsoleMessage) => {
@@ -139,11 +216,45 @@ class ExecutionConsoleService(
     }
   )
 
+  /**
+    * Processes a console message for display, performing truncation if needed.
+    * This method uses the shared implementation in ConsoleMessageProcessor.
+    *
+    * @param consoleMessage The original console message to process
+    * @return The truncated console message
+    */
+  def processConsoleMessage(consoleMessage: ConsoleMessage): ConsoleMessage = {
+    ConsoleMessageProcessor.processConsoleMessage(consoleMessage, consoleMessageDisplayLength)
+  }
+
+  /**
+    * Updates the console store by adding a console message to an operator's console.
+    * This method uses the shared implementation in ConsoleMessageProcessor.
+    *
+    * @param consoleStore The console store to update
+    * @param opId The operator ID
+    * @param processedMessage The processed console message
+    * @return The updated console store
+    */
+  def addMessageToOperatorConsole(
+      consoleStore: ExecutionConsoleStore,
+      opId: String,
+      processedMessage: ConsoleMessage
+  ): ExecutionConsoleStore = {
+    ConsoleMessageProcessor.addMessageToOperatorConsole(
+      consoleStore,
+      opId,
+      processedMessage,
+      bufferSize
+    )
+  }
+
   private[this] def addConsoleMessage(
       consoleStore: ExecutionConsoleStore,
       opId: String,
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
+    // Write the original full message to the database
     consoleWriterThread.foreach { thread =>
       thread.execute(() => {
         val writer = getOrCreateWriter(OperatorIdentity(opId))
@@ -160,23 +271,9 @@ class ExecutionConsoleService(
       })
     }
 
-    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
-
-    if (opInfo.consoleMessages.size < bufferSize) {
-      consoleStore.addOperatorConsole(
-        (
-          opId,
-          opInfo.addConsoleMessages(consoleMessage)
-        )
-      )
-    } else {
-      consoleStore.addOperatorConsole(
-        (
-          opId,
-          opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ consoleMessage)
-        )
-      )
-    }
+    // Process the message (truncate if needed) and update store
+    val truncatedMessage = processConsoleMessage(consoleMessage)
+    addMessageToOperatorConsole(consoleStore, opId, truncatedMessage)
   }
 
   //Receive retry request

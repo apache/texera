@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <div *ngIf="!isMaximized">
   <nz-card>
     <h2 class="dataset-title">Dataset: {{datasetName}}</h2>
@@ -139,6 +158,8 @@
       [did]="did"
       [dvid]="selectedVersion?.dvid"
       [filePath]="currentDisplayedFileName"
+      [fileSize]="currentFileSize"
+      [isLogin]="isLogin"
       class="file-renderer">
     </texera-user-dataset-file-renderer>
   </nz-content>
@@ -220,27 +241,32 @@
           nzActive="true"
           nzHeader="Create New Version">
           <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
-          <div
-            *ngIf="uploadProgress"
-            class="upload-progress-container">
-            <div class="progress-header">
-              <span><b>{{ uploadProgress.status }}</b>: {{ uploadProgress.filePath }}</span>
-              <button
-                nz-button
-                nzType="text"
-                nzShape="circle"
-                [nz-tooltip]="uploadProgress
-                && (uploadProgress.status === 'aborted' || uploadProgress.status === 'finished') ? 'Close' : 'Cancel the upload'"
-                (click)="onClickAbortUploadProgress()">
-                <i
-                  nz-icon
-                  nzType="close"
-                  nzTheme="outline"></i>
-              </button>
+          <div class="upload-progress-wrapper">
+            <div
+              *ngFor="let task of uploadTasks; trackBy: trackByTask"
+              class="upload-progress-container">
+              <div class="progress-header">
+                <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
+                <button
+                  nz-button
+                  nzType="text"
+                  nzShape="circle"
+                  [nz-tooltip]="
+                (task.status === 'aborted' || task.status === 'finished')
+                ? 'Close'
+                : 'Cancel the upload'
+                "
+                  (click)="onClickAbortUploadProgress(task)">
+                  <i
+                    nz-icon
+                    nzType="close"
+                    nzTheme="outline"></i>
+                </button>
+              </div>
+              <nz-progress
+                [nzPercent]="task.percentage"
+                [nzStatus]="getUploadStatus(task.status)"></nz-progress>
             </div>
-            <nz-progress
-              [nzPercent]="uploadProgress.percentage"
-              [nzStatus]="getUploadStatus(uploadProgress.status)"></nz-progress>
           </div>
           <texera-dataset-staged-objects-list
             [did]="did"
