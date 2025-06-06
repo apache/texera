@@ -95,9 +95,9 @@ class RegionExecutionCoordinator(
     prepareAndLaunch(
       actorService,
       ops,
-      () => assignPortsInternal(region, dependeePhase = true),
+      () => assignPorts(region, dependeePhase = true),
       () => Future.value(Seq.empty), // no links in pass-1
-      () => sendOpsWithDependeeInputStarts(region)
+      () => sendStarts(region, dependeePhase = true)
     )
   }
 
@@ -117,9 +117,9 @@ class RegionExecutionCoordinator(
     prepareAndLaunch(
       actorService,
       ops,
-      () => assignPortsInternal(region, dependeePhase = false),
+      () => assignPorts(region, dependeePhase = false),
       () => connectChannels(region.getLinks),
-      () => sendStarts(region)
+      () => sendStarts(region, dependeePhase = false)
     )
   }
 
@@ -227,14 +227,7 @@ class RegionExecutionCoordinator(
       )
   }
 
-  /* ---------- unified helpers ---------- */
-
-  /** Consolidated implementation used by both `assignDependeePorts` and `assignPorts`.
-   *
-   * @param dependeePhase  true  ⇒ handle **dependee** input ports only
-   *                       false ⇒ handle **normal** input ports + all output ports
-   */
-  private def assignPortsInternal(
+  private def assignPorts(
                                    region: Region,
                                    dependeePhase: Boolean
                                  ): Future[Seq[EmptyReturn]] = {
@@ -345,46 +338,21 @@ class RegionExecutionCoordinator(
       )
   }
 
-  private def sendOpsWithDependeeInputStarts(region: Region): Future[Seq[Unit]] = {
+  private def sendStarts(
+                                  region: Region,
+                                  dependeePhase: Boolean
+                                ): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
         workflowExecution.getAllRegionExecutionsStats
       )
     )
+    val allStarterOperators = region.getStarterOperators
+    val starterOpsForThisPhase =
+      if (dependeePhase) allStarterOperators.filter(_.dependeeInputs.nonEmpty)
+      else allStarterOperators
     Future.collect(
-      region.getStarterOperators
-        .filter(op => op.dependeeInputs.nonEmpty)
-        .map(_.id)
-        .flatMap { opId =>
-          workflowExecution
-            .getRegionExecution(region.id)
-            .getOperatorExecution(opId)
-            .getWorkerIds
-            .map { workerId =>
-              asyncRPCClient.workerInterface
-                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
-                .map(resp =>
-                  // update worker state
-                  workflowExecution
-                    .getRegionExecution(region.id)
-                    .getOperatorExecution(opId)
-                    .getWorkerExecution(workerId)
-                    .setState(resp.state)
-                )
-            }
-        }
-        .toSeq
-    )
-  }
-
-  private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(
-        workflowExecution.getAllRegionExecutionsStats
-      )
-    )
-    Future.collect(
-      region.getStarterOperators
+      starterOpsForThisPhase
         .map(_.id)
         .flatMap { opId =>
           workflowExecution
