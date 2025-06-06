@@ -43,22 +43,32 @@ class WorkflowExecutionCoordinator(
     mutable.HashMap()
 
   /**
-    * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
+    * Each invocation will launch the next phase of a region execution, if there are any. This can either be launching
+    * a new region's execution, or transitioning an exisitng region in an `ExecutingDependeePorts` phase to an
+    * `ExecutingNonDependeePorts` phase.
+    *
+    * A region is only determined to be completed when it finishes the
+    * `ExecutingNonDependeePorts` phase.
     */
-  def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
-    // First check if any region is in the state of executing dependee input ports.
+  def launchNextRegionPhase(actorService: AkkaActorService): Future[Unit] = {
+    // First check if any region is in an `ExecutingDependeePorts` phase. This will only be invoked by the completion of
+    // a dependee ports.
     if (regionExecutionCoordinators.values.exists(_.isInDependeePhase)) {
       Future
         .collect({
           regionExecutionCoordinators.values
             .filter(_.isInDependeePhase)
-            .map(_.execute())
+            // Only when all the dependee ports of this region are completed will this invocation transition its phase.
+            // If any dependee port is unfinished, it returns an empty future.
+            .map(_.transitionRegionPhase())
             .toSeq
         })
         .unit
     } else if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
+      // If any region has not finished execution yet (i.e., in either of the two phases), skip.
       Future(())
     } else {
+      // Current region is completed. Start the next region (if any).
       Future
         .collect({
           val nextRegions = getNextRegions()
@@ -75,7 +85,7 @@ class WorkflowExecutionCoordinator(
               )
               regionExecutionCoordinators(region.id)
             })
-            .map(_.execute())
+            .map(_.transitionRegionPhase())
             .toSeq
         })
         .unit

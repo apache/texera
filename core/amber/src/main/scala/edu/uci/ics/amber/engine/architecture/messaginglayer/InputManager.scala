@@ -70,7 +70,9 @@ class InputManager(
       uris: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
-    if (uris.isEmpty || partitionings.isEmpty || uris.size != partitionings.size) return
+    if (uris.isEmpty || partitionings.isEmpty || uris.size != partitionings.size) {
+      return
+    }
     val readerThreads = uris.zip(partitionings).map {
       case (uri, partitioning) =>
         new InputPortMaterializationReaderThread(
@@ -91,6 +93,8 @@ class InputManager(
   def startInputPortReaderThreads(): Unit = {
     this.inputPortMaterializationReaderThreads
       .filter {
+        // If this worker belongs to an operator with input-port dependency relationships, this method may be invoked
+        // twice. This logic ensures the second invocation does not start the thread for the dependee port again.
         case (portId, _) => !this.isPortCompleted(portId)
       }
       .values
@@ -101,8 +105,7 @@ class InputManager(
           } catch {
             case e: Exception =>
               throw new RuntimeException(
-                s"Error starting input port materialization reader thread: ${e.getMessage}",
-                e
+                s"Error starting input port materialization reader thread: ${e.getMessage}"
               )
           }
         })
@@ -111,12 +114,16 @@ class InputManager(
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
+  /**
+    * For ports that read from materializations, the port completion is marked by the finish of the reader thread.
+    * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
+    */
   def isPortCompleted(portId: PortIdentity): Boolean = {
-    // a port without channels is not completed.
     if (
       !this.inputPortMaterializationReaderThreads
         .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
     ) {
+      // a port without channels is not completed.
       if (this.ports(portId).channels.isEmpty) {
         return false
       }
