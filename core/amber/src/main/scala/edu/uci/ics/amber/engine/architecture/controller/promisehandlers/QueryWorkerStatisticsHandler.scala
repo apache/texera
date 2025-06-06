@@ -79,7 +79,9 @@ trait QueryWorkerStatisticsHandler {
           )
         )
       )
-    EmptyReturn()
+      .map { _ =>
+        EmptyReturn()
+      }
   }
 
 }
