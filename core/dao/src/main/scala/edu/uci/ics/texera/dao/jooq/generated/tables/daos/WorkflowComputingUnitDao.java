@@ -21,6 +21,7 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.daos;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
 
@@ -144,5 +145,50 @@ public class WorkflowComputingUnitDao extends DAOImpl<WorkflowComputingUnitRecor
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByTerminateTime(Timestamp... values) {
         return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME, values);
+    }
+
+    /**
+     * Fetch records that have <code>type BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfType(WorkflowComputingUnitTypeEnum lowerInclusive, WorkflowComputingUnitTypeEnum upperInclusive) {
+        return fetchRange(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.TYPE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>type IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByType(WorkflowComputingUnitTypeEnum... values) {
+        return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.TYPE, values);
+    }
+
+    /**
+     * Fetch records that have <code>uri BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfUri(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.URI, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>uri IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByUri(String... values) {
+        return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.URI, values);
+    }
+
+    /**
+     * Fetch records that have <code>resource BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchRangeOfResource(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.RESOURCE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>resource IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit> fetchByResource(String... values) {
+        return fetch(WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT.RESOURCE, values);
     }
 }

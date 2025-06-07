@@ -308,6 +308,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param _: EndOfOutputPorts
         """
+        # Special case for the hack of input port dependency.
+        # See documentation of is_missing_output_ports
+        if self.context.output_manager.is_missing_output_ports():
+            return
         self.context.output_manager.close_port_storage_writers()
 
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):

@@ -77,7 +77,9 @@ class WorkflowWorker(
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
-  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)
+  // Internal inputQueue is passed to dp.InputManager because input port materialization
+  // reader threads need to put input data read from materialization into this queue.
+  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted, inputQueue)
   val timerService = new WorkerTimerService(actorService)
 
   var dpThread: DPThread = _
