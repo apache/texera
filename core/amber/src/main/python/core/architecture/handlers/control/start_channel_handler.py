@@ -29,15 +29,7 @@ from core.models.marker import StartOfInputChannel
 
 class StartChannelHandler(ControlHandler):
     async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
-        input_channel_id = (
-            ChannelIdentity(
-                InputManager.SOURCE_STARTER,
-                ActorVirtualIdentity(self.context.worker_id),
-                False,
-            )
-            if self.context.executor_manager.executor.is_source
-            else self.context.current_input_channel_id
-        )
+        input_channel_id = self.context.current_input_channel_id
         self.context.input_queue.put(
             DataElement(input_channel_id, MarkerFrame(StartOfInputChannel()))
         )
