@@ -81,7 +81,6 @@ class TexeraWebApplication
     with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[TexeraWebConfiguration]): Unit = {
-    ConfigurationValidator.validateConfiguration()
     // serve static frontend GUI files
     bootstrap.addBundle(new FileAssetsBundle("../gui/dist", "/", "index.html"))
     // add websocket bundle
