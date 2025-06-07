@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from proto.edu.uci.ics.amber.core import ChannelIdentity, ActorVirtualIdentity
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.packaging.input_manager import InputManager
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
@@ -25,6 +23,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 from core.models.internal_queue import DataElement
 from core.models import MarkerFrame
 from core.models.marker import StartOfInputChannel
+from core.models.internal_marker import StartOfOutputPorts, StartOfInputPort
 
 
 class StartChannelHandler(ControlHandler):
@@ -33,4 +32,9 @@ class StartChannelHandler(ControlHandler):
         self.context.input_queue.put(
             DataElement(input_channel_id, MarkerFrame(StartOfInputChannel()))
         )
+        input_manager = self.context.input_manager
+        if not input_manager.started:
+            self.context.internal_markers.put(StartOfOutputPorts())
+        input_manager.started = True
+        self.context.internal_markers.put(StartOfInputPort())
         return EmptyReturn()

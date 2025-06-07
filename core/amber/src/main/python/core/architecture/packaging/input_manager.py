@@ -19,14 +19,7 @@ import threading
 from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
-from core.models.internal_marker import (
-    InternalMarker,
-    StartOfOutputPorts,
-    EndOfOutputPorts,
-    EndOfInputPort,
-    StartOfInputPort,
-)
-from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
+from core.models.marker import State, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
@@ -173,7 +166,7 @@ class InputManager:
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)
         elif isinstance(payload, MarkerFrame):
-            yield from self._process_marker(payload.frame)
+            yield payload.frame
         else:
             raise NotImplementedError()
 
@@ -185,12 +178,3 @@ class InputManager:
             yield Tuple(
                 {name: field_accessor for name in table.column_names}, schema=schema
             )
-
-    def _process_marker(self, marker: Marker) -> Iterator[InternalMarker]:
-        if isinstance(marker, State):
-            yield marker
-        if isinstance(marker, StartOfInputChannel):
-            if not self.started:
-                yield StartOfOutputPorts()
-            self.started = True
-            yield StartOfInputPort()

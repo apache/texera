@@ -24,7 +24,7 @@ class EndChannelHandler(ControlHandler):
     async def end_channel(self, req: EmptyRequest) -> EmptyReturn:
         input_manager = self.context.input_manager
         input_manager.complete_current_port(self.context.current_input_channel_id)
-        self.context.channel_marker_manager.current_internal_markers.append(EndOfInputPort())
+        self.context.internal_markers.put(EndOfInputPort())
         if input_manager.all_ports_completed():
-            self.context.channel_marker_manager.current_internal_markers.append(EndOfOutputPorts())
+            self.context.internal_markers.put(EndOfOutputPorts())
         return EmptyReturn()

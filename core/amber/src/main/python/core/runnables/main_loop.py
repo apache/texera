@@ -262,16 +262,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_state()
         self._check_and_process_control()
 
-    def _process_start_of_input_port(
-        self, start_of_input_port: StartOfInputPort
-    ) -> None:
-        self.context.marker_processing_manager.current_input_marker = (
-            start_of_input_port
-        )
+    def _process_start_of_input_port(self) -> None:
+        self.context.marker_processing_manager.current_input_marker = StartOfInputPort()
         self.process_input_state()
 
-    def _process_end_of_input_port(self, end_of_input_port: EndOfInputPort) -> None:
-        self.context.marker_processing_manager.current_input_marker = end_of_input_port
+    def _process_end_of_input_port(self) -> None:
+        self.context.marker_processing_manager.current_input_marker = EndOfInputPort()
         self.process_input_state()
         self.process_input_tuple()
 
@@ -287,7 +283,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             )
 
-    def _process_start_of_output_ports(self, _: StartOfOutputPorts) -> None:
+    def _process_start_of_output_ports(self) -> None:
         """
         Upon receipt of an StartOfAllMarker,
         which indicates the start of any input links,
@@ -297,7 +293,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             "StartChannel", ChannelMarkerType.NO_ALIGNMENT
         )
 
-    def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
+    def _process_end_of_output_ports(self) -> None:
         """
         Upon receipt of an EndOfAllMarker, which indicates the end of all input links,
         send the last data batches to all downstream workers.
@@ -375,18 +371,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if marker_payload.marker_type != ChannelMarkerType.NO_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
-            for marker in self.context.channel_marker_manager.current_internal_markers:
-                match(
-                    marker,
-                    StartOfInputPort,
-                    self._process_start_of_input_port,
-                    EndOfInputPort,
-                    self._process_end_of_input_port,
-                    StartOfOutputPorts,
-                    self._process_start_of_output_ports,
-                    EndOfOutputPorts,
-                    self._process_end_of_output_ports,
-                )
+            marker_handlers = {
+                StartOfInputPort: self._process_start_of_input_port,
+                EndOfInputPort: self._process_end_of_input_port,
+                StartOfOutputPorts: self._process_start_of_output_ports,
+                EndOfOutputPorts: self._process_end_of_output_ports,
+            }
+            while not self.context.internal_markers.empty():
+                marker = self.context.internal_markers.get()
+                marker_handlers.get(type(marker))()
 
     def _send_channel_marker_to_data_channels(
         self, method_name: str, alignment: ChannelMarkerType
@@ -464,14 +457,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     element,
                     Tuple,
                     self._process_tuple,
-                    StartOfInputPort,
-                    self._process_start_of_input_port,
-                    EndOfInputPort,
-                    self._process_end_of_input_port,
-                    StartOfOutputPorts,
-                    self._process_start_of_output_ports,
-                    EndOfOutputPorts,
-                    self._process_end_of_output_ports,
                     State,
                     self._process_state,
                 )
