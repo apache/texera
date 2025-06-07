@@ -66,6 +66,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from typing import Union
 
 
 class OutputManager:
@@ -235,7 +236,7 @@ class OutputManager:
 
     def emit_marker_to_channel(
         self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[DataPayload]:
+    ) -> Iterable[Union[DataPayload, ChannelMarkerPayload]]:
         return chain(
             *(
                 (
