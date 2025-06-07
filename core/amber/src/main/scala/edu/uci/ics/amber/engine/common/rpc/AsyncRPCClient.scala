@@ -161,7 +161,7 @@ class AsyncRPCClient(
       cmdMapping: Map[String, ControlInvocation],
       channelId: ChannelIdentity
   ): Unit = {
-    logger.info(s"send marker: $markerId to $channelId")
+    logger.debug(s"send marker: $markerId to $channelId")
     outputGateway.sendTo(
       channelId,
       ChannelMarkerPayload(markerId, markerType, scope.toSeq, cmdMapping)
