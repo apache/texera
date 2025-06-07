@@ -25,12 +25,10 @@ import pytest
 
 from core.models import (
     DataFrame,
-    MarkerFrame,
     InternalQueue,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement, ChannelMarkerElement
-from core.models.marker import EndOfInputChannel
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.core import (
@@ -42,6 +40,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
     OpExecWithCode,
     OpExecInitInfo,
+    ChannelMarkerIdentity,
 )
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlRequest,
@@ -188,8 +187,22 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_data_input_channel):
-        return DataElement(
-            tag=mock_data_input_channel, payload=MarkerFrame(EndOfInputChannel())
+        return ChannelMarkerElement(
+            tag=mock_data_input_channel, payload=ChannelMarkerPayload(
+                ChannelMarkerIdentity("EndChannel"),
+                ChannelMarkerType.PORT_ALIGNMENT,
+                [],
+                {
+                    mock_data_input_channel.name: ControlInvocation(
+                        "EndChannel",
+                        ControlRequest(empty_request=EmptyRequest()),
+                        AsyncRpcContext(
+                            ActorVirtualIdentity(), ActorVirtualIdentity()
+                        ),
+                        -1,
+                    )
+                },
+            )
         )
 
     @pytest.fixture
@@ -698,9 +711,7 @@ class TestMainLoop:
         )
 
         output_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert output_queue.get() == DataElement(
-            tag=mock_data_output_channel, payload=MarkerFrame(EndOfInputChannel())
-        )
+        assert output_queue.get() == mock_end_of_upstream
 
         # can process ReturnInvocation
         input_queue.put(
