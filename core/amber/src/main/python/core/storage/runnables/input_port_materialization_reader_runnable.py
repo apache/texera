@@ -40,7 +40,11 @@ from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity
+from proto.edu.uci.ics.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+    ChannelMarkerIdentity,
+)
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
@@ -147,7 +151,9 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         """Sets the stop flag so the run loop may terminate."""
         self._stopped = True
 
-    def emit_channel_marker(self, method_name: str, alignment: ChannelMarkerType) -> None:
+    def emit_channel_marker(
+        self, method_name: str, alignment: ChannelMarkerType
+    ) -> None:
         """
         Emit a channel marker (StartChannel or EndChannel), and
         flush the remaining data batches if any. This mimics the
@@ -161,9 +167,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 self.worker_actor_id.name: ControlInvocation(
                     method_name,
                     ControlRequest(empty_request=EmptyRequest()),
-                    AsyncRpcContext(
-                        ActorVirtualIdentity(), ActorVirtualIdentity()
-                    ),
+                    AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
                     -1,
                 )
             },
