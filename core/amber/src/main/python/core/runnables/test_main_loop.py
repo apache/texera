@@ -188,7 +188,8 @@ class TestMainLoop:
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_data_input_channel):
         return ChannelMarkerElement(
-            tag=mock_data_input_channel, payload=ChannelMarkerPayload(
+            tag=mock_data_input_channel,
+            payload=ChannelMarkerPayload(
                 ChannelMarkerIdentity("EndChannel"),
                 ChannelMarkerType.PORT_ALIGNMENT,
                 [],
@@ -196,13 +197,11 @@ class TestMainLoop:
                     mock_data_input_channel.name: ControlInvocation(
                         "EndChannel",
                         ControlRequest(empty_request=EmptyRequest()),
-                        AsyncRpcContext(
-                            ActorVirtualIdentity(), ActorVirtualIdentity()
-                        ),
+                        AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
                         -1,
                     )
                 },
-            )
+            ),
         )
 
     @pytest.fixture
