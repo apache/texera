@@ -19,16 +19,11 @@ from collections import defaultdict
 from typing import Set, Dict
 
 from core.architecture.packaging.input_manager import Channel
-from proto.edu.uci.ics.amber.core import (
-    ActorVirtualIdentity,
-    ChannelIdentity,
-    PortIdentity,
-)
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ChannelMarkerPayload,
     ChannelMarkerType,
 )
-from pampy import match
 
 
 class ChannelMarkerManager:

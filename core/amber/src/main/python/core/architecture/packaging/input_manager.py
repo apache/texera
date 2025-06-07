@@ -19,7 +19,11 @@ import threading
 from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
-from core.models.marker import State, Marker
+from core.models.internal_marker import (
+    InternalMarker,
+    EndOfOutputPorts,
+    EndOfInputPort,
+)
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
