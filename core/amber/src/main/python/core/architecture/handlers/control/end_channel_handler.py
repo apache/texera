@@ -15,27 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from proto.edu.uci.ics.amber.core import ChannelIdentity, ActorVirtualIdentity
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.packaging.input_manager import InputManager
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
-from core.models.internal_queue import DataElement
-from core.models import MarkerFrame
-from core.models.marker import EndOfInputChannel
+from core.models.internal_marker import EndOfOutputPorts, EndOfInputPort
 
 
 class EndChannelHandler(ControlHandler):
     async def end_channel(self, req: EmptyRequest) -> EmptyReturn:
-        input_channel_id = (
-            ChannelIdentity(
-                InputManager.SOURCE_STARTER,
-                ActorVirtualIdentity(self.context.worker_id),
-                False,
-            )
-            if self.context.executor_manager.executor.is_source
-            else self.context.current_input_channel_id
-        )
-        self.context.input_queue.put(
-            DataElement(input_channel_id, MarkerFrame(EndOfInputChannel()))
-        )
+        input_manager = self.context.input_manager
+        input_manager.complete_current_port(self.context.current_input_channel_id)
+        self.context.channel_marker_manager.current_internal_markers.append(EndOfInputPort())
+        if input_manager.all_ports_completed():
+            self.context.channel_marker_manager.current_internal_markers.append(EndOfOutputPorts())
         return EmptyReturn()

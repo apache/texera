@@ -36,6 +36,7 @@ class ChannelMarkerManager:
         self.actor_id = actor_id
         self.input_gateway = input_gateway
         self.marker_received: Dict[str, Set[ChannelIdentity]] = defaultdict(set)
+        self.current_internal_markers = []
 
     def is_marker_aligned(
         self, from_channel: ChannelIdentity, marker: ChannelMarkerPayload

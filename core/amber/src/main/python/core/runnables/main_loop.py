@@ -274,7 +274,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.marker_processing_manager.current_input_marker = end_of_input_port
         self.process_input_state()
         self.process_input_tuple()
-        input_port_id = self.context.tuple_processing_manager.current_input_port_id
+
+        input_port_id = self.context.input_manager.get_port_id(
+            self.context.current_input_channel_id
+        )
+
         if input_port_id is not None:
             self._async_rpc_client.controller_stub().port_completed(
                 PortCompletedRequest(
@@ -370,6 +374,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             if marker_payload.marker_type != ChannelMarkerType.NO_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
+
+            for marker in self.context.channel_marker_manager.current_internal_markers:
+                match(
+                    marker,
+                    StartOfInputPort,
+                    self._process_start_of_input_port,
+                    EndOfInputPort,
+                    self._process_end_of_input_port,
+                    StartOfOutputPorts,
+                    self._process_start_of_output_ports,
+                    EndOfOutputPorts,
+                    self._process_end_of_output_ports,
+                )
 
     def _send_channel_marker_to_data_channels(
         self, method_name: str, alignment: ChannelMarkerType

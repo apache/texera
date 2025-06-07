@@ -77,6 +77,13 @@ class InputManager:
             PortIdentity, List[InputPortMaterializationReaderRunnable]
         ] = dict()
 
+    def complete_current_port(self, channel_id: ChannelIdentity) -> None:
+        channel = self._channels[channel_id]
+        self._ports[channel.port_id].completed = True
+
+    def all_ports_completed(self) -> bool:
+        return all(port.completed for port in self._ports.values())
+
     def set_up_input_port_mat_reader_threads(
         self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
     ) -> None:
@@ -187,9 +194,3 @@ class InputManager:
                 yield StartOfOutputPorts()
             self.started = True
             yield StartOfInputPort()
-        if isinstance(marker, EndOfInputChannel):
-            channel = self._channels[self._current_channel_id]
-            self._ports[channel.port_id].completed = True
-            yield EndOfInputPort()
-            if all(port.completed for port in self._ports.values()):
-                yield EndOfOutputPorts()
