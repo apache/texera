@@ -194,7 +194,7 @@ class TestMainLoop:
                 ChannelMarkerType.PORT_ALIGNMENT,
                 [],
                 {
-                    mock_data_input_channel.name: ControlInvocation(
+                    mock_data_input_channel.to_worker_id.name: ControlInvocation(
                         "EndChannel",
                         ControlRequest(empty_request=EmptyRequest()),
                         AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
