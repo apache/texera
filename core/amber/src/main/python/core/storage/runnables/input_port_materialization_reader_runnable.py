@@ -33,9 +33,8 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, InternalQueue, DataFrame, MarkerFrame, DataPayload
+from core.models import Tuple, InternalQueue, DataFrame, DataPayload
 from core.models.internal_queue import DataElement, ChannelMarkerElement
-from core.models.marker import StartOfInputChannel, EndOfInputChannel, Marker
 from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
