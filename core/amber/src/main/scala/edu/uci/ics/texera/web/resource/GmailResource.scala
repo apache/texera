@@ -92,7 +92,7 @@ object GmailResource {
 
     Try {
       val session = createSession()
-      val email = createMimeMessage(session, emailMessage, recipientEmail)
+      val email = createMimeMessage(session, withDomain(emailMessage), recipientEmail)
       Transport.send(email)
     } match {
       case Success(_)         => Right(())
@@ -115,6 +115,20 @@ object GmailResource {
   private def isValidEmail(email: String): Boolean = {
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
     email != null && emailRegex.matches(email)
+  }
+
+  private def withDomain(message: EmailMessage): EmailMessage = {
+    val newContent = AmberConfig.appDomain match {
+      case Some(domain) =>
+        s"""${message.content}
+           |
+           |—
+           |Sent from: $domain
+           |""".stripMargin
+      case None => message.content
+    }
+
+    message.copy(content = newContent)
   }
 }
 
