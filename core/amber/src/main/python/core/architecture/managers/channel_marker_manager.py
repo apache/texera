@@ -59,8 +59,9 @@ class ChannelMarkerManager:
         if marker.marker_type == ChannelMarkerType.ALL_ALIGNMENT:
             epoch_marker_completed = marker_received_from_all_channels
         elif marker.marker_type == ChannelMarkerType.PORT_ALIGNMENT:
+            port_id = self.input_gateway.get_port_id(from_channel)
             marker_received_from_current_port = (
-                self.input_gateway.get_port(self.input_gateway.get_port_id(from_channel))
+                self.input_gateway.get_port(port_id)
                 .get_channels()
                 .issubset(self.marker_received[marker_id])
             )
