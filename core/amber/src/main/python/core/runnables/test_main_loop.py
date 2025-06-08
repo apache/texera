@@ -710,7 +710,22 @@ class TestMainLoop:
         )
 
         output_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert output_queue.get() == mock_end_of_upstream
+        assert output_queue.get() == ChannelMarkerElement(
+            tag=mock_data_output_channel,
+            payload=ChannelMarkerPayload(
+                ChannelMarkerIdentity("EndChannel"),
+                ChannelMarkerType.PORT_ALIGNMENT,
+                [],
+                {
+                    mock_data_output_channel.to_worker_id.name: ControlInvocation(
+                        "EndChannel",
+                        ControlRequest(empty_request=EmptyRequest()),
+                        AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
+                        -1,
+                    )
+                },
+            ),
+        )
 
         # can process ReturnInvocation
         input_queue.put(
