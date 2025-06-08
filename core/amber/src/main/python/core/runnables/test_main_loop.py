@@ -186,15 +186,15 @@ class TestMainLoop:
         return data_elements
 
     @pytest.fixture
-    def mock_end_of_upstream(self, mock_tuple, mock_data_input_channel):
+    def mock_end_of_upstream(self, mock_tuple, mock_data_output_channel):
         return ChannelMarkerElement(
-            tag=mock_data_input_channel,
+            tag=mock_data_output_channel,
             payload=ChannelMarkerPayload(
                 ChannelMarkerIdentity("EndChannel"),
                 ChannelMarkerType.PORT_ALIGNMENT,
                 [],
                 {
-                    mock_data_input_channel.to_worker_id.name: ControlInvocation(
+                    mock_data_output_channel.to_worker_id.name: ControlInvocation(
                         "EndChannel",
                         ControlRequest(empty_request=EmptyRequest()),
                         AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
