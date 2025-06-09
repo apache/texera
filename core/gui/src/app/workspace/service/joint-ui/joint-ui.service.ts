@@ -382,13 +382,18 @@ export class JointUIService {
     if (!element) {
       return;
     }
-    const ports = element.getPorts();
-    ports.forEach(p => {
-      const pid = p.id;
-      if (pid) {
-        element.portProp(pid, "attrs/.port-label/visibility", "visible");
-      }
-    });
+
+    const inPorts  = element.getPorts().filter(p => p.group === "in");
+    const outPorts = element.getPorts().filter(p => p.group === "out");
+
+    if (inPorts.length > 1) {
+      inPorts.forEach(p => element.portProp(p.id!, "attrs/.port-label/visibility", "visible"));
+    }
+
+    if (outPorts.length > 1) {
+      outPorts.forEach(p => element.portProp(p.id!, "attrs/.port-label/visibility", "visible"));
+    }
+
   }
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
