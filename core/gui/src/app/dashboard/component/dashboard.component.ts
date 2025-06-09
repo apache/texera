@@ -127,31 +127,23 @@ export class DashboardComponent implements OnInit {
     this.adminSettingsService
       .getSetting("logo")
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: setting => {
-          this.logo = setting && setting.value ? setting.value : "assets/logos/logo.png";
-        },
-        error: () => {
-          this.logo = "assets/logos/logo.png";
-        },
+      .subscribe(logoUrl => {
+        if (logoUrl) {
+          this.logo = logoUrl;
+        }
       });
 
     this.adminSettingsService
       .getSetting("favicon")
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: setting => {
-          if (setting && setting.value) {
-            this.favicon = setting.value;
-            const links = document.querySelectorAll("link[rel*='icon']");
-            links.forEach(link => {
-              (link as HTMLLinkElement).setAttribute("href", setting.value);
-            });
-          }
-        },
-        error: () => {
-          this.favicon = "assets/logos/favicon-32x32.png";
-        },
+      .subscribe(faviconUrl => {
+        if (faviconUrl) {
+          this.favicon = faviconUrl;
+          const links = document.querySelectorAll("link[rel*='icon']");
+          links.forEach(link => {
+            (link as HTMLLinkElement).setAttribute("href", faviconUrl);
+          });
+        }
       });
   }
 

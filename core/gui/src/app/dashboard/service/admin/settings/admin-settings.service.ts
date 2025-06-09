@@ -20,14 +20,12 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 
 /**
- * Represents a single site setting as a key/value pair.
+ * Service for managing site-wide settings (key-value pairs) via REST API.
+ * All values are stored and retrieved as plain strings.
  */
-export interface SiteSetting {
-  key: string;
-  value: string;
-}
 
 @Injectable({
   providedIn: "root",
@@ -36,25 +34,17 @@ export class AdminSettingsService {
   private readonly BASE_URL = "/api/admin/settings";
   constructor(private http: HttpClient) {}
 
-  getSetting(key: string): Observable<SiteSetting> {
-    return this.http.get<SiteSetting>(`${this.BASE_URL}/${key}`, {
-      withCredentials: true,
-    });
+  getSetting(key: string): Observable<string> {
+    return this.http
+      .get<{ key: string; value: string }>(`${this.BASE_URL}/${key}`)
+      .pipe(map(resp => resp?.value ?? null));
   }
 
-  updateSetting(setting: SiteSetting): Observable<void> {
-    return this.http.put<void>(`${this.BASE_URL}/${setting.key}`, setting, {
-      withCredentials: true,
-    });
+  updateSetting(key: string, value: string): Observable<void> {
+    return this.http.put<void>(`${this.BASE_URL}/${key}`, { value }, { withCredentials: true });
   }
 
   deleteSetting(key: string): Observable<void> {
-    return this.http.post<void>(
-      `${this.BASE_URL}/delete/${key}`,
-      {},
-      {
-        withCredentials: true,
-      }
-    );
+    return this.http.post<void>(`${this.BASE_URL}/delete/${key}`, {});
   }
 }

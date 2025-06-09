@@ -58,7 +58,7 @@ export class AdminSettingsComponent {
   saveLogos(): void {
     if (this.logoData) {
       this.adminSettingsService
-        .updateSetting({ key: "logo", value: this.logoData })
+        .updateSetting("logo", this.logoData)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: () => this.message.success("Logo saved successfully."),
@@ -67,7 +67,7 @@ export class AdminSettingsComponent {
     }
     if (this.faviconData) {
       this.adminSettingsService
-        .updateSetting({ key: "favicon", value: this.faviconData })
+        .updateSetting("favicon", this.faviconData)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: () => this.message.success("Favicon saved successfully."),
