@@ -20,8 +20,11 @@ package edu.uci.ics.texera.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 
+import java.util.logging.Logger
+
 object UserSystemConfig {
   private val conf: Config = ConfigFactory.parseResources("user-system.conf").resolve()
+  private val logger = Logger.getLogger(getClass.getName)
 
   // User system
   val isUserSystemEnabled: Boolean = conf.getBoolean("user-sys.enabled")
@@ -33,4 +36,20 @@ object UserSystemConfig {
   val inviteOnly: Boolean = conf.getBoolean("user-sys.invite-only")
   val workflowVersionCollapseIntervalInMinutes: Int =
     conf.getInt("user-sys.version-time-limit-in-minutes")
+  val appDomain: Option[String] = {
+    val domain = conf.getString("user-sys.domain").trim
+    if (domain.isEmpty) {
+      logger.warning(
+        """
+          |=======================================================
+          |[WARN] The user-sys.domain is not configured, and the "Sent from:" field in the email will not include a domain!
+          |Please configure user-sys.domain=your.domain.com or set the environment variable/system property USER_SYS_DOMAIN
+          |=======================================================
+          |""".stripMargin
+      )
+      None
+    } else {
+      Some(domain)
+    }
+  }
 }

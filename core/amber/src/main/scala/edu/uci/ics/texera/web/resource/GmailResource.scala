@@ -118,7 +118,7 @@ object GmailResource {
   }
 
   private def withDomain(message: EmailMessage): EmailMessage = {
-    val newContent = AmberConfig.appDomain match {
+    val newContent = UserSystemConfig.appDomain match {
       case Some(domain) =>
         s"""${message.content}
            |
