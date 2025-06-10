@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { WorkflowActionService } from "./workflow-action.service";
 import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
@@ -16,9 +35,11 @@ import {
 } from "./mock-workflow-data";
 import * as joint from "jointjs";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
-import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;
@@ -36,6 +57,7 @@ describe("JointGraphWrapperService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
     jointGraph = new joint.dia.Graph();
@@ -547,12 +569,19 @@ describe("JointGraphWrapperService", () => {
   });
 
   describe("when linkBreakpoint is enabled", () => {
-    beforeAll(() => {
-      environment.linkBreakpointEnabled = true;
+    let mockConfigService: MockGuiConfigService;
+
+    beforeEach(() => {
+      // Get the mock service and enable linkBreakpoint for each test in this describe block
+      mockConfigService = TestBed.inject(GuiConfigService) as any as MockGuiConfigService;
+      mockConfigService.setConfig({ linkBreakpointEnabled: true });
     });
 
-    afterAll(() => {
-      environment.linkBreakpointEnabled = false;
+    afterEach(() => {
+      // Reset to default after each test
+      if (mockConfigService) {
+        mockConfigService.setConfig({ linkBreakpointEnabled: false });
+      }
     });
 
     it(

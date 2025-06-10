@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { NgxFileDropEntry } from "ngx-file-drop";
@@ -6,8 +25,8 @@ import {
   DatasetFileNode,
   getPathsUnderOrEqualDatasetFileNode,
 } from "../../../../common/type/datasetVersionFileTree";
-import { environment } from "../../../../../environments/environment";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @Component({
   selector: "texera-user-files-uploader",
@@ -28,7 +47,10 @@ export class FilesUploaderComponent {
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
 
-  constructor(private notificationService: NotificationService) {}
+  constructor(
+    private notificationService: NotificationService,
+    private config: GuiConfigService
+  ) {}
 
   hideBanner() {
     this.fileUploadingFinished = false;
@@ -49,10 +71,10 @@ export class FilesUploaderComponent {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
             // Check the file size here
-            if (file.size > environment.singleFileUploadMaximumSizeMB * 1024 * 1024) {
+            if (file.size > this.config.env.singleFileUploadMaximumSizeMB * 1024 * 1024) {
               // If the file is too large, reject the promise
               this.notificationService.error(
-                `File ${file.name}'s size exceeds the maximum limit of ${environment.singleFileUploadMaximumSizeMB}MB.`
+                `File ${file.name}'s size exceeds the maximum limit of ${this.config.env.singleFileUploadMaximumSizeMB}MB.`
               );
               reject(null);
             } else {

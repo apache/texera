@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
@@ -7,7 +26,7 @@ import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";
-import { environment } from "../../../../../environments/environment";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -39,7 +58,10 @@ export interface MultipartUploadProgress {
   providedIn: "root",
 })
 export class DatasetService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private config: GuiConfigService
+  ) {}
 
   public createDataset(dataset: Dataset): Observable<DashboardDataset> {
     return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, {
@@ -116,8 +138,8 @@ export class DatasetService {
    * with a concurrency limit on how many parts we process in parallel.
    */
   public multipartUpload(datasetName: string, filePath: string, file: File): Observable<MultipartUploadProgress> {
-    const partCount = Math.ceil(file.size / environment.multipartUploadChunkSizeByte);
-    const concurrencyLimit = environment.maxNumberOfConcurrentUploadingFileChunks;
+    const partCount = Math.ceil(file.size / this.config.env.multipartUploadChunkSizeByte);
+    const concurrencyLimit = this.config.env.maxNumberOfConcurrentUploadingFileChunks;
 
     return new Observable(observer => {
       this.initiateMultipartUpload(datasetName, filePath, partCount)
@@ -144,8 +166,8 @@ export class DatasetService {
             return from(presignedUrls).pipe(
               // 2) Use mergeMap with concurrency limit to upload chunk by chunk
               mergeMap((url, index) => {
-                const start = index * environment.multipartUploadChunkSizeByte;
-                const end = Math.min(start + environment.multipartUploadChunkSizeByte, file.size);
+                const start = index * this.config.env.multipartUploadChunkSizeByte;
+                const end = Math.min(start + this.config.env.multipartUploadChunkSizeByte, file.size);
                 const chunk = file.slice(start, end);
 
                 // Upload the chunk

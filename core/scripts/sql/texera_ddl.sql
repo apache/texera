@@ -1,3 +1,20 @@
+-- Licensed to the Apache Software Foundation (ASF) under one
+-- or more contributor license agreements.  See the NOTICE file
+-- distributed with this work for additional information
+-- regarding copyright ownership.  The ASF licenses this file
+-- to you under the Apache License, Version 2.0 (the
+-- "License"); you may not use this file except in compliance
+-- with the License.  You may obtain a copy of the License at
+--
+--   http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing,
+-- software distributed under the License is distributed on an
+-- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-- KIND, either express or implied.  See the License for the
+-- specific language governing permissions and limitations
+-- under the License.
+
 -- ============================================
 -- 1. Drop and recreate the database (psql only)
 --    Remove if you already created texera_db
@@ -51,6 +68,7 @@ DROP TYPE IF EXISTS privilege_enum CASCADE;
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
+CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
 
 -- ============================================
 -- 5. Create tables
@@ -158,12 +176,27 @@ CREATE TABLE IF NOT EXISTS project_user_access
     FOREIGN KEY (pid) REFERENCES project(pid) ON DELETE CASCADE
     );
 
+-- workflow_computing_unit table
+CREATE TABLE IF NOT EXISTS workflow_computing_unit
+(
+    uid                INT           NOT NULL,
+    name               VARCHAR(128)  NOT NULL,
+    cuid               SERIAL PRIMARY KEY,
+    creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    terminate_time     TIMESTAMP  DEFAULT NULL,
+    type               workflow_computing_unit_type_enum,
+    uri                TEXT NOT NULL DEFAULT '',
+    resource           TEXT DEFAULT '',
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
 -- workflow_executions
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
     eid                 SERIAL PRIMARY KEY,
     vid                 INT NOT NULL,
     uid                 INT NOT NULL,
+    cuid                INT,
     status              SMALLINT NOT NULL DEFAULT 1,
     result              TEXT,
     starting_time       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -173,9 +206,11 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     environment_version VARCHAR(128) NOT NULL,
     log_location        TEXT,
     runtime_stats_uri   TEXT,
+    runtime_stats_size  INT DEFAULT 0,
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
+    FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE
+);
 
 -- public_project
 CREATE TABLE IF NOT EXISTS public_project
@@ -227,6 +262,7 @@ CREATE TABLE IF NOT EXISTS operator_executions
     workflow_execution_id INT NOT NULL,
     operator_id           VARCHAR(100) NOT NULL,
     console_messages_uri  TEXT,
+    console_messages_size INT DEFAULT 0,
     PRIMARY KEY (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
     );
@@ -237,6 +273,7 @@ CREATE TABLE operator_port_executions
     workflow_execution_id INT NOT NULL,
     global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
+    result_size           INT DEFAULT 0,
     PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
 );
@@ -299,17 +336,6 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     PRIMARY KEY (did),
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
-
--- workflow_computing_unit table
-CREATE TABLE IF NOT EXISTS workflow_computing_unit
-(
-    uid                INT           NOT NULL,
-    name               VARCHAR(128)  NOT NULL,
-    cuid               SERIAL PRIMARY KEY,
-    creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    terminate_time     TIMESTAMP  DEFAULT NULL,
-    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-);
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;

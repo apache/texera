@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Observable, Subject } from "rxjs";
 import {
   Comment,
@@ -76,7 +95,7 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-  public sharedModel: SharedModel = new SharedModel();
+  public sharedModel!: SharedModel;
   public newYDocLoadedSubject = new Subject();
   private readonly centerEventSubject = new Subject<void>();
 
@@ -144,6 +163,9 @@ export class WorkflowGraph {
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
+    // Initialize sharedModel in constructor to ensure config is loaded
+    this.sharedModel = new SharedModel();
+
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox =>
@@ -226,10 +248,11 @@ export class WorkflowGraph {
    * Replaces current <code>{@link sharedModel}</code>  with a new one and destroy the old model if any.
    * @param workflowId optional, but needed if you want to join shared editing.
    * @param user optional, but needed if you want to have user presence.
+   * @param productionSharedEditingServer whether to use production shared editing server
    */
-  public loadNewYModel(workflowId?: number, user?: User) {
+  public loadNewYModel(workflowId?: number, user?: User, productionSharedEditingServer?: boolean) {
     this.destroyYModel();
-    this.sharedModel = new SharedModel(workflowId, user);
+    this.sharedModel = new SharedModel(workflowId, user, productionSharedEditingServer);
     this.newYDocLoadedSubject.next(undefined);
   }
 

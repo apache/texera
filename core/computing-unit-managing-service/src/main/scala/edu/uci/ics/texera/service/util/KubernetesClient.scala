@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.service.util
 
 import edu.uci.ics.texera.service.KubernetesConfig
@@ -19,6 +38,10 @@ object KubernetesClient {
   }
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
+
+  def podExists(cuid: Int): Boolean = {
+    getPodByName(generatePodName(cuid)).isDefined
+  }
 
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
@@ -60,7 +83,8 @@ object KubernetesClient {
       cpuLimit: String,
       memoryLimit: String,
       gpuLimit: String,
-      envVars: Map[String, Any]
+      envVars: Map[String, Any],
+      shmSize: Option[String] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
@@ -108,8 +132,7 @@ object KubernetesClient {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
-    // Complete the pod spec
-    val pod = specBuilder
+    val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
@@ -119,7 +142,33 @@ object KubernetesClient {
       .endPort()
       .withEnv(envList)
       .withResources(resourceBuilder.build())
-      .endContainer()
+
+    // If shmSize requested, mount /dev/shm
+    shmSize.foreach { _ =>
+      containerBuilder
+        .addNewVolumeMount()
+        .withName("dshm")
+        .withMountPath("/dev/shm")
+        .endVolumeMount()
+    }
+
+    containerBuilder.endContainer()
+
+    // Add tmpfs volume if needed
+    shmSize.foreach { size =>
+      specBuilder
+        .addNewVolume()
+        .withName("dshm")
+        .withEmptyDir(
+          new EmptyDirVolumeSourceBuilder()
+            .withMedium("Memory")
+            .withSizeLimit(new Quantity(size))
+            .build()
+        )
+        .endVolume()
+    }
+
+    val pod = specBuilder
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)
       .endSpec()

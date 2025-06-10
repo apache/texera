@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable, Inject } from "@angular/core";
 import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -28,6 +47,7 @@ import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
 import { UserService } from "src/app/common/service/user/user.service";
 import { User } from "src/app/common/type/user";
+import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -76,7 +96,8 @@ export class ExecuteWorkflowService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
-    @Inject(DOCUMENT) private document: Document
+    @Inject(DOCUMENT) private document: Document,
+    private computingUnitStatusService: ComputingUnitStatusService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -207,6 +228,15 @@ export class ExecuteWorkflowService {
     emailNotificationEnabled: boolean,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
+    // Get the current computing unit ID from the status service
+    const selectedUnit = this.computingUnitStatusService.getSelectedComputingUnitValue();
+    const computingUnitId = selectedUnit?.computingUnit.cuid;
+
+    // Log a warning if no computing unit is selected
+    if (computingUnitId === undefined) {
+      console.warn("No computing unit selected for workflow execution");
+    }
+
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
@@ -214,6 +244,7 @@ export class ExecuteWorkflowService {
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
+      computingUnitId: computingUnitId, // Include the computing unit ID
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {

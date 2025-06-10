@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import * as Y from "yjs";
@@ -10,9 +29,9 @@ import {
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
-import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
 import { isDefined } from "../../../../common/util/predicate";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -24,6 +43,8 @@ import { isDefined } from "../../../../common/util/predicate";
  */
 
 export class SharedModelChangeHandler {
+  private config: GuiConfigService | null = null;
+
   constructor(
     private texeraGraph: WorkflowGraph,
     private jointGraph: joint.dia.Graph,
@@ -44,6 +65,10 @@ export class SharedModelChangeHandler {
       this.handleOperatorDeep();
       this.handleCommentBoxDeep();
     });
+  }
+
+  setConfigService(config: GuiConfigService): void {
+    this.config = config;
   }
 
   /**
@@ -88,7 +113,7 @@ export class SharedModelChangeHandler {
         }
       });
 
-      if (environment.asyncRenderingEnabled) {
+      if (this.config?.env.asyncRenderingEnabled) {
         // Group add
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
           this.jointGraph.addCells(jointElementsToAdd);
@@ -144,7 +169,7 @@ export class SharedModelChangeHandler {
         if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i]))
           this.jointGraph.getCell(keysToDelete[i]).remove();
       }
-      if (environment.asyncRenderingEnabled) {
+      if (this.config?.env.asyncRenderingEnabled) {
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
           this.jointGraph.addCells(jointElementsToAdd.filter(x => x !== undefined));
         });

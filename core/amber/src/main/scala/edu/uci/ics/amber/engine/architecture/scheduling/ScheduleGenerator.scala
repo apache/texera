@@ -1,20 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.VFSURIFactory
-import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object ScheduleGenerator {
@@ -141,88 +155,5 @@ abstract class ScheduleGenerator(
           )
           replaceVertex(regionDAG, region, newRegion)
       }
-  }
-
-  def replaceLinkWithMaterialization(
-      physicalLink: PhysicalLink,
-      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
-  ): PhysicalPlan = {
-
-    val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
-    val fromPortId = physicalLink.fromPortId
-
-    val toOp = physicalPlan.getOperator(physicalLink.toOpId)
-    val toPortId = physicalLink.toPortId
-
-    val newPhysicalPlan = physicalPlan
-      .removeLink(physicalLink)
-
-    val globalPortId = GlobalPortIdentity(
-      physicalLink.fromOpId,
-      physicalLink.fromPortId
-    )
-
-    // create the uri of the materialization storage
-    val storageURI = VFSURIFactory.createResultURI(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      globalPortId
-    )
-
-    // create cache reader and link
-
-    val schema = newPhysicalPlan
-      .getOperator(fromOp.id)
-      .outputPorts(fromPortId)
-      ._3
-      .toOption
-      .get
-
-    val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      storageURI,
-      toOp.id,
-      toPortId,
-      schema
-    )
-    val readerToDestLink =
-      PhysicalLink(
-        matReaderPhysicalOp.id,
-        matReaderPhysicalOp.outputPorts.keys.head,
-        toOp.id,
-        toPortId
-      )
-    // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(fromOp.id) = matReaderPhysicalOp.id
-    newPhysicalPlan
-      .addOperator(matReaderPhysicalOp)
-      .addLink(readerToDestLink)
-  }
-
-  def updateRegionsWithOutputPortStorage(
-      outputPortsToMaterialize: Set[GlobalPortIdentity],
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-    (outputPortsToMaterialize ++ workflowContext.workflowSettings.outputPortsNeedingStorage)
-      .foreach(outputPortId => {
-        getRegions(outputPortId.opId, regionDAG).foreach(fromRegion => {
-          val portConfigToAdd = outputPortId -> {
-            val uriToAdd = createResultURI(
-              workflowId = workflowContext.workflowId,
-              executionId = workflowContext.executionId,
-              globalPortId = outputPortId
-            )
-            PortConfig(storageURI = uriToAdd)
-          }
-          val newResourceConfig = fromRegion.resourceConfig match {
-            case Some(existingConfig) =>
-              existingConfig.copy(portConfigs = existingConfig.portConfigs + portConfigToAdd)
-            case None => ResourceConfig(portConfigs = Map(portConfigToAdd))
-          }
-          val newFromRegion = fromRegion.copy(resourceConfig = Some(newResourceConfig))
-          replaceVertex(regionDAG, fromRegion, newFromRegion)
-        })
-      })
   }
 }

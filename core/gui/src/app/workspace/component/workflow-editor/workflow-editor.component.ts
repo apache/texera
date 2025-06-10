@@ -1,8 +1,26 @@
-import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -21,6 +39,8 @@ import { NzContextMenuService } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
+import { isDefined } from "../../../common/util/predicate";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -87,7 +107,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private operatorMenu: OperatorMenuService,
     private route: ActivatedRoute,
     private router: Router,
-    public nzContextMenu: NzContextMenuService
+    public nzContextMenu: NzContextMenuService,
+    private elementRef: ElementRef,
+    private config: GuiConfigService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -140,7 +162,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementPaste();
     this.handleLinkCursorHover();
     this.handleGridsToggle();
-    if (environment.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
+    if (this.config.env.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
       this.handleLinkBreakpoint();
     }
     this.handlePointerEvents();
@@ -252,25 +274,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(status => {
-        Object.keys(status).forEach(operatorID => {
-          if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
-            return;
-          }
-          if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
-            status[operatorID] = {
-              ...status[operatorID],
-              operatorState: OperatorState.Recovering,
-            };
-          }
+        this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .forEach(op => {
+            if (
+              isDefined(status[op.operatorID]) &&
+              this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering
+            ) {
+              status[op.operatorID] = {
+                ...status[op.operatorID],
+                operatorState: OperatorState.Recovering,
+              };
+            }
 
-          this.jointUIService.changeOperatorStatistics(
-            this.paper,
-            operatorID,
-            status[operatorID],
-            this.isSource(operatorID),
-            this.isSink(operatorID)
-          );
-        });
+            this.jointUIService.changeOperatorStatistics(
+              this.paper,
+              op.operatorID,
+              status[op.operatorID],
+              this.isSource(op.operatorID),
+              this.isSink(op.operatorID)
+            );
+          });
       });
 
     this.executeWorkflowService
@@ -608,15 +633,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
-      nzFooter: [
-        {
-          label: "OK",
-          onClick: () => {
-            modalRef.destroy();
-          },
-          type: "primary",
-        },
-      ],
+      nzFooter: null,
     });
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => {
       this.wrapper.unhighlightCommentBoxes(commentBoxID);
@@ -767,6 +784,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
         this.currentOpenedOperatorID = operatorID;
         this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.workflowActionService.openResultPanel();
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
@@ -780,6 +798,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
         this.currentOpenedOperatorID = operatorID;
         this.jointUIService.unfoldOperatorDetails(this.paper, operatorID);
+        this.workflowActionService.openResultPanel();
       });
 
     fromJointPaperEvent(this.paper, "blank:pointerdown")
@@ -1039,7 +1058,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-        if (environment.linkBreakpointEnabled) {
+        if (this.config.env.linkBreakpointEnabled) {
           this.paper.getModelById(elementView.model.id).attr({
             ".tool-remove": { display: "block" },
           });

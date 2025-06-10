@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
@@ -44,10 +63,10 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     ReplayLogManager.createLogManager(logStorage, "none", x => {})
 
   "DP Thread" should "handle pause/resume during processing" in {
-    val dp = new DataProcessor(workerId, x => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputManager.addPort(mockInputPortId, schema)
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -83,9 +102,9 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
-    val dp = new DataProcessor(workerId, x => {})
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputManager.addPort(mockInputPortId, schema)
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -127,11 +146,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
-    val dp = new DataProcessor(workerId, x => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputManager.addPort(mockInputPortId, schema)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
@@ -167,11 +186,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
-    val dp = new DataProcessor(workerId, _ => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputManager.addPort(mockInputPortId, schema)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))

@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
@@ -14,10 +33,10 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
-
+import com.typesafe.scalalogging.LazyLogging
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-object DatasetSearchQueryBuilder extends SearchQueryBuilder {
+object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
   override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.DATASET_RESOURCE_TYPE),
     name = DATASET.NAME,
@@ -100,16 +119,23 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
     val owner = record.into(USER).into(classOf[User])
+    var size = 0L
+
+    try {
+      size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+    } catch {
+      case e: io.lakefs.clients.sdk.ApiException =>
+        // Treat all LakeFS ApiException as mismatch (repository not found, being deleted, or any fatal error)
+        logger.error(s"LakeFS ApiException for dataset '${dataset.getName}': ${e.getMessage}", e)
+        return null
+    }
+
     val dd = DashboardDataset(
       dataset,
       owner.getEmail,
-      record
-        .get(
-          DATASET_USER_ACCESS.PRIVILEGE,
-          classOf[PrivilegeEnum]
-        ),
+      record.get(DATASET_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]),
       dataset.getOwnerUid == uid,
-      LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+      size
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

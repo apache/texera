@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.auth.SessionUser
@@ -26,7 +45,11 @@ object DashboardResource {
 
   case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
 
-  case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
+  case class DashboardSearchResult(
+      results: List[DashboardClickableFileEntry],
+      more: Boolean,
+      hasMismatch: Boolean = false
+  )
 
   /*
    The following class describe the available params from the frontend for full text search.
@@ -89,7 +112,7 @@ object DashboardResource {
       query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
     val queryResult = finalQuery.fetch()
 
-    val entries = queryResult.asScala.toList
+    val allEntries = queryResult.asScala.toList
       .take(params.count)
       .map(record => {
         val resourceType = record.get("resourceType", classOf[String])
@@ -103,7 +126,20 @@ object DashboardResource {
         }
       })
 
-    DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
+    val entries = allEntries.filter(_ != null)
+    val hasMismatch =
+      params.resourceType match {
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.ALL_RESOURCE_TYPE =>
+          allEntries.exists(_ == null)
+        case _ =>
+          false
+      }
+
+    DashboardSearchResult(
+      results = entries,
+      more = queryResult.size() > params.count,
+      hasMismatch = hasMismatch
+    )
   }
 
   def getOrderFields(

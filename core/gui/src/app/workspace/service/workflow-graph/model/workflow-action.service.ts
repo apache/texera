@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
@@ -22,10 +41,10 @@ import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
-import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
@@ -36,9 +55,6 @@ export const DEFAULT_WORKFLOW = {
   lastModifiedTime: undefined,
   isPublished: 0,
   readonly: false,
-};
-export const DEFAULT_SETTINGS = {
-  dataTransferBatchSize: environment.defaultDataTransferBatchSize,
 };
 
 /**
@@ -77,14 +93,18 @@ export class WorkflowActionService {
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
+  private resultPanelOpenSubject = new Subject<boolean>();
+  public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowSettings: WorkflowSettings;
+  private workflowResetSubject = new Subject<void>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private config: GuiConfigService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -97,11 +117,18 @@ export class WorkflowActionService {
       this.jointGraphWrapper,
       this.jointUIService
     );
+    this.sharedModelChangeHandler.setConfigService(this.config);
     this.workflowMetadata = DEFAULT_WORKFLOW;
-    this.workflowSettings = DEFAULT_SETTINGS;
+    this.workflowSettings = this.getDefaultSettings();
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleJointElementDrag();
+  }
+
+  private getDefaultSettings(): WorkflowSettings {
+    return {
+      dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize,
+    };
   }
 
   /**
@@ -552,6 +579,14 @@ export class WorkflowActionService {
     this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
   }
 
+  public openResultPanel(): void {
+    this.resultPanelOpenSubject.next(true);
+  }
+
+  public closeResultPanel(): void {
+    this.resultPanelOpenSubject.next(false);
+  }
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //                             Below are workflow-level and metadata-related methods.                               //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -564,7 +599,7 @@ export class WorkflowActionService {
    * @param user optional, but needed if you want to have user presence.
    */
   public setNewSharedModel(workflowId?: number, user?: User) {
-    this.texeraGraph.loadNewYModel(workflowId, user);
+    this.texeraGraph.loadNewYModel(workflowId, user, this.config.env.productionSharedEditingServer);
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
   }
 
@@ -584,7 +619,7 @@ export class WorkflowActionService {
    */
   public reloadWorkflow(
     workflow: Readonly<Workflow> | undefined,
-    asyncRendering = environment.asyncRenderingEnabled
+    asyncRendering = this.config.env.asyncRenderingEnabled
   ): void {
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
@@ -607,7 +642,7 @@ export class WorkflowActionService {
       }
 
       const workflowContent: WorkflowContent = workflow.content;
-      this.workflowSettings = workflowContent.settings || DEFAULT_SETTINGS;
+      this.workflowSettings = workflowContent.settings || this.getDefaultSettings();
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -659,7 +694,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
-      this.getTexeraGraph().getPortPropertyChangedStream()
+      this.getTexeraGraph().getPortPropertyChangedStream(),
+      this.workflowResetSubject.asObservable()
     );
   }
 
@@ -686,7 +722,7 @@ export class WorkflowActionService {
       return;
     }
 
-    const newSettings = workflowSettings === undefined ? DEFAULT_SETTINGS : workflowSettings;
+    const newSettings = workflowSettings === undefined ? this.getDefaultSettings() : workflowSettings;
     this.workflowSettings = newSettings;
   }
 
@@ -787,6 +823,7 @@ export class WorkflowActionService {
   public resetAsNewWorkflow() {
     this.destroySharedModel();
     this.reloadWorkflow(undefined);
+    this.workflowResetSubject.next();
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

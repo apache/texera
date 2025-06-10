@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
@@ -6,6 +25,7 @@ import { NzTableFilterFn, NzTableQueryParams } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export const NO_SORT = "NO_SORTING";
 
@@ -31,7 +51,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   constructor(
     private adminExecutionService: AdminExecutionService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private config: GuiConfigService
   ) {}
 
   ngOnInit() {
@@ -199,7 +220,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   killExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
@@ -210,7 +231,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   pauseExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
@@ -221,7 +242,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   resumeExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();

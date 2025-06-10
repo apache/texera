@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource
 
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
@@ -24,7 +43,7 @@ object GmailResource {
     .createDSLContext()
   final private lazy val userDao = new UserDao(context.configuration)
 
-  private lazy val senderGmail: String = AmberConfig.gmail
+  private lazy val senderGmail: String = UserSystemConfig.gmail
   private val smtpProperties = Map(
     "mail.smtp.host" -> "smtp.gmail.com",
     "mail.smtp.port" -> "465",
@@ -42,7 +61,7 @@ object GmailResource {
       },
       new javax.mail.Authenticator() {
         override def getPasswordAuthentication: PasswordAuthentication =
-          new PasswordAuthentication(senderGmail, AmberConfig.smtpPassword)
+          new PasswordAuthentication(senderGmail, UserSystemConfig.smtpPassword)
       }
     )
   }
@@ -73,7 +92,7 @@ object GmailResource {
 
     Try {
       val session = createSession()
-      val email = createMimeMessage(session, emailMessage, recipientEmail)
+      val email = createMimeMessage(session, withDomain(emailMessage), recipientEmail)
       Transport.send(email)
     } match {
       case Success(_)         => Right(())
@@ -96,6 +115,20 @@ object GmailResource {
   private def isValidEmail(email: String): Boolean = {
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".r
     email != null && emailRegex.matches(email)
+  }
+
+  private def withDomain(message: EmailMessage): EmailMessage = {
+    val newContent = UserSystemConfig.appDomain match {
+      case Some(domain) =>
+        s"""${message.content}
+           |
+           |—
+           |Sent from: $domain
+           |""".stripMargin
+      case None => message.content
+    }
+
+    message.copy(content = newContent)
   }
 }
 

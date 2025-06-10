@@ -1,8 +1,26 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
-import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
@@ -10,6 +28,7 @@ import { TimeTravelComponent } from "./time-travel/time-travel.component";
 import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -30,7 +49,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   items = [
     { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
-    { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
+    { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: false },
     {
       component: SettingsComponent,
       title: "Settings",
@@ -41,13 +60,13 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
       component: WorkflowExecutionHistoryComponent,
       title: "Execution History",
       icon: "history",
-      enabled: environment.workflowExecutionsTrackingEnabled,
+      enabled: false,
     },
     {
       component: TimeTravelComponent,
       title: "Time Travel",
       icon: "clock-circle",
-      enabled: environment.userSystemEnabled && environment.timetravelEnabled,
+      enabled: false,
     },
   ];
 
@@ -56,7 +75,13 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   returnPosition = { x: 0, y: 0 };
   isDocked = true;
 
-  constructor(private panelService: PanelService) {
+  constructor(
+    private panelService: PanelService,
+    private config: GuiConfigService
+  ) {
+    // Initialize items array with config values
+    this.updateItemsWithConfig();
+
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
     this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
 
@@ -65,6 +90,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
 
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
+  }
+
+  private updateItemsWithConfig(): void {
+    this.items[2].enabled = this.config.env.userSystemEnabled; // Versions
+    this.items[4].enabled = this.config.env.workflowExecutionsTrackingEnabled; // Execution History
+    this.items[5].enabled = this.config.env.userSystemEnabled && this.config.env.timetravelEnabled; // Time Travel
   }
 
   ngOnInit(): void {

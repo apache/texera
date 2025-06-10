@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import {
   AfterViewChecked,
   ChangeDetectorRef,
@@ -40,7 +59,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
@@ -48,6 +66,7 @@ import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { AttributeType, PortInputSchema } from "../../../types/workflow-compiling.interface";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -134,7 +153,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private workflowStatusSerivce: WorkflowStatusService
+    private workflowStatusSerivce: WorkflowStatusService,
+    private config: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -440,8 +460,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
-        environment.userSystemEnabled &&
-        environment.userPresetEnabled &&
+        this.config.env.userSystemEnabled &&
+        this.config.env.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
       ) {

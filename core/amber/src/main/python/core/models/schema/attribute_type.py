@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import datetime
 from enum import Enum
 
@@ -41,7 +58,7 @@ TO_ARROW_MAPPING = {
     AttributeType.STRING: pa.string(),
     AttributeType.DOUBLE: pa.float64(),
     AttributeType.BOOL: pa.bool_(),
-    AttributeType.BINARY: pa.large_list(pa.binary()),
+    AttributeType.BINARY: pa.binary(),
     AttributeType.TIMESTAMP: pa.timestamp("us"),
 }
 
@@ -55,7 +72,6 @@ FROM_ARROW_MAPPING = {
     lib.Type_BINARY: AttributeType.BINARY,
     lib.Type_LARGE_BINARY: AttributeType.BINARY,
     lib.Type_TIMESTAMP: AttributeType.TIMESTAMP,
-    lib.Type_LARGE_LIST: AttributeType.BINARY,
 }
 
 
@@ -66,7 +82,7 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.LONG: int,  # Python3 unifies long into int.
     AttributeType.DOUBLE: float,
     AttributeType.BOOL: bool,
-    AttributeType.BINARY: list,  # Use only list for BINARY (not bytes)
+    AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
 }
 
@@ -75,6 +91,6 @@ FROM_PYOBJECT_MAPPING = {
     int: AttributeType.INT,
     float: AttributeType.DOUBLE,
     bool: AttributeType.BOOL,
-    list: AttributeType.BINARY,
+    bytes: AttributeType.BINARY,
     datetime.datetime: AttributeType.TIMESTAMP,
 }

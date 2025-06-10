@@ -1,5 +1,23 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { environment } from "../../../../../../environments/environment";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
 import {
@@ -15,6 +33,7 @@ import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -57,12 +76,11 @@ export class UserWorkflowListItemComponent {
 
   editingName = false;
   editingDescription = false;
-  /** Whether tracking metadata information about executions is enabled. */
-  workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   constructor(
-    private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
+    private modalService: NzModalService,
+    protected config: GuiConfigService,
     private userProjectService: UserProjectService,
     private downloadService: DownloadService
   ) {

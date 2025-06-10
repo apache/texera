@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.core.marker.Marker
@@ -234,6 +253,22 @@ class OutputManager(
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def finalizeOutput(): Unit = {
+    if (this.ports.isEmpty) {
+      // An operator with an input-port dependency relationship currently belongs to two regions R1->R2.
+      // In a previous design (before #3312), the depender port and the output port of this operator
+      // also belongs to R1, so the completion of the dependee port in R1 does not trigger finalizeOutput on the worker.
+      // After #3312, R1 contains ONLY the dependee input port and no output ports, so the completion of the dependee
+      // input port will trigger finalizeOutput and indicate R1 is completed, causing the workers of this operator to
+      // be closed prematurely.
+      // This additional check ensures the workers of such an operator is not finalized in R1 as it needs to remain open
+      // when R2 is scheduled to execute: when a worker does not have any output ports (this will ONLY be true
+      // for the workers of this operator in R1 as we no longer have sinks operators), this worker needs to remain open.
+      // When the workers of this operator is executed again in R2, the output port will be assigned, and this check
+      // will pass.
+      // TODO: Remove after implementation of a cleaner design of enforcing input port dependencies that does not allow
+      // a worker to belong to two regions.
+      return
+    }
     this.ports.keys
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))

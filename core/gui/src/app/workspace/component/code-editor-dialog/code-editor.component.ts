@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, Type, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -23,6 +42,7 @@ import { filter, switchMap } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { MonacoEditor } from "monaco-breakpoints/dist/types";
+import { GuiConfigService } from "src/app/common/service/gui-config.service";
 
 export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 
@@ -88,7 +108,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AIAssistantService
+    private aiAssistantService: AIAssistantService,
+    private config: GuiConfigService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -204,7 +225,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     // optionally, configure python language client.
     // it may fail if no valid connection is established, yet the failure would be ignored.
-    const languageServerWebsocketUrl = getWebsocketUrl("/python-language-server", "3000");
+    const languageServerWebsocketUrl = getWebsocketUrl(
+      "/python-language-server",
+      this.config.env.pythonLanguageServerPort
+    );
     if (this.language === "python") {
       userConfig.languageClientConfig = {
         languageId: this.language,

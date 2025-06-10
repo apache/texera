@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource
 
 import com.google.protobuf.timestamp.Timestamp
@@ -31,10 +50,11 @@ class WorkflowWebsocketResource extends LazyLogging {
     val sessionState = new SessionState(session)
     SessionState.setState(session.getId, sessionState)
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
-      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+      WorkflowService.getOrCreate(WorkflowIdentity(wid), cuid)
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
     logger.info("connection open")
