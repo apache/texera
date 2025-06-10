@@ -31,6 +31,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.dao.jooq.generated.tables.S3ReferenceCounts;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
@@ -101,6 +102,11 @@ public class Tables {
      * The table <code>texera_db.public_project</code>.
      */
     public static final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
+
+    /**
+     * The table <code>texera_db.s3_reference_counts</code>.
+     */
+    public static final S3ReferenceCounts S3_REFERENCE_COUNTS = S3ReferenceCounts.S3_REFERENCE_COUNTS;
 
     /**
      * The table <code>texera_db.user</code>.

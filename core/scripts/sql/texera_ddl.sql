@@ -58,6 +58,7 @@ DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS user_activity CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
+DROP TABLE IF EXISTS s3_reference_counts CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -336,6 +337,64 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     PRIMARY KEY (did),
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
+
+-- s3_reference_counts table
+CREATE TABLE IF NOT EXISTS s3_reference_counts (
+    s3_uri TEXT PRIMARY KEY,
+    reference_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add trigger to automatically update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $BODY$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$BODY$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_s3_reference_counts_updated_at
+    BEFORE UPDATE ON s3_reference_counts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to increment reference count
+CREATE OR REPLACE FUNCTION increment_s3_reference_count(s3_uri_param TEXT)
+RETURNS INT AS $BODY$
+DECLARE
+    new_count INT;
+BEGIN
+    INSERT INTO s3_reference_counts (s3_uri, reference_count)
+    VALUES (s3_uri_param, 1)
+    ON CONFLICT (s3_uri) 
+    DO UPDATE SET reference_count = s3_reference_counts.reference_count + 1
+    RETURNING reference_count INTO new_count;
+    
+    RETURN new_count;
+END;
+$BODY$ LANGUAGE plpgsql;
+
+-- Function to decrement reference count
+CREATE OR REPLACE FUNCTION decrement_s3_reference_count(s3_uri_param TEXT)
+RETURNS INT AS $BODY$
+DECLARE
+    new_count INT;
+BEGIN
+    UPDATE s3_reference_counts
+    SET reference_count = GREATEST(0, reference_count - 1)
+    WHERE s3_uri = s3_uri_param
+    RETURNING reference_count INTO new_count;
+
+    -- If count becomes 0, delete the record
+    IF new_count = 0 THEN
+        DELETE FROM s3_reference_counts WHERE s3_uri = s3_uri_param;
+    END IF;
+
+    RETURN COALESCE(new_count, 0);
+END;
+$BODY$ LANGUAGE plpgsql;
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;

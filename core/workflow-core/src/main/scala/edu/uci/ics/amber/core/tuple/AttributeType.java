@@ -71,7 +71,26 @@ public enum AttributeType implements Serializable {
     BOOLEAN("boolean", Boolean.class),
     TIMESTAMP("timestamp", Timestamp.class),
     BINARY("binary", byte[].class),
-    ANY("ANY", Object.class);
+    ANY("ANY", Object.class),
+    LARGE_BINARY("large binary", String.class); // String is used because we only pass the pointer/reference to the large binary data
+
+    /**
+     * Special prefix to identify LARGE_BINARY type in attribute names
+     */
+    public static final String TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX = "TEXERA_LARGE_BINARY:";
+
+    /**
+     * Validates that an attribute name is valid and does not start with the reserved prefix.
+     * @param attributeName the attribute name to validate
+     * @throws IllegalArgumentException if the attribute name starts with the reserved prefix
+     */
+    public static void validateAttributeName(String attributeName) {
+        if (attributeName.startsWith(TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX)) {
+            throw new IllegalArgumentException(
+                "Attribute name cannot start with the reserved prefix: " + TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX
+            );
+        }
+    }
 
     private final String name;
     private final Class<?> fieldClass;
@@ -95,9 +114,9 @@ public enum AttributeType implements Serializable {
         return this.fieldClass;
     }
 
-    public static AttributeType getAttributeType(Class<?> fieldClass) {
+    public static AttributeType getAttributeType(Class<?> fieldClass, boolean isLargeBinary) {
         if (fieldClass.equals(String.class)) {
-            return STRING;
+            return isLargeBinary ? LARGE_BINARY : STRING;
         } else if (fieldClass.equals(Integer.class)) {
             return INTEGER;
         } else if (fieldClass.equals(Long.class)) {

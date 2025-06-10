@@ -81,6 +81,7 @@ object StorageConfig {
   val s3MultipartUploadPartSize: Long = parseSizeStringToBytes(
     conf.getString("storage.s3.multipart.part-size")
   )
+  val s3LargeBinaryBucketName: String = conf.getString("storage.s3.large-binary.bucket-name")
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =

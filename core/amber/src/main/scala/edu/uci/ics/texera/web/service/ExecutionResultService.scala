@@ -45,6 +45,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.texera.service.util.S3LargeBinaryManager
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -121,6 +122,18 @@ object ExecutionResultService {
                       stringValue.take(maxStringLength) + "..."
                     else
                       stringValue
+
+                  case AttributeType.LARGE_BINARY =>
+                    value match {
+                      case s3Uri: String if s3Uri.startsWith("s3://") =>
+                        val totalSize = S3LargeBinaryManager.getObjectInfo(s3Uri)
+                        s"large binary (length: $totalSize)"
+                      case invalidValue =>
+                        throw new IllegalArgumentException(
+                          s"Invalid value for large binary type: expected S3 URI, got ${invalidValue.getClass.getSimpleName}"
+                        )
+                    }
+
                   case _ => value
                 }
             }

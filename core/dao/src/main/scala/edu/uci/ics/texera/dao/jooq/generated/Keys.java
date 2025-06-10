@@ -31,6 +31,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.dao.jooq.generated.tables.S3ReferenceCounts;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
@@ -53,6 +54,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorPortExecutio
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectUserAccessRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.PublicProjectRecord;
+import edu.uci.ics.texera.dao.jooq.generated.tables.records.S3ReferenceCountsRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserConfigRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.WorkflowComputingUnitRecord;
@@ -95,6 +97,7 @@ public class Keys {
     public static final UniqueKey<ProjectRecord> PROJECT_PKEY = Internal.createUniqueKey(Project.PROJECT, DSL.name("project_pkey"), new TableField[] { Project.PROJECT.PID }, true);
     public static final UniqueKey<ProjectUserAccessRecord> PROJECT_USER_ACCESS_PKEY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, DSL.name("project_user_access_pkey"), new TableField[] { ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID }, true);
     public static final UniqueKey<PublicProjectRecord> PUBLIC_PROJECT_PKEY = Internal.createUniqueKey(PublicProject.PUBLIC_PROJECT, DSL.name("public_project_pkey"), new TableField[] { PublicProject.PUBLIC_PROJECT.PID }, true);
+    public static final UniqueKey<S3ReferenceCountsRecord> S3_REFERENCE_COUNTS_PKEY = Internal.createUniqueKey(S3ReferenceCounts.S3_REFERENCE_COUNTS, DSL.name("s3_reference_counts_pkey"), new TableField[] { S3ReferenceCounts.S3_REFERENCE_COUNTS.S3_URI }, true);
     public static final UniqueKey<UserRecord> USER_EMAIL_KEY = Internal.createUniqueKey(User.USER, DSL.name("user_email_key"), new TableField[] { User.USER.EMAIL }, true);
     public static final UniqueKey<UserRecord> USER_GOOGLE_ID_KEY = Internal.createUniqueKey(User.USER, DSL.name("user_google_id_key"), new TableField[] { User.USER.GOOGLE_ID }, true);
     public static final UniqueKey<UserRecord> USER_PKEY = Internal.createUniqueKey(User.USER, DSL.name("user_pkey"), new TableField[] { User.USER.UID }, true);

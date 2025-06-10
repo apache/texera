@@ -47,6 +47,7 @@ import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.time.ZoneId
 import scala.jdk.CollectionConverters._
+import edu.uci.ics.texera.service.util.S3LargeBinaryManager
 
 /**
   * Util functions to interact with Iceberg Tables
@@ -205,7 +206,20 @@ object IcebergUtil {
   def toIcebergSchema(amberSchema: Schema): IcebergSchema = {
     val icebergFields = amberSchema.getAttributes.zipWithIndex.map {
       case (attribute, index) =>
-        Types.NestedField.optional(index + 1, attribute.getName, toIcebergType(attribute.getType))
+        attribute.getType match {
+          case AttributeType.LARGE_BINARY =>
+            Types.NestedField.optional(
+              index + 1,
+              AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX + attribute.getName,
+              Types.StringType.get()
+            )
+          case _ =>
+            Types.NestedField.optional(
+              index + 1,
+              attribute.getName,
+              toIcebergType(attribute.getType)
+            )
+        }
     }
     new IcebergSchema(icebergFields.asJava)
   }
@@ -225,6 +239,8 @@ object IcebergUtil {
       case AttributeType.BOOLEAN   => Types.BooleanType.get()
       case AttributeType.TIMESTAMP => Types.TimestampType.withoutZone()
       case AttributeType.BINARY    => Types.BinaryType.get()
+      case AttributeType.LARGE_BINARY =>
+        Types.StringType.get() // LARGE_BINARY is stored as String in Iceberg
       case AttributeType.ANY =>
         throw new IllegalArgumentException("ANY type is not supported in Iceberg")
     }
@@ -242,12 +258,30 @@ object IcebergUtil {
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val value = tuple.getField[AnyRef](index) match {
-          case null               => null
-          case ts: Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case bytes: Array[Byte] => ByteBuffer.wrap(bytes)
-          case other              => other
+          case null                                                           => null
+          case ts: Timestamp                                                  => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case bytes: Array[Byte]                                             => ByteBuffer.wrap(bytes)
+          case str: String if attribute.getType == AttributeType.LARGE_BINARY =>
+            // For LARGE_BINARY type, increment the reference count of the S3 object
+            try {
+              S3LargeBinaryManager.incrementReferenceCount(str)
+              str
+            } catch {
+              case e: Exception =>
+                throw new IllegalStateException(
+                  s"Failed to increment reference count for $str: ${e.getMessage}",
+                  e
+                )
+            }
+          case other => other
         }
-        record.setField(attribute.getName, value)
+        // Add prefix to field name if it's LARGE_BINARY type
+        val fieldName = if (attribute.getType == AttributeType.LARGE_BINARY) {
+          AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX + attribute.getName
+        } else {
+          attribute.getName
+        }
+        record.setField(fieldName, value)
     }
 
     record
@@ -262,7 +296,14 @@ object IcebergUtil {
     */
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
-      val value = record.getField(attribute.getName) match {
+      // Check if this is a LARGE_BINARY field by looking for the prefix in the schema
+      val fieldName = if (attribute.getType == AttributeType.LARGE_BINARY) {
+        AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX + attribute.getName
+      } else {
+        attribute.getName
+      }
+
+      val value = record.getField(fieldName) match {
         case null               => null
         case ldt: LocalDateTime => Timestamp.valueOf(ldt)
         case buffer: ByteBuffer =>
@@ -288,19 +329,23 @@ object IcebergUtil {
       .columns()
       .asScala
       .map { field =>
-        new Attribute(field.name(), fromIcebergType(field.`type`().asPrimitiveType()))
+        // Remove prefix from field name if it exists
+        if (field.name().startsWith(AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX)) {
+          new Attribute(
+            field
+              .name()
+              .substring(AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX.length),
+            AttributeType.LARGE_BINARY
+          )
+        } else {
+          new Attribute(field.name(), fromIcebergType(field.`type`().asPrimitiveType()))
+        }
       }
       .toList
 
     Schema(attributes)
   }
 
-  /**
-    * Converts an Iceberg `Type` to an Amber `AttributeType`.
-    *
-    * @param icebergType The Iceberg Type.
-    * @return The corresponding Amber AttributeType.
-    */
   def fromIcebergType(icebergType: PrimitiveType): AttributeType = {
     icebergType match {
       case _: Types.StringType    => AttributeType.STRING

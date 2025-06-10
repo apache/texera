@@ -25,6 +25,8 @@ import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.apache.commons.io.IOUtils.toByteArray
+import edu.uci.ics.texera.service.util.S3LargeBinaryManager
+
 import java.io._
 import java.net.URI
 import scala.collection.mutable
@@ -38,8 +40,56 @@ class FileScanSourceOpExec private[scan] (
   private val desc: FileScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[FileScanSourceOpDesc])
 
+  /**
+    * Checks if the file size exceeds 2GB and throws an exception if it does.
+    * This is used to prevent loading files that are too large into memory.
+    * For files larger than 2GB, the LARGE_BINARY type should be used instead.
+    *
+    * @param stream The input stream of the file to check
+    * @param fileName Optional name of the file being checked, used in error messages
+    * @throws IOException if the file size exceeds 2GB
+    */
+  private def checkFileSize(stream: InputStream, fileName: Option[String] = None): Unit = {
+    var size: Long = 0
+    val buffer = new Array[Byte](8192)
+    var bytesRead = stream.read(buffer)
+    while (bytesRead != -1) {
+      size += bytesRead
+      if (size > Integer.MAX_VALUE) {
+        stream.close()
+        throw new IOException(
+          s"File ${fileName.map(name => s"$name ").getOrElse("")}size exceeds 2GB. Use LARGE_BINARY type instead."
+        )
+      }
+      bytesRead = stream.read(buffer)
+    }
+  }
+
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
+    if (desc.attributeType == FileAttributeType.BINARY) {
+      val document = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get))
+      val inputStream = document.asInputStream()
+
+      if (!desc.extract) {
+        checkFileSize(inputStream)
+        inputStream.close()
+      } else {
+        val zipStream = new ArchiveStreamFactory()
+          .createArchiveInputStream(new BufferedInputStream(inputStream))
+          .asInstanceOf[ZipArchiveInputStream]
+
+        Iterator
+          .continually(zipStream.getNextEntry)
+          .takeWhile(_ != null)
+          .filterNot(_.getName.startsWith("__MACOSX"))
+          .foreach(entry => checkFileSize(zipStream, Some(entry.getName)))
+
+        zipStream.close()
+        inputStream.close()
+      }
+    }
+
     val is: InputStream =
       DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
 
@@ -68,6 +118,7 @@ class FileScanSourceOpExec private[scan] (
         filenameIt = it1.map(_.getName)
         it2.map(_ => zipIn)
       } else {
+        filenameIt = Iterator(desc.fileName.get)
         Iterator(archiveStream)
       }
     }
@@ -81,6 +132,13 @@ class FileScanSourceOpExec private[scan] (
               fields.addOne(fileName)
             }
             fields.addOne(desc.attributeType match {
+              case FileAttributeType.LARGE_BINARY =>
+                try {
+                  S3LargeBinaryManager.uploadFile(entry)
+                } catch {
+                  case e: Exception =>
+                    throw new IOException(s"Failed to upload file to S3: ${e.getMessage}", e)
+                }
               case FileAttributeType.SINGLE_STRING =>
                 new String(toByteArray(entry), desc.fileEncoding.getCharset)
               case _ => parseField(toByteArray(entry), desc.attributeType.getType)

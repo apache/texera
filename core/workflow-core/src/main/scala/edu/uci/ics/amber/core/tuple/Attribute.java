@@ -43,6 +43,7 @@ public class Attribute implements Serializable {
         checkNotNull(attributeType);
         this.attributeName = attributeName;
         this.attributeType = attributeType;
+        AttributeType.validateAttributeName(attributeName);
     }
 
     @JsonProperty(value = "attributeName")

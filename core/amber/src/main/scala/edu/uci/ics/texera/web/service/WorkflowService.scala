@@ -58,9 +58,14 @@ import play.api.libs.json.Json
 import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
-import scala.jdk.CollectionConverters.IterableHasAsScala
-
 import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
+import edu.uci.ics.amber.util.IcebergUtil
+import edu.uci.ics.texera.service.util.S3LargeBinaryManager
+import org.apache.iceberg.exceptions.NoSuchTableException
+
+import scala.jdk.CollectionConverters._
+import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.tuple.AttributeType
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -310,7 +315,10 @@ class WorkflowService(
     *  1. Retrieves all document URIs associated with the execution
     *  2. Clears URI references from the execution registry
     *  3. Safely clears all result and console message documents
-    *  4. Expires Iceberg snapshots for runtime statistics
+    *  4. For Iceberg tables with large binary fields:
+    *     - Decrements S3 reference counts for any S3 URIs
+    *     - Clears the table contents
+    *  5. Expires Iceberg snapshots for runtime statistics
     *
     * @param eid The execution identity to clean up resources for
     */
@@ -322,12 +330,70 @@ class WorkflowService(
     // Remove references from registry first
     WorkflowExecutionsResource.deleteConsoleMessageAndExecutionResultUris(eid)
 
-    // Clean up all result and console message documents
-    (resultUris ++ consoleMessagesUris).foreach { uri =>
-      try DocumentFactory.openDocument(uri)._1.clear()
-      catch {
+    // Clean up console message documents (simple clear without S3 logic)
+    consoleMessagesUris.foreach { uri =>
+      try {
+        DocumentFactory.openDocument(uri)._1.clear()
+      } catch {
         case error: Throwable =>
-          logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+          logger.debug(s"Error processing console message document at $uri: ${error.getMessage}")
+      }
+    }
+
+    // Clean up result documents with S3 reference counting for Iceberg tables
+    resultUris.foreach { uri =>
+      try {
+        val (doc, _) = DocumentFactory.openDocument(uri)
+        doc match {
+          case iceberg: OnIceberg =>
+            // For Iceberg tables, check for large binary attributes and decrement S3 reference counts
+            val table = IcebergUtil
+              .loadTableMetadata(iceberg.catalog, iceberg.tableNamespace, iceberg.tableName)
+              .getOrElse(
+                throw new NoSuchTableException(
+                  s"table ${iceberg.tableNamespace}.${iceberg.tableName} doesn't exist"
+                )
+              )
+
+            // Process large binary fields if they exist
+            val largeBinaryFields = table
+              .schema()
+              .columns()
+              .asScala
+              .filter(
+                _.name().startsWith(AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX)
+              )
+            if (largeBinaryFields.nonEmpty) {
+              iceberg.get().foreach { record =>
+                record match {
+                  case r: Tuple =>
+                    largeBinaryFields.foreach { field =>
+                      val fieldName = field
+                        .name()
+                        .stripPrefix(AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX)
+                      Option(r.getField[Any](fieldName))
+                        .collect { case s: String if s.startsWith("s3://") => s }
+                        .foreach { s3Uri =>
+                          try {
+                            S3LargeBinaryManager.decrementReferenceCount(s3Uri)
+                          } catch {
+                            case e: Exception =>
+                              logger.error(
+                                s"Failed to decrement reference count for $s3Uri: ${e.getMessage}"
+                              )
+                          }
+                        }
+                    }
+                  case _ => // Skip non-Record types
+                }
+              }
+            }
+            iceberg.clear()
+          case other => other.clear()
+        }
+      } catch {
+        case error: Throwable =>
+          logger.debug(s"Error processing result document at $uri: ${error.getMessage}")
       }
     }
 

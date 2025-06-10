@@ -153,7 +153,7 @@ object Tuple {
     ) {
       throw new RuntimeException(
         s"edu.ics.uci.amber.model.tuple.model.Attribute ${attribute.getName}'s type (${attribute.getType}) is different from field's type (${AttributeType
-          .getAttributeType(field.getClass)})"
+          .getAttributeType(field.getClass, attribute.getType == AttributeType.LARGE_BINARY)})"
       )
     }
   }

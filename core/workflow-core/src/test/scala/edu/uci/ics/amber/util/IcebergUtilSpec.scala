@@ -25,13 +25,14 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.data.GenericRecord
 import org.scalatest.flatspec.AnyFlatSpec
+import org.mockito.MockitoSugar
 
 import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
 import scala.jdk.CollectionConverters._
 
-class IcebergUtilSpec extends AnyFlatSpec {
+class IcebergUtilSpec extends AnyFlatSpec with MockitoSugar {
 
   val texeraSchema: Schema = Schema()
     .add("test-1", AttributeType.INTEGER)
@@ -198,5 +199,43 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(tuple.getField[Timestamp]("test-5") == new Timestamp(10000L))
     assert(tuple.getField[String]("test-6") == "hello world")
     assert(tuple.getField[Array[Byte]]("test-7") sameElements Array[Byte](1, 2, 3, 4))
+  }
+
+  it should "handle LARGE_BINARY type attribute correctly" in {
+    // Create a schema with a LARGE_BINARY field
+    val schemaWithLargeBinary = Schema()
+      .add("regular-field", AttributeType.STRING)
+      .add("large-binary-field", AttributeType.LARGE_BINARY)
+
+    // Create a tuple with a LARGE_BINARY value
+    val s3Uri = "s3://bucket/path/to/large/binary"
+    val tuple = Tuple
+      .builder(schemaWithLargeBinary)
+      .addSequentially(Array("regular value", s3Uri))
+      .build()
+
+    // Convert to Iceberg schema and record
+    val icebergSchema = IcebergUtil.toIcebergSchema(schemaWithLargeBinary)
+
+    // For testing purposes, we'll just verify the schema conversion
+    // without actually performing S3 operations
+    val record = IcebergUtil.toIcebergSchema(schemaWithLargeBinary)
+
+    // Verify the schema structure
+    assert(record.findField("regular-field") != null)
+    assert(
+      record.findField(
+        AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX + "large-binary-field"
+      ) != null
+    )
+
+    // Verify the field types
+    val regularField = record.findField("regular-field")
+    val largeBinaryField = record.findField(
+      AttributeType.TEXERA_LARGE_BINARY_TYPE_ATTRIBUTE_NAME_PREFIX + "large-binary-field"
+    )
+
+    assert(regularField.`type`() == Types.StringType.get())
+    assert(largeBinaryField.`type`() == Types.StringType.get())
   }
 }

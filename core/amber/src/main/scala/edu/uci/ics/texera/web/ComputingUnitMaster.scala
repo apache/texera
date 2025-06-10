@@ -41,6 +41,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
+import edu.uci.ics.texera.service.util.S3StorageClient
 import io.dropwizard.Configuration
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -121,6 +122,11 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
       StorageConfig.jdbcUrl,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
+    )
+
+    // Initialize S3 large binary bucket
+    S3StorageClient.createBucketIfNotExist(
+      StorageConfig.s3LargeBinaryBucketName
     )
 
     environment.jersey.setUrlPattern("/api/*")

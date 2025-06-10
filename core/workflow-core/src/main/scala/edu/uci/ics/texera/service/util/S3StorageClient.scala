@@ -52,6 +52,12 @@ object S3StorageClient {
   }
 
   /**
+    * Get the S3 client instance
+    * @return The S3 client
+    */
+  def getS3Client: S3Client = s3Client
+
+  /**
     * Checks if a directory (prefix) exists within an S3 bucket.
     *
     * @param bucketName The bucket name.
