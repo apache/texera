@@ -19,7 +19,6 @@
 
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
-import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -54,6 +53,7 @@ import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -80,7 +80,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public ComputingUnitState = ComputingUnitState; // make Angular HTML access enum definition
-  public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
@@ -105,8 +104,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public executionDuration = 0;
   private durationUpdateSubscription: Subscription = new Subscription();
 
-  // whether user dashboard is enabled and accessible from the workspace
-  public userSystemEnabled: boolean = environment.userSystemEnabled;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
@@ -137,7 +134,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
-    private computingUnitStatusService: ComputingUnitStatusService
+    private computingUnitStatusService: ComputingUnitStatusService,
+    protected config: GuiConfigService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -192,7 +190,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getExportOnAllOperatorsStatusStream()
       .pipe(untilDestroyed(this))
       .subscribe(hasResultToExport => {
-        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+        this.isExportDeactivate = !this.config.env.exportExecutionResultEnabled || !hasResultToExport;
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
@@ -718,9 +716,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     // Regular workflow execution - already connected
     this.executeWorkflowService.executeWorkflowWithEmailNotification(
       this.currentExecutionName || "Untitled Execution",
-      this.emailNotificationEnabled && environment.userSystemEnabled
+      this.config.env.workflowEmailNotificationEnabled && this.config.env.userSystemEnabled
     );
   }
-
-  protected readonly environment = environment;
 }

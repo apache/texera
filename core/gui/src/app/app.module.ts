@@ -20,7 +20,7 @@
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { NgModule } from "@angular/core";
+import { NgModule, APP_INITIALIZER } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -52,6 +52,7 @@ import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
+import { GuiConfigService } from "./common/service/gui-config.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -159,7 +160,7 @@ import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
-import { lastValueFrom } from "rxjs";
+import { lastValueFrom, firstValueFrom } from "rxjs";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
 import { NzEmptyModule } from "ng-zorro-antd/empty";
@@ -167,6 +168,7 @@ import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { NzSliderModule } from "ng-zorro-antd/slider";
+import { catchError, of } from "rxjs";
 
 registerLocaleData(en);
 
@@ -271,7 +273,7 @@ registerLocaleData(en);
       },
     }),
     BrowserAnimationsModule,
-    RouterModule.forRoot([]),
+    RouterModule,
     FormsModule,
     ReactiveFormsModule,
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -329,6 +331,7 @@ registerLocaleData(en);
     AdminGuardService,
     DatePipe,
     UserService,
+    GuiConfigService,
     FileSaverService,
     ReportGenerationService,
     {
@@ -349,6 +352,21 @@ registerLocaleData(en);
         })) as Promise<SocialAuthServiceConfig>;
       },
       deps: [GoogleAuthService, UserService],
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (configService: GuiConfigService) => () =>
+        firstValueFrom(
+          configService.load().pipe(
+            catchError((err: unknown) => {
+              console.error("Failed to load GUI config during app init:", err);
+              // swallow error so the app can still bootstrap; app.component.ts will show the error message as HTML.
+              return of(null);
+            })
+          )
+        ),
+      deps: [GuiConfigService],
+      multi: true,
     },
   ],
   bootstrap: [AppComponent],

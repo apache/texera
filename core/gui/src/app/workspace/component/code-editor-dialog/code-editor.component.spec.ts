@@ -24,6 +24,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { mockJavaUDFPredicate, mockPoint } from "../../service/workflow-graph/model/mock-workflow-data";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("CodeEditorDialogComponent", () => {
   let component: CodeEditorComponent;
@@ -39,6 +40,7 @@ describe("CodeEditorDialogComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
       imports: [HttpClientTestingModule],
     }).compileComponents();

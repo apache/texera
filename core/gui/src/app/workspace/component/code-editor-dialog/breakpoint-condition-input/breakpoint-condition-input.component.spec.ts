@@ -22,6 +22,7 @@ import { BreakpointConditionInputComponent } from "./breakpoint-condition-input.
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { SimpleChanges } from "@angular/core";
 import * as monaco from "monaco-editor";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("BreakpointConditionInputComponent", () => {
   let component: BreakpointConditionInputComponent;
@@ -35,7 +36,7 @@ describe("BreakpointConditionInputComponent", () => {
 
     await TestBed.configureTestingModule({
       declarations: [BreakpointConditionInputComponent],
-      providers: [{ provide: UdfDebugService, useValue: mockUdfDebugService }],
+      providers: [{ provide: UdfDebugService, useValue: mockUdfDebugService }, ...commonTestProviders],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BreakpointConditionInputComponent);

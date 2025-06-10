@@ -34,6 +34,7 @@ import {
 } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("DragDropService", () => {
   let dragDropService: DragDropService;
@@ -50,6 +51,7 @@ describe("DragDropService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
 

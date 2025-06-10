@@ -35,6 +35,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
@@ -151,7 +152,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         new WebsocketPayloadSizeTuner(AmberConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
       )
 
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
       if (AmberConfig.cleanupAllExecutionResults) {
         // do one time cleanup of collections that were not closed gracefully before restart/crash

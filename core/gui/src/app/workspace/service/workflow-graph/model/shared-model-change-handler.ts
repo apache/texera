@@ -29,9 +29,9 @@ import {
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import * as joint from "jointjs";
-import { environment } from "../../../../../environments/environment";
 import { YType } from "../../../types/shared-editing.interface";
 import { isDefined } from "../../../../common/util/predicate";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -43,6 +43,8 @@ import { isDefined } from "../../../../common/util/predicate";
  */
 
 export class SharedModelChangeHandler {
+  private config: GuiConfigService | null = null;
+
   constructor(
     private texeraGraph: WorkflowGraph,
     private jointGraph: joint.dia.Graph,
@@ -63,6 +65,10 @@ export class SharedModelChangeHandler {
       this.handleOperatorDeep();
       this.handleCommentBoxDeep();
     });
+  }
+
+  setConfigService(config: GuiConfigService): void {
+    this.config = config;
   }
 
   /**
@@ -107,7 +113,7 @@ export class SharedModelChangeHandler {
         }
       });
 
-      if (environment.asyncRenderingEnabled) {
+      if (this.config?.env.asyncRenderingEnabled) {
         // Group add
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
           this.jointGraph.addCells(jointElementsToAdd);
@@ -163,7 +169,7 @@ export class SharedModelChangeHandler {
         if (this.texeraGraph.getSyncJointGraph() && this.jointGraph.getCell(keysToDelete[i]))
           this.jointGraph.getCell(keysToDelete[i]).remove();
       }
-      if (environment.asyncRenderingEnabled) {
+      if (this.config?.env.asyncRenderingEnabled) {
         this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
           this.jointGraph.addCells(jointElementsToAdd.filter(x => x !== undefined));
         });

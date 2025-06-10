@@ -25,8 +25,8 @@ import {
   DatasetFileNode,
   getPathsUnderOrEqualDatasetFileNode,
 } from "../../../../common/type/datasetVersionFileTree";
-import { environment } from "../../../../../environments/environment";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @Component({
   selector: "texera-user-files-uploader",
@@ -47,7 +47,10 @@ export class FilesUploaderComponent {
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
 
-  constructor(private notificationService: NotificationService) {}
+  constructor(
+    private notificationService: NotificationService,
+    private config: GuiConfigService
+  ) {}
 
   hideBanner() {
     this.fileUploadingFinished = false;
@@ -68,10 +71,10 @@ export class FilesUploaderComponent {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
             // Check the file size here
-            if (file.size > environment.singleFileUploadMaximumSizeMB * 1024 * 1024) {
+            if (file.size > this.config.env.singleFileUploadMaximumSizeMB * 1024 * 1024) {
               // If the file is too large, reject the promise
               this.notificationService.error(
-                `File ${file.name}'s size exceeds the maximum limit of ${environment.singleFileUploadMaximumSizeMB}MB.`
+                `File ${file.name}'s size exceeds the maximum limit of ${this.config.env.singleFileUploadMaximumSizeMB}MB.`
               );
               reject(null);
             } else {

@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
-import { environment } from "../../../../environments/environment";
+import { GuiConfigService } from "../gui-config.service";
 import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
@@ -37,8 +37,11 @@ export class UserService {
   private cache = new Map<string, { url: string; expiry: number }>();
   private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
 
-  constructor(private authService: AuthService) {
-    if (environment.userSystemEnabled) {
+  constructor(
+    private authService: AuthService,
+    private config: GuiConfigService
+  ) {
+    if (this.config.env.userSystemEnabled) {
       const user = this.authService.loginWithExistingToken();
       this.changeUser(user);
     }

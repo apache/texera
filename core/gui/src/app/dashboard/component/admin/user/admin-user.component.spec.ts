@@ -25,6 +25,7 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("AdminUserComponent", () => {
   let component: AdminUserComponent;
@@ -33,7 +34,7 @@ describe("AdminUserComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [AdminUserComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }, AdminUserService],
+      providers: [{ provide: UserService, useClass: StubUserService }, AdminUserService, ...commonTestProviders],
       imports: [HttpClientTestingModule, NzDropDownModule, NzModalModule],
     }).compileComponents();
   }));
