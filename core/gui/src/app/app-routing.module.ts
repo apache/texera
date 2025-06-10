@@ -51,7 +51,9 @@ const rootRedirectGuard: CanActivateFn = () => {
     if (config.env.userSystemEnabled) {
       return router.parseUrl(DASHBOARD_ABOUT);
     }
-  } catch {}
+  } catch {
+    // config not loaded yet, swallow the error and let the app handle it
+  }
   return true;
 };
 
