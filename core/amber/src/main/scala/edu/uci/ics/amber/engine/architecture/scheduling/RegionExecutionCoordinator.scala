@@ -55,7 +55,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
 /**
   * The executor of a region.
   *
-  * We currently use a two-phase execution scheme to handle input-port dependency relationships. This is based on two
+  * We currently use a two-phase execution scheme to handle input-port dependency relationships. This is based on these
   * assumptions:
   *
   *  - We only allow input port dependencies where the input ports of a region can be grouped as two layers, with one
@@ -65,13 +65,13 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
   *  - All the physical operators must have output ports so that we can use the existence of output ports to decide
   *    whether to `FinalizeExecutor()` for a worker. (See `OutputManager.finalizeOutput()`)
   *
-  * Under these assumptions, we can transitionRegionPhase a region in two phases:
+  * Under these assumptions, we can transitionRegionExecutionPhase a region in two phases:
   *
-  * 1. In the `ExecutingDependeePorts` phase (if applicable), all the dependee input
+  * 1. In the `ExecutingDependeePortsPhase` phase (if applicable), all the dependee input
   *    ports are executed first until they complete. The corresponding workers of
   *    those input ports are also started in this phase. No output ports are allowed.
   *
-  * 2. In the `ExecutingNonDependeePorts` phase, all other ports (non-dependee input
+  * 2. In the `ExecutingNonDependeePortsPhase` phase, all other ports (non-dependee input
   *    ports, output ports) and their workers are executed. Region completion is
   *    indicated by the completion of all the ports in this phase.
   */
@@ -87,39 +87,29 @@ class RegionExecutionCoordinator(
 
   private sealed trait RegionExecutionPhase
   private case object Unexecuted extends RegionExecutionPhase
-  private case object ExecutingDependeePorts extends RegionExecutionPhase
-  private case object ExecutingNonDependeePorts extends RegionExecutionPhase
+  private case object ExecutingDependeePortsPhase extends RegionExecutionPhase
+  private case object ExecutingNonDependeePortsPhase extends RegionExecutionPhase
+  private case object Completed extends RegionExecutionPhase
 
   private val currentPhaseRef: AtomicReference[RegionExecutionPhase] = new AtomicReference(
     Unexecuted
   )
 
-  def isInDependeePhase: Boolean = currentPhaseRef.get == ExecutingDependeePorts
+  def isCompleted: Boolean = currentPhaseRef.get == Completed
 
   /**
-    * This will transition the region execution phase from one to another depending on its current phase. Only these 4
-    * cases will happen:
+    * This will transition the region execution phase from one to another depending on its current phase:
     *
-    * 1. `Unexecuted` -> `ExecutingDependeePorts`
+    * `Unexecuted` -> `ExecutingDependeePortsPhase` -> `ExecutingNonDependeePortsPhase` -> `Completed`
     *
-    * 2. `Unexecuted` -> `ExecutingNonDependeePorts`
-    *
-    * 3. `ExecutingDependeePorts` -> `ExecutingDependeePorts`  (No transition, continue executing dependee ports if not
-    *    all dependee ports are completed)
-    *
-    * 4. `ExecutingDependeePorts` -> `ExecutingNonDependeePorts` (If all dependee ports are completed)
     */
-  def transitionRegionPhase(): Future[Unit] =
+  def transitionRegionExecutionPhase(): Future[Unit] =
     currentPhaseRef.get match {
       case Unexecuted =>
-        if (region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
-          currentPhaseRef.set(ExecutingDependeePorts)
           executeDependeePortPhase()
-        } else {
-          currentPhaseRef.set(ExecutingNonDependeePorts)
-          executeNonDependeePortPhase()
-        }
-      case ExecutingDependeePorts =>
+      case ExecutingDependeePortsPhase =>
+        executeNonDependeePortPhase()
+      case ExecutingNonDependeePortsPhase =>
         val regionExecution = workflowExecution.getRegionExecution(region.id)
         // Need to ensure all dependee input ports are completed.
         if (
@@ -130,16 +120,22 @@ class RegionExecutionCoordinator(
             }
           }
         ) {
-          currentPhaseRef.set(ExecutingNonDependeePorts)
-          executeNonDependeePortPhase()
+          completeRegionExecution()
         } else {
           Future.Unit
         }
-      case ExecutingNonDependeePorts =>
-        Future.Unit
     }
 
+  private def completeRegionExecution(): Future[Unit] = {
+    currentPhaseRef.set(Completed)
+    Future.Unit
+  }
+
   private def executeDependeePortPhase(): Future[Unit] = {
+    currentPhaseRef.set(ExecutingDependeePortsPhase)
+    if (!region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
+      return transitionRegionExecutionPhase()
+    }
     val ops = region.getOperators.filter(_.dependeeInputs.nonEmpty)
 
     launchPhaseExecutionInternal(
@@ -151,6 +147,7 @@ class RegionExecutionCoordinator(
   }
 
   private def executeNonDependeePortPhase(): Future[Unit] = {
+    currentPhaseRef.set(ExecutingNonDependeePortsPhase)
     // Allocate output port storage objects
     region.resourceConfig.get.portConfigs
       .collect {

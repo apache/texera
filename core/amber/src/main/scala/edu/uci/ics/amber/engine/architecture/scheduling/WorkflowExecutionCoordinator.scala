@@ -53,14 +53,14 @@ class WorkflowExecutionCoordinator(
   def launchNextRegionPhase(actorService: AkkaActorService): Future[Unit] = {
     // First check if any region is in an `ExecutingDependeePorts` phase. This will only be invoked by the completion of
     // a dependee ports.
-    if (regionExecutionCoordinators.values.exists(_.isInDependeePhase)) {
+    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
       Future
         .collect({
           regionExecutionCoordinators.values
-            .filter(_.isInDependeePhase)
+            .filter(!_.isCompleted)
             // Only when all the dependee ports of this region are completed will this invocation transition its phase.
             // If any dependee port is unfinished, it returns an empty future.
-            .map(_.transitionRegionPhase())
+            .map(_.transitionRegionExecutionPhase())
             .toSeq
         })
         .unit
@@ -85,7 +85,7 @@ class WorkflowExecutionCoordinator(
               )
               regionExecutionCoordinators(region.id)
             })
-            .map(_.transitionRegionPhase())
+            .map(_.transitionRegionExecutionPhase())
             .toSeq
         })
         .unit
