@@ -223,6 +223,16 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_WORKFLOW_EXECUTIONS_TRACKING_ENABLED
     value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_ASYNC_RENDERING_ENABLED
+    value: "true"
+  - name: USER_SYS_INVITE_ONLY
+    value: "true"
+  - name: USER_SYS_GOOGLE_CLIENT_ID
+    value: ""
+  - name: USER_SYS_GOOGLE_SMTP_GMAIL
+    value: ""
+  - name: USER_SYS_GOOGLE_SMTP_PASSWORD
+    value: ""
 
 # Ingress dependency configs
 ingress-nginx:
