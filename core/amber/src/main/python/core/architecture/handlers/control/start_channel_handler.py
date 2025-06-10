@@ -28,10 +28,6 @@ from core.models.internal_marker import StartOfOutputPorts, StartOfInputPort
 
 class StartChannelHandler(ControlHandler):
     async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
-        input_channel_id = self.context.current_input_channel_id
-        self.context.input_queue.put(
-            DataElement(input_channel_id, MarkerFrame(StartOfInputChannel()))
-        )
         input_manager = self.context.input_manager
         if not input_manager.started:
             self.context.internal_markers.put(StartOfOutputPorts())
