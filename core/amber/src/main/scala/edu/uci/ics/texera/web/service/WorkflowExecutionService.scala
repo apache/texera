@@ -28,7 +28,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -49,7 +50,7 @@ object WorkflowExecutionService {
       workflowId: WorkflowIdentity,
       computingUnitId: Int
   ): Option[ExecutionIdentity] = {
-    if (!AmberConfig.isUserSystemEnabled) {
+    if (!UserSystemConfig.isUserSystemEnabled) {
       return Some(DEFAULT_EXECUTION_ID)
     }
     WorkflowExecutionsResource

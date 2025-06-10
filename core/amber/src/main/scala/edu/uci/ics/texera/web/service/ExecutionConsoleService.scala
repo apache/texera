@@ -59,6 +59,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   FAILED,
   KILLED
 }
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util.concurrent.{ExecutorService, Executors}
@@ -138,7 +139,7 @@ class ExecutionConsoleService(
     mutable.Map()
 
   private val consoleWriterThread: Option[ExecutorService] =
-    Option.when(AmberConfig.isUserSystemEnabled)(Executors.newSingleThreadExecutor())
+    Option.when(UserSystemConfig.isUserSystemEnabled)(Executors.newSingleThreadExecutor())
 
   private def getOrCreateWriter(opId: OperatorIdentity): BufferedItemWriter[Tuple] = {
     consoleMessageOpIdToWriterMap.getOrElseUpdate(

@@ -24,6 +24,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
 import { AdminUserService } from "../../../dashboard/service/admin/user/admin-user.service";
 import { AuthService } from "../../../common/service/user/auth.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("AboutComponent", () => {
   let component: AboutComponent;
@@ -32,7 +33,7 @@ describe("AboutComponent", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       declarations: [AboutComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }],
+      providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
     });
     fixture = TestBed.createComponent(AboutComponent);
     component = fixture.componentInstance;

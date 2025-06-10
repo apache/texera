@@ -18,9 +18,39 @@
  */
 
 import { Component } from "@angular/core";
+import { GuiConfigService } from "./common/service/gui-config.service";
+import { UntilDestroy } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-root",
-  template: "<router-outlet></router-outlet>",
+  template: `
+    <div
+      *ngIf="!configLoaded"
+      id="config-error">
+      <h1>Configuration Error</h1>
+      <p>Failed to load gui's configuration.</p>
+      <p>Please ensure the ConfigService is running and accessible.</p>
+      <button (click)="retry()">Retry</button>
+    </div>
+    <router-outlet *ngIf="configLoaded"></router-outlet>
+  `,
 })
-export class AppComponent {}
+export class AppComponent {
+  configLoaded = false;
+
+  constructor(private config: GuiConfigService) {
+    // determine whether configuration was successfully loaded by APP_INITIALIZER
+    try {
+      // accessing env will throw if not loaded
+      void this.config.env;
+      this.configLoaded = true;
+    } catch {
+      this.configLoaded = false;
+    }
+  }
+
+  retry(): void {
+    window.location.reload();
+  }
+}

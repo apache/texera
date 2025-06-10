@@ -24,6 +24,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { FormControl } from "@angular/forms";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -39,6 +40,7 @@ describe("CodeareaCustomTemplateComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     }).compileComponents();
   }));

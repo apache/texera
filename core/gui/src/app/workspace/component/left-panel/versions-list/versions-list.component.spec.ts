@@ -26,6 +26,7 @@ import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { VersionsListComponent } from "./versions-list.component";
 import { RouterTestingModule } from "@angular/router/testing";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("VersionsListDisplayComponent", () => {
   let component: VersionsListComponent;
@@ -35,7 +36,7 @@ describe("VersionsListDisplayComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [VersionsListComponent],
-      providers: [WorkflowActionService],
+      providers: [WorkflowActionService, ...commonTestProviders],
       imports: [
         BrowserAnimationsModule,
         FormsModule,

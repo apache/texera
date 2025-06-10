@@ -29,10 +29,10 @@ import {
   TexeraWebsocketRequestTypes,
 } from "../../types/workflow-websocket.interface";
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
-import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isDefined } from "../../../common/util/predicate";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -50,7 +50,7 @@ export class WorkflowWebsocketService {
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
   private readonly connectionStatusSubject = new BehaviorSubject<boolean>(false);
 
-  constructor() {
+  constructor(private config: GuiConfigService) {
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
   }
@@ -108,7 +108,7 @@ export class WorkflowWebsocketService {
       "&uid=" +
       uId +
       (isDefined(cuId) ? `&cuid=${cuId}` : "") +
-      (environment.userSystemEnabled && AuthService.getAccessToken() !== null
+      (this.config.env.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "&access-token=" + AuthService.getAccessToken()
         : "");
     console.log("websocketUrl", websocketUrl);

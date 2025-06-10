@@ -23,15 +23,12 @@ import akka.actor.Address
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.File
 import java.net.URI
-import java.util.logging.Level
-import java.util.logging.Logger
 
 object AmberConfig {
 
   private val configFile: File = new File("src/main/resources/application.conf")
   private var lastModifiedTime: Long = 0
   private var conf: Config = ConfigFactory.load()
-  private val logger = Logger.getLogger(getClass.getName)
 
   var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
 
@@ -100,31 +97,6 @@ object AmberConfig {
   val sinkStorageCleanUpCheckIntervalInSecs: Int =
     getConfSource.getInt("result-cleanup.collection-check-interval-in-seconds")
 
-  // User system
-  val isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
-  val adminUsername: String = getConfSource.getString("user-sys.admin-username")
-  val adminPassword: String = getConfSource.getString("user-sys.admin-password")
-  val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
-  val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
-  val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")
-  val appDomain: Option[String] = {
-    val domain = getConfSource.getString("user-sys.google.domain").trim
-    if (domain.isEmpty) {
-      logger.log(
-        Level.WARNING,
-        """
-          |=======================================================
-          |[WARN] The user-sys.google.domain is not configured, and the "Sent from:" field in the email will not include a domain!
-          |Please configure user-sys.google.domain=your.domain.com or set the environment variable/system property APP_DOMAIN.
-          |=======================================================
-          |""".stripMargin
-      )
-      None
-    } else {
-      Some(domain)
-    }
-  }
-
   // Web server
   val operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
   val consoleMessageDisplayLength: Int =
@@ -133,8 +105,6 @@ object AmberConfig {
     getConfSource.getInt("web-server.workflow-result-pulling-in-seconds")
   val executionStateCleanUpInSecs: Int =
     getConfSource.getInt("web-server.workflow-state-cleanup-in-seconds")
-  val workflowVersionCollapseIntervalInMinutes: Int =
-    getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
   val maxWorkflowWebsocketRequestPayloadSizeKb: Int =

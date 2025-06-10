@@ -31,6 +31,7 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -50,6 +51,7 @@ describe("ResultPanelComponent", () => {
           useClass: StubOperatorMetadataService,
         },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        ...commonTestProviders,
       ],
     }).compileComponents();
   }));

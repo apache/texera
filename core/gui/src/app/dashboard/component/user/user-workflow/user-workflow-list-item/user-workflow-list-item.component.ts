@@ -18,7 +18,6 @@
  */
 
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { environment } from "../../../../../../environments/environment";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
 import {
@@ -34,6 +33,7 @@ import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -76,12 +76,11 @@ export class UserWorkflowListItemComponent {
 
   editingName = false;
   editingDescription = false;
-  /** Whether tracking metadata information about executions is enabled. */
-  workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   constructor(
-    private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
+    private modalService: NzModalService,
+    protected config: GuiConfigService,
     private userProjectService: UserProjectService,
     private downloadService: DownloadService
   ) {

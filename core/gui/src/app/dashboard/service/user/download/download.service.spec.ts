@@ -25,6 +25,7 @@ import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { of, throwError } from "rxjs";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("DownloadService", () => {
   let downloadService: DownloadService;
@@ -49,6 +50,7 @@ describe("DownloadService", () => {
         { provide: FileSaverService, useValue: fileSaverSpy },
         { provide: NotificationService, useValue: notificationSpy },
         { provide: WorkflowPersistService, useValue: workflowPersistSpy },
+        ...commonTestProviders,
       ],
     });
 

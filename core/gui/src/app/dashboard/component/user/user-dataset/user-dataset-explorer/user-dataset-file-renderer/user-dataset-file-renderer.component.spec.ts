@@ -23,6 +23,7 @@ import { UserDatasetFileRendererComponent } from "./user-dataset-file-renderer.c
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { DomSanitizer } from "@angular/platform-browser";
+import { commonTestProviders } from "../../../../../../common/testing/test-utils";
 
 describe("UserDatasetFileRendererComponent", () => {
   let component: UserDatasetFileRendererComponent;
@@ -35,6 +36,7 @@ describe("UserDatasetFileRendererComponent", () => {
         DatasetService,
         NotificationService,
         { provide: DomSanitizer, useValue: jasmine.createSpyObj("DomSanitizer", ["bypassSecurityTrustUrl"]) },
+        ...commonTestProviders,
       ],
     });
     const fixture = TestBed.createComponent(UserDatasetFileRendererComponent);

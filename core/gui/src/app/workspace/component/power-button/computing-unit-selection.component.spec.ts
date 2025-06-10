@@ -32,6 +32,7 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("PowerButtonComponent", () => {
   let component: ComputingUnitSelectionComponent;
@@ -73,6 +74,7 @@ describe("PowerButtonComponent", () => {
         { provide: ActivatedRoute, useValue: activatedRouteMock },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         NzModalService, // Add NzModalService provider
+        ...commonTestProviders,
       ],
     }).compileComponents();
 

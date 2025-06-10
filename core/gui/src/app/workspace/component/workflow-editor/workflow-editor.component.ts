@@ -17,11 +17,10 @@
  * under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -41,6 +40,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
 import { isDefined } from "../../../common/util/predicate";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -107,7 +107,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private operatorMenu: OperatorMenuService,
     private route: ActivatedRoute,
     private router: Router,
-    public nzContextMenu: NzContextMenuService
+    public nzContextMenu: NzContextMenuService,
+    private elementRef: ElementRef,
+    private config: GuiConfigService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -160,7 +162,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementPaste();
     this.handleLinkCursorHover();
     this.handleGridsToggle();
-    if (environment.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
+    if (this.config.env.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
       this.handleLinkBreakpoint();
     }
     this.handlePointerEvents();
@@ -1056,7 +1058,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-        if (environment.linkBreakpointEnabled) {
+        if (this.config.env.linkBreakpointEnabled) {
           this.paper.getModelById(elementView.model.id).attr({
             ".tool-remove": { display: "block" },
           });

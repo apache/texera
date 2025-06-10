@@ -19,7 +19,6 @@
 
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.JwtAuth.{
   TOKEN_EXPIRE_TIME_IN_DAYS,
   dayToMin,
@@ -27,6 +26,7 @@ import edu.uci.ics.texera.auth.JwtAuth.{
   jwtConsumer,
   jwtToken
 }
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
@@ -74,8 +74,8 @@ object AuthResource {
   }
 
   def createAdminUser(): Unit = {
-    val adminUsername = AmberConfig.adminUsername
-    val adminPassword = AmberConfig.adminPassword
+    val adminUsername = UserSystemConfig.adminUsername
+    val adminPassword = UserSystemConfig.adminPassword
 
     if (adminUsername.trim.nonEmpty && adminPassword.trim.nonEmpty) {
       val existingUser = userDao.fetchByName(adminUsername)
@@ -99,7 +99,7 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
-    if (!AmberConfig.isUserSystemEnabled)
+    if (!UserSystemConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
@@ -119,7 +119,7 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    if (!AmberConfig.isUserSystemEnabled)
+    if (!UserSystemConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")

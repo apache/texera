@@ -35,6 +35,7 @@ import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import * as JSZip from "jszip";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
@@ -96,6 +97,7 @@ describe("WorkflowResultExportService", () => {
         { provide: ExecuteWorkflowService, useValue: ewSpy },
         { provide: WorkflowResultService, useValue: wrSpy },
         { provide: DownloadService, useValue: downloadSpy },
+        ...commonTestProviders,
       ],
     });
 

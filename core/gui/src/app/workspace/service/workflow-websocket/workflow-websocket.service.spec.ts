@@ -19,11 +19,15 @@
 
 import { TestBed } from "@angular/core/testing";
 import { WorkflowWebsocketService } from "./workflow-websocket.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowWebsocketService", () => {
   let service: WorkflowWebsocketService;
 
   beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [WorkflowWebsocketService, ...commonTestProviders],
+    });
     service = TestBed.inject(WorkflowWebsocketService);
   });
 

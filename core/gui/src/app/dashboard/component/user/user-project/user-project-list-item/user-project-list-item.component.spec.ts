@@ -27,6 +27,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("UserProjectListItemComponent", () => {
   let component: UserProjectListItemComponent;
@@ -50,6 +51,7 @@ describe("UserProjectListItemComponent", () => {
         UserProjectService,
         NzModalService,
         { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
       ],
       imports: [HttpClientTestingModule],
     }).compileComponents();

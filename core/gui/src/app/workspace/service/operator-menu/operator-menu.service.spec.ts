@@ -25,6 +25,7 @@ import { OperatorMenuService } from "./operator-menu.service";
 import { HttpClientModule } from "@angular/common/http";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("OperatorMenuService", () => {
   let service: OperatorMenuService;
@@ -34,6 +35,7 @@ describe("OperatorMenuService", () => {
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        ...commonTestProviders,
       ],
       imports: [HttpClientModule],
     });

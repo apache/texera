@@ -26,6 +26,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { RouterTestingModule } from "@angular/router/testing";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("LeftPanelComponent", () => {
   let component: LeftPanelComponent;
@@ -41,6 +42,7 @@ describe("LeftPanelComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
       declarations: [LeftPanelComponent],
     }).compileComponents();

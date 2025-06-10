@@ -26,6 +26,7 @@ import { WorkflowResultExportService } from "src/app/workspace/service/workflow-
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -40,6 +41,7 @@ export class ContextMenuComponent {
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
+    protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
     private validationWorkflowService: ValidationWorkflowService

@@ -59,8 +59,8 @@ import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
-
 import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
+import edu.uci.ics.texera.config.UserSystemConfig
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -207,7 +207,7 @@ class WorkflowService(
       req.computingUnitId
     )
 
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       // enable only if we have mysql
       if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
         val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(

@@ -22,6 +22,7 @@ import { FormControl, ReactiveFormsModule } from "@angular/forms";
 import { InputAutoCompleteComponent } from "./input-autocomplete.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("InputAutoCompleteComponent", () => {
   let component: InputAutoCompleteComponent;
@@ -31,7 +32,7 @@ describe("InputAutoCompleteComponent", () => {
     TestBed.configureTestingModule({
       declarations: [InputAutoCompleteComponent],
       imports: [ReactiveFormsModule, HttpClientTestingModule],
-      providers: [NzModalService],
+      providers: [NzModalService, ...commonTestProviders],
     }).compileComponents();
   }));
 

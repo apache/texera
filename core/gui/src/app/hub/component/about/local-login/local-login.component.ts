@@ -26,7 +26,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
-import { environment } from "../../../../../environments/environment";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -44,7 +44,8 @@ export class LocalLoginComponent implements OnInit {
     private userService: UserService,
     private route: ActivatedRoute,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    private config: GuiConfigService
   ) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
@@ -56,11 +57,10 @@ export class LocalLoginComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Set default credentials if provided
-    if (environment.defaultLocalUser && Object.keys(environment.defaultLocalUser).length > 0) {
+    if (this.config.env.defaultLocalUser && Object.keys(this.config.env.defaultLocalUser).length > 0) {
       this.allForms.patchValue({
-        loginUsername: environment.defaultLocalUser.username,
-        loginPassword: environment.defaultLocalUser.password,
+        loginUsername: this.config.env.defaultLocalUser.username,
+        loginPassword: this.config.env.defaultLocalUser.password,
       });
     }
   }

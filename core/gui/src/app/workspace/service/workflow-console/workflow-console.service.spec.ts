@@ -18,13 +18,16 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-
 import { WorkflowConsoleService } from "./workflow-console.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowConsoleService", () => {
   let service: WorkflowConsoleService;
 
   beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [WorkflowConsoleService, ...commonTestProviders],
+    });
     service = TestBed.inject(WorkflowConsoleService);
   });
 

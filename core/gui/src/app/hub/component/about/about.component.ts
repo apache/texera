@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, OnInit } from "@angular/core";
-import { environment } from "../../../../environments/environment";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "src/app/common/service/user/user.service";
 import { BehaviorSubject } from "rxjs";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -30,10 +30,12 @@ import { BehaviorSubject } from "rxjs";
   styleUrls: ["./about.component.scss"],
 })
 export class AboutComponent implements OnInit {
-  localLogin = environment.localLogin;
   isLogin$ = new BehaviorSubject<boolean>(false); // control the visibility of the local login component
 
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    protected config: GuiConfigService
+  ) {}
 
   ngOnInit() {
     this.isLogin$.next(this.userService.isLogin());

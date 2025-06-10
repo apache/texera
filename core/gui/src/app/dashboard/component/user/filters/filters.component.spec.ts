@@ -29,6 +29,7 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
 import { FormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { commonTestProviders } from "src/app/common/testing/test-utils";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -42,6 +43,7 @@ describe("FiltersComponent", () => {
         { provide: JWT_OPTIONS, useValue: {} },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        ...commonTestProviders,
       ],
       imports: [NzDropDownModule, FormsModule, HttpClientTestingModule],
     }).compileComponents();

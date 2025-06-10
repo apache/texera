@@ -27,6 +27,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { TimeTravelComponent } from "./time-travel.component";
 import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("VersionsListDisplayComponent", () => {
   let component: TimeTravelComponent;
@@ -39,6 +40,7 @@ describe("VersionsListDisplayComponent", () => {
       providers: [
         WorkflowActionService,
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        ...commonTestProviders,
       ],
       imports: [
         BrowserAnimationsModule,

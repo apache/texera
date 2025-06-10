@@ -29,6 +29,7 @@ import { By } from "@angular/platform-browser";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../../../../service/undo-redo/undo-redo.service";
 import { RouterTestingModule } from "@angular/router/testing";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("OperatorLabelComponent", () => {
   const mockOperatorData = mockScanSourceSchema;
@@ -49,6 +50,7 @@ describe("OperatorLabelComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     }).compileComponents();
   }));

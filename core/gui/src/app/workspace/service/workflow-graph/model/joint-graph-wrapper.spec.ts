@@ -35,9 +35,11 @@ import {
 } from "./mock-workflow-data";
 import * as joint from "jointjs";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
-import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { map, share, tap } from "rxjs/operators";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
 
 describe("JointGraphWrapperService", () => {
   let jointGraph: joint.dia.Graph;
@@ -55,6 +57,7 @@ describe("JointGraphWrapperService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
     jointGraph = new joint.dia.Graph();
@@ -566,12 +569,19 @@ describe("JointGraphWrapperService", () => {
   });
 
   describe("when linkBreakpoint is enabled", () => {
-    beforeAll(() => {
-      environment.linkBreakpointEnabled = true;
+    let mockConfigService: MockGuiConfigService;
+
+    beforeEach(() => {
+      // Get the mock service and enable linkBreakpoint for each test in this describe block
+      mockConfigService = TestBed.inject(GuiConfigService) as any as MockGuiConfigService;
+      mockConfigService.setConfig({ linkBreakpointEnabled: true });
     });
 
-    afterAll(() => {
-      environment.linkBreakpointEnabled = false;
+    afterEach(() => {
+      // Reset to default after each test
+      if (mockConfigService) {
+        mockConfigService.setConfig({ linkBreakpointEnabled: false });
+      }
     });
 
     it(

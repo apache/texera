@@ -18,7 +18,7 @@
  */
 
 import { HttpClient } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { Injectable, Inject } from "@angular/core";
 import { interval, Observable, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { User, Role } from "../../type/user";
@@ -26,8 +26,8 @@ import { timer } from "rxjs";
 import { startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NotificationService } from "../notification/notification.service";
-import { environment } from "../../../../environments/environment";
 import { GmailService } from "../gmail/gmail.service";
+import { GuiConfigService } from "../gui-config.service";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -42,7 +42,6 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
   providedIn: "root",
 })
 export class AuthService {
-  private inviteOnly = environment.inviteOnly;
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
@@ -55,7 +54,8 @@ export class AuthService {
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
     private notificationService: NotificationService,
-    private gmailService: GmailService
+    private gmailService: GmailService,
+    private config: GuiConfigService
   ) {}
 
   /**
@@ -130,7 +130,7 @@ export class AuthService {
 
     const role = this.jwtHelperService.decodeToken(token).role;
     const email = this.jwtHelperService.decodeToken(token).email;
-    if (this.inviteOnly && role == Role.INACTIVE) {
+    if (this.config.env.inviteOnly && role == Role.INACTIVE) {
       alert("The account request of " + email + " is received and pending.");
       this.gmailService.notifyUnauthorizedLogin(email);
       return this.logout();

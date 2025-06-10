@@ -26,7 +26,6 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph } from "./workflow-graph";
-import { environment } from "../../../../../environments/environment";
 
 describe("WorkflowGraph", () => {
   let workflowGraph: WorkflowGraph;

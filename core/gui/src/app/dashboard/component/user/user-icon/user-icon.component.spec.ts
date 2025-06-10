@@ -25,6 +25,7 @@ import { StubUserService } from "../../../../common/service/user/stub-user.servi
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { AboutComponent } from "../../../../hub/component/about/about.component";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("UserIconComponent", () => {
   let component: UserIconComponent;
@@ -33,7 +34,7 @@ describe("UserIconComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [UserIconComponent],
-      providers: [{ provide: UserService, useClass: StubUserService }],
+      providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
       imports: [
         RouterTestingModule.withRoutes([{ path: "home", component: AboutComponent }]),
         HttpClientTestingModule,

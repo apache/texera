@@ -22,6 +22,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowVersionService } from "./workflow-version.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("WorkflowVersionService", () => {
   let service: WorkflowVersionService;
@@ -29,7 +30,7 @@ describe("WorkflowVersionService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [WorkflowVersionService, WorkflowActionService, OperatorMetadataService],
+      providers: [WorkflowVersionService, WorkflowActionService, OperatorMetadataService, ...commonTestProviders],
     });
     service = TestBed.inject(WorkflowVersionService);
   });

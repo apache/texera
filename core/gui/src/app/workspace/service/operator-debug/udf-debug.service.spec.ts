@@ -32,6 +32,7 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import * as Y from "yjs";
 import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("UdfDebugServiceSpec", () => {
   let service: UdfDebugService;
@@ -73,6 +74,7 @@ describe("UdfDebugServiceSpec", () => {
         { provide: WorkflowWebsocketService, useValue: mockWorkflowWebsocketService },
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
         { provide: ExecuteWorkflowService, useValue: mockExecuteWorkflowService },
+        ...commonTestProviders,
       ],
     });
 

@@ -25,6 +25,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("CoeditorUserIconComponent", () => {
   let component: CoeditorUserIconComponent;
@@ -35,7 +36,13 @@ describe("CoeditorUserIconComponent", () => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, NzDropDownModule],
       declarations: [CoeditorUserIconComponent],
-      providers: [WorkflowActionService, CoeditorPresenceService, HttpClient, NzDropdownMenuComponent],
+      providers: [
+        WorkflowActionService,
+        CoeditorPresenceService,
+        HttpClient,
+        NzDropdownMenuComponent,
+        ...commonTestProviders,
+      ],
     }).compileComponents();
   }));
 

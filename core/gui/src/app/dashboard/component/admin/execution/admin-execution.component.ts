@@ -25,6 +25,7 @@ import { NzTableFilterFn, NzTableQueryParams } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export const NO_SORT = "NO_SORTING";
 
@@ -50,7 +51,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   constructor(
     private adminExecutionService: AdminExecutionService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private config: GuiConfigService
   ) {}
 
   ngOnInit() {
@@ -218,7 +220,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   killExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
@@ -229,7 +231,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   pauseExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
@@ -240,7 +242,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   resumeExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
+    let socket = new WorkflowWebsocketService(this.config);
     socket.openWebsocket(wid);
     socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();

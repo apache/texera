@@ -26,6 +26,7 @@ import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as monaco from "monaco-editor";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("CodeDebuggerComponent", () => {
   let component: CodeDebuggerComponent;
@@ -55,6 +56,7 @@ describe("CodeDebuggerComponent", () => {
       providers: [
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
         { provide: UdfDebugService, useValue: mockUdfDebugService },
+        ...commonTestProviders,
       ],
     }).compileComponents();
 

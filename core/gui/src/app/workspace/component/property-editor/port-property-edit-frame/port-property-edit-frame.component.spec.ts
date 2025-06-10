@@ -22,6 +22,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("PortPropertyEditFrameComponent", () => {
   let component: PortPropertyEditFrameComponent;
@@ -31,7 +32,7 @@ describe("PortPropertyEditFrameComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [PortPropertyEditFrameComponent],
-      providers: [WorkflowActionService],
+      providers: [WorkflowActionService, ...commonTestProviders],
       imports: [HttpClientTestingModule],
     }).compileComponents();
   });

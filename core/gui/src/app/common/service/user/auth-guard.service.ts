@@ -19,8 +19,8 @@
 
 import { Injectable } from "@angular/core";
 import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
+import { GuiConfigService } from "../gui-config.service";
 import { UserService } from "./user.service";
-import { environment } from "../../../../environments/environment";
 import { DASHBOARD_ABOUT } from "../../../app-routing.constant";
 
 /**
@@ -31,10 +31,11 @@ import { DASHBOARD_ABOUT } from "../../../app-routing.constant";
 export class AuthGuardService implements CanActivate {
   constructor(
     private userService: UserService,
-    private router: Router
+    private router: Router,
+    private config: GuiConfigService
   ) {}
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
-    if (this.userService.isLogin() || !environment.userSystemEnabled) {
+    if (this.userService.isLogin() || !this.config.env.userSystemEnabled) {
       return true;
     } else {
       this.router.navigate([DASHBOARD_ABOUT], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });

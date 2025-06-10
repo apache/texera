@@ -22,6 +22,7 @@ import { BrowseSectionComponent } from "./browse-section.component";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { ChangeDetectorRef } from "@angular/core";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("BrowseSectionComponent", () => {
   let component: BrowseSectionComponent;
@@ -34,6 +35,7 @@ describe("BrowseSectionComponent", () => {
         { provide: WorkflowPersistService, useValue: {} },
         { provide: DatasetService, useValue: {} },
         { provide: ChangeDetectorRef, useValue: {} },
+        ...commonTestProviders,
       ],
     });
     fixture = TestBed.createComponent(BrowseSectionComponent);

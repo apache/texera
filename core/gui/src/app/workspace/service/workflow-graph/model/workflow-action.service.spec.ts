@@ -39,9 +39,9 @@ import { TestBed, inject } from "@angular/core/testing";
 import { WorkflowActionService } from "./workflow-action.service";
 import { OperatorPredicate, Point } from "../../../types/workflow-common.interface";
 import { g } from "jointjs";
-import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { join } from "lodash";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -60,6 +60,7 @@ describe("WorkflowActionService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
       imports: [],
     });

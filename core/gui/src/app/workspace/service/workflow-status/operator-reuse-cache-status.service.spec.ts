@@ -23,6 +23,7 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 
 import { OperatorReuseCacheStatusService } from "./operator-reuse-cache-status.service";
 import { HttpClientModule } from "@angular/common/http";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("OperatorCacheStatusService", () => {
   let service: OperatorReuseCacheStatusService;
@@ -34,6 +35,7 @@ describe("OperatorCacheStatusService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
       imports: [HttpClientModule],
     });

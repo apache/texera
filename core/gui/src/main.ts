@@ -29,4 +29,11 @@ if (environment.production) {
 
 platformBrowserDynamic()
   .bootstrapModule(AppModule)
-  .catch(err => console.log(err));
+  .then(() => {
+    console.log("Texera application bootstrap completed successfully");
+  })
+  .catch(err => {
+    console.error("Texera application bootstrap failed:", err);
+    // Let the error propagate so index.html error handler can catch it
+    throw err;
+  });
