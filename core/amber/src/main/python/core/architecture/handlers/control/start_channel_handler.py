@@ -20,9 +20,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
 )
-from core.models.internal_queue import DataElement
-from core.models import MarkerFrame
-from core.models.marker import StartOfInputChannel
 from core.models.internal_marker import StartOfOutputPorts, StartOfInputPort
 
 
