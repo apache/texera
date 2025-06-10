@@ -17,57 +17,37 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
-import { Router } from "@angular/router";
+import { Component } from "@angular/core";
 import { GuiConfigService } from "./common/service/gui-config.service";
-import { DASHBOARD_ABOUT } from "./app-routing.constant";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({
   selector: "texera-root",
   template: `
     <div
-      *ngIf="configLoaded === false"
+      *ngIf="!configLoaded"
       id="config-error">
       <h1>Configuration Error</h1>
-      <p>Failed to load application configuration.</p>
-      <p>Please ensure the backend server is running and accessible.</p>
+      <p>Failed to load gui's configuration.</p>
+      <p>Please ensure the ConfigService is running and accessible.</p>
       <button (click)="retry()">Retry</button>
     </div>
     <router-outlet *ngIf="configLoaded"></router-outlet>
   `,
 })
-export class AppComponent implements OnInit {
-  /**
-   * configLoaded state:
-   *   undefined -> still loading
-   *   true      -> loaded successfully
-   *   false     -> failed to load
-   */
-  configLoaded?: boolean;
+export class AppComponent {
+  configLoaded = false;
 
-  constructor(
-    private config: GuiConfigService,
-    private router: Router
-  ) {}
-
-  ngOnInit(): void {
-    this.config
-      .load()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.configLoaded = true;
-          if (this.config.env.userSystemEnabled && this.router.url === "/") {
-            this.router.navigateByUrl(DASHBOARD_ABOUT);
-          }
-        },
-        error: (err: unknown) => {
-          console.error("GUI config failed to load:", err);
-          this.configLoaded = false;
-        },
-      });
+  constructor(private config: GuiConfigService) {
+    // determine whether configuration was successfully loaded by APP_INITIALIZER
+    try {
+      // accessing env will throw if not loaded
+      void this.config.env;
+      this.configLoaded = true;
+    } catch {
+      this.configLoaded = false;
+    }
   }
 
   retry(): void {

@@ -39,6 +39,21 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { inject } from "@angular/core";
+import { GuiConfigService } from "./common/service/gui-config.service";
+import { Router, CanActivateFn } from "@angular/router";
+import { DASHBOARD_ABOUT } from "./app-routing.constant";
+
+const rootRedirectGuard: CanActivateFn = () => {
+  const config = inject(GuiConfigService);
+  const router = inject(Router);
+  try {
+    if (config.env.userSystemEnabled) {
+      return router.parseUrl(DASHBOARD_ABOUT);
+    }
+  } catch {}
+  return true;
+};
 
 const routes: Routes = [];
 
@@ -157,6 +172,7 @@ routes.push({
 routes.push({
   path: "",
   component: WorkspaceComponent,
+  canActivate: [rootRedirectGuard],
 });
 
 // redirect all other paths to index.
