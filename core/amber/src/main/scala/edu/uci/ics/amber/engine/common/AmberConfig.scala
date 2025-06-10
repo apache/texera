@@ -108,7 +108,7 @@ object AmberConfig {
   val gmail: String = getConfSource.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = getConfSource.getString("user-sys.google.smtp.password")
   val appDomain: Option[String] = {
-    val domain = conf.getString("user-sys.google.domain").trim
+    val domain = getConfSource.getString("user-sys.google.domain").trim
     if (domain.isEmpty) {
       logger.log(
         Level.WARNING,
