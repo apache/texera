@@ -38,6 +38,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { NzContextMenuService } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
+import { PanelService } from "../../service/panel/panel.service";
 import * as _ from "lodash";
 import * as joint from "jointjs";
 import { isDefined } from "../../../common/util/predicate";
@@ -107,6 +108,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private operatorMenu: OperatorMenuService,
     private route: ActivatedRoute,
     private router: Router,
+    private panelservice: PanelService,
     public nzContextMenu: NzContextMenuService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
@@ -450,15 +452,28 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        const clickedCommentBox = event[0].model;
+        const clickedBox = event[0].model;
         if (
-          clickedCommentBox.isElement() &&
-          this.workflowActionService.getTexeraGraph().hasCommentBox(clickedCommentBox.id.toString())
+          clickedBox.isElement() &&
+          this.workflowActionService.getTexeraGraph().hasCommentBox(clickedBox.id.toString())
         ) {
           this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
+          }
+        } else if (
+          clickedBox.isElement() &&
+          this.workflowActionService.getTexeraGraph().hasOperator(clickedBox.id.toString())
+        ) {
+          this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
+          const elementID = event[0].model.id.toString();
+          if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+            if (this.panelservice.isPanelOpen) {
+              this.panelservice.closePropertyPanel();
+            } else {
+              this.panelservice.openPropertyPanel();
+            }
           }
         }
       });

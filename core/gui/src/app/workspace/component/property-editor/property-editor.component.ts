@@ -76,6 +76,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerHighlightEventsHandler();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.openPropertyPanelStream.pipe(untilDestroyed(this)).subscribe(() => this.openPanel());
+    this.panelService.closePropertyPanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.resetPanelPosition();
       this.openPanel();
