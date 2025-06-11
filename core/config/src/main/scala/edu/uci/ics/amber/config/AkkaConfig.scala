@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.amber.engine.common
+package edu.uci.ics.amber.config
 
-import akka.actor.Address
+import com.typesafe.config.{Config, ConfigFactory}
 
-object AmberConfig {
-  var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
+object AkkaConfig {
+
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("cluster.conf").resolve()
+
+  // Return the complete Akka configuration with fallback to default application config
+  def akkaConfig: Config = conf.withFallback(ConfigFactory.defaultApplication()).resolve()
 }

@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, Marker, StartOfInputChannel}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
@@ -30,7 +31,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
@@ -55,7 +55,7 @@ class InputPortMaterializationReaderThread(
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
-  private val batchSize = AmberConfig.defaultDataTransferBatchSize
+  private val batchSize = ApplicationConfig.defaultDataTransferBatchSize
 
   /**
     * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
