@@ -31,7 +31,6 @@ from .statistics_manager import StatisticsManager
 from ..packaging.input_manager import InputManager
 from ..packaging.output_manager import OutputManager
 from ...models import InternalQueue
-from queue import Queue
 
 
 class Context:
@@ -75,7 +74,6 @@ class Context:
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
         )
-        self.internal_markers = Queue()
 
     def close(self):
         self.executor_manager.close()

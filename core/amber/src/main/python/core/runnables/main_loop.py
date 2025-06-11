@@ -25,7 +25,6 @@ from typing import Iterator, Optional
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from core.architecture.packaging.input_manager import FinalizeExecutor
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
@@ -262,11 +261,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._send_channel_marker_to_data_channels(
             "StartChannel", ChannelMarkerType.NO_ALIGNMENT
         )
-        self.context.marker_processing_manager.current_input_marker = StartChannel()
         self.process_input_state()
 
     def _process_end_channel(self) -> None:
-        self.context.marker_processing_manager.current_input_marker = EndChannel()
         self.process_input_state()
         self.process_input_tuple()
 
@@ -282,28 +279,23 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             )
 
-    def _finalize_executor(self) -> None:
-        """
-        Upon receipt of a FinalizeExecutor, which indicates the end of all input links,
-        send the last data batches to all downstream workers.
-        It will also invoke complete() of this DataProcessor.
-        """
-        # Special case for the hack of input port dependency.
-        # See documentation of is_missing_output_ports
-        if self.context.output_manager.is_missing_output_ports():
-            return
-        self.context.output_manager.close_port_storage_writers()
+        if self.context.input_manager.all_ports_completed():
+            # Special case for the hack of input port dependency.
+            # See documentation of is_missing_output_ports
+            if self.context.output_manager.is_missing_output_ports():
+                return
+            self.context.output_manager.close_port_storage_writers()
 
-        self._send_channel_marker_to_data_channels(
-            "EndChannel", ChannelMarkerType.PORT_ALIGNMENT
-        )
-
-        # Need to send port completed even if there is no downstream link
-        for port_id in self.context.output_manager.get_port_ids():
-            self._async_rpc_client.controller_stub().port_completed(
-                PortCompletedRequest(port_id=port_id, input=False)
+            self._send_channel_marker_to_data_channels(
+                "EndChannel", ChannelMarkerType.PORT_ALIGNMENT
             )
-        self.complete()
+
+            # Need to send port completed even if there is no downstream link
+            for port_id in self.context.output_manager.get_port_ids():
+                self._async_rpc_client.controller_stub().port_completed(
+                    PortCompletedRequest(port_id=port_id, input=False)
+                )
+            self.complete()
 
     def _process_channel_marker_payload(self, marker_elem: ChannelMarkerElement):
         """
@@ -357,14 +349,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if marker_payload.marker_type != ChannelMarkerType.NO_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
-            marker_handlers = {
-                StartChannel: self._process_start_channel,
-                EndChannel: self._process_end_channel,
-                FinalizeExecutor: self._finalize_executor,
-            }
-            while not self.context.internal_markers.empty():
-                marker = self.context.internal_markers.get()
-                marker_handlers.get(type(marker))()
+            if self.context.tuple_processing_manager.current_internal_marker:
+                {
+                    StartChannel: self._process_start_channel,
+                    EndChannel: self._process_end_channel,
+                }[type(self.context.tuple_processing_manager.current_internal_marker)]()
 
     def _send_channel_marker_to_data_channels(
         self, method_name: str, alignment: ChannelMarkerType
