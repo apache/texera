@@ -116,9 +116,9 @@ class RegionExecutionCoordinator(
   def isCompleted: Boolean = currentPhaseRef.get == Completed
 
   /**
-    * This will transition the region execution phase from one to another depending on its current phase:
+    * This will sync and transition the region execution phase from one to another depending on its current phase:
     *
-    * `Unexecuted` -> `ExecutingDependeePortsPhase` -> `ExecutingNonDependeePortsPhase`
+    * `Unexecuted` -> `ExecutingDependeePortsPhase` -> `ExecutingNonDependeePortsPhase` -> `Completed`
     */
   def syncStatusAndTransitionRegionExecutionPhase(): Future[Unit] =
     currentPhaseRef.get match {
