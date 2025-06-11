@@ -21,8 +21,8 @@ from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
 from core.models.internal_marker import (
     InternalMarker,
-    EndOfOutputPorts,
-    EndOfInputPort,
+    FinalizeExecutor,
+    EndChannel,
 )
 from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
@@ -68,7 +68,6 @@ class InputManager:
         self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
-        self.started = False
         self._input_queue = input_queue
         self._input_port_mat_reader_runnables: Dict[
             PortIdentity, List[InputPortMaterializationReaderRunnable]
@@ -163,8 +162,8 @@ class InputManager:
 
         # special case used to yield for source op
         if from_.from_worker_id == InputManager.SOURCE_STARTER:
-            yield EndOfInputPort()
-            yield EndOfOutputPorts()
+            yield EndChannel()
+            yield FinalizeExecutor()
             return
 
         if isinstance(payload, DataFrame):

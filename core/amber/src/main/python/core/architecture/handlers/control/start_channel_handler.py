@@ -17,14 +17,10 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
-from core.models.internal_marker import StartOfOutputPorts, StartOfInputPort
+from core.models.internal_marker import StartChannel
 
 
 class StartChannelHandler(ControlHandler):
     async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
-        input_manager = self.context.input_manager
-        if not input_manager.started:
-            self.context.internal_markers.put(StartOfOutputPorts())
-        input_manager.started = True
-        self.context.internal_markers.put(StartOfInputPort())
+        self.context.internal_markers.put(StartChannel())
         return EmptyReturn()

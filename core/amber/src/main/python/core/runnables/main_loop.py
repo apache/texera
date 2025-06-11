@@ -25,18 +25,14 @@ from typing import Iterator, Optional
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from core.architecture.packaging.input_manager import EndOfOutputPorts
+from core.architecture.packaging.input_manager import FinalizeExecutor
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InternalQueue,
     Tuple,
 )
-from core.models.internal_marker import (
-    StartOfOutputPorts,
-    EndOfInputPort,
-    StartOfInputPort,
-)
+from core.models.internal_marker import StartChannel, EndChannel
 from core.models.internal_queue import (
     DataElement,
     ControlElement,
@@ -262,12 +258,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_state()
         self._check_and_process_control()
 
-    def _process_start_of_input_port(self) -> None:
-        self.context.marker_processing_manager.current_input_marker = StartOfInputPort()
+    def _process_start_channel(self) -> None:
+        self._send_channel_marker_to_data_channels(
+            "StartChannel", ChannelMarkerType.NO_ALIGNMENT
+        )
+        self.context.marker_processing_manager.current_input_marker = StartChannel()
         self.process_input_state()
 
-    def _process_end_of_input_port(self) -> None:
-        self.context.marker_processing_manager.current_input_marker = EndOfInputPort()
+    def _process_end_channel(self) -> None:
+        self.context.marker_processing_manager.current_input_marker = EndChannel()
         self.process_input_state()
         self.process_input_tuple()
 
@@ -282,16 +281,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     input=True,
                 )
             )
-
-    def _process_start_of_output_ports(self) -> None:
-        """
-        Upon receipt of an StartOfAllMarker,
-        which indicates the start of any input links,
-        send the StartChannel to all downstream workers.
-        """
-        self._send_channel_marker_to_data_channels(
-            "StartChannel", ChannelMarkerType.NO_ALIGNMENT
-        )
 
     def _process_end_of_output_ports(self) -> None:
         """
@@ -372,10 +361,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
             marker_handlers = {
-                StartOfInputPort: self._process_start_of_input_port,
-                EndOfInputPort: self._process_end_of_input_port,
-                StartOfOutputPorts: self._process_start_of_output_ports,
-                EndOfOutputPorts: self._process_end_of_output_ports,
+                StartChannel: self._process_start_channel,
+                EndChannel: self._process_end_channel,
+                FinalizeExecutor: self._process_end_of_output_ports,
             }
             while not self.context.internal_markers.empty():
                 marker = self.context.internal_markers.get()

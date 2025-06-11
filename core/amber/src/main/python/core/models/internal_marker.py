@@ -29,20 +29,15 @@ class InternalMarker(Marker):
 
 
 @dataclass
-class StartOfInputPort(InternalMarker):
+class StartChannel(InternalMarker):
     pass
 
 
 @dataclass
-class EndOfInputPort(InternalMarker):
+class EndChannel(InternalMarker):
     pass
 
 
 @dataclass
-class StartOfOutputPorts(InternalMarker):
-    pass
-
-
-@dataclass
-class EndOfOutputPorts(InternalMarker):
+class FinalizeExecutor(InternalMarker):
     pass
