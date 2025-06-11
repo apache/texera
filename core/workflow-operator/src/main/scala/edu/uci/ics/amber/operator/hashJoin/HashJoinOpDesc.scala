@@ -101,6 +101,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
                 List(
                   new Attribute(
                     HASH_JOIN_INTERNAL_KEY_NAME,
+                    // Because we need to materialize the outputs of build, we cannot use ANY type.
                     inputSchemas(operatorInfo.inputPorts.head.id)
                       .getAttribute(buildAttributeName)
                       .getType
@@ -137,6 +138,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withOutputPorts(List(probeOutputPort))
         .withPartitionRequirement(
           List(
+            // Cannot use OneToOnePartition because it does not work with InputPortMaterializationReaderThreads.
             Option(HashPartition(List(buildAttributeName))),
             Option(HashPartition(List(probeAttributeName)))
           )

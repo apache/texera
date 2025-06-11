@@ -130,7 +130,7 @@ class InputManager(
       this.ports(portId).channels.values.forall(completed => completed)
     } else {
       val existingThread = this.inputPortMaterializationReaderThreads(portId).head
-      existingThread.isFinished
+      existingThread.finished
     }
   }
 
