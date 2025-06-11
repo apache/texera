@@ -16,12 +16,12 @@
 # under the License.
 
 from typing import Optional
-from core.models.marker import State, Marker
+from core.models.marker import State
 
 
-class MarkerProcessingManager:
+class StateProcessingManager:
     def __init__(self):
-        self.current_input_marker: Optional[Marker] = None
+        self.current_input_marker: Optional[State] = None
         self.current_output_state: Optional[State] = None
 
     def get_input_marker(self) -> Optional[State]:

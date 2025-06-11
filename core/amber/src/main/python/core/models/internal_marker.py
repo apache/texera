@@ -15,12 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from dataclasses import dataclass
-from core.models.marker import Marker
-from .tuple import TupleLike
-
-@dataclass
-class InternalMarker(Marker):
+class InternalMarker:
     """
     A special Data Message, only being generated in un-packaging a batch into Tuples.
     Markers retain the order information and served as a indicator of data state.
@@ -28,11 +23,9 @@ class InternalMarker(Marker):
     pass
 
 
-@dataclass
 class StartChannel(InternalMarker):
     pass
 
 
-@dataclass
 class EndChannel(InternalMarker):
     pass

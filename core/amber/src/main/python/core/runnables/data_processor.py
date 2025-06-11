@@ -25,7 +25,6 @@ from typing import Iterator, Optional
 from core.architecture.managers import Context
 from core.models import ExceptionInfo, State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel
-from core.models.marker import Marker
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -89,7 +88,7 @@ class DataProcessor(Runnable, Stoppable):
         finally:
             self._switch_context()
 
-    def process_state(self, state: Marker) -> None:
+    def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
