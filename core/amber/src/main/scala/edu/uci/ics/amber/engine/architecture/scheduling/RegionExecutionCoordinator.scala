@@ -19,11 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import akka.pattern.gracefulStop
-import edu.uci.ics.amber.engine.common.FutureBijection._
 import com.twitter.util.Future
-
-import java.util.concurrent.atomic.AtomicReference
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
@@ -41,13 +37,8 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   WorkerAssignmentUpdate
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AssignPortRequest,
-  EmptyRequest,
-  InitializeExecutorRequest,
-  LinkWorkersRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EndWorkerResponse}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   InputPortConfig,
   OperatorConfig,
@@ -59,8 +50,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
+import java.util.concurrent.atomic.AtomicReference
 
 /**
   * The executor of a region.
@@ -119,22 +109,26 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
     if (!regionExecution.isCompleted) return Future.Unit
 
-    // transition to Completed
-    currentPhaseRef.set(Completed)
-
     // collect all the graceful-stop futures
-    val kills: Seq[Future[Boolean]] =
+    val kills: Seq[Future[EndWorkerResponse]] =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (opId, opExec) =>
-          println(s"killing operator – $opId")
           opExec.getWorkerIds.map { wid =>
-            gracefulStop(actorRefService.getActorRef(wid), Duration(5, TimeUnit.SECONDS))
-              .asTwitter()
+            println(s"killing worker – $wid")
+            val actorRef = actorRefService.getActorRef(wid)
+            val actorRefStr = actorRef.path.toString
+            asyncRPCClient.workerInterface
+              .endWorker(EndWorkerRequest(actorRefStr), asyncRPCClient.mkContext(wid))
           }
       }.toSeq
 
     // wait for them, then discard the Seq[Boolean]
-    Future.collect(kills).unit
+    Future.collect(kills)
+
+    // transition to Completed
+    currentPhaseRef.set(Completed)
+
+    Future.Unit
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed

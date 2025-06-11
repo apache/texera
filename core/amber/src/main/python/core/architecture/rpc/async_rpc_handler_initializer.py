@@ -25,6 +25,7 @@ from core.architecture.handlers.control.assign_port_handler import AssignPortHan
 from core.architecture.handlers.control.debug_command_handler import (
     WorkerDebugCommandHandler,
 )
+from core.architecture.handlers.control.end_worker_handler import EndWorkerHandler
 from core.architecture.handlers.control.evaluate_expression_handler import (
     EvaluateExpressionHandler,
 )
@@ -57,6 +58,7 @@ class AsyncRPCHandlerInitializer(
     RetryCurrentTupleHandler,
     ResumeWorkerHandler,
     StartWorkerHandler,
+    EndWorkerHandler,
     NoOperationHandler,
 ):
     pass
