@@ -43,32 +43,31 @@ class WorkflowExecutionCoordinator(
     mutable.HashMap()
 
   /**
-    * Each invocation will launch the next phase of a region execution, if there are any. This can either be launching
-    * a new region's execution, or transitioning an exisitng region in an `ExecutingDependeePorts` phase to an
-    * `ExecutingNonDependeePorts` phase.
-    *
-    * A region is only determined to be completed when it finishes the
+    * Each invocation will launch the next phase of region execution for the appropriate region(s):
+    * If there are no running region(s), it will start the new regions (if available).
+    * Otherwise, it will transition each running region to the next phase.
+    * Note a region is only determined to be `Completed` (not running) when all the ports are completed in the
     * `ExecutingNonDependeePorts` phase.
     */
   def launchNextRegionPhase(actorService: AkkaActorService): Future[Unit] = {
-    // First check if any region is in an `ExecutingDependeePorts` phase. This will only be invoked by the completion of
-    // a dependee ports.
+    // Let all the regionExecutionCoordinators update their internal completed status.
+    // This is needed because a regionExecutionCoordinator can only launch an execution phase asynchronously
+    // and cannot know it is completed until the next invocation of this method (by the completion of each of
+    // its ports.)
+    regionExecutionCoordinators.values.filter(!_.isCompleted).foreach(_.syncCompletedStatus())
+
     if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
+      // Some regions are not completed yet.
       Future
         .collect({
           regionExecutionCoordinators.values
             .filter(!_.isCompleted)
-            // Only when all the dependee ports of this region are completed will this invocation transition its phase.
-            // If any dependee port is unfinished, it returns an empty future.
             .map(_.transitionRegionExecutionPhase())
             .toSeq
         })
         .unit
-    } else if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
-      // If any region has not finished execution yet (i.e., in either of the two phases), skip.
-      Future(())
     } else {
-      // Current region is completed. Start the next region (if any).
+      // All existing regions are completed. Start the next region (if any).
       Future
         .collect({
           val nextRegions = getNextRegions()
