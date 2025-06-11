@@ -21,11 +21,11 @@ from core.models.marker import State
 
 class StateProcessingManager:
     def __init__(self):
-        self.current_input_marker: Optional[State] = None
+        self.current_input_state: Optional[State] = None
         self.current_output_state: Optional[State] = None
 
     def get_input_marker(self) -> Optional[State]:
-        ret, self.current_input_marker = self.current_input_marker, None
+        ret, self.current_input_state = self.current_input_state, None
         return ret
 
     def get_output_state(self) -> Optional[State]:

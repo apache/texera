@@ -253,7 +253,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_process_control()
 
     def _process_state(self, state_: State) -> None:
-        self.context.marker_processing_manager.current_input_marker = state_
+        self.context.marker_processing_manager.current_input_state = state_
         self.process_input_state()
         self._check_and_process_control()
 
