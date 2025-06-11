@@ -71,7 +71,7 @@ class InputManager(
       uris: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
-    if (uris.isEmpty || partitionings.isEmpty || uris.size != partitionings.size) {
+    if (uris.isEmpty) {
       return
     }
     val readerThreads = uris.zip(partitionings).map {
@@ -93,10 +93,9 @@ class InputManager(
 
   def startInputPortReaderThreads(): Unit = {
     this.inputPortMaterializationReaderThreads
-      .filter {
-        // If this worker belongs to an operator with input-port dependency relationships, this method may be invoked
-        // twice. This logic ensures the second invocation does not start the thread for the dependee port again.
-        case (portId, _) => !this.isPortCompleted(portId)
+      .filterNot {
+        // A completed port should not be started again
+        case (portId, _) => this.isPortCompleted(portId)
       }
       .values
       .foreach(threadList =>
