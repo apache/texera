@@ -253,19 +253,25 @@ class OutputManager(
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def finalizeOutput(): Unit = {
-    if (this.ports.isEmpty) {
-      // This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
-      // Some operators may have input port dependency relationships, for which we currently use a two-phase
-      // region execution scheme. (See `RegionExecutionCoordinator` for details.)
-      // We currently assume that in this phase the operator (worker) will not output any data, hence no output ports.
-      // However we still need to keep this worker open for the next `executingNonDependeePort` phase.
-      return
-    }
     this.ports.keys
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
       )
     outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
+  }
+
+  /**
+    * This method is only used for ensuring correct region execution. Some operators may have input port dependency
+    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionCoordinator`
+    * for details.)
+    * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
+    * We currently assume that in this phase the operator (worker) will not output any data, hence no output ports.
+    * However we still need to keep this worker open for the next `executingNonDependeePort` phase.
+    *
+    * @return Whether this worker currently does not have any output port.
+    */
+  def isMissingOutputPort: Boolean = {
+    this.ports.isEmpty
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {

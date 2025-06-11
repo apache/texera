@@ -105,11 +105,8 @@ class ExpansionGreedyScheduleGenerator(
             physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinks(operatorId)
           })
-          .filter(link =>
-            operatorIds.contains(link.fromOpId) &&
-              // dependee links should not belong to a region.
-              !physicalPlan.getDependeeLinks.contains(link)
-          )
+          .filter(link => operatorIds.contains(link.fromOpId))
+          .diff(physicalPlan.getDependeeLinks) // dependee links should not belong to a region.
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
         val ports = operators.flatMap(op =>
           op.inputPorts.keys

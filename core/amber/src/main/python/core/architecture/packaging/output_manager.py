@@ -99,7 +99,7 @@ class OutputManager:
         not output any data, hence no output ports.
         However we still need to keep this worker open for the next
         `executingNonDependeePort` phase.
-        :return: Whether this worker does not have any output port.
+        :return: Whether this worker currently does not have any output port.
         """
         return not self._ports
 
