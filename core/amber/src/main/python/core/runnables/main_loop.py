@@ -380,7 +380,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _send_channel_marker(
         self, channel_id: ChannelIdentity, marker_payload: ChannelMarkerPayload
     ) -> None:
-        for batch in self.context.output_manager.emit_marker_to_channel(
+        for batch in self.context.output_manager.emit_channel_marker(
             channel_id.to_worker_id, marker_payload
         ):
             tag = channel_id

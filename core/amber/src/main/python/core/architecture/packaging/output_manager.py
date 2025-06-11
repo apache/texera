@@ -234,7 +234,7 @@ class OutputManager:
             )
         )
 
-    def emit_marker_to_channel(
+    def emit_channel_marker(
         self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
     ) -> Iterable[Union[DataPayload, ChannelMarkerPayload]]:
         return chain(
