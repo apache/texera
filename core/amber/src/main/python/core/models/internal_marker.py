@@ -36,8 +36,3 @@ class StartChannel(InternalMarker):
 @dataclass
 class EndChannel(InternalMarker):
     pass
-
-
-@dataclass
-class FinalizeExecutor(InternalMarker):
-    pass
