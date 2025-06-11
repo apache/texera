@@ -93,6 +93,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { t =>
       outputManager.passTupleToDownstream(TupleLike(t.getFields).enforceSchema(schema), None)
     }
+    outputManager.flush()
   }
 
 }
