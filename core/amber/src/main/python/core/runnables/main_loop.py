@@ -282,14 +282,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             )
 
-    def _process_end_of_output_ports(self) -> None:
+    def _finalize_executor(self) -> None:
         """
-        Upon receipt of an EndOfAllMarker, which indicates the end of all input links,
+        Upon receipt of a FinalizeExecutor, which indicates the end of all input links,
         send the last data batches to all downstream workers.
-
         It will also invoke complete() of this DataProcessor.
-
-        :param _: EndOfOutputPorts
         """
         # Special case for the hack of input port dependency.
         # See documentation of is_missing_output_ports
@@ -363,7 +360,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             marker_handlers = {
                 StartChannel: self._process_start_channel,
                 EndChannel: self._process_end_channel,
-                FinalizeExecutor: self._process_end_of_output_ports,
+                FinalizeExecutor: self._finalize_executor,
             }
             while not self.context.internal_markers.empty():
                 marker = self.context.internal_markers.get()
