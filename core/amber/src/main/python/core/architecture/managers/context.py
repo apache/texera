@@ -48,7 +48,7 @@ class Context:
         self.executor_manager = ExecutorManager()
         self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.tuple_processing_manager = TupleProcessingManager()
-        self.marker_processing_manager = StateProcessingManager()
+        self.state_processing_manager = StateProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
             {

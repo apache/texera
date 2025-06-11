@@ -52,7 +52,7 @@ class DataProcessor(Runnable, Stoppable):
         self._switch_context()
         while self._running.is_set():
             marker = self._context.tuple_processing_manager.get_internal_marker()
-            state = self._context.marker_processing_manager.get_input_marker()
+            state = self._context.state_processing_manager.get_input_marker()
             tuple_ = self._context.tuple_processing_manager.current_input_tuple
             if marker is not None:
                 self.process_internal_marker(marker)
@@ -158,7 +158,7 @@ class DataProcessor(Runnable, Stoppable):
         """
         Set the output state after processing by the executor.
         """
-        self._context.marker_processing_manager.current_output_state = output_state
+        self._context.state_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
         """
