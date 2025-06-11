@@ -17,14 +17,14 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
-from core.models.internal_marker import EndOfOutputPorts, EndOfInputPort
+from core.models.internal_marker import EndChannel, FinalizeExecutor
 
 
 class EndChannelHandler(ControlHandler):
     async def end_channel(self, req: EmptyRequest) -> EmptyReturn:
         input_manager = self.context.input_manager
         input_manager.complete_current_port(self.context.current_input_channel_id)
-        self.context.internal_markers.put(EndOfInputPort())
+        self.context.internal_markers.put(EndChannel())
         if input_manager.all_ports_completed():
-            self.context.internal_markers.put(EndOfOutputPorts())
+            self.context.internal_markers.put(FinalizeExecutor())
         return EmptyReturn()
