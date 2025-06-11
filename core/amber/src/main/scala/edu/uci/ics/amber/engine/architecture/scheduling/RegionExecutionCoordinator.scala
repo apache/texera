@@ -19,12 +19,19 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import akka.pattern.gracefulStop
+import edu.uci.ics.amber.engine.common.FutureBijection._
 import com.twitter.util.Future
+
 import java.util.concurrent.atomic.AtomicReference
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  ExecutorDeployment
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
   WorkflowExecution
@@ -51,6 +58,9 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 /**
   * The executor of a region.
@@ -83,7 +93,8 @@ class RegionExecutionCoordinator(
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     controllerConfig: ControllerConfig,
-    actorService: AkkaActorService
+    actorService: AkkaActorService,
+    actorRefService: AkkaActorRefMappingService
 ) {
 
   initRegionExecution()
@@ -102,15 +113,28 @@ class RegionExecutionCoordinator(
     * Check the status of `RegionExecution` again and transition this coordinator's phase to `Completed` only when the
     * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
     */
-  def syncCompletedStatus(): Unit = {
-    // Only `ExecutingNonDependeePortsPhase` can transtion to `Completed`
-    if (currentPhaseRef.get == ExecutingNonDependeePortsPhase) {
-      val regionExecution = workflowExecution.getRegionExecution(region.id)
-      // All the ports of this region should be completed.
-      if (regionExecution.isCompleted) {
-        currentPhaseRef.set(Completed)
-      }
-    }
+  def syncCompletedStatus(): Future[Unit] = {
+    if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) return Future.Unit
+
+    val regionExecution = workflowExecution.getRegionExecution(region.id)
+    if (!regionExecution.isCompleted) return Future.Unit
+
+    // transition to Completed
+    currentPhaseRef.set(Completed)
+
+    // collect all the graceful-stop futures
+    val kills: Seq[Future[Boolean]] =
+      regionExecution.getAllOperatorExecutions.flatMap {
+        case (opId, opExec) =>
+          println(s"killing operator – $opId")
+          opExec.getWorkerIds.map { wid =>
+            gracefulStop(actorRefService.getActorRef(wid), Duration(5, TimeUnit.SECONDS))
+              .asTwitter()
+          }
+      }.toSeq
+
+    // wait for them, then discard the Seq[Boolean]
+    Future.collect(kills).unit
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed
