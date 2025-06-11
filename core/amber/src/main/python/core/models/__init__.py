@@ -24,7 +24,7 @@ from .tuple import Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
-from .marker import State
+from .state import State
 from .operator import (
     Operator,
     TableOperator,

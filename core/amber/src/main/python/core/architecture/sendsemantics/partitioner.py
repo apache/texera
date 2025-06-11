@@ -20,7 +20,7 @@ from abc import ABC
 from typing import Iterator
 from betterproto import Message
 from core.models import Tuple
-from core.models.marker import State
+from core.models.state import State
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity

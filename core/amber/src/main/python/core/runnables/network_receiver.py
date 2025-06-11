@@ -40,7 +40,7 @@ from core.models.internal_queue import (
     InternalQueue,
     ChannelMarkerElement,
 )
-from core.models.marker import State
+from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable

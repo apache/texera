@@ -16,7 +16,7 @@
 # under the License.
 
 from typing import Optional
-from core.models.marker import State
+from core.models.state import State
 
 
 class StateProcessingManager:

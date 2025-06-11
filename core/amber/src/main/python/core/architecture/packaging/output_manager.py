@@ -42,7 +42,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
 from core.models import Tuple, Schema, StateFrame
-from core.models.marker import State
+from core.models.state import State
 from core.models.payload import DataPayload, DataFrame
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (

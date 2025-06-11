@@ -22,7 +22,7 @@ from loguru import logger
 from overrides import overrides
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import State
+from core.models.state import State
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
