@@ -111,7 +111,7 @@ class RegionExecutionCoordinator(
     // collect all the graceful-stop futures
     val kills: Seq[Future[EndWorkerResponse]] =
       regionExecution.getAllOperatorExecutions.flatMap {
-        case (opId, opExec) =>
+        case (_, opExec) =>
           opExec.getWorkerIds.map { wid =>
             println(s"killing worker – $wid")
             val actorRef = actorRefService.getActorRef(wid)
@@ -159,7 +159,6 @@ class RegionExecutionCoordinator(
         }
       case ExecutingNonDependeePortsPhase =>
         syncCompletedStatus()
-        Future.Unit
     }
 
   private def executeDependeePortPhase(): Future[Unit] = {
