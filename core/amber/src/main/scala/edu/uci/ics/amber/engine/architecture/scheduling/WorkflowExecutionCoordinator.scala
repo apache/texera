@@ -43,52 +43,53 @@ class WorkflowExecutionCoordinator(
     mutable.HashMap()
 
   /**
-    * Each invocation will launch the next phase of region execution for the appropriate region(s):
-    * If there are no running region(s), it will start the new regions (if available).
-    * Otherwise, it will transition each running region to the next phase.
-    * Note a region is only determined to be `Completed` (not running) when all the ports are completed in the
-    * `ExecutingNonDependeePorts` phase.
+    * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionCoordintor`, after which each
+    * of the `RegionExecutionCoordintor`s will launch the corresponding next phase of whenever needed until it is
+    * in `Completed` status (phase).
+    *
+    * After the syncs, if there are no running region(s), it will start new regions (if available).
     */
-  def launchNextRegionPhase(actorService: AkkaActorService): Future[Unit] = {
-    // Let all the regionExecutionCoordinators update their internal completed status.
-    // This is needed because a regionExecutionCoordinator can only launch an execution phase asynchronously
-    // and cannot know it is completed until the next invocation of this method (by the completion of each of
-    // its ports.)
-    regionExecutionCoordinators.values.filter(!_.isCompleted).foreach(_.syncCompletedStatus())
-
+  def coordinateRegionExecutors(actorService: AkkaActorService): Future[Unit] = {
     if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
-      // Some regions are not completed yet.
+      // As this method is invoked by the completion of each port in a region, and regionExecutionCoordinator only
+      // lanuches each phase asynchronously, we need to let each current unfinished regionExecutionCoordinator
+      // sync its status and proceed with next phases if needed.
       Future
         .collect({
           regionExecutionCoordinators.values
             .filter(!_.isCompleted)
-            .map(_.transitionRegionExecutionPhase())
-            .toSeq
-        })
-        .unit
-    } else {
-      // All existing regions are completed. Start the next region (if any).
-      Future
-        .collect({
-          val nextRegions = getNextRegions()
-          executedRegions.append(nextRegions)
-          nextRegions
-            .map(region => {
-              workflowExecution.initRegionExecution(region)
-              regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
-                region,
-                workflowExecution,
-                asyncRPCClient,
-                controllerConfig,
-                actorService
-              )
-              regionExecutionCoordinators(region.id)
-            })
-            .map(_.transitionRegionExecutionPhase())
+            .map(_.syncStatusAndTransitionRegionExecutionPhase())
             .toSeq
         })
         .unit
     }
+
+    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
+      // Some regions are still not completed yet. Cannot start the new regions.
+      return Future.Unit
+    }
+
+    // All existing regions are completed. Start the next region (if any).
+    Future
+      .collect({
+        val nextRegions = getNextRegions()
+        executedRegions.append(nextRegions)
+        nextRegions
+          .map(region => {
+            workflowExecution.initRegionExecution(region)
+            regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
+              region,
+              workflowExecution,
+              asyncRPCClient,
+              controllerConfig,
+              actorService
+            )
+            regionExecutionCoordinators(region.id)
+          })
+          .map(_.syncStatusAndTransitionRegionExecutionPhase())
+          .toSeq
+      })
+      .unit
   }
 
   def getRegionOfLink(link: PhysicalLink): Region = {
