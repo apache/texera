@@ -24,7 +24,7 @@ from core.models.internal_marker import (
     EndOfOutputPorts,
     EndOfInputPort,
 )
-from core.models.payload import DataFrame, DataPayload, MarkerFrame
+from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
@@ -169,7 +169,7 @@ class InputManager:
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)
-        elif isinstance(payload, MarkerFrame):
+        elif isinstance(payload, StateFrame):
             yield payload.frame
         else:
             raise NotImplementedError()

@@ -28,17 +28,6 @@ from .schema.attribute_type import FROM_PYOBJECT_MAPPING
 class Marker:
     pass
 
-
-@dataclass
-class StartOfInputChannel(Marker):
-    pass
-
-
-@dataclass
-class EndOfInputChannel(Marker):
-    pass
-
-
 @dataclass
 class State(Marker):
     def __init__(

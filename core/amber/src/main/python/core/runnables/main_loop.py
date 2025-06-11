@@ -218,7 +218,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_state = self.context.marker_processing_manager.get_output_state()
         self._switch_context()
         if output_state is not None:
-            for to, batch in self.context.output_manager.emit_marker(output_state):
+            for to, batch in self.context.output_manager.emit_state(output_state):
                 self._output_queue.put(
                     DataElement(
                         tag=ChannelIdentity(
@@ -287,7 +287,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Upon receipt of an StartOfAllMarker,
         which indicates the start of any input links,
-        send the StartOfInputChannel to all downstream workers.
+        send the StartChannel to all downstream workers.
         """
         self._send_channel_marker_to_data_channels(
             "StartChannel", ChannelMarkerType.NO_ALIGNMENT

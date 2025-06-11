@@ -40,7 +40,7 @@ trait EndChannelHandler {
     try {
       val outputState = dp.executor.produceStateOnFinish(portId.id)
       if (outputState.isDefined) {
-        dp.outputManager.emitMarker(outputState.get)
+        dp.outputManager.emitState(outputState.get)
       }
       dp.outputManager.outputIterator.setTupleOutput(
         dp.executor.onFinishMultiPort(portId.id)

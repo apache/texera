@@ -19,26 +19,18 @@
 
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.tuple._
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  DPOutputIterator,
-  getBatchSize,
-  toPartitioner
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{DPOutputIterator, getBatchSize, toPartitioner}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.architecture.worker.managers.{
-  OutputPortResultWriterThread,
-  PortStorageWriterTerminateSignal
-}
+import edu.uci.ics.amber.engine.architecture.worker.managers.{OutputPortResultWriterThread, PortStorageWriterTerminateSignal}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-
 import java.net.URI
 import scala.collection.mutable
 
@@ -189,8 +181,8 @@ class OutputManager(
     buffersToFlush.foreach(_.flush())
   }
 
-  def emitMarker(marker: Marker): Unit = {
-    networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
+  def emitState(state: State): Unit = {
+    networkOutputBuffers.foreach(kv => kv._2.sendState(state))
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
