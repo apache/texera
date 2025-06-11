@@ -22,8 +22,7 @@ package edu.uci.ics.amber.core.state
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import scala.collection.mutable
 
-final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean = false)
-{
+final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean = false) {
   val data: mutable.Map[String, (AttributeType, Any)] = mutable.LinkedHashMap()
   add("passToAllDownstream", passToAllDownstream, AttributeType.BOOLEAN)
   if (tuple.isDefined) {
