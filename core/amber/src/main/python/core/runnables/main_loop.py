@@ -260,7 +260,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_start_channel(self) -> None:
         self._send_channel_marker_to_data_channels(
-"StartChannel", ChannelMarkerType.NO_ALIGNMENT
+            "StartChannel", ChannelMarkerType.NO_ALIGNMENT
         )
         self.context.marker_processing_manager.current_input_marker = StartChannel()
         self.process_input_state()

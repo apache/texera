@@ -25,15 +25,19 @@ class InternalMarker(Marker):
     A special Data Message, only being generated in un-packaging a batch into Tuples.
     Markers retain the order information and served as a indicator of data state.
     """
+
     pass
+
 
 @dataclass
 class StartChannel(InternalMarker):
     pass
 
+
 @dataclass
 class EndChannel(InternalMarker):
     pass
+
 
 @dataclass
 class FinalizeExecutor(InternalMarker):
