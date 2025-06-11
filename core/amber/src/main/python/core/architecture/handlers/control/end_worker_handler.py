@@ -16,7 +16,10 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EndWorkerRequest, EndWorkerResponse
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    EndWorkerRequest,
+    EndWorkerResponse,
+)
 from loguru import logger
 
 

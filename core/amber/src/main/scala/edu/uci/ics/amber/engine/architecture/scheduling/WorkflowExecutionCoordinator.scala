@@ -90,10 +90,10 @@ class WorkflowExecutionCoordinator(
               controllerConfig,
               actorService,
               actorRefService
-              )
-              regionExecutionCoordinators(region.id)
-            })
-            .map(_.syncStatusAndTransitionRegionExecutionPhase())
+            )
+            regionExecutionCoordinators(region.id)
+          })
+          .map(_.syncStatusAndTransitionRegionExecutionPhase())
           .toSeq
       })
       .unit

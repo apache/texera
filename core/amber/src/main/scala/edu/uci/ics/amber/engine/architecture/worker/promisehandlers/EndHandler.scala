@@ -21,7 +21,7 @@ trait EndHandler {
   override def endWorker(
       request: EndWorkerRequest,
       ctx: AsyncRPCContext
-                        ): Future[EndWorkerResponse] = {
+  ): Future[EndWorkerResponse] = {
     val selection = AmberRuntime.actorSystem.actorSelection(request.actorRefStr)
     val actorRef: ActorRef = Await.result(selection.resolveOne(3.seconds), 3.seconds)
     gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS))
