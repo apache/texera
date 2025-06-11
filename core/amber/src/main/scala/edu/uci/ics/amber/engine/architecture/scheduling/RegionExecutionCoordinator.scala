@@ -20,6 +20,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import java.util.concurrent.atomic.AtomicReference
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
@@ -50,8 +51,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
-import java.util.concurrent.atomic.AtomicReference
-
 /**
   * The executor of a region.
   *
@@ -65,7 +64,7 @@ import java.util.concurrent.atomic.AtomicReference
   *  - All the physical operators must have output ports so that we can use the existence of output ports to decide
   *    whether to `FinalizeExecutor()` for a worker. (See `OutputManager.finalizeOutput()`)
   *
-  * Under these assumptions, we can `transitionRegionExecutionPhase` for a region in this sequence:
+  * Under these assumptions, we can `syncStatusAndTransitionRegionExecutionPhase` for a region in this sequence:
   *
   * 0. `Unexecuted`
   *
@@ -103,7 +102,7 @@ class RegionExecutionCoordinator(
     * Check the status of `RegionExecution` again and transition this coordinator's phase to `Completed` only when the
     * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
     */
-  def syncCompletedStatus(): Future[Unit] = {
+  private def syncCompletedStatus(): Future[Unit] = {
     if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) return Future.Unit
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
@@ -134,18 +133,32 @@ class RegionExecutionCoordinator(
   def isCompleted: Boolean = currentPhaseRef.get == Completed
 
   /**
-    * This will transition the region execution phase from one to another depending on its current phase:
+    * This will sync and transition the region execution phase from one to another depending on its current phase:
     *
-    * `Unexecuted` -> `ExecutingDependeePortsPhase` -> `ExecutingNonDependeePortsPhase`
+    * `Unexecuted` -> `ExecutingDependeePortsPhase` -> `ExecutingNonDependeePortsPhase` -> `Completed`
     */
-  def transitionRegionExecutionPhase(): Future[Unit] =
+  def syncStatusAndTransitionRegionExecutionPhase(): Future[Unit] =
     currentPhaseRef.get match {
       case Unexecuted =>
         executeDependeePortPhase()
       case ExecutingDependeePortsPhase =>
-        executeNonDependeePortPhase()
+        val regionExecution = workflowExecution.getRegionExecution(region.id)
+        if (
+          region.getOperators.forall { op =>
+            val operatorExecution = regionExecution.getOperatorExecution(op.id)
+            op.dependeeInputs.forall { dependeePortId =>
+              operatorExecution.isInputPortCompleted(dependeePortId)
+            }
+          }
+        ) {
+          // All dependee ports are completed. Can proceed with the next phase.
+          executeNonDependeePortPhase()
+        } else {
+          // Some dependee ports are still executing. Continue with this phase.
+          Future.Unit
+        }
       case ExecutingNonDependeePortsPhase =>
-        // Do nothing as the completion status can only be marked by syncCompletedStatus()
+        syncCompletedStatus()
         Future.Unit
     }
 
@@ -153,7 +166,7 @@ class RegionExecutionCoordinator(
     currentPhaseRef.set(ExecutingDependeePortsPhase)
     if (!region.getOperators.exists(_.dependeeInputs.nonEmpty)) {
       // Skip to the next phase when there are no dependee input ports
-      return transitionRegionExecutionPhase()
+      return syncStatusAndTransitionRegionExecutionPhase()
     }
     val ops = region.getOperators.filter(_.dependeeInputs.nonEmpty)
 
