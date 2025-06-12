@@ -99,21 +99,22 @@ class RegionExecutionCoordinator(
   )
 
   /**
-    * Check the status of `RegionExecution` again and transition this coordinator's phase to `Completed` only when the
+    * Sync the status of `RegionExecution` and transition this coordinator's phase to `Completed` only when the
     * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
+    *
+    * Before transitioning the phase to `Completed`, this method will also terminate all the workers of this region.
     */
-  private def syncCompletedStatus(): Future[Unit] = {
+  private def tryCompleteRegionExecution(): Future[Unit] = {
     if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) return Future.Unit
 
     val regionExecution = workflowExecution.getRegionExecution(region.id)
     if (!regionExecution.isCompleted) return Future.Unit
 
     // collect all the graceful-stop futures
-    val kills: Seq[Future[EndWorkerResponse]] =
+    val workerTerminationRequests: Seq[Future[EndWorkerResponse]] =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
           opExec.getWorkerIds.map { wid =>
-            println(s"killing worker – $wid")
             val actorRef = actorRefService.getActorRef(wid)
             val actorRefStr = actorRef.path.toString
             asyncRPCClient.workerInterface
@@ -122,7 +123,7 @@ class RegionExecutionCoordinator(
       }.toSeq
 
     // wait for them, then discard the Seq[Boolean]
-    Future.collect(kills)
+    Future.collect(workerTerminationRequests)
 
     // transition to Completed
     currentPhaseRef.set(Completed)
@@ -158,7 +159,7 @@ class RegionExecutionCoordinator(
           Future.Unit
         }
       case ExecutingNonDependeePortsPhase =>
-        syncCompletedStatus()
+        tryCompleteRegionExecution()
     }
 
   private def executeDependeePortPhase(): Future[Unit] = {
