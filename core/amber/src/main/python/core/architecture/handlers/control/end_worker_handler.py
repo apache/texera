@@ -20,11 +20,12 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EndWorkerRequest,
     EndWorkerResponse,
 )
-from loguru import logger
+
+from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 
 
 class EndWorkerHandler(ControlHandler):
 
     async def end_worker(self, req: EndWorkerRequest) -> EndWorkerResponse:
-        logger.info("Received end worker request.")
+        self.context.state_manager.transit_to(WorkerState.TERMINATED)
         return EndWorkerResponse(success=True)

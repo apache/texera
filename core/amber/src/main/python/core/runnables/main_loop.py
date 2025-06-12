@@ -152,6 +152,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._process_channel_marker_payload,
         )
 
+        # Upon receiving EndWorker control message, terminate this worker.
+        if self.context.state_manager.get_current_state() == WorkerState.TERMINATED:
+            logger.info(f"Python worker {self.context.worker_id} exited.")
+            exit(0)
+
     def process_control_payload(
         self, tag: ChannelIdentity, payload: ControlPayloadV2
     ) -> None:
