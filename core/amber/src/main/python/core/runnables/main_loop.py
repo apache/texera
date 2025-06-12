@@ -91,7 +91,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
-
     def set_worker_shutdown_logic(self, worker_shutdown: callable) -> None:
         """
         Set the logic to invoke the Python Worker to shut down. Will be used
