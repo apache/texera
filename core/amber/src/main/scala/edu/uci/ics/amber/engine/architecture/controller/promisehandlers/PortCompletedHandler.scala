@@ -49,34 +49,31 @@ trait PortCompletedHandler {
       msg: PortCompletedRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    val globalPortId = GlobalPortIdentity(
-      VirtualIdentityUtils.getPhysicalOpId(ctx.sender),
-      msg.portId,
-      input = msg.input
-    )
-    cp.workflowExecutionCoordinator.getRegionOfPortId(globalPortId) match {
-      case Some(region) =>
-        val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
-        val operatorExecution =
-          regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(ctx.sender))
-        val workerExecution = operatorExecution.getWorkerExecution(ctx.sender)
+    controllerInterface
+      .controllerInitiateQueryStatistics(QueryStatisticsRequest(scala.Seq(ctx.sender)), CONTROLLER)
+      .map { _ =>
+        val globalPortId = GlobalPortIdentity(
+          VirtualIdentityUtils.getPhysicalOpId(ctx.sender),
+          msg.portId,
+          input = msg.input
+        )
+        cp.workflowExecutionCoordinator.getRegionOfPortId(globalPortId) match {
+          case Some(region) =>
+            val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
+            val operatorExecution =
+              regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(ctx.sender))
+            val workerExecution = operatorExecution.getWorkerExecution(ctx.sender)
 
-        // set the port on this worker to be completed
-        (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
-         else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
+            // set the port on this worker to be completed
+            (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
+             else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
 
-        // check if the port on this operator is completed
-        val isPortCompleted =
-          if (msg.input) operatorExecution.isInputPortCompleted(msg.portId)
-          else operatorExecution.isOutputPortCompleted(msg.portId)
+            // check if the port on this operator is completed
+            val isPortCompleted =
+              if (msg.input) operatorExecution.isInputPortCompleted(msg.portId)
+              else operatorExecution.isOutputPortCompleted(msg.portId)
 
-        if (isPortCompleted) {
-          controllerInterface
-            .controllerInitiateQueryStatistics(
-              QueryStatisticsRequest(scala.Seq(ctx.sender)),
-              CONTROLLER
-            )
-            .map { _ =>
+            if (isPortCompleted) {
               cp.workflowExecutionCoordinator
                 .coordinateRegionExecutors(cp.actorService)
                 // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
@@ -88,12 +85,11 @@ trait PortCompletedHandler {
                     sendToClient(FatalError(other, None))
                 }
             }
+          case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
+          // do nothing.
         }
-      case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
-      // do nothing.
-    }
-    EmptyReturn()
-
+        EmptyReturn()
+      }
   }
 
 }

@@ -41,6 +41,7 @@ class PythonWorker(Runnable, Stoppable):
         self._heartbeat = Heartbeat(host, output_port, 5, self._stop_event)
 
         self._main_loop = MainLoop(worker_id, self._input_queue, self._output_queue)
+        self._main_loop.set_worker_shutdown_logic(self.stop)
         self._network_receiver.register_shutdown(self.stop)
 
     @overrides
