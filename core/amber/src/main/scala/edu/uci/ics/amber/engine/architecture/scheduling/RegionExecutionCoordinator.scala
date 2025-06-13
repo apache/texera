@@ -39,7 +39,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EndWorkerResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   InputPortConfig,
   OperatorConfig,
@@ -111,7 +111,7 @@ class RegionExecutionCoordinator(
     if (!regionExecution.isCompleted) return Future.Unit
 
     // collect all the graceful-stop futures
-    val workerTerminationRequests: Seq[Future[EndWorkerResponse]] =
+    val workerTerminationRequests: Seq[Future[EmptyReturn]] =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
           opExec.getWorkerIds.map { wid =>

@@ -23,7 +23,7 @@ import akka.actor.ActorRef
 import akka.pattern.gracefulStop
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EndWorkerRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EndWorkerResponse
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.FutureBijection._
@@ -38,11 +38,11 @@ trait EndHandler {
   override def endWorker(
       request: EndWorkerRequest,
       ctx: AsyncRPCContext
-  ): Future[EndWorkerResponse] = {
+  ): Future[EmptyReturn] = {
     val selection = AmberRuntime.actorSystem.actorSelection(request.actorRefStr)
     val actorRef: ActorRef = Await.result(selection.resolveOne(3.seconds), 3.seconds)
     gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS))
       .asTwitter()
-      .map(f => EndWorkerResponse(f))
+      .map(f => EmptyReturn())
   }
 }

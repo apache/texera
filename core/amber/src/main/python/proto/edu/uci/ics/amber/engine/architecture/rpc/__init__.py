@@ -440,9 +440,6 @@ class ControlReturn(betterproto.Message):
     finalize_checkpoint_response: "FinalizeCheckpointResponse" = (
         betterproto.message_field(52, group="sealed_value")
     )
-    end_worker_response: "EndWorkerResponse" = betterproto.message_field(
-        53, group="sealed_value"
-    )
     control_error: "ControlError" = betterproto.message_field(101, group="sealed_value")
     """common responses"""
 
@@ -539,11 +536,6 @@ class WorkerStateResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class WorkerMetricsResponse(betterproto.Message):
     metrics: "_worker__.WorkerMetrics" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class EndWorkerResponse(betterproto.Message):
-    success: bool = betterproto.bool_field(1)
 
 
 class RpcTesterStub(betterproto.ServiceStub):
@@ -964,11 +956,11 @@ class WorkerServiceStub(betterproto.ServiceStub):
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "EndWorkerResponse":
+    ) -> "EmptyReturn":
         return await self._unary_unary(
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker",
             end_worker_request,
-            EndWorkerResponse,
+            EmptyReturn,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1520,9 +1512,7 @@ class WorkerServiceBase(ServiceBase):
     ) -> "WorkerStateResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def end_worker(
-        self, end_worker_request: "EndWorkerRequest"
-    ) -> "EndWorkerResponse":
+    async def end_worker(self, end_worker_request: "EndWorkerRequest") -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def debug_command(
@@ -1638,7 +1628,7 @@ class WorkerServiceBase(ServiceBase):
         await stream.send_message(response)
 
     async def __rpc_end_worker(
-        self, stream: "grpclib.server.Stream[EndWorkerRequest, EndWorkerResponse]"
+        self, stream: "grpclib.server.Stream[EndWorkerRequest, EmptyReturn]"
     ) -> None:
         request = await stream.recv_message()
         response = await self.end_worker(request)
@@ -1756,7 +1746,7 @@ class WorkerServiceBase(ServiceBase):
                 self.__rpc_end_worker,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EndWorkerRequest,
-                EndWorkerResponse,
+                EmptyReturn,
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/DebugCommand": grpclib.const.Handler(
                 self.__rpc_debug_command,
