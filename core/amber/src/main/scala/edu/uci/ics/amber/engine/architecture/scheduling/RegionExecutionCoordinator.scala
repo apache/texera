@@ -120,10 +120,8 @@ class RegionExecutionCoordinator(
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
           opExec.getWorkerIds.map { workerId =>
-            val actorRef = actorRefService.getActorRef(workerId)
-            val actorRefStr = actorRef.path.toString
             asyncRPCClient.workerInterface
-              .endWorker(EndWorkerRequest(actorRefStr), asyncRPCClient.mkContext(workerId))
+              .endWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
           }
       }.toSeq
 
