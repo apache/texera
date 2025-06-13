@@ -78,7 +78,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
-        self.worker_shutdown = None
+        self.worker_shutdown: Optional[callable] = None
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
