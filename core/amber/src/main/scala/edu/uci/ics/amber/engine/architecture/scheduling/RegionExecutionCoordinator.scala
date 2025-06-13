@@ -155,9 +155,9 @@ class RegionExecutionCoordinator(
 
     launchPhaseExecutionInternal(
       ops,
-      () => assignPorts(region, dependeePhase = true),
+      () => assignPorts(region, isDependeePhase = true),
       () => Future.value(Seq.empty),
-      () => sendStarts(region, dependeePhase = true)
+      () => sendStarts(region, isDependeePhase = true)
     )
   }
 
@@ -177,9 +177,9 @@ class RegionExecutionCoordinator(
 
     launchPhaseExecutionInternal(
       ops,
-      () => assignPorts(region, dependeePhase = false),
+      () => assignPorts(region, isDependeePhase = false),
       () => connectChannels(region.getLinks),
-      () => sendStarts(region, dependeePhase = false)
+      () => sendStarts(region, isDependeePhase = false)
     )
   }
 
@@ -294,7 +294,7 @@ class RegionExecutionCoordinator(
 
   private def assignPorts(
       region: Region,
-      dependeePhase: Boolean
+      isDependeePhase: Boolean
   ): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
@@ -305,7 +305,7 @@ class RegionExecutionCoordinator(
             .filter {
               case (portId, _) =>
                 // keep only the ports that belong to the requested phase
-                dependeePhase == physicalOp.dependeeInputs.contains(portId)
+                isDependeePhase == physicalOp.dependeeInputs.contains(portId)
             }
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
@@ -326,7 +326,7 @@ class RegionExecutionCoordinator(
 
           // assign output ports (only for non-dependee phase)
           val outputPortMapping =
-            if (dependeePhase) {
+            if (isDependeePhase) {
               Iterable.empty
             } else {
               physicalOp.outputPorts
@@ -417,7 +417,7 @@ class RegionExecutionCoordinator(
     )
     val allStarterOperators = region.getStarterOperators
     val starterOpsForThisPhase =
-      if (dependeePhase) allStarterOperators.filter(_.dependeeInputs.nonEmpty)
+      if (isDependeePhase) allStarterOperators.filter(_.dependeeInputs.nonEmpty)
       else allStarterOperators
     Future.collect(
       starterOpsForThisPhase
