@@ -43,6 +43,6 @@ trait EndHandler {
     val actorRef: ActorRef = Await.result(selection.resolveOne(3.seconds), 3.seconds)
     gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS))
       .asTwitter()
-      .map(f => EmptyReturn())
+      .map(_ => EmptyReturn())
   }
 }
