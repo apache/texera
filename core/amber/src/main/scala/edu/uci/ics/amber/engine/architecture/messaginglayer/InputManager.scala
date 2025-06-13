@@ -114,11 +114,10 @@ class InputManager(
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
-
   /**
-   * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
-   * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
-   */
+    * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
+    * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
+    */
   def isPortCompleted(portId: PortIdentity): Boolean = {
     if (
       !this.inputPortMaterializationReaderThreads
