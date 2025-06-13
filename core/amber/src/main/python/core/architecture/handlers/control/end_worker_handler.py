@@ -17,7 +17,8 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
-    EmptyReturn, EmptyRequest,
+    EmptyReturn,
+    EmptyRequest,
 )
 
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
