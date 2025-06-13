@@ -16,10 +16,23 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.amber.engine.common
+package edu.uci.ics.amber.config
 
-import akka.actor.Address
+import com.typesafe.config.{Config, ConfigFactory}
 
-object AmberConfig {
-  var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
+object UdfConfig {
+
+  // Load configuration
+  private val conf: Config = ConfigFactory.parseResources("udf.conf").resolve()
+
+  // Python specifics
+  val pythonPath: String = conf.getString("python.path")
+  val pythonLogStreamHandlerLevel: String = conf.getString("python.log.streamHandler.level")
+  val pythonLogStreamHandlerFormat: String = conf.getString("python.log.streamHandler.format")
+  val pythonLogFileHandlerDir: String = conf.getString("python.log.fileHandler.dir")
+  val pythonLogFileHandlerLevel: String = conf.getString("python.log.fileHandler.level")
+  val pythonLogFileHandlerFormat: String = conf.getString("python.log.fileHandler.format")
+
+  // R specifics
+  val rPath: String = conf.getString("r.path")
 }

@@ -22,7 +22,7 @@ package edu.uci.ics.texera.web
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.auth.SessionUser

@@ -23,9 +23,10 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.config.{ApplicationConfig, StorageConfig}
 import edu.uci.ics.amber.core.storage.DocumentFactory.ICEBERG
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
@@ -38,7 +39,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 }
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -287,7 +288,7 @@ class ExecutionResultService(
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
-  private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
+  private val resultPullingFrequency = ApplicationConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToExecution(

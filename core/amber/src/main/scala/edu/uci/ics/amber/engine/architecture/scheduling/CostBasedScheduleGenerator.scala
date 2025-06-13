@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.core.workflow.{
@@ -33,7 +34,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OutputPortConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
@@ -296,13 +297,13 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      if (AmberConfig.useTopDownSearch)
-        topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
+      if (ApplicationConfig.useTopDownSearch)
+        topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
       else
-        bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+        bottomUpSearch(globalSearch = ApplicationConfig.useGlobalSearch)
     }
     val searchResult = Try(
-      Await.result(searchResultFuture, AmberConfig.searchTimeoutMilliseconds.milliseconds)
+      Await.result(searchResultFuture, ApplicationConfig.searchTimeoutMilliseconds.milliseconds)
     ) match {
       case Failure(exception) =>
         exception match {

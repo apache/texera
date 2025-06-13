@@ -25,11 +25,12 @@ import akka.cluster.ClusterEvent._
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
@@ -108,7 +109,7 @@ class ClusterListener extends Actor with AmberLogging {
           if (
             executionService != null && executionService.executionStateStore.metadataStore.getState.state != COMPLETED
           ) {
-            if (AmberConfig.isFaultToleranceEnabled) {
+            if (ApplicationConfig.isFaultToleranceEnabled) {
               logger.info(
                 s"Trigger recovery process for execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )

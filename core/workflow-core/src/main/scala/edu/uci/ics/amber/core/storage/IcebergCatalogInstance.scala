@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 

@@ -24,7 +24,7 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.amber.util.PathUtils.fileServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}

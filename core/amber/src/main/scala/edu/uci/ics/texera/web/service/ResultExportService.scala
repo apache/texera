@@ -20,7 +20,8 @@
 package edu.uci.ics.texera.web.service
 
 import com.github.tototoshi.csv.CSVWriter
-import edu.uci.ics.amber.core.storage.{DocumentFactory, EnvironmentalVariable}
+import edu.uci.ics.amber.config.EnvironmentalVariable
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}

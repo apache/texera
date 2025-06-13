@@ -21,7 +21,8 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
+import edu.uci.ics.amber.config.{ApplicationConfig, StorageConfig}
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -32,7 +33,7 @@ import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThrough
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
+import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
@@ -149,12 +150,12 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     environment
       .servlets()
       .addServletListeners(
-        new WebsocketPayloadSizeTuner(AmberConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
+        new WebsocketPayloadSizeTuner(ApplicationConfig.maxWorkflowWebsocketRequestPayloadSizeKb)
       )
 
     if (UserSystemConfig.isUserSystemEnabled) {
-      val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
-      if (AmberConfig.cleanupAllExecutionResults) {
+      val timeToLive: Int = ApplicationConfig.sinkStorageTTLInSecs
+      if (ApplicationConfig.cleanupAllExecutionResults) {
         // do one time cleanup of collections that were not closed gracefully before restart/crash
         // retrieve all executions that were executing before the reboot.
         val allExecutionsBeforeRestart: List[WorkflowExecutions] =
@@ -172,7 +173,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
       }
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
-        AmberConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
+        ApplicationConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
       ) {
         recurringCheckExpiredResults(timeToLive)
       }

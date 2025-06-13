@@ -19,17 +19,16 @@
 
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.core.storage.{EnvironmentalVariable, StorageConfig}
+import edu.uci.ics.amber.config.{EnvironmentalVariable, StorageConfig}
 import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
 import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
+import edu.uci.ics.texera.config.{ComputingUnitConfig, KubernetesConfig}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import edu.uci.ics.texera.service.ComputingUnitConfig
-import edu.uci.ics.texera.service.KubernetesConfig
-import edu.uci.ics.texera.service.KubernetesConfig.{
+import KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
   maxNumOfRunningComputingUnitsPerUser,

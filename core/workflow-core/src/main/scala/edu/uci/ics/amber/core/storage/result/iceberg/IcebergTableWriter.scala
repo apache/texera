@@ -19,7 +19,7 @@
 
 package edu.uci.ics.amber.core.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.{Schema, Table}

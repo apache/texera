@@ -20,10 +20,10 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.Cancellable
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_FLUSH_NETWORK_BUFFER
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
@@ -32,8 +32,8 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class WorkerTimerService(actorService: AkkaActorService) {
 
-  private val enabledAdaptiveBatching = AmberConfig.enableAdaptiveNetworkBuffering
-  private val adaptiveBatchInterval = AmberConfig.adaptiveBufferingTimeoutMs
+  private val enabledAdaptiveBatching = ApplicationConfig.enableAdaptiveNetworkBuffering
+  private val adaptiveBatchInterval = ApplicationConfig.adaptiveBufferingTimeoutMs
 
   var adaptiveBatchingHandle: Option[Cancellable] = None
   var isPaused = false

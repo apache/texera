@@ -19,9 +19,10 @@
 
 package edu.uci.ics.texera.service.resource
 
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.model.OnDataset
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction

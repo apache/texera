@@ -21,6 +21,7 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.workflow.WorkflowContext
@@ -33,7 +34,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.amber.core.virtualidentity.{
   ChannelMarkerIdentity,
@@ -64,7 +64,7 @@ import edu.uci.ics.texera.config.UserSystemConfig
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
-  val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
+  val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
 
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
@@ -209,8 +209,8 @@ class WorkflowService(
 
     if (UserSystemConfig.isUserSystemEnabled) {
       // enable only if we have mysql
-      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+      if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
           s"${workflowContext.workflowId}/${workflowContext.executionId}/"
         )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {

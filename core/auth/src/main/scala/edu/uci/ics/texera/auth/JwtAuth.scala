@@ -19,6 +19,7 @@
 
 package edu.uci.ics.texera.auth
 
+import edu.uci.ics.texera.config.AuthConfig
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
 import org.jose4j.jws.JsonWebSignature

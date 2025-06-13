@@ -22,7 +22,7 @@ package edu.uci.ics.texera.service
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.resource.WorkflowCompilationResource

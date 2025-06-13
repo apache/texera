@@ -20,6 +20,7 @@
 package edu.uci.ics.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.config.AuthConfig
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.jose4j.jwt.JwtClaims
