@@ -27,5 +27,5 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 class EndWorkerHandler(ControlHandler):
 
     async def end_worker(self, req: EndWorkerRequest) -> EndWorkerResponse:
-        self.context.state_manager.transit_to(WorkerState.TERMINATED)
+        self.context.state_manager.transit_to(WorkerState.TERMINATING)
         return EndWorkerResponse(success=True)
