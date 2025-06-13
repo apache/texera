@@ -267,8 +267,13 @@ class DataProcessor(
               )
             }
             if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-              // assuming all the output ports finalize after all input ports are finalized.
-              outputManager.finalizeOutput()
+
+              // Need this check for handling input port dependency relationships.
+              // See documentation of isMissingOutputPort
+              if (!outputManager.isMissingOutputPort) {
+                // assuming all the output ports finalize after all input ports are finalized.
+                outputManager.finalizeOutput()
+              }
             }
         }
     }

@@ -157,7 +157,6 @@ class CostBasedScheduleGenerator(
         // Contains both frontend-specified and scheduler-decided ports that require materailizations.
         val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] =
           matEdges
-            .diff(physicalPlan.getDependeeLinks) // non‑dependee mat edges only
             .filter(e => operators.contains(e.fromOpId))
             .map(e => GlobalPortIdentity(e.fromOpId, e.fromPortId)) ++
             outputPortIdsToViewResult
@@ -206,10 +205,8 @@ class CostBasedScheduleGenerator(
     // Pass 2 – add input‑port storage configs (reader URIs)
 
     regionsWithOnlyOutputPortURIs.map { existingRegion =>
-      val nonDepMatEdges: Set[PhysicalLink] = matEdges.diff(physicalPlan.getDependeeLinks)
-
       // MatEdges that originally connected to the input ports of this region.
-      val relevantMatEdges: Set[PhysicalLink] = nonDepMatEdges.filter { matEdge =>
+      val relevantMatEdges: Set[PhysicalLink] = matEdges.filter { matEdge =>
         existingRegion.getOperators.exists(_.id == matEdge.toOpId)
       }
 
@@ -326,7 +323,6 @@ class CostBasedScheduleGenerator(
     )
 
     val regionDAG = searchResult.regionDAG
-    populateDependeeLinks(regionDAG)
     allocateResource(regionDAG)
     regionDAG
   }

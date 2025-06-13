@@ -106,6 +106,7 @@ class ExpansionGreedyScheduleGenerator(
               .getDownstreamPhysicalLinks(operatorId)
           })
           .filter(link => operatorIds.contains(link.fromOpId))
+          .diff(physicalPlan.getDependeeLinks) // dependee links should not belong to a region.
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
         val ports = operators.flatMap(op =>
           op.inputPorts.keys
@@ -388,6 +389,11 @@ class ExpansionGreedyScheduleGenerator(
 
     // the region is partially connected successfully.
     val regionDAG: DirectedAcyclicGraph[Region, RegionLink] = recConnectRegionDAG()
+
+    // also need to materialize all the dependee links.
+    physicalPlan.getDependeeLinks.foreach(link => {
+      physicalPlan = replaceLinkWithMaterialization(link, materializedOutputInputPortPairs)
+    })
 
     // try to add dependencies between materialization writer and reader regions
     try {

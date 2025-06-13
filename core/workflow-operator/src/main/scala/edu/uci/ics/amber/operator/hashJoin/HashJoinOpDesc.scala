@@ -22,7 +22,7 @@ package edu.uci.ics.amber.operator.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -98,7 +98,15 @@ class HashJoinOpDesc[K] extends LogicalOp {
           SchemaPropagationFunc(inputSchemas =>
             Map(
               PortIdentity(internal = true) -> Schema(
-                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY))
+                List(
+                  new Attribute(
+                    HASH_JOIN_INTERNAL_KEY_NAME,
+                    // Because we need to materialize the outputs of build, we cannot use ANY type.
+                    inputSchemas(operatorInfo.inputPorts.head.id)
+                      .getAttribute(buildAttributeName)
+                      .getType
+                  )
+                )
               ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )
@@ -129,7 +137,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withOutputPorts(List(probeOutputPort))
         .withPartitionRequirement(
-          List(Option(OneToOnePartition()), Option(HashPartition(List(probeAttributeName))))
+          List(
+            // Cannot use OneToOnePartition because it does not work with InputPortMaterializationReaderThreads.
+            Option(HashPartition(List(buildAttributeName))),
+            Option(HashPartition(List(probeAttributeName)))
+          )
         )
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)

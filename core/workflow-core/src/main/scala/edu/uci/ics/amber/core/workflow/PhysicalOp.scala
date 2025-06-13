@@ -203,7 +203,7 @@ case class PhysicalOp(
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
-  private lazy val dependeeInputs: List[PortIdentity] =
+  lazy val dependeeInputs: List[PortIdentity] =
     inputPorts.values
       .flatMap({
         case (port, _, _) => port.dependencies
