@@ -71,6 +71,9 @@ class InputManager(
       uris: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
+    if (uris.isEmpty) {
+      return
+    }
     val readerThreads = uris.zip(partitionings).map {
       case (uri, partitioning) =>
         new InputPortMaterializationReaderThread(
@@ -89,11 +92,24 @@ class InputManager(
   }
 
   def startInputPortReaderThreads(): Unit = {
-    this.inputPortMaterializationReaderThreads.values.foreach(threadList =>
-      threadList.foreach(readerThread => {
-        readerThread.start()
-      })
-    )
+    this.inputPortMaterializationReaderThreads
+      .filterNot {
+        // A completed port should not be started again
+        case (portId, _) => this.isPortCompleted(portId)
+      }
+      .values
+      .foreach(threadList =>
+        threadList.foreach(readerThread => {
+          try {
+            readerThread.start()
+          } catch {
+            case e: Exception =>
+              throw new RuntimeException(
+                s"Error starting input port materialization reader thread: ${e.getMessage}"
+              )
+          }
+        })
+      )
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)

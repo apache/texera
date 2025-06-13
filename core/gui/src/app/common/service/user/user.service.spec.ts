@@ -22,6 +22,7 @@ import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";
 import { skip } from "rxjs/operators";
+import { commonTestProviders } from "../../testing/test-utils";
 
 describe("UserService", () => {
   let service: UserService;
@@ -29,7 +30,7 @@ describe("UserService", () => {
   beforeEach(() => {
     AuthService.removeAccessToken();
     TestBed.configureTestingModule({
-      providers: [UserService, { provide: AuthService, useClass: StubAuthService }],
+      providers: [UserService, { provide: AuthService, useClass: StubAuthService }, ...commonTestProviders],
     });
 
     service = TestBed.inject(UserService);

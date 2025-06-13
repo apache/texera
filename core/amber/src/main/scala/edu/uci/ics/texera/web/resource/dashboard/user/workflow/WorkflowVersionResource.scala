@@ -20,10 +20,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
@@ -54,7 +54,7 @@ object WorkflowVersionResource {
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
-    AmberConfig.workflowVersionCollapseIntervalInMinutes * 60000
+    UserSystemConfig.workflowVersionCollapseIntervalInMinutes * 60000
   // list of Json keys in the diff patch that are considered UNimportant
   private final val VERSION_UNIMPORTANCE_RULES = List("/operatorPositions/")
   private final val SNAPSHOT_UNIMPORTANCE_RULES = List("replace")
