@@ -19,8 +19,8 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import akka.pattern.gracefulStop
 import com.twitter.util.Future
-import java.util.concurrent.atomic.AtomicReference
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
@@ -47,9 +47,14 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import scala.concurrent.duration.Duration
 
 /**
   * The executor of a region.
@@ -110,7 +115,7 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
     if (!regionExecution.isCompleted) return Future.Unit
 
-    // collect all the graceful-stop futures
+    // Send one last control message to all the completed workers
     val workerTerminationRequests: Seq[Future[EmptyReturn]] =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
@@ -122,8 +127,21 @@ class RegionExecutionCoordinator(
           }
       }.toSeq
 
-    // wait for them, then discard the Seq[Boolean]
+    // Wait for each worker to send back the final response
     Future.collect(workerTerminationRequests)
+
+    // Now we can safely kill each worker
+    val gracefulStops: Seq[Future[Boolean]] =
+      regionExecution.getAllOperatorExecutions.flatMap {
+        case (_, opExec) =>
+          opExec.getWorkerIds.map { workerId =>
+            val actorRef = actorRefService.getActorRef(workerId)
+            gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
+          }
+      }.toSeq
+
+    // Wait for all the workers are stopped
+    Future.collect(gracefulStops)
 
     // transition to Completed
     currentPhaseRef.set(Completed)

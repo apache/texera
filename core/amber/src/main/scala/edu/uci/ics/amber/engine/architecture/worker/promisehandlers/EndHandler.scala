@@ -19,30 +19,26 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import akka.actor.ActorRef
-import akka.pattern.gracefulStop
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EndWorkerRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, EndWorkerRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.AmberRuntime
-import edu.uci.ics.amber.engine.common.FutureBijection._
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Await
-import scala.concurrent.duration.{Duration, _}
-
+/**
+ * The EndWorker control messages is needed to ensure all the other control messages in a worker
+ * are processed.
+ */
 trait EndHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
+  /**
+   * The response of endWorker to the controller indicates that this worker has finished not only
+   * the data processing logic, but also processing all the control messages.
+   */
   override def endWorker(
-      request: EndWorkerRequest,
+      request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    val selection = AmberRuntime.actorSystem.actorSelection(request.actorRefStr)
-    val actorRef: ActorRef = Await.result(selection.resolveOne(3.seconds), 3.seconds)
-    gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS))
-      .asTwitter()
-      .map(_ => EmptyReturn())
+    EmptyReturn()
   }
 }

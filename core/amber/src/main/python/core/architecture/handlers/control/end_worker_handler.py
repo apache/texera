@@ -17,8 +17,7 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
-    EndWorkerRequest,
-    EmptyReturn,
+    EmptyReturn, EmptyRequest,
 )
 
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
@@ -26,6 +25,6 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 
 class EndWorkerHandler(ControlHandler):
 
-    async def end_worker(self, req: EndWorkerRequest) -> EmptyReturn:
+    async def end_worker(self, req: EmptyRequest) -> EmptyReturn:
         self.context.state_manager.transit_to(WorkerState.TERMINATING)
         return EmptyReturn()
