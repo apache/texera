@@ -20,7 +20,7 @@
 package edu.uci.ics.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.EnvironmentalVariable
+import edu.uci.ics.amber.config.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument.{
   fileServiceGetPresignURLEndpoint,
   userJwtToken

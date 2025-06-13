@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
 import akka.serialization.{Serialization, SerializationExtension}
-import com.typesafe.config.ConfigFactory.defaultApplication
+import edu.uci.ics.amber.config.AkkaConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
@@ -89,8 +89,7 @@ object AmberRuntime {
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config =
-    ConfigFactory.load("cluster").withFallback(defaultApplication()).resolve()
+  def akkaConfig: Config = AkkaConfig.akkaConfig
 
   private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 

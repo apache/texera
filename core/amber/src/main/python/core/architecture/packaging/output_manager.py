@@ -94,11 +94,11 @@ class OutputManager:
         which we currently use a two-phase region execution scheme.
         (See `RegionExecutionCoordinator.scala` for details.)
         This logic will only be executed when the worker is part of an
-        `executingDependeePort` region-execution phase.
+        `executingDependeePortPhase` region-execution phase.
         We currently assume that in this phase the operator (worker) will
         not output any data, hence no output ports.
         However we still need to keep this worker open for the next
-        `executingNonDependeePort` phase.
+        `executingNonDependeePortPhase` phase.
         :return: Whether this worker currently does not have any output port.
         """
         return not self._ports
