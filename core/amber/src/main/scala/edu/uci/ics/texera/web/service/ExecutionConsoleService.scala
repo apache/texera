@@ -22,13 +22,13 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   EvaluatePythonExpressionRequest,
   DebugCommandRequest => AmberDebugCommandRequest
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.{
   EvaluatedValueList,
@@ -132,8 +132,8 @@ class ExecutionConsoleService(
 
   registerCallbackOnPythonConsoleMessage()
 
-  val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
-  val consoleMessageDisplayLength: Int = AmberConfig.consoleMessageDisplayLength
+  val bufferSize: Int = ApplicationConfig.operatorConsoleBufferSize
+  val consoleMessageDisplayLength: Int = ApplicationConfig.consoleMessageDisplayLength
 
   private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
     mutable.Map()

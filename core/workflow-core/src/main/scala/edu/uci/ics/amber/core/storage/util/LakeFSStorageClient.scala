@@ -19,13 +19,13 @@
 
 package edu.uci.ics.amber.core.storage.util
 
+import edu.uci.ics.amber.config.StorageConfig
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model._
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.Files
 import scala.jdk.CollectionConverters._
-import edu.uci.ics.amber.core.storage.StorageConfig
 import io.lakefs.clients.sdk.model.ResetCreation.TypeEnum
 
 /**
