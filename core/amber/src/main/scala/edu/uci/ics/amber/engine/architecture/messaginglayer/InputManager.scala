@@ -123,10 +123,6 @@ class InputManager(
       !this.inputPortMaterializationReaderThreads
         .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
     ) {
-      // a port without channels is not completed.
-      if (this.ports(portId).channels.isEmpty) {
-        return false
-      }
       this.getPort(portId).completed
     } else {
       val existingThread = this.inputPortMaterializationReaderThreads(portId).head
