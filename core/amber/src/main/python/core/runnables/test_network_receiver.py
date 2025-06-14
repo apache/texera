@@ -206,7 +206,7 @@ class TestNetworkReceiver:
                 tag=channel_id,
                 payload=ChannelMarkerPayload(
                     marker_id,
-                    ChannelMarkerType.REQUIRE_ALIGNMENT,
+                    ChannelMarkerType.ALL_ALIGNMENT,
                     scope,
                     command_mapping,
                 ),
@@ -214,7 +214,7 @@ class TestNetworkReceiver:
         )
         element: DataElement = output_queue.get()
         assert isinstance(element.payload, ChannelMarkerPayload)
-        assert element.payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT
+        assert element.payload.marker_type == ChannelMarkerType.ALL_ALIGNMENT
         assert element.payload.id == marker_id
         assert element.payload.command_mapping == command_mapping
         assert element.payload.scope == scope

@@ -20,20 +20,40 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.config.ApplicationConfig
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, Marker, StartOfInputChannel}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.toPartitioner
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  PORT_ALIGNMENT
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  ControlInvocation,
+  EmptyRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
+  METHOD_START_CHANNEL
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
 }
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
-
+import io.grpc.MethodDescriptor
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
@@ -68,7 +88,7 @@ class InputPortMaterializationReaderThread(
     */
   override def run(): Unit = {
     // Notify the input port of start of input channel
-    emitMarker(StartOfInputChannel())
+    emitChannelMarker(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
       val materialization: VirtualDocument[Tuple] = DocumentFactory
         .openDocument(uri)
@@ -92,7 +112,7 @@ class InputPortMaterializationReaderThread(
       }
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
-      emitMarker(EndOfInputChannel())
+      emitChannelMarker(METHOD_END_CHANNEL, PORT_ALIGNMENT)
       isFinished.set(true)
     } catch {
       case e: Exception =>
@@ -101,11 +121,27 @@ class InputPortMaterializationReaderThread(
   }
 
   /**
-    * Puts a marker into the internal queue.
+    * Puts a channel marker into the internal queue.
     */
-  private def emitMarker(marker: Marker): Unit = {
+  private def emitChannelMarker(
+      method: MethodDescriptor[EmptyRequest, EmptyReturn],
+      alignment: ChannelMarkerType
+  ): Unit = {
     flush()
-    val markerPayload = MarkerFrame(marker)
+    val markerPayload = ChannelMarkerPayload(
+      ChannelMarkerIdentity(method.getBareMethodName),
+      alignment,
+      Seq(),
+      Map(
+        workerActorId.name ->
+          ControlInvocation(
+            method.getBareMethodName,
+            EmptyRequest(),
+            AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+            -1
+          )
+      )
+    )
     val fifoMessage = WorkflowFIFOMessage(channelId, getSequenceNumber, markerPayload)
     val inputQueueElement = FIFOMessageElement(fifoMessage)
     inputMessageQueue.put(inputQueueElement)

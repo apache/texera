@@ -36,6 +36,27 @@ from ..architecture import (
 
 
 @dataclass(eq=False, repr=False)
+class Backpressure(betterproto.Message):
+    enable_backpressure: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CreditUpdate(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class ActorCommand(betterproto.Message):
+    backpressure: "Backpressure" = betterproto.message_field(1, group="sealed_value")
+    credit_update: "CreditUpdate" = betterproto.message_field(2, group="sealed_value")
+
+
+@dataclass(eq=False, repr=False)
+class PythonActorMessage(betterproto.Message):
+    payload: "ActorCommand" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlPayloadV2(betterproto.Message):
     control_invocation: "_architecture_rpc__.ControlInvocation" = (
         betterproto.message_field(1, group="value")
@@ -150,24 +171,3 @@ class ExecutionMetadataStore(betterproto.Message):
     fatal_errors: List["__core__.WorkflowFatalError"] = betterproto.message_field(2)
     execution_id: "__core__.ExecutionIdentity" = betterproto.message_field(3)
     is_recovering: bool = betterproto.bool_field(4)
-
-
-@dataclass(eq=False, repr=False)
-class Backpressure(betterproto.Message):
-    enable_backpressure: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class CreditUpdate(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class ActorCommand(betterproto.Message):
-    backpressure: "Backpressure" = betterproto.message_field(1, group="sealed_value")
-    credit_update: "CreditUpdate" = betterproto.message_field(2, group="sealed_value")
-
-
-@dataclass(eq=False, repr=False)
-class PythonActorMessage(betterproto.Message):
-    payload: "ActorCommand" = betterproto.message_field(1)

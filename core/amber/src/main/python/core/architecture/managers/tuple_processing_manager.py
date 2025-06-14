@@ -18,6 +18,7 @@
 from threading import Event, Condition
 from typing import Optional, Tuple, Iterator
 
+from core.models import InternalMarker
 from proto.edu.uci.ics.amber.core import PortIdentity
 
 
@@ -27,8 +28,13 @@ class TupleProcessingManager:
         self.current_input_port_id: Optional[PortIdentity] = None
         self.current_input_tuple_iter: Optional[Iterator[Tuple]] = None
         self.current_output_tuple: Optional[Tuple] = None
+        self.current_internal_marker: Optional[InternalMarker] = None
         self.context_switch_condition: Condition = Condition()
         self.finished_current: Event = Event()
+
+    def get_internal_marker(self) -> Optional[InternalMarker]:
+        ret, self.current_internal_marker = self.current_internal_marker, None
+        return ret
 
     def get_input_tuple(self) -> Optional[Tuple]:
         ret, self.current_input_tuple = self.current_input_tuple, None

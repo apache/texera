@@ -66,6 +66,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from typing import Union
 
 
 class OutputManager:
@@ -150,7 +151,7 @@ class OutputManager:
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
 
-    def get_output_channel_ids(self):
+    def get_output_channel_ids(self) -> typing.List[ChannelIdentity]:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, tuple_: Tuple, port_id=None) -> None:
@@ -223,7 +224,7 @@ class OutputManager:
 
     def emit_marker_to_channel(
         self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[DataPayload]:
+    ) -> Iterable[Union[DataPayload, ChannelMarkerPayload]]:
         return chain(
             *(
                 (

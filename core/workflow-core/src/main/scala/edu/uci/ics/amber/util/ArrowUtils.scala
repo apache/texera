@@ -41,7 +41,6 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 
 import java.nio.charset.StandardCharsets
 import java.util
-import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 

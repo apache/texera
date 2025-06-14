@@ -115,19 +115,15 @@ class InputManager(
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
   /**
-    * For ports that read from materializations, the port completion is marked by the finish of the reader thread.
-    * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
+    * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
+    * For other ports that connect to upstream links, the completion is marked by the completion the port.
     */
   def isPortCompleted(portId: PortIdentity): Boolean = {
     if (
       !this.inputPortMaterializationReaderThreads
         .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
     ) {
-      // a port without channels is not completed.
-      if (this.ports(portId).channels.isEmpty) {
-        return false
-      }
-      this.ports(portId).channels.values.forall(completed => completed)
+      this.getPort(portId).completed
     } else {
       val existingThread = this.inputPortMaterializationReaderThreads(portId).head
       existingThread.finished
