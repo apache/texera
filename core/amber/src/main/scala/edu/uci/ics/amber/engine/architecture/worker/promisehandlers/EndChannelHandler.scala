@@ -55,7 +55,7 @@ trait EndChannelHandler {
       FinalizePort(portId, input = true)
     )
 
-    if (dp.inputManager.getAllPorts.forall(portId => dp.inputManager.getPort(portId).completed)) {
+    if (dp.inputManager.getAllPorts.forall(portId => dp.inputManager.isPortCompleted(portId))) {
       // assuming all the output ports finalize after all input ports are finalized.
       dp.outputManager.finalizeOutput()
     }

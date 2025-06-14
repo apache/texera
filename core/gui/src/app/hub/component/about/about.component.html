@@ -69,7 +69,7 @@
     </div>
     <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
       <texera-local-login
-        *ngIf="localLogin"
+        *ngIf="this.config.env.localLogin"
         class="login-container"
         nz-col
         nzFlex="300px">

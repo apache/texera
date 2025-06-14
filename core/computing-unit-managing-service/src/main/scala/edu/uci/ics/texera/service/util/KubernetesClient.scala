@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.service.util
 
-import edu.uci.ics.texera.service.KubernetesConfig
+import edu.uci.ics.texera.config.KubernetesConfig
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
 import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientBuilder}

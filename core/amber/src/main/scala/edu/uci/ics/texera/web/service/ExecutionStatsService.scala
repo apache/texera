@@ -45,7 +45,7 @@ import edu.uci.ics.amber.engine.common.executionruntimestate.{
   OperatorStatistics,
   OperatorWorkerMapping
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
@@ -59,6 +59,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.time.Instant
@@ -71,7 +72,7 @@ class ExecutionStatsService(
 ) extends SubscriptionManager
     with LazyLogging {
   private val (metricsPersistThread, runtimeStatsWriter) = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       val thread = Executors.newSingleThreadExecutor()
       val uri = VFSURIFactory.createRuntimeStatisticsURI(
         workflowContext.workflowId,
@@ -94,7 +95,7 @@ class ExecutionStatsService(
   }
 
   private var lastPersistedMetrics: Option[Map[String, OperatorMetrics]] =
-    Option.when(AmberConfig.isUserSystemEnabled)(Map.empty[String, OperatorMetrics])
+    Option.when(UserSystemConfig.isUserSystemEnabled)(Map.empty[String, OperatorMetrics])
 
   registerCallbacks()
 

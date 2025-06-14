@@ -25,7 +25,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, StateFrame}
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
-
 import scala.collection.mutable.ArrayBuffer
 
 trait Partitioner extends Serializable {
@@ -37,7 +36,7 @@ trait Partitioner extends Serializable {
 class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
-    val batchSize: Int = AmberConfig.defaultDataTransferBatchSize
+    val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()

@@ -71,6 +71,9 @@ class InputManager(
       uris: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
+    if (uris.isEmpty) {
+      return
+    }
     val readerThreads = uris.zip(partitionings).map {
       case (uri, partitioning) =>
         new InputPortMaterializationReaderThread(
@@ -89,14 +92,43 @@ class InputManager(
   }
 
   def startInputPortReaderThreads(): Unit = {
-    this.inputPortMaterializationReaderThreads.values.foreach(threadList =>
-      threadList.foreach(readerThread => {
-        readerThread.start()
-      })
-    )
+    this.inputPortMaterializationReaderThreads
+      .filterNot {
+        // A completed port should not be started again
+        case (portId, _) => this.isPortCompleted(portId)
+      }
+      .values
+      .foreach(threadList =>
+        threadList.foreach(readerThread => {
+          try {
+            readerThread.start()
+          } catch {
+            case e: Exception =>
+              throw new RuntimeException(
+                s"Error starting input port materialization reader thread: ${e.getMessage}"
+              )
+          }
+        })
+      )
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
+
+  /**
+    * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
+    * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
+    */
+  def isPortCompleted(portId: PortIdentity): Boolean = {
+    if (
+      !this.inputPortMaterializationReaderThreads
+        .contains(portId) || this.inputPortMaterializationReaderThreads(portId).isEmpty
+    ) {
+      this.getPort(portId).completed
+    } else {
+      val existingThread = this.inputPortMaterializationReaderThreads(portId).head
+      existingThread.finished
+    }
+  }
 
   def hasUnfinishedInput: Boolean = inputBatch != null && currentInputIdx + 1 < inputBatch.length
 

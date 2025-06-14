@@ -17,13 +17,14 @@
  * under the License.
  */
 
-package edu.uci.ics.texera.service
+package edu.uci.ics.texera.service.resource
 
-import com.typesafe.config.{Config, ConfigFactory}
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.{GET, Path, Produces}
 
-object ComputingUnitConfig {
-
-  private val conf: Config = ConfigFactory.parseResources("computing-unit.conf").resolve()
-
-  val localComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.local.enabled")
+@Path("/healthcheck")
+@Produces(Array(MediaType.APPLICATION_JSON))
+class HealthCheckResource {
+  @GET
+  def healthCheck: Map[String, String] = Map("status" -> "ok")
 }
