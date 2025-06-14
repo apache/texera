@@ -19,10 +19,10 @@
 
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, StateFrame}
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import scala.collection.mutable.ArrayBuffer
