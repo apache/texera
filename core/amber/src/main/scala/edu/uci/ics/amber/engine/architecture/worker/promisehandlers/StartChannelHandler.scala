@@ -39,7 +39,7 @@ trait StartChannelHandler {
     try {
       val outputState = dp.executor.produceStateOnStart(portId.id)
       if (outputState.isDefined) {
-        dp.outputManager.emitMarker(outputState.get)
+        dp.outputManager.emitState(outputState.get)
       }
     } catch safely {
       case e =>

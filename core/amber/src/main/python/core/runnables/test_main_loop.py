@@ -650,7 +650,6 @@ class TestMainLoop:
             ),
         )
 
-        # can process EndOfInputChannel
         input_queue.put(mock_end_of_upstream)
         output_queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
         # the input port should complete

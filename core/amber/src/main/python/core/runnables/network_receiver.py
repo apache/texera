@@ -32,7 +32,7 @@ from core.architecture.handlers.actorcommand.credit_update_handler import (
 )
 from core.models import (
     DataFrame,
-    MarkerFrame,
+    StateFrame,
 )
 from core.models.internal_queue import (
     DataElement,
@@ -40,7 +40,7 @@ from core.models.internal_queue import (
     InternalQueue,
     ChannelMarkerElement,
 )
-from core.models.marker import EndOfInputChannel, State, StartOfInputChannel
+from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -96,13 +96,9 @@ class NetworkReceiver(Runnable, Stoppable):
                 "Data",
                 lambda _: DataFrame(table),
                 "State",
-                lambda _: MarkerFrame(State(table)),
+                lambda _: StateFrame(State(table)),
                 "ChannelMarker",
                 lambda _: ChannelMarkerPayload().parse(table["payload"][0].as_py()),
-                "StartOfInputChannel",
-                MarkerFrame(StartOfInputChannel()),
-                "EndOfInputChannel",
-                MarkerFrame(EndOfInputChannel()),
             )
             if isinstance(payload, ChannelMarkerPayload):
                 for channel_id in payload.scope:

@@ -26,8 +26,7 @@ from core.models.internal_queue import (
     DataElement,
     ChannelMarkerElement,
 )
-from core.models.marker import EndOfInputChannel
-from core.models.payload import MarkerFrame, DataFrame
+from core.models.payload import DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -139,26 +138,6 @@ class TestNetworkReceiver:
         input_queue.put(DataElement(tag=channel_id, payload=data_payload))
         element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
-        assert element.tag == channel_id
-
-    @pytest.mark.timeout(10)
-    def test_network_receiver_can_receive_data_messages_end_of_upstream(
-        self,
-        data_payload,
-        output_queue,
-        input_queue,
-        network_receiver,
-        network_sender_thread,
-    ):
-        network_sender_thread.start()
-        worker_id = ActorVirtualIdentity(name="test")
-        channel_id = ChannelIdentity(worker_id, worker_id, False)
-        input_queue.put(
-            DataElement(tag=channel_id, payload=MarkerFrame(EndOfInputChannel()))
-        )
-        element: DataElement = output_queue.get()
-        assert isinstance(element.payload, MarkerFrame)
-        assert element.payload.frame == EndOfInputChannel()
         assert element.tag == channel_id
 
     @pytest.mark.timeout(10)

@@ -24,7 +24,7 @@ from .tuple import Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
-from .marker import State
+from .state import State
 from .operator import (
     Operator,
     TableOperator,
@@ -32,7 +32,7 @@ from .operator import (
     BatchOperator,
     SourceOperator,
 )
-from .payload import DataFrame, DataPayload, MarkerFrame
+from .payload import DataFrame, DataPayload, StateFrame
 
 
 class ExceptionInfo(NamedTuple):
@@ -44,7 +44,6 @@ class ExceptionInfo(NamedTuple):
 __all__ = [
     "InternalQueue",
     "InternalMarker",
-    "SenderChange",
     "Tuple",
     "TupleLike",
     "ArrowTableTupleProvider",
@@ -59,7 +58,7 @@ __all__ = [
     "SourceOperator",
     "DataFrame",
     "DataPayload",
-    "MarkerFrame",
+    "StateFrame",
     "ExceptionInfo",
     "AttributeType",
     "Field",

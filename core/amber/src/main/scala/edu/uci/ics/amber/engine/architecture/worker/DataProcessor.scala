@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{
   FinalizeExecutor,
   FinalizePort,
@@ -135,7 +135,7 @@ class DataProcessor(
     try {
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
+        outputManager.emitState(outputState.get)
       }
     } catch safely {
       case e =>
@@ -228,12 +228,8 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case MarkerFrame(marker) =>
-        marker match {
-          case state: State =>
-            processInputState(state, portId.id)
-          case _ =>
-        }
+      case StateFrame(state) =>
+        processInputState(state, portId.id)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }

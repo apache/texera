@@ -19,12 +19,12 @@
 
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.Tuple
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
-final case class MarkerFrame(frame: Marker) extends DataPayload
+final case class StateFrame(frame: State) extends DataPayload
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {

@@ -21,13 +21,14 @@ from typing import Iterator
 from overrides import overrides
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import Marker
+from core.models.state import State
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
     Partitioning,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 
 
 class OneToOnePartitioner(Partitioner):
@@ -51,23 +52,23 @@ class OneToOnePartitioner(Partitioner):
 
     @overrides
     def flush(
-        self, to: ActorVirtualIdentity, marker: Marker
-    ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
+        self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
+    ) -> Iterator[typing.Union[ChannelMarkerPayload, typing.List[Tuple]]]:
         if len(self.batch) > 0:
             yield self.batch
         self.reset()
         yield marker
 
     @overrides
-    def flush_marker(
-        self, marker: Marker
+    def flush_state(
+        self, state: State
     ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
     ]:
         if len(self.batch) > 0:
             yield self.receiver, self.batch
         self.reset()
-        yield self.receiver, marker
+        yield self.receiver, state
 
     @overrides
     def reset(self) -> None:

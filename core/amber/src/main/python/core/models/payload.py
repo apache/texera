@@ -17,7 +17,7 @@
 
 from dataclasses import dataclass
 from pyarrow.lib import Table
-from core.models.marker import Marker
+from core.models.state import State
 
 
 @dataclass
@@ -31,5 +31,5 @@ class DataFrame(DataPayload):
 
 
 @dataclass
-class MarkerFrame(DataPayload):
-    frame: Marker
+class StateFrame(DataPayload):
+    frame: State

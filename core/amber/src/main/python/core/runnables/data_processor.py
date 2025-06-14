@@ -25,7 +25,6 @@ from typing import Iterator, Optional
 from core.architecture.managers import Context
 from core.models import ExceptionInfo, State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel
-from core.models.marker import Marker
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -53,7 +52,7 @@ class DataProcessor(Runnable, Stoppable):
         self._switch_context()
         while self._running.is_set():
             marker = self._context.tuple_processing_manager.get_internal_marker()
-            state = self._context.marker_processing_manager.get_input_marker()
+            state = self._context.state_processing_manager.get_input_marker()
             tuple_ = self._context.tuple_processing_manager.current_input_tuple
             if marker is not None:
                 self.process_internal_marker(marker)
@@ -89,7 +88,7 @@ class DataProcessor(Runnable, Stoppable):
         finally:
             self._switch_context()
 
-    def process_state(self, state: Marker) -> None:
+    def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
@@ -159,7 +158,7 @@ class DataProcessor(Runnable, Stoppable):
         """
         Set the output state after processing by the executor.
         """
-        self._context.marker_processing_manager.current_output_state = output_state
+        self._context.state_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
         """

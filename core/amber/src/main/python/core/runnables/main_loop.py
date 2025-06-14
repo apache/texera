@@ -38,7 +38,7 @@ from core.models.internal_queue import (
     ChannelMarkerElement,
     InternalQueueElement,
 )
-from core.models.marker import State
+from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
@@ -210,10 +210,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def process_input_state(self) -> None:
         self._switch_context()
-        output_state = self.context.marker_processing_manager.get_output_state()
+        output_state = self.context.state_processing_manager.get_output_state()
         self._switch_context()
         if output_state is not None:
-            for to, batch in self.context.output_manager.emit_marker(output_state):
+            for to, batch in self.context.output_manager.emit_state(output_state):
                 self._output_queue.put(
                     DataElement(
                         tag=ChannelIdentity(
@@ -253,7 +253,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_process_control()
 
     def _process_state(self, state_: State) -> None:
-        self.context.marker_processing_manager.current_input_marker = state_
+        self.context.state_processing_manager.current_input_state = state_
         self.process_input_state()
         self._check_and_process_control()
 
@@ -380,7 +380,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _send_channel_marker(
         self, channel_id: ChannelIdentity, marker_payload: ChannelMarkerPayload
     ) -> None:
-        for batch in self.context.output_manager.emit_marker_to_channel(
+        for batch in self.context.output_manager.emit_channel_marker(
             channel_id.to_worker_id, marker_payload
         ):
             tag = channel_id
