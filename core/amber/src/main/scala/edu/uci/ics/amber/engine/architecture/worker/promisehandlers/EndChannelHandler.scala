@@ -56,8 +56,12 @@ trait EndChannelHandler {
     )
 
     if (dp.inputManager.getAllPorts.forall(portId => dp.inputManager.isPortCompleted(portId))) {
-      // assuming all the output ports finalize after all input ports are finalized.
-      dp.outputManager.finalizeOutput()
+      // Need this check for handling input port dependency relationships.
+      // See documentation of isMissingOutputPort
+      if (!dp.outputManager.isMissingOutputPort) {
+        // assuming all the output ports finalize after all input ports are finalized.
+        dp.outputManager.finalizeOutput()
+      }
     }
     EmptyReturn()
   }
