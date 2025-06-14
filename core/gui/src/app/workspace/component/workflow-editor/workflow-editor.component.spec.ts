@@ -58,6 +58,7 @@ import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -90,6 +91,7 @@ describe("WorkflowEditorComponent", () => {
           { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
           WorkflowStatusService,
           ExecuteWorkflowService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));
@@ -194,6 +196,7 @@ describe("WorkflowEditorComponent", () => {
           ExecuteWorkflowService,
           UndoRedoService,
           WorkflowVersionService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));

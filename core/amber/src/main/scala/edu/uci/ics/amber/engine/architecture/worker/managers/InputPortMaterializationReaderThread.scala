@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, Marker, StartOfInputChannel}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
@@ -30,13 +31,12 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.collection.mutable.ArrayBuffer
 
 class InputPortMaterializationReaderThread(
@@ -55,7 +55,13 @@ class InputPortMaterializationReaderThread(
     ChannelIdentity(fromActorId, workerActorId, isControl = false)
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
-  private val batchSize = AmberConfig.defaultDataTransferBatchSize
+  private val batchSize = ApplicationConfig.defaultDataTransferBatchSize
+  private val isFinished = new AtomicBoolean(false)
+
+  /**
+    * Whether the reader thread has completed.
+    */
+  def finished: Boolean = isFinished.get()
 
   /**
     * Read from the materialization stoage, and mimcs the behavior of an upstream worker's output manager.
@@ -87,6 +93,7 @@ class InputPortMaterializationReaderThread(
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
       emitMarker(EndOfInputChannel())
+      isFinished.set(true)
     } catch {
       case e: Exception =>
         throw new RuntimeException(s"Error reading input port materializations: ${e.getMessage}", e)

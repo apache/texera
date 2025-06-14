@@ -61,6 +61,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
 import { of } from "rxjs";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -93,6 +94,7 @@ describe("SavedWorkflowSectionComponent", () => {
           useValue: new StubSearchService(testWorkflowEntries, mockUserInfo),
         },
         { provide: DownloadService, useValue: downloadServiceSpy },
+        ...commonTestProviders,
       ],
       imports: [
         FormsModule,

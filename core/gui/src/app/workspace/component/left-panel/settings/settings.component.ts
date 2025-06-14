@@ -21,10 +21,10 @@ import { Component, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { environment } from "../../../../../environments/environment";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -42,22 +42,17 @@ export class SettingsComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private config: GuiConfigService
   ) {}
 
   ngOnInit(): void {
     this.currentDataTransferBatchSize =
       this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-      environment.defaultDataTransferBatchSize;
+      this.config.env.defaultDataTransferBatchSize;
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
-    });
-
-    this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
-      if (this.settingsForm.valid) {
-        this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
-      }
     });
 
     this.workflowActionService
@@ -66,7 +61,7 @@ export class SettingsComponent implements OnInit {
       .subscribe(() => {
         this.currentDataTransferBatchSize =
           this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
-          environment.defaultDataTransferBatchSize;
+          this.config.env.defaultDataTransferBatchSize;
         this.settingsForm.patchValue(
           { dataTransferBatchSize: this.currentDataTransferBatchSize },
           { emitEvent: false }

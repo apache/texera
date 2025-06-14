@@ -35,8 +35,8 @@ import {
 } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
-import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("DynamicSchemaService", () => {
   beforeEach(() => {
@@ -51,6 +51,7 @@ describe("DynamicSchemaService", () => {
         WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService,
+        ...commonTestProviders,
       ],
     });
   });

@@ -89,29 +89,17 @@ class OutputManager:
 
     def is_missing_output_ports(self):
         """
-        This method is only needed because of the current hacky design of
-        enforcing input port dependencies.
-        An operator with an input-port dependency relationship currently
-        belongs to two regions R1->R2.
-        In a previous design (before #3312), the depender port and the
-        output port of this operator also belongs to R1, so the completion
-        of the dependee port in R1 does not trigger finalizeOutput on the worker.
-        After #3312, R1 contains ONLY the dependee input port and no output
-        ports, so the completion of the dependee input port will trigger
-        finalizeOutput and indicate R1 is completed, causing the workers
-        of this operator to be closed prematurely.
-        An additional check is needed to ensure the workers of such an
-        operator is not finalized in R1 as it needs to remain open when
-        R2 is scheduled to execute: when a worker does not have any
-        output port (this will ONLY be true for the workers of this
-        operator in R1 as we no longer have sinks operators), this
-        worker needs to remain open. When the workers of this
-        operator is executed again in R2, the output port will
-        be assigned, and this check will pass.
-        TODO: Remove after implementation of a cleaner design of enforcing
-        input port dependencies that does not allow a worker to belong to
-        two regions.
-        :return: Whether this worker does not have any output port.
+        This method is only used for ensuring correct region execution.
+        Some operators may have input port dependency relationships, for
+        which we currently use a two-phase region execution scheme.
+        (See `RegionExecutionCoordinator.scala` for details.)
+        This logic will only be executed when the worker is part of an
+        `executingDependeePortPhase` region-execution phase.
+        We currently assume that in this phase the operator (worker) will
+        not output any data, hence no output ports.
+        However we still need to keep this worker open for the next
+        `executingNonDependeePortPhase` phase.
+        :return: Whether this worker currently does not have any output port.
         """
         return not self._ports
 
