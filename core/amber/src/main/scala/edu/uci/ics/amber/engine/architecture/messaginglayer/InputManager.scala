@@ -55,6 +55,10 @@ class InputManager(
       urisToRead: List[URI],
       partitionings: List[Partitioning]
   ): Unit = {
+    if(urisToRead.size != partitionings.size) {
+      println("refgerg", urisToRead.size)
+      println("2eff2wf", partitionings.size)
+    }
     assert(urisToRead.size == partitionings.size)
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
