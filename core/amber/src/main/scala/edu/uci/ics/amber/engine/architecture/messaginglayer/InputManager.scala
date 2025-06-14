@@ -116,7 +116,7 @@ class InputManager(
 
   /**
     * For ports that read from materialization, the port completion is marked by the finish of the reader thread.
-    * For other ports that connect to upstream links, the completion is marked by the completion of all its channels.
+    * For other ports that connect to upstream links, the completion is marked by the completion the port.
     */
   def isPortCompleted(portId: PortIdentity): Boolean = {
     if (
