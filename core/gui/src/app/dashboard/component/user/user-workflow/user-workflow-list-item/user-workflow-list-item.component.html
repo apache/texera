@@ -220,7 +220,7 @@
           nzType="delete"></i>
       </button>
     </nz-list-item-action>
-    <nz-list-item-action *ngIf="workflowExecutionsTrackingEnabled">
+    <nz-list-item-action *ngIf="this.config.env.workflowExecutionsTrackingEnabled">
       <button
         (click)="onClickGetWorkflowExecutions()"
         nz-button

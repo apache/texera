@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
 import edu.uci.ics.amber.core.storage.model._
 import edu.uci.ics.amber.core.storage.VFSResourceType._

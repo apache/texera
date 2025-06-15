@@ -19,8 +19,8 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.workflow.PhysicalOp
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
@@ -31,7 +31,7 @@ case object WorkerConfig {
         // Keep suggested number of workers
         case Some(num) => num
         // If no suggested number, use default value
-        case None => AmberConfig.numWorkerPerOperatorByDefault
+        case None => ApplicationConfig.numWorkerPerOperatorByDefault
       }
     } else {
       // Non parallelizable operator has only 1 worker

@@ -46,7 +46,7 @@ WORKDIR /core
 # Copy the built texera binary from the build phase
 COPY --from=build /core/target/file-service-0.1.0 /core/
 # Copy resources directories under /core from build phase
-COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
+COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
 
 CMD ["bin/file-service"]
