@@ -50,14 +50,22 @@ class ChannelMarkerManager:
                   continue, False otherwise.
         """
         marker_id = marker.id
-        self.marker_received[marker_id].add(from_channel)
 
+        self.marker_received[marker_id].add(from_channel)
         marker_received_from_all_channels = self.get_channels_within_scope(
             marker
         ).issubset(self.marker_received[marker_id])
 
-        if marker.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
+        if marker.marker_type == ChannelMarkerType.ALL_ALIGNMENT:
             epoch_marker_completed = marker_received_from_all_channels
+        elif marker.marker_type == ChannelMarkerType.PORT_ALIGNMENT:
+            port_id = self.input_gateway.get_port_id(from_channel)
+            marker_received_from_current_port = (
+                self.input_gateway.get_port(port_id)
+                .get_channels()
+                .issubset(self.marker_received[marker_id])
+            )
+            epoch_marker_completed = marker_received_from_current_port
         elif marker.marker_type == ChannelMarkerType.NO_ALIGNMENT:
             epoch_marker_completed = (
                 len(self.marker_received[marker_id]) == 1
@@ -73,9 +81,11 @@ class ChannelMarkerManager:
     def get_channels_within_scope(
         self, marker: ChannelMarkerPayload
     ) -> Dict["ChannelIdentity", "Channel"].keys:
-        upstreams = {
-            channel_id
-            for channel_id in marker.scope
-            if channel_id.to_worker_id == self.actor_id
-        }
-        return self.input_gateway.get_all_channel_ids() & upstreams
+        if marker.scope:
+            upstreams = {
+                channel_id
+                for channel_id in marker.scope
+                if channel_id.to_worker_id == self.actor_id
+            }
+            return self.input_gateway.get_all_channel_ids() & upstreams
+        return self.input_gateway.get_all_data_channel_ids()
