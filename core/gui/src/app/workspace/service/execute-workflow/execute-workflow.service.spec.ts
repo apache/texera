@@ -43,6 +43,7 @@ import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -78,6 +79,7 @@ describe("ExecuteWorkflowService", () => {
         { provide: DOCUMENT, useValue: mockDocument },
         { provide: AuthService, useClass: StubAuthService },
         { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
       ],
     });
 

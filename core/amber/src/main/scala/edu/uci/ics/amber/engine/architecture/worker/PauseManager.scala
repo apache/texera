@@ -60,7 +60,7 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
     }
     // need to resume specific input channels
     val pausedChannels = specificInputPauses.values.toSet
-    inputGateway.getAllDataChannels.foreach(_.enable(true))
+    inputGateway.getAllChannels.foreach(_.enable(true))
     pausedChannels.foreach { ChannelIdentity =>
       inputGateway.getChannel(ChannelIdentity).enable(false)
     }

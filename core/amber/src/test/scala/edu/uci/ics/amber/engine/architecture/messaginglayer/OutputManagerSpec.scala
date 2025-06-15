@@ -20,7 +20,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.core.marker.EndOfInputChannel
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -82,9 +81,6 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       (mockHandler.apply _).expects(
         mkDataMessage(fakeID, identifier, 2, DataFrame(tuples.slice(20, 21)))
       )
-      (mockHandler.apply _).expects(
-        mkDataMessage(fakeID, identifier, 3, MarkerFrame(EndOfInputChannel()))
-      )
     }
     val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
     val fakeReceiver =
@@ -97,7 +93,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { t =>
       outputManager.passTupleToDownstream(TupleLike(t.getFields).enforceSchema(schema), None)
     }
-    outputManager.emitMarker(EndOfInputChannel())
+    outputManager.flush()
   }
 
 }

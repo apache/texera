@@ -20,12 +20,17 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.EndOfInputChannel
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  EmptyRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
   METHOD_FLUSH_NETWORK_BUFFER,
   METHOD_OPEN_EXECUTOR
 }
@@ -34,17 +39,20 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
+  ChannelMarkerIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
@@ -74,6 +82,23 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val tuples: Array[Tuple] = (0 until 400)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
+  private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
+  private val logManager: ReplayLogManager =
+    ReplayLogManager.createLogManager(logStorage, "none", x => {})
+  private val endChannelPayload = ChannelMarkerPayload(
+    ChannelMarkerIdentity("EndChannel"),
+    ChannelMarkerType.PORT_ALIGNMENT,
+    Seq(),
+    Map(
+      testWorkerId.name ->
+        ControlInvocation(
+          METHOD_END_CHANNEL.getBareMethodName,
+          EmptyRequest(),
+          AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+          -1
+        )
+    )
+  )
 
   def mkDataProcessor: DataProcessor = {
     val dp: DataProcessor = new DataProcessor(
@@ -140,10 +165,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
-    dp.processDataPayload(
+    dp.processChannelMarker(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfInputChannel())
+      endChannelPayload,
+      logManager
     )
+
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
@@ -210,9 +237,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
-    dp.processDataPayload(
+    dp.processChannelMarker(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfInputChannel())
+      endChannelPayload,
+      logManager
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()

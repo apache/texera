@@ -20,10 +20,11 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.Cancellable
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
@@ -56,7 +57,7 @@ class AkkaMessageTransferService(
 
   def initialize(): Unit = {
     resendHandle = actorService.scheduleWithFixedDelay(30.seconds, 30.seconds, checkResend)
-    val pollingInterval = AmberConfig.creditPollingIntervalInMs.millis
+    val pollingInterval = ApplicationConfig.creditPollingIntervalInMs.millis
     creditPollingHandle =
       actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, checkCreditPolling)
   }

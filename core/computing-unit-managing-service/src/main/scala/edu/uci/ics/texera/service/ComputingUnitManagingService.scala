@@ -20,7 +20,7 @@
 package edu.uci.ics.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
