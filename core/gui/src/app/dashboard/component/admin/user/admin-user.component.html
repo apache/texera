@@ -178,10 +178,14 @@
           class="user-avatar"></texera-user-avatar>
       </td>
       <td>{{user.uid}}</td>
-      <td (click)="startEdit(user, 'name')">
+      <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'name'; else editNameTemplate">
-            <div class="container">{{user.name}}</div>
+            <div
+              class="container"
+              (click)="startEdit(user, 'name')">
+              {{user.name}}
+            </div>
           </ng-container>
           <ng-template #editNameTemplate>
             <input
@@ -189,14 +193,19 @@
               [(ngModel)]="editName"
               (keydown.enter)="saveEdit()"
               nz-input
+              (click)="$event.stopPropagation()"
               type="text" />
           </ng-template>
         </div>
       </td>
-      <td (click)="startEdit(user, 'email')">
+      <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
-            <div class="container">{{user.email}}</div>
+            <div
+              class="container"
+              (click)="startEdit(user, 'email')">
+              {{user.email}}
+            </div>
           </ng-container>
           <ng-template #editEmailTemplate>
             <input
@@ -205,14 +214,19 @@
               (keydown.enter)="saveEdit()"
               [email]="true"
               nz-input
+              (click)="$event.stopPropagation()"
               type="email" />
           </ng-template>
         </div>
       </td>
-      <td (click)="startEdit(user, 'comment')">
+      <td>
         <div (focusout)="saveEdit()">
           <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">
-            <div class="limited-comment container">{{ user.comment }}</div>
+            <div
+              class="limited-comment container"
+              (click)="startEdit(user, 'comment')">
+              {{ user.comment }}
+            </div>
           </ng-container>
           <ng-template #editCommentTemplate>
             <textarea
@@ -220,6 +234,7 @@
               [(ngModel)]="editComment"
               (keydown.enter)="saveEdit()"
               nz-input
+              (click)="$event.stopPropagation()"
               type="text"></textarea>
           </ng-template>
         </div>

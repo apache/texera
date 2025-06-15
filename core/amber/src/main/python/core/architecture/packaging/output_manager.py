@@ -41,8 +41,8 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, Schema, MarkerFrame
-from core.models.marker import Marker
+from core.models import Tuple, Schema, StateFrame
+from core.models.state import State
 from core.models.payload import DataPayload, DataFrame
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (
@@ -66,6 +66,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from typing import Union
 
 
 class OutputManager:
@@ -89,29 +90,17 @@ class OutputManager:
 
     def is_missing_output_ports(self):
         """
-        This method is only needed because of the current hacky design of
-        enforcing input port dependencies.
-        An operator with an input-port dependency relationship currently
-        belongs to two regions R1->R2.
-        In a previous design (before #3312), the depender port and the
-        output port of this operator also belongs to R1, so the completion
-        of the dependee port in R1 does not trigger finalizeOutput on the worker.
-        After #3312, R1 contains ONLY the dependee input port and no output
-        ports, so the completion of the dependee input port will trigger
-        finalizeOutput and indicate R1 is completed, causing the workers
-        of this operator to be closed prematurely.
-        An additional check is needed to ensure the workers of such an
-        operator is not finalized in R1 as it needs to remain open when
-        R2 is scheduled to execute: when a worker does not have any
-        output port (this will ONLY be true for the workers of this
-        operator in R1 as we no longer have sinks operators), this
-        worker needs to remain open. When the workers of this
-        operator is executed again in R2, the output port will
-        be assigned, and this check will pass.
-        TODO: Remove after implementation of a cleaner design of enforcing
-        input port dependencies that does not allow a worker to belong to
-        two regions.
-        :return: Whether this worker does not have any output port.
+        This method is only used for ensuring correct region execution.
+        Some operators may have input port dependency relationships, for
+        which we currently use a two-phase region execution scheme.
+        (See `RegionExecutionCoordinator.scala` for details.)
+        This logic will only be executed when the worker is part of an
+        `executingDependeePortPhase` region-execution phase.
+        We currently assume that in this phase the operator (worker) will
+        not output any data, hence no output ports.
+        However we still need to keep this worker open for the next
+        `executingNonDependeePortPhase` phase.
+        :return: Whether this worker currently does not have any output port.
         """
         return not self._ports
 
@@ -162,7 +151,7 @@ class OutputManager:
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
 
-    def get_output_channel_ids(self):
+    def get_output_channel_ids(self) -> typing.List[ChannelIdentity]:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, tuple_: Tuple, port_id=None) -> None:
@@ -233,9 +222,9 @@ class OutputManager:
             )
         )
 
-    def emit_marker_to_channel(
+    def emit_channel_marker(
         self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[DataPayload]:
+    ) -> Iterable[Union[DataPayload, ChannelMarkerPayload]]:
         return chain(
             *(
                 (
@@ -250,8 +239,8 @@ class OutputManager:
             )
         )
 
-    def emit_marker(
-        self, marker: Marker
+    def emit_state(
+        self, state: State
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -259,12 +248,12 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            MarkerFrame(payload)
-                            if isinstance(payload, Marker)
+                            StateFrame(payload)
+                            if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),
                     )
-                    for receiver, payload in partitioner.flush_marker(marker)
+                    for receiver, payload in partitioner.flush_marker(state)
                 )
                 for partitioner in self._partitioners.values()
             )

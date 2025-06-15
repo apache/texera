@@ -43,12 +43,33 @@ class WorkflowExecutionCoordinator(
     mutable.HashMap()
 
   /**
-    * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
+    * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionCoordintor`, after which each
+    * of the `RegionExecutionCoordintor`s will launch the corresponding next phase of whenever needed until it is
+    * in `Completed` status (phase).
+    *
+    * After the syncs, if there are no running region(s), it will start new regions (if available).
     */
-  def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
-    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
-      return Future(())
+  def coordinateRegionExecutors(actorService: AkkaActorService): Future[Unit] = {
+    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
+      // As this method is invoked by the completion of each port in a region, and regionExecutionCoordinator only
+      // lanuches each phase asynchronously, we need to let each current unfinished regionExecutionCoordinator
+      // sync its status and proceed with next phases if needed.
+      Future
+        .collect({
+          regionExecutionCoordinators.values
+            .filter(!_.isCompleted)
+            .map(_.syncStatusAndTransitionRegionExecutionPhase())
+            .toSeq
+        })
+        .unit
     }
+
+    if (regionExecutionCoordinators.values.exists(!_.isCompleted)) {
+      // Some regions are still not completed yet. Cannot start the new regions.
+      return Future.Unit
+    }
+
+    // All existing regions are completed. Start the next region (if any).
     Future
       .collect({
         val nextRegions = getNextRegions()
@@ -60,11 +81,12 @@ class WorkflowExecutionCoordinator(
               region,
               workflowExecution,
               asyncRPCClient,
-              controllerConfig
+              controllerConfig,
+              actorService
             )
             regionExecutionCoordinators(region.id)
           })
-          .map(_.execute(actorService))
+          .map(_.syncStatusAndTransitionRegionExecutionPhase())
           .toSeq
       })
       .unit

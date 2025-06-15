@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.core.workflow.{
@@ -33,7 +34,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OutputPortConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
@@ -156,7 +157,6 @@ class CostBasedScheduleGenerator(
         // Contains both frontend-specified and scheduler-decided ports that require materailizations.
         val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] =
           matEdges
-            .diff(physicalPlan.getDependeeLinks) // non‑dependee mat edges only
             .filter(e => operators.contains(e.fromOpId))
             .map(e => GlobalPortIdentity(e.fromOpId, e.fromPortId)) ++
             outputPortIdsToViewResult
@@ -205,10 +205,8 @@ class CostBasedScheduleGenerator(
     // Pass 2 – add input‑port storage configs (reader URIs)
 
     regionsWithOnlyOutputPortURIs.map { existingRegion =>
-      val nonDepMatEdges: Set[PhysicalLink] = matEdges.diff(physicalPlan.getDependeeLinks)
-
       // MatEdges that originally connected to the input ports of this region.
-      val relevantMatEdges: Set[PhysicalLink] = nonDepMatEdges.filter { matEdge =>
+      val relevantMatEdges: Set[PhysicalLink] = matEdges.filter { matEdge =>
         existingRegion.getOperators.exists(_.id == matEdge.toOpId)
       }
 
@@ -296,13 +294,13 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      if (AmberConfig.useTopDownSearch)
-        topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
+      if (ApplicationConfig.useTopDownSearch)
+        topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
       else
-        bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+        bottomUpSearch(globalSearch = ApplicationConfig.useGlobalSearch)
     }
     val searchResult = Try(
-      Await.result(searchResultFuture, AmberConfig.searchTimeoutMilliseconds.milliseconds)
+      Await.result(searchResultFuture, ApplicationConfig.searchTimeoutMilliseconds.milliseconds)
     ) match {
       case Failure(exception) =>
         exception match {
@@ -325,7 +323,6 @@ class CostBasedScheduleGenerator(
     )
 
     val regionDAG = searchResult.regionDAG
-    populateDependeeLinks(regionDAG)
     allocateResource(regionDAG)
     regionDAG
   }

@@ -22,7 +22,7 @@ from .console_message_manager import ConsoleMessageManager
 from .channel_marker_manager import ChannelMarkerManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
-from .marker_processing_manager import MarkerProcessingManager
+from .state_processing_manager import StateProcessingManager
 from .tuple_processing_manager import TupleProcessingManager
 from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
@@ -48,7 +48,7 @@ class Context:
         self.executor_manager = ExecutorManager()
         self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.tuple_processing_manager = TupleProcessingManager()
-        self.marker_processing_manager = MarkerProcessingManager()
+        self.state_processing_manager = StateProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
             {

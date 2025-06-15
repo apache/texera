@@ -21,6 +21,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
 import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;
@@ -40,7 +41,7 @@ describe("UserQuotaComponent", () => {
 
     TestBed.configureTestingModule({
       declarations: [UserQuotaComponent],
-      providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }],
+      providers: [{ provide: UserQuotaService, useValue: mockUserQuotaService }, ...commonTestProviders],
       imports: [HttpClientTestingModule],
     });
 

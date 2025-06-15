@@ -20,13 +20,13 @@
 package edu.uci.ics.texera.web.resource.aiassistant
 
 import com.typesafe.config.Config
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.config.ApplicationConfig
 
 import java.net.{HttpURLConnection, URL}
 
 object AiAssistantManager {
   // Optionally retrieve the configuration
-  private val aiAssistantConfigOpt: Option[Config] = AmberConfig.aiAssistantConfig
+  private val aiAssistantConfigOpt: Option[Config] = ApplicationConfig.aiAssistantConfig
   private val noAssistant: String = "NoAiAssistant"
   // Public variables, accessible from outside the object
   var accountKey: String = _

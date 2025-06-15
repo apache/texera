@@ -22,6 +22,7 @@ import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "./operator-metadata.service";
 import { mockOperatorMetaData } from "./mock-operator-metadata.data";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
@@ -31,7 +32,7 @@ describe("OperatorMetadataService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [OperatorMetadataService, HttpClient],
+      providers: [OperatorMetadataService, HttpClient, ...commonTestProviders],
     });
 
     httpClient = TestBed.get(HttpClient);
