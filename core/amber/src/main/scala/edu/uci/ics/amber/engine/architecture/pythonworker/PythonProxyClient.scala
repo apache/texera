@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
@@ -126,12 +126,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
-      case MarkerFrame(marker) =>
-        marker match {
-          case state: State =>
-            writeArrowStream(mutable.Queue(state.toTuple), from, marker.getClass.getSimpleName)
-          case _ => writeArrowStream(mutable.Queue.empty, from, marker.getClass.getSimpleName)
-        }
+      case StateFrame(state) =>
+        writeArrowStream(mutable.Queue(state.toTuple), from, "State")
     }
   }
 

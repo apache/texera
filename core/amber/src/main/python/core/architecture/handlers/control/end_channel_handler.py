@@ -15,19 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
-from core.models.marker import State, Marker
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
+from core.models.internal_marker import EndChannel
 
 
-class MarkerProcessingManager:
-    def __init__(self):
-        self.current_input_marker: Optional[Marker] = None
-        self.current_output_state: Optional[State] = None
-
-    def get_input_marker(self) -> Optional[State]:
-        ret, self.current_input_marker = self.current_input_marker, None
-        return ret
-
-    def get_output_state(self) -> Optional[State]:
-        ret, self.current_output_state = self.current_output_state, None
-        return ret
+class EndChannelHandler(ControlHandler):
+    async def end_channel(self, req: EmptyRequest) -> EmptyReturn:
+        self.context.input_manager.complete_current_port(
+            self.context.current_input_channel_id
+        )
+        self.context.tuple_processing_manager.current_internal_marker = EndChannel()
+        return EmptyReturn()

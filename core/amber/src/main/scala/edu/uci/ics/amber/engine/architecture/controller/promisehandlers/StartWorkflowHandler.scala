@@ -39,7 +39,7 @@ trait StartWorkflowHandler {
   ): Future[StartWorkflowResponse] = {
     if (cp.workflowExecution.getState.isUninitialized) {
       cp.workflowExecutionCoordinator
-        .executeNextRegions(cp.actorService)
+        .coordinateRegionExecutors(cp.actorService)
         .map(_ => {
           cp.controllerTimerService.enableStatusUpdate()
           StartWorkflowResponse(RUNNING)

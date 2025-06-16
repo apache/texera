@@ -20,24 +20,31 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AddInputChannelRequest,
-  AsyncRPCContext
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.NO_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_CHANNEL
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
+import edu.uci.ics.amber.error.ErrorUtils.safely
 
-trait AddInputChannelHandler {
+trait StartChannelHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def addInputChannel(
-      msg: AddInputChannelRequest,
+  override def startChannel(
+      request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    dp.inputGateway.getChannel(msg.channelId).setPortId(msg.portId)
-    dp.inputManager.getPort(msg.portId).channels.add(msg.channelId)
-    dp.stateManager.assertState(READY, RUNNING, PAUSED)
+    val portId = dp.inputGateway.getChannel(dp.inputManager.currentChannelId).getPortId
+    dp.sendChannelMarkerToDataChannels(METHOD_START_CHANNEL, NO_ALIGNMENT)
+    try {
+      val outputState = dp.executor.produceStateOnStart(portId.id)
+      if (outputState.isDefined) {
+        dp.outputManager.emitState(outputState.get)
+      }
+    } catch safely {
+      case e =>
+        dp.handleExecutorException(e)
+    }
     EmptyReturn()
   }
 }
