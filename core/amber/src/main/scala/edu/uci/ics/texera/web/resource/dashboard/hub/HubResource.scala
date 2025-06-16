@@ -21,22 +21,8 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{
-  fetchDashboardDatasetsByDids,
-  fetchDashboardWorkflowsByWids,
-  getUserLCCount,
-  getViewCount,
-  isLikedHelper,
-  recordLikeActivity,
-  recordUserActivity,
-  userRequest,
-  validateEntityType
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
-  DashboardWorkflow,
-  baseWorkflowSelect,
-  mapWorkflowEntries
-}
+import HubResource.{CountRequest, CountResponse, fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, getUserLCCount, getViewCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
 import org.jooq.impl.DSL
 
 import java.util
@@ -54,9 +40,12 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserA
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 
+import scala.collection.mutable.ListBuffer
+
 object HubResource {
   case class userRequest(entityId: Integer, userId: Integer, entityType: String)
-
+  case class CountRequest(entityId: Integer, entityType: String)
+  case class CountResponse(entityId: Integer, entityType: String, counts: java.util.Map[String, Int])
   /**
     * Defines the currently accepted resource types.
     * Modify this object to update the valid entity types across the system.
@@ -575,4 +564,110 @@ class HubResource {
 
     result.asJava
   }
+
+  @POST
+  @Path("/batch")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getBatchCounts(
+    requests: java.util.List[CountRequest]
+  ): java.util.List[CountResponse] = {
+    if (requests == null || requests.isEmpty)
+      throw new BadRequestException("Request body must not be empty")
+
+    val reqs: List[CountRequest] = requests.asScala.toList
+
+    val grouped: Map[String, Seq[Integer]] =
+      reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
+
+    val buffer = ListBuffer[CountResponse]()
+
+    grouped.foreach { case (etype, ids) =>
+      validateEntityType(etype)
+
+      val viewTbl = ViewCountTable(etype)
+      val viewMap: Map[Int, Int] =
+        context
+          .select(viewTbl.idColumn, viewTbl.viewCountColumn)
+          .from(viewTbl.table)
+          .where(viewTbl.idColumn.in(ids: _*))
+          .fetchMap(viewTbl.idColumn, viewTbl.viewCountColumn)
+          .asScala
+          .map { case (k, v) => k.intValue() -> v.intValue() }
+          .toMap
+
+      val likeTbl = LikeTable(etype)
+      val likeMap: Map[Int, Int] =
+        context
+          .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
+          .from(likeTbl.table)
+          .where(likeTbl.idColumn.in(ids: _*))
+          .groupBy(likeTbl.idColumn)
+          .fetch()
+          .asScala
+          .map { r =>
+            r.get(likeTbl.idColumn).intValue() ->
+              r.get("cnt", classOf[Integer]).intValue()
+          }
+          .toMap
+
+      val cloneTbl = CloneTable(etype)
+      val cloneMap: Map[Int, Int] =
+        context
+          .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
+          .from(cloneTbl.table)
+          .where(cloneTbl.idColumn.in(ids: _*))
+          .groupBy(cloneTbl.idColumn)
+          .fetch()
+          .asScala
+          .map { r =>
+            r.get(cloneTbl.idColumn).intValue() ->
+              r.get("cnt", classOf[Integer]).intValue()
+          }
+          .toMap
+
+      reqs.filter(_.entityType == etype).foreach { req =>
+        val key = req.entityId.intValue()
+        val v   = viewMap .getOrElse(key, 0)
+        val l   = likeMap .getOrElse(key, 0)
+        val c   = cloneMap.getOrElse(key, 0)
+
+        val counts = Map(
+          "view"  -> v,
+          "like"  -> l,
+          "clone" -> c
+        ).asJava
+
+        buffer += CountResponse(req.entityId, etype, counts)
+      }
+    }
+
+    buffer.toList.asJava
+  }
+
+
+//  @POST
+//  @Path("/batch")
+//  @Consumes(Array(MediaType.APPLICATION_JSON))
+//  def getBatchCounts(
+//    requests: java.util.List[CountRequest]
+//  ): java.util.List[CountResponse] = {
+//    println(requests)
+//    if (requests == null || requests.isEmpty)
+//      throw new BadRequestException("Request body must not be empty")
+//
+//    val allActions: java.util.List[String] = List("view", "like", "clone").asJava
+//
+//    val responses = scala.collection.mutable.ListBuffer[CountResponse]()
+//
+//    requests.asScala.foreach { req =>
+//      val counts: java.util.Map[String, Int] =
+//        getCounts(req.entityId, req.entityType, allActions)
+//
+//      responses += CountResponse(req.entityId, req.entityType, counts)
+//    }
+//
+//    println(responses.asJava)
+//    responses.asJava
+//  }
 }

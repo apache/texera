@@ -28,6 +28,7 @@ import { SortMethod } from "../../../type/sort-method";
 import { Location } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
+import { CountRequest, CountResponse, HubService } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -68,7 +69,8 @@ export class SearchComponent implements AfterViewInit {
     private searchService: SearchService,
     private userService: UserService,
     private activatedRoute: ActivatedRoute,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private hubService: HubService
   ) {
     this.userService
       .userChanged()
@@ -142,40 +144,76 @@ export class SearchComponent implements AfterViewInit {
         userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
       }
 
-      return {
-        entries: results.results.map(i => {
-          let entry: DashboardEntry;
-
-          if (i.workflow) {
-            entry = new DashboardEntry(i.workflow);
-            const userInfo = userIdToInfoMap[i.workflow.ownerId];
-            if (userInfo) {
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-          } else if (i.project) {
-            entry = new DashboardEntry(i.project);
-            const userInfo = userIdToInfoMap[i.project.ownerId];
-            if (userInfo) {
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-          } else if (i.dataset) {
-            entry = new DashboardEntry(i.dataset);
-            const ownerUid = i.dataset.dataset?.ownerUid;
-            if (ownerUid !== undefined) {
-              const userInfo = userIdToInfoMap[ownerUid];
-              if (userInfo) {
-                entry.setOwnerName(userInfo.userName);
-                entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-              }
-            }
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
+      const entries: DashboardEntry[] = results.results.map(i => {
+        let entry: DashboardEntry;
+        if (i.workflow) {
+          entry = new DashboardEntry(i.workflow);
+          const userInfo = userIdToInfoMap[i.workflow.ownerId];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
           }
+        } else if (i.project) {
+          entry = new DashboardEntry(i.project);
+          const userInfo = userIdToInfoMap[i.project.ownerId];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+        } else if (i.dataset) {
+          entry = new DashboardEntry(i.dataset);
+          const ownerUid = i.dataset.dataset?.ownerUid;
+          if (ownerUid !== undefined) {
+            const userInfo = userIdToInfoMap[ownerUid];
+            if (userInfo) {
+              entry.setOwnerName(userInfo.userName);
+              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            }
+          }
+        } else {
+          throw new Error("Unexpected type in SearchResult.");
+        }
 
-          return entry;
-        }),
+        return entry;
+      });
+
+      const countRequests: CountRequest[] = results.results.flatMap(i => {
+        if (i.workflow?.workflow.wid != null) {
+          return [{ entityId: i.workflow.workflow.wid, entityType: "workflow" }];
+        } else if (i.project) {
+          return [{ entityId: i.project.pid, entityType: "project" }];
+        } else if (i.dataset?.dataset.did != null) {
+          return [{ entityId: i.dataset.dataset.did, entityType: "dataset" }];
+        }
+        return [];
+      });
+
+      let countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
+      if (countRequests.length) {
+        const responses: CountResponse[] = await firstValueFrom(this.hubService.getBatchCounts(countRequests));
+        responses.forEach(r => {
+          const key = `${r.entityType}:${r.entityId}`;
+          countsMap[key] = r.counts;
+        });
+      }
+      console.log(countsMap)
+      entries.forEach(entry => {
+        if (entry.id == null || entry.type == null) {
+          console.warn("Skipping invalid entry without id/type", entry);
+          return;
+        }
+        const key = `${entry.type}:${entry.id}`;
+        const c = countsMap[key] || {};
+        entry.setCount(
+          c.view  ?? 0,
+          c.clone ?? 0,
+          c.like  ?? 0
+        );
+        console.log(entry)
+      });
+
+      return {
+        entries,
         more: results.more,
       };
     });

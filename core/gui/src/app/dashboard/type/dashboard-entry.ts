@@ -42,6 +42,9 @@ export class DashboardEntry {
   ownerGoogleAvatar: string | undefined;
   ownerId: number | undefined;
   size: number | undefined;
+  viewCount: number;
+  cloneCount: number;
+  likeCount: number;
 
   constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
     if (isDashboardWorkflow(value)) {
@@ -57,6 +60,9 @@ export class DashboardEntry {
       this.ownerGoogleAvatar = "";
       this.ownerId = value.ownerId;
       this.size = 0;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
     } else if (isDashboardProject(value)) {
       this.type = "project";
       this.id = value.pid;
@@ -70,6 +76,9 @@ export class DashboardEntry {
       this.ownerGoogleAvatar = "";
       this.ownerId = value.ownerId;
       this.size = 0;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
     } else if (isDashboardFile(value)) {
       this.type = "file";
       this.id = value.file.fid;
@@ -83,6 +92,9 @@ export class DashboardEntry {
       this.ownerGoogleAvatar = "";
       this.ownerId = value.file.ownerUid;
       this.size = value.file.size;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
     } else if (isDashboardDataset(value)) {
       this.type = "dataset";
       this.id = value.dataset.did;
@@ -96,6 +108,9 @@ export class DashboardEntry {
       this.ownerGoogleAvatar = "";
       this.ownerId = value.dataset.ownerUid;
       this.size = value.size;
+      this.viewCount = 0;
+      this.cloneCount = 0;
+      this.likeCount = 0;
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
@@ -107,6 +122,12 @@ export class DashboardEntry {
 
   setOwnerGoogleAvatar(ownerGoogleAvatar: string): void {
     this.ownerGoogleAvatar = ownerGoogleAvatar;
+  }
+
+  setCount(viewCount: number, cloneCount: number, likeCount: number): void {
+    this.viewCount = viewCount;
+    this.cloneCount = cloneCount;
+    this.likeCount = likeCount;
   }
 
   get project(): DashboardProject {

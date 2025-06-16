@@ -136,7 +136,7 @@
       nzFlex="55px"
       class="resource-info">
       Views:<br />
-      {{ formatCount(viewCount) }}
+      {{ formatCount(entry.viewCount) }}
     </div>
 
     <div
@@ -181,7 +181,7 @@
           [nzType]="'like'"
           [ngClass]="{liked: isLiked}">
         </i>
-        <span>{{ formatCount(likeCount) }}</span>
+        <span>{{ formatCount(entry.likeCount) }}</span>
       </button>
     </div>
   </div>
