@@ -565,6 +565,33 @@ class HubResource {
     result.asJava
   }
 
+  /**
+   * Batch endpoint to retrieve multiple count metrics (view, like, clone) for one or more entities.
+   *
+   * Example request:
+   *   POST /hub/batch
+   *   Content-Type: application/json
+   *   Body:
+   *   [
+   *     { "entityId": 123, "entityType": "workflow" },
+   *     { "entityId": 456, "entityType": "dataset" }
+   *   ]
+   *
+   * @param requests
+   *   A non-empty list of CountRequest objects, each containing:
+   *     - entityId   : the ID of the entity to count
+   *     - entityType : the type of the entity ("workflow", "dataset", etc.)
+   * @return
+   *   A list of CountResponse objects. Each response includes:
+   *     - entityId   : the same ID from the request
+   *     - entityType : the same type from the request
+   *     - counts     : a map of actionType -> count, e.g.
+   *                    { "view" -> 42, "like" -> 17, "clone" -> 0 }
+   *                  For entityType "dataset", clone count will always be zero.
+   * @throws BadRequestException
+   *   - if the request body is null or empty
+   *   - if any entityType in the requests is not supported
+   */
   @POST
   @Path("/batch")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -611,26 +638,30 @@ class HubResource {
           }
           .toMap
 
-      val cloneTbl = CloneTable(etype)
       val cloneMap: Map[Int, Int] =
-        context
-          .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
-          .from(cloneTbl.table)
-          .where(cloneTbl.idColumn.in(ids: _*))
-          .groupBy(cloneTbl.idColumn)
-          .fetch()
-          .asScala
-          .map { r =>
-            r.get(cloneTbl.idColumn).intValue() ->
-              r.get("cnt", classOf[Integer]).intValue()
-          }
-          .toMap
+        if (etype == "dataset") {
+          Map.empty[Int, Int]
+        } else {
+          val cloneTbl = CloneTable(etype)
+          context
+            .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
+            .from(cloneTbl.table)
+            .where(cloneTbl.idColumn.in(ids: _*))
+            .groupBy(cloneTbl.idColumn)
+            .fetch()
+            .asScala
+            .map { r =>
+              r.get(cloneTbl.idColumn).intValue() ->
+                r.get("cnt", classOf[Integer]).intValue()
+            }
+            .toMap
+        }
 
       reqs.filter(_.entityType == etype).foreach { req =>
         val key = req.entityId.intValue()
-        val v   = viewMap .getOrElse(key, 0)
-        val l   = likeMap .getOrElse(key, 0)
-        val c   = cloneMap.getOrElse(key, 0)
+        val v = viewMap.getOrElse(key, 0)
+        val l = likeMap.getOrElse(key, 0)
+        val c = cloneMap.getOrElse(key, 0)
 
         val counts = Map(
           "view"  -> v,
@@ -644,30 +675,4 @@ class HubResource {
 
     buffer.toList.asJava
   }
-
-
-//  @POST
-//  @Path("/batch")
-//  @Consumes(Array(MediaType.APPLICATION_JSON))
-//  def getBatchCounts(
-//    requests: java.util.List[CountRequest]
-//  ): java.util.List[CountResponse] = {
-//    println(requests)
-//    if (requests == null || requests.isEmpty)
-//      throw new BadRequestException("Request body must not be empty")
-//
-//    val allActions: java.util.List[String] = List("view", "like", "clone").asJava
-//
-//    val responses = scala.collection.mutable.ListBuffer[CountResponse]()
-//
-//    requests.asScala.foreach { req =>
-//      val counts: java.util.Map[String, Int] =
-//        getCounts(req.entityId, req.entityType, allActions)
-//
-//      responses += CountResponse(req.entityId, req.entityType, counts)
-//    }
-//
-//    println(responses.asJava)
-//    responses.asJava
-//  }
 }
