@@ -156,16 +156,7 @@ export class ListItemComponent implements OnChanges {
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
-
-    if (typeof this.entry.id === "number") {
-      // this.hubService
-      //   .getCounts(this.entry.id, this.entry.type, ["view", "like"])
-      //   .pipe(untilDestroyed(this))
-      //   .subscribe(counts => {
-      //     this.viewCount = counts.view ?? 0;
-      //     this.likeCount = counts.like ?? 0;
-      //   });
-    }
+    this.likeCount = this.entry.likeCount;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
