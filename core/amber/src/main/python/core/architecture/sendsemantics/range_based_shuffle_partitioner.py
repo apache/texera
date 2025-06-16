@@ -38,9 +38,17 @@ class RangeBasedShufflePartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         logger.info(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
+        # Partitioning contains an ordered list of downstream worker ids.
+        # Currently we are using the index of such an order to choose
+        # a downstream worker to send tuples to.
+        # Must use dict.fromkeys to ensure the order of receiver workers
+        # from partitioning is preserved (using `{}` to create a set
+        # does not preserve order and will not work correctly.)
         self.receivers = [
-            (receiver, [])
-            for receiver in {channel.to_worker_id for channel in partitioning.channels}
+            (rid, [])
+            for rid in dict.fromkeys(
+                channel.to_worker_id for channel in partitioning.channels
+            )
         ]
         self.range_attribute_names = partitioning.range_attribute_names
         self.range_min = partitioning.range_min
