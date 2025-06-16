@@ -249,6 +249,7 @@ export class JointUIService {
 
     // set operator element ID to be operator ID
     operatorElement.set("id", operator.operatorID);
+    operatorElement.set("z", 1);
 
     // set the input ports and output ports based on operator predicate
     operator.inputPorts.forEach(port =>
@@ -355,13 +356,7 @@ export class JointUIService {
     if (!element) {
       return;
     }
-    const ports = element.getPorts();
-    ports.forEach(p => {
-      const pid = p.id;
-      if (pid) {
-        element.portProp(pid, "attrs/.port-label/visibility", "hidden");
-      }
-    });
+
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -382,18 +377,6 @@ export class JointUIService {
     if (!element) {
       return;
     }
-
-    const inPorts  = element.getPorts().filter(p => p.group === "in");
-    const outPorts = element.getPorts().filter(p => p.group === "out");
-
-    if (inPorts.length > 1) {
-      inPorts.forEach(p => element.portProp(p.id!, "attrs/.port-label/visibility", "visible"));
-    }
-
-    if (outPorts.length > 1) {
-      outPorts.forEach(p => element.portProp(p.id!, "attrs/.port-label/visibility", "visible"));
-    }
-
   }
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
@@ -558,6 +541,7 @@ export class JointUIService {
       port: link.target.portID,
     });
     jointLinkCell.set("id", link.linkID);
+    jointLinkCell.set("z", 0);
     return jointLinkCell;
   }
 
@@ -648,7 +632,7 @@ export class JointUIService {
         stroke: "none",
       },
       ".port-label": {
-        visibility: "hidden",
+        visibility: "visible",
         event: "input-label:evt",
         dblclick: "input-label:dbclick",
         pointerdblclick: "input-label:pointerdblclick",
