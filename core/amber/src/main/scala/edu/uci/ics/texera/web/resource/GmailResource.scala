@@ -19,8 +19,8 @@
 
 package edu.uci.ics.texera.web.resource
 
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
@@ -43,7 +43,7 @@ object GmailResource {
     .createDSLContext()
   final private lazy val userDao = new UserDao(context.configuration)
 
-  private lazy val senderGmail: String = AmberConfig.gmail
+  private lazy val senderGmail: String = UserSystemConfig.gmail
   private val smtpProperties = Map(
     "mail.smtp.host" -> "smtp.gmail.com",
     "mail.smtp.port" -> "465",
@@ -61,7 +61,7 @@ object GmailResource {
       },
       new javax.mail.Authenticator() {
         override def getPasswordAuthentication: PasswordAuthentication =
-          new PasswordAuthentication(senderGmail, AmberConfig.smtpPassword)
+          new PasswordAuthentication(senderGmail, UserSystemConfig.smtpPassword)
       }
     )
   }
@@ -118,7 +118,7 @@ object GmailResource {
   }
 
   private def withDomain(message: EmailMessage): EmailMessage = {
-    val newContent = AmberConfig.appDomain match {
+    val newContent = UserSystemConfig.appDomain match {
       case Some(domain) =>
         s"""${message.content}
            |

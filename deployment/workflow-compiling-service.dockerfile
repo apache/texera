@@ -47,8 +47,7 @@ WORKDIR /core
 COPY --from=build /.git /.git
 COPY --from=build /core/target/workflow-compiling-service-0.1.0 /core/
 # Copy resources directories under /core from build phase
-COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
-COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
+COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 COPY --from=build /core/workflow-compiling-service/src/main/resources /core/workflow-compiling-service/src/main/resources
 
 CMD ["bin/workflow-compiling-service"]

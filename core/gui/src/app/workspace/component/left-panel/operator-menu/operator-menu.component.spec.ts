@@ -32,6 +32,7 @@ import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
@@ -50,6 +51,7 @@ describe("OperatorPanelComponent", () => {
         UndoRedoService,
         WorkflowUtilService,
         JointUIService,
+        ...commonTestProviders,
       ],
       imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
     }).compileComponents();

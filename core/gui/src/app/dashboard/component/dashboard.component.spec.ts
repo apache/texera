@@ -37,6 +37,7 @@ import {
 } from "@angular/router";
 import { convertToParamMap } from "@angular/router";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { commonTestProviders } from "../../common/testing/test-utils";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -121,6 +122,7 @@ describe("DashboardComponent", () => {
         { provide: NgZone, useValue: ngZoneMock },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
+        ...commonTestProviders,
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();

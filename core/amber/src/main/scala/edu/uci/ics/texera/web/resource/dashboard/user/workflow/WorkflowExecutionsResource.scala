@@ -25,7 +25,6 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
@@ -34,6 +33,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -107,7 +107,7 @@ object WorkflowExecutionsResource {
       globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       context
         .insertInto(OPERATOR_PORT_EXECUTIONS)
         .columns(
@@ -158,7 +158,7 @@ object WorkflowExecutionsResource {
   }
 
   def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       context
         .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
         .from(OPERATOR_PORT_EXECUTIONS)
@@ -174,7 +174,7 @@ object WorkflowExecutionsResource {
   }
 
   def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
-    if (AmberConfig.isUserSystemEnabled)
+    if (UserSystemConfig.isUserSystemEnabled)
       context
         .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
         .from(OPERATOR_EXECUTIONS)
@@ -187,7 +187,7 @@ object WorkflowExecutionsResource {
     else Nil
 
   def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] =
-    if (AmberConfig.isUserSystemEnabled)
+    if (UserSystemConfig.isUserSystemEnabled)
       Option(
         context
           .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
@@ -239,7 +239,7 @@ object WorkflowExecutionsResource {
   }
 
   def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       context
         .delete(OPERATOR_PORT_EXECUTIONS)
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
@@ -316,7 +316,7 @@ object WorkflowExecutionsResource {
     * @param eid Execution ID associated with the runtime statistics document.
     */
   def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       val statsUriOpt = context
         .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
         .from(WORKFLOW_EXECUTIONS)
@@ -342,7 +342,7 @@ object WorkflowExecutionsResource {
     * @param opId Operator ID of the corresponding operator.
     */
   def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       val uriOpt = context
         .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
         .from(OPERATOR_EXECUTIONS)
@@ -386,7 +386,7 @@ object WorkflowExecutionsResource {
     }
 
     val urisOfEid: List[URI] =
-      if (AmberConfig.isUserSystemEnabled) {
+      if (UserSystemConfig.isUserSystemEnabled) {
         context
           .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
           .from(OPERATOR_PORT_EXECUTIONS)
@@ -411,7 +411,7 @@ object WorkflowExecutionsResource {
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity
   ): Option[URI] = {
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       Option(
         context
           .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)

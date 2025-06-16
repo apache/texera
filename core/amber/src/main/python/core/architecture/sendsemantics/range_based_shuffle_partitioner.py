@@ -23,13 +23,14 @@ from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import Marker
+from core.models.state import State
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     Partitioning,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 
 
 class RangeBasedShufflePartitioner(Partitioner):
@@ -74,8 +75,8 @@ class RangeBasedShufflePartitioner(Partitioner):
 
     @overrides
     def flush(
-        self, to: ActorVirtualIdentity, marker: Marker
-    ) -> Iterator[typing.Union[Marker, typing.List[Tuple]]]:
+        self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
+    ) -> Iterator[typing.Union[ChannelMarkerPayload, typing.List[Tuple]]]:
         for receiver, batch in self.receivers:
             if receiver == to:
                 if len(batch) > 0:
@@ -83,12 +84,12 @@ class RangeBasedShufflePartitioner(Partitioner):
                 yield marker
 
     @overrides
-    def flush_marker(
-        self, marker: Marker
+    def flush_state(
+        self, state: State
     ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
     ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
-            yield receiver, marker
+            yield receiver, state

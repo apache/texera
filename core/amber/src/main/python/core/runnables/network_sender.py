@@ -20,7 +20,7 @@ from typing import Optional
 from loguru import logger
 from overrides import overrides
 import pyarrow as pa
-from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame, State
+from core.models import DataPayload, InternalQueue, DataFrame, StateFrame, State
 
 from core.models.internal_queue import (
     InternalQueueElement,
@@ -94,14 +94,13 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         internally only.
 
         :param to: The target ChannelIdentity
-        :param data_payload: The data payload to be sent, can be either DataFrame or
-            EndOfInputChannel
+        :param data_payload: The data payload to be sent in DataFrame
         """
 
         if isinstance(data_payload, DataFrame):
             data_header = PythonDataHeader(tag=to, payload_type="Data")
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
-        elif isinstance(data_payload, MarkerFrame):
+        elif isinstance(data_payload, StateFrame):
             data_header = PythonDataHeader(
                 tag=to, payload_type=data_payload.frame.__class__.__name__
             )
