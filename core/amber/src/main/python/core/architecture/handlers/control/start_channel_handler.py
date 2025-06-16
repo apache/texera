@@ -15,19 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-class InternalMarker:
-    """
-    A special Data Message, only being generated in un-packaging a batch into Tuples.
-    Markers retain the order information and served as a indicator of data state.
-    """
-
-    pass
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
+from core.models.internal_marker import StartChannel
 
 
-class StartChannel(InternalMarker):
-    pass
-
-
-class EndChannel(InternalMarker):
-    pass
+class StartChannelHandler(ControlHandler):
+    async def start_channel(self, req: EmptyRequest) -> EmptyReturn:
+        self.context.tuple_processing_manager.current_internal_marker = StartChannel()
+        return EmptyReturn()
