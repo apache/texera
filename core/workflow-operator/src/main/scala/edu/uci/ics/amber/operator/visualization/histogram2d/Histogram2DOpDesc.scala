@@ -26,6 +26,7 @@ import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.visualization.histogram2d.NormalizationType
 
 class Histogram2DOpDesc extends PythonOperatorDescriptor {
 
@@ -33,39 +34,34 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Numeric column for the X axis bins.")
   @AutofillAttributeName
-  var xColumn: String = ""
+  var xColumn = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y Column")
   @JsonPropertyDescription("Numeric column for the Y axis bins.")
   @AutofillAttributeName
-  var yColumn: String = ""
+  var yColumn = ""
 
-  @JsonProperty(required = false)
+  @JsonProperty(required = true, defaultValue = "10")
   @JsonSchemaTitle("X Bins")
-  @JsonPropertyDescription("Number of bins along the X axis.")
-  var xBins: Int = 10
+  @JsonPropertyDescription("Number of bins along the X axis (Default: 10)")
+  var xBins: Int = _
 
-  @JsonProperty(required = false)
+  @JsonProperty(required = true, defaultValue = "10")
   @JsonSchemaTitle("Y Bins")
-  @JsonPropertyDescription("Number of bins along the Y axis.")
-  var yBins: Int = 10
-
-  @JsonProperty(required = false)
-  @JsonSchemaTitle("Color Scale")
-  @JsonPropertyDescription("Plotly continuous colorscale for the heatmap.")
-  var colorScale: String = "Viridis"
+  @JsonPropertyDescription("Number of bins along the Y axis (Default: 10)")
+  var yBins: Int = _
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Normalization")
   @JsonPropertyDescription(
-    "Type of histogram normalization: '','density','percent','probability'"
+    "Type of histogram normalization"
   )
-  var normalize: String = ""
+  var normalize: NormalizationType = NormalizationType.NONE
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "2D Histogram",
+      "Histogram2D",
       "Displays a bivariate histogram as a density heatmap",
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
@@ -80,7 +76,11 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
   }
 
   override def generatePythonCode(): String = {
-    val normArg = if (normalize != null && normalize.nonEmpty) s"histnorm='${normalize}'," else ""
+    val normArg =
+      if (normalize != NormalizationType.NONE)
+        s"histnorm='${normalize.getValue}',"
+      else
+        ""
     s"""
        |from pytexera import *
        |import plotly.express as px
@@ -110,7 +110,6 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
        |            nbinsx=${xBins},
        |            nbinsy=${yBins},
        |            ${normArg}
-       |            color_continuous_scale='${colorScale}',
        |            text_auto=True
        |        )
        |
