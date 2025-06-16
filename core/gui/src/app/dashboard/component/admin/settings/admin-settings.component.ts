@@ -75,7 +75,7 @@ export class AdminSettingsComponent {
         });
     }
     if (this.logoData || this.faviconData) {
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 500);
     }
   }
 
