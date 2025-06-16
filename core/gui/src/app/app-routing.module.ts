@@ -161,6 +161,10 @@ routes.push({
           path: "execution",
           component: AdminExecutionComponent,
         },
+        {
+          path: "settings",
+          component: AdminSettingsComponent,
+        },
       ],
     },
     {
