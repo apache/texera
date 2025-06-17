@@ -39,6 +39,7 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { inject } from "@angular/core";
 import { GuiConfigService } from "./common/service/gui-config.service";
 import { Router, CanActivateFn } from "@angular/router";
@@ -159,6 +160,10 @@ routes.push({
         {
           path: "execution",
           component: AdminExecutionComponent,
+        },
+        {
+          path: "settings",
+          component: AdminSettingsComponent,
         },
       ],
     },

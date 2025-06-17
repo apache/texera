@@ -29,14 +29,15 @@
       nzSelectable="false">
       <li class="logo-section">
         <img
-          *ngIf="isCollpased"
+          *ngIf="isCollapsed"
           alt="mini-logo"
-          src="../../../../assets/logos/favicon-32x32.png" />
+          [src]="favicon"
+          class="collapsed-logo" />
         <img
-          *ngIf="!isCollpased"
+          *ngIf="!isCollapsed"
           alt="logo"
           height="50"
-          src="../../../../assets/logos/logo.png" />
+          [src]="logo" />
       </li>
 
       <li
@@ -152,6 +153,17 @@
                   nz-icon
                   nzType="mail"></span>
                 <span>Gmail</span>
+              </li>
+              <li
+                nz-menu-item
+                nz-tooltip="Settings"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                [routerLink]="['/dashboard/admin/settings']">
+                <span
+                  nz-icon
+                  nzType="edit"></span>
+                <span>Settings</span>
               </li>
             </ul>
           </li>
