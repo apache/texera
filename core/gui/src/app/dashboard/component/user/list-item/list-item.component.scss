@@ -22,7 +22,12 @@
   width: 100%;
   background-color: white;
   position: relative;
-  height: 65px;
+  min-height: 65px;
+  height: auto;
+
+  &.editing-description {
+    z-index: 10;
+  }
 
   &:hover {
     background-color: #f0f0f0;
@@ -129,6 +134,19 @@
   border: 1px solid #d9d9d9;
 }
 
+.resource-description {
+  font-size: 14px;
+  font-weight: 400;
+  color: #333333;
+  transition: all 0.2s ease;
+}
+
+.list-item-card:hover .resource-description {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e90ff;
+}
+
 .resource-description-edit-textarea {
   font-size: 12px;
   font-weight: 300;
@@ -136,13 +154,12 @@
   border: 1px solid #d9d9d9;
   outline: none;
   resize: none;
-  height: 18px;
   line-height: 1.5;
-  max-height: 18px;
   overflow: hidden;
-  transition:
-    border-color 0.3s,
-    box-shadow 0.3s;
+  white-space: pre-wrap;
+  width: 100%;
+  min-height: 18px;
+  height: auto;
 }
 
 .edit-button {

@@ -78,6 +78,8 @@ export class ListItemComponent implements OnInit, OnChanges {
   @Input() isPrivateSearch = false;
   @Input() editable = false;
   private _entry?: DashboardEntry;
+  hovering: boolean = false;
+
   @Input()
   get entry(): DashboardEntry {
     if (!this._entry) {
