@@ -79,17 +79,17 @@ export class StubSearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    selectedType: "workflow" | "project" | "dataset" | "file" | null,
-    sortMethod: SortMethod,
+    type: "workflow" | "project" | "dataset" | "file" | null,
+    orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
   ): Promise<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
     const result = await firstValueFrom(
-      this.search(keywords, params, start, count, selectedType, sortMethod, isLogin, includePublic)
+      this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic)
     );
 
-    const hasMismatch = selectedType === "dataset" ? result.hasMismatch ?? false : undefined;
-    const filteredResults = selectedType === "dataset" ? result.results.filter(i => i.dataset != null) : result.results;
+    const hasMismatch = type === "dataset" ? result.hasMismatch ?? false : undefined;
+    const filteredResults = type === "dataset" ? result.results.filter(i => i.dataset != null) : result.results;
 
     const entries = filteredResults.map(i => {
       if (i.workflow || i.project || i.dataset) {

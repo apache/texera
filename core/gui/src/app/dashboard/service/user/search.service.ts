@@ -85,23 +85,48 @@ export class SearchService {
     );
   }
 
+  /**
+   * Executes a search query and constructs dashboard entries from the results.
+   *
+   * This function handles:
+   * - Dispatching a search request to the backend (authenticated or public),
+   * - Mapping search results to `DashboardEntry` objects,
+   * - Fetching user info (e.g., owner name/avatar) for workflows, projects, and datasets,
+   * - Aggregating counts (view, clone, like) via batch count API,
+   * - Filtering results (e.g., remove mismatched datasets) and returning metadata such as `hasMismatch`.
+   *
+   * @param keywords - Array of search keywords.
+   * @param params - Additional search filter parameters.
+   * @param start - The starting index for paginated results.
+   * @param count - The number of results to retrieve.
+   * @param type - The type of resource to search for ("workflow", "project", "dataset", "file", or null (all resource type)).
+   * @param orderBy - Specifies the sorting method.
+   * @param isLogin - Indicates if the user is logged in.
+   * @param includePublic - Specifies whether to include public resources in the search results.
+   *
+   * @returns A promise that resolves to:
+   *  - `entries`: Array of dashboard entries constructed from matched results.
+   *  - `more`: Whether there are more results beyond the current page.
+   *  - `hasMismatch`: (Only for dataset type) whether there were mismatches between DB and LakeFS.
+   */
+
   public async executeSearch(
     keywords: string[],
     params: SearchFilterParameters,
     start: number,
     count: number,
-    selectedType: "workflow" | "project" | "dataset" | "file" | null,
-    sortMethod: SortMethod,
+    type: "workflow" | "project" | "dataset" | "file" | null,
+    orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
   ): Promise<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
     const results = await firstValueFrom(
-      this.search(keywords, params, start, count, selectedType, sortMethod, isLogin, includePublic)
+      this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic)
     );
 
-    const hasMismatch = selectedType === "dataset" ? results.hasMismatch ?? false : undefined;
+    const hasMismatch = type === "dataset" ? results.hasMismatch ?? false : undefined;
     const filteredResults =
-      selectedType === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
+      type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
 
     const userIds = new Set<number>();
     filteredResults.forEach(i => {
