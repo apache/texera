@@ -89,6 +89,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             from_actor_id, self.worker_actor_id, is_control=False
         )
         self._stopped = False
+        self._finished = False
         self.materialization = None
         self.tuple_schema = None
         self._partitioning_to_partitioner: dict[
@@ -107,6 +108,12 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
             if partitioner != OneToOnePartitioner
             else partitioner(the_partitioning, self.worker_actor_id)
         )
+
+    def finished(self) -> bool:
+        """
+        :return: Whether this reader thread has finished its logic.
+        """
+        return self._finished
 
     def tuple_to_batch_with_filter(self, tuple_: Tuple) -> typing.Iterator[DataFrame]:
         """
@@ -143,6 +150,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 for data_frame in self.tuple_to_batch_with_filter(tup):
                     self.emit_payload(data_frame)
             self.emit_channel_marker("EndChannel", ChannelMarkerType.PORT_ALIGNMENT)
+            self._finished = True
         except Exception as err:
             logger.exception(err)
 
