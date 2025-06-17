@@ -16,18 +16,11 @@
 # under the License.
 
 import threading
-from typing import Iterator, Optional, Union, Dict, List
+from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
-from core.models.internal_marker import (
-    InternalMarker,
-    StartOfOutputPorts,
-    EndOfOutputPorts,
-    EndOfInputPort,
-    StartOfInputPort,
-)
-from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
-from core.models.payload import DataFrame, DataPayload, MarkerFrame
+from core.models.internal_marker import InternalMarker, EndChannel
+from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
@@ -42,30 +35,22 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioni
 class Channel:
     def __init__(self):
         self.port_id: Optional[PortIdentity] = None
-        self.completed = False
 
     def set_port_id(self, port_id: PortIdentity) -> None:
         self.port_id = port_id
 
-    def complete(self) -> None:
-        self.completed = True
-
-    def is_completed(self) -> bool:
-        return self.completed
-
 
 class WorkerPort:
     def __init__(self, schema: Schema):
-        self.channels: List[Channel] = list()
         self._schema = schema
+        self._channels: Set[ChannelIdentity] = set()
+        self.completed = False
 
-    def add_channel(self, channel: Channel) -> None:
-        self.channels.append(channel)
+    def add_channel(self, channel: ChannelIdentity) -> None:
+        self._channels.add(channel)
 
-    def is_completed(self) -> bool:
-        return bool(self.channels) and all(
-            map(lambda channel: channel.is_completed(), self.channels)
-        )
+    def get_channels(self) -> Set[ChannelIdentity]:
+        return self._channels
 
     def get_schema(self) -> Schema:
         return self._schema
@@ -79,11 +64,17 @@ class InputManager:
         self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
-        self.started = False
         self._input_queue = input_queue
         self._input_port_mat_reader_runnables: Dict[
             PortIdentity, List[InputPortMaterializationReaderRunnable]
-        ] = dict()
+        ] = dict()  # TODO: Merge this into WorkerPort
+
+    def complete_current_port(self, channel_id: ChannelIdentity) -> None:
+        channel = self._channels[channel_id]
+        self._ports[channel.port_id].completed = True
+
+    def all_ports_completed(self) -> bool:
+        return all(port.completed for port in self._ports.values())
 
     def set_up_input_port_mat_reader_threads(
         self, port_id: PortIdentity, uris: List[str], partitionings: List[Partitioning]
@@ -109,16 +100,21 @@ class InputManager:
     def start_input_port_mat_reader_threads(self):
         for port_reader_runnables in self._input_port_mat_reader_runnables.values():
             for reader_runnable in port_reader_runnables:
-                thread_for_reader_runnable = threading.Thread(
-                    target=reader_runnable.run,
-                    daemon=True,
-                    name=f"port_mat_reader_runnable_thread_"
-                    f"{reader_runnable.channel_id}",
-                )
-                thread_for_reader_runnable.start()
+                # A completed reader port should not be started again
+                if not reader_runnable.finished():
+                    thread_for_reader_runnable = threading.Thread(
+                        target=reader_runnable.run,
+                        daemon=True,
+                        name=f"port_mat_reader_runnable_thread_"
+                        f"{reader_runnable.channel_id}",
+                    )
+                    thread_for_reader_runnable.start()
 
-    def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
+    def get_all_channel_ids(self) -> Dict[ChannelIdentity, Channel].keys:
         return self._channels.keys()
+
+    def get_all_data_channel_ids(self) -> Set[ChannelIdentity]:
+        return {key for key in self._channels if not key.is_control}
 
     def add_input_port(
         self,
@@ -141,6 +137,9 @@ class InputManager:
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id
 
+    def get_port(self, port_id: PortIdentity) -> WorkerPort:
+        return self._ports[port_id]
+
     def register_input(
         self, channel_id: ChannelIdentity, port_id: PortIdentity
     ) -> None:
@@ -151,7 +150,7 @@ class InputManager:
         channel = Channel()
         channel.set_port_id(port_id)
         self._channels[channel_id] = channel
-        self._ports[port_id].add_channel(channel)
+        self._ports[port_id].add_channel(channel_id)
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
@@ -161,14 +160,13 @@ class InputManager:
 
         # special case used to yield for source op
         if from_.from_worker_id == InputManager.SOURCE_STARTER:
-            yield EndOfInputPort()
-            yield EndOfOutputPorts()
+            yield EndChannel()
             return
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)
-        elif isinstance(payload, MarkerFrame):
-            yield from self._process_marker(payload.frame)
+        elif isinstance(payload, StateFrame):
+            yield payload.frame
         else:
             raise NotImplementedError()
 
@@ -180,32 +178,3 @@ class InputManager:
             yield Tuple(
                 {name: field_accessor for name in table.column_names}, schema=schema
             )
-
-    def _process_marker(self, marker: Marker) -> Iterator[InternalMarker]:
-        if isinstance(marker, State):
-            yield marker
-        if isinstance(marker, StartOfInputChannel):
-            if not self.started:
-                yield StartOfOutputPorts()
-            self.started = True
-            yield StartOfInputPort()
-        if isinstance(marker, EndOfInputChannel):
-            channel = self._channels[self._current_channel_id]
-            channel.complete()
-            port_id = channel.port_id
-            port_completed = all(
-                map(
-                    lambda channel: channel.is_completed(),
-                    self._ports[port_id].channels,
-                )
-            )
-
-            if port_completed:
-                yield EndOfInputPort()
-
-            all_ports_completed = all(
-                map(lambda port: port.is_completed(), self._ports.values())
-            )
-
-            if all_ports_completed:
-                yield EndOfOutputPorts()

@@ -41,8 +41,8 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, Schema, MarkerFrame
-from core.models.marker import Marker
+from core.models import Tuple, Schema, StateFrame
+from core.models.state import State
 from core.models.payload import DataPayload, DataFrame
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (
@@ -66,6 +66,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from typing import Union
 
 
 class OutputManager:
@@ -150,7 +151,7 @@ class OutputManager:
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
 
-    def get_output_channel_ids(self):
+    def get_output_channel_ids(self) -> typing.List[ChannelIdentity]:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, tuple_: Tuple, port_id=None) -> None:
@@ -221,9 +222,9 @@ class OutputManager:
             )
         )
 
-    def emit_marker_to_channel(
+    def emit_channel_marker(
         self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[DataPayload]:
+    ) -> Iterable[Union[DataPayload, ChannelMarkerPayload]]:
         return chain(
             *(
                 (
@@ -238,8 +239,8 @@ class OutputManager:
             )
         )
 
-    def emit_marker(
-        self, marker: Marker
+    def emit_state(
+        self, state: State
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -247,12 +248,12 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            MarkerFrame(payload)
-                            if isinstance(payload, Marker)
+                            StateFrame(payload)
+                            if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),
                     )
-                    for receiver, payload in partitioner.flush_marker(marker)
+                    for receiver, payload in partitioner.flush_marker(state)
                 )
                 for partitioner in self._partitioners.values()
             )

@@ -50,8 +50,9 @@ if TYPE_CHECKING:
 class ChannelMarkerType(betterproto.Enum):
     """Enum for ChannelMarkerType"""
 
-    REQUIRE_ALIGNMENT = 0
+    ALL_ALIGNMENT = 0
     NO_ALIGNMENT = 1
+    PORT_ALIGNMENT = 2
 
 
 class ConsoleMessageType(betterproto.Enum):
@@ -958,6 +959,40 @@ class WorkerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def start_channel(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def end_channel(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def debug_command(
         self,
         debug_command_request: "DebugCommandRequest",
@@ -1507,6 +1542,12 @@ class WorkerServiceBase(ServiceBase):
     async def end_worker(self, empty_request: "EmptyRequest") -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def start_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def end_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def debug_command(
         self, debug_command_request: "DebugCommandRequest"
     ) -> "EmptyReturn":
@@ -1626,6 +1667,20 @@ class WorkerServiceBase(ServiceBase):
         response = await self.end_worker(request)
         await stream.send_message(response)
 
+    async def __rpc_start_channel(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.start_channel(request)
+        await stream.send_message(response)
+
+    async def __rpc_end_channel(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.end_channel(request)
+        await stream.send_message(response)
+
     async def __rpc_debug_command(
         self, stream: "grpclib.server.Stream[DebugCommandRequest, EmptyReturn]"
     ) -> None:
@@ -1736,6 +1791,18 @@ class WorkerServiceBase(ServiceBase):
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker": grpclib.const.Handler(
                 self.__rpc_end_worker,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel": grpclib.const.Handler(
+                self.__rpc_start_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel": grpclib.const.Handler(
+                self.__rpc_end_channel,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
                 EmptyReturn,

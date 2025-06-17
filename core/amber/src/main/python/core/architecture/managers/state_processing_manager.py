@@ -15,19 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
-class InternalMarker:
-    """
-    A special Data Message, only being generated in un-packaging a batch into Tuples.
-    Markers retain the order information and served as a indicator of data state.
-    """
-
-    pass
+from typing import Optional
+from core.models.state import State
 
 
-class StartChannel(InternalMarker):
-    pass
+class StateProcessingManager:
+    def __init__(self):
+        self.current_input_state: Optional[State] = None
+        self.current_output_state: Optional[State] = None
 
+    def get_input_marker(self) -> Optional[State]:
+        ret, self.current_input_state = self.current_input_state, None
+        return ret
 
-class EndChannel(InternalMarker):
-    pass
+    def get_output_state(self) -> Optional[State]:
+        ret, self.current_output_state = self.current_output_state, None
+        return ret

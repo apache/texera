@@ -19,28 +19,12 @@ from dataclasses import dataclass
 from pandas import DataFrame
 from pyarrow import Table
 from typing import Optional
-
 from .schema import Schema, AttributeType
 from .schema.attribute_type import FROM_PYOBJECT_MAPPING
 
 
 @dataclass
-class Marker:
-    pass
-
-
-@dataclass
-class StartOfInputChannel(Marker):
-    pass
-
-
-@dataclass
-class EndOfInputChannel(Marker):
-    pass
-
-
-@dataclass
-class State(Marker):
+class State:
     def __init__(
         self, table: Optional[Table] = None, pass_to_all_downstream: bool = False
     ):
