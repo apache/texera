@@ -149,12 +149,8 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 # a batch-based iterator.
                 for data_frame in self.tuple_to_batch_with_filter(tup):
                     self.emit_payload(data_frame)
-<<<<<<< xinyuan-rename-ecm
             self.emit_ecm("EndChannel", EmbeddedControlMessageType.PORT_ALIGNMENT)
-=======
-            self.emit_channel_marker("EndChannel", ChannelMarkerType.PORT_ALIGNMENT)
             self._finished = True
->>>>>>> master
         except Exception as err:
             logger.exception(err)
 
