@@ -25,12 +25,12 @@ import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
-  ChannelMarkerElement,
+  EmbeddedControlMessageElement,
   ControlElement,
   DataElement
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ChannelMarkerPayload,
+  EmbeddedControlMessage,
   ControlInvocation
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
@@ -113,8 +113,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendData(dataPayload, channel)
         case ControlElement(cmd, channel) =>
           sendControl(channel, cmd)
-        case ChannelMarkerElement(cmd, channel) =>
-          sendChannelMarker(cmd, channel)
+        case EmbeddedControlMessageElement(cmd, channel) =>
+          sendECM(cmd, channel)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
       }
@@ -130,11 +130,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  private def sendChannelMarker(
-      markerPayload: ChannelMarkerPayload,
+  private def sendECM(
+      ecm: EmbeddedControlMessage,
       from: ChannelIdentity
   ): Unit = {
-    val descriptor = FlightDescriptor.command(PythonDataHeader(from, "ChannelMarker").toByteArray)
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, "ECM").toByteArray)
     val flightListener = new SyncPutListener
 
     val field = new Field("payload", FieldType.nullable(new ArrowType.Binary), null)
@@ -145,7 +145,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     schemaRoot.allocateNew()
 
     val vector = schemaRoot.getVector("payload").asInstanceOf[VarBinaryVector]
-    vector.setSafe(0, markerPayload.toByteArray)
+    vector.setSafe(0, ecm.toByteArray)
     vector.setValueCount(1)
     schemaRoot.setRowCount(1)
 
