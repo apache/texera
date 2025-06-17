@@ -26,11 +26,11 @@ from core.models.internal_queue import (
     InternalQueueElement,
     DataElement,
     ControlElement,
-    ChannelMarkerElement,
+    EmbeddedControlMessageElement,
 )
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     PythonControlMessage,
@@ -62,28 +62,26 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             self._send_data(next_entry.tag, next_entry.payload)
         elif isinstance(next_entry, ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
-        elif isinstance(next_entry, ChannelMarkerElement):
-            self._send_channel_marker(next_entry.tag, next_entry.payload)
+        elif isinstance(next_entry, EmbeddedControlMessageElement):
+            self._send_ecm(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")
 
     @logger.catch(reraise=True)
-    def _send_channel_marker(
-        self, to: ChannelIdentity, data_payload: ChannelMarkerPayload
-    ) -> None:
+    def _send_ecm(self, to: ChannelIdentity, ecm: EmbeddedControlMessage) -> None:
         """
-        Sends a channel marker payload to the specified channel.
+        Sends an ECM to the specified channel.
 
         Args:
-            to (ChannelIdentity): The target channel to which the marker should be sent.
-            data_payload (ChannelMarkerPayload): The channel marker payload to send.
+            to (ChannelIdentity): The target channel to which the ECM should be sent.
+            ecm (EmbeddedControlMessage): The ECM to send.
 
         This function constructs a `PythonDataHeader` with the appropriate metadata,
         serializes the payload into an Arrow table, and sends it using the proxy client.
         """
-        data_header = PythonDataHeader(tag=to, payload_type="ChannelMarker")
+        data_header = PythonDataHeader(tag=to, payload_type="ECM")
         schema = pa.schema([("payload", pa.binary())])
-        data = [pa.array([bytes(data_payload)])]
+        data = [pa.array([bytes(ecm)])]
         table = pa.Table.from_arrays(data, schema=schema)
         self._proxy_client.send_data(bytes(data_header), table)
 

@@ -25,7 +25,7 @@ import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
@@ -129,11 +129,11 @@ private class AmberProducer(
       case "State" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(to, StateFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
-      case "ChannelMarker" =>
+      case "ECM" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(
           to,
-          ChannelMarkerPayload.parseFrom(
+          EmbeddedControlMessage.parseFrom(
             root.getVector("payload").asInstanceOf[VarBinaryVector].get(0)
           )
         )
