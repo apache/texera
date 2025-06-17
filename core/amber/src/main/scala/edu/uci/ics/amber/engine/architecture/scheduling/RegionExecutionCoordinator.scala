@@ -23,14 +23,32 @@ import akka.pattern.gracefulStop
 import com.twitter.util.{Future, Return, Throw}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, ExecutorDeployment}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  ExecutorDeployment
+}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{InputPortConfig, OperatorConfig, OutputPortConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  InputPortConfig,
+  OperatorConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -73,7 +91,7 @@ class RegionExecutionCoordinator(
     controllerConfig: ControllerConfig,
     actorService: AkkaActorService,
     actorRefService: AkkaActorRefMappingService
-) {
+) extends AmberLogging {
 
   initRegionExecution()
 
@@ -91,7 +109,14 @@ class RegionExecutionCoordinator(
     * Sync the status of `RegionExecution` and transition this coordinator's phase to `Completed` only when the
     * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
     *
-    * Before transitioning the phase to `Completed`, this method will also terminate all the workers of this region.
+    * Additionally, this method will also terminate all the workers of this region:
+    *
+    * 1.  An `EndWorker` control message is first sent to all the workers. This will be the last message each worker
+    * receives. We wait for all workers have replied to indicate they have finished processing all control messages.
+    *
+    * 2. Only after all workers have processed all control messages do we send a `gracefulStop` (akka message) to each
+    * worker. JVM workers will be terminated by `gracefulStop`. Python proxy workes will also be terminated by
+    * `gracefulStop`, whose termination logic will also kill the PVMs.
     */
   private def tryCompleteRegionExecution(): Future[Unit] = {
     if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) return Future.Unit
@@ -99,7 +124,9 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
     if (!regionExecution.isCompleted) return Future.Unit
 
-    // 1. endWorker on every worker
+    currentPhaseRef.set(Completed)
+
+    // 1. Send endWorker on every worker
     val workerTerminationRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
@@ -130,11 +157,11 @@ class RegionExecutionCoordinator(
     // 3. mark region done when both phases succeed
     killPhase.transform {
       case Return(_) =>
-        currentPhaseRef.set(Completed)
-        Future.Unit                // propagate success
+        logger.info(s"Region ${region.id.id} succesfully terminated.")
+        Future.Unit // propagate success
       case Throw(err) =>
-        currentPhaseRef.set(Completed)
-        Future.exception(err)      // propagate failure
+        logger.warn(s"Error when terminating region ${region.id}.")
+        Future.exception(err) // propagate failure
     }
   }
 
@@ -488,4 +515,5 @@ class RegionExecutionCoordinator(
     }
   }
 
+  override def actorId: ActorVirtualIdentity = CONTROLLER
 }
