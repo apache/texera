@@ -20,32 +20,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import akka.pattern.gracefulStop
-import com.twitter.util.Future
+import com.twitter.util.{Future, Return, Throw}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
-  ExecutorDeployment
-}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{
-  OperatorExecution,
-  WorkflowExecution
-}
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, ExecutorDeployment}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  InputPortConfig,
-  OperatorConfig,
-  OutputPortConfig,
-  ResourceConfig
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{InputPortConfig, OperatorConfig, OutputPortConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -115,8 +99,8 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
     if (!regionExecution.isCompleted) return Future.Unit
 
-    // Send one last control message to all the completed workers
-    val workerTerminationRequests: Seq[Future[EmptyReturn]] =
+    // 1. endWorker on every worker
+    val workerTerminationRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
           opExec.getWorkerIds.map { workerId =>
@@ -125,26 +109,33 @@ class RegionExecutionCoordinator(
           }
       }.toSeq
 
-    // Wait for each worker to send back the final response
-    Future.collect(workerTerminationRequests)
+    val shutdown: Future[Unit] =
+      Future.collect(workerTerminationRequests).unit
 
-    // Now we can safely kill each worker
-    val gracefulStops: Seq[Future[Boolean]] =
-      regionExecution.getAllOperatorExecutions.flatMap {
-        case (_, opExec) =>
-          opExec.getWorkerIds.map { workerId =>
-            val actorRef = actorRefService.getActorRef(workerId)
-            gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
-          }
-      }.toSeq
+    // 2. gracefulStop only **after** 1 has finished
+    val killPhase: Future[Unit] =
+      shutdown.flatMap { _ =>
+        val gracefulStops =
+          regionExecution.getAllOperatorExecutions.flatMap {
+            case (_, opExec) =>
+              opExec.getWorkerIds.map { workerId =>
+                val actorRef = actorRefService.getActorRef(workerId)
+                gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
+              }
+          }.toSeq
 
-    // Wait for all the workers are stopped
-    Future.collect(gracefulStops)
+        Future.collect(gracefulStops).unit
+      }
 
-    // transition to Completed
-    currentPhaseRef.set(Completed)
-
-    Future.Unit
+    // 3. mark region done when both phases succeed
+    killPhase.transform {
+      case Return(_) =>
+        currentPhaseRef.set(Completed)
+        Future.Unit                // propagate success
+      case Throw(err) =>
+        currentPhaseRef.set(Completed)
+        Future.exception(err)      // propagate failure
+    }
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed
