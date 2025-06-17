@@ -21,8 +21,24 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{CountRequest, CountResponse, fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, getUserLCCount, getViewCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import HubResource.{
+  CountRequest,
+  CountResponse,
+  fetchDashboardDatasetsByDids,
+  fetchDashboardWorkflowsByWids,
+  getUserLCCount,
+  getViewCount,
+  isLikedHelper,
+  recordLikeActivity,
+  recordUserActivity,
+  userRequest,
+  validateEntityType
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 
 import java.util
@@ -45,7 +61,12 @@ import scala.collection.mutable.ListBuffer
 object HubResource {
   case class userRequest(entityId: Integer, userId: Integer, entityType: String)
   case class CountRequest(entityId: Integer, entityType: String)
-  case class CountResponse(entityId: Integer, entityType: String, counts: java.util.Map[String, Int])
+  case class CountResponse(
+      entityId: Integer,
+      entityType: String,
+      counts: java.util.Map[String, Int]
+  )
+
   /**
     * Defines the currently accepted resource types.
     * Modify this object to update the valid entity types across the system.
@@ -566,38 +587,38 @@ class HubResource {
   }
 
   /**
-   * Batch endpoint to retrieve multiple count metrics (view, like, clone) for one or more entities.
-   *
-   * Example request:
-   *   POST /hub/batch
-   *   Content-Type: application/json
-   *   Body:
-   *   [
-   *     { "entityId": 123, "entityType": "workflow" },
-   *     { "entityId": 456, "entityType": "dataset" }
-   *   ]
-   *
-   * @param requests
-   *   A non-empty list of CountRequest objects, each containing:
-   *     - entityId   : the ID of the entity to count
-   *     - entityType : the type of the entity ("workflow", "dataset", etc.)
-   * @return
-   *   A list of CountResponse objects. Each response includes:
-   *     - entityId   : the same ID from the request
-   *     - entityType : the same type from the request
-   *     - counts     : a map of actionType -> count, e.g.
-   *                    { "view" -> 42, "like" -> 17, "clone" -> 0 }
-   *                  For entityType "dataset", clone count will always be zero.
-   * @throws BadRequestException
-   *   - if the request body is null or empty
-   *   - if any entityType in the requests is not supported
-   */
+    * Batch endpoint to retrieve multiple count metrics (view, like, clone) for one or more entities.
+    *
+    * Example request:
+    *   POST /hub/batch
+    *   Content-Type: application/json
+    *   Body:
+    *   [
+    *     { "entityId": 123, "entityType": "workflow" },
+    *     { "entityId": 456, "entityType": "dataset" }
+    *   ]
+    *
+    * @param requests
+    *   A non-empty list of CountRequest objects, each containing:
+    *     - entityId   : the ID of the entity to count
+    *     - entityType : the type of the entity ("workflow", "dataset", etc.)
+    * @return
+    *   A list of CountResponse objects. Each response includes:
+    *     - entityId   : the same ID from the request
+    *     - entityType : the same type from the request
+    *     - counts     : a map of actionType -> count, e.g.
+    *                    { "view" -> 42, "like" -> 17, "clone" -> 0 }
+    *                  For entityType "dataset", clone count will always be zero.
+    * @throws BadRequestException
+    *   - if the request body is null or empty
+    *   - if any entityType in the requests is not supported
+    */
   @POST
   @Path("/batch")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getBatchCounts(
-    requests: java.util.List[CountRequest]
+      requests: java.util.List[CountRequest]
   ): java.util.List[CountResponse] = {
     if (requests == null || requests.isEmpty)
       throw new BadRequestException("Request body must not be empty")
@@ -609,68 +630,69 @@ class HubResource {
 
     val buffer = ListBuffer[CountResponse]()
 
-    grouped.foreach { case (etype, ids) =>
-      validateEntityType(etype)
+    grouped.foreach {
+      case (etype, ids) =>
+        validateEntityType(etype)
 
-      val viewTbl = ViewCountTable(etype)
-      val viewMap: Map[Int, Int] =
-        context
-          .select(viewTbl.idColumn, viewTbl.viewCountColumn)
-          .from(viewTbl.table)
-          .where(viewTbl.idColumn.in(ids: _*))
-          .fetchMap(viewTbl.idColumn, viewTbl.viewCountColumn)
-          .asScala
-          .map { case (k, v) => k.intValue() -> v.intValue() }
-          .toMap
-
-      val likeTbl = LikeTable(etype)
-      val likeMap: Map[Int, Int] =
-        context
-          .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
-          .from(likeTbl.table)
-          .where(likeTbl.idColumn.in(ids: _*))
-          .groupBy(likeTbl.idColumn)
-          .fetch()
-          .asScala
-          .map { r =>
-            r.get(likeTbl.idColumn).intValue() ->
-              r.get("cnt", classOf[Integer]).intValue()
-          }
-          .toMap
-
-      val cloneMap: Map[Int, Int] =
-        if (etype == "dataset") {
-          Map.empty[Int, Int]
-        } else {
-          val cloneTbl = CloneTable(etype)
+        val viewTbl = ViewCountTable(etype)
+        val viewMap: Map[Int, Int] =
           context
-            .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
-            .from(cloneTbl.table)
-            .where(cloneTbl.idColumn.in(ids: _*))
-            .groupBy(cloneTbl.idColumn)
+            .select(viewTbl.idColumn, viewTbl.viewCountColumn)
+            .from(viewTbl.table)
+            .where(viewTbl.idColumn.in(ids: _*))
+            .fetchMap(viewTbl.idColumn, viewTbl.viewCountColumn)
+            .asScala
+            .map { case (k, v) => k.intValue() -> v.intValue() }
+            .toMap
+
+        val likeTbl = LikeTable(etype)
+        val likeMap: Map[Int, Int] =
+          context
+            .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
+            .from(likeTbl.table)
+            .where(likeTbl.idColumn.in(ids: _*))
+            .groupBy(likeTbl.idColumn)
             .fetch()
             .asScala
             .map { r =>
-              r.get(cloneTbl.idColumn).intValue() ->
+              r.get(likeTbl.idColumn).intValue() ->
                 r.get("cnt", classOf[Integer]).intValue()
             }
             .toMap
+
+        val cloneMap: Map[Int, Int] =
+          if (etype == "dataset") {
+            Map.empty[Int, Int]
+          } else {
+            val cloneTbl = CloneTable(etype)
+            context
+              .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
+              .from(cloneTbl.table)
+              .where(cloneTbl.idColumn.in(ids: _*))
+              .groupBy(cloneTbl.idColumn)
+              .fetch()
+              .asScala
+              .map { r =>
+                r.get(cloneTbl.idColumn).intValue() ->
+                  r.get("cnt", classOf[Integer]).intValue()
+              }
+              .toMap
+          }
+
+        reqs.filter(_.entityType == etype).foreach { req =>
+          val key = req.entityId.intValue()
+          val v = viewMap.getOrElse(key, 0)
+          val l = likeMap.getOrElse(key, 0)
+          val c = cloneMap.getOrElse(key, 0)
+
+          val counts = Map(
+            "view" -> v,
+            "like" -> l,
+            "clone" -> c
+          ).asJava
+
+          buffer += CountResponse(req.entityId, etype, counts)
         }
-
-      reqs.filter(_.entityType == etype).foreach { req =>
-        val key = req.entityId.intValue()
-        val v = viewMap.getOrElse(key, 0)
-        val l = likeMap.getOrElse(key, 0)
-        val c = cloneMap.getOrElse(key, 0)
-
-        val counts = Map(
-          "view"  -> v,
-          "like"  -> l,
-          "clone" -> c
-        ).asJava
-
-        buffer += CountResponse(req.entityId, etype, counts)
-      }
     }
 
     buffer.toList.asJava

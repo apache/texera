@@ -126,12 +126,7 @@ export class HubService {
     return this.http.get<{ [action: string]: number }>(`${this.BASE_URL}/counts`, { params });
   }
 
-  public getBatchCounts(
-    requests: CountRequest[]
-  ): Observable<CountResponse[]> {
-    return this.http.post<CountResponse[]>(
-      `${this.BASE_URL}/batch`,
-      requests
-    );
+  public getBatchCounts(requests: CountRequest[]): Observable<CountResponse[]> {
+    return this.http.post<CountResponse[]>(`${this.BASE_URL}/batch`, requests);
   }
 }

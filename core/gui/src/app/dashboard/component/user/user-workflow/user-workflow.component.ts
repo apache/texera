@@ -203,49 +203,17 @@ export class UserWorkflowComponent implements AfterViewInit {
       filterParams.projectIds = [this.pid];
     }
     this.searchResultsComponent.reset(async (start, count) => {
-      const results = await firstValueFrom(
-        this.searchService.search(
-          this.filters.getSearchKeywords(),
-          filterParams,
-          start,
-          count,
-          "workflow",
-          this.sortMethod,
-          this.isLogin,
-          this.includePublic
-        )
+      const { entries, more } = await this.searchService.executeSearch(
+        this.filters.getSearchKeywords(),
+        filterParams,
+        start,
+        count,
+        "workflow",
+        this.sortMethod,
+        this.isLogin,
+        this.includePublic
       );
-
-      const userIds = new Set<number>();
-      results.results.forEach(i => {
-        if (i.workflow && i.workflow.ownerId) {
-          userIds.add(i.workflow.ownerId);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      return {
-        entries: results.results.map(i => {
-          if (i.workflow) {
-            const entry = new DashboardEntry(i.workflow);
-
-            const userInfo = userIdToInfoMap[i.workflow.ownerId];
-            if (userInfo) {
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-
-            return entry;
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
-          }
-        }),
-        more: results.more,
-      };
+      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }

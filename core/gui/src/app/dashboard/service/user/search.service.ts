@@ -19,12 +19,13 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { firstValueFrom, Observable } from "rxjs";
 import { SearchResult } from "../../type/search-result";
 import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
-import { UserInfo } from "../../type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
+import { CountRequest, CountResponse, HubService } from "../../../hub/service/hub.service";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
@@ -34,7 +35,10 @@ const DASHBOARD_USER_INFO_URL = "dashboard/resultsOwnersInfo";
   providedIn: "root",
 })
 export class SearchService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private hubService: HubService
+  ) {}
 
   /**
    * Retrieves a workflow or other resource from the backend database given the specified search parameters.
@@ -79,5 +83,97 @@ export class SearchService {
     return this.http.get<{ [key: number]: UserInfo }>(
       `${AppSettings.getApiEndpoint()}/${DASHBOARD_USER_INFO_URL}?${queryString}`
     );
+  }
+
+  public async executeSearch(
+    keywords: string[],
+    params: SearchFilterParameters,
+    start: number,
+    count: number,
+    selectedType: "workflow" | "project" | "dataset" | "file" | null,
+    sortMethod: SortMethod,
+    isLogin: boolean,
+    includePublic: boolean
+  ): Promise<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
+    const results = await firstValueFrom(
+      this.search(keywords, params, start, count, selectedType, sortMethod, isLogin, includePublic)
+    );
+
+    const hasMismatch = selectedType === "dataset" ? results.hasMismatch ?? false : undefined;
+    const filteredResults =
+      selectedType === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
+
+    const userIds = new Set<number>();
+    filteredResults.forEach(i => {
+      if (i.project) userIds.add(i.project.ownerId);
+      else if (i.workflow) userIds.add(i.workflow.ownerId);
+      else if (i.dataset?.dataset?.ownerUid !== undefined) userIds.add(i.dataset.dataset.ownerUid);
+    });
+
+    let userIdToInfoMap: { [key: number]: UserInfo } = {};
+    if (userIds.size > 0) {
+      userIdToInfoMap = await firstValueFrom(this.getUserInfo(Array.from(userIds)));
+    }
+
+    const entries: DashboardEntry[] = filteredResults.map(i => {
+      let entry: DashboardEntry;
+      if (i.workflow) {
+        entry = new DashboardEntry(i.workflow);
+        const userInfo = userIdToInfoMap[i.workflow.ownerId];
+        if (userInfo) {
+          entry.setOwnerName(userInfo.userName);
+          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+        }
+      } else if (i.project) {
+        entry = new DashboardEntry(i.project);
+        const userInfo = userIdToInfoMap[i.project.ownerId];
+        if (userInfo) {
+          entry.setOwnerName(userInfo.userName);
+          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+        }
+      } else if (i.dataset) {
+        entry = new DashboardEntry(i.dataset);
+        const ownerUid = i.dataset.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          const userInfo = userIdToInfoMap[ownerUid];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+        }
+      } else {
+        throw new Error("Unexpected type in search result");
+      }
+      return entry;
+    });
+
+    const countRequests: CountRequest[] = filteredResults.flatMap(i => {
+      if (i.workflow?.workflow?.wid != null) {
+        return [{ entityId: i.workflow.workflow.wid, entityType: "workflow" }];
+      } else if (i.project) {
+        return [{ entityId: i.project.pid, entityType: "project" }];
+      } else if (i.dataset?.dataset?.did != null) {
+        return [{ entityId: i.dataset.dataset.did, entityType: "dataset" }];
+      }
+      return [];
+    });
+
+    let countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
+    if (countRequests.length > 0) {
+      const responses: CountResponse[] = await firstValueFrom(this.hubService.getBatchCounts(countRequests));
+      responses.forEach(r => {
+        const key = `${r.entityType}:${r.entityId}`;
+        countsMap[key] = r.counts;
+      });
+    }
+
+    entries.forEach(entry => {
+      if (entry.id == null || entry.type == null) return;
+      const key = `${entry.type}:${entry.id}`;
+      const c = countsMap[key] || {};
+      entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
+    });
+
+    return { entries, more: results.more, hasMismatch };
   }
 }

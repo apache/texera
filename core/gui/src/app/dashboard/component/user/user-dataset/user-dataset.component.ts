@@ -130,22 +130,18 @@ export class UserDatasetComponent implements AfterViewInit {
     const includePublic = filterScope === "all" || filterScope === "public";
 
     this.searchResultsComponent.reset(async (start, count) => {
-      const results = await firstValueFrom(
-        this.searchService.search(
-          this.filters.getSearchKeywords(),
-          filterParams,
-          start,
-          count,
-          "dataset",
-          this.sortMethod,
-          isLogin,
-          includePublic
-        )
+      const { entries, more, hasMismatch } = await this.searchService.executeSearch(
+        this.filters.getSearchKeywords(),
+        filterParams,
+        start,
+        count,
+        "dataset",
+        this.sortMethod,
+        isLogin,
+        includePublic
       );
 
-      this.hasMismatch = results.hasMismatch ?? false;
-      const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
-
+      this.hasMismatch = hasMismatch ?? false;
       if (this.hasMismatch) {
         this.message.warning(
           "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
@@ -153,38 +149,7 @@ export class UserDatasetComponent implements AfterViewInit {
         );
       }
 
-      const userIds = new Set<number>();
-      filteredResults.forEach(i => {
-        const ownerUid = i.dataset?.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          userIds.add(ownerUid);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      return {
-        entries: filteredResults.map(i => {
-          if (i.dataset) {
-            const entry = new DashboardEntry(i.dataset);
-
-            const ownerUid = i.dataset.dataset?.ownerUid;
-            if (ownerUid !== undefined) {
-              const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-
-            return entry;
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
-          }
-        }),
-        more: results.more,
-      };
+      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }
