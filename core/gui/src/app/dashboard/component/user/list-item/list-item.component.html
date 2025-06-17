@@ -21,8 +21,11 @@
   [nzBodyStyle]="{padding: '3px'}"
   class="list-item-card"
   [class.selected]="entry.checked"
-  [class.has-button-group]="isPrivateSearch">
+  [class.has-button-group]="isPrivateSearch"
+  [class.editing-description]="editingDescription">
   <div
+    (mouseenter)="hovering = true"
+    (mouseleave)="hovering = false"
     [routerLink]="entryLink"
     nz-row
     nzAlign="middle">
@@ -105,8 +108,9 @@
 
       <div
         class="resource-description truncate-single-line"
+        (click)="onEditDescription();$event.stopPropagation()"
         *ngIf="!editingDescription">
-        {{ entry.description ? entry.description : '' }}
+        {{ entry.description ? entry.description.slice(0, 200) : (hovering) ? 'Write a description...' : '' }}
       </div>
       <textarea
         *ngIf="editingDescription"
