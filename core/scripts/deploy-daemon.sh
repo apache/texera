@@ -68,6 +68,24 @@ done
 echo "${green}FileService launched at $(pgrep -f FileService)${reset}"
 echo
 
+echo "${green}Starting ConfigService in daemon...${reset}"
+setsid nohup ./scripts/config-service.sh >/dev/null 2>&1 &
+echo "${green}Waiting ConfigService to launch on 9094...${reset}"
+while ! nc -z localhost 9094; do
+	sleep 0.1 # wait 100ms before check again
+done
+echo "${green}ConfigService launched at $(pgrep -f ConfigService)${reset}"
+echo
+
+echo "${green}Starting ComputingUnitManagingService in daemon...${reset}"
+setsid nohup ./scripts/computing-unit-managing-service.sh >/dev/null 2>&1 &
+echo "${green}Waiting ComputingUnitManagingService to launch on 8888...${reset}"
+while ! nc -z localhost 8888; do
+	sleep 0.1 # wait 100ms before check again
+done
+echo "${green}ComputingUnitManagingService launched at $(pgrep -f ComputingUnitManagingService)${reset}"
+echo
+
 echo "${green}Starting WorkflowComputingUnit in daemon...${reset}"
 setsid nohup ./scripts/workflow-computing-unit.sh >/dev/null 2>&1 &
 echo "${green}Waiting WorkflowComputingUnit to launch on 8085...${reset}"

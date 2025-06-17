@@ -33,6 +33,16 @@ kill -9 $(pgrep -f FileService)
 echo "${green}Terminated.${reset}"
 echo
 
+echo "${red}Terminating ConfigService at $(pgrep -f ConfigService)...${reset}"
+kill -9 $(pgrep -f ConfigService)
+echo "${green}Terminated.${reset}"
+echo
+
+echo "${red}Terminating ComputingUnitManagingService at $(pgrep -f ComputingUnitManagingService)...${reset}"
+kill -9 $(pgrep -f ComputingUnitManagingService)
+echo "${green}Terminated.${reset}"
+echo
+
 echo "${red}Terminating TexeraWebApplication at $(pgrep -f TexeraWebApplication)...${reset}"
 kill -9 $(pgrep -f TexeraWebApplication)
 echo "${green}Terminated.${reset}"
