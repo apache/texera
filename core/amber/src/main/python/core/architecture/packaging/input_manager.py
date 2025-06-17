@@ -67,7 +67,7 @@ class InputManager:
         self._input_queue = input_queue
         self._input_port_mat_reader_runnables: Dict[
             PortIdentity, List[InputPortMaterializationReaderRunnable]
-        ] = dict()
+        ] = dict()  # TODO: Merge this into WorkerPort
 
     def complete_current_port(self, channel_id: ChannelIdentity) -> None:
         channel = self._channels[channel_id]
@@ -100,13 +100,15 @@ class InputManager:
     def start_input_port_mat_reader_threads(self):
         for port_reader_runnables in self._input_port_mat_reader_runnables.values():
             for reader_runnable in port_reader_runnables:
-                thread_for_reader_runnable = threading.Thread(
-                    target=reader_runnable.run,
-                    daemon=True,
-                    name=f"port_mat_reader_runnable_thread_"
-                    f"{reader_runnable.channel_id}",
-                )
-                thread_for_reader_runnable.start()
+                # A completed reader port should not be started again
+                if not reader_runnable.finished():
+                    thread_for_reader_runnable = threading.Thread(
+                        target=reader_runnable.run,
+                        daemon=True,
+                        name=f"port_mat_reader_runnable_thread_"
+                        f"{reader_runnable.channel_id}",
+                    )
+                    thread_for_reader_runnable.start()
 
     def get_all_channel_ids(self) -> Dict[ChannelIdentity, Channel].keys:
         return self._channels.keys()
