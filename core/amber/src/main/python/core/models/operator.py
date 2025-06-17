@@ -24,7 +24,7 @@ import pandas
 
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
-from .marker import State
+from .state import State
 from .table import all_output_to_tuple
 
 

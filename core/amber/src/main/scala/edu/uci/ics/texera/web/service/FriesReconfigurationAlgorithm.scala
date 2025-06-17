@@ -119,7 +119,7 @@ object FriesReconfigurationAlgorithm {
       //      epochMarkers += PropagateChannelMarkerRequest(
       //        sources.toSeq,
       //        ChannelMarkerIdentity(epochMarkerId),
-      //        REQUIRE_ALIGNMENT,
+      //        ALL_ALIGNMENT,
       //        componentPlan.operators.map(_.id).toSeq,
       //        reconfigTargets,
       //        ModifyLogicRequest(reconfigCommands),
