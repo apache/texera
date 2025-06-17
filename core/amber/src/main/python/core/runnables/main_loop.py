@@ -76,7 +76,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
-        self.worker_shutdown: Optional[callable] = None
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
@@ -88,13 +87,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         threading.Thread(
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
-
-    def set_worker_shutdown_logic(self, worker_shutdown: callable) -> None:
-        """
-        Set the logic to invoke the Python Worker to shut down. Will be used
-        for EndWorker logic.
-        """
-        self.worker_shutdown = worker_shutdown
 
     def complete(self) -> None:
         """
@@ -157,11 +149,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             ChannelMarkerElement,
             self._process_channel_marker_payload,
         )
-
-        # Upon receiving EndWorker control message, terminate this worker.
-        if self.context.state_manager.get_current_state() == WorkerState.TERMINATING:
-            logger.info(f"Python worker {self.context.worker_id} exited.")
-            # self.worker_shutdown()
 
     def process_control_payload(
         self, tag: ChannelIdentity, payload: ControlPayloadV2

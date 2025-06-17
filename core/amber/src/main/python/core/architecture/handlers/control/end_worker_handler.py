@@ -21,11 +21,17 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyRequest,
 )
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
-
 
 class EndWorkerHandler(ControlHandler):
+    """
+    The EndWorker control messages is needed to ensure all the other
+    control messages in a worker are processed before worker termination.
+    """
 
     async def end_worker(self, req: EmptyRequest) -> EmptyReturn:
-        self.context.state_manager.transit_to(WorkerState.TERMINATING)
+        """
+        The response of EndWorker to the controller indicates that this worker
+        has finished not only the data processing logic, but also the processing
+        of all the control messages.
+        """
         return EmptyReturn()

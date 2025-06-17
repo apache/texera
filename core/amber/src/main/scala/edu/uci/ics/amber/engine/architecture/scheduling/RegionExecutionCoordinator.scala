@@ -119,15 +119,25 @@ class RegionExecutionCoordinator(
     * `gracefulStop`, whose termination logic will also kill the PVMs.
     */
   private def tryCompleteRegionExecution(): Future[Unit] = {
-    if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) return Future.Unit
+    // Only `ExecutingNonDependeePortsPhase` can transtion to `Completed`
+    if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) {
+      return Future.Unit
+    }
 
+    // Sync the status with RegionExecution
     val regionExecution = workflowExecution.getRegionExecution(region.id)
-    if (!regionExecution.isCompleted) return Future.Unit
+    if (!regionExecution.isCompleted) {
+      return Future.Unit
+    }
 
+    // Set this coordinator's status to be completed so that subsequent regions can be started by
+    // WorkflowExecutionCoordinator.
     currentPhaseRef.set(Completed)
 
-    // 1. Send endWorker on every worker
-    val workerTerminationRequests =
+    // Terminate all the workers in this region.
+
+    // 1. Send EndWorkers to every worker
+    val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
         case (_, opExec) =>
           opExec.getWorkerIds.map { workerId =>
@@ -136,12 +146,12 @@ class RegionExecutionCoordinator(
           }
       }.toSeq
 
-    val shutdown: Future[Unit] =
-      Future.collect(workerTerminationRequests).unit
+    val endWorkerFuture: Future[Unit] =
+      Future.collect(endWorkerRequests).unit
 
-    // 2. gracefulStop only **after** 1 has finished
-    val killPhase: Future[Unit] =
-      shutdown.flatMap { _ =>
+    // 2. Send GracefulStops only after 1 has finished
+    val gracefulStopRequests: Future[Unit] =
+      endWorkerFuture.flatMap { _ =>
         val gracefulStops =
           regionExecution.getAllOperatorExecutions.flatMap {
             case (_, opExec) =>
@@ -154,8 +164,8 @@ class RegionExecutionCoordinator(
         Future.collect(gracefulStops).unit
       }
 
-    // 3. mark region done when both phases succeed
-    killPhase.transform {
+    // 3. Log whether the kills were successful
+    gracefulStopRequests.transform {
       case Return(_) =>
         logger.info(s"Region ${region.id.id} succesfully terminated.")
         Future.Unit // propagate success

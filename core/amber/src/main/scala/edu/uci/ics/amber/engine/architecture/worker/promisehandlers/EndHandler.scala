@@ -26,14 +26,14 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 
 /**
   * The EndWorker control messages is needed to ensure all the other control messages in a worker
-  * are processed.
+  * are processed before worker termination.
   */
 trait EndHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   /**
     * The response of endWorker to the controller indicates that this worker has finished not only
-    * the data processing logic, but also processing all the control messages.
+    * the data processing logic, but also , but also the processing of all the control messages.
     */
   override def endWorker(
       request: EmptyRequest,
