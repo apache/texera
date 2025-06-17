@@ -20,7 +20,6 @@ package edu.uci.ics.amber.core;
 
 
 import "edu/uci/ics/amber/core/virtualidentity.proto";
-import "edu/uci/ics/amber/core/workflow.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

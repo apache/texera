@@ -34,7 +34,7 @@ message ControlReturn {
   oneof sealed_value {
     // controller responses
     RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 1;
-    PropagateChannelMarkerResponse propagateChannelMarkerResponse = 2;
+    PropagateEmbeddedControlMessageResponse propagateEmbeddedControlMessageResponse = 2;
     TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 3;
     EvaluatePythonExpressionResponse evaluatePythonExpressionResponse = 4;
     StartWorkflowResponse startWorkflowResponse = 5;
@@ -89,7 +89,7 @@ message FinalizeCheckpointResponse {
   int64 size = 1;
 }
 
-message PropagateChannelMarkerResponse {
+message PropagateEmbeddedControlMessageResponse {
   map<string, ControlReturn> returns = 1;
 }
 

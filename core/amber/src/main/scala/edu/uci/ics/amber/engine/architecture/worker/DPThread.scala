@@ -20,7 +20,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
@@ -198,8 +198,8 @@ class DPThread(
                   dp.processControlPayload(msg.channelId, payload)
                 case payload: DataPayload =>
                   dp.processDataPayload(msg.channelId, payload)
-                case payload: ChannelMarkerPayload =>
-                  dp.processChannelMarker(msg.channelId, payload, logManager)
+                case ecm: EmbeddedControlMessage =>
+                  dp.processECM(msg.channelId, ecm, logManager)
               }
           }
         }

@@ -21,11 +21,11 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.NO_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest,
-  PropagateChannelMarkerRequest
+  PropagateEmbeddedControlMessageRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   RetrieveWorkflowStateResponse,
@@ -33,7 +33,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_RETRIEVE_STATE
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 import java.time.Instant
 
@@ -45,11 +45,11 @@ trait RetrieveWorkflowStateHandler {
       ctx: AsyncRPCContext
   ): Future[RetrieveWorkflowStateResponse] = {
     val targetOps = cp.workflowScheduler.physicalPlan.operators.map(_.id).toSeq
-    val markerMessage = PropagateChannelMarkerRequest(
+    val msg = PropagateEmbeddedControlMessageRequest(
       cp.workflowExecution.getRunningRegionExecutions
         .flatMap(_.getAllOperatorExecutions.map(_._1))
         .toSeq,
-      ChannelMarkerIdentity("RetrieveWorkflowState_" + Instant.now().toString),
+      EmbeddedControlMessageIdentity("RetrieveWorkflowState_" + Instant.now().toString),
       NO_ALIGNMENT,
       targetOps,
       targetOps,
@@ -57,8 +57,8 @@ trait RetrieveWorkflowStateHandler {
       METHOD_RETRIEVE_STATE.getBareMethodName
     )
     controllerInterface
-      .propagateChannelMarker(
-        markerMessage,
+      .propagateEmbeddedControlMessage(
+        msg,
         mkContext(SELF)
       )
       .map { ret =>

@@ -21,70 +21,66 @@ from typing import Set, Dict
 from core.architecture.packaging.input_manager import Channel
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
-    ChannelMarkerPayload,
-    ChannelMarkerType,
+    EmbeddedControlMessage,
+    EmbeddedControlMessageType,
 )
 
 
-class ChannelMarkerManager:
+class EmbeddedControlMessageManager:
     def __init__(self, actor_id: ActorVirtualIdentity, input_gateway):
         self.actor_id = actor_id
         self.input_gateway = input_gateway
-        self.marker_received: Dict[str, Set[ChannelIdentity]] = defaultdict(set)
+        self.ecm_received: Dict[str, Set[ChannelIdentity]] = defaultdict(set)
 
-    def is_marker_aligned(
-        self, from_channel: ChannelIdentity, marker: ChannelMarkerPayload
+    def is_ecm_aligned(
+        self, from_channel: ChannelIdentity, ecm: EmbeddedControlMessage
     ) -> bool:
         """
-        Checks whether a channel marker has been received from all expected
+        Checks whether an ECM has been received from all expected
         input channels, determining whether further processing can proceed.
 
         Args:
-            from_channel (ChannelIdentity): The channel from which the marker
-                was received.
-            marker (ChannelMarkerPayload): The marker payload containing its
-                type and scope.
+            from_channel (ChannelIdentity): The channel from which the ECM was received.
+            ecm (EmbeddedControlMessage): The ECM payload containing its type and scope.
 
         Returns:
-            bool: True if the marker is considered aligned and processing can
+            bool: True if the ECM is considered aligned and processing can
                   continue, False otherwise.
         """
-        marker_id = marker.id
 
-        self.marker_received[marker_id].add(from_channel)
-        marker_received_from_all_channels = self.get_channels_within_scope(
-            marker
-        ).issubset(self.marker_received[marker_id])
+        self.ecm_received[ecm.id].add(from_channel)
+        ecm_received_from_all_channels = self.get_channels_within_scope(ecm).issubset(
+            self.ecm_received[ecm.id]
+        )
 
-        if marker.marker_type == ChannelMarkerType.ALL_ALIGNMENT:
-            epoch_marker_completed = marker_received_from_all_channels
-        elif marker.marker_type == ChannelMarkerType.PORT_ALIGNMENT:
+        if ecm.ecm_type == EmbeddedControlMessageType.ALL_ALIGNMENT:
+            ecm_completed = ecm_received_from_all_channels
+        elif ecm.ecm_type == EmbeddedControlMessageType.PORT_ALIGNMENT:
             port_id = self.input_gateway.get_port_id(from_channel)
-            marker_received_from_current_port = (
+            ecm_completed = (
                 self.input_gateway.get_port(port_id)
                 .get_channels()
-                .issubset(self.marker_received[marker_id])
+                .issubset(self.ecm_received[ecm.id])
             )
-            epoch_marker_completed = marker_received_from_current_port
-        elif marker.marker_type == ChannelMarkerType.NO_ALIGNMENT:
-            epoch_marker_completed = (
-                len(self.marker_received[marker_id]) == 1
-            )  # Only the first marker triggers
+        elif ecm.ecm_type == EmbeddedControlMessageType.NO_ALIGNMENT:
+            ecm_completed = (
+                len(self.ecm_received[ecm.id]) == 1
+            )  # Only the first ECM triggers
         else:
-            raise ValueError(f"Unsupported marker type: {marker.marker_type}")
+            raise ValueError(f"Unsupported ECM type: {ecm.ecm_type}")
 
-        if marker_received_from_all_channels:
-            del self.marker_received[marker_id]  # Clean up if all markers are received
+        if ecm_received_from_all_channels:
+            del self.ecm_received[ecm.id]  # Clean up if all ECMs are received
 
-        return epoch_marker_completed
+        return ecm_completed
 
     def get_channels_within_scope(
-        self, marker: ChannelMarkerPayload
+        self, ecm: EmbeddedControlMessage
     ) -> Dict["ChannelIdentity", "Channel"].keys:
-        if marker.scope:
+        if ecm.scope:
             upstreams = {
                 channel_id
-                for channel_id in marker.scope
+                for channel_id in ecm.scope
                 if channel_id.to_worker_id == self.actor_id
             }
             return self.input_gateway.get_all_channel_ids() & upstreams

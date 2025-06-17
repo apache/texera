@@ -44,9 +44,9 @@ trait FinalizeCheckpointHandler {
       msg: FinalizeCheckpointRequest,
       ctx: AsyncRPCContext
   ): Future[FinalizeCheckpointResponse] = {
-    val checkpointSize = if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
+    val checkpointSize = if (dp.ecmManager.checkpoints.contains(msg.checkpointId)) {
       val waitFuture = new CompletableFuture[Unit]()
-      val chkpt = dp.channelMarkerManager.checkpoints(msg.checkpointId)
+      val chkpt = dp.ecmManager.checkpoints(msg.checkpointId)
       val closure = (worker: WorkflowWorker) => {
         logger.info(s"Main thread: start to serialize recorded messages.")
         chkpt.save(

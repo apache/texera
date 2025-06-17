@@ -38,13 +38,13 @@ from core.models.internal_queue import (
     DataElement,
     ControlElement,
     InternalQueue,
-    ChannelMarkerElement,
+    EmbeddedControlMessageElement,
 )
 from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
@@ -97,15 +97,15 @@ class NetworkReceiver(Runnable, Stoppable):
                 lambda _: DataFrame(table),
                 "State",
                 lambda _: StateFrame(State(table)),
-                "ChannelMarker",
-                lambda _: ChannelMarkerPayload().parse(table["payload"][0].as_py()),
+                "ECM",
+                lambda _: EmbeddedControlMessage().parse(table["payload"][0].as_py()),
             )
-            if isinstance(payload, ChannelMarkerPayload):
+            if isinstance(payload, EmbeddedControlMessage):
                 for channel_id in payload.scope:
                     if not channel_id.is_control:
                         channel_id.is_control = False
                 shared_queue.put(
-                    ChannelMarkerElement(tag=data_header.tag, payload=payload)
+                    EmbeddedControlMessageElement(tag=data_header.tag, payload=payload)
                 )
             else:
                 shared_queue.put(DataElement(tag=data_header.tag, payload=payload))

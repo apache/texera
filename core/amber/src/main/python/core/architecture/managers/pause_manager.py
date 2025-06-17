@@ -34,7 +34,7 @@ class PauseType(Enum):
     SCHEDULER_TIME_SLOT_EXPIRED_PAUSE = 2
     DEBUG_PAUSE = 3
     EXCEPTION_PAUSE = 4
-    MARKER_PAUSE = 5
+    ECM_PAUSE = 5
 
 
 class PauseManager:

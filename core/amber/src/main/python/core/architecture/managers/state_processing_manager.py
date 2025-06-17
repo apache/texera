@@ -24,7 +24,7 @@ class StateProcessingManager:
         self.current_input_state: Optional[State] = None
         self.current_output_state: Optional[State] = None
 
-    def get_input_marker(self) -> Optional[State]:
+    def get_input_state(self) -> Optional[State]:
         ret, self.current_input_state = self.current_input_state, None
         return ret
 

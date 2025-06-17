@@ -55,7 +55,7 @@ export interface PhysicalOpIdentity {
   layerName: string;
 }
 
-export interface ChannelMarkerIdentity {
+export interface EmbeddedControlMessageIdentity {
   id: string;
 }
 
@@ -459,22 +459,22 @@ export const PhysicalOpIdentity: MessageFns<PhysicalOpIdentity> = {
   },
 };
 
-function createBaseChannelMarkerIdentity(): ChannelMarkerIdentity {
+function createBaseEmbeddedControlMessageIdentity(): EmbeddedControlMessageIdentity {
   return { id: "" };
 }
 
-export const ChannelMarkerIdentity: MessageFns<ChannelMarkerIdentity> = {
-  encode(message: ChannelMarkerIdentity, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const EmbeddedControlMessageIdentity: MessageFns<EmbeddedControlMessageIdentity> = {
+  encode(message: EmbeddedControlMessageIdentity, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.id !== "") {
       writer.uint32(10).string(message.id);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ChannelMarkerIdentity {
+  decode(input: BinaryReader | Uint8Array, length?: number): EmbeddedControlMessageIdentity {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseChannelMarkerIdentity();
+    const message = createBaseEmbeddedControlMessageIdentity();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -494,11 +494,11 @@ export const ChannelMarkerIdentity: MessageFns<ChannelMarkerIdentity> = {
     return message;
   },
 
-  fromJSON(object: any): ChannelMarkerIdentity {
+  fromJSON(object: any): EmbeddedControlMessageIdentity {
     return { id: isSet(object.id) ? globalThis.String(object.id) : "" };
   },
 
-  toJSON(message: ChannelMarkerIdentity): unknown {
+  toJSON(message: EmbeddedControlMessageIdentity): unknown {
     const obj: any = {};
     if (message.id !== "") {
       obj.id = message.id;
@@ -506,11 +506,11 @@ export const ChannelMarkerIdentity: MessageFns<ChannelMarkerIdentity> = {
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ChannelMarkerIdentity>, I>>(base?: I): ChannelMarkerIdentity {
-    return ChannelMarkerIdentity.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<EmbeddedControlMessageIdentity>, I>>(base?: I): EmbeddedControlMessageIdentity {
+    return EmbeddedControlMessageIdentity.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ChannelMarkerIdentity>, I>>(object: I): ChannelMarkerIdentity {
-    const message = createBaseChannelMarkerIdentity();
+  fromPartial<I extends Exact<DeepPartial<EmbeddedControlMessageIdentity>, I>>(object: I): EmbeddedControlMessageIdentity {
+    const message = createBaseEmbeddedControlMessageIdentity();
     message.id = object.id ?? "";
     return message;
   },

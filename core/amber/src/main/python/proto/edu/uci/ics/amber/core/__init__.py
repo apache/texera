@@ -81,7 +81,7 @@ class PhysicalOpIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ChannelMarkerIdentity(betterproto.Message):
+class EmbeddedControlMessageIdentity(betterproto.Message):
     id: str = betterproto.string_field(1)
 
 

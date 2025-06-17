@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2G
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ChannelMarkerIdentity
+  EmbeddedControlMessageIdentity
 }
 
 import scala.language.implicitConversions
@@ -55,14 +55,14 @@ class AsyncRPCHandlerInitializer(
 
   def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
 
-  def sendChannelMarker(
-      markerId: ChannelMarkerIdentity,
-      markerType: ChannelMarkerType,
+  def sendECM(
+      ecmId: EmbeddedControlMessageIdentity,
+      ecmType: EmbeddedControlMessageType,
       scope: Set[ChannelIdentity],
       cmdMapping: Map[String, ControlInvocation],
       to: ChannelIdentity
   ): Unit = {
-    ctrlSource.sendChannelMarker(markerId, markerType, scope, cmdMapping, to)
+    ctrlSource.sendECMToChannel(ecmId, ecmType, scope, cmdMapping, to)
   }
 
   def sendToClient(clientEvent: ClientEvent): Unit = {

@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.NO_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_PREPARE_CHECKPOINT
@@ -51,8 +51,8 @@ trait TakeGlobalCheckpointHandler {
     var totalSize = 0L
     val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)
     controllerInterface
-      .propagateChannelMarker(
-        PropagateChannelMarkerRequest(
+      .propagateEmbeddedControlMessage(
+        PropagateEmbeddedControlMessageRequest(
           cp.workflowExecution.getAllRegionExecutions
             .flatMap(_.getAllOperatorExecutions.map(_._1))
             .toSeq,

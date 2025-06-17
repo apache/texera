@@ -25,8 +25,8 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  ChannelMarkerPayload,
-  ChannelMarkerType,
+  EmbeddedControlMessage,
+  EmbeddedControlMessageType,
   EmptyRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
@@ -46,7 +46,7 @@ import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ChannelMarkerIdentity,
+  EmbeddedControlMessageIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -85,9 +85,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
     ReplayLogManager.createLogManager(logStorage, "none", x => {})
-  private val endChannelPayload = ChannelMarkerPayload(
-    ChannelMarkerIdentity("EndChannel"),
-    ChannelMarkerType.PORT_ALIGNMENT,
+  private val endChannelPayload = EmbeddedControlMessage(
+    EmbeddedControlMessageIdentity("EndChannel"),
+    EmbeddedControlMessageType.PORT_ALIGNMENT,
     Seq(),
     Map(
       testWorkerId.name ->
@@ -165,7 +165,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
-    dp.processChannelMarker(
+    dp.processECM(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       endChannelPayload,
       logManager
@@ -237,7 +237,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
-    dp.processChannelMarker(
+    dp.processECM(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       endChannelPayload,
       logManager

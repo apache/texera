@@ -24,29 +24,29 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   ControlInvocation,
-  PropagateChannelMarkerRequest
+  PropagateEmbeddedControlMessageRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   ControlReturn,
-  PropagateChannelMarkerResponse
+  PropagateEmbeddedControlMessageResponse
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
-trait ChannelMarkerHandler {
+trait EmbeddedControlMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def propagateChannelMarker(
-      msg: PropagateChannelMarkerRequest,
+  override def propagateEmbeddedControlMessage(
+      msg: PropagateEmbeddedControlMessageRequest,
       ctx: AsyncRPCContext
-  ): Future[PropagateChannelMarkerResponse] = {
+  ): Future[PropagateEmbeddedControlMessageResponse] = {
     // step1: create separate control commands for each target actor.
     val inputSet = msg.targetOps.flatMap { target =>
       cp.workflowExecution.getRunningRegionExecutions
         .map(_.getOperatorExecution(target))
         .flatMap(_.getWorkerIds.map { worker =>
-          worker -> createInvocation(msg.markerMethodName, msg.markerCommand, worker)
+          worker -> createInvocation(msg.methodName, msg.command, worker)
         })
     }
     // step 2: packing all control commands into one compound command.
@@ -81,12 +81,12 @@ trait ChannelMarkerHandler {
 
     val finalScope = channelScope ++ controlChannels
 
-    // step 4: start prop, send marker through control channel with the compound command from sources.
+    // step 4: start prop, send ECM through control channel with the compound command from sources.
     msg.sourceOpToStartProp.foreach { source =>
       cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
-        sendChannelMarker(
+        sendECM(
           msg.id,
-          msg.markerType,
+          msg.ecmType,
           finalScope.toSet,
           cmdMapping,
           ChannelIdentity(actorId, worker, isControl = true)
@@ -94,10 +94,10 @@ trait ChannelMarkerHandler {
       }
     }
 
-    // step 5: wait for the marker propagation.
+    // step 5: wait for the ECM propagation.
     Future.collect(futures.toList).map { ret =>
       cp.logManager.markAsReplayDestination(msg.id)
-      PropagateChannelMarkerResponse(ret.map(x => (x._1.name, x._2)).toMap)
+      PropagateEmbeddedControlMessageResponse(ret.map(x => (x._1.name, x._2)).toMap)
     }
   }
 }

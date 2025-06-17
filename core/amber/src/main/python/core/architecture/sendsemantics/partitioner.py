@@ -24,7 +24,7 @@ from core.models.state import State
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class Partitioner(ABC):
@@ -37,8 +37,8 @@ class Partitioner(ABC):
         pass
 
     def flush(
-        self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterator[typing.Union[ChannelMarkerPayload, typing.List[Tuple]]]:
+        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
+    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
         pass
 
     def flush_state(

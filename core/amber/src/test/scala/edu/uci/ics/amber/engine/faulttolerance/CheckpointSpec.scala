@@ -117,7 +117,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //    Await.result(client1.controllerInterface.startWorkflow(EmptyRequest(), ()))
 //    Thread.sleep(100)
 //    Await.result(client1.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-//    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_test_1")
+//    val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_test_1")
 //    val uri = new URI("ram:///recovery-logs/tmp/")
 //    Await.result(
 //      client1.controllerInterface.takeGlobalCheckpoint(

@@ -30,10 +30,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ChannelMarkerElement,
+  EmbeddedControlMessageElement,
   DataElement
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
@@ -90,8 +90,8 @@ class PythonWorkflowWorker(
           pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
           pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))
-        case marker: ChannelMarkerPayload =>
-          pythonProxyClient.enqueueData(ChannelMarkerElement(marker, workflowMsg.channelId))
+        case ecm: EmbeddedControlMessage =>
+          pythonProxyClient.enqueueData(EmbeddedControlMessageElement(ecm, workflowMsg.channelId))
         case p => logger.error(s"unhandled control payload: $p")
       }
     }

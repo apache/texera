@@ -31,7 +31,7 @@ option (scalapb.options) = {
 
 service ControllerService {
   rpc RetrieveWorkflowState(EmptyRequest) returns (RetrieveWorkflowStateResponse);
-  rpc PropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
+  rpc PropagateEmbeddedControlMessage(PropagateEmbeddedControlMessageRequest) returns (PropagateEmbeddedControlMessageResponse);
   rpc TakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);
   rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
   rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatePythonExpressionResponse);
