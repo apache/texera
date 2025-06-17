@@ -35,7 +35,6 @@ enum WorkerState {
   RUNNING = 2;
   PAUSED = 3;
   COMPLETED = 4;
-  TERMINATING = 5;
 
 }
 
