@@ -22,6 +22,7 @@ package edu.uci.ics.amber.operator.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import edu.uci.ics.amber.core.tuple.AttributeType;
@@ -48,6 +49,7 @@ public class FilterPredicate {
             @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "is null|is not null")
     })
     @JsonProperty(value = "value")
+    @JsonPropertyDescription("Predicates are combined with OR")
     public String value;
 
     @JsonCreator
