@@ -553,7 +553,7 @@ class WorkflowExecutionsResource {
           if (logLocation != null && logLocation.nonEmpty) {
             val storage =
               SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
-            val result = new mutable.ArrayBuffer[ChannelMarkerIdentity]()
+            val result = new mutable.ArrayBuffer[EmbeddedControlMessageIdentity]()
             storage.getReader("CONTROLLER").mkRecordIterator().foreach {
               case destination: ReplayDestination =>
                 result.append(destination.id)

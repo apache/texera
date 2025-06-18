@@ -28,7 +28,11 @@ from core.models import (
     InternalQueue,
     Tuple,
 )
-from core.models.internal_queue import DataElement, ControlElement, ChannelMarkerElement
+from core.models.internal_queue import (
+    DataElement,
+    ControlElement,
+    EmbeddedControlMessageElement,
+)
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.core import (
@@ -40,7 +44,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
     OpExecWithCode,
     OpExecInitInfo,
-    ChannelMarkerIdentity,
+    EmbeddedControlMessageIdentity,
 )
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlRequest,
@@ -57,8 +61,8 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     PortCompletedRequest,
     AsyncRpcContext,
     WorkerStateResponse,
-    ChannelMarkerType,
-    ChannelMarkerPayload,
+    EmbeddedControlMessageType,
+    EmbeddedControlMessage,
 )
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -187,11 +191,11 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_data_input_channel):
-        return ChannelMarkerElement(
+        return EmbeddedControlMessageElement(
             tag=mock_data_input_channel,
-            payload=ChannelMarkerPayload(
-                ChannelMarkerIdentity("EndChannel"),
-                ChannelMarkerType.PORT_ALIGNMENT,
+            payload=EmbeddedControlMessage(
+                EmbeddedControlMessageIdentity("EndChannel"),
+                EmbeddedControlMessageType.PORT_ALIGNMENT,
                 [],
                 {
                     mock_data_input_channel.to_worker_id.name: ControlInvocation(
@@ -709,11 +713,11 @@ class TestMainLoop:
         )
 
         output_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert output_queue.get() == ChannelMarkerElement(
+        assert output_queue.get() == EmbeddedControlMessageElement(
             tag=mock_data_output_channel,
-            payload=ChannelMarkerPayload(
-                ChannelMarkerIdentity("EndChannel"),
-                ChannelMarkerType.PORT_ALIGNMENT,
+            payload=EmbeddedControlMessage(
+                EmbeddedControlMessageIdentity("EndChannel"),
+                EmbeddedControlMessageType.PORT_ALIGNMENT,
                 [],
                 {
                     mock_data_output_channel.to_worker_id.name: ControlInvocation(
@@ -1165,15 +1169,17 @@ class TestMainLoop:
                 "NoOperation", EmptyRequest(), AsyncRpcContext(), 98
             )
         }
-        test_marker = ChannelMarkerPayload(
-            "test_marker", ChannelMarkerType.ALL_ALIGNMENT, scope, command_mapping
+        test_ecm = EmbeddedControlMessage(
+            "test_ecm", EmbeddedControlMessageType.ALL_ALIGNMENT, scope, command_mapping
         )
         input_queue.put(
-            ChannelMarkerElement(tag=mock_control_input_channel, payload=test_marker)
+            EmbeddedControlMessageElement(
+                tag=mock_control_input_channel, payload=test_ecm
+            )
         )
         input_queue.put(mock_binary_data_element)
         input_queue.put(
-            ChannelMarkerElement(tag=mock_data_input_channel, payload=test_marker)
+            EmbeddedControlMessageElement(tag=mock_data_input_channel, payload=test_ecm)
         )
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_data_output_channel
