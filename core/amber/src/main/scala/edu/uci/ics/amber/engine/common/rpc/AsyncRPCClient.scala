@@ -38,7 +38,7 @@ import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ChannelMarkerIdentity
+  EmbeddedControlMessageIdentity
 }
 import io.grpc.MethodDescriptor
 
@@ -154,17 +154,17 @@ class AsyncRPCClient(
     (ControlInvocation(methodName, message, context, pid), p)
   }
 
-  def sendChannelMarker(
-      markerId: ChannelMarkerIdentity,
-      markerType: ChannelMarkerType,
+  def sendECMToChannel(
+      ecmId: EmbeddedControlMessageIdentity,
+      ecmType: EmbeddedControlMessageType,
       scope: Set[ChannelIdentity],
       cmdMapping: Map[String, ControlInvocation],
       channelId: ChannelIdentity
   ): Unit = {
-    logger.debug(s"send marker: $markerId to $channelId")
+    logger.debug(s"send ECM: $ecmId to $channelId")
     outputGateway.sendTo(
       channelId,
-      ChannelMarkerPayload(markerId, markerType, scope.toSeq, cmdMapping)
+      EmbeddedControlMessage(ecmId, ecmType, scope.toSeq, cmdMapping)
     )
   }
 

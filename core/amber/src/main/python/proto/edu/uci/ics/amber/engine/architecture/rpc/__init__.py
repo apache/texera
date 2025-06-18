@@ -47,9 +47,7 @@ if TYPE_CHECKING:
     from grpclib.metadata import Deadline
 
 
-class ChannelMarkerType(betterproto.Enum):
-    """Enum for ChannelMarkerType"""
-
+class EmbeddedControlMessageType(betterproto.Enum):
     ALL_ALIGNMENT = 0
     NO_ALIGNMENT = 1
     PORT_ALIGNMENT = 2
@@ -82,9 +80,9 @@ class WorkflowAggregatedState(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class ControlRequest(betterproto.Message):
-    propagate_channel_marker_request: "PropagateChannelMarkerRequest" = (
-        betterproto.message_field(1, group="sealed_value")
-    )
+    propagate_embedded_control_message_request: (
+        "PropagateEmbeddedControlMessageRequest"
+    ) = betterproto.message_field(1, group="sealed_value")
     """request for controller"""
 
     take_global_checkpoint_request: "TakeGlobalCheckpointRequest" = (
@@ -177,11 +175,9 @@ class ControlInvocation(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ChannelMarkerPayload(betterproto.Message):
-    """Message for ChannelMarkerPayload"""
-
-    id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
-    marker_type: "ChannelMarkerType" = betterproto.enum_field(2)
+class EmbeddedControlMessage(betterproto.Message):
+    id: "___core__.EmbeddedControlMessageIdentity" = betterproto.message_field(1)
+    ecm_type: "EmbeddedControlMessageType" = betterproto.enum_field(2)
     scope: List["___core__.ChannelIdentity"] = betterproto.message_field(3)
     command_mapping: Dict[str, "ControlInvocation"] = betterproto.map_field(
         4, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
@@ -189,22 +185,24 @@ class ChannelMarkerPayload(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PropagateChannelMarkerRequest(betterproto.Message):
+class PropagateEmbeddedControlMessageRequest(betterproto.Message):
     source_op_to_start_prop: List["___core__.PhysicalOpIdentity"] = (
         betterproto.message_field(1)
     )
-    id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(2)
-    marker_type: "ChannelMarkerType" = betterproto.enum_field(3)
+    id: "___core__.EmbeddedControlMessageIdentity" = betterproto.message_field(2)
+    ecm_type: "EmbeddedControlMessageType" = betterproto.enum_field(3)
     scope: List["___core__.PhysicalOpIdentity"] = betterproto.message_field(4)
     target_ops: List["___core__.PhysicalOpIdentity"] = betterproto.message_field(5)
-    marker_command: "ControlRequest" = betterproto.message_field(6)
-    marker_method_name: str = betterproto.string_field(7)
+    command: "ControlRequest" = betterproto.message_field(6)
+    method_name: str = betterproto.string_field(7)
 
 
 @dataclass(eq=False, repr=False)
 class TakeGlobalCheckpointRequest(betterproto.Message):
     estimation_only: bool = betterproto.bool_field(1)
-    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(2)
+    checkpoint_id: "___core__.EmbeddedControlMessageIdentity" = (
+        betterproto.message_field(2)
+    )
     destination: str = betterproto.string_field(3)
 
 
@@ -368,7 +366,9 @@ class AssignPortRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FinalizeCheckpointRequest(betterproto.Message):
-    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
+    checkpoint_id: "___core__.EmbeddedControlMessageIdentity" = (
+        betterproto.message_field(1)
+    )
     write_to: str = betterproto.string_field(2)
 
 
@@ -390,7 +390,9 @@ class UpdateExecutorRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PrepareCheckpointRequest(betterproto.Message):
-    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
+    checkpoint_id: "___core__.EmbeddedControlMessageIdentity" = (
+        betterproto.message_field(1)
+    )
     estimation_only: bool = betterproto.bool_field(2)
 
 
@@ -410,9 +412,9 @@ class ControlReturn(betterproto.Message):
     )
     """controller responses"""
 
-    propagate_channel_marker_response: "PropagateChannelMarkerResponse" = (
-        betterproto.message_field(2, group="sealed_value")
-    )
+    propagate_embedded_control_message_response: (
+        "PropagateEmbeddedControlMessageResponse"
+    ) = betterproto.message_field(2, group="sealed_value")
     take_global_checkpoint_response: "TakeGlobalCheckpointResponse" = (
         betterproto.message_field(3, group="sealed_value")
     )
@@ -485,7 +487,7 @@ class FinalizeCheckpointResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PropagateChannelMarkerResponse(betterproto.Message):
+class PropagateEmbeddedControlMessageResponse(betterproto.Message):
     returns: Dict[str, "ControlReturn"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -549,18 +551,18 @@ class ControllerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def propagate_channel_marker(
+    async def propagate_embedded_control_message(
         self,
-        propagate_channel_marker_request: "PropagateChannelMarkerRequest",
+        propagate_embedded_control_message_request: "PropagateEmbeddedControlMessageRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PropagateChannelMarkerResponse":
+    ) -> "PropagateEmbeddedControlMessageResponse":
         return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateChannelMarker",
-            propagate_channel_marker_request,
-            PropagateChannelMarkerResponse,
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateEmbeddedControlMessage",
+            propagate_embedded_control_message_request,
+            PropagateEmbeddedControlMessageResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1292,9 +1294,10 @@ class ControllerServiceBase(ServiceBase):
     ) -> "RetrieveWorkflowStateResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def propagate_channel_marker(
-        self, propagate_channel_marker_request: "PropagateChannelMarkerRequest"
-    ) -> "PropagateChannelMarkerResponse":
+    async def propagate_embedded_control_message(
+        self,
+        propagate_embedded_control_message_request: "PropagateEmbeddedControlMessageRequest",
+    ) -> "PropagateEmbeddedControlMessageResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def take_global_checkpoint(
@@ -1366,12 +1369,12 @@ class ControllerServiceBase(ServiceBase):
         response = await self.retrieve_workflow_state(request)
         await stream.send_message(response)
 
-    async def __rpc_propagate_channel_marker(
+    async def __rpc_propagate_embedded_control_message(
         self,
-        stream: "grpclib.server.Stream[PropagateChannelMarkerRequest, PropagateChannelMarkerResponse]",
+        stream: "grpclib.server.Stream[PropagateEmbeddedControlMessageRequest, PropagateEmbeddedControlMessageResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.propagate_channel_marker(request)
+        response = await self.propagate_embedded_control_message(request)
         await stream.send_message(response)
 
     async def __rpc_take_global_checkpoint(
@@ -1476,11 +1479,11 @@ class ControllerServiceBase(ServiceBase):
                 EmptyRequest,
                 RetrieveWorkflowStateResponse,
             ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateChannelMarker": grpclib.const.Handler(
-                self.__rpc_propagate_channel_marker,
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateEmbeddedControlMessage": grpclib.const.Handler(
+                self.__rpc_propagate_embedded_control_message,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                PropagateChannelMarkerRequest,
-                PropagateChannelMarkerResponse,
+                PropagateEmbeddedControlMessageRequest,
+                PropagateEmbeddedControlMessageResponse,
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/TakeGlobalCheckpoint": grpclib.const.Handler(
                 self.__rpc_take_global_checkpoint,

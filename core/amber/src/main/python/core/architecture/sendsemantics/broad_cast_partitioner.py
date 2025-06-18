@@ -27,7 +27,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     BroadcastPartitioning,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class BroadcastPartitioner(Partitioner):
@@ -51,8 +51,8 @@ class BroadcastPartitioner(Partitioner):
 
     @overrides
     def flush(
-        self, to: ActorVirtualIdentity, marker: ChannelMarkerPayload
-    ) -> Iterator[typing.Union[ChannelMarkerPayload, typing.List[Tuple]]]:
+        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
+    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
         if len(self.batch) > 0:
             for receiver in self.receivers:
                 if receiver == to:
@@ -60,7 +60,7 @@ class BroadcastPartitioner(Partitioner):
         self.reset()
         for receiver in self.receivers:
             if receiver == to:
-                yield marker
+                yield ecm
 
     @overrides
     def flush_state(

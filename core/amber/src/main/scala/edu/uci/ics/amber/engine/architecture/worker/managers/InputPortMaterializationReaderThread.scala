@@ -26,17 +26,17 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ChannelMarkerIdentity
+  EmbeddedControlMessageIdentity
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.toPartitioner
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
   NO_ALIGNMENT,
   PORT_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  ChannelMarkerPayload,
-  ChannelMarkerType,
+  EmbeddedControlMessage,
+  EmbeddedControlMessageType,
   ControlInvocation,
   EmptyRequest
 }
@@ -88,7 +88,7 @@ class InputPortMaterializationReaderThread(
     */
   override def run(): Unit = {
     // Notify the input port of start of input channel
-    emitChannelMarker(METHOD_START_CHANNEL, NO_ALIGNMENT)
+    emitECM(METHOD_START_CHANNEL, NO_ALIGNMENT)
     try {
       val materialization: VirtualDocument[Tuple] = DocumentFactory
         .openDocument(uri)
@@ -112,7 +112,7 @@ class InputPortMaterializationReaderThread(
       }
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
-      emitChannelMarker(METHOD_END_CHANNEL, PORT_ALIGNMENT)
+      emitECM(METHOD_END_CHANNEL, PORT_ALIGNMENT)
       isFinished.set(true)
     } catch {
       case e: Exception =>
@@ -121,15 +121,15 @@ class InputPortMaterializationReaderThread(
   }
 
   /**
-    * Puts a channel marker into the internal queue.
+    * Puts an ECM into the internal queue.
     */
-  private def emitChannelMarker(
+  private def emitECM(
       method: MethodDescriptor[EmptyRequest, EmptyReturn],
-      alignment: ChannelMarkerType
+      alignment: EmbeddedControlMessageType
   ): Unit = {
     flush()
-    val markerPayload = ChannelMarkerPayload(
-      ChannelMarkerIdentity(method.getBareMethodName),
+    val ecm = EmbeddedControlMessage(
+      EmbeddedControlMessageIdentity(method.getBareMethodName),
       alignment,
       Seq(),
       Map(
@@ -142,7 +142,7 @@ class InputPortMaterializationReaderThread(
           )
       )
     )
-    val fifoMessage = WorkflowFIFOMessage(channelId, getSequenceNumber, markerPayload)
+    val fifoMessage = WorkflowFIFOMessage(channelId, getSequenceNumber, ecm)
     val inputQueueElement = FIFOMessageElement(fifoMessage)
     inputMessageQueue.put(inputQueueElement)
   }
