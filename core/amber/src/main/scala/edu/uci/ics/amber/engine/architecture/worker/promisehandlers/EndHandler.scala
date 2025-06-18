@@ -39,6 +39,15 @@ trait EndHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
+    // Ensure this is really the last message.
+    if (!dp.inputManager.inputMessageQueue.isEmpty) {
+      logger.warn(
+        s"Received EndHandler before all messages are processed. Unprocessed messages: " +
+          s"${dp.inputManager.inputMessageQueue.peek()}"
+      )
+    }
+    assert(dp.inputManager.inputMessageQueue.isEmpty)
+    // Now we can safely acknowledge that this worker can be terminated.
     EmptyReturn()
   }
 }

@@ -55,7 +55,7 @@ class Context:
                 WorkerState.UNINITIALIZED: {WorkerState.READY},
                 WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
                 WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
-                WorkerState.PAUSED: {WorkerState.RUNNING},
+                WorkerState.PAUSED: {WorkerState.RUNNING, WorkerState.COMPLETED},
                 WorkerState.COMPLETED: set(),
             },
             WorkerState.UNINITIALIZED,

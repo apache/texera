@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from loguru import logger
+
 from core.architecture.handlers.control.control_handler_base import ControlHandler
+from core.util import IQueue
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
@@ -34,4 +37,13 @@ class EndWorkerHandler(ControlHandler):
         has finished not only the data processing logic, but also the processing
         of all the control messages.
         """
+        # Ensure this is really the last message.
+        input_queue: IQueue = self.context.input_queue
+        if not input_queue.is_empty():
+            logger.warning(
+                f"Received EndHandler before all messages are "
+                f"processed. Unprocessed messages: {input_queue.get()}"
+            )
+        assert input_queue.is_empty()
+        # Now we can safely acknowledge that this worker can be terminated.
         return EmptyReturn()

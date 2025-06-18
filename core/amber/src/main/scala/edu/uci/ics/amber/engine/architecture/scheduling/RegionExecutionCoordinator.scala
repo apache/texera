@@ -32,6 +32,7 @@ import edu.uci.ics.amber.engine.architecture.common.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
+  RegionExecution,
   WorkflowExecution
 }
 import edu.uci.ics.amber.engine.architecture.controller.{
@@ -135,7 +136,10 @@ class RegionExecutionCoordinator(
     currentPhaseRef.set(Completed)
 
     // Terminate all the workers in this region.
+    terminateWorkers(regionExecution)
+  }
 
+  private def terminateWorkers(regionExecution: RegionExecution) = {
     // 1. Send EndWorkers to every worker
     val endWorkerRequests =
       regionExecution.getAllOperatorExecutions.flatMap {
