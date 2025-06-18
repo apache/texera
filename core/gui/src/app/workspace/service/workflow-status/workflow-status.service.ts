@@ -19,7 +19,6 @@
 
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
-import { environment } from "../../../../environments/environment";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
@@ -63,5 +62,10 @@ export class WorkflowStatusService {
       {} as Record<string, OperatorStatistics>
     );
     this.statusSubject.next(initStatus);
+  }
+
+  public clearStatus(): void {
+    this.currentStatus = {};
+    this.statusSubject.next({});
   }
 }

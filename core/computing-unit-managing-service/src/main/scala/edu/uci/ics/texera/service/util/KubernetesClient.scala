@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.service.util
 
-import edu.uci.ics.texera.service.KubernetesConfig
+import edu.uci.ics.texera.config.KubernetesConfig
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
 import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientBuilder}
@@ -38,6 +38,10 @@ object KubernetesClient {
   }
 
   def generatePodName(cuid: Int): String = s"$podNamePrefix-$cuid"
+
+  def podExists(cuid: Int): Boolean = {
+    getPodByName(generatePodName(cuid)).isDefined
+  }
 
   def getPodByName(podName: String): Option[Pod] = {
     Option(client.pods().inNamespace(namespace).withName(podName).get())
@@ -79,7 +83,8 @@ object KubernetesClient {
       cpuLimit: String,
       memoryLimit: String,
       gpuLimit: String,
-      envVars: Map[String, Any]
+      envVars: Map[String, Any],
+      shmSize: Option[String] = None
   ): Pod = {
     val podName = generatePodName(cuid)
     if (getPodByName(podName).isDefined) {
@@ -127,8 +132,7 @@ object KubernetesClient {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
-    // Complete the pod spec
-    val pod = specBuilder
+    val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
       .withImage(KubernetesConfig.computeUnitImageName)
@@ -138,7 +142,33 @@ object KubernetesClient {
       .endPort()
       .withEnv(envList)
       .withResources(resourceBuilder.build())
-      .endContainer()
+
+    // If shmSize requested, mount /dev/shm
+    shmSize.foreach { _ =>
+      containerBuilder
+        .addNewVolumeMount()
+        .withName("dshm")
+        .withMountPath("/dev/shm")
+        .endVolumeMount()
+    }
+
+    containerBuilder.endContainer()
+
+    // Add tmpfs volume if needed
+    shmSize.foreach { size =>
+      specBuilder
+        .addNewVolume()
+        .withName("dshm")
+        .withEmptyDir(
+          new EmptyDirVolumeSourceBuilder()
+            .withMedium("Memory")
+            .withSizeLimit(new Quantity(size))
+            .build()
+        )
+        .endVolume()
+    }
+
+    val pod = specBuilder
       .withHostname(podName)
       .withSubdomain(KubernetesConfig.computeUnitServiceName)
       .endSpec()

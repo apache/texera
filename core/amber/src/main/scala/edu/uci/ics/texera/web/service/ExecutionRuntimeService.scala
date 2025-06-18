@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -118,7 +118,7 @@ class ExecutionRuntimeService(
       logConf.nonEmpty,
       "Fault tolerance log folder is not established. Unable to take a global checkpoint."
     )
-    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
+    val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
     val uri = logConf.get.writeTo.resolve(checkpointId.toString)
     client.controllerInterface.takeGlobalCheckpoint(
       TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),

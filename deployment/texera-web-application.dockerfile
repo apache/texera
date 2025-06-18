@@ -63,8 +63,7 @@ COPY --from=build /.git /.git
 COPY --from=build /core/amber/target/texera-0.1-SNAPSHOT /core/amber
 # Copy resources directories under /core from build phase
 COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
-COPY --from=build /core/workflow-core/src/main/resources /core/workflow-core/src/main/resources
-COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
+COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 
 CMD ["bin/texera-web-application"]
 

@@ -21,12 +21,13 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ChannelMarkerPayload,
+  EmbeddedControlMessage,
   ControlInvocation
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -36,7 +37,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
+import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import scala.concurrent.duration.DurationInt
@@ -44,7 +45,7 @@ import scala.concurrent.duration.DurationInt
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
+      statusUpdateIntervalMs = Option(ApplicationConfig.getStatusUpdateIntervalInMs),
       stateRestoreConfOpt = None,
       faultToleranceConfOpt = None
     )
@@ -137,9 +138,9 @@ class Controller(
           val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
           logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: ControlPayload      => cp.processControlPayload(msg.channelId, payload)
-              case marker: ChannelMarkerPayload => // skip marker
-              case p                            => throw new RuntimeException(s"controller cannot handle $p")
+              case payload: ControlPayload   => cp.processControlPayload(msg.channelId, payload)
+              case _: EmbeddedControlMessage => // skip ECM
+              case p                         => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>

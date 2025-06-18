@@ -43,7 +43,7 @@ spec:
         paths:
           {{- range .Values.ingressPaths.paths }}
           - path: {{ .path }}
-            pathType: Prefix
+            pathType: {{ .pathType | default "Prefix" }}
             backend:
               service:
                 name: {{ .serviceName }}

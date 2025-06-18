@@ -21,11 +21,11 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
 import com.twitter.util.Promise
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
@@ -126,20 +126,14 @@ private class AmberProducer(
     flightStream.takeDictionaryOwnership
 
     dataHeader.payloadType match {
-      case "StartOfInputChannel" =>
-        assert(root.getRowCount == 0)
-        outputPort.sendTo(to, MarkerFrame(StartOfInputChannel()))
-      case "EndOfInputChannel" =>
-        assert(root.getRowCount == 0)
-        outputPort.sendTo(to, MarkerFrame(EndOfInputChannel()))
       case "State" =>
         assert(root.getRowCount == 1)
-        outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
-      case "ChannelMarker" =>
+        outputPort.sendTo(to, StateFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case "ECM" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(
           to,
-          ChannelMarkerPayload.parseFrom(
+          EmbeddedControlMessage.parseFrom(
             root.getVector("payload").asInstanceOf[VarBinaryVector].get(0)
           )
         )

@@ -28,7 +28,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -45,12 +46,15 @@ import java.net.URI
 import scala.collection.mutable
 
 object WorkflowExecutionService {
-  def getLatestExecutionId(workflowId: WorkflowIdentity): Option[ExecutionIdentity] = {
-    if (!AmberConfig.isUserSystemEnabled) {
+  def getLatestExecutionId(
+      workflowId: WorkflowIdentity,
+      computingUnitId: Int
+  ): Option[ExecutionIdentity] = {
+    if (!UserSystemConfig.isUserSystemEnabled) {
       return Some(DEFAULT_EXECUTION_ID)
     }
     WorkflowExecutionsResource
-      .getLatestExecutionID(workflowId.id.toInt)
+      .getLatestExecutionID(workflowId.id.toInt, computingUnitId)
       .map(eid => new ExecutionIdentity(eid.longValue()))
   }
 }

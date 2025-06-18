@@ -21,6 +21,7 @@
 package edu.uci.ics.texera.dao.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum;
 import edu.uci.ics.texera.dao.jooq.generated.tables.interfaces.IWorkflowComputingUnit;
 
 import java.sql.Timestamp;
@@ -34,11 +35,14 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
 
     private static final long serialVersionUID = 1L;
 
-    private Integer   uid;
-    private String    name;
-    private Integer   cuid;
-    private Timestamp creationTime;
-    private Timestamp terminateTime;
+    private Integer                       uid;
+    private String                        name;
+    private Integer                       cuid;
+    private Timestamp                     creationTime;
+    private Timestamp                     terminateTime;
+    private WorkflowComputingUnitTypeEnum type;
+    private String                        uri;
+    private String                        resource;
 
     public WorkflowComputingUnit() {}
 
@@ -48,20 +52,29 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
         this.cuid = value.getCuid();
         this.creationTime = value.getCreationTime();
         this.terminateTime = value.getTerminateTime();
+        this.type = value.getType();
+        this.uri = value.getUri();
+        this.resource = value.getResource();
     }
 
     public WorkflowComputingUnit(
-        Integer   uid,
-        String    name,
-        Integer   cuid,
-        Timestamp creationTime,
-        Timestamp terminateTime
+        Integer                       uid,
+        String                        name,
+        Integer                       cuid,
+        Timestamp                     creationTime,
+        Timestamp                     terminateTime,
+        WorkflowComputingUnitTypeEnum type,
+        String                        uri,
+        String                        resource
     ) {
         this.uid = uid;
         this.name = name;
         this.cuid = cuid;
         this.creationTime = creationTime;
         this.terminateTime = terminateTime;
+        this.type = type;
+        this.uri = uri;
+        this.resource = resource;
     }
 
     /**
@@ -144,6 +157,54 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
         this.terminateTime = terminateTime;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.type</code>.
+     */
+    @Override
+    public WorkflowComputingUnitTypeEnum getType() {
+        return this.type;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.type</code>.
+     */
+    @Override
+    public void setType(WorkflowComputingUnitTypeEnum type) {
+        this.type = type;
+    }
+
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.uri</code>.
+     */
+    @Override
+    public String getUri() {
+        return this.uri;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.uri</code>.
+     */
+    @Override
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
+    /**
+     * Getter for <code>texera_db.workflow_computing_unit.resource</code>.
+     */
+    @Override
+    public String getResource() {
+        return this.resource;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_computing_unit.resource</code>.
+     */
+    @Override
+    public void setResource(String resource) {
+        this.resource = resource;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowComputingUnit (");
@@ -153,6 +214,9 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
         sb.append(", ").append(cuid);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(terminateTime);
+        sb.append(", ").append(type);
+        sb.append(", ").append(uri);
+        sb.append(", ").append(resource);
 
         sb.append(")");
         return sb.toString();
@@ -169,6 +233,9 @@ public class WorkflowComputingUnit implements IWorkflowComputingUnit {
         setCuid(from.getCuid());
         setCreationTime(from.getCreationTime());
         setTerminateTime(from.getTerminateTime());
+        setType(from.getType());
+        setUri(from.getUri());
+        setResource(from.getResource());
     }
 
     @Override

@@ -19,7 +19,6 @@
 
 import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
@@ -33,13 +32,13 @@ import { DownloadService } from "../../../dashboard/service/user/download/downlo
 import { HttpResponse } from "@angular/common/http";
 import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
-  exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -47,7 +46,8 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private downloadService: DownloadService
+    private downloadService: DownloadService,
+    private config: GuiConfigService
   ) {
     this.registerResultToExportUpdateHandler();
   }
@@ -104,9 +104,13 @@ export class WorkflowResultExportService {
     // we should export all operators, otherwise, only highlighted ones
     // which means export button is selected from context-menu
     destination: "dataset" | "local" = "dataset", // default to dataset
-    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
   ): void {
-    if (!environment.exportExecutionResultEnabled) {
+    if (!this.config.env.exportExecutionResultEnabled) {
+      return;
+    }
+    if (unit === null) {
+      this.notificationService.error("Cannot export result: computing unit is not available");
       return;
     }
 
@@ -124,6 +128,13 @@ export class WorkflowResultExportService {
           .map(operator => operator.operatorID)
       : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
+    const operatorArray = operatorIds.map(operatorId => {
+      return {
+        id: operatorId,
+        outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
+      };
+    });
+
     if (operatorIds.length === 0) {
       return;
     }
@@ -137,7 +148,7 @@ export class WorkflowResultExportService {
         exportType,
         workflowId,
         workflowName,
-        operatorIds,
+        operatorArray,
         [...datasetIds],
         rowIndex,
         columnIndex,

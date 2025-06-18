@@ -24,6 +24,9 @@ import { OperatorMetadataService } from "../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
@@ -38,6 +41,11 @@ describe("ConsoleFrameComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        {
+          provide: ComputingUnitStatusService,
+          useClass: MockComputingUnitStatusService,
+        },
+        ...commonTestProviders,
       ],
     }).compileComponents();
   }));

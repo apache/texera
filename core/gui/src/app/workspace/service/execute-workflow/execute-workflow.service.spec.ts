@@ -36,6 +36,14 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 import { DOCUMENT } from "@angular/common";
 import { WorkflowSettings } from "src/app/common/type/workflow";
+import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
+import { AuthService } from "src/app/common/service/user/auth.service";
+import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
+import { UserService } from "src/app/common/service/user/user.service";
+import { StubUserService } from "src/app/common/service/user/stub-user.service";
+import { MockComputingUnitStatusService } from "../computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -60,6 +68,7 @@ describe("ExecuteWorkflowService", () => {
         ExecuteWorkflowService,
         WorkflowActionService,
         WorkflowUtilService,
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         UndoRedoService,
         JointUIService,
         {
@@ -68,6 +77,9 @@ describe("ExecuteWorkflowService", () => {
         },
         { provide: HttpClient, useClass: StubHttpClient },
         { provide: DOCUMENT, useValue: mockDocument },
+        { provide: AuthService, useClass: StubAuthService },
+        { provide: UserService, useClass: StubUserService },
+        ...commonTestProviders,
       ],
     });
 

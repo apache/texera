@@ -19,8 +19,8 @@
 
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 
 import scala.collection.mutable
@@ -54,7 +54,7 @@ import scala.util.control.Breaks.{break, breakable}
   */
 class FlowControl {
 
-  private val maxByteAllowed = AmberConfig.maxCreditAllowedInBytesPerChannel
+  private val maxByteAllowed = ApplicationConfig.maxCreditAllowedInBytesPerChannel
   private var inflightCredit: Long = 0
   private var queuedCredit: Long = 0
   private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()

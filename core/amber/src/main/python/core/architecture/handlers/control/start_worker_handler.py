@@ -32,13 +32,9 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 from core.architecture.packaging.input_manager import InputManager
 from core.models.internal_queue import DataElement
 
-from loguru import logger
-
 
 class StartWorkerHandler(ControlHandler):
-
     async def start_worker(self, req: EmptyRequest) -> WorkerStateResponse:
-        logger.info("Starting the worker.")
         if self.context.executor_manager.executor.is_source:
             self.context.state_manager.transit_to(WorkerState.RUNNING)
             input_channel_id = ChannelIdentity(
@@ -47,13 +43,20 @@ class StartWorkerHandler(ControlHandler):
                 False,
             )
             port_id = PortIdentity(0, False)
-            self.context.input_manager.add_input_port(port_id, Schema())
+            self.context.input_manager.add_input_port(
+                port_id=port_id, schema=Schema(), storage_uris=[], partitionings=[]
+            )
             self.context.input_manager.register_input(input_channel_id, port_id)
+            self.context.current_input_channel_id = input_channel_id
             self.context.input_queue.put(
                 DataElement(
                     tag=input_channel_id,
                     payload=None,
                 )
             )
-        state = self.context.state_manager.get_current_state()
-        return WorkerStateResponse(state)
+        elif self.context.input_manager.get_input_port_mat_reader_threads():
+            self.context.input_manager.start_input_port_mat_reader_threads()
+
+        self.start_channel(EmptyRequest())
+        self.end_channel(EmptyRequest())
+        return WorkerStateResponse(self.context.state_manager.get_current_state())

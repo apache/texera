@@ -23,6 +23,7 @@ import { AdminExecutionService } from "../../../service/admin/execution/admin-ex
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("AdminDashboardComponent", () => {
   let component: AdminExecutionComponent;
@@ -31,7 +32,7 @@ describe("AdminDashboardComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [AdminExecutionComponent],
-      providers: [AdminExecutionService],
+      providers: [AdminExecutionService, ...commonTestProviders],
       imports: [HttpClientTestingModule, NzDropDownModule, NzModalModule],
     }).compileComponents();
   }));

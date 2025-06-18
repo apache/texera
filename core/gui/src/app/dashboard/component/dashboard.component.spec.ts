@@ -36,6 +36,8 @@ import {
   Data,
 } from "@angular/router";
 import { convertToParamMap } from "@angular/router";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { commonTestProviders } from "../../common/testing/test-utils";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -111,6 +113,7 @@ describe("DashboardComponent", () => {
 
     await TestBed.configureTestingModule({
       declarations: [DashboardComponent],
+      imports: [HttpClientTestingModule],
       providers: [
         { provide: UserService, useValue: userServiceMock },
         { provide: Router, useValue: routerMock },
@@ -119,6 +122,7 @@ describe("DashboardComponent", () => {
         { provide: NgZone, useValue: ngZoneMock },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
+        ...commonTestProviders,
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();

@@ -21,8 +21,8 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
@@ -54,9 +54,10 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       workflowId: WorkflowIdentity,
       uid: Option[Integer],
       executionName: String,
-      environmentVersion: String
+      environmentVersion: String,
+      computingUnitId: Integer
   ): ExecutionIdentity = {
-    if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
+    if (!UserSystemConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
     val newExecution = new WorkflowExecutions()
@@ -67,12 +68,16 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setUid(uid.orNull)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)
+
+    // Set computing unit ID if provided
+    newExecution.setCuid(computingUnitId)
+
     workflowExecutionsDao.insert(newExecution)
     ExecutionIdentity(newExecution.getEid.longValue())
   }
 
   def tryGetExistingExecution(executionId: ExecutionIdentity): Option[WorkflowExecutions] = {
-    if (!AmberConfig.isUserSystemEnabled) return None
+    if (!UserSystemConfig.isUserSystemEnabled) return None
     try {
       Some(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
     } catch {
@@ -85,7 +90,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def tryUpdateExistingExecution(
       executionId: ExecutionIdentity
   )(updateFunc: WorkflowExecutions => Unit): Unit = {
-    if (!AmberConfig.isUserSystemEnabled) return
+    if (!UserSystemConfig.isUserSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(executionId.id.toInt)
       updateFunc(execution)

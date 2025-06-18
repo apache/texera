@@ -23,7 +23,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQue
 import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataFrame, DataPayload}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable
@@ -39,7 +39,7 @@ object WorkerBatchInternalQueue {
       extends InternalQueueElement
 
   case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
-  case class ChannelMarkerElement(cmd: ChannelMarkerPayload, from: ChannelIdentity)
+  case class EmbeddedControlMessageElement(cmd: EmbeddedControlMessage, from: ChannelIdentity)
       extends InternalQueueElement
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }

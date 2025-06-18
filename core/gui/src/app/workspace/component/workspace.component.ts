@@ -19,8 +19,7 @@
 
 import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
-import { environment } from "../../../environments/environment";
+import { ActivatedRoute, Router, Params } from "@angular/router";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
@@ -41,6 +40,8 @@ import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.inter
 import { HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
+import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
+import { GuiConfigService } from "../../common/service/gui-config.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -58,7 +59,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
-  userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
@@ -87,7 +87,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private router: Router,
     private notificationService: NotificationService,
     private hubService: HubService,
-    private codeEditorService: CodeEditorService
+    private codeEditorService: CodeEditorService,
+    private config: GuiConfigService
   ) {}
 
   ngOnInit() {
@@ -131,7 +132,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
-    if (this.userSystemEnabled) {
+    if (this.config.env.userSystemEnabled) {
       // if a workflow id is present in the route, display loading spinner immediately while loading
       const widInRoute = this.route.snapshot.params.id;
       if (widInRoute) {
@@ -186,7 +187,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
             .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
               if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
-                this.location.go(`/workflow/${updatedWorkflow.wid}`);
+                this.location.go(`${DASHBOARD_USER_WORKSPACE}/${updatedWorkflow.wid}`);
               }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
             });
@@ -254,7 +255,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
-        if (environment.userSystemEnabled) {
+        if (this.config.env.userSystemEnabled) {
           // load workflow with wid if presented in the URL
           if (wid) {
             // show loading spinner right away while waiting for workflow to load
