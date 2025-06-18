@@ -25,6 +25,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { AdminSettingsService } from "../service/admin/settings/admin-settings.service";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 
 import {
@@ -54,9 +55,12 @@ export class DashboardComponent implements OnInit {
   public gitCommitHash: string = Version.raw;
   displayForum: boolean = true;
   displayNavbar: boolean = true;
-  isCollpased: boolean = false;
+  isCollapsed: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
+  logo: string = "assets/logos/logo.png";
+  favicon: string = "assets/logos/favicon-32x32.png";
+
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
   protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
@@ -74,11 +78,12 @@ export class DashboardComponent implements OnInit {
     private ngZone: NgZone,
     private socialAuthService: SocialAuthService,
     private route: ActivatedRoute,
+    private adminSettingsService: AdminSettingsService,
     protected config: GuiConfigService
   ) {}
 
   ngOnInit(): void {
-    this.isCollpased = false;
+    this.isCollapsed = false;
 
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
@@ -113,6 +118,32 @@ export class DashboardComponent implements OnInit {
           });
         });
     });
+
+    this.loadLogos();
+  }
+
+  loadLogos(): void {
+    this.adminSettingsService
+      .getSetting("logo")
+      .pipe(untilDestroyed(this))
+      .subscribe(logoUrl => {
+        if (logoUrl) {
+          this.logo = logoUrl;
+        }
+      });
+
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe(faviconUrl => {
+        if (faviconUrl) {
+          this.favicon = faviconUrl;
+          const links = document.querySelectorAll("link[rel*='icon']");
+          links.forEach(link => {
+            (link as HTMLLinkElement).setAttribute("href", faviconUrl);
+          });
+        }
+      });
   }
 
   forumLogin() {
@@ -153,7 +184,7 @@ export class DashboardComponent implements OnInit {
   }
 
   handleCollapseChange(collapsed: boolean) {
-    this.isCollpased = collapsed;
+    this.isCollapsed = collapsed;
     const resizeEvent = new Event("resize");
     const editor = document.getElementById("workflow-editor");
     if (editor) {

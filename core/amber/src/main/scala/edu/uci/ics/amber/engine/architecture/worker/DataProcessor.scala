@@ -36,10 +36,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
   NO_ALIGNMENT,
-  PORT_ALIGNMENT,
-  ALL_ALIGNMENT
+  PORT_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -60,14 +59,11 @@ import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
-  ChannelMarkerIdentity
+  EmbeddedControlMessageIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_END_CHANNEL,
-  METHOD_START_CHANNEL
-}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_CHANNEL
 import io.grpc.MethodDescriptor
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -93,8 +89,8 @@ class DataProcessor(
   val stateManager: WorkerStateManager = new WorkerStateManager(actorId)
   val inputManager: InputManager = new InputManager(actorId, inputMessageQueue)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
-  val channelMarkerManager: ChannelMarkerManager =
-    new ChannelMarkerManager(actorId, inputGateway, inputManager)
+  val ecmManager: EmbeddedControlMessageManager =
+    new EmbeddedControlMessageManager(actorId, inputGateway, inputManager)
   val serializationManager: SerializationManager = new SerializationManager(actorId)
 
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
@@ -167,7 +163,7 @@ class DataProcessor(
     if (outputTuple == null) return
     outputTuple match {
       case FinalizeExecutor() =>
-        sendChannelMarkerToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
+        sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -234,55 +230,54 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  def processChannelMarker(
+  def processECM(
       channelId: ChannelIdentity,
-      marker: ChannelMarkerPayload,
+      ecm: EmbeddedControlMessage,
       logManager: ReplayLogManager
   ): Unit = {
     inputManager.currentChannelId = channelId
-    val markerId = marker.id
-    val command = marker.commandMapping.get(actorId.name)
-    logger.info(s"receive marker from $channelId, id = $markerId, cmd = $command")
-    if (marker.markerType != NO_ALIGNMENT) {
-      pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
+    val command = ecm.commandMapping.get(actorId.name)
+    logger.info(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
+    if (ecm.ecmType != NO_ALIGNMENT) {
+      pauseManager.pauseInputChannel(ECMPause(ecm.id), List(channelId))
     }
-    if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
-      logManager.markAsReplayDestination(markerId)
-      // invoke the control command carried with the epoch marker
-      logger.info(s"process marker from $channelId, id = $markerId, cmd = $command")
+    if (ecmManager.isECMAligned(channelId, ecm)) {
+      logManager.markAsReplayDestination(ecm.id)
+      // invoke the control command carried with the ECM
+      logger.info(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
-      // if this worker is not the final destination of the marker, pass it downstream
-      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
+      // if this worker is not the final destination of the ECM, pass it downstream
+      val downstreamChannelsInScope = ecm.scope.filter(_.fromWorkerId == actorId).toSet
       if (downstreamChannelsInScope.nonEmpty) {
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (downstreamChannelsInScope.contains(activeChannelId)) {
             logger.info(
-              s"send marker to $activeChannelId, id = $markerId, cmd = $command"
+              s"send ECM to $activeChannelId, id = ${ecm.id}, cmd = $command"
             )
-            outputGateway.sendTo(activeChannelId, marker)
+            outputGateway.sendTo(activeChannelId, ecm)
           }
         }
       }
       // unblock input channels
-      if (marker.markerType != NO_ALIGNMENT) {
-        pauseManager.resume(EpochMarkerPause(markerId))
+      if (ecm.ecmType != NO_ALIGNMENT) {
+        pauseManager.resume(ECMPause(ecm.id))
       }
     }
   }
 
-  def sendChannelMarkerToDataChannels(
+  def sendECMToDataChannels(
       method: MethodDescriptor[EmptyRequest, EmptyReturn],
-      alignment: ChannelMarkerType
+      alignment: EmbeddedControlMessageType
   ): Unit = {
     outputManager.flush()
     outputGateway.getActiveChannels
       .filter(!_.isControl)
       .foreach { activeChannelId =>
-        asyncRPCClient.sendChannelMarker(
-          ChannelMarkerIdentity(method.getBareMethodName),
+        asyncRPCClient.sendECMToChannel(
+          EmbeddedControlMessageIdentity(method.getBareMethodName),
           alignment,
           Set(),
           Map(

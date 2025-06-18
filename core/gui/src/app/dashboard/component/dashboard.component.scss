@@ -66,6 +66,12 @@ button {
   align-items: center;
 }
 
+.collapsed-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 nz-content {
   position: relative;
 }

@@ -54,7 +54,7 @@ message PhysicalOpIdentity{
   string layerName = 2;
 }
 
-message ChannelMarkerIdentity{
+message EmbeddedControlMessageIdentity{
   string id = 1;
 }
 
