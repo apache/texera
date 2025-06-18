@@ -76,6 +76,7 @@ class WorkflowAggregatedState(betterproto.Enum):
     FAILED = 7
     UNKNOWN = 8
     KILLED = 9
+    TERMINATED = 10
 
 
 @dataclass(eq=False, repr=False)
