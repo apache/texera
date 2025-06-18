@@ -308,9 +308,34 @@ export class JointUIService {
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
     const inPorts = allPorts.filter((p) => p.group === "in");
+    const outPorts = allPorts.filter((p) => p.group === "out");
+
     const inputMetrics = statistics.inputPortMetrics;
 
     inPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
+
+        const count: number = inputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":")
+          ? oldText.split(":", 1)[0].trim()
+          : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = `${originalName}: ${count}`;
+
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
+    });
+
+    outPorts.forEach(portDef => {
       const portId = portDef.id;
       if (portId != null) {
         const parts = portId.split("-");
@@ -338,6 +363,8 @@ export class JointUIService {
       [`.${operatorOutputCountClass}`]: { text: outputText },
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
     });
+
+    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -412,6 +439,13 @@ export class JointUIService {
     const allPorts = element.getPorts();
     const inPorts = allPorts.filter(p => p.group === "in");
     inPorts.forEach(p => {
+      if (p.id != null) {
+        element.portProp(p.id, "attrs/.port-label/fill", fillColor);
+      }
+    });
+
+    const outPorts = allPorts.filter(p => p.group === "out");
+    outPorts.forEach(p => {
       if (p.id != null) {
         element.portProp(p.id, "attrs/.port-label/fill", fillColor);
       }
@@ -737,7 +771,7 @@ export class JointUIService {
       },
       ".texera-operator-port-metrics": {
         text: "",
-        fill: "green",
+        fill: "blue",
         "font-size": "14px",
         visibility: "hidden",
         "ref-x": 0.5,
