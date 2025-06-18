@@ -29,6 +29,7 @@ import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.types.{Conversions, Types}
 
+import java.io.InputStream
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
@@ -62,6 +63,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   private val lock = new ReentrantReadWriteLock()
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
+  // Scans the Iceberg table to get the list of data files once.
+  @transient private lazy val fileScanTasks: Seq[FileScanTask] = {
+    val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
+    table.refresh()
+    table.newScan().planFiles().iterator().asScala.toSeq
+  }
 
   /**
     * Returns the URI of the table location.
@@ -429,5 +436,20 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       case e: Exception => println(s"Failed to get total-files-size: ${e.getMessage}")
     }
     filesSize
+  }
+
+  override def getUnderlyingFileCount: Int = {
+    fileScanTasks.size
+  }
+
+  override def getUnderlyingFileData(index: Int): InputStream = {
+    if (index < 0 || index >= fileScanTasks.size) {
+      throw new IndexOutOfBoundsException(
+        s"File index $index is out of bounds. There are ${fileScanTasks.size} files."
+      )
+    }
+    val file = fileScanTasks(index).file()
+    val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
+    table.io().newInputFile(file.path().toString).newStream()
   }
 }

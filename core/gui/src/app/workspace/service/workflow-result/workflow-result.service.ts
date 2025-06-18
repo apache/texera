@@ -211,7 +211,8 @@ export class WorkflowResultService {
   }
 
   public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
-    if (defaultExtension === "data") return "data";
+
+    if (defaultExtension === "data" || defaultExtension == "parquet") return defaultExtension;
     var outputType = this.determineOutputTypes(operatorId);
 
     if (outputType.isVisualizationOutput) return "html";

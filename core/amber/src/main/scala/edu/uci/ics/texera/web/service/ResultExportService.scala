@@ -57,6 +57,9 @@ import javax.ws.rs.core.StreamingOutput
 import java.net.{HttpURLConnection, URL, URLEncoder}
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.commons.io.IOUtils
+import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
+
 object Constants {
   val CHUNK_SIZE = 10
 }
@@ -144,6 +147,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       case "arrow" => out => streamDocumentAsArrow(operatorDocument, out)
       case "html"  => out => streamDocumentAsHTML(out, operatorDocument)
       case "data"  => out => streamCellData(out, request, operatorDocument)
+      case "parquet" => out => streamDocumentAsParquetZip(operatorDocument, out)
       case _       => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
     }
 
@@ -182,13 +186,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       operatorRequest.outputType match {
         case "csv"   => streamDocumentAsCSV(operatorDocument, out, None)
         case "arrow" => streamDocumentAsArrow(operatorDocument, out)
-        case "data"  => streamCellData(out, request, operatorDocument) // handle single cell export
-        case "html" =>
-          streamDocumentAsHTML(
-            out,
-            operatorDocument
-          ) // handle HTML export for visualization operators
-        case _ => streamDocumentAsCSV(operatorDocument, out, None) // fallback
+        case "data"  => streamCellData(out, request, operatorDocument)
+        case "html" => streamDocumentAsHTML(out, operatorDocument)
+        case "parquet" => streamDocumentAsParquetZip(operatorDocument, out)
+        case _ => streamDocumentAsCSV(operatorDocument, out, None)
       }
     }
 
@@ -238,17 +239,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
               op.outputType match {
                 case "csv"   => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
                 case "arrow" => streamDocumentAsArrow(operatorDocument, nonClosingStream)
-                case "data" =>
-                  streamCellData(
-                    nonClosingStream,
-                    request,
-                    operatorDocument
-                  ) // handle single cell export
-                case "html" =>
-                  streamDocumentAsHTML(
-                    nonClosingStream,
-                    operatorDocument
-                  ) // handle HTML export for visualization operators
+                case "data" => streamCellData(nonClosingStream, request, operatorDocument)
+                case "html" => streamDocumentAsHTML(nonClosingStream, operatorDocument)
+                case "parquet" => streamDocumentAsParquetZip(operatorDocument, nonClosingStream)
                 case _ => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
               }
               zipOut.closeEntry()
@@ -387,6 +380,39 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     out.flush()
   }
 
+  /**
+    * Streams the underlying Parquet files of an Iceberg document into a ZIP archive.
+    * This avoids re-encoding and uses minimal memory and no temporary disk space.
+    */
+  private def streamDocumentAsParquetZip(
+      doc: VirtualDocument[Tuple],
+      outputStream: OutputStream
+  ): Unit = {
+    val fileCount = doc.getUnderlyingFileCount
+    if (fileCount == 0) {
+      return
+    }
+
+    if (fileCount == 1) {
+      // If there's only one file, we can stream it directly without zipping
+      Using.resource(doc.getUnderlyingFileData(0)) { fileInputStream =>
+        IOUtils.copy(fileInputStream, outputStream)
+      }
+      return
+    }
+
+    Using.resource(new ZipOutputStream(outputStream)) { zipOut =>
+      for (i <- 0 until fileCount) {
+        val entryName = s"part-${String.format("%05d", i)}.parquet"
+        zipOut.putNextEntry(new ZipEntry(entryName))
+        Using.resource(doc.getUnderlyingFileData(i)) { fileInputStream =>
+          IOUtils.copy(fileInputStream, zipOut)
+        }
+        zipOut.closeEntry()
+      }
+    }
+  }
+
   /*
    * Handle streaming a single (row, column) from an operator's result.
    * This is used for the "data" export type, which exports a single field value.
@@ -438,7 +464,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       PortIdentity()
     )
 
-    // Return null if no URI so that caller can handle empty/absent data
     storageUri
       .map(uri => DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]])
       .orNull
@@ -478,7 +503,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   private def saveToDatasets(
       request: ResultExportRequest,
       user: User,
-      fileWriter: OutputStream => Unit, // Pass function that writes data
+      fileWriter: OutputStream => Unit,
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
@@ -504,12 +529,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
         )
         connection.setChunkedStreamingMode(0)
 
-        // Get output stream from connection
         val outputStream = connection.getOutputStream
-        fileWriter(outputStream) // Write directly to HTTP request output stream
+        fileWriter(outputStream)
         outputStream.close()
 
-        // Check response
         val responseCode = connection.getResponseCode
         if (responseCode != HttpURLConnection.HTTP_OK) {
           throw new RuntimeException(s"Failed to upload file. Server responded with: $responseCode")
@@ -524,8 +547,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-    * Generate a file name for an operator's exported file.
-    * Preserves your logic: uses operatorId in the name.
+    * Generate a file name for an operator's exported file
     */
   private def generateFileName(
       request: ResultExportRequest,
