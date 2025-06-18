@@ -113,7 +113,7 @@ export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-ch
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
-export const operatorPortMetricsClass = "texera-operator-port-metrics"
+export const operatorPortMetricsClass = "texera-operator-port-metrics";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -307,8 +307,8 @@ export class JointUIService {
 
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
-    const inPorts = allPorts.filter((p) => p.group === "in");
-    const outPorts = allPorts.filter((p) => p.group === "out");
+    const inPorts = allPorts.filter(p => p.group === "in");
+    const outPorts = allPorts.filter(p => p.group === "out");
 
     const inputMetrics = statistics.inputPortMetrics;
 
@@ -321,9 +321,7 @@ export class JointUIService {
         const count: number = inputMetrics[numericSuffix] ?? 0;
         const rawAttrs = (portDef.attrs as any) || {};
         const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
-        let originalName = oldText.includes(":")
-          ? oldText.split(":", 1)[0].trim()
-          : oldText;
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
 
         if (!originalName) {
           originalName = portId;
@@ -344,9 +342,7 @@ export class JointUIService {
         const count: number = inputMetrics[numericSuffix] ?? 0;
         const rawAttrs = (portDef.attrs as any) || {};
         const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
-        let originalName = oldText.includes(":")
-          ? oldText.split(":", 1)[0].trim()
-          : oldText;
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
 
         if (!originalName) {
           originalName = portId;
@@ -383,7 +379,6 @@ export class JointUIService {
     if (!element) {
       return;
     }
-
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
