@@ -22,15 +22,12 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
-import edu.uci.ics.amber.engine.common.ambermessage.MarkerFrame
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
-import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.core.workflow.PortIdentity
 
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -41,22 +38,26 @@ trait StartHandler {
   ): Future[WorkerStateResponse] = {
     logger.info("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
+      val channelId =
+        ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
-      val dummyInputPortId = PortIdentity()
-      dp.inputManager.addPort(dummyInputPortId, null)
-      dp.inputGateway
-        .getChannel(ChannelIdentity(SOURCE_STARTER_ACTOR, actorId, isControl = false))
-        .setPortId(dummyInputPortId)
-      dp.processDataPayload(
-        ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
-        MarkerFrame(StartOfInputChannel())
+      dp.inputManager.addPort(
+        PortIdentity(),
+        null,
+        urisToRead = List.empty,
+        partitionings = List.empty
       )
-      dp.processDataPayload(
-        ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
-        MarkerFrame(EndOfInputChannel())
-      )
+      dp.inputManager.currentChannelId = channelId
+      dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
+      startChannel(request, ctx)
+      endChannel(request, ctx)
+      WorkerStateResponse(dp.stateManager.getCurrentState)
+    } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {
+      // This means the worker should read from materialized storage for its input ports.
+      // Start the reader threads
+      dp.inputManager.startInputPortReaderThreads()
       WorkerStateResponse(dp.stateManager.getCurrentState)
     } else {
       throw new WorkflowRuntimeException(
@@ -64,5 +65,4 @@ trait StartHandler {
       )
     }
   }
-
 }

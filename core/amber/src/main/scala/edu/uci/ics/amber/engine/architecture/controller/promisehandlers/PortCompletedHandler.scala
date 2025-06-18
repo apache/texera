@@ -75,7 +75,7 @@ trait PortCompletedHandler {
 
             if (isPortCompleted) {
               cp.workflowExecutionCoordinator
-                .executeNextRegions(cp.actorService)
+                .coordinateRegionExecutors(cp.actorService)
                 // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
                 // Additionally, a fatal error is sent to the client, indicating that the region cannot be scheduled.
                 .onFailure {

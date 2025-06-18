@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
-import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
@@ -66,7 +66,10 @@ object WorkflowWorker {
       faultToleranceConfOpt: Option[FaultToleranceConfig] = None
   )
 
-  final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
+  final case class StateRestoreConfig(
+      readFrom: URI,
+      replayDestination: EmbeddedControlMessageIdentity
+  )
 
   final case class FaultToleranceConfig(writeTo: URI)
 }
@@ -77,13 +80,15 @@ class WorkflowWorker(
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
-  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)
+  // Internal inputQueue is passed to dp.InputManager because input port materialization
+  // reader threads need to put input data read from materialization into this queue.
+  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted, inputQueue)
   val timerService = new WorkerTimerService(actorService)
 
   var dpThread: DPThread = _
 
   val recordedInputs =
-    new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
+    new mutable.HashMap[EmbeddedControlMessageIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)

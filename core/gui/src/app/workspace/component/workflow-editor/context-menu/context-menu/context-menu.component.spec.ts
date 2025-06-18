@@ -32,7 +32,8 @@ import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal"; // Import NzModalModule and NzModalService
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { commonTestProviders } from "../../../../../common/testing/test-utils"; // Import NzModalModule and NzModalService
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
@@ -109,6 +110,7 @@ describe("ContextMenuComponent", () => {
         { provide: OperatorMenuService, useValue: operatorMenuService },
         { provide: ValidationWorkflowService, useValue: validationWorkflowServiceSpy },
         NzModalService, // Provide NzModalService
+        ...commonTestProviders,
       ],
       imports: [
         HttpClientModule,

@@ -35,6 +35,7 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
@@ -51,6 +52,7 @@ describe("ValidationWorkflowService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
 

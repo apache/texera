@@ -29,7 +29,7 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.core import ChannelIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 
 
@@ -49,8 +49,8 @@ class ControlElement(InternalQueueElement):
 
 
 @dataclass
-class ChannelMarkerElement(InternalQueueElement):
-    payload: ChannelMarkerPayload
+class EmbeddedControlMessageElement(InternalQueueElement):
+    payload: EmbeddedControlMessage
 
 
 T = TypeVar("T", bound=InternalQueueElement)
@@ -80,7 +80,9 @@ class InternalQueue(IQueue):
             if item.tag not in self._queue_ids:
                 self._queue.add_sub_queue(item.tag, 1 if item.tag.is_control else 2)
                 self._queue_ids.add(item.tag)
-            if isinstance(item, (DataElement, InternalMarker, ChannelMarkerElement)):
+            if isinstance(
+                item, (DataElement, InternalMarker, EmbeddedControlMessageElement)
+            ):
                 self._queue.put(item.tag, item)
             elif isinstance(item, ControlElement):
                 self._queue.put(item.tag, item)

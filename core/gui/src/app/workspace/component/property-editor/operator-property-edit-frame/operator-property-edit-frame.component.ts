@@ -59,7 +59,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
@@ -67,6 +66,7 @@ import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
 import { AttributeType, PortInputSchema } from "../../../types/workflow-compiling.interface";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -153,7 +153,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private workflowStatusSerivce: WorkflowStatusService
+    private workflowStatusSerivce: WorkflowStatusService,
+    private config: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -459,8 +460,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
-        environment.userSystemEnabled &&
-        environment.userPresetEnabled &&
+        this.config.env.userSystemEnabled &&
+        this.config.env.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
       ) {

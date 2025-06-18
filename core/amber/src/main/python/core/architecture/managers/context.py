@@ -19,10 +19,10 @@ from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from typing import Optional
 from .console_message_manager import ConsoleMessageManager
-from .channel_marker_manager import ChannelMarkerManager
+from .embedded_control_message_manager import EmbeddedControlMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
-from .marker_processing_manager import MarkerProcessingManager
+from .state_processing_manager import StateProcessingManager
 from .tuple_processing_manager import TupleProcessingManager
 from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
@@ -48,7 +48,7 @@ class Context:
         self.executor_manager = ExecutorManager()
         self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.tuple_processing_manager = TupleProcessingManager()
-        self.marker_processing_manager = MarkerProcessingManager()
+        self.state_processing_manager = StateProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
             {
@@ -66,8 +66,8 @@ class Context:
             self.input_queue, state_manager=self.state_manager
         )
         self.output_manager = OutputManager(worker_id)
-        self.input_manager = InputManager()
-        self.channel_marker_manager = ChannelMarkerManager(
+        self.input_manager = InputManager(worker_id, self.input_queue)
+        self.ecm_manager = EmbeddedControlMessageManager(
             ActorVirtualIdentity(worker_id), self.input_manager
         )
         self.console_message_manager = ConsoleMessageManager()

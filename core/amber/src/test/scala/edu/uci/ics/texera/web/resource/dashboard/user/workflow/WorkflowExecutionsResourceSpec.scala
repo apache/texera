@@ -24,17 +24,17 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowDao,
-  WorkflowVersionDao,
-  WorkflowExecutionsDao
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   User,
   Workflow,
-  WorkflowVersion,
-  WorkflowExecutions
+  WorkflowExecutions,
+  WorkflowVersion
 }
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
 import java.sql.Timestamp
 import java.util.UUID
@@ -45,7 +45,8 @@ class WorkflowExecutionsResourceSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with PrivateMethodTester {
 
   private val testWorkflowWid = 3000 + scala.util.Random.nextInt(1000)
   private val testUserId = 1000 + scala.util.Random.nextInt(1000)
@@ -174,4 +175,5 @@ class WorkflowExecutionsResourceSpec
       "All inserted execution IDs should be returned"
     )
   }
+
 }

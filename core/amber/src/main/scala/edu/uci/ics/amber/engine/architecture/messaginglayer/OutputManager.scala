@@ -19,7 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.tuple._
@@ -38,7 +38,6 @@ import edu.uci.ics.amber.engine.architecture.worker.managers.{
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-
 import java.net.URI
 import scala.collection.mutable
 
@@ -189,8 +188,8 @@ class OutputManager(
     buffersToFlush.foreach(_.flush())
   }
 
-  def emitMarker(marker: Marker): Unit = {
-    networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
+  def emitState(state: State): Unit = {
+    networkOutputBuffers.foreach(kv => kv._2.sendState(state))
   }
 
   def addPort(portId: PortIdentity, schema: Schema, storageURIOption: Option[URI]): Unit = {
@@ -258,6 +257,20 @@ class OutputManager(
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
       )
     outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
+  }
+
+  /**
+    * This method is only used for ensuring correct region execution. Some operators may have input port dependency
+    * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionCoordinator`
+    * for details.)
+    * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
+    * We currently assume that in this phase the operator (worker) will not output any data, hence no output ports.
+    * However we still need to keep this worker open for the next `executingNonDependeePort` phase.
+    *
+    * @return Whether this worker currently does not have any output port.
+    */
+  def isMissingOutputPort: Boolean = {
+    this.ports.isEmpty
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {

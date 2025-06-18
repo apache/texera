@@ -50,6 +50,14 @@ to access services in the main namespace using the same service names.
 ) | nindent 0 }}
 
 ---
+{{/* Config service ExternalName */}}
+{{- include "external-name-service" (dict 
+  "name" (printf "%s-svc" .Values.configService.name)
+  "namespace" $workflowComputingUnitPoolNamespace
+  "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.configService.name $namespace)
+) | nindent 0 }}
+
+---
 {{/* PostgreSQL ExternalName */}}
 {{- include "external-name-service" (dict 
   "name" (printf "%s-postgresql" .Release.Name)

@@ -21,6 +21,7 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.workflow.WorkflowContext
@@ -33,10 +34,9 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.amber.core.virtualidentity.{
-  ChannelMarkerIdentity,
+  EmbeddedControlMessageIdentity,
   ExecutionIdentity,
   WorkflowIdentity
 }
@@ -59,12 +59,12 @@ import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
-
 import edu.uci.ics.amber.core.storage.result.iceberg.OnIceberg
+import edu.uci.ics.texera.config.UserSystemConfig
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
-  val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
+  val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
 
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
@@ -74,13 +74,14 @@ object WorkflowService {
 
   def getOrCreate(
       workflowId: WorkflowIdentity,
+      computingUnitId: Int,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
     workflowServiceMapping.compute(
       mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
-          new WorkflowService(workflowId, cleanupTimeout)
+          new WorkflowService(workflowId, computingUnitId, cleanupTimeout)
         } else {
           v
         }
@@ -91,6 +92,7 @@ object WorkflowService {
 
 class WorkflowService(
     val workflowId: WorkflowIdentity,
+    val computingUnitId: Int,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -100,15 +102,15 @@ class WorkflowService(
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: ExecutionResultService = new ExecutionResultService(workflowId, stateStore)
-  val exportService: ResultExportService = new ResultExportService(workflowId)
+  val resultService: ExecutionResultService =
+    new ExecutionResultService(workflowId, computingUnitId, stateStore)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
       // clear the storage resources associated with the latest execution
       WorkflowExecutionService
-        .getLatestExecutionId(workflowId)
+        .getLatestExecutionId(workflowId, computingUnitId)
         .foreach(eid => {
           clearExecutionResources(eid)
         })
@@ -191,7 +193,8 @@ class WorkflowService(
     var controllerConf = ControllerConfig.default
 
     // clean up results from previous run
-    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    val previousExecutionId =
+      WorkflowExecutionService.getLatestExecutionId(workflowId, req.computingUnitId)
     previousExecutionId.foreach(eid => {
       clearExecutionResources(eid)
     }) // TODO: change this behavior after enabling cache.
@@ -200,13 +203,14 @@ class WorkflowService(
       workflowContext.workflowId,
       uidOpt,
       req.executionName,
-      convertToJson(req.engineVersion)
+      convertToJson(req.engineVersion),
+      req.computingUnitId
     )
 
-    if (AmberConfig.isUserSystemEnabled) {
+    if (UserSystemConfig.isUserSystemEnabled) {
       // enable only if we have mysql
-      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+      if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
           s"${workflowContext.workflowId}/${workflowContext.executionId}/"
         )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
@@ -226,7 +230,7 @@ class WorkflowService(
               Some(
                 StateRestoreConfig(
                   readFrom = readLocation,
-                  replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
+                  replayDestination = EmbeddedControlMessageIdentity(replayInfo.interaction)
                 )
               )
             )

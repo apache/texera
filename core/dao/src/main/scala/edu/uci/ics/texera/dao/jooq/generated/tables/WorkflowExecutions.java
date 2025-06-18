@@ -34,7 +34,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row13;
+import org.jooq.Row14;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -128,6 +128,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     public final TableField<WorkflowExecutionsRecord, String> RUNTIME_STATS_URI = createField(DSL.name("runtime_stats_uri"), SQLDataType.CLOB, this, "");
 
     /**
+     * The column <code>texera_db.workflow_executions.cuid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, Integer> CUID = createField(DSL.name("cuid"), SQLDataType.INTEGER, this, "");
+
+    /**
      * The column <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Integer> RUNTIME_STATS_SIZE = createField(DSL.name("runtime_stats_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
@@ -184,11 +189,12 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.asList(Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY);
+        return Arrays.asList(Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_VID_FKEY, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_CUID_FKEY);
     }
 
     private transient WorkflowVersion _workflowVersion;
     private transient User _user;
+    private transient WorkflowComputingUnit _workflowComputingUnit;
 
     /**
      * Get the implicit join path to the <code>texera_db.workflow_version</code>
@@ -209,6 +215,17 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
             _user = new User(this, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_UID_FKEY);
 
         return _user;
+    }
+
+    /**
+     * Get the implicit join path to the
+     * <code>texera_db.workflow_computing_unit</code> table.
+     */
+    public WorkflowComputingUnit workflowComputingUnit() {
+        if (_workflowComputingUnit == null)
+            _workflowComputingUnit = new WorkflowComputingUnit(this, Keys.WORKFLOW_EXECUTIONS__WORKFLOW_EXECUTIONS_CUID_FKEY);
+
+        return _workflowComputingUnit;
     }
 
     @Override
@@ -238,11 +255,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row13 type methods
+    // Row14 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row13<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String, Integer> fieldsRow() {
-        return (Row13) super.fieldsRow();
+    public Row14<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String, Integer, Integer> fieldsRow() {
+        return (Row14) super.fieldsRow();
     }
 }

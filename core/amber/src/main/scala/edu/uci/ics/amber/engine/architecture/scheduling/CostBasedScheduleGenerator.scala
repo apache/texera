@@ -19,19 +19,27 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.storage.VFSURIFactory.createResultURI
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
+  PhysicalOp,
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{PortConfig, ResourceConfig}
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  IntermediateInputPortConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
+import edu.uci.ics.amber.engine.common.AmberLogging
+import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
+import java.net.URI
 import java.util.concurrent.TimeoutException
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -82,70 +90,165 @@ class CostBasedScheduleGenerator(
   }
 
   /**
-    * Create regions based on only pipelined edges. This does not add the region links.
+    * Partitions a physical plan into Regions and assigns storage URIs in two passes.
     *
-    * @param physicalPlan The original physical plan without materializations added yet.
-    * @param matEdges     Set of edges to materialize (including the original blocking edges).
-    * @return A set of regions.
+    * <p><strong>Overview</strong></p>
+    * <ol>
+    *   <li><strong>Region construction:</strong>
+    *     Remove all materialized edges from the DAG and compute undirected connected
+    *     components. The resulting “Region Graph” may contain directed cycles.</li>
+    *   <li><strong>Pass 1 – Output URIs:</strong>
+    *     For each Region, allocate storage URIs on every output port of materialized edges.</li>
+    *   <li><strong>Pass 2 – Input URIs:</strong>
+    *     Re-traverse the same Regions and attach reader URIs on input ports using
+    *     the URIs created in Pass 1.</li>
+    * </ol>
+    *
+    * <p><strong>Why two passes?</strong></p>
+    * <ul>
+    *   <li>Potential directed cycles in the Region Graph makes a topological
+    *       traversal of regions inpossible.</li>
+    *   <li>To ensure every output URI exists before its corresponding reader is assigned,
+    *       and avoiding “reader before writer” holes, two passes are required.</li>
+    * </ul>
+    *
+    * @param physicalPlan the original physical plan (without materializations)
+    * @param matEdges     edges to be materialized (including blocking edges)
+    * @return a set of `Region`s whose `ResourceConfig` contains only `URI`s for `PortConfig`s
+    *         (`Partitioning` to be assigned later in `ResourceAllocator`; see `IntermediateInputPortConfig`.)
     */
   private def createRegions(
       physicalPlan: PhysicalPlan,
       matEdges: Set[PhysicalLink]
   ): Set[Region] = {
-    val matEdgesRemovedDAG = matEdges.foldLeft(physicalPlan) { (currentPlan, linkToRemove) =>
-      currentPlan.removeLink(linkToRemove)
-    }
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
-      matEdgesRemovedDAG.dag
-    ).getConnectedComponents.asScala.toSet
-    connectedComponents.zipWithIndex.map {
+
+    // Pass 0 – remove materialized edges and create connected components
+
+    val matEdgesRemovedDAG: PhysicalPlan = matEdges.foldLeft(physicalPlan)(_.removeLink(_))
+
+    val connectedComponents: Set[Graph[PhysicalOpIdentity, PhysicalLink]] =
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
+        matEdgesRemovedDAG.dag
+      ).getConnectedComponents.asScala.toSet
+
+    // Pass 1 – build Regions only output-port storage URIs
+
+    val regionsWithOnlyOutputPortURIs: Set[Region] = connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
-        val links = operatorIds
-          .flatMap(operatorId => {
-            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
-              .getDownstreamPhysicalLinks(operatorId)
-          })
-          .filter(link => operatorIds.contains(link.fromOpId))
-        val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
-        val portIdsToViewResult: Set[GlobalPortIdentity] =
+        // Operators and intra‑region pipelined links
+
+        val operators: Set[PhysicalOpIdentity] = connectedSubDAG.vertexSet().asScala.toSet
+
+        val links: Set[PhysicalLink] = operators
+          .flatMap { opId =>
+            physicalPlan.getUpstreamPhysicalLinks(opId) ++
+              physicalPlan.getDownstreamPhysicalLinks(opId)
+          }
+          .filter(link => operators.contains(link.fromOpId))
+          .diff(matEdges) // keep only pipelined edges
+
+        val physicalOps: Set[PhysicalOp] = operators.map(physicalPlan.getOperator)
+
+        // Frontend-specified ports that need to be materailized (output ports of "eye-icon" physicalOps)
+        val outputPortIdsToViewResult: Set[GlobalPortIdentity] =
           workflowContext.workflowSettings.outputPortsNeedingStorage
-            .filter(outputPort => operatorIds.contains(outputPort.opId))
-        val portIdsNeedingStorage: Set[GlobalPortIdentity] = matEdges
-          .diff(physicalPlan.getDependeeLinks)
-          .filter(matLink => operatorIds.contains(matLink.fromOpId))
-          .flatMap(link =>
-            List(
-              GlobalPortIdentity(link.fromOpId, link.fromPortId)
+            .filter(pid => operators.contains(pid.opId))
+
+        // Contains both frontend-specified and scheduler-decided ports that require materailizations.
+        val outputPortIdsNeedingStorage: Set[GlobalPortIdentity] =
+          matEdges
+            .filter(e => operators.contains(e.fromOpId))
+            .map(e => GlobalPortIdentity(e.fromOpId, e.fromPortId)) ++
+            outputPortIdsToViewResult
+
+        // Allocate an URI for each of these output ports
+        val outputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
+          outputPortIdsNeedingStorage.map { gpid =>
+            val outputWriterURI = createResultURI(
+              workflowId = workflowContext.workflowId,
+              executionId = workflowContext.executionId,
+              globalPortId = gpid
             )
-          ) ++ portIdsToViewResult
-        val portConfigs = portIdsNeedingStorage
-          .map(outputPortId =>
-            outputPortId -> {
-              val uri = createResultURI(
-                workflowId = workflowContext.workflowId,
-                executionId = workflowContext.executionId,
-                globalPortId = outputPortId
-              )
-              PortConfig(storageURI = uri)
-            }
-          )
-          .toMap
-        val resourceConfig = ResourceConfig(portConfigs = portConfigs)
-        val ports = operators.flatMap(op =>
+            gpid -> OutputPortConfig(outputWriterURI)
+          }.toMap
+
+        val resourceConfig = ResourceConfig(portConfigs = outputPortConfigs)
+
+        // Enumerate all ports belonging to the Region
+        val ports: Set[GlobalPortIdentity] = physicalOps.flatMap { op =>
           op.inputPorts.keys
             .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
             .toSet ++ op.outputPorts.keys
             .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
             .toSet
-        )
+        }
+
+        // Build the Region skeleton (no input‑port URIs yet)
         Region(
           id = RegionIdentity(idx),
-          physicalOps = operators,
+          physicalOps = physicalOps,
           physicalLinks = links,
           ports = ports,
           resourceConfig = Some(resourceConfig)
         )
+    }
+
+    // Collect writer‑side configs so we can look them up in Pass 2
+    val allOutputPortConfigs: Map[GlobalPortIdentity, OutputPortConfig] =
+      regionsWithOnlyOutputPortURIs
+        .flatMap(_.resourceConfig) // Seq[ResourceConfig]
+        .flatMap(_.portConfigs.collect { // PortConfig → OutputPortConfig
+          case (id, cfg: OutputPortConfig) => id -> cfg
+        })
+        .toMap
+
+    // Pass 2 – add input‑port storage configs (reader URIs)
+
+    regionsWithOnlyOutputPortURIs.map { existingRegion =>
+      // MatEdges that originally connected to the input ports of this region.
+      val relevantMatEdges: Set[PhysicalLink] = matEdges.filter { matEdge =>
+        existingRegion.getOperators.exists(_.id == matEdge.toOpId)
+      }
+
+      // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URI)
+      val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
+        relevantMatEdges
+          .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
+            val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
+            val globalInputPortId = GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+
+            // Writer‑side URI that must already exist thanks to Pass 1
+            val inputReaderURI = allOutputPortConfigs
+              .getOrElse(
+                globalOutputPortId,
+                throw new IllegalStateException(
+                  s"Materialization edge $link: attempting to assign a materialization " +
+                    s"reader URI for input port $globalInputPortId when " +
+                    s"the outout port $globalOutputPortId has not been assigned a URI yet."
+                )
+              )
+              .storageURI
+
+            // Group all available URIs of this input port together
+            acc.updated(
+              globalInputPortId,
+              acc.getOrElse(globalInputPortId, List.empty[URI]) :+ inputReaderURI
+            )
+          }
+          .map {
+            case (inputPortId, uris) =>
+              inputPortId -> IntermediateInputPortConfig(uris)
+          }
+
+      val newResourceConfig: Option[ResourceConfig] = existingRegion.resourceConfig match {
+        case Some(existingConfig) =>
+          Some(ResourceConfig(portConfigs = existingConfig.portConfigs ++ inputPortConfigs))
+        case None =>
+          if (inputPortConfigs.nonEmpty) Some(ResourceConfig(portConfigs = inputPortConfigs))
+          else None
+      }
+
+      existingRegion.copy(resourceConfig = newResourceConfig)
     }
   }
 
@@ -191,13 +294,13 @@ class CostBasedScheduleGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResultFuture: Future[SearchResult] = Future {
-      if (AmberConfig.useTopDownSearch)
-        topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
+      if (ApplicationConfig.useTopDownSearch)
+        topDownSearch(globalSearch = ApplicationConfig.useGlobalSearch)
       else
-        bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+        bottomUpSearch(globalSearch = ApplicationConfig.useGlobalSearch)
     }
     val searchResult = Try(
-      Await.result(searchResultFuture, AmberConfig.searchTimeoutMilliseconds.milliseconds)
+      Await.result(searchResultFuture, ApplicationConfig.searchTimeoutMilliseconds.milliseconds)
     ) match {
       case Failure(exception) =>
         exception match {
@@ -218,65 +321,10 @@ class CostBasedScheduleGenerator(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search time: " +
         s"${searchResult.searchTimeNanoSeconds / 1e6} ms."
     )
-    // Only a non-dependee blocking link that has not already been materialized should be replaced
-    // with a materialization write op + materialization read op.
-    val linksToMaterialize =
-      (searchResult.state ++ physicalPlan.getBlockingAndDependeeLinks).diff(
-        physicalPlan.getDependeeLinks
-      )
-    if (linksToMaterialize.nonEmpty) {
-      val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-      linksToMaterialize.foreach(link =>
-        physicalPlan = replaceLinkWithMaterialization(
-          link,
-          matReaderWriterPairs
-        )
-      )
-    }
-    // Calling the search again to include cache read ops in the regions.
-    // This new search is only needed because of additional cache read operators which alters the physical plan.
-    // However, as the new physical plan is already schedulable, the original materialized ports of each region will not
-    // be included in the new region DAG.
-    // TODO: remove this step after cache read is removed.
-    val regionDAG = bottomUpSearch().regionDAG
 
-    addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
-    populateDependeeLinks(regionDAG)
-    // The materialized ports of each region are already decided by the first RPG search
-    // However they will be lost after the second search as a consequence of the modified physical plan.
-    // The second search is only needed because of additional cache read operators.
-    // Need to add the original materialized ports back. This will not be needed after removal of cache read ops.
-    // TODO: remove this step after cache read is removed.
-    val outputPortsToMaterialize = linksToMaterialize.map(link =>
-      GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
-    )
-    updateRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
+    val regionDAG = searchResult.regionDAG
     allocateResource(regionDAG)
     regionDAG
-  }
-
-  /**
-    * Adds materialization links as region links within the given region DAG.
-    * This method processes each physical link in the input set, identifying the source and destination
-    * regions for each link. It then adds an edge between these regions in the DAG to represent
-    * the materialization relationship.
-    *
-    * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
-    * @param regionDAG The DAG of regions to be modified
-    */
-  private def addMaterializationsAsRegionLinks(
-      linksToMaterialize: Set[PhysicalLink],
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-    linksToMaterialize.foreach(link => {
-      val fromOpRegions = getRegions(link.fromOpId, regionDAG)
-      val toOpRegions = getRegions(link.toOpId, regionDAG)
-      fromOpRegions.foreach(fromRegion => {
-        toOpRegions.foreach(toRegion => {
-          regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
-        })
-      })
-    })
   }
 
   /**

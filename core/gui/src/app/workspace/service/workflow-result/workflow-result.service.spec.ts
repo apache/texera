@@ -22,11 +22,15 @@ import { WorkflowResultService, OperatorPaginationResultService } from "./workfl
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
   beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [WorkflowResultService, ...commonTestProviders],
+    });
     service = TestBed.inject(WorkflowResultService);
   });
 

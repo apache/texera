@@ -123,28 +123,33 @@ export class DownloadService {
     exportType: string,
     workflowId: number,
     workflowName: string,
-    operatorIds: string[],
+    operators: {
+      id: string;
+      outputType: string;
+    }[],
     datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
     filename: string,
     destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
-    unit: DashboardWorkflowComputingUnit | null = null // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
+    const computingUnitId = unit.computingUnit.cuid;
     const requestBody = {
       exportType,
       workflowId,
       workflowName,
-      operatorIds,
+      operators,
       datasetIds,
       rowIndex,
       columnIndex,
       filename,
       destination,
+      computingUnitId,
     };
-    console.log("received cui from exportWorkflowResult", unit);
+
     const urlPath =
-      unit && unit.computingUnit?.cuid
+      unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
         ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
         : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
     if (destination === "local") {

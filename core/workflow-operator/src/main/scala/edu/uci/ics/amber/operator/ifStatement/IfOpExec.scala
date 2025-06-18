@@ -20,7 +20,7 @@
 package edu.uci.ics.amber.operator.ifStatement
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.util.JSONUtils.objectMapper

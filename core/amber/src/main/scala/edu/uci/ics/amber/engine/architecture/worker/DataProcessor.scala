@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.OperatorExecutor
-import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{
   FinalizeExecutor,
   FinalizePort,
@@ -36,9 +36,15 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
+  NO_ALIGNMENT,
+  PORT_ALIGNMENT
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -50,12 +56,22 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_CHANNEL
+import io.grpc.MethodDescriptor
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
+    inputMessageQueue: LinkedBlockingQueue[DPInputQueueElement]
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
@@ -71,9 +87,10 @@ class DataProcessor(
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
   val pauseManager: PauseManager = wire[PauseManager]
   val stateManager: WorkerStateManager = new WorkerStateManager(actorId)
-  val inputManager: InputManager = new InputManager(actorId)
+  val inputManager: InputManager = new InputManager(actorId, inputMessageQueue)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
-  val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
+  val ecmManager: EmbeddedControlMessageManager =
+    new EmbeddedControlMessageManager(actorId, inputGateway, inputManager)
   val serializationManager: SerializationManager = new SerializationManager(actorId)
 
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
@@ -114,47 +131,10 @@ class DataProcessor(
     try {
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
+        outputManager.emitState(outputState.get)
       }
     } catch safely {
       case e =>
-        handleExecutorException(e)
-    }
-  }
-
-  /**
-    * process start of an input port with Executor.produceStateOnStart().
-    * this function is only called by the DP thread.
-    */
-  private[this] def processStartOfInputChannel(portId: Int): Unit = {
-    try {
-      outputManager.emitMarker(StartOfInputChannel())
-      val outputState = executor.produceStateOnStart(portId)
-      if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
-      }
-    } catch safely {
-      case e =>
-        handleExecutorException(e)
-    }
-  }
-
-  /**
-    * process end of an input port with Executor.produceStateOnFinish().
-    * this function is only called by the DP thread.
-    */
-  private[this] def processEndOfInputChannel(portId: Int): Unit = {
-    try {
-      val outputState = executor.produceStateOnFinish(portId)
-      if (outputState.isDefined) {
-        outputManager.emitMarker(outputState.get)
-      }
-      outputManager.outputIterator.setTupleOutput(
-        executor.onFinishMultiPort(portId)
-      )
-    } catch safely {
-      case e =>
-        // forward input tuple to the user and pause DP thread
         handleExecutorException(e)
     }
   }
@@ -181,10 +161,9 @@ class DataProcessor(
     val (outputTuple, outputPortOpt) = out
 
     if (outputTuple == null) return
-
     outputTuple match {
       case FinalizeExecutor() =>
-        outputManager.emitMarker(EndOfInputChannel())
+        sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -245,69 +224,77 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case MarkerFrame(marker) =>
-        marker match {
-          case state: State =>
-            processInputState(state, portId.id)
-          case StartOfInputChannel() =>
-            processStartOfInputChannel(portId.id)
-          case EndOfInputChannel() =>
-            this.inputManager.getPort(portId).channels(channelId) = true
-            if (inputManager.isPortCompleted(portId)) {
-              inputManager.initBatch(channelId, Array.empty)
-              processEndOfInputChannel(portId.id)
-              outputManager.outputIterator.appendSpecialTupleToEnd(
-                FinalizePort(portId, input = true)
-              )
-            }
-            if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-              // assuming all the output ports finalize after all input ports are finalized.
-              outputManager.finalizeOutput()
-            }
-        }
+      case StateFrame(state) =>
+        processInputState(state, portId.id)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  def processChannelMarker(
+  def processECM(
       channelId: ChannelIdentity,
-      marker: ChannelMarkerPayload,
+      ecm: EmbeddedControlMessage,
       logManager: ReplayLogManager
   ): Unit = {
-    val markerId = marker.id
-    val command = marker.commandMapping.get(actorId.name)
-    logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = ${command}")
-    if (marker.markerType == REQUIRE_ALIGNMENT) {
-      pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
+    inputManager.currentChannelId = channelId
+    val command = ecm.commandMapping.get(actorId.name)
+    logger.info(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
+    if (ecm.ecmType != NO_ALIGNMENT) {
+      pauseManager.pauseInputChannel(ECMPause(ecm.id), List(channelId))
     }
-    if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
-      logManager.markAsReplayDestination(markerId)
-      // invoke the control command carried with the epoch marker
-      logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
+    if (ecmManager.isECMAligned(channelId, ecm)) {
+      logManager.markAsReplayDestination(ecm.id)
+      // invoke the control command carried with the ECM
+      logger.info(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
-      // if this worker is not the final destination of the marker, pass it downstream
-      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet
+      // if this worker is not the final destination of the ECM, pass it downstream
+      val downstreamChannelsInScope = ecm.scope.filter(_.fromWorkerId == actorId).toSet
       if (downstreamChannelsInScope.nonEmpty) {
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (downstreamChannelsInScope.contains(activeChannelId)) {
             logger.info(
-              s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"
+              s"send ECM to $activeChannelId, id = ${ecm.id}, cmd = $command"
             )
-            outputGateway.sendTo(activeChannelId, marker)
+            outputGateway.sendTo(activeChannelId, ecm)
           }
         }
       }
       // unblock input channels
-      if (marker.markerType == REQUIRE_ALIGNMENT) {
-        pauseManager.resume(EpochMarkerPause(markerId))
+      if (ecm.ecmType != NO_ALIGNMENT) {
+        pauseManager.resume(ECMPause(ecm.id))
       }
     }
   }
 
-  private[this] def handleExecutorException(e: Throwable): Unit = {
+  def sendECMToDataChannels(
+      method: MethodDescriptor[EmptyRequest, EmptyReturn],
+      alignment: EmbeddedControlMessageType
+  ): Unit = {
+    outputManager.flush()
+    outputGateway.getActiveChannels
+      .filter(!_.isControl)
+      .foreach { activeChannelId =>
+        asyncRPCClient.sendECMToChannel(
+          EmbeddedControlMessageIdentity(method.getBareMethodName),
+          alignment,
+          Set(),
+          Map(
+            activeChannelId.toWorkerId.name ->
+              ControlInvocation(
+                method.getBareMethodName,
+                EmptyRequest(),
+                AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+                -1
+              )
+          ),
+          activeChannelId
+        )
+      }
+  }
+
+  def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.controllerInterface.consoleMessageTriggered(
       ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
       asyncRPCClient.mkContext(CONTROLLER)

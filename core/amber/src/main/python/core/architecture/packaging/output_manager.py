@@ -41,8 +41,8 @@ from core.architecture.sendsemantics.range_based_shuffle_partitioner import (
 from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
-from core.models import Tuple, Schema, MarkerFrame
-from core.models.marker import Marker
+from core.models import Tuple, Schema, StateFrame
+from core.models.state import State
 from core.models.payload import DataPayload, DataFrame
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (
@@ -57,7 +57,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
     ChannelIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
@@ -66,6 +66,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
+from typing import Union
 
 
 class OutputManager:
@@ -86,6 +87,22 @@ class OutputManager:
         self._port_storage_writers: typing.Dict[
             PortIdentity, typing.Tuple[Queue, PortStorageWriter, Thread]
         ] = dict()
+
+    def is_missing_output_ports(self):
+        """
+        This method is only used for ensuring correct region execution.
+        Some operators may have input port dependency relationships, for
+        which we currently use a two-phase region execution scheme.
+        (See `RegionExecutionCoordinator.scala` for details.)
+        This logic will only be executed when the worker is part of an
+        `executingDependeePortPhase` region-execution phase.
+        We currently assume that in this phase the operator (worker) will
+        not output any data, hence no output ports.
+        However we still need to keep this worker open for the next
+        `executingNonDependeePortPhase` phase.
+        :return: Whether this worker currently does not have any output port.
+        """
+        return not self._ports
 
     def add_output_port(
         self,
@@ -134,7 +151,7 @@ class OutputManager:
     def get_port_ids(self) -> typing.List[PortIdentity]:
         return list(self._ports.keys())
 
-    def get_output_channel_ids(self):
+    def get_output_channel_ids(self) -> typing.List[ChannelIdentity]:
         return self._channels.keys()
 
     def save_tuple_to_storage_if_needed(self, tuple_: Tuple, port_id=None) -> None:
@@ -179,11 +196,12 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         for channel_id in the_partitioning.channels:
-            # Explicitly set is_control to trigger lazy computation.
-            # If not set, it may be computed at different times,
-            # causing hash inconsistencies.
-            channel_id.is_control = False
-            self._channels[channel_id] = Channel()
+            if channel_id.from_worker_id.name == self.worker_id:
+                # Explicitly set is_control to trigger lazy computation.
+                # If not set, it may be computed at different times,
+                # causing hash inconsistencies.
+                channel_id.is_control = False
+                self._channels[channel_id] = Channel()
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
         self._partitioners[tag] = (
             partitioner(the_partitioning)
@@ -204,29 +222,25 @@ class OutputManager:
             )
         )
 
-    def emit_marker_to_channel(
-        self, channel_id: ChannelIdentity, marker: ChannelMarkerPayload
-    ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
+    def emit_ecm(
+        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
+    ) -> Iterable[Union[DataPayload, EmbeddedControlMessage]]:
         return chain(
             *(
                 (
                     (
-                        receiver,
-                        (
-                            payload
-                            if isinstance(payload, ChannelMarkerPayload)
-                            else self.tuple_to_frame(payload)
-                        ),
+                        payload
+                        if isinstance(payload, EmbeddedControlMessage)
+                        else self.tuple_to_frame(payload)
                     )
-                    for receiver, payload in partitioner.flush(marker)
-                    if receiver == channel_id.to_worker_id
+                    for payload in partitioner.flush(to, ecm)
                 )
                 for partitioner in self._partitioners.values()
             )
         )
 
-    def emit_marker(
-        self, marker: Marker
+    def emit_state(
+        self, state: State
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -234,12 +248,12 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            MarkerFrame(payload)
-                            if isinstance(payload, Marker)
+                            StateFrame(payload)
+                            if isinstance(payload, State)
                             else self.tuple_to_frame(payload)
                         ),
                     )
-                    for receiver, payload in partitioner.flush(marker)
+                    for receiver, payload in partitioner.flush_state(state)
                 )
                 for partitioner in self._partitioners.values()
             )

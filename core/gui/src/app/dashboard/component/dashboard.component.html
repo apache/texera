@@ -29,18 +29,19 @@
       nzSelectable="false">
       <li class="logo-section">
         <img
-          *ngIf="isCollpased"
+          *ngIf="isCollapsed"
           alt="mini-logo"
-          src="../../../../assets/logos/favicon-32x32.png" />
+          [src]="favicon"
+          class="collapsed-logo" />
         <img
-          *ngIf="!isCollpased"
+          *ngIf="!isCollapsed"
           alt="logo"
           height="50"
-          src="../../../../assets/logos/logo.png" />
+          [src]="logo" />
       </li>
 
       <li
-        *ngIf="environment.hubEnabled"
+        *ngIf="config.env.hubEnabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
@@ -56,7 +57,7 @@
         nzOpen="true">
         <ul>
           <li
-            *ngIf="environment.projectEnabled"
+            *ngIf="config.env.projectEnabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
@@ -90,7 +91,7 @@
             <span>Quota</span>
           </li>
           <li
-            *ngIf="environment.forumEnabled"
+            *ngIf="config.env.forumEnabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
@@ -140,6 +141,17 @@
                   nzType="mail"></span>
                 <span>Gmail</span>
               </li>
+              <li
+                nz-menu-item
+                nz-tooltip="Settings"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                [routerLink]="['/dashboard/admin/settings']">
+                <span
+                  nz-icon
+                  nzType="edit"></span>
+                <span>Settings</span>
+              </li>
             </ul>
           </li>
         </ul>
@@ -169,7 +181,7 @@
           <texera-user-icon></texera-user-icon>
         </ng-container>
         <asl-google-signin-button
-          *ngIf="!isLogin && googleLogin"
+          *ngIf="!isLogin && this.config.env.googleLogin"
           type="standard"
           size="large"
           [width]="200"></asl-google-signin-button>

@@ -22,7 +22,7 @@ package edu.uci.ics.texera.web.service
 import edu.uci.ics.amber.core.workflow.PhysicalPlan
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ModifyLogicRequest,
-  PropagateChannelMarkerRequest
+  PropagateEmbeddedControlMessageRequest
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
@@ -42,7 +42,7 @@ object FriesReconfigurationAlgorithm {
       workflowExecutionCoordinator: WorkflowExecutionCoordinator,
       reconfiguration: ModifyLogicRequest,
       epochMarkerId: String
-  ): Set[PropagateChannelMarkerRequest] = {
+  ): Set[PropagateEmbeddedControlMessageRequest] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionCoordinator.getExecutingRegions
       .flatMap(region => computeMCS(region, reconfiguration, epochMarkerId))
@@ -52,7 +52,7 @@ object FriesReconfigurationAlgorithm {
       region: Region,
       reconfiguration: ModifyLogicRequest,
       epochMarkerId: String
-  ): List[PropagateChannelMarkerRequest] = {
+  ): List[PropagateEmbeddedControlMessageRequest] = {
 
     // add all reconfiguration operators to M
     val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet
@@ -101,7 +101,7 @@ object FriesReconfigurationAlgorithm {
 
     // find the MCS components,
     // for each component, send an epoch marker to each of its source operators
-    val epochMarkers = new ArrayBuffer[PropagateChannelMarkerRequest]()
+    val epochMarkers = new ArrayBuffer[PropagateEmbeddedControlMessageRequest]()
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
     connectedSets.forEach(component => {
@@ -116,10 +116,10 @@ object FriesReconfigurationAlgorithm {
       //
       //      // find the source operators of the component
       //      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      //      epochMarkers += PropagateChannelMarkerRequest(
+      //      epochMarkers += PropagateEmbeddedControlMessageRequest(
       //        sources.toSeq,
-      //        ChannelMarkerIdentity(epochMarkerId),
-      //        REQUIRE_ALIGNMENT,
+      //        EmbeddedControlMessageIdentity(epochMarkerId),
+      //        ALL_ALIGNMENT,
       //        componentPlan.operators.map(_.id).toSeq,
       //        reconfigTargets,
       //        ModifyLogicRequest(reconfigCommands),

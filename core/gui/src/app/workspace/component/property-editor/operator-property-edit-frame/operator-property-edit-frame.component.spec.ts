@@ -47,6 +47,9 @@ import { cloneDeep } from "lodash-es";
 import Ajv from "ajv";
 import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
+import { ComputingUnitStatusService } from "../../../service/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -63,7 +66,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         DatePipe,
+        ...commonTestProviders,
       ],
       imports: [
         BrowserAnimationsModule,

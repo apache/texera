@@ -36,7 +36,7 @@ option (scalapb.options) = {
 message ControlRequest {
   oneof sealed_value {
     // request for controller
-    PropagateChannelMarkerRequest propagateChannelMarkerRequest = 1;
+    PropagateEmbeddedControlMessageRequest propagateEmbeddedControlMessageRequest = 1;
     TakeGlobalCheckpointRequest takeGlobalCheckpointRequest = 2;
     DebugCommandRequest debugCommandRequest = 3;
     EvaluatePythonExpressionRequest evaluatePythonExpressionRequest = 4;
@@ -88,34 +88,33 @@ message ControlInvocation {
   int64 commandId = 4;
 }
 
-// Enum for ChannelMarkerType
-enum ChannelMarkerType {
-  REQUIRE_ALIGNMENT = 0;
+enum EmbeddedControlMessageType {
+  ALL_ALIGNMENT = 0;
   NO_ALIGNMENT = 1;
+  PORT_ALIGNMENT = 2;
 }
 
-// Message for ChannelMarkerPayload
-message ChannelMarkerPayload {
+message EmbeddedControlMessage {
   option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload";
-  core.ChannelMarkerIdentity id = 1 [(scalapb.field).no_box = true];
-  ChannelMarkerType markerType = 2;
+  core.EmbeddedControlMessageIdentity id = 1 [(scalapb.field).no_box = true];
+  EmbeddedControlMessageType ecm_type = 2;
   repeated core.ChannelIdentity scope = 3;
   map<string, ControlInvocation> commandMapping = 4;
 }
 
-message PropagateChannelMarkerRequest {
+message PropagateEmbeddedControlMessageRequest {
   repeated core.PhysicalOpIdentity sourceOpToStartProp = 1;
-  core.ChannelMarkerIdentity id = 2 [(scalapb.field).no_box = true];
-  ChannelMarkerType markerType = 3;
+  core.EmbeddedControlMessageIdentity id = 2 [(scalapb.field).no_box = true];
+  EmbeddedControlMessageType ecm_type = 3;
   repeated core.PhysicalOpIdentity scope = 4;
   repeated core.PhysicalOpIdentity targetOps = 5;
-  ControlRequest markerCommand = 6;
-  string markerMethodName = 7;
+  ControlRequest command = 6;
+  string methodName = 7;
 }
 
 message TakeGlobalCheckpointRequest {
   bool estimationOnly = 1;
-  core.ChannelMarkerIdentity checkpointId = 2 [(scalapb.field).no_box = true];
+  core.EmbeddedControlMessageIdentity checkpointId = 2 [(scalapb.field).no_box = true];
   string destination = 3;
 }
 
@@ -244,11 +243,12 @@ message AssignPortRequest {
   core.PortIdentity portId = 1 [(scalapb.field).no_box = true];
   bool input = 2;
   map<string, string> schema = 3;
-  string storageUri = 4;
+  repeated string storageUris = 4;
+  repeated sendsemantics.Partitioning partitionings = 5;
 }
 
 message FinalizeCheckpointRequest {
-  core.ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
+  core.EmbeddedControlMessageIdentity checkpointId = 1 [(scalapb.field).no_box = true];
   string writeTo = 2;
 }
 
@@ -265,7 +265,7 @@ message UpdateExecutorRequest {
 }
 
 message PrepareCheckpointRequest{
-  core.ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
+  core.EmbeddedControlMessageIdentity checkpointId = 1 [(scalapb.field).no_box = true];
   bool estimationOnly = 2;
 }
 

@@ -23,6 +23,7 @@ import { TestBed, inject } from "@angular/core/testing";
 
 import { WorkflowUtilService } from "./workflow-util.service";
 import { mockScanSourceSchema } from "../../operator-metadata/mock-operator-metadata.data";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("WorkflowUtilService", () => {
   let workflowUtilService: WorkflowUtilService;
@@ -35,6 +36,7 @@ describe("WorkflowUtilService", () => {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
         },
+        ...commonTestProviders,
       ],
     });
     workflowUtilService = TestBed.get(WorkflowUtilService);

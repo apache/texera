@@ -56,6 +56,9 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
+import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -85,8 +88,10 @@ describe("WorkflowEditorComponent", () => {
             provide: OperatorMetadataService,
             useClass: StubOperatorMetadataService,
           },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
           WorkflowStatusService,
           ExecuteWorkflowService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));
@@ -191,6 +196,7 @@ describe("WorkflowEditorComponent", () => {
           ExecuteWorkflowService,
           UndoRedoService,
           WorkflowVersionService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));

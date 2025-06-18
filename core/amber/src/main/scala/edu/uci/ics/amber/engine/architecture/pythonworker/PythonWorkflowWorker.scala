@@ -21,9 +21,8 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.Props
 import com.twitter.util.Promise
-import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.config.{StorageConfig, UdfConfig}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -31,10 +30,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ChannelMarkerElement,
+  EmbeddedControlMessageElement,
   DataElement
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
@@ -66,9 +65,8 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val config: Config = ConfigFactory.load("udf")
-  val pythonENVPath: String = config.getString("python.path").trim
-  val RENVPath: String = config.getString("r.path").trim
+  val pythonENVPath: String = UdfConfig.pythonPath.trim
+  val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
   private var pythonServerProcess: Process = _
@@ -92,8 +90,8 @@ class PythonWorkflowWorker(
           pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
           pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))
-        case marker: ChannelMarkerPayload =>
-          pythonProxyClient.enqueueData(ChannelMarkerElement(marker, workflowMsg.channelId))
+        case ecm: EmbeddedControlMessage =>
+          pythonProxyClient.enqueueData(EmbeddedControlMessageElement(ecm, workflowMsg.channelId))
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
@@ -178,7 +176,7 @@ class PythonWorkflowWorker(
         udfEntryScriptPath,
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
-        config.getString("python.log.streamHandler.level"),
+        UdfConfig.pythonLogStreamHandlerLevel,
         RENVPath,
         StorageConfig.icebergPostgresCatalogUriWithoutScheme,
         StorageConfig.icebergPostgresCatalogUsername,

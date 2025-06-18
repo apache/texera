@@ -24,6 +24,7 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState}
@@ -32,6 +33,8 @@ import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
@@ -70,7 +73,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   }
 
   "Default worker state" should "be serializable" in {
-    val dp = new DataProcessor(SELF, msg => {})
+    val dp = new DataProcessor(
+      SELF,
+      msg => {},
+      inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    )
     val chkpt = new CheckpointState()
     chkpt.save(DP_STATE_KEY, dp)
   }
@@ -110,7 +117,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //    Await.result(client1.controllerInterface.startWorkflow(EmptyRequest(), ()))
 //    Thread.sleep(100)
 //    Await.result(client1.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-//    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_test_1")
+//    val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_test_1")
 //    val uri = new URI("ram:///recovery-logs/tmp/")
 //    Await.result(
 //      client1.controllerInterface.takeGlobalCheckpoint(

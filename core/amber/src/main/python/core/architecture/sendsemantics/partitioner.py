@@ -18,14 +18,13 @@
 import typing
 from abc import ABC
 from typing import Iterator
-
 from betterproto import Message
-
 from core.models import Tuple
-from core.models.marker import Marker
+from core.models.state import State
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class Partitioner(ABC):
@@ -38,9 +37,14 @@ class Partitioner(ABC):
         pass
 
     def flush(
-        self, marker: Marker
+        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
+    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
+        pass
+
+    def flush_state(
+        self, state: State
     ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
     ]:
         pass
 

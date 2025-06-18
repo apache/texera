@@ -19,7 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 sealed trait PauseType
 
@@ -31,4 +31,4 @@ object OperatorLogicPause extends PauseType
 
 object SchedulerTimeSlotExpiredPause extends PauseType
 
-case class EpochMarkerPause(id: ChannelMarkerIdentity) extends PauseType
+case class ECMPause(id: EmbeddedControlMessageIdentity) extends PauseType

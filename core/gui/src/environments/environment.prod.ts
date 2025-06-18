@@ -19,6 +19,9 @@
 
 import { AppEnv, defaultEnvironment } from "./environment.default";
 
+/**
+ * Production environment configuration.
+ */
 export const environment: AppEnv = {
   ...defaultEnvironment,
   production: true,

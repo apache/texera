@@ -17,27 +17,35 @@
 
 import typing
 from typing import Iterator
-
 from overrides import overrides
-
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import Marker
+from core.models.state import State
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
     RoundRobinPartitioning,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class RoundRobinPartitioner(Partitioner):
     def __init__(self, partitioning: RoundRobinPartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
+        # Partitioning contains an ordered list of downstream worker ids.
+        # Currently we are using the index of such an order to choose
+        # a downstream worker to send tuples to.
+        # Must use dict.fromkeys to ensure the order of receiver workers
+        # from partitioning is preserved (using `{}` to create a set
+        # does not preserve order and will not work with input-port
+        # materialization reader threads.)
         self.receivers = [
-            (receiver, [])
-            for receiver in {channel.to_worker_id for channel in partitioning.channels}
+            (rid, [])
+            for rid in dict.fromkeys(
+                channel.to_worker_id for channel in partitioning.channels
+            )
         ]
         self.round_robin_index = 0
 
@@ -54,12 +62,23 @@ class RoundRobinPartitioner(Partitioner):
 
     @overrides
     def flush(
-        self, marker: Marker
+        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
+    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
+        for receiver, batch in self.receivers:
+            if receiver == to:
+                if len(batch) > 0:
+                    yield batch
+                    batch.clear()
+                yield ecm
+
+    @overrides
+    def flush_state(
+        self, state: State
     ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
     ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
                 batch.clear()
-            yield receiver, marker
+            yield receiver, state
