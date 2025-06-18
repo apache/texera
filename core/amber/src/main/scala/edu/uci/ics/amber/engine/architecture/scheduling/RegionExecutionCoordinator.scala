@@ -49,6 +49,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -172,6 +173,12 @@ class RegionExecutionCoordinator(
     gracefulStopRequests.transform {
       case Return(_) =>
         logger.info(s"Region ${region.id.id} succesfully terminated.")
+        regionExecution.getAllOperatorExecutions.foreach {
+          case (_, opExec) =>
+            opExec.getWorkerIds.foreach { workerId =>
+              opExec.getWorkerExecution(workerId).setState(WorkerState.TERMINATED)
+            }
+        }
         Future.Unit // propagate success
       case Throw(err) =>
         logger.warn(s"Error when terminating region ${region.id}.")

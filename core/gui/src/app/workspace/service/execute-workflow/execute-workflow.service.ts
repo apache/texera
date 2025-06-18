@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import { Injectable, Inject } from "@angular/core";
-import { from, Observable, Subject } from "rxjs";
-import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
+import {Inject, Injectable} from "@angular/core";
+import {Observable, Subject} from "rxjs";
+import {WorkflowActionService} from "../workflow-graph/model/workflow-action.service";
+import {WorkflowGraphReadonly} from "../workflow-graph/model/workflow-graph";
 import {
   ExecutionState,
   ExecutionStateInfo,
@@ -28,26 +28,24 @@ import {
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
-import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import {WorkflowWebsocketService} from "../workflow-websocket/workflow-websocket.service";
 import {
-  WorkflowFatalError,
   OperatorCurrentTuples,
-  TexeraWebsocketEvent,
   ReplayExecutionInfo,
+  TexeraWebsocketEvent,
+  WorkflowFatalError,
 } from "../../types/workflow-websocket.interface";
-import { isEqual } from "lodash-es";
-import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
-import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
-import { Version as version } from "src/environments/version";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { exhaustiveGuard } from "../../../common/util/switch";
-import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { intersection } from "../../../common/util/set";
-import { WorkflowSettings } from "../../../common/type/workflow";
-import { DOCUMENT } from "@angular/common";
-import { UserService } from "src/app/common/service/user/user.service";
-import { User } from "src/app/common/type/user";
-import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
+import {isEqual} from "lodash-es";
+import {PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo} from "../../types/result-table.interface";
+import {sessionGetObject, sessionSetObject} from "../../../common/util/storage";
+import {Version as version} from "src/environments/version";
+import {NotificationService} from "src/app/common/service/notification/notification.service";
+import {exhaustiveGuard} from "../../../common/util/switch";
+import {WorkflowStatusService} from "../workflow-status/workflow-status.service";
+import {intersection} from "../../../common/util/set";
+import {WorkflowSettings} from "../../../common/type/workflow";
+import {DOCUMENT} from "@angular/common";
+import {ComputingUnitStatusService} from "../computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -358,6 +356,7 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
+      case ExecutionState.Terminated:
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.Killed:
