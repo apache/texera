@@ -143,12 +143,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       operatorDocument.getRange(0, 1).to(Iterable).head.getSchema.getAttributeNames // small cost
 
     val writer: OutputStream => Unit = operatorRequest.outputType match {
-      case "csv"   => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
-      case "arrow" => out => streamDocumentAsArrow(operatorDocument, out)
-      case "html"  => out => streamDocumentAsHTML(out, operatorDocument)
-      case "data"  => out => streamCellData(out, request, operatorDocument)
+      case "csv"     => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
+      case "arrow"   => out => streamDocumentAsArrow(operatorDocument, out)
+      case "html"    => out => streamDocumentAsHTML(out, operatorDocument)
+      case "data"    => out => streamCellData(out, request, operatorDocument)
       case "parquet" => out => streamDocumentAsParquetZip(operatorDocument, out)
-      case _       => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
+      case _         => out => streamDocumentAsCSV(operatorDocument, out, Some(attributeNames))
     }
 
     saveStreamToDataset(
@@ -184,12 +184,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
 
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
       operatorRequest.outputType match {
-        case "csv"   => streamDocumentAsCSV(operatorDocument, out, None)
-        case "arrow" => streamDocumentAsArrow(operatorDocument, out)
-        case "data"  => streamCellData(out, request, operatorDocument)
-        case "html" => streamDocumentAsHTML(out, operatorDocument)
+        case "csv"     => streamDocumentAsCSV(operatorDocument, out, None)
+        case "arrow"   => streamDocumentAsArrow(operatorDocument, out)
+        case "data"    => streamCellData(out, request, operatorDocument)
+        case "html"    => streamDocumentAsHTML(out, operatorDocument)
         case "parquet" => streamDocumentAsParquetZip(operatorDocument, out)
-        case _ => streamDocumentAsCSV(operatorDocument, out, None)
+        case _         => streamDocumentAsCSV(operatorDocument, out, None)
       }
     }
 
@@ -237,12 +237,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
               val nonClosingStream = new NonClosingOutputStream(zipOut)
 
               op.outputType match {
-                case "csv"   => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
-                case "arrow" => streamDocumentAsArrow(operatorDocument, nonClosingStream)
-                case "data" => streamCellData(nonClosingStream, request, operatorDocument)
-                case "html" => streamDocumentAsHTML(nonClosingStream, operatorDocument)
+                case "csv"     => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
+                case "arrow"   => streamDocumentAsArrow(operatorDocument, nonClosingStream)
+                case "data"    => streamCellData(nonClosingStream, request, operatorDocument)
+                case "html"    => streamDocumentAsHTML(nonClosingStream, operatorDocument)
                 case "parquet" => streamDocumentAsParquetZip(operatorDocument, nonClosingStream)
-                case _ => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
+                case _         => streamDocumentAsCSV(operatorDocument, nonClosingStream, None)
               }
               zipOut.closeEntry()
             }
