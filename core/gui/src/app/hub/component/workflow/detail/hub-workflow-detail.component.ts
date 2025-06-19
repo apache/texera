@@ -84,11 +84,11 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     this.hubService
-      .getCounts(this.wid, "workflow", ["like", "clone"])
+      .getBatchCounts(["workflow"], [this.wid], ["like", "clone"])
       .pipe(untilDestroyed(this))
       .subscribe(counts => {
-        this.likeCount = counts.like ?? 0;
-        this.cloneCount = counts.clone ?? 0;
+        this.likeCount = counts[0].counts.like ?? 0;
+        this.cloneCount = counts[0].counts.clone ?? 0;
       });
     this.hubService
       .postView(this.wid, this.currentUser?.uid ?? 0, "workflow")
@@ -215,10 +215,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getCounts(this.wid, "workflow", ["like"])
+              .getBatchCounts(["workflow"], [this.wid], ["like"])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
-                this.likeCount = counts.like ?? 0;
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });
@@ -233,10 +233,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getCounts(this.wid, "workflow", ["like"])
+              .getBatchCounts(["workflow"], [this.wid], ["like"])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
-                this.likeCount = counts.like ?? 0;
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });

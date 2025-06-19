@@ -159,6 +159,7 @@ export class ListItemComponent implements OnChanges {
       throw new Error("Unexpected type in DashboardEntry.");
     }
     this.likeCount = this.entry.likeCount;
+    this.viewCount = this.entry.viewCount;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -382,10 +383,11 @@ export class ListItemComponent implements OnChanges {
     if (instance) {
       if (wid !== undefined) {
         this.hubService
-          .getCounts(wid, this.entry.type, ["view"])
+          .getBatchCounts([this.entry.type], [wid], ["view"])
           .pipe(untilDestroyed(this))
           .subscribe(counts => {
-            this.viewCount = (counts.view ?? 0) + 1; // hacky fix to display view correctly
+            const count = counts[0];
+            this.viewCount = (count?.counts.view ?? 0) + 1; // hacky fix to display view correctly
           });
       }
     }
@@ -407,10 +409,10 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getCounts(entryId, this.entry.type, ["like"])
+              .getBatchCounts([this.entry.type], [entryId], ["like"])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
-                this.likeCount = counts.like ?? 0;
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });
@@ -422,10 +424,10 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getCounts(entryId, this.entry.type, ["like"])
+              .getBatchCounts([this.entry.type], [entryId], ["like"])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
-                this.likeCount = counts.like ?? 0;
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });

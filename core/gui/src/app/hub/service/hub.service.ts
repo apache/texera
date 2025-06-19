@@ -124,7 +124,8 @@ export class HubService {
 
   public getBatchCounts(
     entityTypes: string[],
-    entityIds: number[]
+    entityIds: number[],
+    actionTypes: ("view" | "like" | "clone")[] = []
   ): Observable<CountResponse[]> {
     let params = new HttpParams();
     entityTypes.forEach(type => {
@@ -132,6 +133,9 @@ export class HubService {
     });
     entityIds.forEach(id => {
       params = params.append("entityId", id.toString());
+    });
+    actionTypes.forEach(a => {
+      params = params.append("actionType", a);
     });
 
     return this.http.get<CountResponse[]>(`${this.BASE_URL}/batch`, { params });

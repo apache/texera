@@ -586,48 +586,39 @@ class HubResource {
     result.asJava
   }
 
-  /**
-    * Batch endpoint to retrieve multiple count metrics (view, like, clone) for one or more entities.
-    *
-    * Example request:
-    *   POST /hub/batch
-    *   Content-Type: application/json
-    *   Body:
-    *   [
-    *     { "entityId": 123, "entityType": "workflow" },
-    *     { "entityId": 456, "entityType": "dataset" }
-    *   ]
-    *
-    * @param requests
-    *   A non-empty list of CountRequest objects, each containing:
-    *     - entityId   : the ID of the entity to count
-    *     - entityType : the type of the entity ("workflow", "dataset", etc.)
-    * @return
-    *   A list of CountResponse objects. Each response includes:
-    *     - entityId   : the same ID from the request
-    *     - entityType : the same type from the request
-    *     - counts     : a map of actionType -> count, e.g.
-    *                    { "view" -> 42, "like" -> 17, "clone" -> 0 }
-    *                  For entityType "dataset", clone count will always be zero.
-    * @throws BadRequestException
-    *   - if the request body is null or empty
-    *   - if any entityType in the requests is not supported
-    */
   @GET
   @Path("/batch")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getBatchCounts(
-    @QueryParam("entityType") types: java.util.List[String],
-    @QueryParam("entityId")   ids:   java.util.List[Integer]
+      @QueryParam("entityType") entityTypes: java.util.List[String],
+      @QueryParam("entityId") entityIds: java.util.List[Integer],
+      @QueryParam("actionType") actionTypes: java.util.List[String]
   ): java.util.List[CountResponse] = {
-    if (types == null || ids == null || types.isEmpty || types.size() != ids.size())
+    if (
+      entityTypes == null || entityIds == null || entityTypes.isEmpty || entityTypes
+        .size() != entityIds.size()
+    )
       throw new BadRequestException(
         "Both 'entityType' and 'entityId' query parameters must be provided, and lists must have equal length."
       )
 
-    val reqs: List[CountRequest] = types.asScala.zip(ids.asScala).map {
-      case (etype, id) => CountRequest(id, etype)
-    }.toList
+    val reqs: List[CountRequest] = entityTypes.asScala
+      .zip(entityIds.asScala)
+      .map {
+        case (etype, id) => CountRequest(id, etype)
+      }
+      .toList
+
+    val allowedActions = Set("view", "like", "clone")
+    val requestedActions: Seq[String] =
+      if (actionTypes != null && !actionTypes.isEmpty) actionTypes.asScala.toSeq
+      else allowedActions.toSeq
+
+    requestedActions.find(a => !allowedActions.contains(a)).foreach { invalid =>
+      throw new BadRequestException(
+        s"Unsupported actionType: '$invalid'. Supported: ${allowedActions.mkString(", ")}"
+      )
+    }
 
     val grouped: Map[String, Seq[Integer]] =
       reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
@@ -640,34 +631,49 @@ class HubResource {
 
         val viewTbl = ViewCountTable(etype)
         val viewMap: Map[Int, Int] =
-          context
-            .select(viewTbl.idColumn, viewTbl.viewCountColumn)
-            .from(viewTbl.table)
-            .where(viewTbl.idColumn.in(ids: _*))
-            .fetchMap(viewTbl.idColumn, viewTbl.viewCountColumn)
-            .asScala
-            .map { case (k, v) => k.intValue() -> v.intValue() }
-            .toMap
+          if (requestedActions.contains("view")) {
+            val raw = context
+              .select(viewTbl.idColumn, viewTbl.viewCountColumn)
+              .from(viewTbl.table)
+              .where(viewTbl.idColumn.in(ids: _*))
+              .fetchMap(viewTbl.idColumn, viewTbl.viewCountColumn)
+              .asScala
+              .map { case (k, v) => k.intValue() -> v.intValue() }
+              .toMap
+
+            val missing = ids.filterNot(id => raw.contains(id.intValue()))
+
+            missing.foreach { id =>
+              context
+                .insertInto(viewTbl.table)
+                .set(viewTbl.idColumn, id)
+                .set(viewTbl.viewCountColumn, Integer.valueOf(0))
+                .onDuplicateKeyIgnore()
+                .execute()
+            }
+
+            raw ++ missing.map(id => id.intValue() -> 0).toMap
+          } else Map.empty
 
         val likeTbl = LikeTable(etype)
         val likeMap: Map[Int, Int] =
-          context
-            .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
-            .from(likeTbl.table)
-            .where(likeTbl.idColumn.in(ids: _*))
-            .groupBy(likeTbl.idColumn)
-            .fetch()
-            .asScala
-            .map { r =>
-              r.get(likeTbl.idColumn).intValue() ->
-                r.get("cnt", classOf[Integer]).intValue()
-            }
-            .toMap
+          if (requestedActions.contains("like")) {
+            context
+              .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
+              .from(likeTbl.table)
+              .where(likeTbl.idColumn.in(ids: _*))
+              .groupBy(likeTbl.idColumn)
+              .fetch()
+              .asScala
+              .map { r =>
+                r.get(likeTbl.idColumn).intValue() ->
+                  r.get("cnt", classOf[Integer]).intValue()
+              }
+              .toMap
+          } else Map.empty
 
         val cloneMap: Map[Int, Int] =
-          if (etype == "dataset") {
-            Map.empty[Int, Int]
-          } else {
+          if (requestedActions.contains("clone") && etype != "dataset") {
             val cloneTbl = CloneTable(etype)
             context
               .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
@@ -681,21 +687,16 @@ class HubResource {
                   r.get("cnt", classOf[Integer]).intValue()
               }
               .toMap
-          }
+          } else Map.empty
 
         reqs.filter(_.entityType == etype).foreach { req =>
           val key = req.entityId.intValue()
-          val v = viewMap.getOrElse(key, 0)
-          val l = likeMap.getOrElse(key, 0)
-          val c = cloneMap.getOrElse(key, 0)
+          val counts = scala.collection.mutable.Map[String, Int]()
+          if (requestedActions.contains("view")) counts("view") = viewMap.getOrElse(key, 0)
+          if (requestedActions.contains("like")) counts("like") = likeMap.getOrElse(key, 0)
+          if (requestedActions.contains("clone")) counts("clone") = cloneMap.getOrElse(key, 0)
 
-          val counts = Map(
-            "view" -> v,
-            "like" -> l,
-            "clone" -> c
-          ).asJava
-
-          buffer += CountResponse(req.entityId, etype, counts)
+          buffer += CountResponse(req.entityId, etype, counts.asJava)
         }
     }
 
