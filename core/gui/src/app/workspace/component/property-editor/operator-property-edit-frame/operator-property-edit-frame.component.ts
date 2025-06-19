@@ -671,7 +671,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // adding custom options, relational N-to-M mapping.
     if (schemaProperties && fields) {
       Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
-        console.log("propertyName", propertyName, "propertyValue", propertyValue);
         if (typeof propertyValue === "boolean") {
           return;
         }
