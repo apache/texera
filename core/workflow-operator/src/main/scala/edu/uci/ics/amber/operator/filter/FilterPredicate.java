@@ -49,7 +49,6 @@ public class FilterPredicate {
             @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "is null|is not null")
     })
     @JsonProperty(value = "value")
-    @JsonPropertyDescription("Predicates are combined with OR")
     public String value;
 
     @JsonCreator
