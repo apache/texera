@@ -686,7 +686,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
         }
-
       });
     }
     // not return field.fieldGroup directly because
