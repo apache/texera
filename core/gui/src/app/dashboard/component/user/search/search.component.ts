@@ -26,6 +26,8 @@ import { SortMethod } from "../../../type/sort-method";
 import { Location } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
+import { map, switchMap } from "rxjs/operators";
+import { from, Observable, of } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -57,7 +59,13 @@ export class SearchComponent implements AfterViewInit {
   }
 
   set filters(value: FiltersComponent) {
-    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
+    value.masterFilterListChange
+      .pipe(
+        switchMap(() => this.search()),
+        untilDestroyed(this)
+      )
+      .subscribe();
+
     this._filters = value;
   }
 
@@ -90,13 +98,12 @@ export class SearchComponent implements AfterViewInit {
     });
   }
 
-  async search(): Promise<void> {
+  public search(): Observable<void> {
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
     if (sameList && this.sortMethod === this.lastSortMethod && this.selectedType === this.lastSelectedType) {
-      // If the filter lists are the same, do no make the same request again.
-      return;
+      return of(undefined);
     }
     this.masterFilterList = this.filters.masterFilterList;
     this.lastSortMethod = this.sortMethod;
@@ -104,25 +111,27 @@ export class SearchComponent implements AfterViewInit {
     if (!this.searchResultsComponent) {
       throw new Error("searchResultsComponent is undefined.");
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        this.filters.getSearchFilterParameters(),
-        start,
-        count,
-        this.selectedType,
-        this.sortMethod,
-        this.isLogin,
-        this.includePublic
-      );
-      return { entries, more };
-    });
-    await this.searchResultsComponent.loadMore();
+    this.searchResultsComponent.reset((start, count) =>
+      this.searchService
+        .executeSearch(
+          this.filters.getSearchKeywords(),
+          this.filters.getSearchFilterParameters(),
+          start,
+          count,
+          this.selectedType,
+          this.sortMethod,
+          this.isLogin,
+          this.includePublic
+        )
+        .pipe(map(({ entries, more }) => ({ entries, more })))
+    );
+
+    return from(this.searchResultsComponent.loadMore());
   }
 
   filterByType(type: "project" | "workflow" | "dataset" | null): void {
     this.selectedType = type;
-    this.search();
+    this.search().pipe(untilDestroyed(this)).subscribe();
   }
 
   goBack(): void {

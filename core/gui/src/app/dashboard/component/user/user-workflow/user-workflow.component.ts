@@ -100,7 +100,13 @@ export class UserWorkflowComponent implements AfterViewInit {
     throw new Error("Property cannot be accessed before it is initialized.");
   }
   set filters(value: FiltersComponent) {
-    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
+    value.masterFilterListChange
+      .pipe(
+        switchMap(() => this.search()),
+        untilDestroyed(this)
+      )
+      .subscribe();
+
     this._filters = value;
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
@@ -150,8 +156,11 @@ export class UserWorkflowComponent implements AfterViewInit {
   ngAfterViewInit() {
     this.userService
       .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.search());
+      .pipe(
+        switchMap(() => this.search()),
+        untilDestroyed(this)
+      )
+      .subscribe();
   }
 
   /**
@@ -186,36 +195,39 @@ export class UserWorkflowComponent implements AfterViewInit {
    * Searches workflows with keywords and filters given in the masterFilterList.
    * @returns
    */
-  async search(forced: Boolean = false): Promise<void> {
+  public search(forced: boolean = false): Observable<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
     if (!forced && sameList && this.sortMethod === this.lastSortMethod) {
-      // If the filter lists are the same, do no make the same request again.
-      return;
+      return of(undefined);
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
     let filterParams = this.filters.getSearchFilterParameters();
     if (isDefined(this.pid)) {
-      // force the project id in the search query to be the current pid.
       filterParams.projectIds = [this.pid];
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        filterParams,
-        start,
-        count,
-        "workflow",
-        this.sortMethod,
-        this.isLogin,
-        this.includePublic
-      );
-      return { entries, more };
-    });
-    await this.searchResultsComponent.loadMore();
+
+    this.searchResultsComponent.reset((start, count) =>
+      this.searchService
+        .executeSearch(
+          this.filters.getSearchKeywords(),
+          filterParams,
+          start,
+          count,
+          "workflow",
+          this.sortMethod,
+          this.isLogin,
+          this.includePublic
+        )
+        .pipe(
+          map(({ entries, more }) => ({ entries, more }))
+        )
+    );
+
+    return this.searchResultsComponent.loadMore();
   }
 
   /**

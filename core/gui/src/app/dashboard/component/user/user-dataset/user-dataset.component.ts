@@ -24,17 +24,16 @@ import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
-import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
-import { firstValueFrom } from "rxjs";
-import { DASHBOARD_USER_DATASET, DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
+import { Observable, of } from "rxjs";
+import { DASHBOARD_USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { FileSelectionComponent } from "../../../../workspace/component/file-selection/file-selection.component";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { map, switchMap, tap } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -70,7 +69,13 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   set filters(value: FiltersComponent) {
-    value.masterFilterListChange.pipe(untilDestroyed(this)).subscribe({ next: () => this.search() });
+    value.masterFilterListChange
+      .pipe(
+        switchMap(() => this.search()),
+        untilDestroyed(this)
+      )
+      .subscribe();
+
     this._filters = value;
   }
 
@@ -95,8 +100,11 @@ export class UserDatasetComponent implements AfterViewInit {
   ngAfterViewInit() {
     this.userService
       .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.search());
+      .pipe(
+        switchMap(() => this.search()),
+        untilDestroyed(this)
+      )
+      .subscribe();
   }
 
   /*
@@ -108,14 +116,14 @@ export class UserDatasetComponent implements AfterViewInit {
    *  - "public": limits the search to public datasets
    *  - "private": limits the search to dataset where the user has direct access rights.
    */
-  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
+  public search(forced: boolean = false, filterScope: "all" | "public" | "private" = "private"): Observable<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList![i]);
     if (!forced && sameList && this.sortMethod === this.lastSortMethod) {
-      // If the filter lists are the same, do no make the same request again.
-      return;
+      // If nothing changed, emit once and complete
+      return of(undefined);
     }
     this.lastSortMethod = this.sortMethod;
     this.masterFilterList = this.filters.masterFilterList;
@@ -123,35 +131,37 @@ export class UserDatasetComponent implements AfterViewInit {
       throw new Error("searchResultsComponent is undefined.");
     }
     let filterParams = this.filters.getSearchFilterParameters();
-
-    // if the filter requires only public datasets, the public search should be invoked, and the search method should
-    // set the isLogin parameter to false in this case
+    // if the filter requires only public datasets...
     const isLogin = filterScope === "public" ? false : this.isLogin;
     const includePublic = filterScope === "all" || filterScope === "public";
 
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more, hasMismatch } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        filterParams,
-        start,
-        count,
-        "dataset",
-        this.sortMethod,
-        isLogin,
-        includePublic
-      );
+    this.searchResultsComponent.reset((start, count) =>
+      this.searchService
+        .executeSearch(
+          this.filters.getSearchKeywords(),
+          filterParams,
+          start,
+          count,
+          "dataset",
+          this.sortMethod,
+          isLogin,
+          includePublic
+        )
+        .pipe(
+          tap(({ hasMismatch }) => {
+            this.hasMismatch = hasMismatch ?? false;
+            if (this.hasMismatch) {
+              this.message.warning(
+                "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
+                { nzDuration: 4000 }
+              );
+            }
+          }),
+          map(({ entries, more }) => ({ entries, more }))
+        )
+    );
 
-      this.hasMismatch = hasMismatch ?? false;
-      if (this.hasMismatch) {
-        this.message.warning(
-          "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
-          { nzDuration: 4000 }
-        );
-      }
-
-      return { entries, more };
-    });
-    await this.searchResultsComponent.loadMore();
+    return this.searchResultsComponent.loadMore();
   }
 
   public onClickOpenDatasetAddComponent(): void {

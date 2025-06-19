@@ -19,13 +19,14 @@
 
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable } from "rxjs";
+import { Observable, of } from "rxjs";
 import { SearchResult } from "../../type/search-result";
 import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
-import { CountResponse, HubService } from "../../../hub/service/hub.service";
+import { HubService } from "../../../hub/service/hub.service";
+import { map, switchMap } from "rxjs/operators";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
@@ -85,32 +86,7 @@ export class SearchService {
     );
   }
 
-  /**
-   * Executes a search query and constructs dashboard entries from the results.
-   *
-   * This function handles:
-   * - Dispatching a search request to the backend (authenticated or public),
-   * - Mapping search results to `DashboardEntry` objects,
-   * - Fetching user info (e.g., owner name/avatar) for workflows, projects, and datasets,
-   * - Aggregating counts (view, clone, like) via batch count API,
-   * - Filtering results (e.g., remove mismatched datasets) and returning metadata such as `hasMismatch`.
-   *
-   * @param keywords - Array of search keywords.
-   * @param params - Additional search filter parameters.
-   * @param start - The starting index for paginated results.
-   * @param count - The number of results to retrieve.
-   * @param type - The type of resource to search for ("workflow", "project", "dataset", "file", or null (all resource type)).
-   * @param orderBy - Specifies the sorting method.
-   * @param isLogin - Indicates if the user is logged in.
-   * @param includePublic - Specifies whether to include public resources in the search results.
-   *
-   * @returns A promise that resolves to:
-   *  - `entries`: Array of dashboard entries constructed from matched results.
-   *  - `more`: Whether there are more results beyond the current page.
-   *  - `hasMismatch`: (Only for dataset type) whether there were mismatches between DB and LakeFS.
-   */
-
-  public async executeSearch(
+  public executeSearch(
     keywords: string[],
     params: SearchFilterParameters,
     start: number,
@@ -119,91 +95,98 @@ export class SearchService {
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
-  ): Promise<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
-    const results = await firstValueFrom(
-      this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic)
+  ): Observable<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
+    return this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic).pipe(
+      switchMap(results => {
+        const hasMismatch = type === "dataset" ? results.hasMismatch ?? false : undefined;
+        const filteredResults =
+          type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
+
+        const userIds = new Set<number>();
+        filteredResults.forEach(i => {
+          if (i.project) userIds.add(i.project.ownerId);
+          else if (i.workflow) userIds.add(i.workflow.ownerId);
+          else if (i.dataset?.dataset?.ownerUid !== undefined) userIds.add(i.dataset.dataset.ownerUid);
+        });
+
+        const userInfo$ =
+          userIds.size > 0 ? this.getUserInfo(Array.from(userIds)) : of({} as { [key: number]: UserInfo });
+
+        return userInfo$.pipe(
+          map(userIdToInfoMap => {
+            const entries: DashboardEntry[] = filteredResults.map(i => {
+              let entry: DashboardEntry;
+              if (i.workflow) {
+                entry = new DashboardEntry(i.workflow);
+                const userInfo = userIdToInfoMap[i.workflow.ownerId];
+                if (userInfo) {
+                  entry.setOwnerName(userInfo.userName);
+                  entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+                }
+              } else if (i.project) {
+                entry = new DashboardEntry(i.project);
+                const userInfo = userIdToInfoMap[i.project.ownerId];
+                if (userInfo) {
+                  entry.setOwnerName(userInfo.userName);
+                  entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+                }
+              } else if (i.dataset) {
+                entry = new DashboardEntry(i.dataset);
+                const ownerUid = i.dataset.dataset?.ownerUid;
+                if (ownerUid !== undefined) {
+                  const userInfo = userIdToInfoMap[ownerUid];
+                  if (userInfo) {
+                    entry.setOwnerName(userInfo.userName);
+                    entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+                  }
+                }
+              } else {
+                throw new Error("Unexpected type in search result");
+              }
+              return entry;
+            });
+
+            const entityTypes: string[] = [];
+            const entityIds: number[] = [];
+            filteredResults.forEach(i => {
+              if (i.workflow?.workflow?.wid != null) {
+                entityTypes.push("workflow");
+                entityIds.push(i.workflow.workflow.wid);
+              } else if (i.project) {
+                entityTypes.push("project");
+                entityIds.push(i.project.pid);
+              } else if (i.dataset?.dataset?.did != null) {
+                entityTypes.push("dataset");
+                entityIds.push(i.dataset.dataset.did);
+              }
+            });
+
+            return { entries, more: results.more, hasMismatch, entityTypes, entityIds };
+          })
+        );
+      }),
+      switchMap(({ entries, more, hasMismatch, entityTypes, entityIds }) => {
+        if (entityTypes.length > 0) {
+          return this.hubService.getBatchCounts(entityTypes, entityIds).pipe(
+            map(responses => {
+              const countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
+              responses.forEach(r => {
+                const key = `${r.entityType}:${r.entityId}`;
+                countsMap[key] = r.counts;
+              });
+              entries.forEach(entry => {
+                if (entry.id == null || entry.type == null) return;
+                const key = `${entry.type}:${entry.id}`;
+                const c = countsMap[key] || {};
+                entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
+              });
+              return { entries, more, hasMismatch };
+            })
+          );
+        } else {
+          return of({ entries, more, hasMismatch });
+        }
+      })
     );
-
-    const hasMismatch = type === "dataset" ? results.hasMismatch ?? false : undefined;
-    const filteredResults =
-      type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
-
-    const userIds = new Set<number>();
-    filteredResults.forEach(i => {
-      if (i.project) userIds.add(i.project.ownerId);
-      else if (i.workflow) userIds.add(i.workflow.ownerId);
-      else if (i.dataset?.dataset?.ownerUid !== undefined) userIds.add(i.dataset.dataset.ownerUid);
-    });
-
-    let userIdToInfoMap: { [key: number]: UserInfo } = {};
-    if (userIds.size > 0) {
-      userIdToInfoMap = await firstValueFrom(this.getUserInfo(Array.from(userIds)));
-    }
-
-    const entries: DashboardEntry[] = filteredResults.map(i => {
-      let entry: DashboardEntry;
-      if (i.workflow) {
-        entry = new DashboardEntry(i.workflow);
-        const userInfo = userIdToInfoMap[i.workflow.ownerId];
-        if (userInfo) {
-          entry.setOwnerName(userInfo.userName);
-          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-        }
-      } else if (i.project) {
-        entry = new DashboardEntry(i.project);
-        const userInfo = userIdToInfoMap[i.project.ownerId];
-        if (userInfo) {
-          entry.setOwnerName(userInfo.userName);
-          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-        }
-      } else if (i.dataset) {
-        entry = new DashboardEntry(i.dataset);
-        const ownerUid = i.dataset.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          const userInfo = userIdToInfoMap[ownerUid];
-          if (userInfo) {
-            entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-          }
-        }
-      } else {
-        throw new Error("Unexpected type in search result");
-      }
-      return entry;
-    });
-
-    const entityTypes: string[] = [];
-    const entityIds: number[] = [];
-
-    filteredResults.forEach(i => {
-      if (i.workflow?.workflow?.wid != null) {
-        entityTypes.push("workflow");
-        entityIds.push(i.workflow.workflow.wid);
-      } else if (i.project) {
-        entityTypes.push("project");
-        entityIds.push(i.project.pid);
-      } else if (i.dataset?.dataset?.did != null) {
-        entityTypes.push("dataset");
-        entityIds.push(i.dataset.dataset.did);
-      }
-    });
-
-    let countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
-    if (entityTypes.length > 0) {
-      const responses: CountResponse[] = await firstValueFrom(this.hubService.getBatchCounts(entityTypes, entityIds));
-      responses.forEach(r => {
-        const key = `${r.entityType}:${r.entityId}`;
-        countsMap[key] = r.counts;
-      });
-    }
-
-    entries.forEach(entry => {
-      if (entry.id == null || entry.type == null) return;
-      const key = `${entry.type}:${entry.id}`;
-      const c = countsMap[key] || {};
-      entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
-    });
-
-    return { entries, more: results.more, hasMismatch };
   }
 }

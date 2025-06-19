@@ -20,8 +20,13 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
+import { finalize, Observable, throwError } from "rxjs";
+import { map, tap } from "rxjs/operators";
 
-export type LoadMoreFunction = (start: number, count: number) => Promise<{ entries: DashboardEntry[]; more: boolean }>;
+export type LoadMoreFunction = (
+  start: number,
+  count: number
+) => Observable<{ entries: DashboardEntry[]; more: boolean }>;
 
 @Component({
   selector: "texera-search-results",
@@ -58,22 +63,26 @@ export class SearchResultsComponent {
     this.resetCounter++;
   }
 
-  async loadMore(): Promise<void> {
+  public loadMore(): Observable<void> {
     if (!this.loadMoreFunction) {
-      throw new Error("This is an empty list and cannot load more entries.");
+      return throwError(() => new Error("This is an empty list and cannot load more entries."));
     }
     this.loading = true;
-    try {
-      const originalResetCounter = this.resetCounter;
-      const results = await this.loadMoreFunction(this.entries.length, 20);
-      if (this.resetCounter !== originalResetCounter) {
-        return;
-      }
-      this.entries = [...this.entries, ...results.entries];
-      this.more = results.more;
-    } finally {
-      this.loading = false;
-    }
+    const originalResetCounter = this.resetCounter;
+
+    return this.loadMoreFunction(this.entries.length, 20).pipe(
+      tap(results => {
+        if (this.resetCounter !== originalResetCounter) {
+          return;
+        }
+        this.entries = [...this.entries, ...results.entries];
+        this.more = results.more;
+      }),
+      finalize(() => {
+        this.loading = false;
+      }),
+      map(() => {})
+    );
   }
 
   onEntryCheckboxChange(): void {
