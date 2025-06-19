@@ -190,9 +190,7 @@ export class SearchService {
 
     let countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
     if (entityTypes.length > 0) {
-      const responses: CountResponse[] = await firstValueFrom(
-        this.hubService.getBatchCounts(entityTypes, entityIds)
-      );
+      const responses: CountResponse[] = await firstValueFrom(this.hubService.getBatchCounts(entityTypes, entityIds));
       responses.forEach(r => {
         const key = `${r.entityType}:${r.entityId}`;
         countsMap[key] = r.counts;
