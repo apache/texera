@@ -1,0 +1,30 @@
+<form
+  [formGroup]="contributorForm"
+  (ngSubmit)="submit()"
+  class="formly-form">
+  <formly-form
+    [form]="contributorForm"
+    [model]="model"
+    [fields]="fields"></formly-form>
+
+  <nz-row>
+    <div
+      nz-col
+      nzOffset="6"
+      nzSpan="14">
+      <button
+        nzType="default"
+        (click)="cancel()"
+        style="margin-right: 8px"
+        type="button">
+        Cancel
+      </button>
+      <button
+        nzType="primary"
+        [disabled]="contributorForm.invalid"
+        type="submit">
+        Save
+      </button>
+    </div>
+  </nz-row>
+</form>

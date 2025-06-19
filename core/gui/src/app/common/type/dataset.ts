@@ -37,4 +37,11 @@ export interface Dataset {
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;
+  contributors?: {
+    name: string;
+    creator?: boolean;
+    role: string;
+    affiliation: string;
+    email: string;
+  }[];
 }

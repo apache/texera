@@ -139,6 +139,7 @@ import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/u
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
+import { UserDatasetContributorEditor } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-contributor-editor/user-dataset-contributor-editor.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
 import { UserDatasetListItemComponent } from "./dashboard/component/user/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
 import { NgxFileDropModule } from "ngx-file-drop";
@@ -230,6 +231,7 @@ registerLocaleData(en);
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
     UserDatasetStagedObjectsListComponent,
+    UserDatasetContributorEditor,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     LocalLoginComponent,

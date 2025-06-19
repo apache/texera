@@ -43,6 +43,7 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
+import { UserDatasetContributorEditor } from "./user-dataset-contributor-editor/user-dataset-contributor-editor.component";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -78,6 +79,8 @@ export class DatasetDetailComponent implements OnInit {
   public currentUid: number | undefined;
   public viewCount: number = 0;
   public displayPreciseViewCount = false;
+
+  public datasetContributors: any[] = [];
 
   userHasPendingChanges: boolean = false;
 
@@ -239,6 +242,7 @@ export class DatasetDetailComponent implements OnInit {
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }
+          this.datasetContributors = dashboardDataset.contributors || [];
         });
     }
   }
@@ -483,5 +487,47 @@ export class DatasetDetailComponent implements OnInit {
 
   changeViewDisplayStyle() {
     this.displayPreciseViewCount = !this.displayPreciseViewCount;
+  }
+
+  /** Open modal to add a new contributor */
+  onAddContributor(): void {
+    const modal = this.modalService.create({
+      nzTitle: "Add Contributor",
+      nzContent: UserDatasetContributorEditor,
+      nzFooter: null,
+      nzData: null,
+    });
+    modal.afterClose.subscribe(newContributor => {
+      if (newContributor) {
+        this.datasetContributors = [...this.datasetContributors, newContributor];
+        this.saveContributors();
+      }
+    });
+  }
+
+  /** Open modal to edit an existing contributor */
+  onEditContributor(contributor: any): void {
+    const modal = this.modalService.create({
+      nzTitle: "Edit Contributor",
+      nzContent: UserDatasetContributorEditor,
+      nzFooter: null,
+      nzData: { ...contributor },
+    });
+    modal.afterClose.subscribe(updated => {
+      if (updated) {
+        // replace the old contributor with updated
+        this.datasetContributors = this.datasetContributors.map(c => (c.id === updated.id ? updated : c));
+        this.saveContributors();
+      }
+    });
+  }
+
+  /** Persist contributors to backend */
+  private saveContributors(): void {
+    if (!this.did) return;
+    this.datasetService.updateDatasetContributors(this.did, this.datasetContributors).subscribe({
+      next: () => this.notificationService.success("Contributors updated"),
+      error: () => this.notificationService.error("Failed to update contributors"),
+    });
   }
 }

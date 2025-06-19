@@ -22,6 +22,7 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetContributor;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
@@ -70,6 +71,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.dataset</code>.
      */
     public final Dataset DATASET = Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_contributor</code>.
+     */
+    public final DatasetContributor DATASET_CONTRIBUTOR = DatasetContributor.DATASET_CONTRIBUTOR;
 
     /**
      * The table <code>texera_db.dataset_user_access</code>.
@@ -198,6 +204,7 @@ public class TexeraDb extends SchemaImpl {
     public final List<Table<?>> getTables() {
         return Arrays.asList(
             Dataset.DATASET,
+            DatasetContributor.DATASET_CONTRIBUTOR,
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetUserLikes.DATASET_USER_LIKES,
             DatasetVersion.DATASET_VERSION,

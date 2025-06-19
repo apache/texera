@@ -95,6 +95,64 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
               label: "Description",
             },
           },
+          {
+            key: "contributors",
+            type: "array",
+            templateOptions: {
+              label: "Add a New Contributor",
+            },
+            fieldArray: {
+              className: "contributor-fields",
+              fieldGroup: [
+                {
+                  key: "name",
+                  type: "input",
+                  templateOptions: {
+                    label: "Contributor's Name",
+                    placeholder: "Contributor's Name",
+                    required: true,
+                  },
+                },
+                {
+                  key: "creator",
+                  type: "checkbox",
+                  templateOptions: {
+                    label: "Creator",
+                  },
+                },
+                {
+                  key: "role",
+                  type: "select",
+                  templateOptions: {
+                    label: "Contributor Role",
+                    options: [
+                      { label: "Researcher", value: "RESEARCHER" },
+                      { label: "Principal Investigator (PI)", value: "PRINCIPAL INVESTIGATOR" },
+                      { label: "Project Member", value: "PROJECT MEMBER" },
+                      { label: "Other", value: "OTHER" },
+                    ],
+                  },
+                },
+                {
+                  key: "affiliation",
+                  type: "input",
+                  templateOptions: {
+                    label: "Department",
+                    placeholder: "Department",
+                  },
+                },
+                {
+                  key: "email",
+                  type: "input",
+                  templateOptions: {
+                    label: "Email",
+                    placeholder: "Email",
+                    type: "email",
+                  },
+                },
+              ],
+            },
+          },
         ];
   }
   get formControlNames(): string[] {

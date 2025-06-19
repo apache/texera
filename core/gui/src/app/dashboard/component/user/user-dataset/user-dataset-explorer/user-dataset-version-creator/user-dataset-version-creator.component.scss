@@ -22,6 +22,11 @@
   margin: auto;
 }
 
+.contributor-fields {
+  display: flex;
+  flex-direction: column;
+}
+
 .create-btn {
   background-color: #ffffff;
   color: #007bff;

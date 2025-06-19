@@ -26,4 +26,11 @@ export interface DashboardDataset {
   dataset: Dataset;
   accessPrivilege: "READ" | "WRITE" | "NONE";
   size: number;
+  contributors: Contributor[];
+}
+
+export interface Contributor {
+  name: string;
+  email: string;
+  role: "RESEARCHER" | "PRINCIPAL INVESTIGATOR" | "PROJECT MEMBER" | "OTHER";
 }

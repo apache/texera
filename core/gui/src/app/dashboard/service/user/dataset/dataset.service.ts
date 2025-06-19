@@ -68,6 +68,7 @@ export class DatasetService {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
+      contributors: dataset.contributors,
     });
   }
 
@@ -398,5 +399,12 @@ export class DatasetService {
 
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
+  }
+
+  /** Update contributors list for a dataset */
+  updateDatasetContributors(did: number, contributors: any[]): Observable<void> {
+    return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/contributors`, {
+      contributors,
+    });
   }
 }
