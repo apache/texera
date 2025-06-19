@@ -34,7 +34,7 @@
           [src]="favicon"
           class="collapsed-logo" />
         <img
-          *ngIf="!isCollapsed"
+          *ngIf="!isCollapsed && logoLoaded"
           alt="logo"
           height="50"
           [src]="logo" />
