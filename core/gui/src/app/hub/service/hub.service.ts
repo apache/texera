@@ -101,27 +101,20 @@ export class HubService {
   }
 
   /**
-   * Fetches multiple counts (view, like, clone) for a given entity in one request.
+   * Fetches count metrics (view, like, clone) for multiple entities in a single request.
    *
-   * @param entityId    The numeric ID of the entity to query.
-   * @param entityType  The type of entity (e.g. "workflow" or "dataset").
-   * @param actionTypes An array of action types to fetch (each of "view", "like", or "clone").
-   * @returns            An Observable resolving to a map from actionType to its count.
+   * @param entityTypes - Array of entity types (e.g., ["workflow", "dataset"]).
+   * @param entityIds   - Corresponding array of entity IDs (e.g., [123, 456]).
+   *                      Must be the same length as entityTypes.
+   * @param actionTypes - Optional array of action types to retrieve counts for.
+   *                      Valid values: "view", "like", "clone".
+   *                      If omitted or empty, all action types are returned.
+   * @returns            An Observable that emits an array of CountResponse objects,
+   *                     each containing:
+   *                       - entityId: the ID of the entity
+   *                       - entityType: the type of the entity
+   *                       - counts: a map from actionType to count
    */
-  public getCounts(
-    entityId: number,
-    entityType: string,
-    actionTypes: string[]
-  ): Observable<{ [action: string]: number }> {
-    let params = new HttpParams().set("entityId", entityId.toString()).set("entityType", entityType);
-
-    actionTypes.forEach(t => {
-      params = params.append("actionType", t);
-    });
-
-    return this.http.get<{ [action: string]: number }>(`${this.BASE_URL}/counts`, { params });
-  }
-
   public getBatchCounts(
     entityTypes: string[],
     entityIds: number[],
@@ -138,6 +131,6 @@ export class HubService {
       params = params.append("actionType", a);
     });
 
-    return this.http.get<CountResponse[]>(`${this.BASE_URL}/batch`, { params });
+    return this.http.get<CountResponse[]>(`${this.BASE_URL}/counts`, { params });
   }
 }
