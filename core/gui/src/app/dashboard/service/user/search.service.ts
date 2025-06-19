@@ -25,7 +25,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
-import { CountRequest, CountResponse, HubService } from "../../../hub/service/hub.service";
+import { CountResponse, HubService } from "../../../hub/service/hub.service";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
@@ -172,20 +172,27 @@ export class SearchService {
       return entry;
     });
 
-    const countRequests: CountRequest[] = filteredResults.flatMap(i => {
+    const entityTypes: string[] = [];
+    const entityIds: number[] = [];
+
+    filteredResults.forEach(i => {
       if (i.workflow?.workflow?.wid != null) {
-        return [{ entityId: i.workflow.workflow.wid, entityType: "workflow" }];
+        entityTypes.push("workflow");
+        entityIds.push(i.workflow.workflow.wid);
       } else if (i.project) {
-        return [{ entityId: i.project.pid, entityType: "project" }];
+        entityTypes.push("project");
+        entityIds.push(i.project.pid);
       } else if (i.dataset?.dataset?.did != null) {
-        return [{ entityId: i.dataset.dataset.did, entityType: "dataset" }];
+        entityTypes.push("dataset");
+        entityIds.push(i.dataset.dataset.did);
       }
-      return [];
     });
 
     let countsMap: { [compositeKey: string]: { [action: string]: number } } = {};
-    if (countRequests.length > 0) {
-      const responses: CountResponse[] = await firstValueFrom(this.hubService.getBatchCounts(countRequests));
+    if (entityTypes.length > 0) {
+      const responses: CountResponse[] = await firstValueFrom(
+        this.hubService.getBatchCounts(entityTypes, entityIds)
+      );
       responses.forEach(r => {
         const key = `${r.entityType}:${r.entityId}`;
         countsMap[key] = r.counts;

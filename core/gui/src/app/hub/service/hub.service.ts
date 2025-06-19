@@ -24,10 +24,6 @@ import { AppSettings } from "../../common/app-setting";
 import { SearchResultItem } from "../../dashboard/type/search-result";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
-export interface CountRequest {
-  entityId: number;
-  entityType: string;
-}
 export interface CountResponse {
   entityId: number;
   entityType: string;
@@ -126,7 +122,18 @@ export class HubService {
     return this.http.get<{ [action: string]: number }>(`${this.BASE_URL}/counts`, { params });
   }
 
-  public getBatchCounts(requests: CountRequest[]): Observable<CountResponse[]> {
-    return this.http.post<CountResponse[]>(`${this.BASE_URL}/batch`, requests);
+  public getBatchCounts(
+    entityTypes: string[],
+    entityIds: number[]
+  ): Observable<CountResponse[]> {
+    let params = new HttpParams();
+    entityTypes.forEach(type => {
+      params = params.append("entityType", type);
+    });
+    entityIds.forEach(id => {
+      params = params.append("entityId", id.toString());
+    });
+
+    return this.http.get<CountResponse[]>(`${this.BASE_URL}/batch`, { params });
   }
 }

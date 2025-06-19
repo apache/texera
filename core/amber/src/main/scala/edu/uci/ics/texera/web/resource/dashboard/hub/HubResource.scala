@@ -613,17 +613,21 @@ class HubResource {
     *   - if the request body is null or empty
     *   - if any entityType in the requests is not supported
     */
-  @POST
+  @GET
   @Path("/batch")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getBatchCounts(
-      requests: java.util.List[CountRequest]
+    @QueryParam("entityType") types: java.util.List[String],
+    @QueryParam("entityId")   ids:   java.util.List[Integer]
   ): java.util.List[CountResponse] = {
-    if (requests == null || requests.isEmpty)
-      throw new BadRequestException("Request body must not be empty")
+    if (types == null || ids == null || types.isEmpty || types.size() != ids.size())
+      throw new BadRequestException(
+        "Both 'entityType' and 'entityId' query parameters must be provided, and lists must have equal length."
+      )
 
-    val reqs: List[CountRequest] = requests.asScala.toList
+    val reqs: List[CountRequest] = types.asScala.zip(ids.asScala).map {
+      case (etype, id) => CountRequest(id, etype)
+    }.toList
 
     val grouped: Map[String, Seq[Integer]] =
       reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
