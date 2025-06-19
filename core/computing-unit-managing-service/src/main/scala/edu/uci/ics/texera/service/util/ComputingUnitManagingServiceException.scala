@@ -20,12 +20,13 @@
 package edu.uci.ics.texera.service.util
 
 import io.fabric8.kubernetes.client.KubernetesClientException
+import jakarta.ws.rs.WebApplicationException
 
 /**
   * Parent type for every error the CU-managing service can raise.
   */
 sealed abstract class ComputingUnitManagingServiceException(msg: String)
-    extends RuntimeException(msg)
+    extends WebApplicationException(msg)
 
 // Not enough cluster resources for this CU request (CPU / memory / GPU)
 final case class InsufficientComputingResource(resourceType: String)

@@ -421,7 +421,7 @@ class ComputingUnitManagingResource {
 
         } catch {
           case e: KubernetesClientException =>
-            throw new BadRequestException(ComputingUnitManagingServiceException.fromKubernetes(e))
+            throw ComputingUnitManagingServiceException.fromKubernetes(e)
 
           case t: Throwable =>
             throw t
