@@ -477,31 +477,31 @@ class HubResource {
   }
 
   /**
-   * Batch endpoint to fetch counts for one or more entities, optionally filtered by action types.
-   *
-   * Example requests:
-   *   // All counts for two entities:
-   *   GET /hub/batch?
-   *       entityType=workflow&entityId=123&
-   *       entityType=dataset&entityId=456
-   *
-   *   // Only "view" and "like" counts for the same pair:
-   *   GET /hub/batch?
-   *       entityType=workflow&entityId=123&
-   *       entityType=dataset&entityId=456&
-   *       actionType=view&actionType=like
-   *
-   * @param entityTypes   A list of entity types, e.g. ["workflow","dataset"].
-   * @param entityIds     A parallel list of entity IDs, e.g. [123,456].
-   *                      Must have the same length as `entityTypes`.
-   * @param actionTypes   (Optional) A list of actions to fetch counts for.
-   *                      Valid values: "view", "like", "clone".
-   *                      If omitted or empty, all three counts are returned.
-   * @return              A list of CountResponse objects, one per requested (type,id) pair,
-   *                      each containing the counts for the requested actions.
-   * @throws BadRequestException if `entityTypes` or `entityIds` are missing,
-   *         empty, or of mismatched length, or if any unsupported actionType is provided.
-   */
+    * Batch endpoint to fetch counts for one or more entities, optionally filtered by action types.
+    *
+    * Example requests:
+    *   // All counts for two entities:
+    *   GET /hub/batch?
+    *       entityType=workflow&entityId=123&
+    *       entityType=dataset&entityId=456
+    *
+    *   // Only "view" and "like" counts for the same pair:
+    *   GET /hub/batch?
+    *       entityType=workflow&entityId=123&
+    *       entityType=dataset&entityId=456&
+    *       actionType=view&actionType=like
+    *
+    * @param entityTypes   A list of entity types, e.g. ["workflow","dataset"].
+    * @param entityIds     A parallel list of entity IDs, e.g. [123,456].
+    *                      Must have the same length as `entityTypes`.
+    * @param actionTypes   (Optional) A list of actions to fetch counts for.
+    *                      Valid values: "view", "like", "clone".
+    *                      If omitted or empty, all three counts are returned.
+    * @return              A list of CountResponse objects, one per requested (type,id) pair,
+    *                      each containing the counts for the requested actions.
+    * @throws BadRequestException if `entityTypes` or `entityIds` are missing,
+    *         empty, or of mismatched length, or if any unsupported actionType is provided.
+    */
   @GET
   @Path("/counts")
   @Produces(Array(MediaType.APPLICATION_JSON))
