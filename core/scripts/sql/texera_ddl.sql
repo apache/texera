@@ -58,6 +58,7 @@ DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS user_activity CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
+DROP TABLE IF EXISTS site_settings CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -335,6 +336,15 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     view_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (did),
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
+    );
+
+-- site_settings table
+CREATE TABLE IF NOT EXISTS site_settings
+(
+    key         VARCHAR(255) PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_by  VARCHAR(50),
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
