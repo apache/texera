@@ -29,7 +29,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READ
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
+  DirectControlMessage,
   DataPayload,
   WorkflowFIFOMessage
 }
@@ -187,14 +187,14 @@ class DPThread(
       //
       if (channelId != null) {
         // for logging, skip large data frames.
-        val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
+        val msgToLog = msgOpt.filter(_.payload.isInstanceOf[DirectControlMessage])
         logManager.withFaultTolerant(channelId, msgToLog) {
           msgOpt match {
             case None =>
               dp.continueDataProcessing()
             case Some(msg) =>
               msg.payload match {
-                case payload: ControlPayload =>
+                case payload: DirectControlMessage =>
                   dp.processDCM(msg.channelId, payload)
                 case payload: DataPayload =>
                   dp.processDataPayload(msg.channelId, payload)
