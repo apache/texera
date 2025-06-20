@@ -24,7 +24,7 @@ from loguru import logger
 from typing import Dict, TypeVar, Callable, Any, Coroutine
 
 from core.architecture.managers.context import Context
-from core.models.internal_queue import InternalQueue, ControlElement
+from core.models.internal_queue import InternalQueue, DirectControlMessageElement
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     AsyncRpcContext,
@@ -90,7 +90,7 @@ class AsyncRPCClient:
             )
             payload = set_one_of(ControlPayloadV2, control_command)
             self._output_queue.put(
-                ControlElement(
+                DirectControlMessageElement(
                     tag=ChannelIdentity(
                         ActorVirtualIdentity(self._context.worker_id), to, True
                     ),
@@ -172,7 +172,7 @@ class AsyncRPCClient:
                     control_command,
                 )
                 rpc_client._output_queue.put(
-                    ControlElement(
+                    DirectControlMessageElement(
                         tag=ChannelIdentity(
                             rpc_context.sender, rpc_context.receiver, True
                         ),

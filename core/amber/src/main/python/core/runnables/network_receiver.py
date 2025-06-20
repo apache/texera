@@ -36,7 +36,7 @@ from core.models import (
 )
 from core.models.internal_queue import (
     DataElement,
-    ControlElement,
+    DirectControlMessageElement,
     InternalQueue,
     EmbeddedControlMessageElement,
 )
@@ -123,7 +123,7 @@ class NetworkReceiver(Runnable, Stoppable):
             """
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
-                ControlElement(
+                DirectControlMessageElement(
                     tag=python_control_message.tag,
                     payload=python_control_message.payload,
                 )

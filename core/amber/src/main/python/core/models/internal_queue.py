@@ -44,7 +44,7 @@ class DataElement(InternalQueueElement):
 
 
 @dataclass
-class ControlElement(InternalQueueElement):
+class DirectControlMessageElement(InternalQueueElement):
     payload: ControlPayloadV2
 
 
@@ -84,7 +84,7 @@ class InternalQueue(IQueue):
                 item, (DataElement, InternalMarker, EmbeddedControlMessageElement)
             ):
                 self._queue.put(item.tag, item)
-            elif isinstance(item, ControlElement):
+            elif isinstance(item, DirectControlMessageElement):
                 self._queue.put(item.tag, item)
             else:
                 raise ValueError(f"item {item} is not recognized by internal queue")

@@ -59,7 +59,7 @@ abstract class AmberProcessor(
   // statistics manager
   val statisticsManager: StatisticsManager = new StatisticsManager()
 
-  def processControlPayload(
+  def processDCM(
       channelId: ChannelIdentity,
       payload: ControlPayload
   ): Unit = {

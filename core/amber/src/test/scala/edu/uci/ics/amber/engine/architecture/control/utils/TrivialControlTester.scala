@@ -66,7 +66,7 @@ class TrivialControlTester(
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
-        case payload: ControlPayload => ap.processControlPayload(msg.channelId, payload)
+        case payload: ControlPayload => ap.processDCM(msg.channelId, payload)
         case _: DataPayload          => ???
         case _                       => ???
       }

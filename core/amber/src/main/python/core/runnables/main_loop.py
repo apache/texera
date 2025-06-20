@@ -34,7 +34,7 @@ from core.models import (
 from core.models.internal_marker import StartChannel, EndChannel
 from core.models.internal_queue import (
     DataElement,
-    ControlElement,
+    DirectControlMessageElement,
     EmbeddedControlMessageElement,
     InternalQueueElement,
 )
@@ -119,7 +119,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
-            self._process_control_element(next_entry)
+            self._process_dcm(next_entry)
 
     @overrides
     def pre_start(self) -> None:
@@ -144,34 +144,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
             next_entry,
             DataElement,
             self._process_data_element,
-            ControlElement,
-            self._process_control_element,
+            DirectControlMessageElement,
+            self._process_dcm,
             EmbeddedControlMessageElement,
             self._process_ecm,
         )
 
-    def process_control_payload(
-        self, tag: ChannelIdentity, payload: ControlPayloadV2
-    ) -> None:
-        """
-        Process the given ControlPayload with the tag.
-
-        :param tag: ChannelIdentity, the sender.
-        :param payload: ControlPayloadV2 to be handled.
-        """
-        start_time = time.time_ns()
-        match(
-            (tag, get_one_of(payload, sealed=False)),
-            typing.Tuple[ChannelIdentity, ControlInvocation],
-            self._async_rpc_server.receive,
-            typing.Tuple[ChannelIdentity, ReturnInvocation],
-            self._async_rpc_client.receive,
-        )
-        end_time = time.time_ns()
-        self.context.statistics_manager.increase_control_processing_time(
-            end_time - start_time
-        )
-        self.context.statistics_manager.update_total_execution_time(end_time)
 
     def process_input_tuple(self) -> None:
         """
@@ -238,13 +216,25 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_tuple()
 
-    def _process_control_element(self, control_element: ControlElement) -> None:
+    def _process_dcm(self, dcm_element: DirectControlMessageElement) -> None:
         """
         Upon receipt of a ControlElement, unpack it into tag and payload to be handled.
 
-        :param control_element: ControlElement to be handled.
+        :param dcm_element: DirectControlMessageElement to be handled.
         """
-        self.process_control_payload(control_element.tag, control_element.payload)
+        start_time = time.time_ns()
+        match(
+            (dcm_element.tag, get_one_of(dcm_element.payload, sealed=False)),
+            typing.Tuple[ChannelIdentity, ControlInvocation],
+            self._async_rpc_server.receive,
+            typing.Tuple[ChannelIdentity, ReturnInvocation],
+            self._async_rpc_client.receive,
+        )
+        end_time = time.time_ns()
+        self.context.statistics_manager.increase_control_processing_time(
+            end_time - start_time
+        )
+        self.context.statistics_manager.update_total_execution_time(end_time)
 
     def _process_tuple(self, tuple_: Tuple) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_

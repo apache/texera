@@ -19,7 +19,7 @@ from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,
 )
 
-from core.models.internal_queue import ControlElement, InternalQueue
+from core.models.internal_queue import DirectControlMessageElement, InternalQueue
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlInvocation,
@@ -46,7 +46,7 @@ class BackpressureHandler(ActorCommandHandler):
         else:
             input_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
             input_queue.put(
-                ControlElement(
+                DirectControlMessageElement(
                     tag=ChannelIdentity(
                         ActorVirtualIdentity("self"), ActorVirtualIdentity("self"), True
                     ),

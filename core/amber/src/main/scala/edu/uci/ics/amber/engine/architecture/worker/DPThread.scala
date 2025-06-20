@@ -195,7 +195,7 @@ class DPThread(
             case Some(msg) =>
               msg.payload match {
                 case payload: ControlPayload =>
-                  dp.processControlPayload(msg.channelId, payload)
+                  dp.processDCM(msg.channelId, payload)
                 case payload: DataPayload =>
                   dp.processDataPayload(msg.channelId, payload)
                 case ecm: EmbeddedControlMessage =>
