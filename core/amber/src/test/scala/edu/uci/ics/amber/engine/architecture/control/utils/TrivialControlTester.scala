@@ -67,8 +67,8 @@ class TrivialControlTester(
       val msg = channel.take
       msg.payload match {
         case payload: DirectControlMessage => ap.processDCM(msg.channelId, payload)
-        case _: DataPayload          => ???
-        case _                       => ???
+        case _: DataPayload                => ???
+        case _                             => ???
       }
     }
     sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))

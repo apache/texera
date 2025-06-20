@@ -38,7 +38,8 @@ object WorkerBatchInternalQueue {
   case class DataElement(dataPayload: DataPayload, from: ChannelIdentity)
       extends InternalQueueElement
 
-  case class ControlElement(cmd: DirectControlMessage, from: ChannelIdentity) extends InternalQueueElement
+  case class ControlElement(cmd: DirectControlMessage, from: ChannelIdentity)
+      extends InternalQueueElement
   case class EmbeddedControlMessageElement(cmd: EmbeddedControlMessage, from: ChannelIdentity)
       extends InternalQueueElement
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement

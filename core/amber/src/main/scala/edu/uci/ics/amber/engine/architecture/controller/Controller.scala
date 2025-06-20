@@ -138,9 +138,9 @@ class Controller(
           val msgToLog = Some(msg).filter(_.payload.isInstanceOf[DirectControlMessage])
           logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: DirectControlMessage   => cp.processDCM(msg.channelId, payload)
-              case _: EmbeddedControlMessage => // skip ECM
-              case p                         => throw new RuntimeException(s"controller cannot handle $p")
+              case payload: DirectControlMessage => cp.processDCM(msg.channelId, payload)
+              case _: EmbeddedControlMessage     => // skip ECM
+              case p                             => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>
