@@ -30,6 +30,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 })
 export class AdminSettingsComponent {
   logoData: string | null = null;
+  miniLogoData: string | null = null;
   faviconData: string | null = null;
 
   constructor(
@@ -37,7 +38,7 @@ export class AdminSettingsComponent {
     private message: NzMessageService
   ) {}
 
-  onFileChange(type: "logo" | "favicon", event: Event): void {
+  onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file && file.type.startsWith("image/")) {
       const reader = new FileReader();
@@ -45,6 +46,8 @@ export class AdminSettingsComponent {
         const result = typeof e.target?.result === "string" ? e.target.result : null;
         if (type === "logo") {
           this.logoData = result;
+        } else if (type === "mini_logo") {
+          this.miniLogoData = result;
         } else {
           this.faviconData = result;
         }
@@ -65,6 +68,17 @@ export class AdminSettingsComponent {
           error: () => this.message.error("Failed to save logo."),
         });
     }
+
+    if (this.miniLogoData) {
+      this.adminSettingsService
+        .updateSetting("mini_logo", this.miniLogoData)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => this.message.success("Mini logo saved successfully."),
+          error: () => this.message.error("Failed to save mini logo."),
+        });
+    }
+
     if (this.faviconData) {
       this.adminSettingsService
         .updateSetting("favicon", this.faviconData)
@@ -74,7 +88,8 @@ export class AdminSettingsComponent {
           error: () => this.message.error("Failed to save favicon."),
         });
     }
-    if (this.logoData || this.faviconData) {
+
+    if (this.logoData || this.miniLogoData || this.faviconData) {
       setTimeout(() => window.location.reload(), 500);
     }
   }
@@ -89,6 +104,17 @@ export class AdminSettingsComponent {
           this.message.success("Logo reset to default.");
         },
         error: () => this.message.error("Failed to reset logo."),
+      });
+
+    this.adminSettingsService
+      .deleteSetting("mini_logo")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.miniLogoData = null;
+          this.message.success("Mini logo reset to default.");
+        },
+        error: () => this.message.error("Failed to reset mini logo."),
       });
 
     this.adminSettingsService
