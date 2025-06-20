@@ -60,7 +60,7 @@ export class DashboardComponent implements OnInit {
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
   logo: string = "assets/logos/logo.png";
-  favicon: string = "assets/logos/favicon-32x32.png";
+  favicon: string = "assets/logos/full_logo_small.png";
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
