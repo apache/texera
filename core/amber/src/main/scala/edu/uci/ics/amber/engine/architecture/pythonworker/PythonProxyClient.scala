@@ -21,7 +21,6 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
