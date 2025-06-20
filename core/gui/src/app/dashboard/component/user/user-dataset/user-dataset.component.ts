@@ -35,6 +35,7 @@ import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../com
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { map, tap } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -129,27 +130,32 @@ export class UserDatasetComponent implements AfterViewInit {
     const isLogin = filterScope === "public" ? false : this.isLogin;
     const includePublic = filterScope === "all" || filterScope === "public";
 
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more, hasMismatch } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        filterParams,
-        start,
-        count,
-        "dataset",
-        this.sortMethod,
-        isLogin,
-        includePublic
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            filterParams,
+            start,
+            count,
+            "dataset",
+            this.sortMethod,
+            isLogin,
+            includePublic
+          )
+          .pipe(
+            tap(({ hasMismatch }) => {
+              this.hasMismatch = hasMismatch ?? false;
+              if (this.hasMismatch) {
+                this.message.warning(
+                  "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
+                  { nzDuration: 4000 }
+                );
+              }
+            }),
+            map(({ entries, more }) => ({ entries, more }))
+          )
       );
-
-      this.hasMismatch = hasMismatch ?? false;
-      if (this.hasMismatch) {
-        this.message.warning(
-          "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
-          { nzDuration: 4000 }
-        );
-      }
-
-      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }

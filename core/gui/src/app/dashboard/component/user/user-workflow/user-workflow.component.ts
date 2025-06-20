@@ -202,18 +202,21 @@ export class UserWorkflowComponent implements AfterViewInit {
       // force the project id in the search query to be the current pid.
       filterParams.projectIds = [this.pid];
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        filterParams,
-        start,
-        count,
-        "workflow",
-        this.sortMethod,
-        this.isLogin,
-        this.includePublic
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            filterParams,
+            start,
+            count,
+            "workflow",
+            this.sortMethod,
+            this.isLogin,
+            this.includePublic
+          )
+          .pipe(map(({ entries, more }) => ({ entries, more })))
       );
-      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }

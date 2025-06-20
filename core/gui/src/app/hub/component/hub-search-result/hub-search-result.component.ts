@@ -26,6 +26,8 @@ import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
+import { firstValueFrom } from "rxjs";
+import { map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -119,18 +121,21 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
       filterParams.projectIds = [this.pid];
     }
 
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more } = await this.searchService.executeSearch(
-        [""],
-        filterParams,
-        start,
-        count,
-        this.searchType,
-        this.sortMethod,
-        this.isLogin,
-        this.includePublic
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            [""],
+            filterParams,
+            start,
+            count,
+            this.searchType,
+            this.sortMethod,
+            this.isLogin,
+            this.includePublic
+          )
+          .pipe(map(({ entries, more }) => ({ entries, more })))
       );
-      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }

@@ -26,6 +26,8 @@ import { SortMethod } from "../../../type/sort-method";
 import { Location } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
+import { firstValueFrom } from "rxjs";
+import { map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -104,18 +106,21 @@ export class SearchComponent implements AfterViewInit {
     if (!this.searchResultsComponent) {
       throw new Error("searchResultsComponent is undefined.");
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const { entries, more } = await this.searchService.executeSearch(
-        this.filters.getSearchKeywords(),
-        this.filters.getSearchFilterParameters(),
-        start,
-        count,
-        this.selectedType,
-        this.sortMethod,
-        this.isLogin,
-        this.includePublic
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            this.filters.getSearchFilterParameters(),
+            start,
+            count,
+            this.selectedType,
+            this.sortMethod,
+            this.isLogin,
+            this.includePublic
+          )
+          .pipe(map(({ entries, more }) => ({ entries, more })))
       );
-      return { entries, more };
     });
     await this.searchResultsComponent.loadMore();
   }
