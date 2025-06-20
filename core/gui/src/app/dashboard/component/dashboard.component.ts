@@ -61,7 +61,6 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "assets/logos/logo.png";
   favicon: string = "assets/logos/favicon-32x32.png";
-  logoLoaded: boolean = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -133,7 +132,6 @@ export class DashboardComponent implements OnInit {
         if (logoUrl) {
           this.logo = logoUrl;
         }
-        this.logoLoaded = true;
       });
 
     this.adminSettingsService
