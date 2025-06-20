@@ -83,6 +83,12 @@
 </div>
 
 <div
+  *ngIf="operatorDescription && !editingTitle"
+  class="operator-description">
+  <p>{{ operatorDescription }}</p>
+</div>
+
+<div
   id="customName"
   [hidden]="!editingTitle"
   (focusout)="disconnectQuillFromText()"

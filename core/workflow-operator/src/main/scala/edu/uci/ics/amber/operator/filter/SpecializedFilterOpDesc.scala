@@ -54,7 +54,7 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "Filter",
-      "Performs a filter operation",
+      "Performs a filter operation using OR between multiple predicates",
       OperatorGroupConstants.CLEANING_GROUP,
       List(InputPort()),
       List(OutputPort()),
