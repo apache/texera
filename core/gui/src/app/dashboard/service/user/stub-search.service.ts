@@ -23,6 +23,7 @@ import { SearchResult } from "../../type/search-result";
 import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
 import { SortMethod } from "../../type/sort-method";
+import { map } from "rxjs/operators";
 
 @Injectable({
   providedIn: "root",
@@ -74,7 +75,7 @@ export class StubSearchService {
     return of(result);
   }
 
-  public async executeSearch(
+  public executeSearch(
     keywords: string[],
     params: SearchFilterParameters,
     start: number,
@@ -83,34 +84,43 @@ export class StubSearchService {
     orderBy: SortMethod,
     isLogin: boolean,
     includePublic: boolean
-  ): Promise<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
-    const result = await firstValueFrom(
-      this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic)
+  ): Observable<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }>  {
+    return this.search(
+      keywords,
+      params,
+      start,
+      count,
+      type,
+      orderBy,
+      isLogin,
+      includePublic
+    ).pipe(
+      map(result => {
+        const hasMismatch = type === "dataset" ? result.hasMismatch ?? false : undefined;
+        const filteredResults = type === "dataset"
+          ? result.results.filter(i => i.dataset != null)
+          : result.results;
+
+        const entries: DashboardEntry[] = filteredResults.map(i => {
+          const match = this.testEntries.find(e =>
+            i.workflow && e.type === "workflow"  && e.workflow === i.workflow ||
+            i.project  && e.type === "project"   && e.project  === i.project  ||
+            i.dataset  && e.type === "dataset"   && e.dataset  === i.dataset
+          );
+          if (!match) throw new Error("Unexpected entry type in stub search.");
+          return match;
+        });
+
+        entries.forEach(entry => {
+          const info = this.mockUserInfo[entry.ownerId!];
+          if (info) {
+            entry.setOwnerName(info.userName);
+            entry.setOwnerGoogleAvatar(info.googleAvatar ?? "");
+          }
+        });
+
+        return { entries, more: false, hasMismatch };
+      })
     );
-
-    const hasMismatch = type === "dataset" ? result.hasMismatch ?? false : undefined;
-    const filteredResults = type === "dataset" ? result.results.filter(i => i.dataset != null) : result.results;
-
-    const entries = filteredResults.map(i => {
-      if (i.workflow || i.project || i.dataset) {
-        return this.testEntries.find(e => {
-          if (i.workflow && e.type === "workflow" && e.workflow === i.workflow) return true;
-          if (i.project && e.type === "project" && e.project === i.project) return true;
-          if (i.dataset && e.type === "dataset" && e.dataset === i.dataset) return true;
-          return false;
-        })!;
-      }
-      throw new Error("Unexpected entry type in stub search.");
-    });
-
-    entries.forEach(entry => {
-      if (entry.ownerId && this.mockUserInfo[entry.ownerId]) {
-        const info = this.mockUserInfo[entry.ownerId];
-        entry.setOwnerName(info.userName);
-        entry.setOwnerGoogleAvatar(info.googleAvatar ?? "");
-      }
-    });
-
-    return { entries, more: false, hasMismatch };
   }
 }
