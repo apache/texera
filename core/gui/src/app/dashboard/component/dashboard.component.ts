@@ -59,9 +59,8 @@ export class DashboardComponent implements OnInit {
   isCollapsed: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
-  logo: string = ""; //assets/logos/logo.png
-  miniLogo: string = ""; //assets/logos/full_logo_small.png
-  favicon: string = ""; // assets/logos/favicon-32x32.png
+  logo: string = "";
+  miniLogo: string = "";
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -136,10 +135,7 @@ export class DashboardComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(path => (this.miniLogo = path));
 
-    this.adminSettingsService
-      .getFaviconPath()
-      .pipe(untilDestroyed(this))
-      .subscribe(path => (this.favicon = path));
+    this.adminSettingsService.getFaviconPath().pipe(untilDestroyed(this)).subscribe();
   }
 
   forumLogin() {

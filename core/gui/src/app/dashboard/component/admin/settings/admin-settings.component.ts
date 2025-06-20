@@ -68,15 +68,17 @@ export class AdminSettingsComponent {
           error: () => this.message.error("Failed to save logo."),
         });
     }
+
     if (this.miniLogoData) {
       this.adminSettingsService
         .updateSetting("mini_logo", this.miniLogoData)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: () => this.message.success("Mini logo saved successfully."),
-          error: () => this.message.error("Failed to save favicon."),
+          error: () => this.message.error("Failed to save mini logo."),
         });
     }
+
     if (this.faviconData) {
       this.adminSettingsService
         .updateSetting("favicon", this.faviconData)
@@ -86,6 +88,7 @@ export class AdminSettingsComponent {
           error: () => this.message.error("Failed to save favicon."),
         });
     }
+
     if (this.logoData || this.miniLogoData || this.faviconData) {
       setTimeout(() => window.location.reload(), 500);
     }
