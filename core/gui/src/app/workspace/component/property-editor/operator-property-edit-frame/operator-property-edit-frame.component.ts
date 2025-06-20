@@ -368,6 +368,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
+    console.log("find schema here ", schema);
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
       this.fieldStyleOverride = operatorPropertyDiff[this.currentOperatorId];
@@ -499,7 +500,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (isDefined(mapSource.enum)) {
         mappedField.validators.inEnum = {
-          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value ?? ""),
           message: (error: any, field: FormlyFieldConfig) =>
             `"${field.formControl?.value}" is no longer a valid option`,
         };
