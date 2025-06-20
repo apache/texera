@@ -32,7 +32,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlError,
     ErrorLanguage,
 )
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessageV2
 from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
@@ -108,8 +108,8 @@ class AsyncRPCServer:
             )
 
         # Construct the payload as a ReturnInvocation.
-        payload: ControlPayloadV2 = set_one_of(
-            ControlPayloadV2,
+        payload: DirectControlMessageV2 = set_one_of(
+            DirectControlMessageV2,
             ReturnInvocation(
                 command_id=control_invocation.command_id,
                 return_value=control_return,

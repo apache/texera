@@ -30,7 +30,7 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.core import ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessageV2
 
 
 @dataclass
@@ -45,7 +45,7 @@ class DataElement(InternalQueueElement):
 
 @dataclass
 class DirectControlMessageElement(InternalQueueElement):
-    payload: ControlPayloadV2
+    payload: DirectControlMessageV2
 
 
 @dataclass

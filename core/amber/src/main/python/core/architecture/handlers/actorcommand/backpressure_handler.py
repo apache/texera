@@ -30,7 +30,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 
 from proto.edu.uci.ics.amber.engine.common import (
     Backpressure,
-    ControlPayloadV2,
+    DirectControlMessageV2,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
@@ -51,7 +51,7 @@ class BackpressureHandler(ActorCommandHandler):
                         ActorVirtualIdentity("self"), ActorVirtualIdentity("self"), True
                     ),
                     payload=set_one_of(
-                        ControlPayloadV2,
+                        DirectControlMessageV2,
                         ControlInvocation(
                             "NoOperation",
                             set_one_of(ControlRequest, EmptyRequest()),

@@ -32,7 +32,7 @@ from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.common import (
-    ControlPayloadV2,
+    DirectControlMessageV2,
     PythonControlMessage,
     PythonDataHeader,
 )
@@ -113,7 +113,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ChannelIdentity, control_payload: ControlPayloadV2
+        self, to: ChannelIdentity, control_payload: DirectControlMessageV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used

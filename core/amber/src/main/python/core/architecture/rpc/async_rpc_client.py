@@ -35,7 +35,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     WorkerServiceStub,
     ControlRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessageV2
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 R = TypeVar("R")
@@ -88,7 +88,7 @@ class AsyncRPCClient:
                 context=rpc_context,
                 command_id=self._send_sequences[to],
             )
-            payload = set_one_of(ControlPayloadV2, control_command)
+            payload = set_one_of(DirectControlMessageV2, control_command)
             self._output_queue.put(
                 DirectControlMessageElement(
                     tag=ChannelIdentity(
@@ -168,7 +168,7 @@ class AsyncRPCClient:
                     command_id=rpc_client._send_sequences[to],
                 )
                 payload = set_one_of(
-                    ControlPayloadV2,
+                    DirectControlMessageV2,
                     control_command,
                 )
                 rpc_client._output_queue.put(
