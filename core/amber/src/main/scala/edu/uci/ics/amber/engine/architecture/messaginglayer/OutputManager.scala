@@ -241,7 +241,7 @@ class OutputManager(
         // Non-blocking call
         writerThread.queue.put(Right(PortStorageWriterTerminateSignal))
         // Blocking call
-        this.outputPortResultWriterThreads.values.foreach(writerThread => writerThread.join())
+        writerThread.join()
       case None =>
     }
 
