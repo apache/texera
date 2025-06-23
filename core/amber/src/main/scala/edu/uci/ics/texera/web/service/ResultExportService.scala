@@ -539,7 +539,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   ): String = {
     val extensionMatch = extension match {
       case "parquet" => "zip"
-      case _ => extension
+      case _         => extension
     }
 
     val latestVersion =
@@ -549,7 +549,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
 
-    val rawName = s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
+    val rawName =
+      s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
   }
