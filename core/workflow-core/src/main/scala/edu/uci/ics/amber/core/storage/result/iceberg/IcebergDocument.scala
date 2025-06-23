@@ -441,21 +441,6 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     filesSize
   }
 
-  override def getUnderlyingFileCount: Int = {
-    fileScanTasks.size
-  }
-
-  override def getUnderlyingFileData(index: Int): InputStream = {
-    if (index < 0 || index >= fileScanTasks.size) {
-      throw new IndexOutOfBoundsException(
-        s"File index $index is out of bounds. There are ${fileScanTasks.size} files."
-      )
-    }
-    val file = fileScanTasks(index).file()
-    val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
-    table.io().newInputFile(file.path().toString).newStream()
-  }
-
   override def asInputStream(): InputStream = {
     if (fileScanTasks.isEmpty) {
       new ByteArrayInputStream(Array.emptyByteArray)

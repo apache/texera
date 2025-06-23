@@ -182,11 +182,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
         generateFileName(
           request,
           operatorRequest.id,
-          operatorRequest.outputType match {
-            // Parquet files are compressed in underlying Iceberg document,
-            case "parquet" => "zip"
-            case other     => other
-          }
+          operatorRequest.outputType
         )
       else request.filename
 
@@ -541,6 +537,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       operatorId: String,
       extension: String
   ): String = {
+    val extensionMatch = extension match {
+      case "parquet" => "zip"
+      case _ => extension
+    }
+
     val latestVersion =
       WorkflowVersionResource.getLatestVersion(request.workflowId)
     val timestamp = LocalDateTime
@@ -548,7 +549,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
 
-    val rawName = s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extension"
+    val rawName = s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
   }
