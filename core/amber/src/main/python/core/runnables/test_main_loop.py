@@ -232,7 +232,9 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_assign_output_port(
@@ -250,7 +252,9 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_assign_input_port_binary(
@@ -272,7 +276,9 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_assign_output_port_binary(
@@ -290,7 +296,9 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_add_input_channel(
@@ -320,7 +328,9 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_raw_schema(self):
@@ -358,7 +368,9 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_initialize_batch_count_executor(
@@ -390,7 +402,9 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_add_partitioning(
@@ -427,7 +441,9 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_query_statistics(
@@ -442,7 +458,9 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_pause(
@@ -455,7 +473,9 @@ class TestMainLoop:
                 method_name="PauseWorker", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def mock_resume(
@@ -468,7 +488,9 @@ class TestMainLoop:
                 method_name="ResumeWorker", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(tag=mock_control_input_channel, payload=payload)
+        return DirectControlMessageElement(
+            tag=mock_control_input_channel, payload=payload
+        )
 
     @pytest.fixture
     def main_loop(self, input_queue, output_queue, mock_link):

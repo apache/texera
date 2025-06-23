@@ -129,7 +129,9 @@ class AsyncRPCServer:
             f" {command}"
         )
         # Put the control element in the output queue.
-        self._output_queue.put(DirectControlMessageElement(tag=target_channel_id, payload=payload))
+        self._output_queue.put(
+            DirectControlMessageElement(tag=target_channel_id, payload=payload)
+        )
 
     def look_up(self, method_name: str) -> grpclib.const.Handler:
         logger.debug(method_name)

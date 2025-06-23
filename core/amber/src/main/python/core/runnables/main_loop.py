@@ -59,7 +59,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessageV2
 from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -149,7 +148,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             EmbeddedControlMessageElement,
             self._process_ecm,
         )
-
 
     def process_input_tuple(self) -> None:
         """
