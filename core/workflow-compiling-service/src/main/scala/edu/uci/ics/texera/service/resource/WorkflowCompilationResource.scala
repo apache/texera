@@ -45,12 +45,14 @@ import jakarta.ws.rs.core.MediaType
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
     physicalPlan: PhysicalPlan,
-    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]],
+    operatorOutputSchemas: Map[String, Map[Int, Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
     operatorErrors: Map[String, WorkflowFatalError],
-    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]],
+    operatorOutputSchemas: Map[String, Map[Int, Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -82,11 +84,24 @@ class WorkflowCompilationResource extends LazyLogging {
         (opId, attributes)
     }
 
+    val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
+      case (operatorIdentity, schemas) =>
+        val opId = operatorIdentity.id
+        val portIdAndAttributes = schemas.map { schema =>
+          if (schema._2.isEmpty)
+            (schema._1.id, None)
+          else
+            (schema._1.id, Some(schema._2.get.attributes))
+        }
+        (opId, portIdAndAttributes)
+    }
+
     // Handle success case: No errors in the compilation result
     if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
-        operatorInputSchemas
+        operatorInputSchemas,
+        operatorOutputSchemas
       )
     }
     // Handle failure case: Errors found during compilation
@@ -95,7 +110,8 @@ class WorkflowCompilationResource extends LazyLogging {
         operatorErrors = compilationResult.operatorIdToError.map {
           case (operatorIdentity, error) => (operatorIdentity.id, error)
         },
-        operatorInputSchemas
+        operatorInputSchemas,
+        operatorOutputSchemas
       )
     }
   }

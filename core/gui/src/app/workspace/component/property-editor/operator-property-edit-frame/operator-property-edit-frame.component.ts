@@ -65,7 +65,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-import { AttributeType, PortInputSchema } from "../../../types/workflow-compiling.interface";
+import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 Quill.register("modules/cursors", QuillCursors);
@@ -680,7 +680,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
-            const attributes: ReadonlyArray<PortInputSchema | undefined> | undefined =
+            const attributes: ReadonlyArray<PortSchema | undefined> | undefined =
               this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }

@@ -41,6 +41,9 @@ export interface WorkflowCompilationResponse
     operatorInputSchemas: {
       [key: string]: OperatorInputSchema;
     };
+    operatorOutputSchemas: {
+      [key: string]: OperatorOutputSchema;
+    };
     operatorErrors: {
       [opId: string]: WorkflowFatalError;
     };
@@ -60,6 +63,8 @@ export type CompilationStateInfo = Readonly<
       physicalPlan: PhysicalPlan;
       // a map from opId to InputSchema, used for autocompletion of schema
       operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+      // a map from opId to OutputSchema
+      operatorOutputSchemaMap: Readonly<Record<string, OperatorOutputSchema>>;
     }
   | {
       state: CompilationState.Uninitialized;
@@ -67,6 +72,7 @@ export type CompilationStateInfo = Readonly<
   | {
       state: CompilationState.Failed;
       operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+      operatorOutputSchemaMap: Readonly<Record<string, OperatorOutputSchema>>;
       operatorErrors: Readonly<Record<string, WorkflowFatalError>>;
     }
 >;
@@ -79,5 +85,8 @@ export interface SchemaAttribute
   }> {}
 
 // input schema of an operator: an array of schemas at each input port
-export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
-export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
+export type OperatorInputSchema = ReadonlyArray<PortSchema | undefined>;
+export type PortSchema = ReadonlyArray<SchemaAttribute>;
+
+// output schema of an operator: an map from port index to port schema. The port is not internal.
+export type OperatorOutputSchema = Readonly<Record<number, PortSchema | undefined>>;

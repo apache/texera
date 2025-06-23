@@ -32,11 +32,14 @@ import {
   CompilationState,
   CompilationStateInfo,
   OperatorInputSchema,
-  PortInputSchema,
+  OperatorOutputSchema,
+  PortSchema,
   WorkflowCompilationResponse,
 } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
+import { ValidationWorkflowService } from "../validation/validation-workflow.service";
+import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -67,7 +70,8 @@ export class WorkflowCompilingService {
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService
+    private dynamicSchemaService: DynamicSchemaService,
+    private validationWorkflowService: ValidationWorkflowService
   ) {
     // invoke the compilation service when there are any changes on workflow topology and properties. This includes:
     // - operator add, delete, property changed, disabled
@@ -82,9 +86,22 @@ export class WorkflowCompilingService {
     )
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
-        mergeMap(() =>
-          this.compile(ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph()))
-        )
+        mergeMap(() => {
+          // Calculate invalid operator IDs using validation service
+          const invalidOperatorIDs = this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .filter(operator => {
+              return !this.validationWorkflowService.validateOperator(operator.operatorID).isValid;
+            })
+            .map(op => op.operatorID);
+          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+            this.workflowActionService.getTexeraGraph(),
+            undefined,
+            invalidOperatorIDs
+          );
+          return this.compile(logicalPlan);
+        })
       )
       .subscribe(response => {
         if (response.physicalPlan) {
@@ -92,16 +109,18 @@ export class WorkflowCompilingService {
             state: CompilationState.Succeeded,
             physicalPlan: response.physicalPlan,
             operatorInputSchemaMap: response.operatorInputSchemas,
+            operatorOutputSchemaMap: response.operatorOutputSchemas,
           };
         } else {
           this.currentCompilationStateInfo = {
             state: CompilationState.Failed,
             operatorInputSchemaMap: response.operatorInputSchemas,
+            operatorOutputSchemaMap: response.operatorOutputSchemas,
             operatorErrors: response.operatorErrors,
           };
         }
         this.compilationStateInfoChangedStream.next(this.currentCompilationStateInfo.state);
-        this._applySchemaPropagationResult(this.currentCompilationStateInfo.operatorInputSchemaMap);
+        this._applySchemaPropagationResult();
       });
   }
 
@@ -123,10 +142,39 @@ export class WorkflowCompilingService {
     if (this.currentCompilationStateInfo.state == CompilationState.Uninitialized) {
       return undefined;
     }
-    return this.currentCompilationStateInfo.operatorInputSchemaMap[operatorID];
+
+    // First try to get from direct input schema map
+    const directInputSchema = this.currentCompilationStateInfo.operatorInputSchemaMap[operatorID];
+    if (directInputSchema) {
+      return directInputSchema;
+    }
+
+    // If not found, try to extract from connected operators' output schemas
+    if (this.currentCompilationStateInfo.operatorOutputSchemaMap) {
+      return this.extractInputSchemaFromOutputs(
+        operatorID,
+        this.currentCompilationStateInfo.operatorOutputSchemaMap,
+        this.workflowActionService.getTexeraGraph()
+      );
+    }
+
+    return undefined;
   }
 
-  public getPortInputSchema(operatorID: string, portIndex: number): PortInputSchema | undefined {
+  public getOperatorOutputPortSchema(operatorID: string, portIndex: number): PortSchema | undefined {
+    if (this.currentCompilationStateInfo.state == CompilationState.Uninitialized) {
+      return undefined;
+    }
+
+    const operatorOutputSchema = this.currentCompilationStateInfo.operatorOutputSchemaMap[operatorID];
+    if (!operatorOutputSchema) {
+      return undefined;
+    }
+
+    return operatorOutputSchema[portIndex];
+  }
+
+  public getPortInputSchema(operatorID: string, portIndex: number): PortSchema | undefined {
     return this.getOperatorInputSchema(operatorID)?.[portIndex];
   }
 
@@ -145,21 +193,18 @@ export class WorkflowCompilingService {
    * If an operator is not in the result, then:
    * 1. the operator's input attributes cannot be inferred. In this case, the operator dynamic schema is unchanged.
    * 2. the operator is a source operator. In this case, we need to fill in the attributes using the selected table.
-   *
-   * @param schemaPropagationResult
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: OperatorInputSchema }): void {
+  private _applySchemaPropagationResult(): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
 
-      // if operator input attributes are in the result, set them in dynamic schema
+      // Get the input schema for this operator using the centralized method
+      const inputSchema = this.getOperatorInputSchema(operatorID);
+
       let newDynamicSchema: OperatorSchema;
-      if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(
-          currentDynamicSchema,
-          schemaPropagationResult[operatorID]
-        );
+      if (inputSchema) {
+        newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(currentDynamicSchema, inputSchema);
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -174,6 +219,57 @@ export class WorkflowCompilingService {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
     });
+  }
+
+  /**
+   * Extracts input schema for an operator by looking at the output schemas of connected operators.
+   * Gets input links, extracts port indices, and concatenates attributes from multiple input links.
+   *
+   * @param operatorID The operator to extract input schema for
+   * @param outputSchemas Map of operator IDs to their output schemas
+   * @param workflowGraph The workflow graph to get input links from
+   * @returns The extracted input schema or undefined if not possible
+   */
+  private extractInputSchemaFromOutputs(
+    operatorID: string,
+    outputSchemas: Record<string, OperatorOutputSchema>,
+    workflowGraph: WorkflowGraphReadonly
+  ): OperatorInputSchema | undefined {
+    const inputLinks = workflowGraph.getInputLinksByOperatorId(operatorID);
+    if (!inputLinks.length) return undefined;
+
+    // from input port's index to the input schema
+    const inputPortIdxToSchema = new Map<number, PortSchema>();
+
+    inputLinks.forEach(link => {
+      const sourceSchema = outputSchemas[link.source.operatorID];
+      if (!sourceSchema) return;
+
+      const inIndex = this.extractPortIndex(link.target.portID);
+      const outIndex = this.extractPortIndex(link.source.portID);
+      if (inIndex < 0 || outIndex < 0) return;
+
+      const schema = sourceSchema[outIndex];
+      if (!schema) return;
+
+      const existing = inputPortIdxToSchema.get(inIndex) ?? [];
+      inputPortIdxToSchema.set(inIndex, schema);
+    });
+
+    if (!inputPortIdxToSchema.size) return undefined;
+    // return as array of port schema, starting from port 0
+    const sortedIndices = [...inputPortIdxToSchema.keys()].sort((a, b) => a - b);
+    return sortedIndices.map(i => inputPortIdxToSchema.get(i)) as OperatorInputSchema;
+  }
+
+  /**
+   * Extracts the port index from a port ID string.
+   * @param portId Port ID like "input-0", "output-1", etc.
+   * @returns The numeric index or -1 if not found
+   */
+  private extractPortIndex(portId: string): number {
+    const match = portId.match(/(\d+)$/);
+    return match ? parseInt(match[1]) : -1;
   }
 
   /**
