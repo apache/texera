@@ -80,10 +80,8 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
     assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
 
     val normArg =
-      if (normalize != NormalizationType.NONE)
         s"histnorm='${normalize.getValue}',"
-      else
-        ""
+
     s"""
        |from pytexera import *
        |import plotly.express as px
