@@ -52,12 +52,12 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Number of bins along the Y axis (Default: 10)")
   var yBins: Int = _
 
-  @JsonProperty(required = false)
+  @JsonProperty(required = false, defaultValue = "density")
   @JsonSchemaTitle("Normalization")
   @JsonPropertyDescription(
     "Type of histogram normalization"
   )
-  var normalize: NormalizationType = NormalizationType.NONE
+  var normalize: NormalizationType = NormalizationType.DENSITY
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -76,6 +76,9 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor {
   }
 
   override def generatePythonCode(): String = {
+    assert(xBins > 0, s"X Bins must be > 0, but got $xBins")
+    assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
+
     val normArg =
       if (normalize != NormalizationType.NONE)
         s"histnorm='${normalize.getValue}',"

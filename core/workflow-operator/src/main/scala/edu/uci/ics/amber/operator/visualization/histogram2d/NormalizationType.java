@@ -21,7 +21,6 @@ package edu.uci.ics.amber.operator.visualization.histogram2d;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum NormalizationType {
-    NONE(""),
     DENSITY("density"),
     PROBABILITY("probability"),
     PERCENT("percent");
