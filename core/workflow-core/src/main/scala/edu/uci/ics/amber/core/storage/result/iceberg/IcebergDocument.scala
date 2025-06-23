@@ -23,20 +23,23 @@ import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
+import org.apache.commons.io.IOUtils
 import org.apache.iceberg.{FileScanTask, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.types.{Conversions, Types}
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
 import java.nio.ByteBuffer
 import java.time.{Instant, LocalDate, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
+import scala.util.Using
 
 /**
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
@@ -451,5 +454,23 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val file = fileScanTasks(index).file()
     val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
     table.io().newInputFile(file.path().toString).newStream()
+  }
+
+  override def asInputStream(): InputStream = {
+    if (fileScanTasks.isEmpty) {
+      new ByteArrayInputStream(Array.emptyByteArray)
+    }
+    val baos = new ByteArrayOutputStream()
+    Using.resource(new ZipOutputStream(baos)) { zipOut =>
+      for (i <- fileScanTasks.indices) {
+        val entryName = s"part-${String.format("%05d", i)}.parquet"
+        zipOut.putNextEntry(new ZipEntry(entryName))
+        Using.resource(getUnderlyingFileData(i)) { fileInputStream =>
+          IOUtils.copy(fileInputStream, zipOut)
+        }
+        zipOut.closeEntry()
+      }
+    }
+    new ByteArrayInputStream(baos.toByteArray)
   }
 }

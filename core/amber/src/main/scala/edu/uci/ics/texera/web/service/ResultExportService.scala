@@ -179,7 +179,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
 
     val fileName =
       if (request.filename.isEmpty)
-        generateFileName(request, operatorRequest.id, operatorRequest.outputType)
+        generateFileName(
+          request,
+          operatorRequest.id,
+          operatorRequest.outputType match {
+            // Parquet files are compressed in underlying Iceberg document,
+            case "parquet" => "zip"
+            case other     => other
+          }
+        )
       else request.filename
 
     val streamingOutput: StreamingOutput = (out: OutputStream) => {
@@ -388,29 +396,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       doc: VirtualDocument[Tuple],
       outputStream: OutputStream
   ): Unit = {
-    val fileCount = doc.getUnderlyingFileCount
-    if (fileCount == 0) {
-      return
-    }
-
-    if (fileCount == 1) {
-      // If there's only one file, we can stream it directly without zipping
-      Using.resource(doc.getUnderlyingFileData(0)) { fileInputStream =>
-        IOUtils.copy(fileInputStream, outputStream)
-      }
-      return
-    }
-
-    Using.resource(new ZipOutputStream(outputStream)) { zipOut =>
-      for (i <- 0 until fileCount) {
-        val entryName = s"part-${String.format("%05d", i)}.parquet"
-        zipOut.putNextEntry(new ZipEntry(entryName))
-        Using.resource(doc.getUnderlyingFileData(i)) { fileInputStream =>
-          IOUtils.copy(fileInputStream, zipOut)
-        }
-        zipOut.closeEntry()
-      }
-    }
+    val zipStream = doc.asInputStream()
+    IOUtils.copy(zipStream, outputStream)
   }
 
   /*
