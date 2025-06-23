@@ -29,12 +29,12 @@
       nzSelectable="false">
       <li class="logo-section">
         <img
-          *ngIf="isCollapsed"
+          *ngIf="miniLogo && isCollapsed"
           alt="mini-logo"
-          [src]="favicon"
+          [src]="miniLogo"
           class="collapsed-logo" />
         <img
-          *ngIf="!isCollapsed"
+          *ngIf="logo && !isCollapsed"
           alt="logo"
           height="50"
           [src]="logo" />
@@ -159,7 +159,7 @@
                 nz-tooltip="Settings"
                 nzMatchRouter="true"
                 nzTooltipPlacement="right"
-                [routerLink]="['/dashboard/admin/settings']">
+                [routerLink]="DASHBOARD_ADMIN_SETTINGS">
                 <span
                   nz-icon
                   nzType="edit"></span>

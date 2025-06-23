@@ -33,6 +33,7 @@ import {
   DASHBOARD_ADMIN_EXECUTION,
   DASHBOARD_ADMIN_GMAIL,
   DASHBOARD_ADMIN_USER,
+  DASHBOARD_ADMIN_SETTINGS,
   DASHBOARD_USER_DATASET,
   DASHBOARD_USER_DISCUSSION,
   DASHBOARD_USER_PROJECT,
@@ -58,8 +59,8 @@ export class DashboardComponent implements OnInit {
   isCollapsed: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
-  logo: string = "assets/logos/logo.png";
-  favicon: string = "assets/logos/favicon-32x32.png";
+  logo: string = "";
+  miniLogo: string = "";
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -69,6 +70,7 @@ export class DashboardComponent implements OnInit {
   protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
   protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
   protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
+  protected readonly DASHBOARD_ADMIN_SETTINGS = DASHBOARD_ADMIN_SETTINGS;
 
   constructor(
     private userService: UserService,
@@ -124,26 +126,16 @@ export class DashboardComponent implements OnInit {
 
   loadLogos(): void {
     this.adminSettingsService
-      .getSetting("logo")
+      .getLogoPath()
       .pipe(untilDestroyed(this))
-      .subscribe(logoUrl => {
-        if (logoUrl) {
-          this.logo = logoUrl;
-        }
-      });
+      .subscribe(path => (this.logo = path));
 
     this.adminSettingsService
-      .getSetting("favicon")
+      .getMiniLogoPath()
       .pipe(untilDestroyed(this))
-      .subscribe(faviconUrl => {
-        if (faviconUrl) {
-          this.favicon = faviconUrl;
-          const links = document.querySelectorAll("link[rel*='icon']");
-          links.forEach(link => {
-            (link as HTMLLinkElement).setAttribute("href", faviconUrl);
-          });
-        }
-      });
+      .subscribe(path => (this.miniLogo = path));
+
+    this.adminSettingsService.getFaviconPath().pipe(untilDestroyed(this)).subscribe();
   }
 
   forumLogin() {
