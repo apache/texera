@@ -30,8 +30,8 @@ from core.models import (
 )
 from core.models.internal_queue import (
     DataElement,
-    DirectControlMessageElement,
-    EmbeddedControlMessageElement,
+    DCMElement,
+    ECMElement,
 )
 from core.runnables import MainLoop
 from core.util import set_one_of
@@ -75,7 +75,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     PortTupleMetricsMapping,
     TupleMetrics,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessageV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
 
@@ -191,7 +191,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_data_input_channel):
-        return EmbeddedControlMessageElement(
+        return ECMElement(
             tag=mock_data_input_channel,
             payload=EmbeddedControlMessage(
                 EmbeddedControlMessageIdentity("EndChannel"),
@@ -227,12 +227,12 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -247,12 +247,12 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -271,12 +271,12 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -291,12 +291,12 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -321,14 +321,14 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AddInputChannel",
                 command_id=command_sequence,
                 command=command,
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -361,14 +361,14 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="InitializeExecutor",
                 command_id=command_sequence,
                 command=command,
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -395,14 +395,14 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="InitializeExecutor",
                 command_id=command_sequence,
                 command=command,
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -434,14 +434,14 @@ class TestMainLoop:
             ),
         )
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="AddPartitioning",
                 command_id=command_sequence,
                 command=command,
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -451,14 +451,14 @@ class TestMainLoop:
     ):
         command = set_one_of(ControlRequest, EmptyRequest())
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="QueryStatistics",
                 command_id=command_sequence,
                 command=command,
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -468,12 +468,12 @@ class TestMainLoop:
     ):
         command = set_one_of(ControlRequest, EmptyRequest())
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="PauseWorker", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -483,12 +483,12 @@ class TestMainLoop:
     ):
         command = set_one_of(ControlRequest, EmptyRequest())
         payload = set_one_of(
-            DirectControlMessageV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="ResumeWorker", command_id=command_sequence, command=command
             ),
         )
-        return DirectControlMessageElement(
+        return DCMElement(
             tag=mock_control_input_channel, payload=payload
         )
 
@@ -563,9 +563,9 @@ class TestMainLoop:
 
         # can process AssignPort
         input_queue.put(mock_assign_input_port)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -573,9 +573,9 @@ class TestMainLoop:
             ),
         )
         input_queue.put(mock_assign_output_port)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -586,9 +586,9 @@ class TestMainLoop:
         # can process AddInputChannel
         input_queue.put(mock_add_input_channel)
 
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -598,9 +598,9 @@ class TestMainLoop:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -610,9 +610,9 @@ class TestMainLoop:
 
         # can process InitializeExecutor
         input_queue.put(mock_initialize_executor)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -664,9 +664,9 @@ class TestMainLoop:
             ),
         )
 
-        assert elem == DirectControlMessageElement(
+        assert elem == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=1,
                     return_value=ControlReturn(
@@ -679,9 +679,9 @@ class TestMainLoop:
         input_queue.put(mock_end_of_upstream)
         output_queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
         # the input port should complete
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 control_invocation=ControlInvocation(
                     method_name="PortCompleted",
                     command_id=0,
@@ -699,9 +699,9 @@ class TestMainLoop:
         )
 
         # the output port should complete
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 control_invocation=ControlInvocation(
                     method_name="PortCompleted",
                     command_id=1,
@@ -719,9 +719,9 @@ class TestMainLoop:
         )
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 control_invocation=ControlInvocation(
                     method_name="WorkerExecutionCompleted",
                     command_id=2,
@@ -735,7 +735,7 @@ class TestMainLoop:
         )
 
         output_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
-        assert output_queue.get() == EmbeddedControlMessageElement(
+        assert output_queue.get() == ECMElement(
             tag=mock_data_output_channel,
             payload=EmbeddedControlMessage(
                 EmbeddedControlMessageIdentity("EndChannel"),
@@ -754,10 +754,10 @@ class TestMainLoop:
 
         # can process ReturnInvocation
         input_queue.put(
-            DirectControlMessageElement(
+            DCMElement(
                 tag=mock_control_input_channel,
                 payload=set_one_of(
-                    DirectControlMessageV2,
+                    DirectControlMessagePayloadV2,
                     ReturnInvocation(
                         command_id=0,
                         return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -799,9 +799,9 @@ class TestMainLoop:
 
         # can process AssignPort
         input_queue.put(mock_assign_input_port)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -809,9 +809,9 @@ class TestMainLoop:
             ),
         )
         input_queue.put(mock_assign_output_port)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -821,9 +821,9 @@ class TestMainLoop:
 
         # can process AddInputChannel
         input_queue.put(mock_add_input_channel)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -833,9 +833,9 @@ class TestMainLoop:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -845,9 +845,9 @@ class TestMainLoop:
 
         # can process InitializeExecutor
         input_queue.put(mock_initialize_batch_count_executor)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -991,9 +991,9 @@ class TestMainLoop:
 
         # can process AssignPort
         input_queue.put(mock_assign_input_port_binary)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1001,9 +1001,9 @@ class TestMainLoop:
             ),
         )
         input_queue.put(mock_assign_output_port_binary)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1013,9 +1013,9 @@ class TestMainLoop:
 
         # can process AddInputChannel
         input_queue.put(mock_add_input_channel)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1025,9 +1025,9 @@ class TestMainLoop:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1037,9 +1037,9 @@ class TestMainLoop:
 
         # can process InitializeExecutor
         input_queue.put(mock_initialize_executor)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1069,9 +1069,9 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_pause)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
@@ -1090,9 +1090,9 @@ class TestMainLoop:
         output_queue,
     ):
         input_queue.put(mock_resume)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(
@@ -1129,9 +1129,9 @@ class TestMainLoop:
 
         # can process AssignPort
         input_queue.put(mock_assign_input_port_binary)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1139,9 +1139,9 @@ class TestMainLoop:
             ),
         )
         input_queue.put(mock_assign_output_port_binary)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1151,9 +1151,9 @@ class TestMainLoop:
 
         # can process AddInputChannel
         input_queue.put(mock_add_input_channel)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1163,9 +1163,9 @@ class TestMainLoop:
 
         # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1175,9 +1175,9 @@ class TestMainLoop:
 
         # can process InitializeExecutor
         input_queue.put(mock_initialize_executor)
-        assert output_queue.get() == DirectControlMessageElement(
+        assert output_queue.get() == DCMElement(
             tag=mock_control_output_channel,
-            payload=DirectControlMessageV2(
+            payload=DirectControlMessagePayloadV2(
                 return_invocation=ReturnInvocation(
                     command_id=command_sequence,
                     return_value=ControlReturn(empty_return=EmptyReturn()),
@@ -1195,13 +1195,13 @@ class TestMainLoop:
             "test_ecm", EmbeddedControlMessageType.ALL_ALIGNMENT, scope, command_mapping
         )
         input_queue.put(
-            EmbeddedControlMessageElement(
+            ECMElement(
                 tag=mock_control_input_channel, payload=test_ecm
             )
         )
         input_queue.put(mock_binary_data_element)
         input_queue.put(
-            EmbeddedControlMessageElement(tag=mock_data_input_channel, payload=test_ecm)
+            ECMElement(tag=mock_data_input_channel, payload=test_ecm)
         )
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_data_output_channel
@@ -1212,7 +1212,7 @@ class TestMainLoop:
         assert data_frame.frame.to_pylist()[0][
             "test-1"
         ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
-        output_control_element: DirectControlMessageElement = output_queue.get()
+        output_control_element: DCMElement = output_queue.get()
         assert output_control_element.payload.return_invocation.command_id == 98
         assert (
             output_control_element.payload.return_invocation.return_value

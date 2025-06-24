@@ -34,8 +34,8 @@ from core.models import (
 from core.models.internal_marker import StartChannel, EndChannel
 from core.models.internal_queue import (
     DataElement,
-    DirectControlMessageElement,
-    EmbeddedControlMessageElement,
+    DCMElement,
+    ECMElement,
     InternalQueueElement,
 )
 from core.models.state import State
@@ -143,9 +143,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             next_entry,
             DataElement,
             self._process_data_element,
-            DirectControlMessageElement,
+            DCMElement,
             self._process_dcm,
-            EmbeddedControlMessageElement,
+            ECMElement,
             self._process_ecm,
         )
 
@@ -214,7 +214,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_tuple()
 
-    def _process_dcm(self, dcm_element: DirectControlMessageElement) -> None:
+    def _process_dcm(self, dcm_element: DCMElement) -> None:
         """
         Upon receipt of a ControlElement, unpack it into tag and payload to be handled.
 
@@ -284,13 +284,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             self.complete()
 
-    def _process_ecm(self, ecm_element: EmbeddedControlMessageElement):
+    def _process_ecm(self, ecm_element: ECMElement):
         """
         Processes a received ECM and handles synchronization,
         command execution, and forwarding to downstream channels if applicable.
 
         Args:
-            ecm_element (EmbeddedControlMessageElement): The received ECM element.
+            ecm_element (ECMElement): The received ECM element.
         """
         ecm = ecm_element.payload
         command = ecm.command_mapping.get(self.context.worker_id)
@@ -365,7 +365,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for batch in self.context.output_manager.emit_ecm(channel_id.to_worker_id, ecm):
             tag = channel_id
             element = (
-                EmbeddedControlMessageElement(tag=tag, payload=batch)
+                ECMElement(tag=tag, payload=batch)
                 if isinstance(batch, EmbeddedControlMessage)
                 else DataElement(tag=tag, payload=batch)
             )

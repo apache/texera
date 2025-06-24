@@ -36,7 +36,7 @@ from ..architecture import (
 
 
 @dataclass(eq=False, repr=False)
-class DirectControlMessageV2(betterproto.Message):
+class DirectControlMessagePayloadV2(betterproto.Message):
     control_invocation: "_architecture_rpc__.ControlInvocation" = (
         betterproto.message_field(1, group="value")
     )
@@ -54,7 +54,7 @@ class PythonDataHeader(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PythonControlMessage(betterproto.Message):
     tag: "__core__.ChannelIdentity" = betterproto.message_field(1)
-    payload: "DirectControlMessageV2" = betterproto.message_field(2)
+    payload: "DirectControlMessagePayloadV2" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)

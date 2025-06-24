@@ -36,7 +36,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.packaging.input_manager import InputManager
-from core.models.internal_queue import EmbeddedControlMessageElement
+from core.models.internal_queue import ECMElement
 
 
 class StartWorkerHandler(ControlHandler):
@@ -55,7 +55,7 @@ class StartWorkerHandler(ControlHandler):
             self.context.input_manager.register_input(input_channel_id, port_id)
             self.context.current_input_channel_id = input_channel_id
             self.context.input_queue.put(
-                EmbeddedControlMessageElement(
+                ECMElement(
                     tag=input_channel_id,
                     payload=EmbeddedControlMessage(
                         EmbeddedControlMessageIdentity("StartChannel"),
@@ -75,7 +75,7 @@ class StartWorkerHandler(ControlHandler):
                 )
             )
             self.context.input_queue.put(
-                EmbeddedControlMessageElement(
+                ECMElement(
                     tag=input_channel_id,
                     payload=EmbeddedControlMessage(
                         EmbeddedControlMessageIdentity("EndChannel"),
