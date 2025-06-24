@@ -449,13 +449,18 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     filesSize
   }
 
-  private def getUnderlyingFileData(fileScanTasks: Seq[FileScanTask], index: Int): InputStream = {
-    val fileTask = fileScanTasks(index)
+  private def getParquetFileStream(fileTask: FileScanTask): InputStream = {
     val file = fileTask.file()
     val table = catalog.loadTable(TableIdentifier.of(tableNamespace, tableName))
     table.io().newInputFile(file.path().toString).newStream()
   }
 
+  /**
+    * Converts Iceberg Parquet files to ZIP and return as a piped stream.
+    * Each file in the table is added as a separate entry in the ZIP archive.
+    *
+    * @return An InputStream that streams the contents of the Iceberg table as a ZIP archive.
+    */
   override def asInputStream(): InputStream = {
     val fileScanTasks: Seq[FileScanTask] = {
       val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
@@ -472,29 +477,22 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
     // Start processing in a separate thread to avoid blocking
     val processingThread = new Thread(() => {
-      try {
-        Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
-          for (i <- fileScanTasks.indices) {
-            val entryName = s"part-${String.format("%05d", i)}.parquet"
-            zipOut.putNextEntry(new ZipEntry(entryName))
-            Using.resource(getUnderlyingFileData(fileScanTasks, i)) { fileInputStream =>
-              IOUtils.copy(fileInputStream, zipOut)
-            }
-            zipOut.closeEntry()
+      Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
+        for (i <- fileScanTasks.indices) {
+          val fileTask = fileScanTasks(i)
+          val entryName = s"part-${String.format("%05d", i)}.parquet"
+          zipOut.putNextEntry(new ZipEntry(entryName))
+          Using.resource(getParquetFileStream(fileTask)) { fileInputStream =>
+            IOUtils.copy(fileInputStream, zipOut)
           }
-        }
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
-      } finally {
-        try {
-          pipeOut.close()
-        } catch {
-          case _: Exception =>
+          zipOut.closeEntry()
         }
       }
     })
 
+    // Set the thread as a daemon so
+    // 1- It will terminate if the request stop
+    // 2- It handle lifecycle of cleaning up the pipe resources
     processingThread.setDaemon(true)
     processingThread.start()
 

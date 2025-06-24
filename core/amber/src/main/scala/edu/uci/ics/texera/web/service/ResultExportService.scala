@@ -392,8 +392,17 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       doc: VirtualDocument[Tuple],
       outputStream: OutputStream
   ): Unit = {
-    val zipStream = doc.asInputStream()
-    IOUtils.copy(zipStream, outputStream)
+    try {
+      val zipStream = doc.asInputStream()
+      try {
+        IOUtils.copy(zipStream, outputStream)
+      } finally {
+        zipStream.close()
+      }
+    } catch {
+      case e: Exception =>
+        throw e
+    }
   }
 
   /*
