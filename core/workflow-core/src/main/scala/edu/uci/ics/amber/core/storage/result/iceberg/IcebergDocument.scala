@@ -30,7 +30,13 @@ import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.types.{Conversions, Types}
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  PipedInputStream,
+  PipedOutputStream
+}
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
@@ -41,6 +47,11 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
 import scala.util.Using
 
+object Constants {
+  // Default buffer size for streaming Parquet files to outside
+  val DEFAULT_BUFFER_SIZE: Int = 8192
+}
+
 /**
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
   * It provides iterator-based read methods and supports multiple writers to write to the same table.
@@ -48,10 +59,10 @@ import scala.util.Using
   * The table must exist when constructing the document
   *
   * @param tableNamespace namespace of the table.
-  * @param tableName name of the table.
-  * @param tableSchema schema of the table.
-  * @param serde function to serialize T into an Iceberg Record.
-  * @param deserde function to deserialize an Iceberg Record into T.
+  * @param tableName      name of the table.
+  * @param tableSchema    schema of the table.
+  * @param serde          function to serialize T into an Iceberg Record.
+  * @param deserde        function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
 private[storage] class IcebergDocument[T >: Null <: AnyRef](
@@ -66,15 +77,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   private val lock = new ReentrantReadWriteLock()
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
-  // Scans the Iceberg table to get the list of data files once.
-  @transient private lazy val fileScanTasks: Seq[FileScanTask] = {
-    val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
-    table.refresh()
-    table.newScan().planFiles().iterator().asScala.toSeq
-  }
 
   /**
     * Returns the URI of the table location.
+    *
     * @throws NoSuchTableException if the table does not exist.
     */
   override def getURI: URI = {
@@ -130,6 +136,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Creates a BufferedItemWriter for writing data to the table.
+    *
     * @param writerIdentifier The writer's ID. It should be unique within the same table, as each writer will use it as
     *                         the prefix of the files they append
     */
@@ -146,7 +153,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Util iterator to get T in certain range
-    * @param from start from which record inclusively, if 0 means start from the first
+    *
+    * @param from  start from which record inclusively, if 0 means start from the first
     * @param until end at which record exclusively, if None means read to the table's EOF
     */
   private def getUsingFileSequenceOrder(from: Int, until: Option[Int]): Iterator[T] =
@@ -441,21 +449,55 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     filesSize
   }
 
+  private def getUnderlyingFileData(fileScanTasks: Seq[FileScanTask], index: Int): InputStream = {
+    val fileTask = fileScanTasks(index)
+    val file = fileTask.file()
+    val table = catalog.loadTable(TableIdentifier.of(tableNamespace, tableName))
+    table.io().newInputFile(file.path().toString).newStream()
+  }
+
   override def asInputStream(): InputStream = {
+    val fileScanTasks: Seq[FileScanTask] = {
+      val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
+      table.refresh()
+      table.newScan().planFiles().iterator().asScala.toSeq
+    }
+
     if (fileScanTasks.isEmpty) {
-      new ByteArrayInputStream(Array.emptyByteArray)
+      return new ByteArrayInputStream(Array.emptyByteArray)
     }
-    val baos = new ByteArrayOutputStream()
-    Using.resource(new ZipOutputStream(baos)) { zipOut =>
-      for (i <- fileScanTasks.indices) {
-        val entryName = s"part-${String.format("%05d", i)}.parquet"
-        zipOut.putNextEntry(new ZipEntry(entryName))
-        Using.resource(getUnderlyingFileData(i)) { fileInputStream =>
-          IOUtils.copy(fileInputStream, zipOut)
+
+    val pipeIn = new PipedInputStream(Constants.DEFAULT_BUFFER_SIZE)
+    val pipeOut = new PipedOutputStream(pipeIn)
+
+    // Start processing in a separate thread to avoid blocking
+    val processingThread = new Thread(() => {
+      try {
+        Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
+          for (i <- fileScanTasks.indices) {
+            val entryName = s"part-${String.format("%05d", i)}.parquet"
+            zipOut.putNextEntry(new ZipEntry(entryName))
+            Using.resource(getUnderlyingFileData(fileScanTasks, i)) { fileInputStream =>
+              IOUtils.copy(fileInputStream, zipOut)
+            }
+            zipOut.closeEntry()
+          }
         }
-        zipOut.closeEntry()
+      } catch {
+        case e: Exception =>
+          e.printStackTrace()
+      } finally {
+        try {
+          pipeOut.close()
+        } catch {
+          case _: Exception =>
+        }
       }
-    }
-    new ByteArrayInputStream(baos.toByteArray)
+    })
+
+    processingThread.setDaemon(true)
+    processingThread.start()
+
+    pipeIn
   }
 }

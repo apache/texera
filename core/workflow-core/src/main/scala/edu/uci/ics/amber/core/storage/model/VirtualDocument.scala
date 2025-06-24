@@ -138,14 +138,4 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
 
   def getTotalFileSize: Long =
     throw new NotImplementedError("getTotalFileSize method is not implemented")
-
-  /**
-    * The following two methods are used to directly access files in the underlying storage system.
-    * For example, in Iceberg, it provides direct access to Parquet files.
-    */
-  def getUnderlyingFileCount: Int = 0
-
-  def getUnderlyingFileData(index: Int): java.io.InputStream = {
-    throw new UnsupportedOperationException("getUnderlyingFileData is not implemented")
-  }
 }
