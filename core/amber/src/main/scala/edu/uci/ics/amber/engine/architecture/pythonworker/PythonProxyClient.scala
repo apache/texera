@@ -164,7 +164,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   private def sendControl(
       from: ChannelIdentity,
-      payload: DirectControlMessage
+      payload: DirectControlMessagePayload
   ): Result = {
     var payloadV2 = DirectControlMessageV2.defaultInstance
     payloadV2 = payload match {

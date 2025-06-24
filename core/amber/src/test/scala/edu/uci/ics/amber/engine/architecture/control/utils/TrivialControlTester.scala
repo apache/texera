@@ -29,7 +29,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  DirectControlMessage,
+  DirectControlMessagePayload,
   DataPayload,
   WorkflowFIFOMessage
 }
@@ -66,7 +66,7 @@ class TrivialControlTester(
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
-        case payload: DirectControlMessage => ap.processDCM(msg.channelId, payload)
+        case payload: DirectControlMessagePayload => ap.processDCM(msg.channelId, payload)
         case _: DataPayload                => ???
         case _                             => ???
       }
