@@ -56,6 +56,12 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   private val yColumn: String = ""
 
   @JsonProperty(required = false)
+  @JsonSchemaTitle("Alpha Value")
+  @JsonPropertyDescription("Alpha (opacity) value from 0.0 (transparent) to 1.0 (opaque)")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 1.0, "default": 1.0 }""")
+  private val alpha: Double = 1.0
+
+  @JsonProperty(required = false)
   @JsonSchemaTitle("Color-Column")
   @JsonPropertyDescription(
     "Dots will be assigned different colors based on their values of this column"
@@ -123,7 +129,7 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
     if (yLogScale) argDetails = argDetails + ", log_y=True"
     if (hoverName.nonEmpty) argDetails = argDetails + s""", hover_name='$hoverName'"""
     s"""
-       |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', $colorColExpr $argDetails))
+       |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', opacity=$alpha, $colorColExpr $argDetails))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
        |""".stripMargin
   }
