@@ -477,16 +477,22 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
     // Start processing in a separate thread to avoid blocking
     val processingThread = new Thread(() => {
-      Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
-        for (i <- fileScanTasks.indices) {
-          val fileTask = fileScanTasks(i)
-          val entryName = s"part-${String.format("%05d", i)}.parquet"
-          zipOut.putNextEntry(new ZipEntry(entryName))
-          Using.resource(getParquetFileStream(fileTask)) { fileInputStream =>
-            IOUtils.copy(fileInputStream, zipOut)
+      try {
+        Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
+          for (i <- fileScanTasks.indices) {
+            val fileTask = fileScanTasks(i)
+            val entryName = s"part-${String.format("%05d", i)}.parquet"
+            zipOut.putNextEntry(new ZipEntry(entryName))
+            Using.resource(getParquetFileStream(fileTask)) { fileInputStream =>
+              IOUtils.copy(fileInputStream, zipOut)
+            }
+            zipOut.closeEntry()
           }
-          zipOut.closeEntry()
         }
+      } catch {
+        case e: Exception => throw e
+      } finally {
+        pipeOut.close()
       }
     })
 
