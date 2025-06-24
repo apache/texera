@@ -22,7 +22,6 @@ package edu.uci.ics.amber.compiler
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.compiler.WorkflowCompiler.{
-  collectInputSchemaFromPhysicalPlan,
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
@@ -144,7 +143,6 @@ object WorkflowCompiler {
 
 case class WorkflowCompilationResult(
     physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
-    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
     operatorIdToOutputSchemas: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]],
     operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
 )
@@ -231,7 +229,6 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo
   ): WorkflowCompilationResult = {
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
-    var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
     var opIdToOutputSchema: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
@@ -242,13 +239,11 @@ class WorkflowCompiler(
     // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
 
-    // 4. collect the input & output schema for each logical op
+    // 4. collect the output schema for each logical op
     // even if error is encountered when logical => physical, we still want to get the input schemas for rest no-error operators
-    opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
     opIdToOutputSchema = collectOutputSchemaFromPhysicalPlan(physicalPlan, errorList)
     WorkflowCompilationResult(
       physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
-      operatorIdToInputSchemas = opIdToInputSchema,
       operatorIdToOutputSchemas = opIdToOutputSchema,
       // map each error from OpId to WorkflowFatalError, and report them via logger
       operatorIdToError = convertErrorListToWorkflowFatalErrorMap(logger, errorList.toList)

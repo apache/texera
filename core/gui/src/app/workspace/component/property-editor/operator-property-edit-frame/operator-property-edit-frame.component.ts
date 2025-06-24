@@ -680,7 +680,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
-            const attributes: ReadonlyArray<PortSchema | undefined> | undefined =
+            const attributes: Readonly<Record<string, PortSchema | undefined>> | undefined =
               this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }

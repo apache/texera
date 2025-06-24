@@ -386,13 +386,8 @@ export class ExecuteWorkflowService {
    *
    * @param workflowGraph
    * @param targetOperatorId
-   * @param invalidOperatorIDs operator that is invalid based on its json schema constrain
    */
-  public static getLogicalPlanRequest(
-    workflowGraph: WorkflowGraphReadonly,
-    targetOperatorId?: string,
-    invalidOperatorIDs: string[] = []
-  ): LogicalPlan {
+  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, targetOperatorId?: string): LogicalPlan {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
@@ -400,16 +395,9 @@ export class ExecuteWorkflowService {
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
     };
-
     const subDAG = workflowGraph.getSubDAG(targetOperatorId);
 
-    // Filter out invalid operators if invalidOperatorIDs is provided
-    const invalidOperatorSet = new Set(invalidOperatorIDs);
-    const validOperators = subDAG.operators.filter(op => {
-      return !invalidOperatorSet.has(op.operatorID);
-    });
-    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
-    const operators: LogicalOperator[] = validOperators.map(op => ({
+    const operators: LogicalOperator[] = subDAG.operators.map(op => ({
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
@@ -417,12 +405,7 @@ export class ExecuteWorkflowService {
       outputPorts: op.outputPorts,
     }));
 
-    // Filter out links connected to invalid operators
-    const validLinks = subDAG.links.filter(link => {
-      return validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID);
-    });
-
-    const links: LogicalLink[] = validLinks.map(link => {
+    const links: LogicalLink[] = subDAG.links.map(link => {
       const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
       return {
@@ -433,7 +416,7 @@ export class ExecuteWorkflowService {
       };
     });
 
-    const operatorIds = new Set(validOperators.map(op => op.operatorID));
+    const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
     const opsToViewResult: string[] = Array.from(intersection(operatorIds, workflowGraph.getOperatorsToViewResult()));
 

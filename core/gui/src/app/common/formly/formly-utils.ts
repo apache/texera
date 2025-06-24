@@ -74,13 +74,13 @@ export function createShouldHideFieldFunc(
 }
 
 export function setChildTypeDependency(
-  attributes: ReadonlyArray<PortSchema | undefined> | undefined,
+  attributes: Readonly<Record<string, PortSchema | undefined>> | undefined,
   parentName: string,
   fields: FormlyFieldConfig[],
   childName: string
 ): void {
-  const timestampFieldNames = attributes
-    ?.flat()
+  const timestampFieldNames = Object.values(attributes || {})
+    .flat()
     .filter(attribute => {
       return attribute?.attributeType === "timestamp";
     })

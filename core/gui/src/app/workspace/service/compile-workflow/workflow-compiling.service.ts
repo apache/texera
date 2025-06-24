@@ -31,15 +31,15 @@ import {
   AttributeType,
   CompilationState,
   CompilationStateInfo,
-  OperatorInputSchema,
-  OperatorOutputSchema,
+  OperatorPortSchemaMap,
   PortSchema,
   WorkflowCompilationResponse,
 } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
-import { ValidationWorkflowService } from "../validation/validation-workflow.service";
+import { Validation, ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
+import { serializePortIdentity } from "../../../common/util/physical-plan";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -87,18 +87,9 @@ export class WorkflowCompilingService {
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
         mergeMap(() => {
-          // Calculate invalid operator IDs using validation service
-          const invalidOperatorIDs = this.workflowActionService
-            .getTexeraGraph()
-            .getAllOperators()
-            .filter(operator => {
-              return !this.validationWorkflowService.validateOperator(operator.operatorID).isValid;
-            })
-            .map(op => op.operatorID);
           const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-            this.workflowActionService.getTexeraGraph(),
-            undefined,
-            invalidOperatorIDs
+            this.validationWorkflowService.getValidTexeraGraph(),
+            undefined
           );
           return this.compile(logicalPlan);
         })
@@ -108,14 +99,12 @@ export class WorkflowCompilingService {
           this.currentCompilationStateInfo = {
             state: CompilationState.Succeeded,
             physicalPlan: response.physicalPlan,
-            operatorInputSchemaMap: response.operatorInputSchemas,
-            operatorOutputSchemaMap: response.operatorOutputSchemas,
+            operatorOutputPortSchemaMap: response.operatorOutputSchemas,
           };
         } else {
           this.currentCompilationStateInfo = {
             state: CompilationState.Failed,
-            operatorInputSchemaMap: response.operatorInputSchemas,
-            operatorOutputSchemaMap: response.operatorOutputSchemas,
+            operatorOutputPortSchemaMap: response.operatorOutputSchemas,
             operatorErrors: response.operatorErrors,
           };
         }
@@ -138,44 +127,23 @@ export class WorkflowCompilingService {
     return this.currentCompilationStateInfo.operatorErrors;
   }
 
-  public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {
-    if (this.currentCompilationStateInfo.state == CompilationState.Uninitialized) {
+  public getOperatorInputSchema(operatorID: string): OperatorPortSchemaMap | undefined {
+    if (
+      this.currentCompilationStateInfo.state == CompilationState.Uninitialized ||
+      !this.currentCompilationStateInfo.operatorOutputPortSchemaMap
+    ) {
       return undefined;
     }
 
-    // First try to get from direct input schema map
-    const directInputSchema = this.currentCompilationStateInfo.operatorInputSchemaMap[operatorID];
-    if (directInputSchema) {
-      return directInputSchema;
-    }
-
-    // If not found, try to extract from connected operators' output schemas
-    if (this.currentCompilationStateInfo.operatorOutputSchemaMap) {
-      return this.extractInputSchemaFromOutputs(
-        operatorID,
-        this.currentCompilationStateInfo.operatorOutputSchemaMap,
-        this.workflowActionService.getTexeraGraph()
-      );
-    }
-
-    return undefined;
-  }
-
-  public getOperatorOutputPortSchema(operatorID: string, portIndex: number): PortSchema | undefined {
-    if (this.currentCompilationStateInfo.state == CompilationState.Uninitialized) {
-      return undefined;
-    }
-
-    const operatorOutputSchema = this.currentCompilationStateInfo.operatorOutputSchemaMap[operatorID];
-    if (!operatorOutputSchema) {
-      return undefined;
-    }
-
-    return operatorOutputSchema[portIndex];
+    return this.extractOperatorInputPortSchemaMap(
+      operatorID,
+      this.currentCompilationStateInfo.operatorOutputPortSchemaMap,
+      this.workflowActionService.getTexeraGraph()
+    );
   }
 
   public getPortInputSchema(operatorID: string, portIndex: number): PortSchema | undefined {
-    return this.getOperatorInputSchema(operatorID)?.[portIndex];
+    return this.getOperatorInputSchema(operatorID)?.[serializePortIdentity({ id: portIndex, internal: false }, true)];
   }
 
   public getOperatorInputAttributeType(
@@ -230,36 +198,34 @@ export class WorkflowCompilingService {
    * @param workflowGraph The workflow graph to get input links from
    * @returns The extracted input schema or undefined if not possible
    */
-  private extractInputSchemaFromOutputs(
+  private extractOperatorInputPortSchemaMap(
     operatorID: string,
-    outputSchemas: Record<string, OperatorOutputSchema>,
+    outputSchemas: Record<string, OperatorPortSchemaMap>,
     workflowGraph: WorkflowGraphReadonly
-  ): OperatorInputSchema | undefined {
+  ): OperatorPortSchemaMap | undefined {
     const inputLinks = workflowGraph.getInputLinksByOperatorId(operatorID);
     if (!inputLinks.length) return undefined;
 
     // from input port's index to the input schema
-    const inputPortIdxToSchema = new Map<number, PortSchema>();
-
+    const inputPortSchemaMap = new Map<string, PortSchema | undefined>();
+    // TODO: change the outer loop to use the operator's input port
     inputLinks.forEach(link => {
-      const sourceSchema = outputSchemas[link.source.operatorID];
-      if (!sourceSchema) return;
+      const sourcePortSchemaMap = outputSchemas[link.source.operatorID];
+      if (!sourcePortSchemaMap) return;
 
-      const inIndex = this.extractPortIndex(link.target.portID);
-      const outIndex = this.extractPortIndex(link.source.portID);
-      if (inIndex < 0 || outIndex < 0) return;
+      const inId = this.extractPortIndex(link.target.portID);
+      const outId = this.extractPortIndex(link.source.portID);
+      if (inId < 0 || outId < 0) return;
 
-      const schema = sourceSchema[outIndex];
+      const schema = sourcePortSchemaMap[serializePortIdentity({ id: outId, internal: false }, false)];
       if (!schema) return;
 
-      const existing = inputPortIdxToSchema.get(inIndex) ?? [];
-      inputPortIdxToSchema.set(inIndex, schema);
+      inputPortSchemaMap.set(serializePortIdentity({ id: inId, internal: false }, true), schema);
+      // TODO: add the error check
     });
 
-    if (!inputPortIdxToSchema.size) return undefined;
-    // return as array of port schema, starting from port 0
-    const sortedIndices = [...inputPortIdxToSchema.keys()].sort((a, b) => a - b);
-    return sortedIndices.map(i => inputPortIdxToSchema.get(i)) as OperatorInputSchema;
+    if (!inputPortSchemaMap.size) return undefined;
+    return Object.fromEntries(inputPortSchemaMap);
   }
 
   /**
@@ -309,10 +275,10 @@ export class WorkflowCompilingService {
 
   public static setOperatorInputAttrs(
     operatorSchema: OperatorSchema,
-    inputAttributes: OperatorInputSchema | undefined
+    inputPortSchemaMap: OperatorPortSchemaMap | undefined
   ): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
-    if (!inputAttributes || inputAttributes.length === 0) {
+    if (!inputPortSchemaMap || Object.keys(inputPortSchemaMap).length === 0) {
       return operatorSchema;
     }
 
@@ -320,14 +286,17 @@ export class WorkflowCompilingService {
 
     const getAttrNames = (attrName: string, v: CustomJSONSchema7): string[] | undefined => {
       const i = v.autofillAttributeOnPort;
-      if (i === undefined || i === null || !Number.isInteger(i) || i >= inputAttributes.length) {
+      if (i === undefined || i === null || !Number.isInteger(i)) {
         return undefined;
       }
-      const inputAttrAtPort = inputAttributes[i];
+
+      // Use serializePortIdentity to get the correct key for the input port
+      const portKey = serializePortIdentity({ id: i, internal: false }, true);
+      const inputAttrAtPort = inputPortSchemaMap[portKey];
       if (!inputAttrAtPort) {
         return undefined;
       }
-      const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
+      const attrNames: string[] = inputAttrAtPort.map((attr: any) => attr.attributeName);
       if (v.additionalEnumValue) {
         attrNames.push(v.additionalEnumValue);
       }

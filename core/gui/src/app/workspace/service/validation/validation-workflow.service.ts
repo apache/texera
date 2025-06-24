@@ -27,6 +27,7 @@ import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
+import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 
 export type ValidationError = {
   isValid: false;
@@ -361,5 +362,34 @@ export class ValidationWorkflowService {
     } else {
       return { isValid, messages };
     }
+  }
+
+  /**
+   * Gets a filtered version of the TexeraGraph containing only valid operators and their corresponding links.
+   * Uses the validation service to filter out invalid operators and removes links connected to invalid operators.
+   * This method does NOT modify the original texeraGraph.
+   *
+   * @returns An object with getAllOperators() and getAllLinks() methods containing only valid elements
+   */
+  public getValidTexeraGraph(): WorkflowGraphReadonly {
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    const allOperators = texeraGraph.getAllOperators();
+    const allLinks = texeraGraph.getAllLinks();
+
+    // Filter valid operators using validation service
+    const validOperators = allOperators.filter(operator => {
+      const validation = this.validateOperator(operator.operatorID);
+      return validation.isValid;
+    });
+
+    // Get set of valid operator IDs for efficient lookup
+    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
+
+    // Filter links to only include those connecting valid operators
+    const validLinks = allLinks.filter(
+      link => validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID)
+    );
+
+    return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }

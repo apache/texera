@@ -203,7 +203,7 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     // verify the schema is correctly propagated for the final limit operator
     val compilationResult = assertSuccessfulCompilation(response)
     val finalLimitInputSchema =
-      compilationResult.operatorInputSchemas.get(limitOpDesc2.operatorIdentifier.id)
+      compilationResult.operatorOutputSchemas.get(limitOpDesc2.operatorIdentifier.id)
     assert(
       finalLimitInputSchema.get.head.get.equals(
         List(
