@@ -340,7 +340,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId?.includes("PythonLambdaFunction")) {
       return;
     }
-    const opInputSchema = this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
+    const opInputSchema = this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
     if (!opInputSchema) {
       return;
     }
@@ -681,7 +681,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
             const attributes: Readonly<Record<string, PortSchema | undefined>> | undefined =
-              this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
+              this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
         }
