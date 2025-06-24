@@ -35,7 +35,10 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{DirectControlMessagePayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
@@ -139,8 +142,8 @@ class Controller(
           logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
               case payload: DirectControlMessagePayload => cp.processDCM(msg.channelId, payload)
-              case _: EmbeddedControlMessage     => // skip ECM
-              case p                             => throw new RuntimeException(s"controller cannot handle $p")
+              case _: EmbeddedControlMessage            => // skip ECM
+              case p                                    => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>

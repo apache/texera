@@ -232,9 +232,7 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_assign_output_port(
@@ -252,9 +250,7 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_assign_input_port_binary(
@@ -276,9 +272,7 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_assign_output_port_binary(
@@ -296,9 +290,7 @@ class TestMainLoop:
                 method_name="AssignPort", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_add_input_channel(
@@ -328,9 +320,7 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_raw_schema(self):
@@ -368,9 +358,7 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_initialize_batch_count_executor(
@@ -402,9 +390,7 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_add_partitioning(
@@ -441,9 +427,7 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_query_statistics(
@@ -458,9 +442,7 @@ class TestMainLoop:
                 command=command,
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_pause(
@@ -473,9 +455,7 @@ class TestMainLoop:
                 method_name="PauseWorker", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def mock_resume(
@@ -488,9 +468,7 @@ class TestMainLoop:
                 method_name="ResumeWorker", command_id=command_sequence, command=command
             ),
         )
-        return DCMElement(
-            tag=mock_control_input_channel, payload=payload
-        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
 
     @pytest.fixture
     def main_loop(self, input_queue, output_queue, mock_link):
@@ -1194,15 +1172,9 @@ class TestMainLoop:
         test_ecm = EmbeddedControlMessage(
             "test_ecm", EmbeddedControlMessageType.ALL_ALIGNMENT, scope, command_mapping
         )
-        input_queue.put(
-            ECMElement(
-                tag=mock_control_input_channel, payload=test_ecm
-            )
-        )
+        input_queue.put(ECMElement(tag=mock_control_input_channel, payload=test_ecm))
         input_queue.put(mock_binary_data_element)
-        input_queue.put(
-            ECMElement(tag=mock_data_input_channel, payload=test_ecm)
-        )
+        input_queue.put(ECMElement(tag=mock_data_input_channel, payload=test_ecm))
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_data_output_channel
         assert isinstance(output_data_element.payload, DataFrame)

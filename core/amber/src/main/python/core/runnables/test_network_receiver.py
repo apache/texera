@@ -152,9 +152,7 @@ class TestNetworkReceiver:
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(DirectControlMessagePayloadV2, ControlInvocation())
         channel_id = ChannelIdentity(worker_id, worker_id, False)
-        input_queue.put(
-            DCMElement(tag=channel_id, payload=control_payload)
-        )
+        input_queue.put(DCMElement(tag=channel_id, payload=control_payload))
         network_sender_thread.start()
         element: DCMElement = output_queue.get()
         assert element.payload == control_payload

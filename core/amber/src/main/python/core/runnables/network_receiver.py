@@ -104,9 +104,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 for channel_id in payload.scope:
                     if not channel_id.is_control:
                         channel_id.is_control = False
-                shared_queue.put(
-                    ECMElement(tag=data_header.tag, payload=payload)
-                )
+                shared_queue.put(ECMElement(tag=data_header.tag, payload=payload))
             else:
                 shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
             return shared_queue.in_mem_size()
