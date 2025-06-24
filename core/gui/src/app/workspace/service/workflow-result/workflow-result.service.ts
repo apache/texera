@@ -211,12 +211,12 @@ export class WorkflowResultService {
   }
 
   public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
-    if (defaultExtension === "data") return "data";
+    if (defaultExtension === "data") return defaultExtension;
     var outputType = this.determineOutputTypes(operatorId);
 
     if (outputType.isVisualizationOutput) return "html";
     if (outputType.isTableOutput && defaultExtension === "csv") return "csv";
-    return "arrow";
+    return defaultExtension;
   }
 
   private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {

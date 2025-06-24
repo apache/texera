@@ -85,8 +85,7 @@ export class ResultExportationComponent implements OnInit {
   updateOutputType(): void {
     // Determine if the caller of this component is menu or context menu
     // if its menu then we need to export all operators else we need to export only highlighted operators
-    // TODO: currently, user need to set `view result` to true in order to export result but
-    //  we should allow user to export result without setting `view result` to true
+
     let operatorIds: readonly string[];
     if (this.sourceTriggered === "menu") {
       operatorIds = this.workflowActionService
