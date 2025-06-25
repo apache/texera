@@ -51,6 +51,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_US
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
+import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 
 import scala.collection.mutable.ListBuffer
@@ -64,14 +65,6 @@ object HubResource {
       counts: java.util.Map[String, Int]
   )
 
-  /**
-    * Defines the currently accepted resource types.
-    * Modify this object to update the valid entity types across the system.
-    */
-//  private object EntityType {
-//    val allowedTypes: Set[String] = Set("workflow", "dataset")
-//  }
-
   final private lazy val context = SqlServer
     .getInstance()
     .createDSLContext()
@@ -79,20 +72,6 @@ object HubResource {
   final private val ipv4Pattern: Pattern = Pattern.compile(
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
   )
-
-  /**
-    * Validates whether the provided entity type is allowed.
-    *
-    * @param entityType The entity type to validate.
-    * @throws IllegalArgumentException if the entity type is not in the allowed list.
-    */
-//  def validateEntityType(entityType: String): Unit = {
-//    if (!EntityType.allowedTypes.contains(entityType)) {
-//      throw new IllegalArgumentException(
-//        s"Invalid entity type: $entityType. Allowed types: ${EntityType.allowedTypes.mkString(", ")}."
-//      )
-//    }
-//  }
 
   /**
     * Checks if a given user has liked a specific entity.
@@ -131,7 +110,7 @@ object HubResource {
       userId: Integer = Integer.valueOf(0),
       entityId: Integer,
       entityType: EntityType,
-      action: String
+      action: ActionType
   ): Unit = {
     val userIp = request.getRemoteAddr()
 
@@ -140,7 +119,7 @@ object HubResource {
       .set(USER_ACTIVITY.UID, userId)
       .set(USER_ACTIVITY.ID, entityId)
       .set(USER_ACTIVITY.TYPE, entityType.value)
-      .set(USER_ACTIVITY.ACTIVATE, action)
+      .set(USER_ACTIVITY.ACTIVATE, action.value)
 
     if (ipv4Pattern.matcher(userIp).matches()) {
       query.set(USER_ACTIVITY.IP, userIp)
@@ -177,7 +156,7 @@ object HubResource {
         .set(idColumn, entityId)
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, "like")
+      recordUserActivity(request, userId, entityId, entityType, Like)
       true
     } else if (!isLike && alreadyLiked) {
       context
@@ -185,7 +164,7 @@ object HubResource {
         .where(uidColumn.eq(userId).and(idColumn.eq(entityId)))
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, "unlike")
+      recordUserActivity(request, userId, entityId, entityType, Unlike)
       true
     } else {
       false
@@ -211,7 +190,7 @@ object HubResource {
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    recordUserActivity(request, userId, entityId, entityType, "clone")
+    recordUserActivity(request, userId, entityId, entityType, Clone)
 
     val existingCloneRecord = context
       .selectFrom(table)
@@ -370,7 +349,7 @@ class HubResource {
       .returning(viewCountColumn)
       .fetchOne()
 
-    recordUserActivity(request, userId, entityID, entityType, "view")
+    recordUserActivity(request, userId, entityID, entityType, View)
 
     record.get(viewCountColumn)
   }
@@ -405,18 +384,25 @@ class HubResource {
       if (uid == null || uid == -1) null
       else Integer.valueOf(uid)
 
-    val types: Seq[String] = actionTypes.asScala
-      .map(_.toLowerCase)
-      .distinct
-      .toSeq
+//    val types: Seq[String] = actionTypes.asScala
+//      .map(_.toLowerCase)
+//      .distinct
+//      .toSeq
+    val types: Seq[ActionType] =
+      if (actionTypes != null && !actionTypes.isEmpty)
+        actionTypes.asScala.toList
+          .map(ActionType.fromString)
+          .distinct
+      else
+        Seq(ActionType.Like, ActionType.Clone)
 
     val result: Map[String, java.util.List[DashboardClickableFileEntry]] =
       types.map { act =>
         val (table, idColumn) = act match {
-          case "like" =>
+          case ActionType.Like =>
             val lt = LikeTable(entityTypeEnum)
             (lt.table, lt.idColumn)
-          case "clone" =>
+          case ActionType.Clone =>
             val ct = CloneTable(entityTypeEnum)
             (ct.table, ct.idColumn)
           case other =>
@@ -461,7 +447,7 @@ class HubResource {
             Seq.empty
           }
 
-        act -> entries.toList.asJava
+        act.value -> entries.toList.asJava
       }.toMap
 
     result.asJava
@@ -516,16 +502,13 @@ class HubResource {
       }
       .toList
 
-    val allowedActions = Set("view", "like", "clone")
-    val requestedActions: Seq[String] =
-      if (actionTypes != null && !actionTypes.isEmpty) actionTypes.asScala.toSeq
-      else allowedActions.toSeq
-
-    requestedActions.find(a => !allowedActions.contains(a)).foreach { invalid =>
-      throw new BadRequestException(
-        s"Unsupported actionType: '$invalid'. Supported: ${allowedActions.mkString(", ")}"
-      )
-    }
+    val requestedActions: Seq[ActionType] =
+      if (actionTypes != null && !actionTypes.isEmpty)
+        actionTypes.asScala.toList
+          .map(ActionType.fromString)
+          .distinct
+      else
+        Seq(ActionType.View, ActionType.Like, ActionType.Clone)
 
     val grouped: Map[EntityType, Seq[Integer]] =
       reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
@@ -536,7 +519,7 @@ class HubResource {
       case (etype, ids) =>
         val viewTbl = ViewCountTable(etype)
         val viewMap: Map[Int, Int] =
-          if (requestedActions.contains("view")) {
+          if (requestedActions.contains(ActionType.View)) {
             val raw = context
               .select(viewTbl.idColumn, viewTbl.viewCountColumn)
               .from(viewTbl.table)
@@ -562,7 +545,7 @@ class HubResource {
 
         val likeTbl = LikeTable(etype)
         val likeMap: Map[Int, Int] =
-          if (requestedActions.contains("like")) {
+          if (requestedActions.contains(ActionType.Like)) {
             context
               .select(likeTbl.idColumn, DSL.count().`as`("cnt"))
               .from(likeTbl.table)
@@ -578,7 +561,7 @@ class HubResource {
           } else Map.empty
 
         val cloneMap: Map[Int, Int] =
-          if (requestedActions.contains("clone") && etype != EntityType.Dataset) {
+          if (requestedActions.contains(ActionType.Clone) && etype != EntityType.Dataset) {
             val cloneTbl = CloneTable(etype)
             context
               .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
@@ -597,9 +580,12 @@ class HubResource {
         reqs.filter(_.entityType == etype).foreach { req =>
           val key = req.entityId.intValue()
           val counts = scala.collection.mutable.Map[String, Int]()
-          if (requestedActions.contains("view")) counts("view") = viewMap.getOrElse(key, 0)
-          if (requestedActions.contains("like")) counts("like") = likeMap.getOrElse(key, 0)
-          if (requestedActions.contains("clone")) counts("clone") = cloneMap.getOrElse(key, 0)
+          if (requestedActions.contains(ActionType.View))
+            counts(ActionType.View.value) = viewMap.getOrElse(key, 0)
+          if (requestedActions.contains(ActionType.Like))
+            counts(ActionType.Like.value) = likeMap.getOrElse(key, 0)
+          if (requestedActions.contains(ActionType.Clone))
+            counts(ActionType.Clone.value) = cloneMap.getOrElse(key, 0)
 
           buffer += CountResponse(req.entityId, etype.value, counts.asJava)
         }
