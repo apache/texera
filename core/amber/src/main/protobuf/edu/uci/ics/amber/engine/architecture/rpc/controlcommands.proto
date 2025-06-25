@@ -81,7 +81,7 @@ message AsyncRPCContext {
 }
 
 message ControlInvocation {
-  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.ControlPayload";
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.DirectControlMessagePayload";
   string methodName = 1;
   ControlRequest command = 2 [(scalapb.field).no_box = true];
   AsyncRPCContext context = 3;

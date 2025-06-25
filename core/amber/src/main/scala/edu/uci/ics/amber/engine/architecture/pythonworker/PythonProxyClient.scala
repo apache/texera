@@ -21,7 +21,6 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
@@ -165,9 +164,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   private def sendControl(
       from: ChannelIdentity,
-      payload: ControlPayload
+      payload: DirectControlMessagePayload
   ): Result = {
-    var payloadV2 = ControlPayloadV2.defaultInstance
+    var payloadV2 = DirectControlMessagePayloadV2.defaultInstance
     payloadV2 = payload match {
       case c: ControlInvocation =>
         payloadV2.withControlInvocation(c)

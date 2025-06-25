@@ -149,7 +149,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
-    dp.processControlPayload(
+    dp.processDCM(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(
         METHOD_OPEN_EXECUTOR,
@@ -210,7 +210,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
     dp.outputManager.addPort(outputPortId, schema, None)
-    dp.processControlPayload(
+    dp.processDCM(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(
         METHOD_OPEN_EXECUTOR,
@@ -224,7 +224,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       DataFrame(tuples)
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
-      dp.processControlPayload(
+      dp.processDCM(
         ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
         ControlInvocation(
           METHOD_FLUSH_NETWORK_BUFFER,

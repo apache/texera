@@ -67,7 +67,7 @@ message ControlError {
 }
 
 message ReturnInvocation {
-  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.ControlPayload";
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.DirectControlMessagePayload";
   int64 commandId = 1;
   ControlReturn returnValue = 2 [(scalapb.field).no_box = true];
 }

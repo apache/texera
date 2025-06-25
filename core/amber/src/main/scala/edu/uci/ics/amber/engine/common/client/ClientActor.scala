@@ -39,7 +39,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
+  DirectControlMessagePayload,
   DataPayload,
   WorkflowFIFOMessage,
   WorkflowRecoveryMessage
@@ -127,7 +127,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
         ) =>
       sender() ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
       payload match {
-        case payload: ControlPayload =>
+        case payload: DirectControlMessagePayload =>
           payload match {
             case ReturnInvocation(originalCommandID, controlReturn) =>
               if (promiseMap.contains(originalCommandID)) {
