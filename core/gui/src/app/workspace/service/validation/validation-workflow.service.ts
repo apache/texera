@@ -366,10 +366,9 @@ export class ValidationWorkflowService {
 
   /**
    * Gets a filtered version of the TexeraGraph containing only valid operators and their corresponding links.
-   * Uses the validation service to filter out invalid operators and removes links connected to invalid operators.
-   * This method does NOT modify the original texeraGraph.
+   * This method will create a copy of the TexeraGraph and do the validation on top of it.
    *
-   * @returns An object with getAllOperators() and getAllLinks() methods containing only valid elements
+   * @returns A json-schema-wise valid TexeraGraph
    */
   public getValidTexeraGraph(): WorkflowGraphReadonly {
     const texeraGraph = this.workflowActionService.getTexeraGraph();

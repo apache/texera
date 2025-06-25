@@ -35,7 +35,6 @@ export function areAllPortSchemasEqual(schemas: (PortSchema | undefined)[]): boo
 
 /**
  * Creates a new CompilationStateInfo with a failed state and adds an error for the specified operator.
- * Preserves existing state information where possible.
  *
  * @param currentState The current compilation state info
  * @param operatorId The ID of the operator that caused the error
