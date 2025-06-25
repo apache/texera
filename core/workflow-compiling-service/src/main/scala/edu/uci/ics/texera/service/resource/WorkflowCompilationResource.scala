@@ -24,9 +24,10 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.compiler.WorkflowCompiler
 import edu.uci.ics.amber.compiler.model.LogicalPlanPojo
 import edu.uci.ics.amber.core.tuple.Attribute
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, PhysicalPlanSerdes, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -73,14 +74,17 @@ class WorkflowCompilationResource extends LazyLogging {
     val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
       case (operatorIdentity, schemas) =>
         val opId = operatorIdentity.id
-        val portIdAndAttributes = schemas.map { schema =>
-          if (schema._2.isEmpty)
-            (PhysicalPlanSerdes.serialize(schema._1, isInput = false), None)
-          else
-            (
-              PhysicalPlanSerdes.serialize(schema._1, isInput = false),
-              Some(schema._2.get.attributes)
-            )
+        val portIdAndAttributes = schemas.map {
+          case (portId, schemaOption) => {
+            if (schemaOption.isEmpty) {
+              (PortIdentityKeySerializer.portIdToString(portId), None)
+            } else {
+              (
+                PortIdentityKeySerializer.portIdToString(portId),
+                Some(schemaOption.get.attributes)
+              )
+            }
+          }
         }
         (opId, portIdAndAttributes)
     }

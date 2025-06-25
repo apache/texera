@@ -27,13 +27,14 @@ import edu.uci.ics.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import edu.uci.ics.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.core.workflow.{PhysicalPlanSerdes, PortIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
 import edu.uci.ics.amber.operator.filter.{ComparisonType, FilterOpDesc, FilterPredicate, SpecializedFilterOpDesc}
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
+import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer
 
 class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
@@ -200,7 +201,9 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     val finalLimitInputSchema =
       compilationResult.operatorOutputSchemas(filterOpDesc2.operatorIdentifier.id)
     assert(
-      finalLimitInputSchema(PhysicalPlanSerdes.serialize(PortIdentity(id = 0, internal = false), isInput = false)).get.equals(
+      finalLimitInputSchema(
+        PortIdentityKeySerializer.portIdToString(PortIdentity(id = 0, internal = false))
+      ).get.equals(
         List(
           new Attribute("Region", AttributeType.STRING),
           new Attribute("Total Profit", AttributeType.DOUBLE)

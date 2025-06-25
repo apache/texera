@@ -16,25 +16,14 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.amber.core.workflow
+import { PortIdentity } from "../type/proto/edu/uci/ics/amber/engine/common/workflow";
 
-object PhysicalPlanSerdes {
-
-  /**
-    * Serialize a PortIdentity into a string format.
-    * Format: "{isInput}-{id}-{internal}", where:
-    *   - isInput: "input" or "output"
-    *   - id: the numerical id of the port
-    *   - internal: true or false
-    *
-    * Example:
-    *   serialize(port, isInput = true) => "input-1-false"
-    *
-    * @param portIdentity the PortIdentity to serialize
-    * @param isInput whether the port is an input port
-    * @return a string representing the port
-    */
-  def serialize(portIdentity: PortIdentity, isInput: Boolean): String = {
-    s"${if (isInput) "input" else "output"}-${portIdentity.id}-${portIdentity.internal}"
-  }
+/**
+ * Serializes a PortIdentity object to a string in the format "{isInput}-{id}-{internal}"
+ * @param portIdentity The PortIdentity object to serialize
+ * @returns A string representation of the PortIdentity (e.g., "1-true", "2-false")
+ * This is aligned with the backend serializer: core/workflow-core/src/main/scala/edu/uci/ics/amber/util/serde/PortIdentityKeySerializer.scala
+ */
+export function serializePortIdentity(portIdentity: PortIdentity): string {
+  return `${portIdentity.id}_${portIdentity.internal}`;
 }

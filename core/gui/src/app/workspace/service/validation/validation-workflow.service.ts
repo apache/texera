@@ -382,10 +382,8 @@ export class ValidationWorkflowService {
       return validation.isValid;
     });
 
-    // Get set of valid operator IDs for efficient lookup
-    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
-
     // Filter links to only include those connecting valid operators
+    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
     const validLinks = allLinks.filter(
       link => validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID)
     );

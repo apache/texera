@@ -16,14 +16,21 @@
  * limitations under the License.
  */
 
-import { PortIdentity } from "../type/proto/edu/uci/ics/amber/engine/common/workflow";
-
 /**
- * Serializes a PortIdentity object to a string in the format "{isInput}-{id}-{internal}"
- * @param portIdentity The PortIdentity object to serialize
- * @param isInput Whether the port is an input port
- * @returns A string representation of the PortIdentity (e.g., "input-1-true", "output-2-false")
+ * Extracts the port index from a port ID string.
+ * @param portId Port ID like "input-0", "output-1", etc.
+ * @returns undefined if the portId is invalid; port number and the type of the port will be returned
  */
-export function serializePortIdentity(portIdentity: PortIdentity, isInput: boolean): string {
-  return `${isInput ? "input" : "output"}-${portIdentity.id}-${portIdentity.internal}`;
+export function parseLogicalOperatorPortID(
+  portId: string
+): { portNumber: number; portType: "input" | "output" } | undefined {
+  const match = portId.match(/^(input|output)-(\d+)$/);
+  if (!match) {
+    return undefined;
+  }
+
+  const portType = match[1] as "input" | "output";
+  const portNumber = parseInt(match[2]);
+
+  return { portNumber, portType };
 }

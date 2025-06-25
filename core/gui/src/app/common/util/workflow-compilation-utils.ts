@@ -20,47 +20,6 @@ import { CompilationState, CompilationStateInfo, PortSchema } from "../../worksp
 import { WorkflowFatalError } from "../../workspace/types/workflow-websocket.interface";
 
 /**
- * Compares two PortSchema arrays for equality, ignoring the order of attributes.
- * Treats the schemas as sets of SchemaAttribute objects.
- *
- * @param schema1 First PortSchema to compare (can be undefined)
- * @param schema2 Second PortSchema to compare (can be undefined)
- * @returns true if both schemas contain the same set of attributes (ignoring order)
- */
-export function arePortSchemasEqual(schema1: PortSchema | undefined, schema2: PortSchema | undefined): boolean {
-  // Both undefined are equal
-  if (schema1 === undefined && schema2 === undefined) {
-    return true;
-  }
-
-  // One undefined, one defined are not equal
-  if (schema1 === undefined || schema2 === undefined) {
-    return false;
-  }
-
-  if (schema1.length !== schema2.length) {
-    return false;
-  }
-
-  // Create sets of stringified attributes for comparison
-  const set1 = new Set(schema1.map(attr => `${attr.attributeName}:${attr.attributeType}`));
-  const set2 = new Set(schema2.map(attr => `${attr.attributeName}:${attr.attributeType}`));
-
-  // Check if both sets have the same size and contain the same elements
-  if (set1.size !== set2.size) {
-    return false;
-  }
-
-  for (const item of set1) {
-    if (!set2.has(item)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Checks if all PortSchemas in an array are equal to each other.
  * Requires either all schemas to be undefined, or all to be defined and equal.
  *
@@ -71,9 +30,7 @@ export function areAllPortSchemasEqual(schemas: (PortSchema | undefined)[]): boo
   if (schemas.length <= 1) {
     return true;
   }
-
-  const firstSchema = schemas[0];
-  return schemas.every(schema => arePortSchemasEqual(firstSchema, schema));
+  return schemas.every(schema => schema === schemas[0]);
 }
 
 /**

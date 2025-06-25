@@ -39,8 +39,9 @@ import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
-import { serializePortIdentity } from "../../../common/util/physical-plan-serialization";
+import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { areAllPortSchemasEqual, addCompilationError } from "../../../common/util/workflow-compilation-utils";
+import { parseLogicalOperatorPortID } from "../../../common/util/logical-operator-port-serde";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -144,9 +145,7 @@ export class WorkflowCompilingService {
   }
 
   public getPortInputSchema(operatorID: string, portIndex: number): PortSchema | undefined {
-    return this.getOperatorInputSchemaMap(operatorID)?.[
-      serializePortIdentity({ id: portIndex, internal: false }, true)
-    ];
+    return this.getOperatorInputSchemaMap(operatorID)?.[serializePortIdentity({ id: portIndex, internal: false })];
   }
 
   public getOperatorInputAttributeType(
@@ -216,32 +215,31 @@ export class WorkflowCompilingService {
     const inputPortSchemaMap = new Map<string, PortSchema | undefined>();
 
     dynamicSchema.additionalMetadata.inputPorts.forEach((inputPort, portIndex) => {
-      const portKey = serializePortIdentity({ id: portIndex, internal: false }, true);
+      const portKey = serializePortIdentity({ id: portIndex, internal: false });
       inputPortSchemaMap.set(portKey, undefined);
 
       // Find all links that connect to this input port
       const linksToThisPort = inputLinks.filter(link => {
-        const inId = this.extractPortIndex(link.target.portID);
-        return inId === portIndex;
+        const inputPort = parseLogicalOperatorPortID(link.target.portID);
+        if (!inputPort) return false;
+        return inputPort.portNumber === portIndex;
       });
 
       if (linksToThisPort.length > 0) {
         // Check if multiple links have different schemas
-        const schemas: (PortSchema | undefined)[] = [];
-        for (const link of linksToThisPort) {
+        const schemas: (PortSchema | undefined)[] = linksToThisPort.map(link => {
           const sourcePortSchemaMap = outputSchemas[link.source.operatorID];
-          if (sourcePortSchemaMap) {
-            const outId = this.extractPortIndex(link.source.portID);
-            if (outId >= 0) {
-              const schema = sourcePortSchemaMap[serializePortIdentity({ id: outId, internal: false }, false)];
-              schemas.push(schema); // Push schema even if undefined
-            } else {
-              schemas.push(undefined); // Push undefined for invalid port ID
-            }
-          } else {
-            schemas.push(undefined); // Push undefined for missing source port schema
+          if (!sourcePortSchemaMap) {
+            return undefined;
           }
-        }
+
+          const outputPort = parseLogicalOperatorPortID(link.source.portID);
+          if (!outputPort) {
+            return undefined;
+          }
+
+          return sourcePortSchemaMap[serializePortIdentity({ id: outputPort.portNumber, internal: false })];
+        });
 
         // Check if all schemas are the same using utility function
         if (schemas.length > 1 && !areAllPortSchemasEqual(schemas)) {
@@ -249,13 +247,13 @@ export class WorkflowCompilingService {
           this.currentCompilationStateInfo = addCompilationError(
             this.currentCompilationStateInfo,
             operatorID,
-            `Multiple links with different schemas connected to input port ${portIndex} (${inputPort.displayName})`,
+            `Multiple links with different schemas connected to the same input port ${portIndex}`,
             `Port ${portIndex} received ${schemas.length} different schemas (some may be undefined)`
           );
           return undefined;
         }
 
-        // Set the schema (could be undefined if first schema is undefined)
+        // All port schemas of this input port has been checked to be the same, use the first schema to set
         if (schemas.length > 0) {
           inputPortSchemaMap.set(portKey, schemas[0]);
         }
@@ -329,7 +327,7 @@ export class WorkflowCompilingService {
       }
 
       // Use serializePortIdentity to get the correct key for the input port
-      const portKey = serializePortIdentity({ id: i, internal: false }, true);
+      const portKey = serializePortIdentity({ id: i, internal: false });
       const inputAttrAtPort = inputPortSchemaMap[portKey];
       if (!inputAttrAtPort) {
         return undefined;
