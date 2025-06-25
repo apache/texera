@@ -22,6 +22,13 @@ package edu.uci.ics.amber.util.serde
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.{JsonSerializer, SerializerProvider}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer.portIdToString
+
+case object PortIdentityKeySerializer {
+  def portIdToString(portId: PortIdentity): String = {
+    s"${portId.id}_${portId.internal}"
+  }
+}
 
 class PortIdentityKeySerializer extends JsonSerializer[PortIdentity] {
   override def serialize(
@@ -30,6 +37,6 @@ class PortIdentityKeySerializer extends JsonSerializer[PortIdentity] {
       serializers: SerializerProvider
   ): Unit = {
     // Serialize PortIdentity as a string "id_internal"
-    gen.writeFieldName(s"${key.id}_${key.internal}")
+    gen.writeFieldName(portIdToString(key))
   }
 }

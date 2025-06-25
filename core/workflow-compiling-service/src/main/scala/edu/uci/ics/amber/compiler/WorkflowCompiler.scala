@@ -22,15 +22,13 @@ package edu.uci.ics.amber.compiler
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.compiler.WorkflowCompiler.{
-  collectInputSchemaFromPhysicalPlan,
+  collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
-
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PhysicalPlan, PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.core.workflow.PhysicalLink
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 
@@ -106,11 +104,46 @@ object WorkflowCompiler {
       .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
       .toMap
   }
+
+  private def collectOutputSchemaFromPhysicalPlan(
+      physicalPlan: PhysicalPlan,
+      errorList: ArrayBuffer[(OperatorIdentity, Throwable)]
+  ): Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] = {
+
+    // Collect output schemas per physical operator
+    val physicalOutputSchemas =
+      physicalPlan.operators.map { physicalOp =>
+        val portSchemas = physicalOp.outputPorts.values
+          .filterNot(_._1.id.internal)
+          .map {
+            case (port, _, schema) =>
+              schema match {
+                case Left(err) =>
+                  errorList.append((physicalOp.id.logicalOpId, err))
+                  port.id -> None
+                case Right(validSchema) =>
+                  port.id -> Some(validSchema)
+              }
+          }
+          .toMap
+        physicalOp.id -> portSchemas
+      }
+
+    // Group by logical operator ID and merge port schemas
+    physicalOutputSchemas
+      .groupBy(_._1.logicalOpId)
+      .view
+      .mapValues { list =>
+        list.flatMap(_._2).toMap
+      }
+      .toMap
+  }
+
 }
 
 case class WorkflowCompilationResult(
     physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
-    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
+    operatorIdToOutputSchemas: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]],
     operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
 )
 
@@ -196,7 +229,7 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo
   ): WorkflowCompilationResult = {
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
-    var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
+    var opIdToOutputSchema: Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
@@ -206,13 +239,12 @@ class WorkflowCompiler(
     // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
 
-    // 4. collect the input schema for each logical op
+    // 4. collect the output schema for each logical op
     // even if error is encountered when logical => physical, we still want to get the input schemas for rest no-error operators
-    opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
-
+    opIdToOutputSchema = collectOutputSchemaFromPhysicalPlan(physicalPlan, errorList)
     WorkflowCompilationResult(
       physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
-      operatorIdToInputSchemas = opIdToInputSchema,
+      operatorIdToOutputSchemas = opIdToOutputSchema,
       // map each error from OpId to WorkflowFatalError, and report them via logger
       operatorIdToError = convertErrorListToWorkflowFatalErrorMap(logger, errorList.toList)
     )

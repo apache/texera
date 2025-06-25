@@ -27,6 +27,7 @@ import edu.uci.ics.amber.core.tuple.Attribute
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -45,12 +46,12 @@ import jakarta.ws.rs.core.MediaType
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
     physicalPlan: PhysicalPlan,
-    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
     operatorErrors: Map[String, WorkflowFatalError],
-    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -70,23 +71,29 @@ class WorkflowCompilationResource extends LazyLogging {
     // Compile the pojo using WorkflowCompiler
     val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)
 
-    val operatorInputSchemas = compilationResult.operatorIdToInputSchemas.map {
+    val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
       case (operatorIdentity, schemas) =>
         val opId = operatorIdentity.id
-        val attributes = schemas.map { schema =>
-          if (schema.isEmpty)
-            None
-          else
-            Some(schema.get.attributes)
+        val portIdAndAttributes = schemas.map {
+          case (portId, schemaOption) => {
+            if (schemaOption.isEmpty) {
+              (PortIdentityKeySerializer.portIdToString(portId), None)
+            } else {
+              (
+                PortIdentityKeySerializer.portIdToString(portId),
+                Some(schemaOption.get.attributes)
+              )
+            }
+          }
         }
-        (opId, attributes)
+        (opId, portIdAndAttributes)
     }
 
     // Handle success case: No errors in the compilation result
     if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
-        operatorInputSchemas
+        operatorOutputSchemas = operatorOutputSchemas
       )
     }
     // Handle failure case: Errors found during compilation
@@ -95,7 +102,7 @@ class WorkflowCompilationResource extends LazyLogging {
         operatorErrors = compilationResult.operatorIdToError.map {
           case (operatorIdentity, error) => (operatorIdentity.id, error)
         },
-        operatorInputSchemas
+        operatorOutputSchemas = operatorOutputSchemas
       )
     }
   }

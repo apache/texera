@@ -92,7 +92,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
       return;
     }
     this.schemaToDisplay = [];
-    const inputSchema = this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
+    const inputSchema = this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
 
     const operatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
 
@@ -100,7 +100,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
       operatorPredicate.operatorProperties["typeCastingUnits"] ?? [];
 
     const castTypeMap: Map<string, AttributeType> = new Map(castUnits.map(unit => [unit.attribute, unit.resultType]));
-    inputSchema?.forEach(schema =>
+    Object.values(inputSchema || {}).forEach(schema =>
       schema?.forEach(attr => {
         if (castTypeMap.has(attr.attributeName)) {
           const castedAttr: Partial<SchemaAttribute> = {
