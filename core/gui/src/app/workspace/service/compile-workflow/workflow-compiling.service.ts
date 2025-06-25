@@ -75,6 +75,11 @@ export class WorkflowCompilingService {
     private dynamicSchemaService: DynamicSchemaService,
     private validationWorkflowService: ValidationWorkflowService
   ) {
+    // Subscribe to compilation state changes to apply schema propagation
+    this.compilationStateInfoChangedStream.subscribe(() => {
+      this.applySchemaPropagationResult();
+    });
+
     // invoke the compilation service when there are any changes on workflow topology and properties. This includes:
     // - operator add, delete, property changed, disabled
     // - link add, delete
@@ -112,11 +117,6 @@ export class WorkflowCompilingService {
         }
         this.compilationStateInfoChangedStream.next(this.currentCompilationStateInfo.state);
       });
-
-    // Subscribe to compilation state changes to apply schema propagation
-    this.compilationStateInfoChangedStream.subscribe(() => {
-      this.applySchemaPropagationResult();
-    });
   }
 
   public getWorkflowCompilationState(): CompilationState {
