@@ -36,9 +36,9 @@ from core.models import (
 )
 from core.models.internal_queue import (
     DataElement,
-    ControlElement,
+    DCMElement,
     InternalQueue,
-    EmbeddedControlMessageElement,
+    ECMElement,
 )
 from core.models.state import State
 from core.proxy import ProxyServer
@@ -104,9 +104,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 for channel_id in payload.scope:
                     if not channel_id.is_control:
                         channel_id.is_control = False
-                shared_queue.put(
-                    EmbeddedControlMessageElement(tag=data_header.tag, payload=payload)
-                )
+                shared_queue.put(ECMElement(tag=data_header.tag, payload=payload))
             else:
                 shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
             return shared_queue.in_mem_size()
@@ -123,7 +121,7 @@ class NetworkReceiver(Runnable, Stoppable):
             """
             python_control_message = PythonControlMessage().parse(message)
             shared_queue.put(
-                ControlElement(
+                DCMElement(
                     tag=python_control_message.tag,
                     payload=python_control_message.payload,
                 )
