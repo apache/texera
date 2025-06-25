@@ -111,8 +111,12 @@ export class WorkflowCompilingService {
           };
         }
         this.compilationStateInfoChangedStream.next(this.currentCompilationStateInfo.state);
-        this._applySchemaPropagationResult();
       });
+
+    // Subscribe to compilation state changes to apply schema propagation
+    this.compilationStateInfoChangedStream.subscribe(() => {
+      this.applySchemaPropagationResult();
+    });
   }
 
   public getWorkflowCompilationState(): CompilationState {
@@ -164,7 +168,7 @@ export class WorkflowCompilingService {
    * 1. the operator's input attributes cannot be inferred. In this case, the operator dynamic schema is unchanged.
    * 2. the operator is a source operator. In this case, we need to fill in the attributes using the selected table.
    */
-  private _applySchemaPropagationResult(): void {
+  private applySchemaPropagationResult(): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
@@ -192,13 +196,12 @@ export class WorkflowCompilingService {
   }
 
   /**
-   * Extracts input schema for an operator by looking at the output schemas of connected operators.
-   * Gets input links, extracts port indices, and concatenates attributes from multiple input links.
+   * Extracts input schema per port for an operator by looking at the output schemas of operators that are connecting to it.
    *
-   * @param operatorID The operator to extract input schema for
-   * @param outputSchemas Map of operator IDs to their output schemas
-   * @param workflowGraph The workflow graph to get input links from
-   * @returns The extracted input schema or undefined if not possible
+   * @param operatorID The target operator's ID
+   * @param outputSchemas Map of operator IDs to their output schemas per output port
+   * @param workflowGraph to get input links from
+   * @returns The extracted input schema per port or undefined
    */
   private extractOperatorInputPortSchemaMap(
     operatorID: string,
@@ -262,16 +265,6 @@ export class WorkflowCompilingService {
 
     if (!inputPortSchemaMap.size) return undefined;
     return Object.fromEntries(inputPortSchemaMap);
-  }
-
-  /**
-   * Extracts the port index from a port ID string.
-   * @param portId Port ID like "input-0", "output-1", etc.
-   * @returns The numeric index or -1 if not found
-   */
-  private extractPortIndex(portId: string): number {
-    const match = portId.match(/(\d+)$/);
-    return match ? parseInt(match[1]) : -1;
   }
 
   /**
