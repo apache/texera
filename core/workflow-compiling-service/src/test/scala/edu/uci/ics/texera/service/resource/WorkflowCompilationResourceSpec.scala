@@ -32,7 +32,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
-import edu.uci.ics.amber.operator.filter.{ComparisonType, FilterOpDesc, FilterPredicate, SpecializedFilterOpDesc}
+import edu.uci.ics.amber.operator.filter.{
+  ComparisonType,
+  FilterOpDesc,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer
 

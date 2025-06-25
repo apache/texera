@@ -218,8 +218,8 @@ export class WorkflowCompilingService {
     const inputPortSchemaMap = new Map<string, PortSchema | undefined>();
 
     dynamicSchema.additionalMetadata.inputPorts.forEach((inputPort, portIndex) => {
-      const portKey = serializePortIdentity({ id: portIndex, internal: false });
-      inputPortSchemaMap.set(portKey, undefined);
+      const portId = serializePortIdentity({ id: portIndex, internal: false });
+      inputPortSchemaMap.set(portId, undefined);
 
       // Find all links that connect to this input port
       const linksToThisPort = inputLinks.filter(link => {
@@ -258,7 +258,7 @@ export class WorkflowCompilingService {
 
         // All port schemas of this input port has been checked to be the same, use the first schema to set
         if (schemas.length > 0) {
-          inputPortSchemaMap.set(portKey, schemas[0]);
+          inputPortSchemaMap.set(portId, schemas[0]);
         }
       }
     });
@@ -320,12 +320,12 @@ export class WorkflowCompilingService {
       }
 
       // Use serializePortIdentity to get the correct key for the input port
-      const portKey = serializePortIdentity({ id: i, internal: false });
-      const inputAttrAtPort = inputPortSchemaMap[portKey];
+      const portId = serializePortIdentity({ id: i, internal: false });
+      const inputAttrAtPort = inputPortSchemaMap[portId];
       if (!inputAttrAtPort) {
         return undefined;
       }
-      const attrNames: string[] = inputAttrAtPort.map((attr: any) => attr.attributeName);
+      const attrNames: string[] = inputAttrAtPort.map(attr => attr.attributeName);
       if (v.additionalEnumValue) {
         attrNames.push(v.additionalEnumValue);
       }
