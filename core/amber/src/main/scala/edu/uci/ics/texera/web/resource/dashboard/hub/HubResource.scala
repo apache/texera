@@ -29,8 +29,7 @@ import HubResource.{
   isLikedHelper,
   recordLikeActivity,
   recordUserActivity,
-  userRequest,
-  validateEntityType
+  userRequest
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -57,8 +56,8 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.Da
 import scala.collection.mutable.ListBuffer
 
 object HubResource {
-  case class userRequest(entityId: Integer, userId: Integer, entityType: String)
-  case class CountRequest(entityId: Integer, entityType: String)
+  case class userRequest(entityId: Integer, userId: Integer, entityType: EntityType)
+  case class CountRequest(entityId: Integer, entityType: EntityType)
   case class CountResponse(
       entityId: Integer,
       entityType: String,
@@ -69,9 +68,9 @@ object HubResource {
     * Defines the currently accepted resource types.
     * Modify this object to update the valid entity types across the system.
     */
-  private object EntityType {
-    val allowedTypes: Set[String] = Set("workflow", "dataset")
-  }
+//  private object EntityType {
+//    val allowedTypes: Set[String] = Set("workflow", "dataset")
+//  }
 
   final private lazy val context = SqlServer
     .getInstance()
@@ -87,13 +86,13 @@ object HubResource {
     * @param entityType The entity type to validate.
     * @throws IllegalArgumentException if the entity type is not in the allowed list.
     */
-  def validateEntityType(entityType: String): Unit = {
-    if (!EntityType.allowedTypes.contains(entityType)) {
-      throw new IllegalArgumentException(
-        s"Invalid entity type: $entityType. Allowed types: ${EntityType.allowedTypes.mkString(", ")}."
-      )
-    }
-  }
+//  def validateEntityType(entityType: String): Unit = {
+//    if (!EntityType.allowedTypes.contains(entityType)) {
+//      throw new IllegalArgumentException(
+//        s"Invalid entity type: $entityType. Allowed types: ${EntityType.allowedTypes.mkString(", ")}."
+//      )
+//    }
+//  }
 
   /**
     * Checks if a given user has liked a specific entity.
@@ -103,8 +102,7 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: Integer, workflowId: Integer, entityType: String): Boolean = {
-    validateEntityType(entityType)
+  def isLikedHelper(userId: Integer, entityId: Integer, entityType: EntityType): Boolean = {
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
@@ -114,7 +112,7 @@ object HubResource {
       .where(
         uidColumn
           .eq(userId)
-          .and(idColumn.eq(workflowId))
+          .and(idColumn.eq(entityId))
       )
       .fetchOne() != null
   }
@@ -132,18 +130,16 @@ object HubResource {
       request: HttpServletRequest,
       userId: Integer = Integer.valueOf(0),
       entityId: Integer,
-      entityType: String,
+      entityType: EntityType,
       action: String
   ): Unit = {
-    validateEntityType(entityType)
-
     val userIp = request.getRemoteAddr()
 
     val query = context
       .insertInto(USER_ACTIVITY)
       .set(USER_ACTIVITY.UID, userId)
       .set(USER_ACTIVITY.ID, entityId)
-      .set(USER_ACTIVITY.TYPE, entityType)
+      .set(USER_ACTIVITY.TYPE, entityType.value)
       .set(USER_ACTIVITY.ACTIVATE, action)
 
     if (ipv4Pattern.matcher(userIp).matches()) {
@@ -168,7 +164,6 @@ object HubResource {
   ): Boolean = {
     val (entityId, userId, entityType) =
       (userRequest.entityId, userRequest.userId, userRequest.entityType)
-    validateEntityType(entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
@@ -209,10 +204,9 @@ object HubResource {
       request: HttpServletRequest,
       userId: Integer,
       entityId: Integer,
-      entityType: String
+      entityType: EntityType
   ): Unit = {
 
-    validateEntityType(entityType)
     val entityTables = CloneTable(entityType)
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
@@ -311,9 +305,7 @@ class HubResource {
   @GET
   @Path("/count")
   def getPublishedWorkflowCount(@QueryParam("entityType") entityType: String): Integer = {
-
-    validateEntityType(entityType)
-    val entityTables = BaseEntityTable(entityType)
+    val entityTables = BaseEntityTable(EntityType.fromString(entityType))
     val (table, isPublicColumn) = (entityTables.table, entityTables.isPublicColumn)
 
     context
@@ -327,11 +319,11 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") workflowId: Integer,
+      @QueryParam("workflowId") entityId: Integer,
       @QueryParam("userId") userId: Integer,
       @QueryParam("entityType") entityType: String
   ): Boolean = {
-    isLikedHelper(userId, workflowId, entityType)
+    isLikedHelper(userId, entityId, EntityType.fromString(entityType))
   }
 
   @POST
@@ -365,7 +357,6 @@ class HubResource {
     val (entityID, userId, entityType) =
       (viewRequest.entityId, viewRequest.userId, viewRequest.entityType)
 
-    validateEntityType(entityType)
     val entityTables = ViewCountTable(entityType)
     val (table, idColumn, viewCountColumn) =
       (entityTables.table, entityTables.idColumn, entityTables.viewCountColumn)
@@ -404,9 +395,9 @@ class HubResource {
       @QueryParam("actionTypes") actionTypes: java.util.List[String],
       @QueryParam("uid") uid: Integer
   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
-    validateEntityType(entityType)
+    val entityTypeEnum = EntityType.fromString(entityType)
 
-    val baseTable = BaseEntityTable(entityType)
+    val baseTable = BaseEntityTable(entityTypeEnum)
     val isPublicColumn = baseTable.isPublicColumn
     val baseIdColumn = baseTable.idColumn
 
@@ -423,10 +414,10 @@ class HubResource {
       types.map { act =>
         val (table, idColumn) = act match {
           case "like" =>
-            val lt = LikeTable(entityType)
+            val lt = LikeTable(entityTypeEnum)
             (lt.table, lt.idColumn)
           case "clone" =>
-            val ct = CloneTable(entityType)
+            val ct = CloneTable(entityTypeEnum)
             (ct.table, ct.idColumn)
           case other =>
             throw new BadRequestException(
@@ -448,19 +439,19 @@ class HubResource {
           .toSeq
 
         val entries: Seq[DashboardClickableFileEntry] =
-          if (entityType == "workflow") {
+          if (entityTypeEnum == EntityType.Workflow) {
             fetchDashboardWorkflowsByWids(topIds, currentUid).map { w =>
               DashboardClickableFileEntry(
-                resourceType = "workflow",
+                resourceType = entityTypeEnum.value,
                 workflow = Some(w),
                 project = None,
                 dataset = None
               )
             }
-          } else if (entityType == "dataset") {
+          } else if (entityTypeEnum == EntityType.Dataset) {
             fetchDashboardDatasetsByDids(topIds, currentUid).map { d =>
               DashboardClickableFileEntry(
-                resourceType = "dataset",
+                resourceType = entityTypeEnum.value,
                 workflow = None,
                 project = None,
                 dataset = Some(d)
@@ -521,7 +512,7 @@ class HubResource {
     val reqs: List[CountRequest] = entityTypes.asScala
       .zip(entityIds.asScala)
       .map {
-        case (etype, id) => CountRequest(id, etype)
+        case (etype, id) => CountRequest(id, EntityType.fromString(etype))
       }
       .toList
 
@@ -536,15 +527,13 @@ class HubResource {
       )
     }
 
-    val grouped: Map[String, Seq[Integer]] =
+    val grouped: Map[EntityType, Seq[Integer]] =
       reqs.groupBy(_.entityType).view.mapValues(_.map(_.entityId)).toMap
 
     val buffer = ListBuffer[CountResponse]()
 
     grouped.foreach {
       case (etype, ids) =>
-        validateEntityType(etype)
-
         val viewTbl = ViewCountTable(etype)
         val viewMap: Map[Int, Int] =
           if (requestedActions.contains("view")) {
@@ -589,7 +578,7 @@ class HubResource {
           } else Map.empty
 
         val cloneMap: Map[Int, Int] =
-          if (requestedActions.contains("clone") && etype != "dataset") {
+          if (requestedActions.contains("clone") && etype != EntityType.Dataset) {
             val cloneTbl = CloneTable(etype)
             context
               .select(cloneTbl.idColumn, DSL.count().`as`("cnt"))
@@ -612,7 +601,7 @@ class HubResource {
           if (requestedActions.contains("like")) counts("like") = likeMap.getOrElse(key, 0)
           if (requestedActions.contains("clone")) counts("clone") = cloneMap.getOrElse(key, 0)
 
-          buffer += CountResponse(req.entityId, etype, counts.asJava)
+          buffer += CountResponse(req.entityId, etype.value, counts.asJava)
         }
     }
 
