@@ -384,10 +384,6 @@ class HubResource {
       if (uid == null || uid == -1) null
       else Integer.valueOf(uid)
 
-//    val types: Seq[String] = actionTypes.asScala
-//      .map(_.toLowerCase)
-//      .distinct
-//      .toSeq
     val types: Seq[ActionType] =
       if (actionTypes != null && !actionTypes.isEmpty)
         actionTypes.asScala.toList
