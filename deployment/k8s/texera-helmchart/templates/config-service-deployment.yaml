@@ -39,9 +39,6 @@ spec:
           ports:
             - containerPort: {{ .Values.configService.service.port }}
           env:
-            # Texera domain name
-            - name: USER_SYS_DOMAIN
-              value: {{ .Values.minio.customIngress.texeraHostname }}
             # TexeraDB Access
             - name: STORAGE_JDBC_URL
               value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
