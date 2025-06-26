@@ -38,17 +38,17 @@ import {
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { firstValueFrom } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
-import { HubService } from "../../../../hub/service/hub.service";
+import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
+  DASHBOARD_HUB_DATASET_RESULT_DETAIL,
   DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
+  DASHBOARD_USER_DATASET,
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_WORKSPACE,
-  DASHBOARD_USER_DATASET,
-  DASHBOARD_HUB_DATASET_RESULT_DETAIL,
 } from "../../../../app-routing.constant";
 import { isDefined } from "../../../../common/util/predicate";
 
@@ -383,7 +383,7 @@ export class ListItemComponent implements OnChanges {
     if (instance) {
       if (wid !== undefined) {
         this.hubService
-          .getBatchCounts([this.entry.type], [wid], ["view"])
+          .getBatchCounts([this.entry.type], [wid], [ActionType.View])
           .pipe(untilDestroyed(this))
           .subscribe(counts => {
             const count = counts[0];
@@ -409,7 +409,7 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getBatchCounts([this.entry.type], [entryId], ["like"])
+              .getBatchCounts([this.entry.type], [entryId], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -424,7 +424,7 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getBatchCounts([this.entry.type], [entryId], ["like"])
+              .getBatchCounts([this.entry.type], [entryId], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;

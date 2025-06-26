@@ -19,7 +19,7 @@
 
 import { Component, OnInit } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { HubService } from "../../service/hub.service";
+import { ActionType, EntityType, HubService } from "../../service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
@@ -70,8 +70,8 @@ export class LandingPageComponent implements OnInit {
   async loadTops() {
     try {
       const [workflowEntries, datasetEntries] = await Promise.all([
-        this.getTopLovedEntries("workflow", ["like", "clone"]),
-        this.getTopLovedEntries("dataset", ["like"]),
+        this.getTopLovedEntries("workflow", [ActionType.Like, ActionType.Clone]),
+        this.getTopLovedEntries("dataset", [ActionType.Like]),
       ]);
 
       this.topLovedWorkflows = workflowEntries["like"] || [];
@@ -99,8 +99,8 @@ export class LandingPageComponent implements OnInit {
 
   // todo: same as the function in search. refactor together
   public async getTopLovedEntries(
-    entityType: string,
-    actionTypes: string[]
+    entityType: EntityType,
+    actionTypes: ActionType[]
   ): Promise<{ [actionType: string]: DashboardEntry[] }> {
     const topsMap = await firstValueFrom(this.hubService.getTops(entityType, actionTypes, this.currentUid));
 

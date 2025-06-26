@@ -25,7 +25,7 @@ import { WorkflowActionService } from "../../../../workspace/service/workflow-gr
 import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubService } from "../../../service/hub.service";
+import { ActionType, HubService } from "../../../service/hub.service";
 import { Role, User } from "src/app/common/type/user";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -84,7 +84,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     this.hubService
-      .getBatchCounts(["workflow"], [this.wid], ["like", "clone"])
+      .getBatchCounts(["workflow"], [this.wid], [ActionType.Like, ActionType.Clone])
       .pipe(untilDestroyed(this))
       .subscribe(counts => {
         this.likeCount = counts[0].counts.like ?? 0;
@@ -215,7 +215,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getBatchCounts(["workflow"], [this.wid], ["like"])
+              .getBatchCounts(["workflow"], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -233,7 +233,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getBatchCounts(["workflow"], [this.wid], ["like"])
+              .getBatchCounts(["workflow"], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;

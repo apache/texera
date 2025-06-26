@@ -25,7 +25,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
-import { CountResponse, HubService } from "../../../hub/service/hub.service";
+import { CountResponse, EntityType, HubService } from "../../../hub/service/hub.service";
 import { map, switchMap } from "rxjs/operators";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
@@ -136,7 +136,7 @@ export class SearchService {
         const userInfo$ =
           userIds.size > 0 ? this.getUserInfo(Array.from(userIds)) : of({} as { [key: number]: UserInfo });
 
-        const entityTypes: string[] = [];
+        const entityTypes: EntityType[] = [];
         const entityIds: number[] = [];
         filteredResults.forEach(i => {
           if (i.workflow?.workflow?.wid != null) {
