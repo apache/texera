@@ -21,7 +21,7 @@
   <h2 class="page-title">General Settings</h2>
 </nz-card>
 
-<nz-card>
+<nz-card nzTitle="Branding">
   <div class="upload-row">
     <span>Logo:</span>
     <button
@@ -99,8 +99,45 @@
     <button
       nz-button
       nzType="default"
-      (click)="resetToDefault()">
-      Default
+      (click)="resetBranding()">
+      Reset Branding
+    </button>
+  </div>
+</nz-card>
+
+<nz-card nzTitle="Sidebar Tabs">
+  <div class="sidebar-tabs-container">
+    <ng-container *ngFor="let g of sidebarTabs">
+      <div
+        *ngIf="g.group !== 'Admin'"
+        class="group-card">
+        <div class="group-header">
+          <nz-switch
+            [(ngModel)]="g.enabled"
+            (ngModelChange)="saveTabs()"></nz-switch>
+          <span class="group-label">{{ g.group }}</span>
+        </div>
+        <div
+          class="group-children"
+          *ngIf="g.enabled">
+          <div
+            *ngFor="let t of g.children"
+            class="child-item">
+            <nz-switch
+              [(ngModel)]="t.enabled"
+              (ngModelChange)="saveTabs()"></nz-switch>
+            <span class="child-label">{{ t.label }}</span>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetTabs()">
+      Reset Tabs
     </button>
   </div>
 </nz-card>

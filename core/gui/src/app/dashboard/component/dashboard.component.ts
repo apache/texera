@@ -61,6 +61,15 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
+  sidebarTabs: Array<{
+    route: string;
+    group: string;
+    icon: string;
+    enabled: boolean;
+    tooltip?: string;
+    children: Array<{ label: string; route: string; icon: string; enabled: boolean; tooltip?: string }>;
+  }> = [];
+  isHubEnabled: boolean = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -122,20 +131,50 @@ export class DashboardComponent implements OnInit {
     });
 
     this.loadLogos();
+    this.loadTabs();
   }
 
   loadLogos(): void {
     this.adminSettingsService
-      .getLogoPath()
+      .getSetting("logo")
       .pipe(untilDestroyed(this))
-      .subscribe(path => (this.logo = path));
+      .subscribe(dataUri => {
+        this.logo = dataUri;
+      });
 
     this.adminSettingsService
-      .getMiniLogoPath()
+      .getSetting("mini_logo")
       .pipe(untilDestroyed(this))
-      .subscribe(path => (this.miniLogo = path));
+      .subscribe(dataUri => {
+        this.miniLogo = dataUri;
+      });
 
-    this.adminSettingsService.getFaviconPath().pipe(untilDestroyed(this)).subscribe();
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe(dataUri => {
+        document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
+      });
+  }
+
+  loadTabs(): void {
+    this.adminSettingsService
+      .getSetting("sidebar_tabs")
+      .pipe(untilDestroyed(this))
+      .subscribe(json => {
+        try {
+          this.sidebarTabs = JSON.parse(json);
+          const hub = this.sidebarTabs.find(tab => tab.group === "Hub");
+          this.isHubEnabled = !!(hub && hub.enabled);
+        } catch (err) {
+          console.error("parse sidebar_tabs failed:", err);
+          this.sidebarTabs = [];
+        }
+      });
+  }
+
+  isHubRoute(): boolean {
+    return this.router.url.startsWith("/dashboard/hub") || this.router.url === "/dashboard/home";
   }
 
   forumLogin() {

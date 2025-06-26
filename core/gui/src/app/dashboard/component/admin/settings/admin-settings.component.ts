@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -28,15 +28,45 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./admin-settings.component.html",
   styleUrls: ["./admin-settings.component.scss"],
 })
-export class AdminSettingsComponent {
+export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
+  sidebarTabs: Array<{
+    route: string;
+    group: string;
+    icon: string;
+    enabled: boolean;
+    tooltip?: string;
+    children: Array<{
+      label: string;
+      route: string;
+      icon: string;
+      enabled: boolean;
+      tooltip?: string;
+    }>;
+  }> = [];
 
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
+  ngOnInit(): void {
+    this.loadTabs();
+  }
+
+  private loadTabs(): void {
+    this.adminSettingsService
+      .getSetting("sidebar_tabs")
+      .pipe(untilDestroyed(this))
+      .subscribe(json => {
+        try {
+          this.sidebarTabs = JSON.parse(json);
+        } catch {
+          this.sidebarTabs = [];
+        }
+      });
+  }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -94,9 +124,9 @@ export class AdminSettingsComponent {
     }
   }
 
-  resetToDefault(): void {
+  resetBranding(): void {
     this.adminSettingsService
-      .deleteSetting("logo")
+      .resetSetting("logo")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -107,7 +137,7 @@ export class AdminSettingsComponent {
       });
 
     this.adminSettingsService
-      .deleteSetting("mini_logo")
+      .resetSetting("mini_logo")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -118,7 +148,7 @@ export class AdminSettingsComponent {
       });
 
     this.adminSettingsService
-      .deleteSetting("favicon")
+      .resetSetting("favicon")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -129,5 +159,34 @@ export class AdminSettingsComponent {
       });
 
     setTimeout(() => window.location.reload(), 500);
+  }
+
+  saveTabs(): void {
+    const payload = JSON.stringify(this.sidebarTabs);
+    this.adminSettingsService
+      .updateSetting("sidebar_tabs", payload)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.message.success("Tabs saved successfully."),
+        error: () => this.message.error("Failed to save."),
+      });
+  }
+
+  resetTabs(): void {
+    this.adminSettingsService
+      .resetSetting("sidebar_tabs")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.message.success("Sidebar tabs reset to default.");
+          this.loadTabs();
+        },
+        error: () => this.message.error("Failed to reset sidebar tabs."),
+      });
+  }
+
+  resetAllToDefault(): void {
+    this.resetBranding();
+    this.resetTabs();
   }
 }

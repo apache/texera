@@ -25,6 +25,7 @@ import javax.ws.rs.core.{MediaType, Response}
 import io.dropwizard.auth.Auth
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.config.DefaultsConfig
 import org.jooq.impl.DSL
 import com.fasterxml.jackson.annotation.JsonProperty
 
@@ -42,6 +43,7 @@ class AdminSettingsResource {
   private val key = DSL.field("key", classOf[String])
   private val value = DSL.field("value", classOf[String])
   private val updatedBy = DSL.field("updated_by", classOf[String])
+  private val updatedAt = DSL.field("updated_at", classOf[java.sql.Timestamp])
 
   @GET
   @Path("{key}")
@@ -72,21 +74,39 @@ class AdminSettingsResource {
         .doUpdate()
         .set(value, setting.settingValue)
         .set(updatedBy, currentUser.getName)
+        .set(updatedAt, DSL.currentTimestamp())
         .execute()
     }
     Response.ok().build()
   }
 
   @POST
-  @Path("/delete/{key}")
+  @Path("/reset/{key}")
   @RolesAllowed(Array("ADMIN"))
-  def deleteSetting(@PathParam("key") keyParam: String): Response = {
-    if (keyParam != null && keyParam.nonEmpty) {
-      ctx
-        .delete(siteSettings)
-        .where(key.eq(keyParam))
-        .execute()
+  def resetSetting(
+      @Auth currentUser: SessionUser,
+      @PathParam("key") keyParam: String
+  ): Response = {
+    DefaultsConfig.allDefaults.get(keyParam) match {
+      case Some(defaultValue) =>
+        ctx
+          .insertInto(siteSettings)
+          .set(key, keyParam)
+          .set(value, defaultValue)
+          .set(updatedBy, currentUser.getName)
+          .onConflict(key)
+          .doUpdate()
+          .set(value, defaultValue)
+          .set(updatedBy, currentUser.getName)
+          .set(updatedAt, DSL.currentTimestamp())
+          .execute()
+        Response.ok().build()
+
+      case None =>
+        Response
+          .status(Response.Status.NOT_FOUND)
+          .entity(s"No default for key '$keyParam'")
+          .build()
     }
-    Response.ok().build()
   }
 }
