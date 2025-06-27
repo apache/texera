@@ -19,16 +19,14 @@
 
 package edu.uci.ics.texera.web
 
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.config.{ApplicationConfig, StorageConfig}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -43,6 +41,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
+import edu.uci.ics.texera.web.util.JacksonPrewarm
 import io.dropwizard.Configuration
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -118,6 +117,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
+    // Warm up Jackson serializers / deserializers for frequently used polymorphic hierarchies
+    JacksonPrewarm.prewarm()
 
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,

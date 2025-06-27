@@ -67,7 +67,10 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
+    val deserdeStart = System.currentTimeMillis()
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
+    val deserdeEnd = System.currentTimeMillis()
+    logger.warn(s"duration = ${deserdeEnd - deserdeStart} ms")
     val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
