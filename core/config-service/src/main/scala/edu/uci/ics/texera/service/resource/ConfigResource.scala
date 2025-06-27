@@ -50,6 +50,7 @@ class ConfigResource {
       "multipartUploadChunkSizeByte" -> GuiConfig.guiDatasetMultipartUploadChunkSizeByte,
       "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
+      "sharingComputingUnitEnabled" -> GuiConfig.guiSharingComputingUnitEnabled,
       "hubEnabled" -> GuiConfig.guiDashboardHubEnabled,
       "forumEnabled" -> GuiConfig.guiDashboardForumEnabled,
       "projectEnabled" -> GuiConfig.guiDashboardProjectEnabled,

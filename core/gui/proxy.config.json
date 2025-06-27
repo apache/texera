@@ -14,7 +14,7 @@
     "secure": false,
     "changeOrigin": true
   },
-  "api/access/computing-unit/**": {
+  "/api/access/computing-unit/**": {
     "target": "http://localhost:8888",
     "secure": false,
     "changeOrigin": true

@@ -34,6 +34,7 @@ import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-execut
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
 import { combineLatest } from "rxjs";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -79,7 +80,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
-    private workflowWebsocketService: WorkflowWebsocketService,
+    protected config: GuiConfigService,
     private workflowActionService: WorkflowActionService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowExecutionsService: WorkflowExecutionsService,
