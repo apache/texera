@@ -34,7 +34,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
 from core.models import Tuple, InternalQueue, DataFrame, DataPayload
-from core.models.internal_queue import DataElement, EmbeddedControlMessageElement
+from core.models.internal_queue import DataElement, ECMElement
 from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -191,7 +191,7 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         Put the payload to the DP internal queue.
         """
         queue_element = (
-            EmbeddedControlMessageElement(tag=self.channel_id, payload=payload)
+            ECMElement(tag=self.channel_id, payload=payload)
             if isinstance(payload, EmbeddedControlMessage)
             else DataElement(tag=self.channel_id, payload=payload)
         )

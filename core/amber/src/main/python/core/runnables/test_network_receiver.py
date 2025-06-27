@@ -22,9 +22,9 @@ from pyarrow import Table
 
 from core.models.internal_queue import (
     InternalQueue,
-    ControlElement,
+    DCMElement,
     DataElement,
-    EmbeddedControlMessageElement,
+    ECMElement,
 )
 from core.models.payload import DataFrame
 from core.proxy import ProxyClient
@@ -39,7 +39,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
 from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
@@ -150,11 +150,11 @@ class TestNetworkReceiver:
         network_sender_thread,
     ):
         worker_id = ActorVirtualIdentity(name="test")
-        control_payload = set_one_of(ControlPayloadV2, ControlInvocation())
+        control_payload = set_one_of(DirectControlMessagePayloadV2, ControlInvocation())
         channel_id = ChannelIdentity(worker_id, worker_id, False)
-        input_queue.put(ControlElement(tag=channel_id, payload=control_payload))
+        input_queue.put(DCMElement(tag=channel_id, payload=control_payload))
         network_sender_thread.start()
-        element: ControlElement = output_queue.get()
+        element: DCMElement = output_queue.get()
         assert element.payload == control_payload
         assert element.tag == channel_id
 
@@ -181,7 +181,7 @@ class TestNetworkReceiver:
             )
         }
         input_queue.put(
-            EmbeddedControlMessageElement(
+            ECMElement(
                 tag=channel_id,
                 payload=EmbeddedControlMessage(
                     ecm_id,
