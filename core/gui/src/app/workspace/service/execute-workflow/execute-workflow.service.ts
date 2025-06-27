@@ -106,6 +106,7 @@ export class ExecuteWorkflowService {
           // workflow status related event
           this.handleReconfigurationEvent(event);
           const newState = this.handleExecutionEvent(event);
+          console.log("new state received", newState);
           if (newState !== undefined) {
             this.updateExecutionState(newState);
           }
@@ -130,6 +131,7 @@ export class ExecuteWorkflowService {
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case "WorkflowStateEvent":
+        console.log("State: ", event.state);
         let newState = ExecutionState[event.state];
         switch (newState) {
           case ExecutionState.Paused:

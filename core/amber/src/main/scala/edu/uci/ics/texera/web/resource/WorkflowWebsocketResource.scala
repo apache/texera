@@ -35,9 +35,38 @@ import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 
 import java.time.Instant
+import java.util.concurrent.{Executors, ThreadFactory}
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.util.{Failure, Success}
+
+/** Companion: owns the pool for all websocket resources. */
+object WorkflowWebsocketResource {
+
+  /** Named, daemon threads so they never block JVM shutdown. */
+  private val initThreadFactory: ThreadFactory =
+    (r: Runnable) => {
+      val t = new Thread(r, s"workflow-init-${r.hashCode()}")
+      t.setDaemon(true)
+      t
+    }
+
+  /** A small fixed pool is usually enough: only *cold* inits use it. */
+  private val initExecutor =
+    Executors.newFixedThreadPool(
+      math.max(2, Runtime.getRuntime.availableProcessors() / 2),
+      initThreadFactory
+    )
+
+  /** Implicit EC backed by the pool. */
+  implicit val initExecutionContext: ExecutionContext =
+    ExecutionContext.fromExecutorService(initExecutor)
+
+  /** Hook for Dropwizard to shut the pool down. */
+  def shutdown(): Unit = initExecutor.shutdown()
+}
 
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",
@@ -67,6 +96,7 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
+    logger.info("message received")
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
     val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
@@ -94,16 +124,25 @@ class WorkflowWebsocketResource extends LazyLogging {
             sessionState.send(modifyLogicResponse)
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
+          logger.info("request matched")
           workflowStateOpt match {
             case Some(workflow) =>
               sessionState.send(WorkflowStateEvent("Initializing"))
-              synchronized {
-                workflow.initExecutionService(
-                  workflowExecuteRequest,
-                  userOpt,
-                  session.getRequestURI
-                )
-              }
+              Future {
+                // Preserve original critical section.
+                workflow.synchronized {
+                  workflow.initExecutionService(
+                    workflowExecuteRequest,
+                    userOpt,
+                    session.getRequestURI
+                  )
+                }
+              }(WorkflowWebsocketResource.initExecutionContext).onComplete {
+                case Success(_) =>
+                  logger.debug(s"Workflow execution is initialized")
+                case Failure(err) =>
+                  throw new IllegalStateException("workflow is not initialized")
+              }(WorkflowWebsocketResource.initExecutionContext)
             case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
