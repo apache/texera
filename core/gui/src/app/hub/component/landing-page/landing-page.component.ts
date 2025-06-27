@@ -70,8 +70,8 @@ export class LandingPageComponent implements OnInit {
   async loadTops() {
     try {
       const [workflowEntries, datasetEntries] = await Promise.all([
-        this.getTopLovedEntries("workflow", [ActionType.Like, ActionType.Clone]),
-        this.getTopLovedEntries("dataset", [ActionType.Like]),
+        this.getTopLovedEntries(EntityType.Workflow, [ActionType.Like, ActionType.Clone]),
+        this.getTopLovedEntries(EntityType.Dataset, [ActionType.Like]),
       ]);
 
       this.topLovedWorkflows = workflowEntries["like"] || [];
@@ -84,13 +84,13 @@ export class LandingPageComponent implements OnInit {
 
   getWorkflowCount(): void {
     this.hubService
-      .getCount("workflow")
+      .getCount(EntityType.Workflow)
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;
       });
     this.hubService
-      .getCount("dataset")
+      .getCount(EntityType.Dataset)
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.datasetCount = count;

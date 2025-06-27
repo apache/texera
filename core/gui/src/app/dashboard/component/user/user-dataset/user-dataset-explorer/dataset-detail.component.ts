@@ -34,7 +34,7 @@ import { DownloadService } from "../../../../service/user/download/download.serv
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
-import { ActionType, HubService } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -135,14 +135,14 @@ export class DatasetDetailComponent implements OnInit {
     }
 
     this.hubService
-      .getBatchCounts(["dataset"], [this.did], [ActionType.Like])
+      .getBatchCounts([EntityType.Dataset], [this.did], [ActionType.Like])
       .pipe(untilDestroyed(this))
       .subscribe(counts => {
         this.likeCount = counts[0].counts.like ?? 0;
       });
 
     this.hubService
-      .postView(this.did, this.currentUid ? this.currentUid : 0, "dataset")
+      .postView(this.did, this.currentUid ? this.currentUid : 0, EntityType.Dataset)
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe(count => {
@@ -154,7 +154,7 @@ export class DatasetDetailComponent implements OnInit {
     }
 
     this.hubService
-      .isLiked(this.did, this.currentUid, "dataset")
+      .isLiked(this.did, this.currentUid, EntityType.Dataset)
       .pipe(untilDestroyed(this))
       .subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
@@ -446,13 +446,13 @@ export class DatasetDetailComponent implements OnInit {
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.did, userId, "dataset")
+        .postUnlike(this.did, userId, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getBatchCounts(["dataset"], [this.did!], [ActionType.Like])
+              .getBatchCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -461,13 +461,13 @@ export class DatasetDetailComponent implements OnInit {
         });
     } else {
       this.hubService
-        .postLike(this.did, userId, "dataset")
+        .postLike(this.did, userId, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getBatchCounts(["dataset"], [this.did!], [ActionType.Like])
+              .getBatchCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;

@@ -25,7 +25,12 @@ import { SearchResultItem } from "../../dashboard/type/search-result";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 
-export type EntityType = "workflow" | "dataset" | "project" | "file";
+export enum EntityType {
+  Workflow = "workflow",
+  Dataset = "dataset",
+  Project = "project",
+  File = "file",
+}
 
 export enum ActionType {
   View = "view",

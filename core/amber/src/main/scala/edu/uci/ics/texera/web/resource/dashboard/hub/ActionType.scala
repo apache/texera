@@ -19,8 +19,12 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+
 sealed trait ActionType {
+  @JsonValue
   def value: String
+  override def toString: String = value
 }
 
 object ActionType {
@@ -29,12 +33,13 @@ object ActionType {
   case object Clone extends ActionType { val value = "clone" }
   case object Unlike extends ActionType { val value = "unlike" }
 
-  val values: Seq[ActionType] = Seq(View, Like, Clone, Unlike)
+  private val values = Seq(View, Like, Clone, Unlike)
 
+  @JsonCreator
   def fromString(s: String): ActionType =
-    values.find(_.value.equalsIgnoreCase(s)).getOrElse {
-      throw new IllegalArgumentException(
-        s"Unsupported actionType '$s'; allowed = ${values.map(_.value).mkString(", ")}"
+    values
+      .find(_.value.equalsIgnoreCase(s))
+      .getOrElse(
+        throw new IllegalArgumentException(s"Unsupported actionType '$s'")
       )
-    }
 }

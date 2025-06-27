@@ -19,20 +19,26 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+
 sealed trait EntityType {
+  @JsonValue
   def value: String
+
+  override def toString: String = value
 }
 
 object EntityType {
   case object Workflow extends EntityType { val value = "workflow" }
   case object Dataset extends EntityType { val value = "dataset" }
 
-  val values: Seq[EntityType] = Seq(Workflow, Dataset)
+  private val values = Seq(Workflow, Dataset)
 
+  @JsonCreator
   def fromString(s: String): EntityType =
-    values.find(_.value.equalsIgnoreCase(s)).getOrElse {
-      throw new IllegalArgumentException(
-        s"Invalid entityType '$s'; allowed = ${values.map(_.value).mkString(", ")}"
+    values
+      .find(_.value.equalsIgnoreCase(s))
+      .getOrElse(
+        throw new IllegalArgumentException(s"Unsupported entityType '$s'")
       )
-    }
 }

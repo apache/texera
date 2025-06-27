@@ -140,13 +140,13 @@ export class SearchService {
         const entityIds: number[] = [];
         filteredResults.forEach(i => {
           if (i.workflow?.workflow?.wid != null) {
-            entityTypes.push("workflow");
+            entityTypes.push(EntityType.Workflow);
             entityIds.push(i.workflow.workflow.wid);
           } else if (i.project) {
-            entityTypes.push("project");
+            entityTypes.push(EntityType.Project);
             entityIds.push(i.project.pid);
           } else if (i.dataset?.dataset?.did != null) {
-            entityTypes.push("dataset");
+            entityTypes.push(EntityType.Dataset);
             entityIds.push(i.dataset.dataset.did);
           }
         });

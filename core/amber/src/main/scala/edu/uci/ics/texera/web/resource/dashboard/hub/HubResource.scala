@@ -61,8 +61,8 @@ object HubResource {
   case class CountRequest(entityId: Integer, entityType: EntityType)
   case class CountResponse(
       entityId: Integer,
-      entityType: String,
-      counts: java.util.Map[String, Int]
+      entityType: EntityType,
+      counts: java.util.Map[ActionType, Int]
   )
 
   final private lazy val context = SqlServer
@@ -283,8 +283,8 @@ class HubResource {
 
   @GET
   @Path("/count")
-  def getPublishedWorkflowCount(@QueryParam("entityType") entityType: String): Integer = {
-    val entityTables = BaseEntityTable(EntityType.fromString(entityType))
+  def getPublishedWorkflowCount(@QueryParam("entityType") entityType: EntityType): Integer = {
+    val entityTables = BaseEntityTable(entityType)
     val (table, isPublicColumn) = (entityTables.table, entityTables.isPublicColumn)
 
     context
@@ -300,9 +300,9 @@ class HubResource {
   def isLiked(
       @QueryParam("workflowId") entityId: Integer,
       @QueryParam("userId") userId: Integer,
-      @QueryParam("entityType") entityType: String
+      @QueryParam("entityType") entityType: EntityType
   ): Boolean = {
-    isLikedHelper(userId, entityId, EntityType.fromString(entityType))
+    isLikedHelper(userId, entityId, entityType)
   }
 
   @POST
@@ -355,28 +355,27 @@ class HubResource {
   }
 
   /**
-    * Unified endpoint to fetch the top N (here N = 8) entities of given action types (like/clone)
-    * for a specified entityType (e.g., "workflow" or "dataset") and optional user ID.
+    * Unified endpoint to fetch the top N (here N = 8) public entities for a given entity type,
+    * grouped by specified action types, with optional user context.
     *
-    * @param entityType   The type of entity ("workflow" or "dataset") to query.
-    * @param actionTypes  A list of action types to fetch tops for (supported: "like", "clone").
-    *                     Example: ?entityType=workflow&actionTypes=like&actionTypes=clone
-    * @param uid          Optional user ID for context (e.g., to mark liked/cloned by this user).
-    *                     If null or -1, no user-specific context is applied.
-    * @return             A map from each actionType to a list of DashboardClickableFileEntry,
-    *                     representing the top 8 public entities of that type.
+    * @param entityType   The EntityType enum value (Workflow or Dataset) to query.
+    * @param actionTypes  Optional list of ActionType enums to include (Like, Clone).
+    *                     If omitted or empty, defaults to [Like, Clone].
+    * @param uid          Optional user ID (Integer) for user-specific context.
+    *                     If null or -1, no per-user flags are applied.
+    * @return             A Map from each actionType.value (e.g. "like", "clone")
+    *                     to a List of DashboardClickableFileEntry containing the top 8
+    *                     public entities of that type.
     */
   @GET
   @Path("/getTops")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getTops(
-      @QueryParam("entityType") entityType: String,
-      @QueryParam("actionTypes") actionTypes: java.util.List[String],
+      @QueryParam("entityType") entityType: EntityType,
+      @QueryParam("actionTypes") actionTypes: java.util.List[ActionType],
       @QueryParam("uid") uid: Integer
   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
-    val entityTypeEnum = EntityType.fromString(entityType)
-
-    val baseTable = BaseEntityTable(entityTypeEnum)
+    val baseTable = BaseEntityTable(entityType)
     val isPublicColumn = baseTable.isPublicColumn
     val baseIdColumn = baseTable.idColumn
 
@@ -386,9 +385,7 @@ class HubResource {
 
     val types: Seq[ActionType] =
       if (actionTypes != null && !actionTypes.isEmpty)
-        actionTypes.asScala.toList
-          .map(ActionType.fromString)
-          .distinct
+        actionTypes.asScala.toList.distinct
       else
         Seq(ActionType.Like, ActionType.Clone)
 
@@ -396,10 +393,10 @@ class HubResource {
       types.map { act =>
         val (table, idColumn) = act match {
           case ActionType.Like =>
-            val lt = LikeTable(entityTypeEnum)
+            val lt = LikeTable(entityType)
             (lt.table, lt.idColumn)
           case ActionType.Clone =>
-            val ct = CloneTable(entityTypeEnum)
+            val ct = CloneTable(entityType)
             (ct.table, ct.idColumn)
           case other =>
             throw new BadRequestException(
@@ -421,19 +418,19 @@ class HubResource {
           .toSeq
 
         val entries: Seq[DashboardClickableFileEntry] =
-          if (entityTypeEnum == EntityType.Workflow) {
+          if (entityType == EntityType.Workflow) {
             fetchDashboardWorkflowsByWids(topIds, currentUid).map { w =>
               DashboardClickableFileEntry(
-                resourceType = entityTypeEnum.value,
+                resourceType = entityType.value,
                 workflow = Some(w),
                 project = None,
                 dataset = None
               )
             }
-          } else if (entityTypeEnum == EntityType.Dataset) {
+          } else if (entityType == EntityType.Dataset) {
             fetchDashboardDatasetsByDids(topIds, currentUid).map { d =>
               DashboardClickableFileEntry(
-                resourceType = entityTypeEnum.value,
+                resourceType = entityType.value,
                 workflow = None,
                 project = None,
                 dataset = Some(d)
@@ -454,34 +451,32 @@ class HubResource {
     *
     * Example requests:
     *   // All counts for two entities:
-    *   GET /hub/batch?
-    *       entityType=workflow&entityId=123&
-    *       entityType=dataset&entityId=456
+    *   // GET /hub/counts?
+    *   //     entityType=workflow&entityId=123&
+    *   //     entityType=dataset&entityId=456
     *
     *   // Only "view" and "like" counts for the same pair:
-    *   GET /hub/batch?
-    *       entityType=workflow&entityId=123&
-    *       entityType=dataset&entityId=456&
-    *       actionType=view&actionType=like
+    *   // GET /hub/counts?
+    *   //     entityType=workflow&entityId=123&
+    *   //     entityType=dataset&entityId=456&
+    *   //     actionType=view&actionType=like
     *
-    * @param entityTypes   A list of entity types, e.g. ["workflow","dataset"].
-    * @param entityIds     A parallel list of entity IDs, e.g. [123,456].
-    *                      Must have the same length as `entityTypes`.
-    * @param actionTypes   (Optional) A list of actions to fetch counts for.
-    *                      Valid values: "view", "like", "clone".
-    *                      If omitted or empty, all three counts are returned.
-    * @return              A list of CountResponse objects, one per requested (type,id) pair,
+    * @param entityTypes   List of entity types to query (enum EntityType), e.g. [Workflow, Dataset].
+    * @param entityIds     Parallel list of entity IDs, must be the same length as entityTypes.
+    * @param actionTypes   (Optional) List of action types to include (enum ActionType).
+    *                      Supported values: View, Like, Clone, Unlike. If empty or null, all actions are returned.
+    * @return              A list of CountResponse objects, one per (entityType, entityId) pair,
     *                      each containing the counts for the requested actions.
-    * @throws BadRequestException if `entityTypes` or `entityIds` are missing,
-    *         empty, or of mismatched length, or if any unsupported actionType is provided.
+    * @throws BadRequestException if entityTypes or entityIds are missing, empty, mismatched in length,
+    *         or if actionTypes contains an unsupported value.
     */
   @GET
   @Path("/counts")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getBatchCounts(
-      @QueryParam("entityType") entityTypes: java.util.List[String],
+      @QueryParam("entityType") entityTypes: java.util.List[EntityType],
       @QueryParam("entityId") entityIds: java.util.List[Integer],
-      @QueryParam("actionType") actionTypes: java.util.List[String]
+      @QueryParam("actionType") actionTypes: java.util.List[ActionType]
   ): java.util.List[CountResponse] = {
     if (
       entityTypes == null || entityIds == null || entityTypes.isEmpty || entityTypes
@@ -494,15 +489,13 @@ class HubResource {
     val reqs: List[CountRequest] = entityTypes.asScala
       .zip(entityIds.asScala)
       .map {
-        case (etype, id) => CountRequest(id, EntityType.fromString(etype))
+        case (etype, id) => CountRequest(id, etype)
       }
       .toList
 
     val requestedActions: Seq[ActionType] =
       if (actionTypes != null && !actionTypes.isEmpty)
-        actionTypes.asScala.toList
-          .map(ActionType.fromString)
-          .distinct
+        actionTypes.asScala.toList.distinct
       else
         Seq(ActionType.View, ActionType.Like, ActionType.Clone)
 
@@ -575,15 +568,15 @@ class HubResource {
 
         reqs.filter(_.entityType == etype).foreach { req =>
           val key = req.entityId.intValue()
-          val counts = scala.collection.mutable.Map[String, Int]()
+          val counts = scala.collection.mutable.Map[ActionType, Int]()
           if (requestedActions.contains(ActionType.View))
-            counts(ActionType.View.value) = viewMap.getOrElse(key, 0)
+            counts(ActionType.View) = viewMap.getOrElse(key, 0)
           if (requestedActions.contains(ActionType.Like))
-            counts(ActionType.Like.value) = likeMap.getOrElse(key, 0)
+            counts(ActionType.Like) = likeMap.getOrElse(key, 0)
           if (requestedActions.contains(ActionType.Clone))
-            counts(ActionType.Clone.value) = cloneMap.getOrElse(key, 0)
+            counts(ActionType.Clone) = cloneMap.getOrElse(key, 0)
 
-          buffer += CountResponse(req.entityId, etype.value, counts.asJava)
+          buffer += CountResponse(req.entityId, etype, counts.asJava)
         }
     }
 
