@@ -44,12 +44,10 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly type: string = this.nzModalData.type;
   readonly id: number = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
-
   readonly inWorkspace: boolean = this.nzModalData.inWorkspace;
   public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
-  public sharerName: any = this.userService.getCurrentUser()?.email;
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
   public emailTags: string[] = [];
@@ -152,8 +150,8 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
             next: () => {
               this.notificationService.success(this.type + " shared with " + email + " successfully.");
               this.gmailService.sendEmail(
-                "Texera: " + this.sharerName + " shared a " + this.type + " with you",
-                this.sharerName +
+                "Texera: " + this.userService.getCurrentUser()?.email + " shared a " + this.type + " with you",
+                this.userService.getCurrentUser()?.email +
                   " shared a " +
                   this.type +
                   " with you, access the workflow at " +
