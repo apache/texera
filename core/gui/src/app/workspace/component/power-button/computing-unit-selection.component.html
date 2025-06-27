@@ -126,7 +126,6 @@
             nz-tooltip
             [nzTooltipTitle]="'Share computing unit'"
             (click)="onClickOpenShareAccess(unit.computingUnit.cuid); $event.stopPropagation()"
-            *ngIf="this.config.env.sharingComputingUnitEnabled"
             role="button"
             aria-label="Share computing unit">
           </i>
@@ -186,7 +185,6 @@
             nz-tooltip
             [nzTooltipTitle]="'Share computing unit'"
             (click)="onClickOpenShareAccess(unit.computingUnit.cuid); $event.stopPropagation()"
-            *ngIf="this.config.env.sharingComputingUnitEnabled"
             role="button"
             aria-label="Share computing unit">
           </i>

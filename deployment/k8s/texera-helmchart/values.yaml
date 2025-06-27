@@ -225,6 +225,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_ASYNC_RENDERING_ENABLED
     value: "true"
+  - name: GUI_WORKFLOW_WORKSPACE_SHARING_COMPUTING_UNIT_ENABLED
+    value: "false"
   - name: USER_SYS_INVITE_ONLY
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
