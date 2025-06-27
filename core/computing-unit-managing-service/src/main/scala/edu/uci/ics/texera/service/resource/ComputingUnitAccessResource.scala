@@ -1,0 +1,176 @@
+package edu.uci.ics.texera.service.resource
+
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, context}
+import edu.uci.ics.texera.service.util.KubernetesClient
+import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
+import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetricsHelper, getComputingUnitStatus}
+
+import scala.jdk.CollectionConverters._
+import io.dropwizard.auth.Auth
+import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs.{GET, PUT, Path, PathParam, Produces}
+import org.jooq.{DSLContext, EnumType}
+
+object ComputingUnitAccessResource {
+  private lazy val context: DSLContext = SqlServer
+    .getInstance()
+    .createDSLContext()
+
+  /**
+    * Identifies whether the given user has read-only access over the given computing unit
+    *
+    * @param cuid computing unit id
+    * @param uid user id
+    * @return boolean value indicating yes/no
+    */
+  def hasReadAccess(cuid: Integer, uid: Integer): Boolean = {
+    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(cuid, uid)
+  }
+
+  /**
+    * Identifies whether the given user has write access over the given computing unit
+    *
+    * @param cuid computing unit id
+    * @param uid user id
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(cuid: Integer, uid: Integer): Boolean = {
+    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.WRITE)
+  }
+
+  /**
+    * Identifies whether the given user is the owner of the given computing unit
+    *
+    * @param cuid computing unit id
+    * @param uid user id
+    * @return boolean value indicating yes/no
+    */
+  def isOwner(cuid: Integer, uid: Integer): Boolean = {
+    val workflowComputingUnitDao = new WorkflowComputingUnitDao(context.configuration())
+    val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
+    unit != null && unit.getUid.equals(uid)
+  }
+
+
+  private def getPrivilege(cuid: Integer, uid: Integer): PrivilegeEnum = {
+    val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(context.configuration())
+    val accessList = computingUnitUserAccessDao
+      .fetchByUid(uid)
+      .asScala
+      .find(_.getCuid.equals(cuid))
+
+    accessList match {
+      case Some(access) => access.getPrivilege
+      case None => null
+    }
+  }
+
+  case class AccessEntry(email: String, name: String, privilege: EnumType) {}
+
+}
+
+@Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
+@Path("/computing-unit/access")
+class ComputingUnitAccessResource {
+  final private val userDao = new UserDao(context.configuration())
+
+  /**
+   * This endpoint only returns computing units that the user has access to (but is not the owner).
+   */
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/list/shared")
+  def getSharedComputingUnits(
+      @Auth user: SessionUser
+  ): List[DashboardWorkflowComputingUnit] = {
+    withTransaction(context) { ctx =>
+      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
+      val cuids = computingUnitUserAccessDao
+        .fetchByUid(user.getUid)
+        .asScala
+        .map(_.getCuid)
+
+      val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
+      val units = cuids.flatMap { cuid =>
+        Option(computingUnitDao.fetchOneByCuid(cuid))
+      }.filter(_.getTerminateTime == null) // only include non-terminated
+        .filter(unit =>
+          unit.getType match {
+            case WorkflowComputingUnitTypeEnum.kubernetes =>
+              KubernetesClient.podExists(unit.getCuid)
+            case _ =>
+              true // keep local and other types
+          }
+        )
+
+      units.map { unit =>
+        DashboardWorkflowComputingUnit(
+          computingUnit = unit,
+          status = getComputingUnitStatus(unit).toString,
+          metrics = getComputingUnitMetricsHelper(unit)
+        )
+      }.toList
+    }
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/list/{cuid}")
+  def getComputingUnitAccessList(
+      @Auth user: SessionUser,
+      @PathParam("cuid") cuid: Integer
+  ): List[AccessEntry] = {
+    withTransaction(context) { ctx =>
+      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
+      computingUnitUserAccessDao
+        .fetchByCuid(cuid)
+        .asScala
+        .map(access => {
+          val user = userDao.fetchOneByUid(access.getUid)
+          AccessEntry(
+            email = user.getEmail,
+            name = user.getName,
+            privilege = access.getPrivilege
+          )
+        })
+        .toList
+    }
+  }
+
+  @PUT
+  @Path("/grant/{cuid}/{email}/{privilege}")
+  def grantAccess(
+      @Auth user: SessionUser,
+      @PathParam("cuid") cuid: Integer,
+      @PathParam("email") email: String,
+      @PathParam("privilege") privilege: PrivilegeEnum
+  ): Unit = {
+    if (!isOwner(cuid, user.getUid)) {
+      throw new IllegalArgumentException("User does not have permission to grant access")
+    }
+
+    
+    // TODO: add try except here
+    val granteeId = userDao.fetchOneByEmail(email).getUid
+    if (granteeId == null) {
+      throw new IllegalArgumentException("User with the given email does not exist")
+    }
+
+    withTransaction(context) { ctx =>
+      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
+      val access = new ComputingUnitUserAccess
+      access.setCuid(cuid)
+      access.setUid(granteeId)
+      access.setPrivilege(privilege)
+      computingUnitUserAccessDao.insert(access)
+    }
+  }
+}

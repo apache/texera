@@ -166,11 +166,21 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * List all active computing units.
-   * @returns An Observable of a list of WorkflowComputingUnit.
+   * @returns An Observable of a list of DashboardWorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.http
       .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_LIST_URL}`)
+      .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
+  }
+
+  /**
+   * List all shared computing units.
+   * @returns An Observable of a list of DashboardWorkflowComputingUnit.
+   */
+  public listAllSharedComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return this.http
+      .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/access/list/shared`)
       .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
   }
 

@@ -93,6 +93,8 @@ DROP TABLE IF EXISTS workflow_user_activity CASCADE;
 DROP TABLE IF EXISTS user_activity CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
+DROP TABLE IF EXISTS site_settings CASCADE;
+DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 
 -- ============================================
 -- 4. Create PostgreSQL enum types
@@ -223,7 +225,7 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
-    );
+);
 
 -- workflow_executions
 CREATE TABLE IF NOT EXISTS workflow_executions
@@ -245,7 +247,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (vid) REFERENCES workflow_version(vid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE,
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE
-    );
+);
 
 -- public_project
 CREATE TABLE IF NOT EXISTS public_project
@@ -372,62 +374,82 @@ CREATE TABLE IF NOT EXISTS dataset_view_count
     FOREIGN KEY (did) REFERENCES dataset(did) ON DELETE CASCADE
     );
 
+-- site_settings table
+CREATE TABLE IF NOT EXISTS site_settings
+(
+    key         VARCHAR(255) PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_by  VARCHAR(50),
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+-- computing_unit_user_access table
+CREATE TABLE IF NOT EXISTS computing_unit_user_access
+(
+    cuid      INT NOT NULL,
+    uid       INT NOT NULL,
+    privilege privilege_enum NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY (cuid, uid),
+    FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
+);
+
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 
 DO $$
 DECLARE
-r RECORD;
+  r RECORD;
   stem_filter TEXT := '';
   plugin_status TEXT;
 BEGIN
   -- Drop all GIN and PGroonga indexes
-FOR r IN
-SELECT indexname FROM pg_indexes
-WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
-  AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version')
-    LOOP
+  FOR r IN
+    SELECT indexname FROM pg_indexes
+    WHERE (indexdef ILIKE '%USING gin%' OR indexdef ILIKE '%USING pgroonga%')
+    AND tablename IN ('workflow', 'user', 'project', 'dataset', 'dataset_version')
+  LOOP
     EXECUTE format('DROP INDEX IF EXISTS %I;', r.indexname);
-END LOOP;
+  END LOOP;
 
   -- Check if TokenFilterStem plugin is registered
-WITH plugin_registration AS (
+  WITH plugin_registration AS (
     SELECT pgroonga_command('plugin_register token_filters/stem') AS result
-)
-SELECT
+  )
+  SELECT
     CASE
-        WHEN result::jsonb @> '[true]' THEN 'Plugin registered successfully'
-        ELSE 'Plugin registration failed'
-        END INTO plugin_status
-FROM plugin_registration;
+      WHEN result::jsonb @> '[true]' THEN 'Plugin registered successfully'
+      ELSE 'Plugin registration failed'
+    END INTO plugin_status
+  FROM plugin_registration;
 
--- Set the stem_filter based on plugin status
-IF plugin_status = 'Plugin registered successfully' THEN
+  -- Set the stem_filter based on plugin status
+  IF plugin_status = 'Plugin registered successfully' THEN
     stem_filter := ', plugins=''token_filters/stem'', token_filters=''TokenFilterStem''';
     RAISE NOTICE 'Using TokenMecab + TokenFilterStem';
-ELSE
+  ELSE
     RAISE NOTICE 'Using TokenMecab only';
-END IF;
+  END IF;
 
   -- Create PGroonga indexes dynamically with correct TokenFilterStem usage
-FOR r IN
-SELECT tablename,
-       CASE
-           WHEN tablename = 'workflow' THEN
+  FOR r IN
+    SELECT tablename,
+           CASE
+             WHEN tablename = 'workflow' THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, '''') || '' '' || COALESCE(content, ''''))'
-           WHEN tablename IN ('project', 'dataset') THEN
+             WHEN tablename IN ('project', 'dataset') THEN
                '(COALESCE(name, '''') || '' '' || COALESCE(description, ''''))'
-           ELSE
+             ELSE
                'COALESCE(name, '''')'
            END AS index_column
-FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version')) AS t(tablename)
-    LOOP
+    FROM (VALUES ('workflow'), ('user'), ('project'), ('dataset'), ('dataset_version')) AS t(tablename)
+  LOOP
     -- Create PGroonga index with proper TokenFilterStem usage
     EXECUTE format(
       'CREATE INDEX idx_%s_pgroonga ON %I USING pgroonga (%s) WITH (tokenizer = ''TokenMecab''%s);',
       r.tablename, r.tablename, r.index_column, stem_filter
     );
-END LOOP;
+  END LOOP;
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)

@@ -30,7 +30,15 @@ export class ShareAccessService {
   constructor(private http: HttpClient) {}
 
   public grantAccess(type: string, id: number, email: string, privilege: string): Observable<void> {
-    return this.http.put<void>(`${BASE}/${type}/grant/${id}/${email}/${privilege}`, null);
+    // TODO: find better way to handle computing unit access url difference
+    let url = ""
+    if (type === "computing-unit") {
+      url = `${AppSettings.getApiEndpoint()}/computing-unit/access/grant/${id}/${email}/${privilege}`
+    } else {
+      url = `${BASE}/${type}/grant/${id}/${email}/${privilege}`;
+    }
+
+    return this.http.put<void>(url, null);
   }
 
   public revokeAccess(type: string, id: number, username: string): Observable<void> {
@@ -42,6 +50,14 @@ export class ShareAccessService {
   }
 
   public getAccessList(type: string, id: number | undefined): Observable<ReadonlyArray<ShareAccess>> {
-    return this.http.get<ReadonlyArray<ShareAccess>>(`${BASE}/${type}/list/${id}`);
+    // TODO: find better way to handle computing unit access url difference
+    let url = ""
+    if (type === "computing-unit") {
+      url = `${AppSettings.getApiEndpoint()}/computing-unit/access/list/${id}`
+    } else {
+      url = `${BASE}/${type}/list/${id}`;
+    }
+
+    return this.http.get<ReadonlyArray<ShareAccess>>(url);
   }
 }

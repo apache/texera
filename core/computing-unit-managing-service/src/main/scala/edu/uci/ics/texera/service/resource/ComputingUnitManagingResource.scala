@@ -28,14 +28,10 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import KubernetesConfig.{
-  cpuLimitOptions,
-  gpuLimitOptions,
-  maxNumOfRunningComputingUnitsPerUser,
-  memoryLimitOptions
-}
+import KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
+import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetricsHelper, getComputingUnitStatus}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import io.dropwizard.auth.Auth
 import io.fabric8.kubernetes.api.model.Quantity
@@ -151,41 +147,6 @@ class ComputingUnitManagingResource {
       case "local"      => ComputingUnitConfig.localComputingUnitEnabled
       case "kubernetes" => KubernetesConfig.kubernetesComputingUnitEnabled
       case _            => false // Any unknown types are disabled by default
-    }
-  }
-
-  private def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
-    unit.getType match {
-      // ── Local CUs are always “running” ──────────────────────────────
-      case WorkflowComputingUnitTypeEnum.local =>
-        Running
-
-      // ── Kubernetes CUs – only explicit “Running” counts as running ─
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val phaseOpt = KubernetesClient
-          .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
-          .map(_.getStatus.getPhase)
-
-        if (phaseOpt.contains("Running")) Running else Pending
-
-      // ── Any other (unknown) type is treated as pending ──────────────
-      case _ =>
-        Pending
-    }
-  }
-
-  private def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
-    unit.getType match {
-      case WorkflowComputingUnitTypeEnum.local =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
-      case WorkflowComputingUnitTypeEnum.kubernetes =>
-        val metrics = KubernetesClient.getPodMetrics(unit.getCuid)
-        WorkflowComputingUnitMetrics(
-          metrics.getOrElse("cpu", ""),
-          metrics.getOrElse("memory", "")
-        )
-      case _ =>
-        WorkflowComputingUnitMetrics("NaN", "NaN")
     }
   }
 
@@ -419,7 +380,7 @@ class ComputingUnitManagingResource {
       DashboardWorkflowComputingUnit(
         insertedUnit,
         getComputingUnitStatus(insertedUnit).toString,
-        getComputingUnitMetrics(insertedUnit)
+        getComputingUnitMetricsHelper(insertedUnit)
       )
     }
   }
@@ -458,7 +419,7 @@ class ComputingUnitManagingResource {
         DashboardWorkflowComputingUnit(
           computingUnit = unit,
           status = getComputingUnitStatus(unit).toString,
-          metrics = getComputingUnitMetrics(unit)
+          metrics = getComputingUnitMetricsHelper(unit)
         )
       }.toList
     }
@@ -487,7 +448,7 @@ class ComputingUnitManagingResource {
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
       status = getComputingUnitStatus(unit).toString,
-      metrics = getComputingUnitMetrics(unit)
+      metrics = getComputingUnitMetricsHelper(unit)
     )
   }
 
@@ -546,7 +507,7 @@ class ComputingUnitManagingResource {
       throw new BadRequestException("User has no access to the computing unit")
     }
     val computingUnit = getComputingUnitByCuid(context, cuid.toInt)
-    getComputingUnitMetrics(computingUnit)
+    getComputingUnitMetricsHelper(computingUnit)
   }
 
   @GET
