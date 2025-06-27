@@ -313,6 +313,9 @@ ingressPaths:
     - path: /api/access/dataset
       serviceName: file-service-svc
       servicePort: 9092
+    - path: /api/access/computing-unit
+      serviceName: workflow-computing-unit-manager-svc
+      servicePort: 8888
     - path: /api/config
       serviceName: config-service-svc
       servicePort: 9094

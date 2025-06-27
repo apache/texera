@@ -10,12 +10,13 @@ import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{Dashbo
 import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
 import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetricsHelper, getComputingUnitStatus}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 
 import scala.jdk.CollectionConverters._
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.{MediaType, Response}
-import jakarta.ws.rs.{GET, PUT, Path, PathParam, Produces}
+import jakarta.ws.rs.{GET, PUT, Path, PathParam, Produces, DELETE}
 import org.jooq.{DSLContext, EnumType}
 
 object ComputingUnitAccessResource {
@@ -78,7 +79,7 @@ object ComputingUnitAccessResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/computing-unit/access")
+@Path("/access")
 class ComputingUnitAccessResource {
   final private val userDao = new UserDao(context.configuration())
 
@@ -87,7 +88,7 @@ class ComputingUnitAccessResource {
    */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/list/shared")
+  @Path("/computing-unit/list/shared")
   def getSharedComputingUnits(
       @Auth user: SessionUser
   ): List[DashboardWorkflowComputingUnit] = {
@@ -123,7 +124,7 @@ class ComputingUnitAccessResource {
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/list/{cuid}")
+  @Path("/computing-unit/list/{cuid}")
   def getComputingUnitAccessList(
       @Auth user: SessionUser,
       @PathParam("cuid") cuid: Integer
@@ -146,7 +147,7 @@ class ComputingUnitAccessResource {
   }
 
   @PUT
-  @Path("/grant/{cuid}/{email}/{privilege}")
+  @Path("/computing-unit/grant/{cuid}/{email}/{privilege}")
   def grantAccess(
       @Auth user: SessionUser,
       @PathParam("cuid") cuid: Integer,
@@ -157,8 +158,7 @@ class ComputingUnitAccessResource {
       throw new IllegalArgumentException("User does not have permission to grant access")
     }
 
-    
-    // TODO: add try except here
+    // TODO: add try except and check how to display error message in the frontend
     val granteeId = userDao.fetchOneByEmail(email).getUid
     if (granteeId == null) {
       throw new IllegalArgumentException("User with the given email does not exist")
@@ -171,6 +171,30 @@ class ComputingUnitAccessResource {
       access.setUid(granteeId)
       access.setPrivilege(privilege)
       computingUnitUserAccessDao.insert(access)
+    }
+  }
+
+  @DELETE
+  @Path("/computing-unit/revoke/{cuid}/{email}")
+  def revokeAccess(
+      @Auth user: SessionUser,
+      @PathParam("cuid") cuid: Integer,
+      @PathParam("email") email: String
+  ): Unit = {
+    if (!hasWriteAccess(cuid, user.getUid)) {
+      throw new IllegalArgumentException("User does not have permission to revoke access")
+    }
+
+    val granteeId = userDao.fetchOneByEmail(email).getUid
+    if (granteeId == null) {
+      throw new IllegalArgumentException("User with the given email does not exist")
+    }
+
+    withTransaction(context) { ctx =>
+      ctx.delete(COMPUTING_UNIT_USER_ACCESS)
+        .where(COMPUTING_UNIT_USER_ACCESS.CUID.eq(cuid))
+        .and(COMPUTING_UNIT_USER_ACCESS.UID.eq(granteeId))
+        .execute()
     }
   }
 }

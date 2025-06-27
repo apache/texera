@@ -33,6 +33,7 @@ import { WorkflowExecutionsService } from "../../../dashboard/service/user/workf
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
+import { combineLatest } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -46,7 +47,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
-  computingUnits: DashboardWorkflowComputingUnit[] = [];
+  ownComputingUnits: DashboardWorkflowComputingUnit[] = [];
   sharedComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
   // variables for creating a computing unit
@@ -144,20 +145,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.selectedComputingUnit = unit;
       });
 
-    // Subscribe to all available units from the status service
-    this.computingUnitStatusService
-      .getOwnComputingUnits()
+    combineLatest([
+      this.computingUnitStatusService.getOwnComputingUnits(),
+      this.computingUnitStatusService.getSharedComputingUnits(),
+    ])
       .pipe(untilDestroyed(this))
-      .subscribe(units => {
-        this.computingUnits = units;
-      });
-
-    // Subscribe to shared computing units
-    this.computingUnitStatusService
-      .getSharedComputingUnits()
-      .pipe(untilDestroyed(this))
-      .subscribe(units => {
-        this.sharedComputingUnits = units;
+      .subscribe(([ownedUnits, sharedUnits]) => {
+        this.ownComputingUnits = ownedUnits;
+        this.sharedComputingUnits = sharedUnits;
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -212,7 +207,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
                 },
                 error: (err: unknown) => {
                   // fallback: select the first available Running unit if any
-                  const runningUnit = this.computingUnits.find(unit => unit.status === "Running");
+                  const allUnits = [...this.ownComputingUnits, ...this.sharedComputingUnits];
+                  const runningUnit = allUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
                   }
@@ -360,7 +356,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * @param cuid The CUID of the unit to terminate.
    */
   terminateComputingUnit(cuid: number): void {
-    const unit = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid);
+    const allUnits = [...this.ownComputingUnits, ...this.sharedComputingUnits];
+    const unit = allUnits.find(u => u.computingUnit.cuid === cuid);
 
     if (!unit || !unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");

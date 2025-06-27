@@ -94,7 +94,7 @@
       class="computing-units-dropdown">
       <li
         nz-menu-item
-        *ngFor="let unit of computingUnits; trackBy: trackByCuid"
+        *ngFor="let unit of ownComputingUnits; trackBy: trackByCuid"
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
@@ -141,6 +141,17 @@
           </i>
         </div>
       </li>
+
+      <li
+        *ngIf="sharedComputingUnits.length > 0"
+        nz-menu-divider></li>
+      <li
+        *ngIf="sharedComputingUnits.length > 0"
+        nz-menu-item
+        [nzDisabled]="true">
+        <span>Shared with you</span>
+      </li>
+
       <li
         nz-menu-item
         *ngFor="let unit of sharedComputingUnits; trackBy: trackByCuid"
@@ -190,7 +201,7 @@
         </div>
       </li>
       <li
-        *ngIf="computingUnits.length > 0"
+        *ngIf="ownComputingUnits.length > 0"
         nz-menu-divider></li>
       <li
         nz-menu-item

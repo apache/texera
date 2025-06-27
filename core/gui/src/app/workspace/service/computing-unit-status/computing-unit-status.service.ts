@@ -74,7 +74,6 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Initialize the service with available computing units
   private initializeService(): void {
-    // Initial load of computing units
     forkJoin({
       owned: this.computingUnitService.listComputingUnits(),
       shared: this.computingUnitService.listAllSharedComputingUnits(),

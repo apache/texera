@@ -180,7 +180,7 @@ export class WorkflowComputingUnitManagingService {
    */
   public listAllSharedComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.http
-      .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/access/list/shared`)
+      .get<DashboardWorkflowComputingUnit[]>(`${AppSettings.getApiEndpoint()}/access/${COMPUTING_UNIT_BASE_URL}/list/shared`)
       .pipe(map(arr => arr.map(unit => this.parseDashboardUnit(unit))));
   }
 
