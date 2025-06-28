@@ -19,4 +19,4 @@
 
 package edu.uci.ics.amber.engine.common.ambermessage
 
-trait ControlPayload extends WorkflowFIFOMessagePayload
+trait DirectControlMessagePayload extends WorkflowFIFOMessagePayload

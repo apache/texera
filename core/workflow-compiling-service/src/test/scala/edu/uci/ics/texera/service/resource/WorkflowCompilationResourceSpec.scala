@@ -39,6 +39,7 @@ import edu.uci.ics.amber.operator.filter.{
   SpecializedFilterOpDesc
 }
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
+import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer
 
 class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
@@ -203,9 +204,11 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     // verify the schema is correctly propagated for the final limit operator
     val compilationResult = assertSuccessfulCompilation(response)
     val finalLimitInputSchema =
-      compilationResult.operatorInputSchemas.get(limitOpDesc2.operatorIdentifier.id)
+      compilationResult.operatorOutputSchemas(filterOpDesc2.operatorIdentifier.id)
     assert(
-      finalLimitInputSchema.get.head.get.equals(
+      finalLimitInputSchema(
+        PortIdentityKeySerializer.portIdToString(PortIdentity(id = 0, internal = false))
+      ).get.equals(
         List(
           new Attribute("Region", AttributeType.STRING),
           new Attribute("Total Profit", AttributeType.DOUBLE)

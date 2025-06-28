@@ -35,7 +35,10 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
@@ -135,12 +138,12 @@ class Controller(
       cp.inputGateway.tryPickChannel match {
         case Some(channel) =>
           val msg = channel.take
-          val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
+          val msgToLog = Some(msg).filter(_.payload.isInstanceOf[DirectControlMessagePayload])
           logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: ControlPayload   => cp.processControlPayload(msg.channelId, payload)
-              case _: EmbeddedControlMessage => // skip ECM
-              case p                         => throw new RuntimeException(s"controller cannot handle $p")
+              case payload: DirectControlMessagePayload => cp.processDCM(msg.channelId, payload)
+              case _: EmbeddedControlMessage            => // skip ECM
+              case p                                    => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>
