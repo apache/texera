@@ -93,7 +93,7 @@ class TexeraWebApplication
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
-    OperatorMetadataGenerator.warmupObjectMapper()
+    OperatorMetadataGenerator.warmupObjectMapperForOperatorsSerde()
 
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")

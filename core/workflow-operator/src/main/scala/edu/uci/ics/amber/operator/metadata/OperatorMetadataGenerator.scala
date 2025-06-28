@@ -157,16 +157,19 @@ object OperatorMetadataGenerator {
   }
 
   /**
-   * Start a thread to warm up the objectMapper with logical operator classes.
-   * This call will let object mapper to load all logical operator's classes.
-   * It prevents the delay of serialization & deserialization in other application logics.
-   * */
-  def warmupObjectMapper(): Unit = {
-    val thread = new Thread(new Runnable {
-      override def run(): Unit = {
-        OperatorMetadataGenerator.generateAllOperatorMetadata()
-      }
-    }, "WarmUpObjectMapperThread")
+    * Explicitly start a thread to let the objectMapper load all logical operator classes for serde/deserde.
+    *
+    * This call prevents the initial delay of serialization & deserialization in other application logics.
+    */
+  def warmupObjectMapperForOperatorsSerde(): Unit = {
+    val thread = new Thread(
+      new Runnable {
+        override def run(): Unit = {
+          OperatorMetadataGenerator.generateAllOperatorMetadata()
+        }
+      },
+      "ObjectMapperWarmupForOperatorsThread"
+    )
     thread.start()
   }
 }
