@@ -156,4 +156,17 @@ object OperatorMetadataGenerator {
     )
   }
 
+  /**
+   * Start a thread to warm up the objectMapper with logical operator classes.
+   * This call will let object mapper to load all logical operator's classes.
+   * It prevents the delay of serialization & deserialization in other application logics.
+   * */
+  def warmupObjectMapper(): Unit = {
+    val thread = new Thread(new Runnable {
+      override def run(): Unit = {
+        OperatorMetadataGenerator.generateAllOperatorMetadata()
+      }
+    }, "WarmUpObjectMapperThread")
+    thread.start()
+  }
 }

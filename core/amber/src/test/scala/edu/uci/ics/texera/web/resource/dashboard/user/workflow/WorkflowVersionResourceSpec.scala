@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.Tables
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}

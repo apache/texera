@@ -19,32 +19,14 @@
 
 package edu.uci.ics.amber.engine.common
 
-import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver
-import com.fasterxml.jackson.databind.jsontype.NamedType
-import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.operator.LogicalOp
 
 import java.nio.file.{Files, Path, Paths}
-import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
-import edu.uci.ics.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
-import edu.uci.ics.amber.core.workflow.WorkflowContext
-import scala.jdk.CollectionConverters._
 
 object Utils extends LazyLogging {
-
-  final val objectMapper = new ObjectMapper()
-    .registerModule(DefaultScalaModule)
-    .registerModule(new NoCtorDeserModule())
-    .setSerializationInclusion(Include.NON_NULL)
-    .setSerializationInclusion(Include.NON_ABSENT)
-    .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
 
   /**
     * Gets the real path of the amber home directory by:
@@ -171,64 +153,5 @@ object Utils extends LazyLogging {
     } finally {
       lock.unlock()
     }
-  }
-
-  /**
-    * Construct a dummy WorkflowExecuteRequest containing one instance of every concrete LogicalOp that has a public no-arg constructor,
-    * serialise it to JSON, then immediately parse it back.
-    *
-    * By calling this method at the staring stage of the server, we can elimnate 1st-time deserialization cost of WorkflowExecuteRequest.
-    */
-  def warmUpObjectMapperWithDeserializingWorkflowExecuteRequest(): Unit = {
-    // collect all subclasses of LogicalOp
-    val logicalOperatorTypes = objectMapper.getSubtypeResolver.collectAndResolveSubtypesByClass(
-      objectMapper.getDeserializationConfig,
-      AnnotatedClassResolver.resolveWithoutSuperTypes(
-        objectMapper.getDeserializationConfig,
-        classOf[LogicalOp]
-      )
-    )
-    val logicalOperatorInstances: List[LogicalOp] =
-      new java.util.ArrayList[NamedType](logicalOperatorTypes).asScala
-        .map(_.getType)
-        .collect {
-          case c: Class[_] if classOf[LogicalOp].isAssignableFrom(c) =>
-            c.asInstanceOf[Class[_ <: LogicalOp]]
-        }
-        .flatMap { opClass =>
-          try {
-            val noArgumentConstructor = opClass.getDeclaredConstructor()
-            Some(noArgumentConstructor.newInstance())
-          } catch {
-            case _: Throwable => None // skip classes that fail during the instantiation
-          }
-        }
-        .toList
-
-    if (logicalOperatorInstances.isEmpty) {
-      logger.warn(
-        "Warm up the object mapper for deserializing WorkflowExecuteRequest: no LogicalOp instances could be instantiated"
-      )
-      return
-    }
-
-    val dummyPlan = LogicalPlanPojo(logicalOperatorInstances, List.empty, List.empty, List.empty)
-    val dummyRequest = WorkflowExecuteRequest(
-      executionName = "warmup",
-      engineVersion = "0",
-      logicalPlan = dummyPlan,
-      replayFromExecution = None,
-      workflowSettings = WorkflowContext.DEFAULT_WORKFLOW_SETTINGS,
-      emailNotificationEnabled = false,
-      computingUnitId = 0
-    )
-
-    val dummyRequestStr = objectMapper.writeValueAsString(dummyRequest)
-    val t = System.currentTimeMillis()
-    objectMapper.readValue(dummyRequestStr, classOf[WorkflowExecuteRequest])
-    val durationMs = System.currentTimeMillis() - t
-    logger.info(
-      s"Warm up the object mapper for deserializing WorkflowExecuteRequest in ${durationMs} ms with ${logicalOperatorInstances.size} operators"
-    )
   }
 }
