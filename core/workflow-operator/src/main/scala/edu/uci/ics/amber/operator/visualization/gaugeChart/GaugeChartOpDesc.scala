@@ -26,6 +26,7 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import play.api.libs.json._
 
 class GaugeChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
@@ -66,25 +67,10 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    val stepsStr = {
-      if (steps != null && steps.nonEmpty) {
-        val builder = new StringBuilder
-        builder.append("[")
-        val it = steps.iterator
-        while (it.hasNext) {
-          val step = it.next()
-          builder.append(s"""{"start": "${step.start}", "end": "${step.end}"}""")
-          if (it.hasNext) builder.append(", ")
-        }
-        builder.append("]")
-        builder.toString()
-      } else {
-        "[]"
-      }
-    }
+    import GaugeChartOpDesc._
+    val stepsStr: String = Json.stringify(Json.toJson(steps))
 
-    val finalCode =
-      s"""
+    s"""
          |from pytexera import *
          |import plotly.graph_objects as go
          |import plotly.io as pio
@@ -103,24 +89,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |            colors.append(f"hsl(0, 0%, {lightness}%)")
          |        return colors
          |
-         |    def validate_steps(self, steps_data):
-         |        valid_steps = []
-         |        self.step_errors = []
-         |        for index, step in enumerate(steps_data):
-         |            start = step.get('start', '')
-         |            end = step.get('end', '')
-         |            if start and end:
-         |                try:
-         |                    s_val = float(start)
-         |                    e_val = float(end)
-         |                    if s_val < e_val:
-         |                        valid_steps.append({"start": s_val, "end": e_val})
-         |                    else:
-         |                        self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
-         |                except Exception:
-         |                    self.step_errors.append(f"Step {index + 1}: Invalid values: start='{start}', end='{end}'")
-         |        return valid_steps
-         |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        if table.empty:
@@ -138,18 +106,13 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |            except ValueError:
          |                threshold_val = None
          |
-         |            if gauge_value not in table.columns:
-         |                yield {'html-content': self.render_error(f"Column '{gauge_value}' not found.")}
-         |                return
-         |
          |            table = table.dropna(subset=[gauge_value])
          |            if table.empty:
          |                yield {'html-content': self.render_error("No non-null rows found for the value column.")}
          |                return
          |
          |            try:
-         |                steps_data = $stepsStr
-         |                valid_steps = self.validate_steps(steps_data)
+         |                valid_steps = json.loads('''$stepsStr''')
          |                step_colors = self.generate_gray_gradient(len(valid_steps))
          |                steps_list = []
          |                for index, step_data in enumerate(valid_steps):
@@ -215,8 +178,17 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |        except Exception as e:
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".stripMargin
-
-    finalCode
   }
 
+}
+
+object GaugeChartOpDesc {
+  implicit val gaugeChartStepsWrites: Writes[GaugeChartSteps] = (step: GaugeChartSteps) =>
+    Json.obj(
+      "start" -> step.start.toDouble,
+      "end" -> step.end.toDouble
+    )
+
+  implicit val gaugeChartStepsListWrites: Writes[List[GaugeChartSteps]] =
+    Writes.list(gaugeChartStepsWrites)
 }
