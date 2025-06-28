@@ -33,6 +33,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.operator.udf.python.PythonUDFOpDescV2
+import edu.uci.ics.amber.operator.udf.r.RUDFSourceOpDesc
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
@@ -42,6 +44,7 @@ import edu.uci.ics.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebso
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.util.JacksonPrewarm
+import edu.uci.ics.texera.workflow.LogicalLink
 import io.dropwizard.Configuration
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -117,8 +120,56 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
-    // Warm up Jackson serializers / deserializers for frequently used polymorphic hierarchies
-    JacksonPrewarm.prewarm()
+//    // Warm up Jackson serializers / deserializers for frequently used polymorphic hierarchies
+//    JacksonPrewarm.prewarm()
+    // Build a representative dummy WorkflowExecuteRequest and parse it once to fully warm polymorphic codecs.
+    try {
+      import edu.uci.ics.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
+      import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
+      import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
+      import edu.uci.ics.amber.operator.projection.ProjectionOpDesc
+      import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
+      import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
+      import edu.uci.ics.amber.operator.sort.SortOpDesc
+      import edu.uci.ics.amber.operator.limit.LimitOpDesc
+      import edu.uci.ics.amber.operator.union.UnionOpDesc
+      import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+      import edu.uci.ics.amber.operator.source.scan.text.TextInputSourceOpDesc
+
+      val chosenOps: List[edu.uci.ics.amber.operator.LogicalOp] = List(
+        new CSVScanSourceOpDesc(),
+        new TextInputSourceOpDesc(),
+        new ProjectionOpDesc(),
+        new SpecializedFilterOpDesc(),
+        new AggregateOpDesc(),
+        new HashJoinOpDesc[String](),
+        new DistinctOpDesc(),
+        new SortOpDesc(),
+        new LimitOpDesc(),
+        new UnionOpDesc(),
+        new PythonUDFOpDescV2(),
+        new RUDFSourceOpDesc(),
+      )
+
+      val dummyPlan = LogicalPlanPojo(chosenOps, List.empty[LogicalLink], Nil, Nil)
+      val warmReq = WorkflowExecuteRequest(
+        executionName = "warmup",
+        engineVersion = "0",
+        logicalPlan = dummyPlan,
+        replayFromExecution = None,
+        workflowSettings = WorkflowContext.DEFAULT_WORKFLOW_SETTINGS,
+        emailNotificationEnabled = false,
+        computingUnitId = 0
+      )
+
+      val json = objectMapper.writeValueAsString(warmReq)
+      val tParseStart = System.nanoTime()
+      objectMapper.readValue(json, classOf[WorkflowExecuteRequest])
+      val elapsedMs = (System.nanoTime() - tParseStart) / 1e6
+      logger.info(s"ObjectMapper warm-up with WorkflowExecuteRequest parsed in ${elapsedMs} ms")
+    } catch {
+      case t: Throwable => logger.warn("Warm-up WorkflowExecuteRequest failed", t)
+    }
 
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
