@@ -25,7 +25,7 @@ import { WorkflowActionService } from "../../../../workspace/service/workflow-gr
 import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubService } from "../../../service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../service/hub.service";
 import { Role, User } from "src/app/common/type/user";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -83,21 +83,15 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       return;
     }
 
-    // getting the workflow information
     this.hubService
-      .getLikeCount(this.wid, "workflow")
+      .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like, ActionType.Clone])
       .pipe(untilDestroyed(this))
-      .subscribe(count => {
-        this.likeCount = count;
+      .subscribe(counts => {
+        this.likeCount = counts[0].counts.like ?? 0;
+        this.cloneCount = counts[0].counts.clone ?? 0;
       });
     this.hubService
-      .getCloneCount(this.wid, "workflow")
-      .pipe(untilDestroyed(this))
-      .subscribe(count => {
-        this.cloneCount = count;
-      });
-    this.hubService
-      .postView(this.wid, this.currentUser?.uid ?? 0, "workflow")
+      .postView(this.wid, this.currentUser?.uid ?? 0, EntityType.Workflow)
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe(count => {
@@ -127,7 +121,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       return;
     }
     this.hubService
-      .isLiked(this.wid, this.currentUser.uid, "workflow")
+      .isLiked(this.wid, this.currentUser.uid, EntityType.Workflow)
       .pipe(untilDestroyed(this))
       .subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
@@ -212,7 +206,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.wid, userId, "workflow")
+        .postUnlike(this.wid, userId, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -221,16 +215,16 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getLikeCount(this.wid, "workflow")
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
-              .subscribe((count: number) => {
-                this.likeCount = count;
+              .subscribe(counts => {
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });
     } else {
       this.hubService
-        .postLike(this.wid, userId, "workflow")
+        .postLike(this.wid, userId, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -239,10 +233,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getLikeCount(this.wid, "workflow")
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
-              .subscribe((count: number) => {
-                this.likeCount = count;
+              .subscribe(counts => {
+                this.likeCount = counts[0].counts.like ?? 0;
               });
           }
         });

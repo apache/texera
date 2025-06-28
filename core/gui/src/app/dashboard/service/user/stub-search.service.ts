@@ -18,11 +18,12 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable, of } from "rxjs";
+import { firstValueFrom, Observable, of } from "rxjs";
 import { SearchResult } from "../../type/search-result";
 import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
 import { SortMethod } from "../../type/sort-method";
+import { map } from "rxjs/operators";
 
 @Injectable({
   providedIn: "root",
@@ -43,7 +44,9 @@ export class StubSearchService {
     start: number,
     count: number,
     type: "workflow" | "project" | "file" | "dataset" | null,
-    orderBy: SortMethod
+    orderBy: SortMethod,
+    isLogin: boolean = true,
+    includePublic: boolean = false
   ): Observable<SearchResult> {
     // Igoring start count and orderBy as they are not tested in the unit tests.
     return new Observable(observer => {
@@ -70,5 +73,47 @@ export class StubSearchService {
     );
 
     return of(result);
+  }
+
+  public executeSearch(
+    keywords: string[],
+    params: SearchFilterParameters,
+    start: number,
+    count: number,
+    type: "workflow" | "project" | "dataset" | "file" | null,
+    orderBy: SortMethod,
+    isLogin: boolean,
+    includePublic: boolean
+  ): Observable<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
+    return this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic).pipe(
+      map(result => {
+        const hasMismatch = type === "dataset" ? result.hasMismatch ?? false : undefined;
+
+        const filteredResults = type === "dataset" ? result.results.filter(i => i.dataset != null) : result.results;
+
+        const entries: DashboardEntry[] = filteredResults.map(
+          i =>
+            this.testEntries.find(e => {
+              if (i.workflow && e.type === "workflow" && e.workflow === i.workflow) return true;
+              if (i.project && e.type === "project" && e.project === i.project) return true;
+              if (i.dataset && e.type === "dataset" && e.dataset === i.dataset) return true;
+              return false;
+            })!
+        );
+
+        entries.forEach(entry => {
+          if (!entry.ownerId) {
+            return;
+          }
+          const info = this.mockUserInfo[entry.ownerId];
+          if (info) {
+            entry.setOwnerName(info.userName);
+            entry.setOwnerGoogleAvatar(info.googleAvatar ?? "");
+          }
+        });
+
+        return { entries, more: false, hasMismatch };
+      })
+    );
   }
 }

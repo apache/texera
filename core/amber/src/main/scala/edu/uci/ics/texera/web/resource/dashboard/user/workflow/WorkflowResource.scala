@@ -35,6 +35,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.web.resource.dashboard.hub.EntityType
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource.recordCloneActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -537,7 +538,7 @@ class WorkflowResource extends LazyLogging {
       sessionUser
     )
 
-    recordCloneActivity(request, sessionUser.getUid, wid, "workflow")
+    recordCloneActivity(request, sessionUser.getUid, wid, EntityType.Workflow)
 
     newWorkflow.workflow.getWid
   }

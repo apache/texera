@@ -19,7 +19,7 @@
 
 import { Component, OnInit } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { HubService } from "../../service/hub.service";
+import { ActionType, EntityType, HubService } from "../../service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
@@ -30,6 +30,7 @@ import {
   DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
+import { SearchResultItem } from "../../../dashboard/type/search-result";
 
 @UntilDestroy()
 @Component({
@@ -68,23 +69,28 @@ export class LandingPageComponent implements OnInit {
 
   async loadTops() {
     try {
-      this.topLovedWorkflows = await this.getTopLovedEntries("workflow", "like");
-      this.topClonedWorkflows = await this.getTopLovedEntries("workflow", "clone");
-      this.topLovedDatasets = await this.getTopLovedEntries("dataset", "like");
+      const [workflowEntries, datasetEntries] = await Promise.all([
+        this.getTopLovedEntries(EntityType.Workflow, [ActionType.Like, ActionType.Clone]),
+        this.getTopLovedEntries(EntityType.Dataset, [ActionType.Like]),
+      ]);
+
+      this.topLovedWorkflows = workflowEntries["like"] || [];
+      this.topClonedWorkflows = workflowEntries["clone"] || [];
+      this.topLovedDatasets = datasetEntries["like"] || [];
     } catch (error) {
-      console.error("Failed to load top loved workflows:", error);
+      console.error("Failed to load top entries:", error);
     }
   }
 
   getWorkflowCount(): void {
     this.hubService
-      .getCount("workflow")
+      .getCount(EntityType.Workflow)
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;
       });
     this.hubService
-      .getCount("dataset")
+      .getCount(EntityType.Dataset)
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.datasetCount = count;
@@ -92,54 +98,63 @@ export class LandingPageComponent implements OnInit {
   }
 
   // todo: same as the function in search. refactor together
-  public async getTopLovedEntries(entityType: string, actionType: string): Promise<DashboardEntry[]> {
-    const searchResultItems = await firstValueFrom(this.hubService.getTops(entityType, actionType, this.currentUid));
+  public async getTopLovedEntries(
+    entityType: EntityType,
+    actionTypes: ActionType[]
+  ): Promise<{ [actionType: string]: DashboardEntry[] }> {
+    const topsMap = await firstValueFrom(this.hubService.getTops(entityType, actionTypes, this.currentUid));
 
-    const userIds = new Set<number>();
-    searchResultItems.forEach(i => {
-      if (i.workflow) {
-        userIds.add(i.workflow.ownerId);
-      } else if (i.project) {
-        userIds.add(i.project.ownerId);
-      } else if (i.dataset) {
-        const ownerUid = i.dataset.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          userIds.add(ownerUid);
+    const result: { [key: string]: DashboardEntry[] } = {};
+
+    for (const act of actionTypes) {
+      const items: SearchResultItem[] = topsMap[act] ?? [];
+
+      const userIds = new Set<number>();
+      items.forEach(i => {
+        if (i.workflow) {
+          userIds.add(i.workflow.ownerId);
+        } else if (i.project) {
+          userIds.add(i.project.ownerId);
+        } else if (i.dataset) {
+          const ownerUid = i.dataset.dataset?.ownerUid;
+          if (ownerUid != null) userIds.add(ownerUid);
         }
+      });
+
+      let userIdToInfoMap: { [key: number]: UserInfo } = {};
+      if (userIds.size > 0) {
+        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
       }
-    });
 
-    let userIdToInfoMap: { [key: number]: UserInfo } = {};
-    if (userIds.size > 0) {
-      userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-    }
+      const entries = items.map(i => {
+        let entry: DashboardEntry;
 
-    return searchResultItems.map(i => {
-      let entry: DashboardEntry;
-
-      if (i.workflow) {
-        entry = new DashboardEntry(i.workflow);
-        const userInfo = userIdToInfoMap[i.workflow.ownerId];
-        if (userInfo) {
-          entry.setOwnerName(userInfo.userName);
-          entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-        }
-      } else if (i.dataset) {
-        entry = new DashboardEntry(i.dataset);
-        const ownerUid = i.dataset.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          const userInfo = userIdToInfoMap[ownerUid];
+        if (i.workflow) {
+          entry = new DashboardEntry(i.workflow);
+          const userInfo = userIdToInfoMap[i.workflow.ownerId];
           if (userInfo) {
             entry.setOwnerName(userInfo.userName);
             entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
           }
+        } else if (i.dataset) {
+          entry = new DashboardEntry(i.dataset);
+          const uid = i.dataset.dataset?.ownerUid!;
+          const ui = userIdToInfoMap[uid];
+          if (ui) {
+            entry.setOwnerName(ui.userName);
+            entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
+          }
+        } else {
+          throw new Error("Unexpected type in SearchResultItem.");
         }
-      } else {
-        throw new Error("Unexpected type in SearchResultItem.");
-      }
 
-      return entry;
-    });
+        return entry;
+      });
+
+      result[act] = entries;
+    }
+
+    return result;
   }
 
   navigateToSearch(type: string): void {
