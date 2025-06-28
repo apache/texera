@@ -21,15 +21,22 @@ package edu.uci.ics.amber.engine.common
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver
+import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.operator.LogicalOp
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
+import scala.jdk.CollectionConverters._
+import edu.uci.ics.texera.web.model.websocket.request.{LogicalPlanPojo, WorkflowExecuteRequest}
+import edu.uci.ics.texera.workflow.LogicalLink
+import edu.uci.ics.amber.core.workflow.WorkflowContext
 
 object Utils extends LazyLogging {
 
@@ -165,5 +172,67 @@ object Utils extends LazyLogging {
     } finally {
       lock.unlock()
     }
+  }
+
+  /**
+    * Construct a dummy WorkflowExecuteRequest containing one instance of every
+    * concrete LogicalOp that has a public no-arg constructor, serialise it to
+    * JSON, then immediately parse it back.  This forces Jackson to walk the
+    * entire object graph of realistic size, exercising polymorphic resolution
+    * of LogicalOp subclasses as well as everything used inside the request.
+    *
+    * It should be called once at bootstrap *after* warmUpObjectMapper().
+    */
+  def warmUpObjectMapperWithDummyPlan(): Unit = {
+    val mapper = objectMapper
+
+    // collect all subclasses of LogicalOp (similar to OperatorMetadataGenerator)
+    val cfg = mapper.getDeserializationConfig
+    val subtypes = mapper.getSubtypeResolver.collectAndResolveSubtypesByClass(
+      cfg,
+      AnnotatedClassResolver.resolveWithoutSuperTypes(cfg, classOf[LogicalOp])
+    )
+
+    import scala.jdk.CollectionConverters._
+    val operatorInstances: List[LogicalOp] = new java.util.ArrayList[NamedType](subtypes).asScala
+      .flatMap(nt => Option(nt.getType))
+      .collect {
+        case c: Class[_] if classOf[LogicalOp].isAssignableFrom(c) =>
+          c.asInstanceOf[Class[_ <: LogicalOp]]
+      }
+      .flatMap { cls =>
+        try {
+          val ctor = cls.getDeclaredConstructor()
+          ctor.setAccessible(true)
+          Some(ctor.newInstance())
+        } catch {
+          case _: Throwable => None // skip classes without default ctor
+        }
+      }
+      .toList
+
+    if (operatorInstances.isEmpty) {
+      logger.warn("warmUpWithDummyPlan: no LogicalOp instances could be instantiated")
+      return
+    }
+
+    val dummyPlan = LogicalPlanPojo(operatorInstances, List.empty[LogicalLink], Nil, Nil)
+    val dummyReq = WorkflowExecuteRequest(
+      executionName = "warmup",
+      engineVersion = "0",
+      logicalPlan = dummyPlan,
+      replayFromExecution = None,
+      workflowSettings = WorkflowContext.DEFAULT_WORKFLOW_SETTINGS,
+      emailNotificationEnabled = false,
+      computingUnitId = 0
+    )
+
+    val json = mapper.writeValueAsString(dummyReq)
+    val t0 = System.nanoTime()
+    mapper.readValue(json, classOf[WorkflowExecuteRequest])
+    val ms = (System.nanoTime() - t0) / 1e6
+    logger.info(
+      s"warmUpWithDummyPlan parsed dummy WorkflowExecuteRequest in ${ms} ms with ${operatorInstances.size} operators"
+    )
   }
 }
