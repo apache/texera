@@ -473,7 +473,7 @@ class HubResource {
   @GET
   @Path("/counts")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getBatchCounts(
+  def getCounts(
       @QueryParam("entityType") entityTypes: java.util.List[EntityType],
       @QueryParam("entityId") entityIds: java.util.List[Integer],
       @QueryParam("actionType") actionTypes: java.util.List[ActionType]

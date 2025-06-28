@@ -152,7 +152,7 @@ export class SearchService {
         });
 
         const counts$ =
-          entityTypes.length > 0 ? this.hubService.getBatchCounts(entityTypes, entityIds) : of([] as CountResponse[]);
+          entityTypes.length > 0 ? this.hubService.getCounts(entityTypes, entityIds) : of([] as CountResponse[]);
 
         return forkJoin([userInfo$, counts$]).pipe(
           map(([userIdToInfoMap, responses]) => {

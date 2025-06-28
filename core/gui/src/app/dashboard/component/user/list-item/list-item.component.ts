@@ -383,7 +383,7 @@ export class ListItemComponent implements OnChanges {
     if (instance) {
       if (wid !== undefined) {
         this.hubService
-          .getBatchCounts([this.entry.type], [wid], [ActionType.View])
+          .getCounts([this.entry.type], [wid], [ActionType.View])
           .pipe(untilDestroyed(this))
           .subscribe(counts => {
             const count = counts[0];
@@ -409,7 +409,7 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getBatchCounts([this.entry.type], [entryId], [ActionType.Like])
+              .getCounts([this.entry.type], [entryId], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -424,7 +424,7 @@ export class ListItemComponent implements OnChanges {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getBatchCounts([this.entry.type], [entryId], [ActionType.Like])
+              .getCounts([this.entry.type], [entryId], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;

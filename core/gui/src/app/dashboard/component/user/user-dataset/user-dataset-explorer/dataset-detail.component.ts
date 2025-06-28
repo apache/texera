@@ -135,7 +135,7 @@ export class DatasetDetailComponent implements OnInit {
     }
 
     this.hubService
-      .getBatchCounts([EntityType.Dataset], [this.did], [ActionType.Like])
+      .getCounts([EntityType.Dataset], [this.did], [ActionType.Like])
       .pipe(untilDestroyed(this))
       .subscribe(counts => {
         this.likeCount = counts[0].counts.like ?? 0;
@@ -452,7 +452,7 @@ export class DatasetDetailComponent implements OnInit {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getBatchCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
+              .getCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -467,7 +467,7 @@ export class DatasetDetailComponent implements OnInit {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getBatchCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
+              .getCounts([EntityType.Dataset], [this.did!], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;

@@ -128,7 +128,7 @@ export class HubService {
    *                       - entityType: the type of the entity
    *                       - counts: a map from ActionType to number
    */
-  public getBatchCounts(
+  public getCounts(
     entityTypes: EntityType[],
     entityIds: number[],
     actionTypes: ActionType[] = []

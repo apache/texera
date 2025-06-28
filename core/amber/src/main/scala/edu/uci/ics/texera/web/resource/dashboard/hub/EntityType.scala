@@ -21,6 +21,10 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 
+/**
+  * Defines all supported entity types for Hub resources.
+  * Enables JSON ↔ enum conversion with lowercase string representation.
+  */
 sealed trait EntityType {
   @JsonValue
   def value: String

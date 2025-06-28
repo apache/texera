@@ -84,7 +84,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     this.hubService
-      .getBatchCounts([EntityType.Workflow], [this.wid], [ActionType.Like, ActionType.Clone])
+      .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like, ActionType.Clone])
       .pipe(untilDestroyed(this))
       .subscribe(counts => {
         this.likeCount = counts[0].counts.like ?? 0;
@@ -215,7 +215,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getBatchCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
@@ -233,7 +233,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               return;
             }
             this.hubService
-              .getBatchCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
               .pipe(untilDestroyed(this))
               .subscribe(counts => {
                 this.likeCount = counts[0].counts.like ?? 0;
