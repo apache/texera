@@ -233,6 +233,8 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_GOOGLE_SMTP_PASSWORD
     value: ""
+  - name: USER_SYS_DOMAIN
+    value: ""
 
 # Ingress dependency configs
 ingress-nginx:
