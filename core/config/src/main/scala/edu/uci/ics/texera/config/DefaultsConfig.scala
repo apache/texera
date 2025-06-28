@@ -26,7 +26,7 @@ import scala.jdk.CollectionConverters.MapHasAsScala
 
 object DefaultsConfig {
   private val conf = ConfigFactory.parseResources("defaults.conf").resolve()
-  private val imageKeys = Set("logo", "mini-logo", "favicon")
+  private val imageKeys = Set("logo", "mini_logo", "favicon")
 
   private def encodeImageAsBase64(path: String): String = {
     val asset = PathUtils.corePath.resolve(path)
