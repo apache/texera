@@ -29,8 +29,10 @@ object KubernetesConfig {
   // Access the Kubernetes settings with environment variable fallback
   val computeUnitServiceName: String = conf.getString("kubernetes.compute-unit-service-name")
   val computeUnitPoolNamespace: String = conf.getString("kubernetes.compute-unit-pool-namespace")
-  val computeUnitImageName: String = conf.getString("kubernetes.image-name")
+  val computeUnitMasterImageName: String = conf.getString("kubernetes.master-image-name")
+  val computeUnitWorkerImageName: String = conf.getString("kubernetes.worker-image-name")
   val computingUnitImagePullPolicy: String = conf.getString("kubernetes.image-pull-policy")
+  val computingUnitStorageClassName: String = conf.getString("kubernetes.storage-class-name")
 
   val computeUnitPortNumber: Int = conf.getInt("kubernetes.port-num")
 

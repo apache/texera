@@ -21,15 +21,14 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
 import akka.serialization.{Serialization, SerializationExtension}
-import edu.uci.ics.amber.config.AkkaConfig
+import edu.uci.ics.amber.config.{AkkaConfig, ApplicationConfig}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
-import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.sys.process._
 
 object AmberRuntime {
 
@@ -61,53 +60,49 @@ object AmberRuntime {
     _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
   }
 
-  private def getNodeIpAddress: String = {
-    try {
-      val query = new URL("http://checkip.amazonaws.com")
-      val in = new BufferedReader(new InputStreamReader(query.openStream()))
-      in.readLine()
-    } catch {
-      case e: Exception => throw e
-    }
-  }
-
   def startActorMaster(clusterMode: Boolean): Unit = {
-    var localIpAddress = "localhost"
+    var masterIpAddress = "localhost"
+    var masterPort = 2552
     if (clusterMode) {
-      localIpAddress = getNodeIpAddress
+      masterIpAddress = ApplicationConfig.masterIpAddress
+      masterPort = ApplicationConfig.masterPort
     }
 
     val masterConfig = ConfigFactory
       .parseString(s"""
-        akka.remote.artery.canonical.port = 2552
-        akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
+        akka.remote.artery.canonical.port = $masterPort
+        akka.remote.artery.canonical.hostname = $masterIpAddress
+        akka.cluster.seed-nodes = [ "akka://Amber@$masterIpAddress:$masterPort" ]
         """)
       .withFallback(akkaConfig)
       .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
+    AmberConfig.masterNodeAddr = createMasterAddress(masterIpAddress, masterPort)
     createAmberSystem(masterConfig)
   }
 
   def akkaConfig: Config = AkkaConfig.akkaConfig
 
-  private def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
+  private def createMasterAddress(addr: String, port: Int): Address =
+    Address("akka", "Amber", addr, port)
 
-  def startActorWorker(mainNodeAddress: Option[String]): Unit = {
-    val addr = mainNodeAddress.getOrElse("localhost")
-    var localIpAddress = "localhost"
-    if (mainNodeAddress.isDefined) {
-      localIpAddress = getNodeIpAddress
+  def startActorWorker(clusterMode: Boolean): Unit = {
+    var masterIpAddress = "localhost"
+    var masterPort = 2552
+    var nodeIp = "localhost"
+    if (clusterMode) {
+      masterIpAddress = ApplicationConfig.masterIpAddress
+      masterPort = ApplicationConfig.masterPort
+      nodeIp = "hostname -i".!!.trim // only supported by linux/unix
     }
     val workerConfig = ConfigFactory
       .parseString(s"""
-        akka.remote.artery.canonical.hostname = $localIpAddress
+        akka.remote.artery.canonical.hostname = $nodeIp
         akka.remote.artery.canonical.port = 0
-        akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
+        akka.cluster.seed-nodes = [ "akka://Amber@$masterIpAddress:$masterPort" ]
         """)
       .withFallback(akkaConfig)
       .resolve()
-    AmberConfig.masterNodeAddr = createMasterAddress(addr)
+    AmberConfig.masterNodeAddr = createMasterAddress(masterIpAddress, masterPort)
     createAmberSystem(workerConfig)
   }
 

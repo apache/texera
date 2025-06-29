@@ -75,19 +75,23 @@ export class WorkflowComputingUnitManagingService {
    * @param unitType The type of computing unit (e.g. "local", "kubernetes")
    * @param shmSize The shared memory size
    * @param uri The URI of the local computing unit; for kubernetes-based computing units, this is not used in the backend.
+   * @param diskLimit
+   * @param numNodes
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   private createComputingUnit(
     name: string,
     cpuLimit: string,
     memoryLimit: string,
-    gpuLimit: string,
+    gpuLimit: string | undefined,
     jvmMemorySize: string,
-    shmSize: string,
+    shmSize: string | undefined,
     uri: string,
+    diskLimit: string,
+    numNodes: number,
     unitType: "kubernetes" | "local"
   ): Observable<DashboardWorkflowComputingUnit> {
-    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, uri, unitType };
+    const body = { name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, uri, unitType, diskLimit, numNodes };
 
     return this.http
       .post<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_CREATE_URL}`, body)
@@ -103,17 +107,33 @@ export class WorkflowComputingUnitManagingService {
    * @param gpuLimit The gpu resource limit for the computing unit.
    * @param jvmMemorySize The JVM memory size (e.g. "1G", "2G")
    * @param shmSize The shared memory size
+   * @param diskLimit
+   * @param numNodes
+   * @param unitType
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createKubernetesBasedComputingUnit(
     name: string,
     cpuLimit: string,
     memoryLimit: string,
-    gpuLimit: string,
+    gpuLimit: string | undefined,
     jvmMemorySize: string,
-    shmSize: string
+    shmSize: string | undefined,
+    diskLimit: string,
+    numNodes: number
   ): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, cpuLimit, memoryLimit, gpuLimit, jvmMemorySize, shmSize, "", "kubernetes");
+    return this.createComputingUnit(
+      name,
+      cpuLimit,
+      memoryLimit,
+      gpuLimit,
+      jvmMemorySize,
+      shmSize,
+      "",
+      diskLimit,
+      numNodes,
+      "kubernetes"
+    );
   }
 
   /**
@@ -124,7 +144,7 @@ export class WorkflowComputingUnitManagingService {
    * @returns An Observable of the created WorkflowComputingUnit.
    */
   public createLocalComputingUnit(name: string, uri: string): Observable<DashboardWorkflowComputingUnit> {
-    return this.createComputingUnit(name, "NaN", "NaN", "NaN", "NaN", "NaN", uri, "local");
+    return this.createComputingUnit(name, "NaN", "NaN", undefined, "NaN", undefined, uri, "NaN", 1, "local");
   }
 
   /**

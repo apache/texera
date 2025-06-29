@@ -57,6 +57,11 @@ object ApplicationConfig {
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
+  // clustering
+  val amberClusterEnabled: Boolean = getConfSource.getBoolean("clustering.enabled")
+  val masterIpAddress: String = getConfSource.getString("clustering.master-ip-address")
+  val masterPort: Int = getConfSource.getInt("clustering.master-port")
+
   // Network buffering
   val defaultDataTransferBatchSize: Int =
     getConfSource.getInt("network-buffering.default-data-transfer-batch-size")

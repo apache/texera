@@ -168,6 +168,7 @@ import { NzDividerModule } from "ng-zorro-antd/divider";
 import { NzProgressModule } from "ng-zorro-antd/progress";
 import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
 import { NzSliderModule } from "ng-zorro-antd/slider";
+import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { catchError, of } from "rxjs";
 
@@ -326,6 +327,7 @@ registerLocaleData(en);
     NzEmptyModule,
     NzDividerModule,
     NzProgressModule,
+    NzInputNumberModule,
   ],
   providers: [
     provideNzI18n(en_US),
