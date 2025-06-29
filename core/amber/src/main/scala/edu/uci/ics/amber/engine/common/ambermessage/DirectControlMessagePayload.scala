@@ -17,26 +17,6 @@
  * under the License.
  */
 
-package edu.uci.ics.amber.util.serde
+package edu.uci.ics.amber.engine.common.ambermessage
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.{JsonSerializer, SerializerProvider}
-import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.util.serde.PortIdentityKeySerializer.portIdToString
-
-case object PortIdentityKeySerializer {
-  def portIdToString(portId: PortIdentity): String = {
-    s"${portId.id}_${portId.internal}"
-  }
-}
-
-class PortIdentityKeySerializer extends JsonSerializer[PortIdentity] {
-  override def serialize(
-      key: PortIdentity,
-      gen: JsonGenerator,
-      serializers: SerializerProvider
-  ): Unit = {
-    // Serialize PortIdentity as a string "id_internal"
-    gen.writeFieldName(portIdToString(key))
-  }
-}
+trait DirectControlMessagePayload extends WorkflowFIFOMessagePayload

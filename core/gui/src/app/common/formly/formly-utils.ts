@@ -24,7 +24,7 @@ import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
 import { HideType } from "../../workspace/types/custom-json-schema.interface";
-import { PortInputSchema } from "../../workspace/types/workflow-compiling.interface";
+import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
@@ -74,13 +74,13 @@ export function createShouldHideFieldFunc(
 }
 
 export function setChildTypeDependency(
-  attributes: ReadonlyArray<PortInputSchema | undefined> | undefined,
+  attributes: Readonly<Record<string, PortSchema | undefined>> | undefined,
   parentName: string,
   fields: FormlyFieldConfig[],
   childName: string
 ): void {
-  const timestampFieldNames = attributes
-    ?.flat()
+  const timestampFieldNames = Object.values(attributes || {})
+    .flat()
     .filter(attribute => {
       return attribute?.attributeType === "timestamp";
     })

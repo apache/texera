@@ -30,7 +30,7 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.core import ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
 
 
 @dataclass
@@ -44,12 +44,12 @@ class DataElement(InternalQueueElement):
 
 
 @dataclass
-class ControlElement(InternalQueueElement):
-    payload: ControlPayloadV2
+class DCMElement(InternalQueueElement):
+    payload: DirectControlMessagePayloadV2
 
 
 @dataclass
-class EmbeddedControlMessageElement(InternalQueueElement):
+class ECMElement(InternalQueueElement):
     payload: EmbeddedControlMessage
 
 
@@ -80,11 +80,9 @@ class InternalQueue(IQueue):
             if item.tag not in self._queue_ids:
                 self._queue.add_sub_queue(item.tag, 1 if item.tag.is_control else 2)
                 self._queue_ids.add(item.tag)
-            if isinstance(
-                item, (DataElement, InternalMarker, EmbeddedControlMessageElement)
-            ):
+            if isinstance(item, (DataElement, InternalMarker, ECMElement)):
                 self._queue.put(item.tag, item)
-            elif isinstance(item, ControlElement):
+            elif isinstance(item, DCMElement):
                 self._queue.put(item.tag, item)
             else:
                 raise ValueError(f"item {item} is not recognized by internal queue")

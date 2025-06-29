@@ -22,7 +22,7 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR

@@ -238,6 +238,7 @@ export class WorkflowActionService {
 
   public addPort(operatorID: string, isInput: boolean, allowMultiInputs?: boolean): void {
     const operator = this.texeraGraph.getOperator(operatorID);
+    // TODO: use uniform serde to calculate the portID
     const prefix = isInput ? "input-" : "output-";
     let suffix = isInput ? operator.inputPorts.length : operator.outputPorts.length;
     let portID = prefix + suffix;
