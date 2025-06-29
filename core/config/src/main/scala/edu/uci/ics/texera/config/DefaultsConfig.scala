@@ -19,21 +19,10 @@
 package edu.uci.ics.texera.config
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, ConfigValueType}
-import edu.uci.ics.amber.util.PathUtils
-import java.nio.file.Files
-import java.util.Base64
 import scala.jdk.CollectionConverters.MapHasAsScala
 
 object DefaultsConfig {
   private val conf = ConfigFactory.parseResources("defaults.conf").resolve()
-  private val imageKeys = Set("logo", "mini_logo", "favicon")
-
-  private def encodeImageAsBase64(path: String): String = {
-    val asset = PathUtils.corePath.resolve(path)
-    require(Files.exists(asset), s"Not found: $asset")
-    val bytes = Files.readAllBytes(asset)
-    s"data:image/png;base64,${Base64.getEncoder.encodeToString(bytes)}"
-  }
 
   private def getValue(v: com.typesafe.config.ConfigValue): String =
     v.valueType() match {
@@ -42,13 +31,6 @@ object DefaultsConfig {
       case _ => v.render(ConfigRenderOptions.concise())
     }
 
-  val allDefaults: Map[String, String] = conf
-    .root()
-    .asScala
-    .map {
-      case (k, v) =>
-        val raw = getValue(v)
-        k -> (if (imageKeys.contains(k)) encodeImageAsBase64(raw) else raw)
-    }
-    .toMap
+  val allDefaults: Map[String, String] =
+    conf.root().asScala.map { case (k, v) => k -> getValue(v) }.toMap
 }
