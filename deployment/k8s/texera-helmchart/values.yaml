@@ -177,6 +177,11 @@ workflowComputingUnitPool:
   name: texera-workflow-computing-unit
   # Note: the namespace of the workflow computing unit pool might conflict when there are multiple texera deployments in the same cluster
   namespace: texera-workflow-computing-unit-pool
+  # Max number of resources allocated for computing units
+  maxRequestedResources:
+    cpu: 100
+    memory: 100Gi
+    nvidiaGpu: 5
   imageName: texera/computing-unit-master:cluster
   service:
     port: 8085
