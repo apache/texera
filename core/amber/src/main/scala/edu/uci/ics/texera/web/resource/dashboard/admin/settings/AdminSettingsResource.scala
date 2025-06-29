@@ -42,6 +42,7 @@ class AdminSettingsResource {
   private val siteSettings = DSL.table("site_settings")
   private val key = DSL.field("key", classOf[String])
   private val value = DSL.field("value", classOf[String])
+  private val updatedBy = DSL.field("updated_by", classOf[String])
   private val updatedAt = DSL.field("updated_at", classOf[java.sql.Timestamp])
 
   @GET
@@ -93,11 +94,11 @@ class AdminSettingsResource {
       .insertInto(siteSettings)
       .set(key, keyParam)
       .set(value, valueParam)
-      .set(DSL.field("updated_by"), userName)
+      .set(updatedBy, userName)
       .onConflict(key)
       .doUpdate()
       .set(value, valueParam)
-      .set(DSL.field("updated_by"), userName)
+      .set(updatedBy, userName)
       .set(updatedAt, DSL.currentTimestamp())
       .execute()
   }
