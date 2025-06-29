@@ -161,11 +161,11 @@ class ComputingUnitManagingResource {
 
   private def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
     unit.getType match {
-      // ── Local CUs are always “running” ──────────────────────────────
+      // ── Local CUs are always "running" ──────────────────────────────
       case WorkflowComputingUnitTypeEnum.local =>
         Running
 
-      // ── Kubernetes CUs – only explicit “Running” counts as running ─
+      // ── Kubernetes CUs – only explicit "Running" counts as running ─
       case WorkflowComputingUnitTypeEnum.kubernetes =>
         val phaseOpt = KubernetesClient
           .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
@@ -323,7 +323,7 @@ class ComputingUnitManagingResource {
         if (param.uri.forall(_.trim.isEmpty))
           throw new ForbiddenException("URI is required for local computing units")
 
-      // Anything else (shouldn’t happen if you keep supported types in sync)
+      // Anything else (shouldn't happen if you keep supported types in sync)
       case _ =>
         throw new ForbiddenException(s"Unsupported computing-unit type: ${param.unitType}")
     }
@@ -452,21 +452,30 @@ class ComputingUnitManagingResource {
     withTransaction(context) { ctx =>
       val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
 
+      // Fetch computing units that are still marked as running in DB (terminateTime == null)
       val units = computingUnitDao
         .fetchByUid(user.getUid)
-        .filter(_.getTerminateTime == null) // only include non-terminated
+        .filter(_.getTerminateTime == null)
 
-        // ── filter out non-existing Kubernetes pods ──
-        .filter(unit =>
-          unit.getType match {
-            case WorkflowComputingUnitTypeEnum.kubernetes =>
-              KubernetesClient.podExists(unit.getCuid)
-            case _ =>
-              true // keep local and other types
-          }
-        )
+      // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
+      // GC-ed by the cluster), we treat the corresponding computing unit as
+      // terminated from the system's point of view.  Here we eagerly update its
+      // terminateTime in the database **before** we build the response list so
+      // that subsequent API calls will no longer return this unit.
+      units.foreach { unit =>
+        if (
+          unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
+          !KubernetesClient.podExists(unit.getCuid)
+        ) {
+          unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
+          computingUnitDao.update(unit)
+        }
+      }
 
-      units.map { unit =>
+      // After DB update above, keep only those units that are still active
+      val activeUnits = units.filter(_.getTerminateTime == null)
+
+      activeUnits.map { unit =>
         DashboardWorkflowComputingUnit(
           computingUnit = unit,
           status = getComputingUnitStatus(unit).toString,
