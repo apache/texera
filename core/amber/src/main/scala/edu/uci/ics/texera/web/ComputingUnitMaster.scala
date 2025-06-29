@@ -35,8 +35,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
-import edu.uci.ics.amber.operator.metadata.OperatorMetadataGenerator
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.util.ObjectMapperUtils
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
@@ -120,7 +120,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
-    OperatorMetadataGenerator.warmupObjectMapperForOperatorsSerde()
+    ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,

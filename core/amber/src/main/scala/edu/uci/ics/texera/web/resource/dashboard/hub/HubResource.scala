@@ -38,7 +38,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 }
 import org.jooq.impl.DSL
 
-import java.util
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
