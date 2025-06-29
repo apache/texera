@@ -19,6 +19,8 @@
 package edu.uci.ics.amber.operator.visualization.gaugeChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
@@ -26,7 +28,6 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import play.api.libs.json._
 
 class GaugeChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
@@ -67,8 +68,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    import GaugeChartOpDesc._
-    val stepsStr: String = Json.stringify(Json.toJson(steps))
+    val stepsStr: String = GaugeChartOpDescHelper.serializeSteps(steps)
 
     s"""
          |from pytexera import *
@@ -118,7 +118,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |                for index, step_data in enumerate(valid_steps):
          |                    color = step_colors[index]
          |                    steps_list.append({
-         |                        "range": [step_data["start"], step_data["end"]],
+         |                        "range": [float(step_data["start"]), float(step_data["end"])],
          |                        "color": color
          |                    })
          |            except Exception:
@@ -179,16 +179,13 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".stripMargin
   }
-
 }
 
-object GaugeChartOpDesc {
-  implicit val gaugeChartStepsWrites: Writes[GaugeChartSteps] = (step: GaugeChartSteps) =>
-    Json.obj(
-      "start" -> step.start.toDouble,
-      "end" -> step.end.toDouble
-    )
+object GaugeChartOpDescHelper {
+  private val mapper = new ObjectMapper()
+  mapper.registerModule(DefaultScalaModule)
 
-  implicit val gaugeChartStepsListWrites: Writes[List[GaugeChartSteps]] =
-    Writes.list(gaugeChartStepsWrites)
+  def serializeSteps(steps: List[GaugeChartSteps]): String = {
+    mapper.writeValueAsString(steps)
+  }
 }
