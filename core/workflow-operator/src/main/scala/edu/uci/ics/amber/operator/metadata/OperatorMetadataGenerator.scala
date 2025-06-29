@@ -155,5 +155,4 @@ object OperatorMetadataGenerator {
       opDescClass.getConstructor().newInstance().operatorVersion
     )
   }
-
 }

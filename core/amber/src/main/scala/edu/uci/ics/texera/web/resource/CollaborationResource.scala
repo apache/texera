@@ -20,7 +20,7 @@
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.util.JSONUtils
 import edu.uci.ics.texera.web.ServletAwareConfigurator
 import edu.uci.ics.texera.web.model.collab.event._
 import edu.uci.ics.texera.web.model.collab.request._
@@ -53,7 +53,7 @@ object CollaborationResource {
 )
 class CollaborationResource extends LazyLogging {
 
-  final val objectMapper = Utils.objectMapper
+  final val objectMapper = JSONUtils.objectMapper
 
   @OnMessage
   def myOnMsg(senderSession: Session, message: String): Unit = {

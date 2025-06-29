@@ -58,7 +58,6 @@ import java.net.{HttpURLConnection, URL, URLEncoder}
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.commons.io.IOUtils
-import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 
 object Constants {
   val CHUNK_SIZE = 10

@@ -23,6 +23,7 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.config.StorageConfig
+import edu.uci.ics.amber.util.ObjectMapperUtils
 import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.resource.WorkflowCompilationResource
@@ -38,6 +39,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
       configuration: WorkflowCompilingServiceConfiguration,
       environment: Environment
   ): Unit = {
+    ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
+
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 

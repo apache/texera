@@ -24,6 +24,7 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.util.ObjectMapperUtils
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
@@ -92,6 +93,8 @@ class TexeraWebApplication
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
+    ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
+
     // serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 

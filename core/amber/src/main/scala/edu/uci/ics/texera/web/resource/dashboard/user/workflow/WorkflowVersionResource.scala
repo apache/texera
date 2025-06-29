@@ -20,7 +20,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
-import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
