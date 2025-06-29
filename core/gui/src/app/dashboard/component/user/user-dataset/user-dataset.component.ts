@@ -35,6 +35,7 @@ import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../com
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { map, tap } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -129,62 +130,32 @@ export class UserDatasetComponent implements AfterViewInit {
     const isLogin = filterScope === "public" ? false : this.isLogin;
     const includePublic = filterScope === "all" || filterScope === "public";
 
-    this.searchResultsComponent.reset(async (start, count) => {
-      const results = await firstValueFrom(
-        this.searchService.search(
-          this.filters.getSearchKeywords(),
-          filterParams,
-          start,
-          count,
-          "dataset",
-          this.sortMethod,
-          isLogin,
-          includePublic
-        )
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            filterParams,
+            start,
+            count,
+            "dataset",
+            this.sortMethod,
+            isLogin,
+            includePublic
+          )
+          .pipe(
+            tap(({ hasMismatch }) => {
+              this.hasMismatch = hasMismatch ?? false;
+              if (this.hasMismatch) {
+                this.message.warning(
+                  "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
+                  { nzDuration: 4000 }
+                );
+              }
+            }),
+            map(({ entries, more }) => ({ entries, more }))
+          )
       );
-
-      this.hasMismatch = results.hasMismatch ?? false;
-      const filteredResults = results.results.filter(i => i !== null && i.dataset != null);
-
-      if (this.hasMismatch) {
-        this.message.warning(
-          "There is a mismatch between some datasets in the database and LakeFS. Only matched datasets are displayed.",
-          { nzDuration: 4000 }
-        );
-      }
-
-      const userIds = new Set<number>();
-      filteredResults.forEach(i => {
-        const ownerUid = i.dataset?.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          userIds.add(ownerUid);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      return {
-        entries: filteredResults.map(i => {
-          if (i.dataset) {
-            const entry = new DashboardEntry(i.dataset);
-
-            const ownerUid = i.dataset.dataset?.ownerUid;
-            if (ownerUid !== undefined) {
-              const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-
-            return entry;
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
-          }
-        }),
-        more: results.more,
-      };
     });
     await this.searchResultsComponent.loadMore();
   }
