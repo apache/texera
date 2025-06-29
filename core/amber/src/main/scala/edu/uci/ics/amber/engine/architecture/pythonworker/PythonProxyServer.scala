@@ -27,7 +27,7 @@ import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIden
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
+import edu.uci.ics.amber.engine.common.ambermessage.DirectControlMessagePayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
   ReturnInvocation => ReturnInvocationV2
 }

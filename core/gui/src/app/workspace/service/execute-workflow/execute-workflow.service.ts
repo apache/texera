@@ -18,7 +18,7 @@
  */
 
 import { Injectable, Inject } from "@angular/core";
-import { from, Observable, Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -45,8 +45,6 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
-import { UserService } from "src/app/common/service/user/user.service";
-import { User } from "src/app/common/type/user";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
 
 // TODO: change this declaration

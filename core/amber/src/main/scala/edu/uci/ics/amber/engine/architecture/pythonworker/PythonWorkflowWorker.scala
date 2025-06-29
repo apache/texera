@@ -86,7 +86,7 @@ class PythonWorkflowWorker(
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
-        case payload: ControlPayload =>
+        case payload: DirectControlMessagePayload =>
           pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
           pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))

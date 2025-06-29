@@ -23,19 +23,34 @@ import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
+import org.apache.commons.io.IOUtils
 import org.apache.iceberg.{FileScanTask, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.types.{Conversions, Types}
 
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  PipedInputStream,
+  PipedOutputStream
+}
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
 import java.nio.ByteBuffer
 import java.time.{Instant, LocalDate, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
+import scala.util.Using
+
+object Constants {
+  // Default buffer size for streaming Parquet files to outside
+  val DEFAULT_BUFFER_SIZE: Int = 8192
+}
 
 /**
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
@@ -44,10 +59,10 @@ import scala.collection.mutable
   * The table must exist when constructing the document
   *
   * @param tableNamespace namespace of the table.
-  * @param tableName name of the table.
-  * @param tableSchema schema of the table.
-  * @param serde function to serialize T into an Iceberg Record.
-  * @param deserde function to deserialize an Iceberg Record into T.
+  * @param tableName      name of the table.
+  * @param tableSchema    schema of the table.
+  * @param serde          function to serialize T into an Iceberg Record.
+  * @param deserde        function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
 private[storage] class IcebergDocument[T >: Null <: AnyRef](
@@ -65,6 +80,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Returns the URI of the table location.
+    *
     * @throws NoSuchTableException if the table does not exist.
     */
   override def getURI: URI = {
@@ -120,6 +136,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Creates a BufferedItemWriter for writing data to the table.
+    *
     * @param writerIdentifier The writer's ID. It should be unique within the same table, as each writer will use it as
     *                         the prefix of the files they append
     */
@@ -136,7 +153,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Util iterator to get T in certain range
-    * @param from start from which record inclusively, if 0 means start from the first
+    *
+    * @param from  start from which record inclusively, if 0 means start from the first
     * @param until end at which record exclusively, if None means read to the table's EOF
     */
   private def getUsingFileSequenceOrder(from: Int, until: Option[Int]): Iterator[T] =
@@ -429,5 +447,61 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       case e: Exception => println(s"Failed to get total-files-size: ${e.getMessage}")
     }
     filesSize
+  }
+
+  private def getParquetFileStream(fileTask: FileScanTask): InputStream = {
+    val file = fileTask.file()
+    val table = catalog.loadTable(TableIdentifier.of(tableNamespace, tableName))
+    table.io().newInputFile(file.path().toString).newStream()
+  }
+
+  /**
+    * Converts Iceberg Parquet files to ZIP and return as a piped stream.
+    * Each file in the table is added as a separate entry in the ZIP archive.
+    *
+    * @return An InputStream that streams the contents of the Iceberg table as a ZIP archive.
+    */
+  override def asInputStream(): InputStream = {
+    val fileScanTasks: Seq[FileScanTask] = {
+      val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
+      table.refresh()
+      table.newScan().planFiles().iterator().asScala.toSeq
+    }
+
+    if (fileScanTasks.isEmpty) {
+      return new ByteArrayInputStream(Array.emptyByteArray)
+    }
+
+    val pipeIn = new PipedInputStream(Constants.DEFAULT_BUFFER_SIZE)
+    val pipeOut = new PipedOutputStream(pipeIn)
+
+    // Start processing in a separate thread to avoid blocking
+    val processingThread = new Thread(() => {
+      try {
+        Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
+          for (i <- fileScanTasks.indices) {
+            val fileTask = fileScanTasks(i)
+            val entryName = s"part-${String.format("%05d", i)}.parquet"
+            zipOut.putNextEntry(new ZipEntry(entryName))
+            Using.resource(getParquetFileStream(fileTask)) { fileInputStream =>
+              IOUtils.copy(fileInputStream, zipOut)
+            }
+            zipOut.closeEntry()
+          }
+        }
+      } catch {
+        case e: Exception => throw e
+      } finally {
+        pipeOut.close()
+      }
+    })
+
+    // Set the thread as a daemon so
+    // 1- It will terminate if the request stop
+    // 2- It handle lifecycle of cleaning up the pipe resources
+    processingThread.setDaemon(true)
+    processingThread.start()
+
+    pipeIn
   }
 }
