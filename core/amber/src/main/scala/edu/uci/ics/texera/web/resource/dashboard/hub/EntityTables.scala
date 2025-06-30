@@ -48,22 +48,16 @@ object EntityTables {
       override val idColumn: TableField[DatasetRecord, Integer] = DATASET.DID
     }
 
-    def apply(entityType: String): BaseEntityTable = {
+    def apply(entityType: EntityType): BaseEntityTable =
       entityType match {
-        case "workflow" => WorkflowTable
-        case "dataset"  => DatasetTable
-        case _ =>
-          throw new IllegalArgumentException(
-            s"Unsupported entity type: $entityType for base entity"
-          )
+        case EntityType.Workflow => WorkflowTable
+        case EntityType.Dataset  => DatasetTable
       }
-    }
   }
 
   // ==================== BASE LC (like & clone) TABLE ====================
   sealed trait BaseLCTable {
     type R <: Record
-
     val table: Table[R]
     val uidColumn: TableField[R, Integer]
     val idColumn: TableField[R, Integer]
@@ -89,12 +83,10 @@ object EntityTables {
       override val idColumn: TableField[DatasetUserLikesRecord, Integer] = DATASET_USER_LIKES.DID
     }
 
-    def apply(entityType: String): LikeTable =
+    def apply(entityType: EntityType): LikeTable =
       entityType match {
-        case "workflow" => WorkflowLikeTable
-        case "dataset"  => DatasetLikeTable
-        case _ =>
-          throw new IllegalArgumentException(s"Unsupported entity type: $entityType for like")
+        case EntityType.Workflow => WorkflowLikeTable
+        case EntityType.Dataset  => DatasetLikeTable
       }
   }
 
@@ -111,9 +103,9 @@ object EntityTables {
         WORKFLOW_USER_CLONES.WID
     }
 
-    def apply(entityType: String): CloneTable =
+    def apply(entityType: EntityType): CloneTable =
       entityType match {
-        case "workflow" => WorkflowCloneTable
+        case EntityType.Workflow => WorkflowCloneTable
         case _ =>
           throw new IllegalArgumentException(s"Unsupported entity type: $entityType for clone")
       }
@@ -144,12 +136,10 @@ object EntityTables {
         DATASET_VIEW_COUNT.VIEW_COUNT
     }
 
-    def apply(entityType: String): ViewCountTable =
+    def apply(entityType: EntityType): ViewCountTable =
       entityType match {
-        case "workflow" => WorkflowViewCountTable
-        case "dataset"  => DatasetViewCountTable
-        case _ =>
-          throw new IllegalArgumentException(s"Unsupported entity type: $entityType for view count")
+        case EntityType.Workflow => WorkflowViewCountTable
+        case EntityType.Dataset  => DatasetViewCountTable
       }
   }
 }
