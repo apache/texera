@@ -26,7 +26,7 @@ object ComputingUnitHelpers {
     }
   }
 
-  def getComputingUnitMetricsHelper(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
+  def getComputingUnitMetrics(unit: WorkflowComputingUnit): WorkflowComputingUnitMetrics = {
     unit.getType match {
       case WorkflowComputingUnitTypeEnum.local =>
         WorkflowComputingUnitMetrics("NaN", "NaN")

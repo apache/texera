@@ -48,8 +48,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
-  ownComputingUnits: DashboardWorkflowComputingUnit[] = [];
-  sharedComputingUnits: DashboardWorkflowComputingUnit[] = [];
+  allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
@@ -146,14 +145,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.selectedComputingUnit = unit;
       });
 
-    combineLatest([
-      this.computingUnitStatusService.getOwnComputingUnits(),
-      this.computingUnitStatusService.getSharedComputingUnits(),
-    ])
+    this.computingUnitStatusService
+      .getAllComputingUnits()
       .pipe(untilDestroyed(this))
-      .subscribe(([ownedUnits, sharedUnits]) => {
-        this.ownComputingUnits = ownedUnits;
-        this.sharedComputingUnits = sharedUnits;
+      .subscribe(units => {
+        this.allComputingUnits = units;
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -207,9 +203,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
                 error: (err: unknown) => {
-                  // fallback: select the first available Running unit if any
-                  const allUnits = [...this.ownComputingUnits, ...this.sharedComputingUnits];
-                  const runningUnit = allUnits.find(unit => unit.status === "Running");
+                  const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
                   }
@@ -352,13 +346,37 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  openComputingUnitMetadataModal(unit: DashboardWorkflowComputingUnit) {
+    this.modalService.create({
+      nzTitle: "Computing Unit Information",
+      nzContent: `
+        <table class="ant-table">
+          <tbody>
+            <tr><th style="width: 150px;">Name</th><td>${unit.computingUnit.name}</td></tr>
+            <tr><th>Status</th><td>${unit.status}</td></tr>
+            <tr><th>Type</th><td>${unit.computingUnit.type}</td></tr>
+            <tr><th>CPU Limit</th><td>${unit.computingUnit.resource.cpuLimit}</td></tr>
+            <tr><th>Memory Limit</th><td>${unit.computingUnit.resource.memoryLimit}</td></tr>
+            <tr><th>GPU Limit</th><td>${unit.computingUnit.resource.gpuLimit || "None"}</td></tr>
+            <tr><th>JVM Memory</th><td>${unit.computingUnit.resource.jvmMemorySize}</td></tr>
+            <tr><th>Shared Memory</th><td>${unit.computingUnit.resource.shmSize}</td></tr>
+            <tr><th>Created</th><td>${new Date(unit.computingUnit.creationTime).toLocaleString()}</td></tr>
+            <tr><th>Access</th><td>${unit.isOwner ? "Owner" : unit.accessPrivilege}</td></tr>
+          </tbody>
+        </table>
+      `,
+      nzFooter: null,
+      nzMaskClosable: true,
+      nzWidth: "600px",
+    });
+  }
+
   /**
    * Terminate a computing unit.
    * @param cuid The CUID of the unit to terminate.
    */
   terminateComputingUnit(cuid: number): void {
-    const allUnits = [...this.ownComputingUnits, ...this.sharedComputingUnits];
-    const unit = allUnits.find(u => u.computingUnit.cuid === cuid);
+    const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
 
     if (!unit || !unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");

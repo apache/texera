@@ -94,7 +94,7 @@
       class="computing-units-dropdown">
       <li
         nz-menu-item
-        *ngFor="let unit of ownComputingUnits; trackBy: trackByCuid"
+        *ngFor="let unit of allComputingUnits; trackBy: trackByCuid"
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
@@ -124,10 +124,20 @@
             nz-icon
             nzType="share-alt"
             nz-tooltip
+            *ngIf="this.config.env.sharingComputingUnitEnabled"
             [nzTooltipTitle]="'Share computing unit'"
             (click)="onClickOpenShareAccess(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
             aria-label="Share computing unit">
+          </i>
+          <i
+            nz-icon
+            nzType="eye"
+            nz-tooltip
+            [nzTooltipTitle]="'Check details'"
+            (click)="openComputingUnitMetadataModal(unit); $event.stopPropagation()"
+            role="button"
+            aria-label="View logs">
           </i>
           <i
             nz-icon
@@ -143,65 +153,7 @@
       </li>
 
       <li
-        *ngIf="sharedComputingUnits.length > 0"
-        nz-menu-divider></li>
-      <li
-        *ngIf="sharedComputingUnits.length > 0"
-        nz-menu-item
-        [nzDisabled]="true">
-        <span>Shared with you</span>
-      </li>
-
-      <li
-        nz-menu-item
-        *ngFor="let unit of sharedComputingUnits; trackBy: trackByCuid"
-        class="computing-unit-option"
-        [nzDisabled]="cannotSelectUnit(unit)"
-        [ngClass]="{
-          'unit-selected': isSelectedUnit(unit),
-          'unit-connecting': unit.status === 'Pending',
-        }"
-        [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
-        (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
-        <div class="computing-unit-row">
-          <div class="computing-unit-name">
-            <nz-badge
-              [nzColor]="getBadgeColor(unit.status)"
-              [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
-            <span
-              nz-tooltip
-              [nzTooltipTitle]="unit.computingUnit.uri">
-              {{ unit.computingUnit.name }}
-              <span
-                *ngIf="unit.status === 'Pending'"
-                class="unit-status-indicator"
-              >(Connecting)</span
-              >
-            </span>
-          </div>
-          <i
-            nz-icon
-            nzType="share-alt"
-            nz-tooltip
-            [nzTooltipTitle]="'Share computing unit'"
-            (click)="onClickOpenShareAccess(unit.computingUnit.cuid); $event.stopPropagation()"
-            role="button"
-            aria-label="Share computing unit">
-          </i>
-          <i
-            nz-icon
-            nzType="delete"
-            class="computing-unit-terminate-icon"
-            nz-tooltip
-            [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
-            (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
-            role="button"
-            aria-label="Terminate computing unit">
-          </i>
-        </div>
-      </li>
-      <li
-        *ngIf="ownComputingUnits.length > 0"
+        *ngIf="allComputingUnits.length > 0"
         nz-menu-divider></li>
       <li
         nz-menu-item

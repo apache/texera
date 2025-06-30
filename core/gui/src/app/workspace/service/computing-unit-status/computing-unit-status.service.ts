@@ -25,15 +25,9 @@ import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
-import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isDefined } from "../../../common/util/predicate";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { UserService } from "../../../common/service/user/user.service";
-
-export interface ComputingUnitsState {
-  owned: DashboardWorkflowComputingUnit[];
-  shared: DashboardWorkflowComputingUnit[];
-}
 
 /**
  * Service that manages and provides access to computing unit status information
@@ -49,7 +43,7 @@ export interface ComputingUnitsState {
 export class ComputingUnitStatusService implements OnDestroy {
   // Behavior subjects to track and broadcast state changes
   private selectedUnitSubject = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
-  private readonly computingUnitsStateSubject = new BehaviorSubject<ComputingUnitsState>({ owned: [], shared: [] });
+  private readonly allComputingUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
 
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
@@ -74,13 +68,11 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Initialize the service with available computing units
   private initializeService(): void {
-    forkJoin({
-      owned: this.computingUnitService.listComputingUnits(),
-      shared: this.computingUnitService.listAllSharedComputingUnits(),
-    })
+    this.computingUnitService
+      .listComputingUnits()
       .pipe(untilDestroyed(this))
-      .subscribe(newState => {
-        this.setComputingUnitsState(newState);
+      .subscribe(units => {
+        this.setComputingUnitsState(units);
       });
 
     // Set up periodic refresh
@@ -111,12 +103,10 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll = undefined;
   }
   // Update computing units list and the selected unit
-  private setComputingUnitsState(newState: ComputingUnitsState): void {
-    this.computingUnitsStateSubject.next(newState);
+  private setComputingUnitsState(units: DashboardWorkflowComputingUnit[]): void {
+    this.allComputingUnitsSubject.next(units);
 
-    // After updating the state, check if the selected unit needs an update
-    const allUnits = [...newState.owned, ...newState.shared];
-    const updatedSelectedUnit = allUnits.find(
+    const updatedSelectedUnit = units.find(
       unit => unit.computingUnit.cuid === this.selectedUnitSubject.value?.computingUnit.cuid
     );
 
@@ -150,14 +140,11 @@ export class ComputingUnitStatusService implements OnDestroy {
 
     this.refreshSubscription = this.refreshComputingUnitListSignal
       .pipe(
-        switchMap(() => forkJoin({
-          owned: this.computingUnitService.listComputingUnits(),
-          shared: this.computingUnitService.listAllSharedComputingUnits()
-        })),
+        switchMap(() => this.computingUnitService.listComputingUnits()),
         untilDestroyed(this)
       )
-      .subscribe(newState => {
-        this.setComputingUnitsState(newState)
+      .subscribe(units => {
+        this.setComputingUnitsState(units);
       });
   }
 
@@ -180,8 +167,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     };
 
     // try immediate lookup in the current cache
-    const { owned, shared } = this.computingUnitsStateSubject.value;
-    const cachedUnit = [...owned, ...shared].find(u => u.computingUnit.cuid === cuid);
+    const cachedUnit = this.allComputingUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
 
     if (cachedUnit) {
       trySelect(cachedUnit);
@@ -191,7 +177,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     // otherwise trigger a refresh and wait until the unit appears once
     this.refreshComputingUnitList();
 
-    this.getAllUnitsCombined()
+    this.allComputingUnitsSubject
       .pipe(
         filter(units => units.some(u => u.computingUnit.cuid === cuid)),
         take(1),
@@ -209,13 +195,8 @@ export class ComputingUnitStatusService implements OnDestroy {
   }
 
   // Observable for all available computing units
-  public getOwnComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return this.computingUnitsStateSubject.pipe(map(state => state.owned));
-  }
-
-  // Observable for all shared computing units
-  public getSharedComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return this.computingUnitsStateSubject.pipe(map(state => state.shared));
+  public getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
+    return this.allComputingUnitsSubject;
   }
 
   // Get the current status of the selected computing unit as string
@@ -245,39 +226,18 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll?.unsubscribe();
 
     this.selectedUnitSubject.complete();
-    this.computingUnitsStateSubject.complete();
+    this.allComputingUnitsSubject.complete();
   }
 
   /**
    * Helper method to update a single unit in the units list
    */
   private updateUnitInList(updatedUnit: DashboardWorkflowComputingUnit): void {
-    const currentState = this.computingUnitsStateSubject.value;
-    let unitFound = false;
+    const merged: DashboardWorkflowComputingUnit[] = this.allComputingUnitsSubject.value.map(u =>
+      u.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : u
+    );
 
-    // Create a new state object to ensure immutability
-    const newState: ComputingUnitsState = {
-      owned: currentState.owned.map(u => {
-        if (u.computingUnit.cuid === updatedUnit.computingUnit.cuid) {
-          unitFound = true;
-          return updatedUnit;
-        }
-        return u;
-      }),
-      shared: currentState.shared, // Initially assume it's not in the shared list
-    };
-
-    if (!unitFound) {
-      // If not found in 'owned', check and update 'shared'
-      newState.shared = currentState.shared.map(u => {
-        if (u.computingUnit.cuid === updatedUnit.computingUnit.cuid) {
-          return updatedUnit;
-        }
-        return u;
-      });
-    }
-
-    this.setComputingUnitsState(newState);
+    this.setComputingUnitsState(merged);
   }
 
   /**
@@ -312,12 +272,5 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
     return this.selectedUnitSubject.value;
-  }
-
-  /**
-   * Get all computing units, both owned and shared, combined into a single list.
-   */
-  public getAllUnitsCombined(): Observable<DashboardWorkflowComputingUnit[]> {
-    return this.computingUnitsStateSubject.pipe(map(state => [...state.owned, ...state.shared]));
   }
 }

@@ -4,12 +4,22 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, context}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
+  DashboardWorkflowComputingUnit,
+  context
+}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetricsHelper, getComputingUnitStatus}
+import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
+  getComputingUnitMetrics,
+  getComputingUnitStatus
+}
 import edu.uci.ics.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 
 import scala.jdk.CollectionConverters._
@@ -32,7 +42,10 @@ object ComputingUnitAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(cuid: Integer, uid: Integer): Boolean = {
-    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(cuid, uid)
+    isOwner(cuid, uid) || getPrivilege(cuid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
+      cuid,
+      uid
+    )
   }
 
   /**
@@ -59,8 +72,7 @@ object ComputingUnitAccessResource {
     unit != null && unit.getUid.equals(uid)
   }
 
-
-  private def getPrivilege(cuid: Integer, uid: Integer): PrivilegeEnum = {
+  def getPrivilege(cuid: Integer, uid: Integer): PrivilegeEnum = {
     val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(context.configuration())
     val accessList = computingUnitUserAccessDao
       .fetchByUid(uid)
@@ -69,7 +81,7 @@ object ComputingUnitAccessResource {
 
     accessList match {
       case Some(access) => access.getPrivilege
-      case None => null
+      case None         => null
     }
   }
 
@@ -82,45 +94,6 @@ object ComputingUnitAccessResource {
 @Path("/access")
 class ComputingUnitAccessResource {
   final private val userDao = new UserDao(context.configuration())
-
-  /**
-   * This endpoint only returns computing units that the user has access to (but is not the owner).
-   */
-  @GET
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/computing-unit/list/shared")
-  def getSharedComputingUnits(
-      @Auth user: SessionUser
-  ): List[DashboardWorkflowComputingUnit] = {
-    withTransaction(context) { ctx =>
-      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
-      val cuids = computingUnitUserAccessDao
-        .fetchByUid(user.getUid)
-        .asScala
-        .map(_.getCuid)
-
-      val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val units = cuids.flatMap { cuid =>
-        Option(computingUnitDao.fetchOneByCuid(cuid))
-      }.filter(_.getTerminateTime == null) // only include non-terminated
-        .filter(unit =>
-          unit.getType match {
-            case WorkflowComputingUnitTypeEnum.kubernetes =>
-              KubernetesClient.podExists(unit.getCuid)
-            case _ =>
-              true // keep local and other types
-          }
-        )
-
-      units.map { unit =>
-        DashboardWorkflowComputingUnit(
-          computingUnit = unit,
-          status = getComputingUnitStatus(unit).toString,
-          metrics = getComputingUnitMetricsHelper(unit)
-        )
-      }.toList
-    }
-  }
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -191,7 +164,8 @@ class ComputingUnitAccessResource {
     }
 
     withTransaction(context) { ctx =>
-      ctx.delete(COMPUTING_UNIT_USER_ACCESS)
+      ctx
+        .delete(COMPUTING_UNIT_USER_ACCESS)
         .where(COMPUTING_UNIT_USER_ACCESS.CUID.eq(cuid))
         .and(COMPUTING_UNIT_USER_ACCESS.UID.eq(granteeId))
         .execute()
