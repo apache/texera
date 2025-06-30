@@ -282,7 +282,7 @@ class HubResource {
 
   @GET
   @Path("/count")
-  def getPublishedWorkflowCount(@QueryParam("entityType") entityType: EntityType): Integer = {
+  def getCount(@QueryParam("entityType") entityType: EntityType): Integer = {
     val entityTables = BaseEntityTable(entityType)
     val (table, isPublicColumn) = (entityTables.table, entityTables.isPublicColumn)
 
@@ -297,7 +297,7 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") entityId: Integer,
+      @QueryParam("entityId") entityId: Integer,
       @QueryParam("userId") userId: Integer,
       @QueryParam("entityType") entityType: EntityType
   ): Boolean = {
@@ -307,7 +307,7 @@ class HubResource {
   @POST
   @Path("/like")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def likeWorkflow(
+  def postLike(
       @Context request: HttpServletRequest,
       likeRequest: userRequest
   ): Boolean = {
@@ -317,7 +317,7 @@ class HubResource {
   @POST
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def unlikeWorkflow(
+  def postUnlike(
       @Context request: HttpServletRequest,
       unlikeRequest: userRequest
   ): Boolean = {
@@ -327,7 +327,7 @@ class HubResource {
   @POST
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def viewWorkflow(
+  def postView(
       @Context request: HttpServletRequest,
       viewRequest: userRequest
   ): Int = {

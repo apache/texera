@@ -65,7 +65,7 @@ export class HubService {
 
   public isLiked(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
     return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
-      params: { workflowId: entityId.toString(), userId: userId.toString(), entityType },
+      params: { entityId: entityId.toString(), userId: userId.toString(), entityType },
     });
   }
 
