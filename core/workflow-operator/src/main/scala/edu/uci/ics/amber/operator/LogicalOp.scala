@@ -105,6 +105,7 @@ import edu.uci.ics.amber.operator.visualization.figureFactoryTable.FigureFactory
 import edu.uci.ics.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import edu.uci.ics.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import edu.uci.ics.amber.operator.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
@@ -208,6 +209,7 @@ trait StateTransferFunc
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
+    new Type(value = classOf[GaugeChartOpDesc], name = "GaugeChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
