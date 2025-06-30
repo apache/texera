@@ -67,8 +67,15 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
+  private val mapper = new ObjectMapper()
+  mapper.registerModule(DefaultScalaModule)
+
+  private def serializeSteps(steps: List[GaugeChartSteps]): String = {
+    mapper.writeValueAsString(steps)
+  }
+
   override def generatePythonCode(): String = {
-    val stepsStr: String = GaugeChartOpDescHelper.serializeSteps(steps)
+    val stepsStr: String = serializeSteps(steps)
 
     s"""
          |from pytexera import *
@@ -178,14 +185,5 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor {
          |        except Exception as e:
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |""".stripMargin
-  }
-}
-
-object GaugeChartOpDescHelper {
-  private val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
-
-  def serializeSteps(steps: List[GaugeChartSteps]): String = {
-    mapper.writeValueAsString(steps)
   }
 }
