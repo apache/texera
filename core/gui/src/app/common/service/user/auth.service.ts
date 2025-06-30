@@ -135,7 +135,6 @@ export class AuthService {
     const email = this.jwtHelperService.decodeToken(token).email;
     if (this.config.env.inviteOnly && role == Role.INACTIVE) {
 
-      // THIS IS WHERE I NEED TO MAKE THE UI CHANGE - CHANGE FROM ALERT TO MODAL
       this.modal.confirm({
         nzTitle: "You Need Access",
         nzContent: "Request Access from admin, or switch to an account with access.",
