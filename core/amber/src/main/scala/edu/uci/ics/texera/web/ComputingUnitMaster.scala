@@ -30,11 +30,13 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   FAILED
 }
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
-import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
+import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.util.ObjectMapperUtils
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
@@ -118,6 +120,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
+    ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     SqlServer.initConnection(
       StorageConfig.jdbcUrl,
