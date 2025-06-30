@@ -160,23 +160,12 @@ export class ListItemComponent implements OnChanges {
     }
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
+    this.isLiked = this.entry.isLiked
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
-      this.checkLikeStatus();
-    }
-  }
-
-  private checkLikeStatus(): void {
-    if (this.entry?.id !== undefined && this.currentUid !== undefined) {
-      this.hubService
-        .isLiked(this.entry.id, this.currentUid, this.entry.type)
-        .pipe(untilDestroyed(this))
-        .subscribe((isLiked: boolean) => {
-          this.isLiked = isLiked;
-        });
     }
   }
 

@@ -22,14 +22,15 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import HubResource.{
-  CountRequest,
   CountResponse,
+  LikedResponse,
+  UserRequest,
+  ViewRequest,
   fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   isLikedHelper,
   recordLikeActivity,
-  recordUserActivity,
-  userRequest
+  recordUserActivity
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -45,6 +46,7 @@ import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
@@ -52,12 +54,18 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserA
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import io.dropwizard.auth.Auth
 
 import scala.collection.mutable.ListBuffer
 
 object HubResource {
-  case class userRequest(entityId: Integer, userId: Integer, entityType: EntityType)
-  case class CountRequest(entityId: Integer, entityType: EntityType)
+  case class UserRequest(entityId: Integer, entityType: EntityType)
+  case class ViewRequest(entityId: Integer, userId: Integer, entityType: EntityType)
+  case class LikedResponse(
+      entityId: Integer,
+      entityType: EntityType,
+      isLiked: Boolean
+  )
   case class CountResponse(
       entityId: Integer,
       entityType: EntityType,
@@ -80,19 +88,42 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: Integer, entityId: Integer, entityType: EntityType): Boolean = {
-    val entityTables = LikeTable(entityType)
-    val (table, uidColumn, idColumn) =
-      (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
+  def isLikedHelper(
+      userId: Integer,
+      entityIds: java.util.List[Integer],
+      entityTypes: java.util.List[EntityType]
+  ): java.util.List[LikedResponse] = {
+    val reqs: List[UserRequest] =
+      entityTypes.asScala
+        .zip(entityIds.asScala)
+        .map { case (etype, id) => UserRequest(id, etype) }
+        .toList
 
-    context
-      .selectFrom(table)
-      .where(
-        uidColumn
-          .eq(userId)
-          .and(idColumn.eq(entityId))
-      )
-      .fetchOne() != null
+    val buffer = ListBuffer[LikedResponse]()
+    reqs
+      .groupBy(_.entityType)
+      .foreach {
+        case (etype, groupReqs) =>
+          val tbl = LikeTable(etype)
+          val ids = groupReqs.map(_.entityId)
+
+          val likedSet: Set[Int] = context
+            .select(tbl.idColumn)
+            .from(tbl.table)
+            .where(tbl.uidColumn.eq(userId))
+            .and(tbl.idColumn.in(ids: _*))
+            .fetch()
+            .asScala
+            .map(r => r.get(tbl.idColumn).intValue())
+            .toSet
+
+          groupReqs.foreach { req =>
+            val flag = likedSet.contains(req.entityId.intValue())
+            buffer += LikedResponse(req.entityId, etype, flag)
+          }
+      }
+
+    buffer.toList.asJava
   }
 
   /**
@@ -137,7 +168,7 @@ object HubResource {
     */
   def recordLikeActivity(
       request: HttpServletRequest,
-      userRequest: userRequest,
+      userRequest: ViewRequest,
       isLike: Boolean
   ): Boolean = {
     val (entityId, userId, entityType) =
@@ -146,7 +177,12 @@ object HubResource {
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    val alreadyLiked = isLikedHelper(userId, entityId, entityType)
+    val likedResponses = isLikedHelper(
+      userId,
+      List(entityId).asJava,
+      List(entityType).asJava
+    ).asScala
+    val alreadyLiked = likedResponses.headOption.exists(_.isLiked)
 
     if (isLike && !alreadyLiked) {
       context
@@ -297,11 +333,11 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("entityId") entityId: Integer,
-      @QueryParam("userId") userId: Integer,
-      @QueryParam("entityType") entityType: EntityType
-  ): Boolean = {
-    isLikedHelper(userId, entityId, entityType)
+      @Auth user: SessionUser,
+      @QueryParam("entityId") entityIds: java.util.List[Integer],
+      @QueryParam("entityType") entityTypes: java.util.List[EntityType]
+  ): java.util.List[LikedResponse] = {
+    isLikedHelper(user.getUid, entityIds, entityTypes)
   }
 
   @POST
@@ -309,7 +345,7 @@ class HubResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def postLike(
       @Context request: HttpServletRequest,
-      likeRequest: userRequest
+      likeRequest: ViewRequest
   ): Boolean = {
     recordLikeActivity(request, likeRequest, isLike = true)
   }
@@ -319,7 +355,7 @@ class HubResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def postUnlike(
       @Context request: HttpServletRequest,
-      unlikeRequest: userRequest
+      unlikeRequest: ViewRequest
   ): Boolean = {
     recordLikeActivity(request, unlikeRequest, isLike = false)
   }
@@ -329,7 +365,7 @@ class HubResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def postView(
       @Context request: HttpServletRequest,
-      viewRequest: userRequest
+      viewRequest: ViewRequest
   ): Int = {
 
     val (entityID, userId, entityType) =
@@ -485,10 +521,10 @@ class HubResource {
         "Both 'entityType' and 'entityId' query parameters must be provided, and lists must have equal length."
       )
 
-    val reqs: List[CountRequest] = entityTypes.asScala
+    val reqs: List[UserRequest] = entityTypes.asScala
       .zip(entityIds.asScala)
       .map {
-        case (etype, id) => CountRequest(id, etype)
+        case (etype, id) => UserRequest(id, etype)
       }
       .toList
 

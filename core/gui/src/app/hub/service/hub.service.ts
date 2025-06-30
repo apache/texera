@@ -39,6 +39,12 @@ export enum ActionType {
   Unlike = "unlike",
 }
 
+export type LikedStatus = {
+  entityId: number;
+  entityType: EntityType;
+  isLiked: boolean;
+};
+
 export interface CountResponse {
   entityId: number;
   entityType: EntityType;
@@ -63,10 +69,16 @@ export class HubService {
     return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
   }
 
-  public isLiked(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
-      params: { entityId: entityId.toString(), userId: userId.toString(), entityType },
+  public isLiked(entityIds: number[], entityTypes: EntityType[]): Observable<LikedStatus[]> {
+    let params = new HttpParams();
+    entityIds.forEach(id => {
+      params = params.append("entityId", id.toString());
     });
+    entityTypes.forEach(type => {
+      params = params.append("entityType", type);
+    });
+
+    return this.http.get<LikedStatus[]>(`${this.BASE_URL}/isLiked`, { params });
   }
 
   public postLike(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {

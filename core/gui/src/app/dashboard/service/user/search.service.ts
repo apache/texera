@@ -25,7 +25,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
-import { CountResponse, EntityType, HubService } from "../../../hub/service/hub.service";
+import { CountResponse, EntityType, HubService, LikedStatus } from "../../../hub/service/hub.service";
 import { map, switchMap } from "rxjs/operators";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
@@ -153,18 +153,28 @@ export class SearchService {
 
         const counts$ =
           entityTypes.length > 0 ? this.hubService.getCounts(entityTypes, entityIds) : of([] as CountResponse[]);
+        const liked$ =
+          isLogin && entityTypes.length > 0 ? this.hubService.isLiked(entityIds, entityTypes) : of([] as LikedStatus[]);
 
-        return forkJoin([userInfo$, counts$]).pipe(
-          map(([userIdToInfoMap, responses]) => {
+        return forkJoin([userInfo$, counts$, liked$]).pipe(
+          map(([userIdToInfoMap, countResponses, likedResponses]) => {
             const countsMap: { [key: string]: { [action: string]: number } } = {};
-            responses.forEach(r => {
+            countResponses.forEach(r => {
               countsMap[`${r.entityType}:${r.entityId}`] = r.counts;
+            });
+
+            const likedMap: { [key: string]: boolean } = {};
+            likedResponses.forEach(r => {
+              likedMap[`${r.entityType}:${r.entityId}`] = r.isLiked;
             });
 
             const entries: DashboardEntry[] = filteredResults.map(i => {
               let entry: DashboardEntry;
+              let key: string;
+
               if (i.workflow) {
                 entry = new DashboardEntry(i.workflow);
+                key = `${entry.type}:${entry.id}`;
                 const ui = userIdToInfoMap[i.workflow.ownerId];
                 if (ui) {
                   entry.setOwnerName(ui.userName);
@@ -172,6 +182,7 @@ export class SearchService {
                 }
               } else if (i.project) {
                 entry = new DashboardEntry(i.project);
+                key = `${entry.type}:${entry.id}`;
                 const ui = userIdToInfoMap[i.project.ownerId];
                 if (ui) {
                   entry.setOwnerName(ui.userName);
@@ -179,6 +190,7 @@ export class SearchService {
                 }
               } else {
                 entry = new DashboardEntry(i.dataset!);
+                key = `${entry.type}:${entry.id}`;
                 const ownerUid = i.dataset!.dataset!.ownerUid!;
                 const ui = userIdToInfoMap[ownerUid];
                 if (ui) {
@@ -186,14 +198,13 @@ export class SearchService {
                   entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
                 }
               }
-              return entry;
-            });
 
-            entries.forEach(entry => {
-              if (entry.id == null || entry.type == null) return;
-              const key = `${entry.type}:${entry.id}`;
               const c = countsMap[key] || {};
               entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
+
+              entry.setIsLiked(likedMap[key] ?? false);
+
+              return entry;
             });
 
             return { entries, more: results.more, hasMismatch };
