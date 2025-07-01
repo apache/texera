@@ -71,8 +71,6 @@ object GuiConfig {
     conf.getInt("gui.workflow-workspace.operator-console-message-buffer-size")
   val guiWorkflowWorkspaceWorkflowEmailNotificationEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.workflow-email-notification-enabled")
-  val guiSharingComputingUnitEnabled: Boolean =
-    conf.getBoolean("gui.workflow-workspace.sharing-computing-unit-enabled")
 
   // GUI Dataset Configuration
   val guiDatasetSingleFileUploadMaximumSizeMB: Int =

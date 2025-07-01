@@ -19,32 +19,23 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.config.ComputingUnitConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  UserDao,
-  WorkflowComputingUnitDao
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  context
-}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, context}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
-  getComputingUnitMetrics,
-  getComputingUnitStatus
-}
+import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetrics, getComputingUnitStatus}
 import edu.uci.ics.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 
 import scala.jdk.CollectionConverters._
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.{MediaType, Response}
-import jakarta.ws.rs.{GET, PUT, Path, PathParam, Produces, DELETE}
+import jakarta.ws.rs.{DELETE, ForbiddenException, GET, PUT, Path, PathParam, Produces}
 import org.jooq.{DSLContext, EnumType}
 
 object ComputingUnitAccessResource {
@@ -111,6 +102,11 @@ object ComputingUnitAccessResource {
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access")
 class ComputingUnitAccessResource {
+  private def ensureSharingIsEnabled(): Unit = {
+    if (!ComputingUnitConfig.sharingComputingUnitEnabled) {
+      throw new ForbiddenException("The computing unit sharing feature is disabled by the administrator.")
+    }
+  }
   final private val userDao = new UserDao(context.configuration())
 
   @GET
@@ -120,6 +116,7 @@ class ComputingUnitAccessResource {
       @Auth user: SessionUser,
       @PathParam("cuid") cuid: Integer
   ): List[AccessEntry] = {
+    ensureSharingIsEnabled()
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
       computingUnitUserAccessDao
@@ -145,7 +142,8 @@ class ComputingUnitAccessResource {
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: PrivilegeEnum
   ): Unit = {
-    if (!isOwner(cuid, user.getUid)) {
+    ensureSharingIsEnabled()
+    if (!hasWriteAccess(cuid, user.getUid)) {
       throw new IllegalArgumentException("User does not have permission to grant access")
     }
 
@@ -172,6 +170,7 @@ class ComputingUnitAccessResource {
       @PathParam("cuid") cuid: Integer,
       @PathParam("email") email: String
   ): Unit = {
+    ensureSharingIsEnabled()
     if (!hasWriteAccess(cuid, user.getUid)) {
       throw new IllegalArgumentException("User does not have permission to revoke access")
     }

@@ -463,20 +463,39 @@ class ComputingUnitManagingResource {
   ): List[DashboardWorkflowComputingUnit] = {
     withTransaction(context) { ctx =>
       val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
-      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
       val uid = user.getUid
 
-      val sharedUnitInfo = computingUnitUserAccessDao
-        .fetchByUid(uid)
-        .map(access => access.getCuid -> access.getPrivilege)
-        .toMap
-      val sharedCuids = sharedUnitInfo.keys.toList.map(Integer.valueOf(_))
-
+      // Always fetch units owned by the user
       val ownedUnits = computingUnitDao.fetchByUid(uid).toList
-      val sharedUnits =
-        if (sharedCuids.isEmpty) List()
-        else computingUnitDao.fetchByCuid(sharedCuids.toSeq: _*).toList
+
+      // Conditionally fetch shared units based on the config flag
+      val (sharedUnits, sharedUnitInfo) =
+        if (ComputingUnitConfig.sharingComputingUnitEnabled) {
+          val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
+          val info = computingUnitUserAccessDao
+            .fetchByUid(uid)
+            .map(access => access.getCuid -> access.getPrivilege)
+            .toMap
+          val sharedCuids = info.keys.toList.map(Integer.valueOf(_))
+
+          val units = if (sharedCuids.isEmpty) {
+            List()
+          } else {
+            computingUnitDao.fetchByCuid(sharedCuids: _*).toList
+          }
+          (units, info)
+        } else {
+          // If sharing is disabled, return empty collections
+          (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
+        }
+
       val allUnits = ownedUnits ++ sharedUnits
+
+      // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
+      // GC-ed by the cluster), we treat the corresponding computing unit as
+      // terminated from the system's point of view. Here we eagerly update its
+      // terminateTime in the database **before** we build the response list so
+      // that subsequent API calls will no longer return this unit.
       allUnits.foreach { unit =>
         if (
           unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
@@ -487,6 +506,9 @@ class ComputingUnitManagingResource {
         }
       }
 
+      // For shared units, we need to check the access privilege which are saved in different table
+      // to streamline the process, we combine owned units with default WRITE privilege and use sharedUnitInfo
+      // to get the privilege for shared units.
       (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++ sharedUnits.map(u =>
         (u, sharedUnitInfo(u.getCuid))
       ))
@@ -510,7 +532,6 @@ class ComputingUnitManagingResource {
               metrics = getComputingUnitMetrics(unit)
             )
         }
-        .toList
     }
   }
 
