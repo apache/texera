@@ -15,4 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-target/computing-unit-managing-service-0.1.0/bin/computing-unit-managing-service 
+target/computing-unit-managing-service-*/bin/computing-unit-managing-service
