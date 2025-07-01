@@ -137,7 +137,7 @@ export class AuthService {
 
       this.modal.confirm({
         nzTitle: "You Need Access",
-        nzContent: "Request Access from admin, or switch to an account with access.",
+        nzContent: "Access to the platform is restricted. Please request access from an admin or switch to an account that already has access.",
         nzOkText: "Send Request",
         nzCancelText: "Cancel",
         nzOnOk: () => this.gmailService.notifyUnauthorizedLogin(email),
