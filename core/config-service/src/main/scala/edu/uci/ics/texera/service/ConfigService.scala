@@ -32,7 +32,6 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.service.resource.{ConfigResource, HealthCheckResource}
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
-import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
@@ -68,27 +67,36 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
     environment.jersey.register(new ConfigResource)
 
-    // Preload defaults.conf into site_setting tables
+    // Preload default.conf into site_setting tables
     try {
-      val sqlServer = SqlServer.getInstance()
-      val ctx: DSLContext = sqlServer.createDSLContext()
+      val ctx = SqlServer.getInstance().createDSLContext()
 
-      DefaultsConfig.allDefaults.foreach {
-        case (key, value) =>
-          ctx
-            .insertInto(DSL.table("site_settings"))
-            .columns(
-              DSL.field("key"),
-              DSL.field("value"),
-              DSL.field("updated_by"),
-              DSL.field("updated_at")
-            )
-            .values(key, value, "texera", DSL.currentTimestamp())
-            .onDuplicateKeyIgnore()
-            .execute()
+      ctx.transaction { configuration =>
+        val tx = DSL.using(configuration)
+
+        if (DefaultsConfig.reinit) {
+          tx.deleteFrom(DSL.table("site_settings")).execute()
+        }
+
+        DefaultsConfig.allDefaults.foreach {
+          case (key, value) =>
+            tx
+              .insertInto(DSL.table("site_settings"))
+              .columns(
+                DSL.field("key"),
+                DSL.field("value"),
+                DSL.field("updated_by"),
+                DSL.field("updated_at")
+              )
+              .values(key, value, "texera", DSL.currentTimestamp())
+              .onDuplicateKeyIgnore()
+              .execute()
+        }
       }
     } catch {
-      case ex: Exception => logger.error("Failed to preload default settings", ex)
+      case ex: Exception =>
+        logger.error("Failed to preload default settings", ex)
+        throw ex
     }
   }
 }

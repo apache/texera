@@ -43,7 +43,6 @@ class AdminSettingsResource {
   private val key = DSL.field("key", classOf[String])
   private val value = DSL.field("value", classOf[String])
   private val updatedBy = DSL.field("updated_by", classOf[String])
-  private val updatedAt = DSL.field("updated_at", classOf[java.sql.Timestamp])
 
   @GET
   @Path("{key}")
@@ -98,8 +97,8 @@ class AdminSettingsResource {
       .onConflict(key)
       .doUpdate()
       .set(value, valueParam)
-      .set(updatedBy, userName)
-      .set(updatedAt, DSL.currentTimestamp())
+      .set(DSL.field("updated_by", classOf[String]), userName)
+      .set(DSL.field("updated_at", classOf[java.sql.Timestamp]), DSL.currentTimestamp())
       .execute()
   }
 }

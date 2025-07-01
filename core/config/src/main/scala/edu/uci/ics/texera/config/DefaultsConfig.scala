@@ -19,18 +19,26 @@
 package edu.uci.ics.texera.config
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, ConfigValueType}
-import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object DefaultsConfig {
-  private val conf = ConfigFactory.parseResources("defaults.conf").resolve()
+  private val conf = ConfigFactory.parseResources("default.conf").resolve()
+  val reinit: Boolean = conf.getBoolean("configService.reinitialize")
 
-  private def getValue(v: com.typesafe.config.ConfigValue): String =
-    v.valueType() match {
-      case ConfigValueType.STRING | ConfigValueType.NUMBER | ConfigValueType.BOOLEAN =>
-        v.unwrapped().toString
-      case _ => v.render(ConfigRenderOptions.concise())
-    }
-
-  val allDefaults: Map[String, String] =
-    conf.root().asScala.map { case (k, v) => k -> getValue(v) }.toMap
+  val allDefaults: Map[String, String] = {
+    conf
+      .entrySet()
+      .asScala
+      .map { entry =>
+        val shortKey = entry.getKey.split("\\.").last
+        val value = entry.getValue.valueType() match {
+          case ConfigValueType.STRING | ConfigValueType.NUMBER | ConfigValueType.BOOLEAN =>
+            entry.getValue.unwrapped().toString
+          case _ =>
+            entry.getValue.render(ConfigRenderOptions.concise())
+        }
+        shortKey -> value
+      }
+      .toMap
+  }
 }
