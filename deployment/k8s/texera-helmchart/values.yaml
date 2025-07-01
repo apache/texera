@@ -300,6 +300,8 @@ metrics-server:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
+  spec:
+    ingressClassName: nginx
   hostname: ""
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
