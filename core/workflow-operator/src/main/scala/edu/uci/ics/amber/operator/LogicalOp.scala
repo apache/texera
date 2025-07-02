@@ -125,6 +125,7 @@ import edu.uci.ics.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
@@ -217,6 +218,7 @@ trait StateTransferFunc
     new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
+    new Type(value = classOf[Histogram2DOpDesc], name = "Histogram2D"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
