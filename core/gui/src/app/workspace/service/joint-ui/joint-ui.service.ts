@@ -766,7 +766,7 @@ export class JointUIService {
       },
       ".texera-operator-port-metrics": {
         text: "",
-        fill: "blue",
+        fill: "green",
         "font-size": "14px",
         visibility: "hidden",
         "ref-x": 0.5,
