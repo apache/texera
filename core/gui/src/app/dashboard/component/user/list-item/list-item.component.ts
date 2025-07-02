@@ -111,18 +111,12 @@ export class ListItemComponent implements OnChanges {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
-        this.workflowPersistService
-          .getWorkflowOwners(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe((data: number[]) => {
-            this.owners = data;
-            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-              this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
-            } else {
-              this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
-            }
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
+        this.owners = this.entry.accessUsers;
+        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+          this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
+        } else {
+          this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
+        }
         this.workflowPersistService
           .getSize(this.entry.id)
           .pipe(untilDestroyed(this))
@@ -137,18 +131,12 @@ export class ListItemComponent implements OnChanges {
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
-        this.datasetService
-          .getDatasetOwners(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe((data: number[]) => {
-            this.owners = data;
-            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-              this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
-            } else {
-              this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
-            }
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
+        this.owners = this.entry.accessUsers;
+        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+          this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
+        } else {
+          this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
+        }
         this.iconType = "database";
         this.size = this.entry.size;
       }
@@ -160,7 +148,7 @@ export class ListItemComponent implements OnChanges {
     }
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
-    this.isLiked = this.entry.isLiked
+    this.isLiked = this.entry.isLiked;
   }
 
   ngOnChanges(changes: SimpleChanges): void {

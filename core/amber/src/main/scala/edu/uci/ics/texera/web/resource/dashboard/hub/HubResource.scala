@@ -22,6 +22,7 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import HubResource.{
+  AccessResponse,
   CountResponse,
   LikedResponse,
   UserRequest,
@@ -55,6 +56,7 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClic
 import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import io.dropwizard.auth.Auth
+import org.jooq.Table
 
 import scala.collection.mutable.ListBuffer
 
@@ -65,6 +67,11 @@ object HubResource {
       entityId: Integer,
       entityType: EntityType,
       isLiked: Boolean
+  )
+  case class AccessResponse(
+      entityType: EntityType,
+      entityId: Integer,
+      userIds: java.util.List[Integer]
   )
   case class CountResponse(
       entityId: Integer,
@@ -616,5 +623,56 @@ class HubResource {
     }
 
     buffer.toList.asJava
+  }
+
+  @GET
+  @Path("/userAccess")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def userAccess(
+      @QueryParam("entityType") entityTypes: java.util.List[EntityType],
+      @QueryParam("entityId") entityIds: java.util.List[Integer]
+  ): java.util.List[AccessResponse] = {
+    import scala.jdk.CollectionConverters._
+    import scala.collection.mutable.ListBuffer
+
+    case class AccessRequest(entityType: EntityType, entityId: Integer)
+    val reqs: List[AccessRequest] =
+      entityTypes.asScala
+        .zip(entityIds.asScala)
+        .map { case (et, id) => AccessRequest(et, id) }
+        .toList
+
+    val responses = ListBuffer[AccessResponse]()
+    reqs.groupBy(_.entityType).foreach {
+      case (etype, groupReqs) =>
+        val (tbl, idCol, uidCol) = etype match {
+          case EntityType.Workflow =>
+            (WORKFLOW_USER_ACCESS: Table[_], WORKFLOW_USER_ACCESS.WID, WORKFLOW_USER_ACCESS.UID)
+          case EntityType.Dataset =>
+            (DATASET_USER_ACCESS: Table[_], DATASET_USER_ACCESS.DID, DATASET_USER_ACCESS.UID)
+        }
+
+        val records = context
+          .select(idCol, uidCol)
+          .from(tbl)
+          .where(idCol.in(groupReqs.map(_.entityId).asJava))
+          .fetch()
+          .asScala
+
+        val accessMap: Map[Integer, List[Integer]] =
+          records
+            .groupBy(r => r.get(idCol))
+            .map {
+              case (id, rs) =>
+                id -> rs.map(r => r.get(uidCol)).toList
+            }
+
+        groupReqs.map(_.entityId).distinct.foreach { eid =>
+          val uids = accessMap.getOrElse(eid, Nil).asJava
+          responses += AccessResponse(etype, eid, uids)
+        }
+    }
+
+    responses.toList.asJava
   }
 }

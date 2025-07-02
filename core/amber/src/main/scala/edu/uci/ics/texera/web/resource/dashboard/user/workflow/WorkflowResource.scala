@@ -774,20 +774,6 @@ class WorkflowResource extends LazyLogging {
       .fetchOneInto(classOf[String])
   }
 
-  @GET
-  @Path("/workflow_user_access")
-  def workflowUserAccess(
-      @QueryParam("wid") wid: Integer
-  ): util.List[Integer] = {
-    val records = context
-      .select(WORKFLOW_USER_ACCESS.UID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
-      .fetch()
-
-    records.getValues(WORKFLOW_USER_ACCESS.UID)
-  }
-
   //TODO Get size from database
   @GET
   @Path("/size")

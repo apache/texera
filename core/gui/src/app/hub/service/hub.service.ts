@@ -51,6 +51,12 @@ export interface CountResponse {
   counts: Partial<Record<ActionType, number>>;
 }
 
+export interface AccessResponse {
+  entityType: EntityType;
+  entityId: number;
+  userIds: number[];
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -157,5 +163,13 @@ export class HubService {
     });
 
     return this.http.get<CountResponse[]>(`${this.BASE_URL}/counts`, { params });
+  }
+
+  public getUserAccess(entityTypes: EntityType[], entityIds: number[]): Observable<AccessResponse[]> {
+    let params = new HttpParams();
+    entityTypes.forEach(t => (params = params.append("entityType", t)));
+    entityIds.forEach(i => (params = params.append("entityId", i.toString())));
+
+    return this.http.get<AccessResponse[]>(`${this.BASE_URL}/userAccess`, { params });
   }
 }

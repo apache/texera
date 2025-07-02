@@ -47,6 +47,7 @@ export class DashboardEntry {
   cloneCount: number;
   likeCount: number;
   isLiked: boolean;
+  accessUsers: number[];
 
   constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
     if (isDashboardWorkflow(value)) {
@@ -66,6 +67,7 @@ export class DashboardEntry {
       this.cloneCount = 0;
       this.likeCount = 0;
       this.isLiked = false;
+      this.accessUsers = [];
     } else if (isDashboardProject(value)) {
       this.type = EntityType.Project;
       this.id = value.pid;
@@ -83,6 +85,7 @@ export class DashboardEntry {
       this.cloneCount = 0;
       this.likeCount = 0;
       this.isLiked = false;
+      this.accessUsers = [];
     } else if (isDashboardFile(value)) {
       this.type = EntityType.File;
       this.id = value.file.fid;
@@ -100,6 +103,7 @@ export class DashboardEntry {
       this.cloneCount = 0;
       this.likeCount = 0;
       this.isLiked = false;
+      this.accessUsers = [];
     } else if (isDashboardDataset(value)) {
       this.type = EntityType.Dataset;
       this.id = value.dataset.did;
@@ -117,6 +121,7 @@ export class DashboardEntry {
       this.cloneCount = 0;
       this.likeCount = 0;
       this.isLiked = false;
+      this.accessUsers = [];
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
@@ -138,6 +143,10 @@ export class DashboardEntry {
 
   setIsLiked(isLiked: boolean): void {
     this.isLiked = isLiked;
+  }
+
+  setAccessUsers(accessUsers: number[]): void {
+    this.accessUsers = accessUsers;
   }
 
   get project(): DashboardProject {

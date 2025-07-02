@@ -273,15 +273,6 @@ export class WorkflowPersistService {
   }
 
   /**
-   * retrieve the user IDs of all users with direct access (read or write) to the workflow corresponding to the wid
-   * can be used without logging in
-   * @param wid
-   */
-  public getWorkflowOwners(wid: number): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_USER_ACCESS}?wid=${wid}`);
-  }
-
-  /**
    * Get JSON size of the workflow corresponding to the wid
    * can be used without logging in
    * @param wid
