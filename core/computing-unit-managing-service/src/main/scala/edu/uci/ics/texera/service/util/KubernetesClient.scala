@@ -174,7 +174,7 @@ object KubernetesClient {
       .endSpec()
       .build()
 
-    client.pods().inNamespace(namespace).create(pod)
+    client.resource(pod).inNamespace(namespace).create()
   }
 
   def deletePod(cuid: Int): Unit = {
