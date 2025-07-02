@@ -162,6 +162,8 @@ class RegionExecutionCoordinator(
             case (_, opExec) =>
               opExec.getWorkerIds.map { workerId =>
                 val actorRef = actorRefService.getActorRef(workerId)
+                // Remove the actorRef so that no other actors can find the worker and send messages.
+                actorRefService.removeActorRef(workerId)
                 gracefulStop(actorRef, Duration(5, TimeUnit.SECONDS)).asTwitter()
               }
           }.toSeq
