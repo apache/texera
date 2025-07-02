@@ -43,7 +43,9 @@ import org.jooq.DSLContext
 import java.sql.Timestamp
 import play.api.libs.json._
 
-import scala.collection.JavaConverters._
+import scala.annotation.unused
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 
 
 
@@ -212,7 +214,7 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/limits")
   def getComputingUnitLimitOptions(
-      @Auth user: SessionUser
+      @Auth @unused user: SessionUser
   ): ComputingUnitLimitOptionsResponse = {
     ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions, gpuLimitOptions)
   }
@@ -222,7 +224,7 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/types")
   def getComputingUnitTypes(
-      @Auth user: SessionUser
+      @Auth @unused user: SessionUser
   ): ComputingUnitTypesResponse = ComputingUnitTypesResponse(getSupportedComputingUnitTypes)
 
   /**
