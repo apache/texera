@@ -23,12 +23,22 @@ import edu.uci.ics.texera.config.ComputingUnitConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{DashboardWorkflowComputingUnit, context}
+import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
+  DashboardWorkflowComputingUnit,
+  context
+}
 import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{getComputingUnitMetrics, getComputingUnitStatus}
+import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
+  getComputingUnitMetrics,
+  getComputingUnitStatus
+}
 import edu.uci.ics.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 
 import scala.jdk.CollectionConverters._
@@ -104,7 +114,9 @@ object ComputingUnitAccessResource {
 class ComputingUnitAccessResource {
   private def ensureSharingIsEnabled(): Unit = {
     if (!ComputingUnitConfig.sharingComputingUnitEnabled) {
-      throw new ForbiddenException("The computing unit sharing feature is disabled by the administrator.")
+      throw new ForbiddenException(
+        "The computing unit sharing feature is disabled by the administrator."
+      )
     }
   }
   final private val userDao = new UserDao(context.configuration())
@@ -194,7 +206,7 @@ class ComputingUnitAccessResource {
   def getOwner(
       @Auth user: SessionUser,
       @PathParam("cuid") cuid: Integer
-              ): String = {
+  ): String = {
     ensureSharingIsEnabled()
 
     withTransaction(context) { ctx =>
