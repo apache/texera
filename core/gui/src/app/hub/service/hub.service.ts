@@ -114,17 +114,23 @@ export class HubService {
    * @param entityType   The type of entity to query (e.g. EntityType.Workflow or EntityType.Dataset).
    * @param actionTypes  An array of action types to retrieve (only ActionType.Like and ActionType.Clone).
    * @param currentUid   Optional user ID context (will be sent as -1 if undefined).
+   * @param limit        Optional maximum number of top items per action; must be >0 (default: 8).
    * @returns            An Observable resolving to a map where each key is one of ActionType.Like | ActionType.Clone
    *                     and the value is the corresponding list of SearchResultItem.
    */
   public getTops(
     entityType: EntityType,
     actionTypes: ActionType[],
-    currentUid?: number
+    currentUid?: number,
+    limit?: number
   ): Observable<Record<ActionType, SearchResultItem[]>> {
     let params = new HttpParams()
       .set("entityType", entityType)
       .set("uid", (currentUid !== undefined ? currentUid : -1).toString());
+
+    if (limit != null && limit > 0) {
+      params = params.set("limit", limit.toString());
+    }
 
     actionTypes.forEach(act => {
       params = params.append("actionTypes", act);

@@ -405,6 +405,8 @@ class HubResource {
     *                     If omitted or empty, defaults to [Like, Clone].
     * @param uid          Optional user ID (Integer) for user-specific context.
     *                     If null or -1, no per-user flags are applied.
+    * @param limit        Optional maximum number of items to return per action type.
+    *                     Must be > 0; defaults to 8 if not provided or invalid.
     * @return             A Map from each actionType.value (e.g. "like", "clone")
     *                     to a List of DashboardClickableFileEntry containing the top 8
     *                     public entities of that type.
@@ -415,11 +417,13 @@ class HubResource {
   def getTops(
       @QueryParam("entityType") entityType: EntityType,
       @QueryParam("actionTypes") actionTypes: java.util.List[ActionType],
-      @QueryParam("uid") uid: Integer
+      @QueryParam("uid") uid: Integer,
+      @QueryParam("limit") limit: Integer
   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
     val baseTable = BaseEntityTable(entityType)
     val isPublicColumn = baseTable.isPublicColumn
     val baseIdColumn = baseTable.idColumn
+    val topN: Int = Option(limit).filter(_ > 0).map(_.intValue).getOrElse(8)
 
     val currentUid: Integer =
       if (uid == null || uid == -1) null
@@ -454,7 +458,7 @@ class HubResource {
           .where(isPublicColumn.eq(true))
           .groupBy(idColumn)
           .orderBy(DSL.count(idColumn).desc())
-          .limit(8)
+          .limit(topN)
           .fetchInto(classOf[Integer])
           .asScala
           .toSeq
