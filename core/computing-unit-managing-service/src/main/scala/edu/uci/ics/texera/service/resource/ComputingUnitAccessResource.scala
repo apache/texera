@@ -188,4 +188,25 @@ class ComputingUnitAccessResource {
         .execute()
     }
   }
+
+  @GET
+  @Path("/computing-unit/owner/{cuid}")
+  def getOwner(
+      @Auth user: SessionUser,
+      @PathParam("cuid") cuid: Integer
+              ): String = {
+    ensureSharingIsEnabled()
+
+    withTransaction(context) { ctx =>
+      val workflowComputingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
+      val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
+      if (unit == null) {
+        throw new IllegalArgumentException("Computing unit does not exist")
+      }
+
+      val uid = unit.getUid
+      val owner = userDao.fetchOneByUid(uid)
+      owner.getEmail
+    }
+  }
 }

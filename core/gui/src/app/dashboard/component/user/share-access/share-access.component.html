@@ -115,7 +115,7 @@
     <br />
 
     <nz-card nzTitle="Share">
-      <div style="height: 50px">
+      <div style="height: 50px" *ngIf="type !== 'computing-unit'">
         Access Level:
         <select formControlName="accessLevel">
           <option value="READ">read</option>

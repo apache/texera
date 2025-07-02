@@ -144,6 +144,7 @@
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
+            *ngIf="unit.isOwner"
             [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
             (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
