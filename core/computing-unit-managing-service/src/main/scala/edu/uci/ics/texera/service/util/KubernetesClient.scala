@@ -29,7 +29,8 @@ import scala.jdk.CollectionConverters._
 object KubernetesClient {
 
   // Initialize the Kubernetes client
-  private val client: io.fabric8.kubernetes.client.KubernetesClient = new KubernetesClientBuilder().build()
+  private val client: io.fabric8.kubernetes.client.KubernetesClient =
+    new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 

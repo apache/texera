@@ -264,7 +264,7 @@ object WorkflowExecutionsResource {
     val eIdsList = eIdsLong.toSeq.asJava
 
     // Collect all related document URIs (runtime stats, console logs, results)
-    val uris: Seq[URI] = eIdsLong.toIndexedSeq.flatMap{ eid =>
+    val uris: Seq[URI] = eIdsLong.toIndexedSeq.flatMap { eid =>
       val execId = ExecutionIdentity(eid)
       WorkflowExecutionsResource
         .getRuntimeStatsUriByExecutionId(execId)

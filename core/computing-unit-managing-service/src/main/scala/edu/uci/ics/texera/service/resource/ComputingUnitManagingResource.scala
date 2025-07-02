@@ -28,10 +28,19 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
+import KubernetesConfig.{
+  cpuLimitOptions,
+  gpuLimitOptions,
+  maxNumOfRunningComputingUnitsPerUser,
+  memoryLimitOptions
+}
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
-import edu.uci.ics.texera.service.util.{ComputingUnitManagingServiceException, InsufficientComputingUnitQuota, KubernetesClient}
+import edu.uci.ics.texera.service.util.{
+  ComputingUnitManagingServiceException,
+  InsufficientComputingUnitQuota,
+  KubernetesClient
+}
 import io.dropwizard.auth.Auth
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -45,9 +54,6 @@ import play.api.libs.json._
 
 import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-
-
-
 
 object ComputingUnitManagingResource {
   private lazy val context: DSLContext = SqlServer
@@ -327,7 +333,8 @@ class ComputingUnitManagingResource {
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
       val units = wcDao
-        .fetchByUid(user.getUid).asScala
+        .fetchByUid(user.getUid)
+        .asScala
         .filter(_.getTerminateTime == null) // Filter out terminated units
 
       if (
@@ -449,7 +456,8 @@ class ComputingUnitManagingResource {
 
       // Fetch computing units that are still marked as running in DB (terminateTime == null)
       val units = computingUnitDao
-        .fetchByUid(user.getUid).asScala
+        .fetchByUid(user.getUid)
+        .asScala
         .filter(_.getTerminateTime == null)
 
       // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
