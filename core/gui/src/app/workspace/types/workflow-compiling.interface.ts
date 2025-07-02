@@ -38,8 +38,8 @@ import { WorkflowFatalError } from "./workflow-websocket.interface";
 export interface WorkflowCompilationResponse
   extends Readonly<{
     physicalPlan?: PhysicalPlan;
-    operatorInputSchemas: {
-      [key: string]: OperatorInputSchema;
+    operatorOutputSchemas: {
+      [key: string]: OperatorPortSchemaMap;
     };
     operatorErrors: {
       [opId: string]: WorkflowFatalError;
@@ -58,15 +58,15 @@ export type CompilationStateInfo = Readonly<
       state: CompilationState.Succeeded;
       // physicalPlan compiled from current logical plan
       physicalPlan: PhysicalPlan;
-      // a map from opId to InputSchema, used for autocompletion of schema
-      operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+      // a map from opId to OperatorSchema
+      operatorOutputPortSchemaMap: Readonly<Record<string, OperatorPortSchemaMap>>;
     }
   | {
       state: CompilationState.Uninitialized;
     }
   | {
       state: CompilationState.Failed;
-      operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+      operatorOutputPortSchemaMap: Readonly<Record<string, OperatorPortSchemaMap>>;
       operatorErrors: Readonly<Record<string, WorkflowFatalError>>;
     }
 >;
@@ -78,6 +78,7 @@ export interface SchemaAttribute
     attributeType: AttributeType;
   }> {}
 
-// input schema of an operator: an array of schemas at each input port
-export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
-export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
+export type PortSchema = ReadonlyArray<SchemaAttribute>;
+
+// schema of an operator: a map from serialized PortIdentity to port schema
+export type OperatorPortSchemaMap = Readonly<Record<string, PortSchema | undefined>>;

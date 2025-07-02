@@ -105,6 +105,7 @@ import edu.uci.ics.amber.operator.visualization.figureFactoryTable.FigureFactory
 import edu.uci.ics.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ganttChart.GanttChartOpDesc
+import edu.uci.ics.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
 import edu.uci.ics.amber.operator.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
@@ -124,6 +125,7 @@ import edu.uci.ics.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
+import edu.uci.ics.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
@@ -208,6 +210,7 @@ trait StateTransferFunc
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
+    new Type(value = classOf[GaugeChartOpDesc], name = "GaugeChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
@@ -215,6 +218,7 @@ trait StateTransferFunc
     new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
+    new Type(value = classOf[Histogram2DOpDesc], name = "Histogram2D"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),

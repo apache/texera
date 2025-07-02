@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
+  DirectControlMessagePayload,
   DataPayload,
   WorkflowFIFOMessage,
   WorkflowFIFOMessagePayload
@@ -67,7 +67,7 @@ class NetworkOutputGateway(
     handler(WorkflowFIFOMessage(outChannelId, seqNum, payload))
   }
 
-  def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+  def sendTo(to: ActorVirtualIdentity, payload: DirectControlMessagePayload): Unit = {
     sendToInternal(to, useControlChannel = true, payload)
   }
 

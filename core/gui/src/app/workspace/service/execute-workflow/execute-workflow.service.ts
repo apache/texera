@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Inject, Injectable } from "@angular/core";
+import { Injectable, Inject } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -30,10 +30,10 @@ import {
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
-  OperatorCurrentTuples,
-  ReplayExecutionInfo,
-  TexeraWebsocketEvent,
   WorkflowFatalError,
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+  ReplayExecutionInfo,
 } from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";

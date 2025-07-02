@@ -29,7 +29,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
@@ -59,9 +62,9 @@ abstract class AmberProcessor(
   // statistics manager
   val statisticsManager: StatisticsManager = new StatisticsManager()
 
-  def processControlPayload(
+  def processDCM(
       channelId: ChannelIdentity,
-      payload: ControlPayload
+      payload: DirectControlMessagePayload
   ): Unit = {
     val controlProcessingStartTime = System.nanoTime();
     payload match {

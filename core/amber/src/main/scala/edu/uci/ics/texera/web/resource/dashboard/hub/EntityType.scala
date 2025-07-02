@@ -17,6 +17,32 @@
  * under the License.
  */
 
-package edu.uci.ics.amber.engine.common.ambermessage
+package edu.uci.ics.texera.web.resource.dashboard.hub
 
-trait ControlPayload extends WorkflowFIFOMessagePayload
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+
+/**
+  * Defines all supported entity types for Hub resources.
+  * Enables JSON ↔ enum conversion with lowercase string representation.
+  */
+sealed trait EntityType {
+  @JsonValue
+  def value: String
+
+  override def toString: String = value
+}
+
+object EntityType {
+  case object Workflow extends EntityType { val value = "workflow" }
+  case object Dataset extends EntityType { val value = "dataset" }
+
+  private val values = Seq(Workflow, Dataset)
+
+  @JsonCreator
+  def fromString(s: String): EntityType =
+    values
+      .find(_.value.equalsIgnoreCase(s))
+      .getOrElse(
+        throw new IllegalArgumentException(s"Unsupported entityType '$s'")
+      )
+}

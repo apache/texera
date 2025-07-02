@@ -21,6 +21,7 @@ import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardEntry } from "./dashboard-entry";
 
 export interface SearchResultItem {
   resourceType: "workflow" | "project" | "file" | "dataset";
@@ -34,4 +35,10 @@ export interface SearchResult {
   results: SearchResultItem[];
   more: boolean;
   hasMismatch?: boolean; // Indicates whether there are mismatched datasets (added for dashboard notification)
+}
+
+export interface SearchResultBatch {
+  entries: DashboardEntry[];
+  more: boolean;
+  hasMismatch?: boolean;
 }

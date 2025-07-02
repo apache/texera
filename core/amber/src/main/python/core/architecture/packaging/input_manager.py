@@ -19,7 +19,7 @@ import threading
 from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
-from core.models.internal_marker import InternalMarker, EndChannel
+from core.models.internal_marker import InternalMarker
 from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
@@ -157,11 +157,6 @@ class InputManager:
     ) -> Iterator[Union[Tuple, InternalMarker]]:
 
         self._current_channel_id = from_
-
-        # special case used to yield for source op
-        if from_.from_worker_id == InputManager.SOURCE_STARTER:
-            yield EndChannel()
-            return
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)

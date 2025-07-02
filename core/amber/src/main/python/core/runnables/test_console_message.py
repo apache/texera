@@ -27,7 +27,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessageType,
 )
 from proto.edu.uci.ics.amber.engine.common import (
-    ControlPayloadV2,
+    DirectControlMessagePayloadV2,
     PythonControlMessage,
 )
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
@@ -71,7 +71,7 @@ class TestConsoleMessage:
         # below statements wrap the console message as the python control message
         command = set_one_of(ControlRequest, console_message)
         payload = set_one_of(
-            ControlPayloadV2,
+            DirectControlMessagePayloadV2,
             ControlInvocation(
                 method_name="ConsoleMessageTriggered", command_id=1, command=command
             ),

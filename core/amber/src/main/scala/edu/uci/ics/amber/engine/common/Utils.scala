@@ -19,26 +19,14 @@
 
 package edu.uci.ics.amber.engine.common
 
-import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 
 import java.nio.file.{Files, Path, Paths}
-import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
 
 object Utils extends LazyLogging {
-
-  final val objectMapper = new ObjectMapper()
-    .registerModule(DefaultScalaModule)
-    .registerModule(new NoCtorDeserModule())
-    .setSerializationInclusion(Include.NON_NULL)
-    .setSerializationInclusion(Include.NON_ABSENT)
-    .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
 
   /**
     * Gets the real path of the amber home directory by:
