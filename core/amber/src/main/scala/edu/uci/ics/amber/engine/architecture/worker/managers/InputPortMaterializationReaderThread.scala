@@ -50,7 +50,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 import io.grpc.MethodDescriptor

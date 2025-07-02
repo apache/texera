@@ -22,7 +22,7 @@ from core.architecture.managers.context import Context
 from core.architecture.rpc.async_rpc_handler_initializer import (
     AsyncRPCHandlerInitializer,
 )
-from core.models.internal_queue import InternalQueue, ControlElement
+from core.models.internal_queue import InternalQueue, DCMElement
 from core.util import get_one_of, set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ReturnInvocation,
@@ -32,7 +32,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlError,
     ErrorLanguage,
 )
-from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
 from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
@@ -108,8 +108,8 @@ class AsyncRPCServer:
             )
 
         # Construct the payload as a ReturnInvocation.
-        payload: ControlPayloadV2 = set_one_of(
-            ControlPayloadV2,
+        payload: DirectControlMessagePayloadV2 = set_one_of(
+            DirectControlMessagePayloadV2,
             ReturnInvocation(
                 command_id=control_invocation.command_id,
                 return_value=control_return,
@@ -129,7 +129,7 @@ class AsyncRPCServer:
             f" {command}"
         )
         # Put the control element in the output queue.
-        self._output_queue.put(ControlElement(tag=target_channel_id, payload=payload))
+        self._output_queue.put(DCMElement(tag=target_channel_id, payload=payload))
 
     def look_up(self, method_name: str) -> grpclib.const.Handler:
         logger.debug(method_name)

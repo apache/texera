@@ -41,7 +41,30 @@
       alt="Logo Preview"
       class="preview-img" />
   </div>
-  <div class="help-text">The logo will appear in the expanded sidebar. Recommend: use a square image.</div>
+  <div class="help-text">The logo will appear in the expanded sidebar. Recommended: use a square image.</div>
+
+  <div class="upload-row">
+    <span>Mini Logo:</span>
+    <button
+      nz-button
+      (click)="miniLogoInput.click()">
+      Choose a Mini Logo
+    </button>
+    <input
+      #miniLogoInput
+      type="file"
+      accept="image/*"
+      hidden
+      (change)="onFileChange('mini_logo', $event)" />
+    <img
+      *ngIf="miniLogoData"
+      [src]="miniLogoData"
+      alt="Mini Logo Preview"
+      class="preview-img" />
+  </div>
+  <div class="help-text">
+    The mini logo will appear in the collapsed sidebar as a small icon. Recommended: use a square image.
+  </div>
 
   <div class="upload-row">
     <span>Favicon:</span>
@@ -63,7 +86,7 @@
       class="preview-img" />
   </div>
   <div class="help-text">
-    The favicon (mini logo) will appear in the collapsed sidebar as a small icon. Recommend: use a square image.
+    This image will be used as your browser tab icon. Recommended: use a square image (16×16 or 32×32 pixels).
   </div>
 
   <div class="button-row">

@@ -27,7 +27,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
-import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
+import { map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -120,56 +120,22 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
       // force the project id in the search query to be the current pid.
       filterParams.projectIds = [this.pid];
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const results = await firstValueFrom(
-        this.searchService.search(
-          [""],
-          filterParams,
-          start,
-          count,
-          this.searchType,
-          this.sortMethod,
-          this.isLogin,
-          this.includePublic
-        )
+
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            [""],
+            filterParams,
+            start,
+            count,
+            this.searchType,
+            this.sortMethod,
+            this.isLogin,
+            this.includePublic
+          )
+          .pipe(map(({ entries, more }) => ({ entries, more })))
       );
-
-      const userIds = new Set<number>();
-      results.results.forEach(i => {
-        const ownerUid = this.searchType === "workflow" ? i.workflow?.ownerId : i.dataset?.dataset?.ownerUid;
-        if (ownerUid !== undefined) {
-          userIds.add(ownerUid);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      return {
-        entries: results.results.map(i => {
-          let entry;
-          if (this.searchType === "workflow" && i.workflow) {
-            entry = new DashboardEntry(i.workflow);
-          } else if (this.searchType === "dataset" && i.dataset) {
-            entry = new DashboardEntry(i.dataset);
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
-          }
-
-          const ownerUid = this.searchType === "workflow" ? i.workflow?.ownerId : i.dataset?.dataset?.ownerUid;
-
-          if (ownerUid !== undefined) {
-            const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
-            entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-          }
-
-          return entry;
-        }),
-        more: results.more,
-      };
     });
     await this.searchResultsComponent.loadMore();
   }
