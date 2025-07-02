@@ -145,6 +145,15 @@ export class SearchService {
     );
   }
 
+  /**
+   * Enriches an array of SearchResultItem into DashboardEntry instances.
+   *
+   * @param items        The SearchResultItem[] to enrich.
+   * @param isLogin      Whether the current user is authenticated.
+   * @param activities   Which activities to perform: 'counts', 'liked', 'access'.
+   *                     Defaults to all three if omitted or empty.
+   * @returns            Observable that emits the fully populated DashboardEntry[].
+   */
   public enrichEntries(
     items: SearchResultItem[],
     isLogin: boolean,

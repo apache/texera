@@ -625,6 +625,17 @@ class HubResource {
     buffer.toList.asJava
   }
 
+  /**
+    * Batch-fetches the list of user IDs who have access rights for one or more entities.
+    * Supports multiple entityType/entityId pairs in a single request.
+    *
+    * @param entityTypes List of entity types (e.g. Workflow, Dataset) matching the entityIds.
+    * @param entityIds   List of entity IDs matching the entityTypes.
+    * @return A list of AccessResponse objects, each containing:
+    *                     - entityType: the resource type
+    *                     - entityId: the resource ID
+    *                     - userIds:  the list of user IDs with access to that resource
+    */
   @GET
   @Path("/userAccess")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -632,14 +643,10 @@ class HubResource {
       @QueryParam("entityType") entityTypes: java.util.List[EntityType],
       @QueryParam("entityId") entityIds: java.util.List[Integer]
   ): java.util.List[AccessResponse] = {
-    import scala.jdk.CollectionConverters._
-    import scala.collection.mutable.ListBuffer
-
-    case class AccessRequest(entityType: EntityType, entityId: Integer)
-    val reqs: List[AccessRequest] =
-      entityTypes.asScala
-        .zip(entityIds.asScala)
-        .map { case (et, id) => AccessRequest(et, id) }
+    val reqs =
+      entityIds.asScala
+        .zip(entityTypes.asScala)
+        .map { case (et, id) => UserRequest(et, id) }
         .toList
 
     val responses = ListBuffer[AccessResponse]()
@@ -659,7 +666,7 @@ class HubResource {
           .fetch()
           .asScala
 
-        val accessMap: Map[Integer, List[Integer]] =
+        val accessMap =
           records
             .groupBy(r => r.get(idCol))
             .map {
