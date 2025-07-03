@@ -19,7 +19,6 @@
 
 package edu.uci.ics.texera.service
 
-import com.typesafe.config.{Config, ConfigFactory}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -31,8 +30,6 @@ import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
-  private val config: Config = ConfigFactory.load("gui.conf")
-
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
