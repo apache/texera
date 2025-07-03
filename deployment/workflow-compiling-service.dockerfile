@@ -37,7 +37,7 @@ COPY .git ../.git
 RUN sbt clean WorkflowCompilingService/dist
 
 # Unzip the texera binary
-RUN unzip workflow-compiling-service/target/universal/workflow-compiling-service-0.1.0.zip -d target/
+RUN unzip workflow-compiling-service/target/universal/workflow-compiling-service-*.zip -d target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
@@ -45,7 +45,7 @@ WORKDIR /core
 
 # Copy the built texera binary from the build phase
 COPY --from=build /.git /.git
-COPY --from=build /core/target/workflow-compiling-service-0.1.0 /core/
+COPY --from=build /core/target/workflow-compiling-service-* /core/
 # Copy resources directories under /core from build phase
 COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 COPY --from=build /core/workflow-compiling-service/src/main/resources /core/workflow-compiling-service/src/main/resources
