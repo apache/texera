@@ -19,8 +19,6 @@
 
 package edu.uci.ics.texera.web.model.websocket.event
 
-import edu.uci.ics.amber.engine.architecture.worker.statistics.TupleMetrics
-
 case class OperatorAggregatedMetrics(
     operatorState: String,
     aggregatedInputRowCount: Long,

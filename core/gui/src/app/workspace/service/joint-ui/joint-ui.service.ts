@@ -106,7 +106,6 @@ export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountClass = "texera-operator-output-count";
-export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
 
@@ -133,7 +132,6 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
-      <text class="${operatorAbbreviatedCountClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -291,7 +289,6 @@ export class JointUIService {
       jointPaper.getModelById(operatorID).attr({
         [`.${operatorProcessedCountClass}`]: { text: "" },
         [`.${operatorOutputCountClass}`]: { text: "" },
-        [`.${operatorAbbreviatedCountClass}`]: { text: "" },
       });
       this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
       return;
@@ -311,6 +308,7 @@ export class JointUIService {
     const outPorts = allPorts.filter(p => p.group === "out");
 
     const inputMetrics = statistics.inputPortMetrics;
+    const outputMetrics = statistics.outputPortMetrics;
 
     inPorts.forEach(portDef => {
       const portId = portDef.id;
@@ -339,7 +337,7 @@ export class JointUIService {
         const parts = portId.split("-");
         const numericSuffix = parts.length > 1 ? parts[1] : portId;
 
-        const count: number = inputMetrics[numericSuffix] ?? 0;
+        const count: number = outputMetrics[numericSuffix] ?? 0;
         const rawAttrs = (portDef.attrs as any) || {};
         const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
         let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
@@ -357,14 +355,12 @@ export class JointUIService {
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorOutputCountClass}`]: { text: outputText },
-      [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
     });
 
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
       [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
       [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
@@ -383,7 +379,6 @@ export class JointUIService {
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
       [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
       [`.${operatorOutputCountClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
@@ -425,7 +420,6 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { text: operatorState.toString() },
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
-      [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
       [`.${operatorProcessedCountClass}`]: { fill: fillColor },
       [`.${operatorOutputCountClass}`]: { fill: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
@@ -665,6 +659,9 @@ export class JointUIService {
         event: "input-label:evt",
         dblclick: "input-label:dbclick",
         pointerdblclick: "input-label:pointerdblclick",
+        ref: ".port-body",
+        "ref-y": 0.5,
+        "y-alignment": "middle",
       },
     };
   }
