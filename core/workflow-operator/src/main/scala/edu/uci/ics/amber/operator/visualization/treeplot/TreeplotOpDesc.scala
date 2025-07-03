@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package edu.uci.ics.amber.operator.visualization.treePlot
+package edu.uci.ics.amber.operator.visualization.treeplot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
@@ -29,12 +29,12 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 /**
- * Visualization Operator for Tree Plots.
- *
- * This operator uses a single column containing parent-child pairs
- * to construct and visualize an interactive, top-down tree that automatically
- * sizes itself and supports intuitive scroll/pinch zooming.
- */
+  * Visualization Operator for Tree Plots.
+  *
+  * This operator uses a single column containing parent-child pairs
+  * to construct and visualize an interactive, top-down tree that automatically
+  * sizes itself and supports intuitive scroll/pinch zooming.
+  */
 class TreePlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Edge List Column", required = true)
@@ -43,19 +43,19 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var edgeListColumn: String = ""
 
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       userFriendlyName = "Tree Plot",
-      operatorDescription = "Visualize hierarchical data as a top-down, interactive, auto-sizing tree",
+      operatorDescription =
+        "Visualize hierarchical data as a top-down, interactive, auto-sizing tree",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("html-content", AttributeType.STRING)
@@ -110,10 +110,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor {
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        if table.empty:
        |            yield {'html-content': self.render_error("Input table is empty.")}
-       |            return
-       |
-       |        if '$edgeListColumn' not in table.columns:
-       |            yield {'html-content': self.render_error(f"Column '$edgeListColumn' not found in input.")}
        |            return
        |
        |        edges = []
