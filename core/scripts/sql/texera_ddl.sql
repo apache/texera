@@ -20,8 +20,8 @@
 --    Remove if you already created texera_db
 -- ============================================
 \c postgres
-DROP DATABASE IF EXISTS texera_db;
-CREATE DATABASE texera_db;
+-- DROP DATABASE IF EXISTS texera_db;
+-- CREATE DATABASE texera_db;
 
 -- ============================================
 -- 2. Connect to the new database (psql only)

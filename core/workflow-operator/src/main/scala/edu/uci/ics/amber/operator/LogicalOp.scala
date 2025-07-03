@@ -24,11 +24,7 @@ import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
@@ -39,22 +35,14 @@ import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
-import edu.uci.ics.amber.operator.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceTextSummarizationOpDesc
-}
+import edu.uci.ics.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
 import edu.uci.ics.amber.operator.ifStatement.IfOpDesc
 import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
-  SklearnAdvancedKNNClassifierTrainerOpDesc,
-  SklearnAdvancedKNNRegressorTrainerOpDesc
-}
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
@@ -66,10 +54,7 @@ import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.amber.operator.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
@@ -126,6 +111,7 @@ import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpD
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import edu.uci.ics.amber.operator.visualization.treePlot.TreePlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -206,6 +192,7 @@ trait StateTransferFunc
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
+    new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
