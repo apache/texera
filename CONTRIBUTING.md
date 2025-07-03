@@ -31,6 +31,7 @@ Your pull request description should include:
   - If your PR addresses an issue, use `Closes #1234` to automatically close it.
   - If it relates to an issue or another PR, reference it with `#<issue_number>` or `#<PR_number>`.
 - **Summary** of changes.
+- Optional **design proposal** created based on the [template](https://docs.google.com/document/d/1ih6jLni4GgKETxOAlTOPjarlbeY5ccB2g9y1vK-Xhck/edit?usp=sharing).
 - Optional **technical design diagram** or description.
 - Optional **GIFs or screenshots** for UI-related changes.
 
