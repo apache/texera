@@ -143,7 +143,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     this.handleInputConfirm();
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
-        let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`
+        let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
         if (this.type !== "computing-unit")
           message += `, access the ${this.type} at ${location.origin}/workflow/${this.id}`;
         this.accessService
