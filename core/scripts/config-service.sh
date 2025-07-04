@@ -15,4 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-target/config-service-0.1.0/bin/config-service 
+target/config-service-*/bin/config-service

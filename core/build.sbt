@@ -24,7 +24,7 @@ lazy val ConfigService = (project in file("config-service"))
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
 lazy val WorkflowCore = (project in file("workflow-core"))
@@ -36,7 +36,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
 lazy val FileService = (project in file("file-service"))
@@ -72,21 +72,32 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
     ),
     libraryDependencies ++= Seq(
-      "com.squareup.okhttp3" % "okhttp" % "4.10.0" force(), // Force usage of OkHttp 4.10.0
-    ),
+      "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
+    )
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
 
 // root project definition
 lazy val CoreProject = (project in file("."))
-  .aggregate(DAO, Config, ConfigService, Auth, WorkflowCore, ComputingUnitManagingService, FileService, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
+  .aggregate(
+    DAO,
+    Config,
+    ConfigService,
+    Auth,
+    WorkflowCore,
+    ComputingUnitManagingService,
+    FileService,
+    WorkflowOperator,
+    WorkflowCompilingService,
+    WorkflowExecutionService
+  )
   .settings(
     name := "core",
-    version := "0.1.0",
+    version := "1.0.0",
     organization := "edu.uci.ics",
     scalaVersion := "2.13.12",
     publishMavenStyle := true

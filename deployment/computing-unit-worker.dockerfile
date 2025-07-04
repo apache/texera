@@ -37,7 +37,7 @@ COPY .git ../.git
 RUN sbt clean WorkflowExecutionService/dist
 
 # Unzip the texera binary
-RUN unzip amber/target/universal/texera-0.1-SNAPSHOT.zip -d amber/target/
+RUN unzip amber/target/universal/texera-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
@@ -62,7 +62,7 @@ RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/op
     pip3 install --no-cache-dir wordcloud==1.9.2
 
 # Copy the built texera binary from the build phase
-COPY --from=build /core/amber/target/texera-0.1-SNAPSHOT /core/amber
+COPY --from=build /core/amber/target/texera-* /core/amber
 # Copy resources directories under /core from build phase
 COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
 COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
