@@ -21,7 +21,8 @@
 
 name := "auth"
 organization := "edu.uci.ics"
-version := "0.1.0"
+version := "1.0.0"
+
 scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)

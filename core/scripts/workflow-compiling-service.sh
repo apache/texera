@@ -15,4 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-target/workflow-compiling-service-0.1.0/bin/workflow-compiling-service
+target/workflow-compiling-service-*/bin/workflow-compiling-service
