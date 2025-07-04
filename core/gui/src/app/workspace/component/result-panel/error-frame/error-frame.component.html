@@ -45,6 +45,13 @@
           nzType="aim"
           title="focus operator"
           (click)="$event.stopPropagation(); onClickGotoButton(error.operatorId)"></span>
+        <span
+          class="fix-error-icon"
+          nz-icon
+          nzType="tool"
+          [nzSpin]="isLoading"
+          title="ask copilot to fix"
+          (click)="$event.stopPropagation(); onClickFixError(error)"></span>
       </ng-template>
       <p class="error-message">{{ error.details }}</p>
     </nz-collapse-panel>

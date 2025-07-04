@@ -49,8 +49,19 @@ class WorkflowWebsocketResource extends LazyLogging {
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
     val sessionState = new SessionState(session)
     SessionState.setState(session.getId, sessionState)
-    val wid = session.getRequestParameterMap.get("wid").get(0).toLong
-    val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
+    val paramMap = session.getRequestParameterMap
+
+    val wid = paramMap.get("wid").get(0).toLong
+    val cuid = paramMap.get("cuid").get(0).toInt
+    // Hacky solution for local Python source purpose: set the JWT token from request into a system property
+    if (paramMap.containsKey("access-token")) {
+      val tokenList = paramMap.get("access-token")
+      if (tokenList != null && !tokenList.isEmpty) {
+        val token = tokenList.get(0)
+        System.setProperty("USER_JWT_TOKEN", token)
+      }
+    }
+
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =

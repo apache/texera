@@ -17,15 +17,19 @@
 
 TEXERA_ROOT="$(git rev-parse --show-toplevel)"
 GUI_DIR="$TEXERA_ROOT/core/gui"
-PROTOBUF_DIR="$TEXERA_ROOT/core/workflow-core/src/main/protobuf"
+PROTOBUF_AMBER_DIR="$TEXERA_ROOT/core/amber/src/main/protobuf"
+PROTOBUF_WORKFLOW_CORE_DIR="$TEXERA_ROOT/core/workflow-core/src/main/protobuf"
 GUI_PROTO_DIR="$GUI_DIR/src/app/common/type"
 
-WORKFLOW_PROTO=$(find "$PROTOBUF_DIR" -iname "workflow.proto")
-VIRTUALIDENTITY_PROTO=$(find "$PROTOBUF_DIR" -iname "virtualidentity.proto")
+WORKFLOW_PROTO=$(find "$PROTOBUF_WORKFLOW_CORE_DIR" -iname "workflow.proto")
+VIRTUALIDENTITY_PROTO=$(find "$PROTOBUF_WORKFLOW_CORE_DIR" -iname "virtualidentity.proto")
+TABLEPROFILE_PROTO=$(find "$PROTOBUF_AMBER_DIR" -iname "tableprofile.proto")
+
 
 protoc --plugin="$GUI_DIR/node_modules/.bin/protoc-gen-ts_proto" \
   --ts_proto_out="$GUI_PROTO_DIR/proto" \
-  -I="$PROTOBUF_DIR" \
+  -I="$PROTOBUF_AMBER_DIR" \
+  -I="$PROTOBUF_WORKFLOW_CORE_DIR" \
   "$WORKFLOW_PROTO" \
   "$VIRTUALIDENTITY_PROTO" \
-  --proto_path="$PROTOBUF_DIR"
+  "$TABLEPROFILE_PROTO"

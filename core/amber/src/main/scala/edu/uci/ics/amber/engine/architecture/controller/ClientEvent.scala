@@ -24,12 +24,16 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 trait ClientEvent extends WorkflowFIFOMessagePayload
 
 case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEvent
 
-case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
+case class ExecutionStatsUpdate(
+    operatorMetrics: Map[String, OperatorMetrics],
+    operatorTableProfiles: Map[String, TableProfile]
+) extends ClientEvent
 
 case class ReportCurrentProcessingTuple(
     operatorID: String,

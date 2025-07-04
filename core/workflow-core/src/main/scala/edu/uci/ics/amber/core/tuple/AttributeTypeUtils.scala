@@ -200,11 +200,21 @@ object AttributeTypeUtils extends Serializable {
   def parseTimestamp(fieldValue: Any): Timestamp = {
     val attempt: Try[Timestamp] = Try {
       fieldValue match {
-        case str: String          => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
-        case long: java.lang.Long => new Timestamp(long)
-        case timestamp: Timestamp => timestamp
-        case date: java.util.Date => new Timestamp(date.getTime)
-        // Integer, Double, Boolean, Binary are considered to be illegal here.
+        case str: String                =>
+          new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
+
+        case ldt: java.time.LocalDateTime =>
+          // Converts using the JVM default zone; change to a specific ZoneId if you need UTC
+          Timestamp.valueOf(ldt)
+
+        case instant: java.time.Instant  =>
+          Timestamp.from(instant)
+
+        case long: java.lang.Long        => new Timestamp(long)
+        case ts:   Timestamp             => ts
+        case date: java.util.Date        => new Timestamp(date.getTime)
+
+        // Unsupported kinds fall through
         case _ =>
           throw new AttributeTypeException(
             s"Unsupported type for parsing to Timestamp: ${fieldValue.getClass.getName}"
@@ -219,7 +229,6 @@ object AttributeTypeUtils extends Serializable {
           e
         )
     }.get
-
   }
 
   @throws[AttributeTypeException]

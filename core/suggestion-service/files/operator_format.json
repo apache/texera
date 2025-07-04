@@ -1,0 +1,4153 @@
+[
+  {
+    "operatorID": "IntervalJoin-operator-94a405e8-f1d0-44c7-a024-dc6c355ef389",
+    "operatorType": "IntervalJoin",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "constant": 10,
+      "includeLeftBound": true,
+      "includeRightBound": true,
+      "timeIntervalType": "day",
+      "dummyPropertyList": [],
+      "leftAttributeName": null,
+      "rightAttributeName": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "left table",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "right table",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Interval Join"
+  },
+  {
+    "operatorID": "DotPlot-operator-073e4322-fd56-4f39-a7cc-fd9e1bf01dd6",
+    "operatorType": "DotPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Count Attribute": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dot Plot"
+  },
+  {
+    "operatorID": "CartesianProduct-operator-8c355f9a-625e-41ef-b9a4-faa58a49fc42",
+    "operatorType": "CartesianProduct",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "left",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "right",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Cartesian Product"
+  },
+  {
+    "operatorID": "HuggingFaceSentimentAnalysis-operator-057df3f1-bf65-4569-a529-67022a473cc8",
+    "operatorType": "HuggingFaceSentimentAnalysis",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "attribute": null,
+      "Positive result attribute": "huggingface_sentiment_positive",
+      "Neutral result attribute": "huggingface_sentiment_neutral",
+      "Negative result attribute": "huggingface_sentiment_negative"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hugging Face Sentiment Analysis"
+  },
+  {
+    "operatorID": "PythonUDFSourceV2-operator-5b79ff6d-5f36-434d-ad9c-1d65c2dd0638",
+    "operatorType": "PythonUDFSourceV2",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "# from pytexera import *\n# class GenerateOperator(UDFSourceOperator):\n# \n#     @overrides\n#     \n#     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:\n#         yield\n",
+      "workers": 1,
+      "columns": []
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "1-out Python UDF"
+  },
+  {
+    "operatorID": "TwitterFullArchiveSearch-operator-abf6914f-f6f1-409d-b2f1-7910270bddab",
+    "operatorType": "TwitterFullArchiveSearch",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "apiKey": null,
+      "apiSecretKey": null,
+      "stopWhenRateLimited": false,
+      "searchQuery": null,
+      "fromDateTime": "2021-04-01T00:00:00Z",
+      "toDateTime": "2021-05-01T00:00:00Z",
+      "limit": 100
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Twitter Full Archive Search API"
+  },
+  {
+    "operatorID": "SklearnLogisticRegressionCV-operator-a7c38481-03c4-41f4-b496-623bd48d8817",
+    "operatorType": "SklearnLogisticRegressionCV",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Logistic Regression Cross Validation"
+  },
+  {
+    "operatorID": "JSONLFileScan-operator-4da5d4a2-a94c-439b-9ab2-9c8c69ec10aa",
+    "operatorType": "JSONLFileScan",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fileName": null,
+      "fileEncoding": "UTF_8",
+      "limit": null,
+      "offset": null,
+      "flatten": null
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "JSONL File Scan"
+  },
+  {
+    "operatorID": "CandlestickChart-operator-61822092-5166-489a-beff-79ee44ff07f6",
+    "operatorType": "CandlestickChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "date": null,
+      "open": null,
+      "high": null,
+      "low": null,
+      "close": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Candlestick Chart"
+  },
+  {
+    "operatorID": "ReservoirSampling-operator-be6bb046-5c14-452d-8284-f399c4368175",
+    "operatorType": "ReservoirSampling",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "number of item sampled in reservoir sampling": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Reservoir Sampling"
+  },
+  {
+    "operatorID": "ScatterMatrixChart-operator-6bb2ebfa-cb71-4927-b97f-5d5e57c831c6",
+    "operatorType": "ScatterMatrixChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Selected Attributes": [],
+      "Color": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Scatter Matrix Chart"
+  },
+  {
+    "operatorID": "SklearnKNN-operator-ae1b0bf4-cee7-43b2-999f-8c6ade032e00",
+    "operatorType": "SklearnKNN",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "K-nearest Neighbors"
+  },
+  {
+    "operatorID": "SklearnProbabilityCalibration-operator-1d1d950a-7d55-4261-b476-deb5725e5d39",
+    "operatorType": "SklearnProbabilityCalibration",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Probability Calibration"
+  },
+  {
+    "operatorID": "SortPartitions-operator-570f7cdd-c55f-4051-a1d0-5411892c27ed",
+    "operatorType": "SortPartitions",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "sortAttributeName": null,
+      "domainMin": null,
+      "domainMax": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Sort Partitions"
+  },
+  {
+    "operatorID": "DumbbellPlot-operator-40a538d5-bd1d-4ba5-a731-372a749617df",
+    "operatorType": "DumbbellPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "categoryColumnName": null,
+      "dumbbellStartValue": null,
+      "dumbbellEndValue": null,
+      "measurementColumnName": null,
+      "comparedColumnName": null,
+      "dots": [],
+      "showLegends": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dumbbell Plot"
+  },
+  {
+    "operatorID": "If-operator-bff0e021-2948-4503-a98f-6ae4ab6334b5",
+    "operatorType": "If",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "conditionName": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "Condition",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "False",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      },
+      {
+        "portID": "output-1",
+        "displayName": "True",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "If"
+  },
+  {
+    "operatorID": "SklearnSDG-operator-279f8e8e-1a02-44e5-a2ec-3e0e928428fb",
+    "operatorType": "SklearnSDG",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Stochastic Gradient Descent"
+  },
+  {
+    "operatorID": "URLVisualizer-operator-a3280fb2-19fe-404a-891f-bdc1dec5603e",
+    "operatorType": "URLVisualizer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "urlContentAttrName": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "URL Visualizer"
+  },
+  {
+    "operatorID": "Dummy-operator-101e4a24-e75c-4820-84dc-838042549310",
+    "operatorType": "Dummy",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "dummyOperator": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": true,
+    "dynamicOutputPorts": true,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dummy"
+  },
+  {
+    "operatorID": "HuggingFaceTextSummarization-operator-fb0fcd94-0a72-4fb5-af74-52189fab70b2",
+    "operatorType": "HuggingFaceTextSummarization",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "attribute": null,
+      "Result attribute name": "summary"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hugging Face Text Summarization"
+  },
+  {
+    "operatorID": "Union-operator-3c22307d-c6f2-4e84-929e-efccac4531af",
+    "operatorType": "Union",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Union"
+  },
+  {
+    "operatorID": "SklearnGradientBoosting-operator-148ef602-52b9-4b37-bf1e-beab517c4781",
+    "operatorType": "SklearnGradientBoosting",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Gradient Boosting"
+  },
+  {
+    "operatorID": "KNNRegressorTrainer-operator-f5419456-e879-4510-8b6c-a4c3ed322f0e",
+    "operatorType": "KNNRegressorTrainer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "paraList": [],
+      "groundTruthAttribute": null,
+      "Selected Features": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "parameter",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "KNN Regressor"
+  },
+  {
+    "operatorID": "RUDFSource-operator-30130996-ae93-4e58-9df3-3f1fbc92012d",
+    "operatorType": "RUDFSource",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "# If using Table API:\n# function() { \n#   return (data.frame(Column_Here = \"Value_Here\")) \n# }\n\n# If using Tuple API:\n# library(coro)\n# coro::generator(function() {\n#   yield (list(text= \"hello world!\"))\n# })",
+      "workers": 1,
+      "useTupleAPI": false,
+      "columns": []
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "1-out R UDF"
+  },
+  {
+    "operatorID": "HuggingFaceIrisLogisticRegression-operator-dbdeaa54-b343-4941-b83e-1df81a971300",
+    "operatorType": "HuggingFaceIrisLogisticRegression",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "petalLengthCmAttribute": null,
+      "petalWidthCmAttribute": null,
+      "prediction class name": "Species_prediction",
+      "prediction probability name": "Species_probability"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hugging Face Iris Logistic Regression"
+  },
+  {
+    "operatorID": "ContinuousErrorBands-operator-dc2ff6db-6181-42b9-b071-300e10a76c9c",
+    "operatorType": "ContinuousErrorBands",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "xLabel": "X Axis",
+      "yLabel": "Y Axis",
+      "bands": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Continuous Error Bands"
+  },
+  {
+    "operatorID": "TwitterSearch-operator-4eba20a9-718c-445b-b573-6a6a8523e139",
+    "operatorType": "TwitterSearch",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "apiKey": null,
+      "apiSecretKey": null,
+      "stopWhenRateLimited": false,
+      "searchQuery": null,
+      "limit": 100
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Twitter Search API"
+  },
+  {
+    "operatorID": "SklearnPassiveAggressive-operator-a296a825-31d2-419c-ab82-d5fcaefca355",
+    "operatorType": "SklearnPassiveAggressive",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Passive Aggressive"
+  },
+  {
+    "operatorID": "HTMLVisualizer-operator-0e1e767c-b5f2-49d1-a518-9cf44eb3d8c8",
+    "operatorType": "HTMLVisualizer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "htmlContentAttrName": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "HTML Visualizer"
+  },
+  {
+    "operatorID": "SklearnComplementNaiveBayes-operator-03bf8714-500d-4564-9420-5b2f197c93cc",
+    "operatorType": "SklearnComplementNaiveBayes",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Complement Naive Bayes"
+  },
+  {
+    "operatorID": "URLFetcher-operator-bd715acc-9ecc-41e3-88f2-4c5921afe6fc",
+    "operatorType": "URLFetcher",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "url": null,
+      "decodingMethod": null
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "URL fetcher"
+  },
+  {
+    "operatorID": "JavaUDF-operator-53281828-0900-4954-a2e4-4e6a13baba8f",
+    "operatorType": "JavaUDF",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\nimport edu.uci.ics.amber.engine.common.model.tuple.Tuple;\nimport edu.uci.ics.amber.engine.common.model.tuple.TupleLike;\nimport scala.Function1;\nimport java.io.Serializable;\n\npublic class JavaUDFOpExec extends MapOpExec {\n    public JavaUDFOpExec () {\n        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n    }\n    \n    public TupleLike processTuple(Tuple tuple) {\n        return tuple;\n    }\n}",
+      "workers": 1,
+      "retainInputColumns": true,
+      "outputColumns": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": true,
+    "dynamicOutputPorts": true,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Java UDF"
+  },
+  {
+    "operatorID": "PieChart-operator-5202bee8-24bb-429b-ad3d-9cf2e43ba3f0",
+    "operatorType": "PieChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "value": null,
+      "name": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Pie Chart"
+  },
+  {
+    "operatorID": "DictionaryMatcher-operator-d822ff6f-edc4-4f71-b94c-b3e4582ae55f",
+    "operatorType": "DictionaryMatcher",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Dictionary": null,
+      "Attribute": null,
+      "result attribute": "matched",
+      "Matching type": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dictionary matcher"
+  },
+  {
+    "operatorID": "UnnestString-operator-e5941278-400e-440c-86d5-8bdd04a6df21",
+    "operatorType": "UnnestString",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Delimiter": ",",
+      "Attribute": null,
+      "Result attribute": "unnestResult"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Unnest String"
+  },
+  {
+    "operatorID": "BubbleChart-operator-cc325164-2231-4c1e-81d3-f357685263cd",
+    "operatorType": "BubbleChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "xValue": null,
+      "yValue": null,
+      "zValue": null,
+      "enableColor": false,
+      "colorCategory": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Bubble Chart"
+  },
+  {
+    "operatorID": "RedditSearch-operator-0b36dafa-e6c6-497f-aec8-83fc034f09f9",
+    "operatorType": "RedditSearch",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "clientId": null,
+      "clientSecret": null,
+      "query": null,
+      "limit": 100,
+      "sorting": "none"
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Reddit Search"
+  },
+  {
+    "operatorID": "SVRTrainer-operator-2311a515-dcd9-4ec1-aecc-0654df6f2124",
+    "operatorType": "SVRTrainer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "paraList": [],
+      "groundTruthAttribute": null,
+      "Selected Features": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "parameter",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "SVM Regressor"
+  },
+  {
+    "operatorID": "RUDF-operator-7aad59ec-5ee3-4242-b3cd-b43c8a1b2f54",
+    "operatorType": "RUDF",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "# If using Table API:\n# function(table, port) { \n#   return (table) \n# }\n\n# If using Tuple API:\n# library(coro)\n# coro::generator(function(tuple, port) {\n#   yield (tuple)\n# })",
+      "workers": 1,
+      "useTupleAPI": false,
+      "retainInputColumns": true,
+      "outputColumns": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "R UDF"
+  },
+  {
+    "operatorID": "BoxViolinPlot-operator-afb8bcda-2f85-4bee-97b8-354958272047",
+    "operatorType": "BoxViolinPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "value": null,
+      "Quartile Method": "linear",
+      "horizontalOrientation": false,
+      "violinPlot": false,
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Box/Violin Plot"
+  },
+  {
+    "operatorID": "SklearnAdaptiveBoosting-operator-6732949a-95a4-42d2-8493-41799da0166c",
+    "operatorType": "SklearnAdaptiveBoosting",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Adaptive Boosting"
+  },
+  {
+    "operatorID": "Scatterplot-operator-ac841e0c-7016-4934-bfc6-d566373fc6cf",
+    "operatorType": "Scatterplot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "xColumn": null,
+      "yColumn": null,
+      "colorColumn": null,
+      "xLogScale": false,
+      "yLogScale": false,
+      "hoverName": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Scatter Plot"
+  },
+  {
+    "operatorID": "SklearnPerceptron-operator-a4a1b83f-072b-4723-ab60-527a1f3a0083",
+    "operatorType": "SklearnPerceptron",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Linear Perceptron"
+  },
+  {
+    "operatorID": "KeywordSearch-operator-c7f3b41f-e12d-4025-b0b1-0ef75aac817e",
+    "operatorType": "KeywordSearch",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "attribute": null,
+      "keyword": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Keyword Search"
+  },
+  {
+    "operatorID": "PythonUDFV2-operator-f051c7e2-c487-47b7-a151-7efe9ca78874",
+    "operatorType": "PythonUDFV2",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "# Choose from the following templates:\n# \n# from pytexera import *\n# \n# class ProcessTupleOperator(UDFOperatorV2):\n#     \n#     @overrides\n#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n#         yield tuple_\n# \n# class ProcessBatchOperator(UDFBatchOperator):\n#     BATCH_SIZE = 10 # must be a positive integer\n# \n#     @overrides\n#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n#         yield batch\n# \n# class ProcessTableOperator(UDFTableOperator):\n# \n#     @overrides\n#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n#         yield table\n",
+      "workers": 1,
+      "retainInputColumns": true,
+      "outputColumns": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": true,
+    "dynamicOutputPorts": true,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Python UDF"
+  },
+  {
+    "operatorID": "SklearnLogisticRegression-operator-e7b0a305-9954-4a79-9008-3b2a1edb34e6",
+    "operatorType": "SklearnLogisticRegression",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Logistic Regression"
+  },
+  {
+    "operatorID": "SklearnRandomForest-operator-bc418f9c-1798-4d74-903d-fbe5c7af2a6d",
+    "operatorType": "SklearnRandomForest",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Random Forest"
+  },
+  {
+    "operatorID": "TypeCasting-operator-c3b17263-69b0-448f-a23f-21bba9301bd7",
+    "operatorType": "TypeCasting",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "typeCastingUnits": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Type Casting"
+  },
+  {
+    "operatorID": "SklearnGaussianNaiveBayes-operator-546fc1da-1fff-44a4-b2cb-49dd02485fd8",
+    "operatorType": "SklearnGaussianNaiveBayes",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Gaussian Naive Bayes"
+  },
+  {
+    "operatorID": "AsterixDBSource-operator-99ff1b64-4443-43b2-9919-d7bb0c86b978",
+    "operatorType": "AsterixDBSource",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "host": null,
+      "port": "default",
+      "database": null,
+      "table": null,
+      "limit": null,
+      "offset": null,
+      "keywordSearch": false,
+      "keywordSearchByColumn": null,
+      "keywords": null,
+      "progressive": false,
+      "batchByColumn": null,
+      "min": "auto",
+      "max": "auto",
+      "interval": 1000000000,
+      "geoSearch": false,
+      "geoSearchByColumns": [],
+      "geoSearchBoundingBox": [],
+      "regexSearch": false,
+      "regexSearchByColumn": null,
+      "regex": null,
+      "filterCondition": false,
+      "predicates": []
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "AsterixDB Source"
+  },
+  {
+    "operatorID": "DualInputPortsPythonUDFV2-operator-08949588-ed84-48e4-b1d5-427d155c2bf7",
+    "operatorType": "DualInputPortsPythonUDFV2",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "code": "# Choose from the following templates:\n# \n# from pytexera import *\n# \n# class ProcessTupleOperator(UDFOperatorV2):\n#     \n#     @overrides\n#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n#         yield tuple_\n# \n# class ProcessBatchOperator(UDFBatchOperator):\n#     BATCH_SIZE = 10 # must be a positive integer\n# \n#     @overrides\n#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n#         yield batch\n# \n# class ProcessTableOperator(UDFTableOperator):\n# \n#     @overrides\n#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n#         yield table\n",
+      "workers": 1,
+      "retainInputColumns": true,
+      "outputColumns": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "model",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "tuples",
+        "allowMultiInputs": true,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "2-in Python UDF"
+  },
+  {
+    "operatorID": "Histogram-operator-09a3d8a7-96f4-4e27-9d17-b851e4e9b9c2",
+    "operatorType": "Histogram",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "color": null,
+      "separateBy": null,
+      "marginal": null,
+      "pattern": null,
+      "value": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Histogram"
+  },
+  {
+    "operatorID": "SklearnDummyClassifier-operator-c09cb6cf-edf2-49eb-a3f6-269f11baeab7",
+    "operatorType": "SklearnDummyClassifier",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dummy Classifier"
+  },
+  {
+    "operatorID": "Distinct-operator-a50aeabd-61ca-419b-bbf1-476dac6c5f10",
+    "operatorType": "Distinct",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Distinct"
+  },
+  {
+    "operatorID": "NetworkGraph-operator-55d6f6e5-443b-4a32-b61d-84ac9ffe0c17",
+    "operatorType": "NetworkGraph",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "source": null,
+      "destination": null,
+      "title": "Network Graph"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Network Graph"
+  },
+  {
+    "operatorID": "WaterfallChart-operator-fde6eb29-7620-4364-b52e-c483bbaf94eb",
+    "operatorType": "WaterfallChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "xColumn": null,
+      "yColumn": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Waterfall Chart"
+  },
+  {
+    "operatorID": "Limit-operator-51368085-289f-4c81-9710-7f50c773986c",
+    "operatorType": "Limit",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "limit": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Limit"
+  },
+  {
+    "operatorID": "Scorer-operator-7c7678b4-6808-4b88-b668-827a4b239953",
+    "operatorType": "Scorer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "isRegression": false,
+      "actualValueColumn": null,
+      "predictValueColumn": null,
+      "classificationFlag": [],
+      "regressionFlag": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Machine Learning Scorer"
+  },
+  {
+    "operatorID": "SklearnExtraTrees-operator-51253af5-d50e-4f7a-9b88-6a982a122aeb",
+    "operatorType": "SklearnExtraTrees",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Extra Trees"
+  },
+  {
+    "operatorID": "FileScan-operator-9c176295-3e96-4b0d-96ae-4414af9c4156",
+    "operatorType": "FileScan",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fileName": null,
+      "encoding": "UTF_8",
+      "extract": false,
+      "outputFileName": false,
+      "attributeType": "string",
+      "attributeName": "line",
+      "fileScanLimit": null,
+      "fileScanOffset": null
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": " File Scan"
+  },
+  {
+    "operatorID": "GanttChart-operator-17fd05af-1037-4104-82f7-031c450edf79",
+    "operatorType": "GanttChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "pattern": null,
+      "start": null,
+      "finish": null,
+      "task": null,
+      "color": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Gantt Chart"
+  },
+  {
+    "operatorID": "TernaryPlot-operator-204e4579-92f5-4560-a19c-31fbcbaf8be7",
+    "operatorType": "TernaryPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "firstVariable": null,
+      "secondVariable": null,
+      "thirdVariable": null,
+      "colorEnabled": false,
+      "colorDataField": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Ternary Plot"
+  },
+  {
+    "operatorID": "SVCTrainer-operator-8368d270-ce0f-499c-bd00-9685ae9e6eed",
+    "operatorType": "SVCTrainer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "paraList": [],
+      "groundTruthAttribute": null,
+      "Selected Features": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "parameter",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "SVM Classifier"
+  },
+  {
+    "operatorID": "SklearnLinearRegression-operator-4a2f1610-bae4-46b7-9b7e-477a5b076cfe",
+    "operatorType": "SklearnLinearRegression",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "degree": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Linear Regression"
+  },
+  {
+    "operatorID": "MySQLSource-operator-8967246d-8668-4746-8fcd-d4623d72514d",
+    "operatorType": "MySQLSource",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "host": null,
+      "port": "default",
+      "database": null,
+      "table": null,
+      "username": null,
+      "password": null,
+      "limit": null,
+      "offset": null,
+      "keywordSearch": false,
+      "keywordSearchByColumn": null,
+      "keywords": null,
+      "progressive": false,
+      "batchByColumn": null,
+      "min": "auto",
+      "max": "auto",
+      "interval": 1000000000
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "MySQL Source"
+  },
+  {
+    "operatorID": "CSVOldFileScan-operator-bbdf2a26-1246-48ab-93a1-5c52ac9e3d84",
+    "operatorType": "CSVOldFileScan",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fileName": null,
+      "fileEncoding": "UTF_8",
+      "limit": null,
+      "offset": null,
+      "customDelimiter": ",",
+      "hasHeader": true
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "CSVOld File Scan"
+  },
+  {
+    "operatorID": "CSVFileScan-operator-5bd48e8e-8eea-4750-b23a-870c8687e374",
+    "operatorType": "CSVFileScan",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fileName": null,
+      "fileEncoding": "UTF_8",
+      "limit": null,
+      "offset": null,
+      "customDelimiter": ",",
+      "hasHeader": true
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "CSV File Scan"
+  },
+  {
+    "operatorID": "FunnelPlot-operator-f16667f4-84a3-4aca-b977-2358362379bc",
+    "operatorType": "FunnelPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "x": null,
+      "y": null,
+      "color": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Funnel Plot"
+  },
+  {
+    "operatorID": "Projection-operator-c7071d17-f212-4f15-b25c-4e61b235c56a",
+    "operatorType": "Projection",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "isDrop": false,
+      "attributes": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Projection"
+  },
+  {
+    "operatorID": "Filter-operator-66cf7145-0659-487b-9c81-8e4dffb2f44a",
+    "operatorType": "Filter",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "predicates": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Filter"
+  },
+  {
+    "operatorID": "SklearnRidge-operator-5792371d-fe13-4862-9eb5-570f04de6dbc",
+    "operatorType": "SklearnRidge",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Ridge Regression"
+  },
+  {
+    "operatorID": "Intersect-operator-c1a5cf03-631a-4300-b096-cad673322c95",
+    "operatorType": "Intersect",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Intersect"
+  },
+  {
+    "operatorID": "SklearnPrediction-operator-55d13d3a-da51-4d9b-a3eb-4ac6973551e4",
+    "operatorType": "SklearnPrediction",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Model Attribute": "model",
+      "Output Attribute Name": "prediction",
+      "Ground Truth Attribute Name to Ignore": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "model",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Sklearn Prediction"
+  },
+  {
+    "operatorID": "SymmetricDifference-operator-32ce4cc8-9da8-4e9e-9065-65df7b12c410",
+    "operatorType": "SymmetricDifference",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "SymmetricDifference"
+  },
+  {
+    "operatorID": "FigureFactoryTable-operator-bdb0630f-8515-4867-9a50-69592b225e92",
+    "operatorType": "FigureFactoryTable",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fontSize": null,
+      "fontColor": null,
+      "rowHeight": null,
+      "add attribute": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Figure Factory Table"
+  },
+  {
+    "operatorID": "FilledAreaPlot-operator-8a20c87e-8a37-4086-9cfb-338aa143f4cd",
+    "operatorType": "FilledAreaPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "x": null,
+      "y": null,
+      "lineGroup": null,
+      "color": null,
+      "facetColumn": null,
+      "pattern": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Filled Area Plot"
+  },
+  {
+    "operatorID": "SklearnRidgeCV-operator-29d4bbec-1ef5-45b9-a2db-acd5695db037",
+    "operatorType": "SklearnRidgeCV",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Ridge Regression Cross Validation"
+  },
+  {
+    "operatorID": "IcicleChart-operator-4c8cfb86-c602-4665-95dc-d419d0fa7d37",
+    "operatorType": "IcicleChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "hierarchy": [],
+      "value": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Icicle Chart"
+  },
+  {
+    "operatorID": "Regex-operator-e908abb1-7c91-41ac-97dd-13f23e9b9455",
+    "operatorType": "Regex",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "caseInsensitive": false,
+      "attribute": null,
+      "regex": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Regular Expression"
+  },
+  {
+    "operatorID": "HeatMap-operator-2dd1c4f2-f275-4c7e-a175-0048a4a114e6",
+    "operatorType": "HeatMap",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "x": null,
+      "y": null,
+      "Values": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Heatmap"
+  },
+  {
+    "operatorID": "TablesPlot-operator-aaa3c914-5727-4c8a-8d6a-d8942b732234",
+    "operatorType": "TablesPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "add attribute": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Tables Plot"
+  },
+  {
+    "operatorID": "HierarchyChart-operator-b8980f15-0f01-481c-af20-a3cf506ef058",
+    "operatorType": "HierarchyChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "hierarchyChartType": null,
+      "hierarchy": [],
+      "value": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hierarchy Chart"
+  },
+  {
+    "operatorID": "SklearnExtraTree-operator-f707f26b-d288-4072-8c7b-7eae4c2cf51a",
+    "operatorType": "SklearnExtraTree",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Extra Tree"
+  },
+  {
+    "operatorID": "Sort-operator-78396fbf-85d4-40ff-b0f0-7ed3328b78cf",
+    "operatorType": "Sort",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "attributes": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Sort"
+  },
+  {
+    "operatorID": "Scatter3DChart-operator-34866a13-48cd-49d1-ab77-252e0a7963e2",
+    "operatorType": "Scatter3DChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "x": null,
+      "y": null,
+      "z": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Scatter3D Chart"
+  },
+  {
+    "operatorID": "SklearnBagging-operator-de64f368-2abc-4871-89e8-b07c04978885",
+    "operatorType": "SklearnBagging",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Bagging"
+  },
+  {
+    "operatorID": "Difference-operator-18e513a2-b20f-46ea-8459-fb5b79a8ae09",
+    "operatorType": "Difference",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "left",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "right",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Difference"
+  },
+  {
+    "operatorID": "ContourPlot-operator-fbc683a2-b8fb-4e9a-ae60-ff4040477c30",
+    "operatorType": "ContourPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "gridSize": "10",
+      "connectGaps": true,
+      "x": null,
+      "y": null,
+      "z": null,
+      "Coloring Method": "heatmap"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Contour Plot"
+  },
+  {
+    "operatorID": "PythonLambdaFunction-operator-e96035f2-8bef-41e2-8b3d-665d381513e1",
+    "operatorType": "PythonLambdaFunction",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "lambdaAttributeUnits": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Python Lambda Function"
+  },
+  {
+    "operatorID": "WordCloud-operator-1f6f0630-a12f-4dde-8f0d-1da1099793a6",
+    "operatorType": "WordCloud",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "textColumn": null,
+      "topN": 100
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Word Cloud"
+  },
+  {
+    "operatorID": "LineChart-operator-0e6f35eb-b550-41be-955c-44412c8c57ff",
+    "operatorType": "LineChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "yLabel": "Y Axis",
+      "xLabel": "X Axis",
+      "lines": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Line Chart"
+  },
+  {
+    "operatorID": "RandomKSampling-operator-b144d179-9567-447b-9c87-dbe737b369f0",
+    "operatorType": "RandomKSampling",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "random k sample percentage": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Random K Sampling"
+  },
+  {
+    "operatorID": "Split-operator-640cebe2-ad96-4302-9c38-ddd8632b1f61",
+    "operatorType": "Split",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "k": 80,
+      "random": true,
+      "seed": 1
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      },
+      {
+        "portID": "output-1",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": true,
+    "dynamicOutputPorts": true,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Split"
+  },
+  {
+    "operatorID": "SklearnMultiLayerPerceptron-operator-a4c22712-a10a-413c-a0a8-34fcb8316905",
+    "operatorType": "SklearnMultiLayerPerceptron",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Multi-layer Perceptron"
+  },
+  {
+    "operatorID": "BarChart-operator-4a666711-5089-468a-aca3-5fa3c954c6ae",
+    "operatorType": "BarChart",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fields": null,
+      "categoryColumn": "No Selection",
+      "horizontalOrientation": false,
+      "pattern": null,
+      "value": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Bar Chart"
+  },
+  {
+    "operatorID": "HashJoin-operator-bfc31771-261a-4c38-8df8-ec8525f5c0f7",
+    "operatorType": "HashJoin",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "buildAttributeName": null,
+      "probeAttributeName": null,
+      "joinType": "inner"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "left",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "right",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hash Join"
+  },
+  {
+    "operatorID": "PythonTableReducer-operator-d60f85bf-7357-41f4-a843-587c0eaff39e",
+    "operatorType": "PythonTableReducer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "lambdaAttributeUnits": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Python Table Reducer"
+  },
+  {
+    "operatorID": "Dendrogram-operator-682e5623-7f7a-4d19-908d-76807af1bd40",
+    "operatorType": "Dendrogram",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "threshold": null,
+      "xVal": null,
+      "yVal": null,
+      "Labels": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Dendrogram"
+  },
+  {
+    "operatorID": "KNNClassifierTrainer-operator-4b23afa3-25c8-4b0f-b1b9-88a20f59d005",
+    "operatorType": "KNNClassifierTrainer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "paraList": [],
+      "groundTruthAttribute": null,
+      "Selected Features": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "parameter",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "KNN Classifier"
+  },
+  {
+    "operatorID": "SklearnMultinomialNaiveBayes-operator-175a52d9-5ac1-4e7c-90a1-ab830965c4cb",
+    "operatorType": "SklearnMultinomialNaiveBayes",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Multinomial Naive Bayes"
+  },
+  {
+    "operatorID": "SklearnDecisionTree-operator-d209040c-fb3a-4831-8a6f-bc632fb16bb2",
+    "operatorType": "SklearnDecisionTree",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Decision Tree"
+  },
+  {
+    "operatorID": "PostgreSQLSource-operator-acc0043b-0948-473a-963f-e3c51f250d77",
+    "operatorType": "PostgreSQLSource",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "host": null,
+      "port": "default",
+      "database": null,
+      "table": null,
+      "username": null,
+      "password": null,
+      "limit": null,
+      "offset": null,
+      "keywordSearch": false,
+      "keywordSearchByColumn": null,
+      "keywords": null,
+      "progressive": false,
+      "batchByColumn": null,
+      "min": "auto",
+      "max": "auto",
+      "interval": 1000000000
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "PostgreSQL Source"
+  },
+  {
+    "operatorID": "ArrowSource-operator-2b69b043-3b33-4064-91df-5e11c42e01b5",
+    "operatorType": "ArrowSource",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "fileName": null,
+      "limit": null,
+      "offset": null
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Arrow File Scan"
+  },
+  {
+    "operatorID": "SankeyDiagram-operator-045b0d37-a678-405d-b7dd-09a6866afbbf",
+    "operatorType": "SankeyDiagram",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "Source Attribute": null,
+      "Target Attribute": null,
+      "Value Attribute": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Sankey Diagram"
+  },
+  {
+    "operatorID": "SklearnSVM-operator-05ad5a59-59a1-4e4e-bc25-eb698ec02b72",
+    "operatorType": "SklearnSVM",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Support Vector Machine"
+  },
+  {
+    "operatorID": "SklearnBernoulliNaiveBayes-operator-2f502786-1c9b-4062-8d45-c2bb07e253c5",
+    "operatorType": "SklearnBernoulliNaiveBayes",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Bernoulli Naive Bayes"
+  },
+  {
+    "operatorID": "ImageVisualizer-operator-4f3ab694-0c74-4ae0-a79b-df5b2568f4cd",
+    "operatorType": "ImageVisualizer",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "binaryContent": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Image Visualizer"
+  },
+  {
+    "operatorID": "SklearnLinearSVM-operator-74638340-5cbf-4b0e-862f-ba2adb37d744",
+    "operatorType": "SklearnLinearSVM",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Linear Support Vector Machine"
+  },
+  {
+    "operatorID": "TextInput-operator-94c6b3cd-009b-4373-adbd-3b460c0b3825",
+    "operatorType": "TextInput",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "textInput": null,
+      "attributeType": "string",
+      "attributeName": "line",
+      "fileScanLimit": null,
+      "fileScanOffset": null
+    },
+    "inputPorts": [],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Text Input"
+  },
+  {
+    "operatorID": "HuggingFaceSpamSMSDetection-operator-74a33cc6-3d8e-4c2a-8e98-bbb64b0ee907",
+    "operatorType": "HuggingFaceSpamSMSDetection",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "attribute": null,
+      "Spam result attribute": "is_spam",
+      "Score result attribute": "score"
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Hugging Face Spam Detection"
+  },
+  {
+    "operatorID": "QuiverPlot-operator-9556e857-9496-4428-9c4b-4c863c45a704",
+    "operatorType": "QuiverPlot",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "x": null,
+      "y": null,
+      "u": null,
+      "v": null
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Quiver Plot"
+  },
+  {
+    "operatorID": "SklearnNearestCentroid-operator-a243c2f9-645f-459f-8ea0-16ae505a527e",
+    "operatorType": "SklearnNearestCentroid",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "target": null,
+      "countVectorizer": false,
+      "text": null,
+      "tfidfTransformer": false
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "training",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      },
+      {
+        "portID": "input-1",
+        "displayName": "testing",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": [
+          {
+            "id": 0,
+            "internal": false
+          }
+        ]
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Nearest Centroid"
+  },
+  {
+    "operatorID": "Aggregate-operator-f6eb5dc3-f10a-4b98-ac81-4a2f63cb9b39",
+    "operatorType": "Aggregate",
+    "operatorVersion": "N/A",
+    "operatorProperties": {
+      "dummyPropertyList": [],
+      "aggregations": [],
+      "groupByKeys": []
+    },
+    "inputPorts": [
+      {
+        "portID": "input-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false,
+        "dependencies": []
+      }
+    ],
+    "outputPorts": [
+      {
+        "portID": "output-0",
+        "displayName": "",
+        "allowMultiInputs": false,
+        "isDynamicPort": false
+      }
+    ],
+    "dynamicInputPorts": false,
+    "dynamicOutputPorts": false,
+    "showAdvanced": false,
+    "isDisabled": false,
+    "customDisplayName": "Aggregate"
+  }
+]

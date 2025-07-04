@@ -1,0 +1,108 @@
+{
+  "state": "Succeeded",
+  "physicalPlan": null,
+  "operatorInputSchemaMap": {
+    "CSVFileScan-operator-aa00f100-e3fa-431c-9f2c-a03c845d01ef": [],
+    "Projection-operator-5c723ccd-5f1a-4a60-8e0b-bc3cb7cbc8ac": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "is_retweet",
+          "attributeType": "boolean"
+        },
+        {
+          "attributeName": "lang",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "user_id",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "PythonUDFV2-operator-29189f24-4d27-413f-9b67-1c8b37529289": [
+      [
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        }
+      ]
+    ],
+    "Sort-operator-82fa7c7a-d1e1-45a6-8510-1f57c223e260": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "Projection-operator-b6799195-ecc4-426a-8e29-57e9248aa71f": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "is_retweet",
+          "attributeType": "boolean"
+        },
+        {
+          "attributeName": "lang",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "user_id",
+          "attributeType": "integer"
+        }
+      ]
+    ]
+  },
+  "operatorErrors": {}
+}

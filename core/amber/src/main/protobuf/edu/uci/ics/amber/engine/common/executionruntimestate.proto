@@ -22,6 +22,7 @@ package edu.uci.ics.amber.engine.common;
 import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/tableprofile.proto";
 import "edu/uci/ics/amber/core/virtualidentity.proto";
 import "edu/uci/ics/amber/core/workflowruntimestate.proto";
 import "scalapb/scalapb.proto";
@@ -88,7 +89,8 @@ message ExecutionStatsStore {
   int64 startTimeStamp = 1;
   int64 endTimeStamp = 2;
   map<string, OperatorMetrics> operator_info = 3;
-  repeated OperatorWorkerMapping operator_worker_mapping = 4;
+  map<string, architecture.worker.TableProfile> operator_table_profile = 4;
+  repeated OperatorWorkerMapping operator_worker_mapping = 5;
 }
 
 

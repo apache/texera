@@ -137,6 +137,7 @@
         nz-menu-divider></li>
       <li
         nz-menu-item
+        *ngIf="!(availableComputingUnitTypes.length === 1 && availableComputingUnitTypes[0] === 'local')"
         (click)="showAddComputeUnitModalVisible()">
         <div class="create-computing-unit">
           <i

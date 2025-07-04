@@ -18,9 +18,10 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { TableProfile } from "../../../common/type/proto/edu/uci/ics/amber/engine/architecture/worker/tableprofile";
 
 @Injectable({
   providedIn: "root",
@@ -30,15 +31,28 @@ export class WorkflowStatusService {
   private statusSubject = new Subject<Record<string, OperatorStatistics>>();
   private currentStatus: Record<string, OperatorStatistics> = {};
 
+  private tableProfileSubject = new BehaviorSubject<Record<string, TableProfile>>({} as Record<string, TableProfile>);
+  private currentTableProfiles: Record<string, TableProfile> = {};
+
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
-    this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
+    this.getStatusUpdateStream().subscribe(event => {
+      this.currentStatus = event;
+    });
+    this.getTableProfilesUpdateStream().subscribe(event => {
+      this.currentTableProfiles = event;
+    });
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
       this.statusSubject.next(event.operatorStatistics);
+      this.tableProfileSubject.next(event.operatorResultTableProfiles);
     });
+  }
+
+  public getTableProfilesUpdateStream(): Observable<Record<string, TableProfile>> {
+    return this.tableProfileSubject.asObservable();
   }
 
   public getStatusUpdateStream(): Observable<Record<string, OperatorStatistics>> {
@@ -47,6 +61,10 @@ export class WorkflowStatusService {
 
   public getCurrentStatus(): Record<string, OperatorStatistics> {
     return this.currentStatus;
+  }
+
+  public getCurrentTableProfiles(): Record<string, TableProfile> {
+    return this.currentTableProfiles;
   }
 
   public resetStatus(): void {
@@ -62,10 +80,14 @@ export class WorkflowStatusService {
       {} as Record<string, OperatorStatistics>
     );
     this.statusSubject.next(initStatus);
+    this.tableProfileSubject.next({});
   }
 
   public clearStatus(): void {
     this.currentStatus = {};
     this.statusSubject.next({});
+
+    this.currentTableProfiles = {};
+    this.tableProfileSubject.next({});
   }
 }

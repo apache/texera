@@ -52,7 +52,8 @@ trait WorkerStateUpdatedHandler {
       )
     sendToClient(
       ExecutionStatsUpdate(
-        cp.workflowExecution.getAllRegionExecutionsStats
+        cp.workflowExecution.getAllRegionExecutionsStats,
+        cp.workflowExecution.getAllRegionExecutionTableProfiles
       )
     )
     EmptyReturn()

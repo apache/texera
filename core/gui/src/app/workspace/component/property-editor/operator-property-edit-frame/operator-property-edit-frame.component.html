@@ -94,6 +94,38 @@
   (focusout)="disconnectQuillFromText()"
   (keyup.enter)="disconnectQuillFromText()"></div>
 
+<!-- Copilot Intention Box -->
+<div
+  class="operator-intention-box"
+  style="margin-top: 4px; margin-bottom: 8px; display: flex; gap: 4px; align-items: flex-start">
+  <textarea
+    nz-input
+    rows="2"
+    placeholder="Describe your intention for this operator (optional)…"
+    style="flex: 1; resize: vertical"
+    [(ngModel)]="intentionText"
+    [ngModelOptions]="{standalone: true}"
+    [disabled]="loadingSuggestions"></textarea>
+  <button
+    nz-button
+    nzSize="small"
+    nzType="primary"
+    (click)="fillSuggestions()"
+    [disabled]="loadingSuggestions">
+    <span
+      nz-icon
+      nzType="bulb"
+      [nzSpin]="loadingSuggestions"></span>
+    Ask
+  </button>
+</div>
+
+<!-- Copilot Attribution -->
+<div style="display: flex; align-items: center; font-size: 0.75em; color: #777; font-style: italic; gap: 4px; margin-top: -4px; margin-bottom: 8px">
+  <i nz-icon nzType="robot" nzTheme="outline" style="color: #007bff"></i>
+  Powered by Data Copilot
+</div>
+
 <form
   nz-form
   [nzLayout]="'vertical'"

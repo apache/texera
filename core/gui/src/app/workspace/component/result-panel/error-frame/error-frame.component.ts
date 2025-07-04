@@ -20,12 +20,14 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { render } from "sass";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { WorkflowSuggestionService } from "../../../service/workflow-suggestion/workflow-suggestion.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -38,14 +40,25 @@ export class ErrorFrameComponent implements OnInit {
   // display error message:
   categoryToErrorMapping: ReadonlyMap<string, ReadonlyArray<WorkflowFatalError>> = new Map();
 
+  // Whether suggestion service is currently loading
+  isLoading = false;
+
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: WorkflowCompilingService
+    private workflowCompilingService: WorkflowCompilingService,
+    private workflowSuggestionService: WorkflowSuggestionService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
     this.renderError();
+
+    // Listen to loading state to spin icon
+    this.workflowSuggestionService
+      .getLoadingStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(v => (this.isLoading = v));
   }
 
   onClickGotoButton(target: string) {
@@ -69,5 +82,35 @@ export class ErrorFrameComponent implements OnInit {
       acc.get(key)!.push(obj);
       return acc;
     }, new Map<string, WorkflowFatalError[]>());
+  }
+
+  /**
+   * Ask workflow copilot to provide a fix for this error.
+   */
+  onClickFixError(error: WorkflowFatalError) {
+    const focusingIDs = error.operatorId && error.operatorId !== "unknown operator" ? [error.operatorId] : [];
+    this.notificationService.info("Asking copilot to fix this error...");
+    // Fire suggestion request
+    this.workflowSuggestionService
+      .getSuggestions(
+        this.workflowActionService.getWorkflow(),
+        this.workflowCompilingService.getWorkflowCompilationStateInfo(),
+        this.executeWorkflowService.getExecutionState(),
+        "Please fix this error",
+        focusingIDs,
+        {}
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.notificationService.success("Received fix suggestions from the copilot");
+      });
+
+    // Switch to Suggestions tab so the user sees loading spinner
+    setTimeout(() => {
+      const suggestionTab = document.querySelector(".ant-tabs-tab[aria-controls*=\"Suggestions\"]") as HTMLElement;
+      if (suggestionTab) {
+        suggestionTab.click();
+      }
+    }, 50);
   }
 }

@@ -19,7 +19,14 @@ import os
 import io
 import requests
 import urllib.parse
+import pandas as pd
 
+from core.models import TableLike, Table
+from pandas.api.types import (
+    is_float_dtype,
+    is_integer_dtype,
+    is_datetime64_any_dtype,
+)
 
 class DatasetFileDocument:
     def __init__(self, file_path: str):
@@ -96,3 +103,80 @@ class DatasetFileDocument:
             )
 
         return io.BytesIO(response.content)
+
+    def read_as_table(self, schema: dict[str, str] | None = None, **pandas_kwargs) -> "TableLike":
+        """
+        Download the file and materialise it as a pandas DataFrame.
+
+        Parameters
+        ----------
+        **pandas_kwargs :
+            Extra keyword arguments forwarded to the relevant
+            ``pandas.read_*`` function (e.g., ``read_csv``).
+
+        Returns
+        -------
+        TableLike  (currently a pandas.DataFrame)
+            The tabular representation of the file’s contents.
+
+        Notes
+        -----
+        This is a *hacky* helper—intended only for local Python-side
+        experimentation.  For production use, push the logic into a
+        proper service layer.
+        """
+
+        # Pull the bytes from object storage
+        # Pull the bytes from object storage
+        file_bytes = self.read_file()
+
+        # Infer file format from the extension
+        ext = self.file_relative_path.rsplit(".", 1)[-1].lower()
+
+        # ---- 1) load the file -----------------------------------------
+        if ext in {"csv", "tsv", "txt"}:
+            # default separator if caller didn't pass one
+            pandas_kwargs.setdefault("sep", "," if ext == "csv" else "\t")
+            # keep blank rows if they exist; treat empty cells as NA
+            pandas_kwargs.setdefault("skip_blank_lines", False)
+            pandas_kwargs.setdefault("keep_default_na", True)
+            df = pd.read_csv(file_bytes, **pandas_kwargs)
+
+        elif ext in {"json", "ndjson"}:
+            df = pd.read_json(file_bytes, lines=(ext == "ndjson"), **pandas_kwargs)
+        elif ext == "parquet":
+            df = pd.read_parquet(file_bytes, **pandas_kwargs)
+        else:
+            raise ValueError(f"Unsupported file type: .{ext}")
+
+        # ---- 2) hard-cast columns according to Amber schema -----------
+        if schema:
+            for col, amber_type in schema.items():
+                if col not in df.columns:
+                    continue
+
+                s = df[col]          # shorthand
+
+                if amber_type in {"INTEGER", "LONG"}:
+                    df[col] = pd.to_numeric(s, errors="coerce").astype("Int64")
+
+                elif amber_type == "DOUBLE":
+                    df[col] = pd.to_numeric(s, errors="coerce").astype("float64")
+
+                elif amber_type == "BOOLEAN":
+                    df[col] = s.astype("boolean")        # nullable boolean
+
+                elif amber_type == "STRING":
+                    # nullable *string* dtype – keeps pd.NA for empty cells
+                    df[col] = s.astype(pd.StringDtype())
+
+                elif amber_type == "TIMESTAMP":
+                    df[col] = (
+                        pd.to_datetime(s, errors="coerce")
+                        .dt.tz_localize(None)
+                        .dt.to_pydatetime()
+                    )
+                else:                                   # BINARY, ANY, unknown
+                    raise Exception(f"Unsupported type: {amber_type}")
+
+        return Table(df)

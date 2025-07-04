@@ -1,0 +1,96 @@
+<div
+  id="suggestion-frame-container"
+  [ngClass]="{'preview-active': activePreviewId !== null, 'preview-inactive': activePreviewId === null}">
+  <div class="suggestion-container">
+    <div class="header">
+      <h3>Workflow Copilot</h3>
+      <p>Click on a suggestion to preview</p>
+    </div>
+
+    <div
+      class="intention-box"
+      *ngIf="!activePreviewId">
+      <input
+        nz-input
+        placeholder="Describe what you’d like help with (optional)…"
+        [(ngModel)]="intentionText"
+        [disabled]="loadingSuggestions || isInPreviewMode" />
+    </div>
+
+    <div class="suggestions-list">
+      <div
+        *ngIf="loadingSuggestions"
+        class="loading-container">
+        <nz-spin nzTip="Loading suggestions..."></nz-spin>
+      </div>
+
+      <div
+        *ngFor="let suggestion of suggestions"
+        class="suggestion-item"
+        [ngClass]="{'active': activePreviewId === suggestion.suggestionID}">
+        <div
+          class="suggestion-content"
+          (click)="togglePreview(suggestion)">
+          <span class="description">{{suggestion.suggestion}}</span>
+        </div>
+
+        <div
+          *ngIf="activePreviewId === suggestion.suggestionID"
+          class="suggestion-actions">
+          <button
+            nz-button
+            nzType="primary"
+            (click)="applySuggestion(suggestion); $event.stopPropagation();"
+            [disabled]="!canModify">
+            <span
+              nz-icon
+              nzType="check"></span>
+            Apply
+          </button>
+          <button
+            nz-button
+            nzType="default"
+            (click)="dislikeSuggestion(suggestion); $event.stopPropagation();"
+            [disabled]="!canModify">
+            <span
+              nz-icon
+              nzType="dislike"></span>
+            Dislike
+          </button>
+          <button
+            nz-button
+            nzType="default"
+            (click)="cancelPreview(); $event.stopPropagation();"
+            [disabled]="!canModify">
+            <span
+              nz-icon
+              nzType="close-circle"></span>
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div
+        *ngIf="suggestions.length === 0 && !loadingSuggestions"
+        class="no-suggestions">
+        <span>No suggestions available</span>
+      </div>
+    </div>
+
+    <div
+      class="suggestion-actions"
+      *ngIf="!activePreviewId">
+      <button
+        nz-button
+        nzType="primary"
+        (click)="refreshSuggestions()"
+        [disabled]="loadingSuggestions || isInPreviewMode">
+        <span
+          nz-icon
+          nzType="sync"
+          [nzSpin]="loadingSuggestions"></span>
+        Refresh Suggestions
+      </button>
+    </div>
+  </div>
+</div>

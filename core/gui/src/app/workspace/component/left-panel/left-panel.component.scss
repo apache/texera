@@ -42,6 +42,9 @@
   background: white;
   width: calc(100% - 33px);
   z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 22px;
 }
 
 #dock {

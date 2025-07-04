@@ -1,0 +1,125 @@
+{
+  "suggestions": [
+    {
+      "suggestion": "Add a FileScan operator to enable reading input data from a specified file.",
+      "suggestionType": "improve",
+      "changes": {
+        "operatorsToAdd": [
+          {
+            "operatorType": "FileScan",
+            "operatorID": "fileScan1",
+            "operatorProperties": {
+              "fileName": "your_file.csv",
+              "encoding": "UTF_8",
+              "extract": false,
+              "outputFileName": false,
+              "attributeType": "string",
+              "attributeName": "line"
+            },
+            "customDisplayName": null
+          }
+        ],
+        "linksToAdd": [],
+        "operatorsToDelete": []
+      }
+    },
+    {
+      "suggestion": "Add a Sort operator to allow sorting of data on specified attributes.",
+      "suggestionType": "improve",
+      "changes": {
+        "operatorsToAdd": [
+          {
+            "operatorType": "Sort",
+            "operatorID": "sort1",
+            "operatorProperties": {
+              "attributes": [
+                {
+                  "attribute": "your_attribute",
+                  "sortPreference": "ASC"
+                }
+              ]
+            },
+            "customDisplayName": null
+          }
+        ],
+        "linksToAdd": [],
+        "operatorsToDelete": []
+      }
+    },
+    {
+      "suggestion": "Introduce a Projection operator to select or drop specific columns from the data.",
+      "suggestionType": "improve",
+      "changes": {
+        "operatorsToAdd": [
+          {
+            "operatorType": "Projection",
+            "operatorID": "projection1",
+            "operatorProperties": {
+              "isDrop": false,
+              "attributes": [
+                {
+                  "originalAttribute": "column1",
+                  "alias": "renamed_column1"
+                }
+              ]
+            },
+            "customDisplayName": null
+          }
+        ],
+        "linksToAdd": [],
+        "operatorsToDelete": []
+      }
+    },
+    {
+      "suggestion": "Add a Filter operator to filter data based on conditions.",
+      "suggestionType": "improve",
+      "changes": {
+        "operatorsToAdd": [
+          {
+            "operatorType": "Filter",
+            "operatorID": "filter1",
+            "operatorProperties": {
+              "predicates": [
+                {
+                  "attribute": "your_attribute",
+                  "condition": ">",
+                  "value": "100"
+                }
+              ]
+            },
+            "customDisplayName": null
+          }
+        ],
+        "linksToAdd": [],
+        "operatorsToDelete": []
+      }
+    },
+    {
+      "suggestion": "Introduce an Aggregate operator to perform aggregation operations on data.",
+      "suggestionType": "improve",
+      "changes": {
+        "operatorsToAdd": [
+          {
+            "operatorType": "Aggregate",
+            "operatorID": "aggregate1",
+            "operatorProperties": {
+              "aggregations": [
+                {
+                  "aggFunction": "sum",
+                  "attribute": "your_numeric_attribute",
+                  "result attribute": "sum_result"
+                }
+              ],
+              "groupByKeys": [
+                "group_attribute"
+              ]
+            },
+            "customDisplayName": null
+          }
+        ],
+        "linksToAdd": [],
+        "operatorsToDelete": []
+      }
+    }
+  ]
+}

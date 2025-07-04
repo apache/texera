@@ -50,3 +50,13 @@
 .error-category {
   font-weight: bold;
 }
+
+.fix-error-icon {
+  color: #1890ff;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.fix-error-icon:hover {
+  transform: rotate(180deg) scale(1.2);
+}

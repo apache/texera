@@ -73,7 +73,7 @@ import edu.uci.ics.amber.operator.source.apis.twitter.v2.{
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
-import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.amber.operator.source.scan.csv.{CSVScanSourceOpDesc, IntelligentCSVReaderOpDesc}
 import edu.uci.ics.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.text.TextInputSourceOpDesc
@@ -146,6 +146,7 @@ trait StateTransferFunc
     new Type(value = classOf[IfOpDesc], name = "If"),
     new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
+    new Type(value = classOf[IntelligentCSVReaderOpDesc], name = "IntelligentCSVReader"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),

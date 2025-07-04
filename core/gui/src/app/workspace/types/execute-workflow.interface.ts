@@ -24,6 +24,7 @@
  */
 
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { TableProfile } from "../../common/type/proto/edu/uci/ics/amber/engine/architecture/worker/tableprofile";
 export interface PortIdentity
   extends Readonly<{
     id: number;
@@ -87,6 +88,7 @@ export interface OperatorStatistics
 export interface OperatorStatsUpdate
   extends Readonly<{
     operatorStatistics: Record<string, OperatorStatistics>;
+    operatorResultTableProfiles: Record<string, TableProfile>;
   }> {}
 
 export type PaginationMode = { type: "PaginationMode" };

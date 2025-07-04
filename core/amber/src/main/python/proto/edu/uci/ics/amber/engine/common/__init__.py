@@ -160,8 +160,11 @@ class ExecutionStatsStore(betterproto.Message):
     operator_info: Dict[str, "OperatorMetrics"] = betterproto.map_field(
         3, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
+    operator_table_profile: Dict[str, "_architecture_worker__.TableProfile"] = (
+        betterproto.map_field(4, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE)
+    )
     operator_worker_mapping: List["OperatorWorkerMapping"] = betterproto.message_field(
-        4
+        5
     )
 
 

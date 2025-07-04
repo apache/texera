@@ -25,6 +25,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 import scala.collection.mutable
 
@@ -94,6 +95,27 @@ case class WorkflowExecution() {
           (logicalOpId, aggregateMetrics(stats.values))
       }
     aggregatedStats
+  }
+
+  /**
+    * Retrieve the runtime table profiles of all `RegionExecutions`
+    *
+    * @return A `Map` with key being `Logical Operator ID` and the value being operator table profile
+    */
+  def getAllRegionExecutionTableProfiles: Map[String, TableProfile] = {
+    val allRegionExecutions: Iterable[RegionExecution] = getAllRegionExecutions
+    val tableProfileMap: Map[PhysicalOpIdentity, TableProfile] = allRegionExecutions.flatMap {
+      regionExecution =>
+        regionExecution.getTableProfiles.map {
+          case (physicalOpIdentity, tableProfile) =>
+            (physicalOpIdentity, tableProfile)
+        }
+    }.toMap
+
+    tableProfileMap.groupBy(_._1.logicalOpId.id).map {
+      case (logicalOpId, tableProfiles) =>
+        (logicalOpId, tableProfiles.values.head)
+    }
   }
 
   /**

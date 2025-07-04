@@ -29,6 +29,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{
 import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -100,6 +101,13 @@ case class OperatorExecution() {
         idleTime = workerRawStats.map(_.idleTime).sum
       )
     )
+  }
+
+  def getTableProfile: TableProfile = {
+    val workerTableProfiles = workerExecutions.values.asScala.map(_.getTableProfile)
+    // TODO: by default, choose the first worker's table profile
+    // this option will fail when there are multiple workers
+    workerTableProfiles.head
   }
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {

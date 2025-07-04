@@ -1,0 +1,150 @@
+{
+  "state": "Failed",
+  "physicalPlan": null,
+  "operatorInputSchemaMap": {
+    "Projection-operator-fa6c76fa-3208-4f20-9b44-f920b91e898c": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "is_retweet",
+          "attributeType": "boolean"
+        },
+        {
+          "attributeName": "lang",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "user_id",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "CSVFileScan-operator-7249c7e8-6d05-4572-931e-495d47f7ccf1": [],
+    "PythonUDFV2-operator-3e3c9f53-dae3-4dc4-b724-7ffdb8e7b80c": [
+      [
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        }
+      ]
+    ],
+    "Sort-operator-3985eaf1-5af2-4f4a-bd0f-1c4b3f7e78c2": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "Projection-operator-9e443d52-a201-4f43-88fc-d8ad2cf4eb16": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "is_retweet",
+          "attributeType": "boolean"
+        },
+        {
+          "attributeName": "lang",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "user_id",
+          "attributeType": "integer"
+        }
+      ]
+    ]
+  },
+  "operatorErrors": {
+    "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865": {
+      "type": {
+        "value": 0,
+        "index": 0,
+        "name": "COMPILATION_ERROR",
+        "compilationError": true,
+        "executionFailure": false,
+        "unrecognized": false
+      },
+      "timestamp": {
+        "seconds": 1744853005,
+        "nanos": 636787000,
+        "unknownFields": {
+          "fields": {}
+        }
+      },
+      "message": "java.lang.RuntimeException: Operator is not configured properly: null",
+      "details": "Stack trace for developers: \n\njava.lang.RuntimeException: Operator is not configured properly: null\nedu.uci.ics.amber.compiler.WorkflowCompiler.$anonfun$expandLogicalPlan$9(WorkflowCompiler.scala:149)\nscala.Option.foreach(Option.scala:437)\nedu.uci.ics.amber.compiler.WorkflowCompiler.$anonfun$expandLogicalPlan$3(WorkflowCompiler.scala:146)\nedu.uci.ics.amber.compiler.WorkflowCompiler.$anonfun$expandLogicalPlan$3$adapted(WorkflowCompiler.scala:119)\nscala.collection.IterableOnceOps.foreach(IterableOnce.scala:576)\nscala.collection.IterableOnceOps.foreach$(IterableOnce.scala:574)\nscala.collection.AbstractIterator.foreach(Iterator.scala:1300)\nedu.uci.ics.amber.compiler.WorkflowCompiler.$anonfun$expandLogicalPlan$1(WorkflowCompiler.scala:119)\nscala.collection.IterableOnceOps.foreach(IterableOnce.scala:576)\nscala.collection.IterableOnceOps.foreach$(IterableOnce.scala:574)\nscala.collection.AbstractIterator.foreach(Iterator.scala:1300)\nedu.uci.ics.amber.compiler.WorkflowCompiler.expandLogicalPlan(WorkflowCompiler.scala:109)\nedu.uci.ics.amber.compiler.WorkflowCompiler.compile(WorkflowCompiler.scala:188)\nedu.uci.ics.texera.service.resource.WorkflowCompilationResource.compileWorkflow(WorkflowCompilationResource.scala:52)\njdk.internal.reflect.GeneratedMethodAccessor44.invoke(Unknown Source)\njava.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.base/java.lang.reflect.Method.invoke(Method.java:566)\norg.glassfish.jersey.server.model.internal.ResourceMethodInvocationHandlerFactory.lambda$static$0(ResourceMethodInvocationHandlerFactory.java:52)\norg.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher$1.run(AbstractJavaResourceMethodDispatcher.java:146)\norg.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.invoke(AbstractJavaResourceMethodDispatcher.java:189)\norg.glassfish.jersey.server.model.internal.JavaResourceMethodDispatcherProvider$TypeOutInvoker.doDispatch(JavaResourceMethodDispatcherProvider.java:219)\norg.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.dispatch(AbstractJavaResourceMethodDispatcher.java:93)\norg.glassfish.jersey.server.model.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:478)\norg.glassfish.jersey.server.model.ResourceMethodInvoker.apply(ResourceMethodInvoker.java:400)\norg.glassfish.jersey.server.model.ResourceMethodInvoker.apply(ResourceMethodInvoker.java:81)\norg.glassfish.jersey.server.ServerRuntime$1.run(ServerRuntime.java:256)\norg.glassfish.jersey.internal.Errors$1.call(Errors.java:248)\norg.glassfish.jersey.internal.Errors$1.call(Errors.java:244)\norg.glassfish.jersey.internal.Errors.process(Errors.java:292)\norg.glassfish.jersey.internal.Errors.process(Errors.java:274)\norg.glassfish.jersey.internal.Errors.process(Errors.java:244)\norg.glassfish.jersey.process.internal.RequestScope.runInScope(RequestScope.java:265)\norg.glassfish.jersey.server.ServerRuntime.process(ServerRuntime.java:235)\norg.glassfish.jersey.server.ApplicationHandler.handle(ApplicationHandler.java:684)\norg.glassfish.jersey.servlet.WebComponent.serviceImpl(WebComponent.java:394)\norg.glassfish.jersey.servlet.WebComponent.service(WebComponent.java:346)\norg.glassfish.jersey.servlet.ServletContainer.service(ServletContainer.java:358)\norg.glassfish.jersey.servlet.ServletContainer.service(ServletContainer.java:311)\norg.glassfish.jersey.servlet.ServletContainer.service(ServletContainer.java:205)\norg.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:764)\norg.eclipse.jetty.servlet.ServletHandler$ChainEnd.doFilter(ServletHandler.java:1665)\nio.dropwizard.servlets.ThreadNameFilter.doFilter(ThreadNameFilter.java:36)\norg.eclipse.jetty.servlet.FilterHolder.doFilter(FilterHolder.java:202)\norg.eclipse.jetty.servlet.ServletHandler$Chain.doFilter(ServletHandler.java:1635)\nio.dropwizard.jersey.filter.AllowedMethodsFilter.handle(AllowedMethodsFilter.java:46)\nio.dropwizard.jersey.filter.AllowedMethodsFilter.doFilter(AllowedMethodsFilter.java:40)\norg.eclipse.jetty.servlet.FilterHolder.doFilter(FilterHolder.java:202)\norg.eclipse.jetty.servlet.ServletHandler$Chain.doFilter(ServletHandler.java:1635)\norg.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:527)\norg.eclipse.jetty.server.handler.ScopedHandler.nextHandle(ScopedHandler.java:221)\norg.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:1381)\norg.eclipse.jetty.server.handler.ScopedHandler.nextScope(ScopedHandler.java:176)\norg.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:484)\norg.eclipse.jetty.server.handler.ScopedHandler.nextScope(ScopedHandler.java:174)\norg.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:1303)\norg.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:129)\norg.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:122)\nio.dropwizard.metrics.jetty11.InstrumentedHandler.handle(InstrumentedHandler.java:313)\nio.dropwizard.jetty.RoutingHandler.handle(RoutingHandler.java:52)\norg.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:122)\norg.eclipse.jetty.server.handler.gzip.GzipHandler.handle(GzipHandler.java:822)\nio.dropwizard.jetty.ZipExceptionHandlingGzipHandler.handle(ZipExceptionHandlingGzipHandler.java:26)\norg.eclipse.jetty.server.handler.RequestLogHandler.handle(RequestLogHandler.java:46)\norg.eclipse.jetty.server.handler.StatisticsHandler.handle(StatisticsHandler.java:173)\norg.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:122)\norg.eclipse.jetty.server.Server.handle(Server.java:563)\norg.eclipse.jetty.server.HttpChannel$RequestDispatchable.dispatch(HttpChannel.java:1598)\norg.eclipse.jetty.server.HttpChannel.dispatch(HttpChannel.java:753)\norg.eclipse.jetty.server.HttpChannel.handle(HttpChannel.java:501)\norg.eclipse.jetty.server.HttpConnection.onFillable(HttpConnection.java:287)\norg.eclipse.jetty.io.AbstractConnection$ReadCallback.succeeded(AbstractConnection.java:314)\norg.eclipse.jetty.io.FillInterest.fillable(FillInterest.java:100)\norg.eclipse.jetty.io.SelectableChannelEndPoint$1.run(SelectableChannelEndPoint.java:53)\norg.eclipse.jetty.util.thread.strategy.AdaptiveExecutionStrategy.runTask(AdaptiveExecutionStrategy.java:421)\norg.eclipse.jetty.util.thread.strategy.AdaptiveExecutionStrategy.consumeTask(AdaptiveExecutionStrategy.java:390)\norg.eclipse.jetty.util.thread.strategy.AdaptiveExecutionStrategy.tryProduce(AdaptiveExecutionStrategy.java:277)\norg.eclipse.jetty.util.thread.strategy.AdaptiveExecutionStrategy.run(AdaptiveExecutionStrategy.java:199)\norg.eclipse.jetty.util.thread.ReservedThreadExecutor$ReservedThread.run(ReservedThreadExecutor.java:411)\norg.eclipse.jetty.util.thread.QueuedThreadPool.runJob(QueuedThreadPool.java:969)\norg.eclipse.jetty.util.thread.QueuedThreadPool$Runner.doRunJob(QueuedThreadPool.java:1194)\norg.eclipse.jetty.util.thread.QueuedThreadPool$Runner.run(QueuedThreadPool.java:1149)\njava.base/java.lang.Thread.run(Thread.java:829)",
+      "operatorId": "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865",
+      "workerId": ""
+    }
+  }
+}

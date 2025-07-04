@@ -18,6 +18,7 @@
  */
 
 package edu.uci.ics.texera.web.model.websocket.event
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 case class OperatorAggregatedMetrics(
     operatorState: String,
@@ -31,5 +32,7 @@ case class OperatorAggregatedMetrics(
     aggregatedIdleTime: Long
 )
 
-case class OperatorStatisticsUpdateEvent(operatorStatistics: Map[String, OperatorAggregatedMetrics])
-    extends TexeraWebSocketEvent
+case class OperatorStatisticsUpdateEvent(
+    operatorStatistics: Map[String, OperatorAggregatedMetrics],
+    operatorResultTableProfiles: Map[String, TableProfile]
+) extends TexeraWebSocketEvent

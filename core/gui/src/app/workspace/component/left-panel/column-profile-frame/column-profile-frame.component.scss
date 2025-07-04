@@ -1,0 +1,216 @@
+:host {
+  display: block;
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%; // Ensure it takes available height in left panel
+  width: 100%; // Ensure host takes up available width from left-panel
+}
+
+.column-profile-container {
+  h4.section-header {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-size: 1em;
+    font-weight: 500;
+  }
+
+  .chart-section {
+    margin-top: 16px;
+    width: 100%; // Make chart section take full available width
+    box-sizing: border-box; // Include padding and border in the element's total width and height
+
+    h4 {
+      // If the h4 for "Top 10..." is inside .chart-section
+      margin-bottom: 8px;
+    }
+
+    ngx-charts-bar-vertical {
+      display: block;
+      width: 100% !important; // Important to override potential inline styles from ngx-charts
+      height: auto; // Or a fixed height like 250px, 300px
+      box-sizing: border-box;
+    }
+  }
+
+  .data-cleaning-suggestions-section {
+    margin-top: 16px;
+
+    .suggestions-header-main-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2px; 
+    }
+
+    .copilot-attribution-wrapper {
+        margin-bottom: 8px; 
+    }
+
+    .copilot-attribution {
+      display: flex;
+      align-items: center;
+      font-size: 0.75em; 
+      color: #777;       
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; 
+      font-style: italic; 
+
+      i[nz-icon] {
+        margin-right: 5px;
+        font-size: 1.2em; 
+        color: #007bff; 
+      }
+    }
+
+    h4 { 
+      margin-bottom: 0; 
+    }
+    
+    .no-suggestions-message {
+      padding: 10px;
+      background-color: #f0f0f0;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      text-align: center;
+      color: #555;
+      font-style: italic;
+    }
+  }
+
+  // =========================
+  // Suggestion List & Items
+  // =========================
+  .suggestions-list {
+    padding: 0;
+    list-style-type: none;
+    margin: 0;
+  }
+
+  // Style each suggestion item regardless of parent container
+  .suggestion-item {
+    margin-bottom: 6px;
+    color: #333;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    // Apply transitions for hover/active effects
+    transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+
+    // Default appearance
+    background-color: #fffbe6; // light yellow
+    border: 1px solid #ffe58f;
+    padding: 10px 14px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    // Hover (not expanded)
+    &:not(.expanded):hover {
+      background-color: #ffecb3;
+      border-color: #ffd666;
+      transform: translateY(-2px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      color: #000;
+    }
+
+    // Expanded state
+    &.expanded {
+      background-color: #fff9db;
+      border-color: #ffe58f;
+      padding-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+      &:hover {
+        background-color: #ffefc2;
+      }
+
+      .suggestion-details-wrapper {
+        padding-top: 10px;
+        margin-top: 10px;
+        border-top: 1px dashed #dcdcdc;
+      }
+
+      .suggestion-details-area {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 160px;
+        font-family: monospace;
+        font-size: 0.85em;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        resize: vertical;
+        background-color: #fdfdfd;
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      .suggestion-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+    }
+
+    // Inner elements common to both collapsed & expanded states
+    .suggestion-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .expand-icon {
+      margin-left: 8px;
+      font-size: 0.8em;
+      color: #555;
+    }
+  }
+}
+
+.no-column-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #888;
+  font-size: 0.9em;
+
+  i {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+}
+
+// Remove or comment out the ngx-charts deep overrides for font sizes for now,
+// unless they are still specifically needed after width adjustments.
+// :host ::ng-deep .ngx-charts {
+//   text {
+//     font-size: 10px !important;
+//   }
+//   .x.axis .tick text, .y.axis .tick text {
+//      font-size: 9px !important;
+//   }
+// }
+
+.loading-suggestions-message {
+  padding: 10px;
+  text-align: center;
+  background-color: #fffbe6; // light yellow background
+  border: 1px solid #ffe58f; // yellow border to match suggestion items
+  color: #ad8b00; // dark yellow/brown text for contrast
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+
+  .loading-icon {
+    font-size: 16px;
+  }
+}

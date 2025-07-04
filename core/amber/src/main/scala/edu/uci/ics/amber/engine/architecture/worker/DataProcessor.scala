@@ -119,7 +119,7 @@ class DataProcessor(
       )
 
       statisticsManager.increaseInputStatistics(portIdentity, tuple.inMemSize)
-
+      tableProfileManager.updateTableProfile(tuple)
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread

@@ -1,0 +1,162 @@
+{
+  "wid": 2748,
+  "name": "Suggestion Test: 1-path-compilation-succeed",
+  "description": null,
+  "content": {
+    "operators": [
+      {
+        "operatorID": "CSVFileScan-operator-02af511d-2912-4d48-a86e-8ac73a6e2b0e",
+        "operatorType": "CSVFileScan",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "fileEncoding": "UTF_8",
+          "customDelimiter": ",",
+          "hasHeader": true,
+          "fileName": "/workflow_migrator@texera/ds4all-lecture-example/v1/clean_tweets.csv"
+        },
+        "inputPorts": [],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "CSV File Scan",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "Projection-operator-9d955369-5e4d-44f9-a6f3-ec66b1192894",
+        "operatorType": "Projection",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "isDrop": false,
+          "attributes": [
+            {
+              "alias": "",
+              "originalAttribute": "tweet_id"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "create_at_month"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "favorite_count"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "retweet_count"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Projection",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "Sort-operator-860e9211-556a-4789-ab06-fa79bc0b36c3",
+        "operatorType": "Sort",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "attributes": [
+            {
+              "attribute": "favorite_count",
+              "sortPreference": "DESC"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Sort",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      }
+    ],
+    "operatorPositions": {
+      "CSVFileScan-operator-02af511d-2912-4d48-a86e-8ac73a6e2b0e": {
+        "x": 472,
+        "y": 396
+      },
+      "Projection-operator-9d955369-5e4d-44f9-a6f3-ec66b1192894": {
+        "x": 657,
+        "y": 395
+      },
+      "Sort-operator-860e9211-556a-4789-ab06-fa79bc0b36c3": {
+        "x": 825,
+        "y": 396
+      }
+    },
+    "links": [
+      {
+        "linkID": "link-4a444193-d4a7-4a2d-ac53-3425bc5bfda0",
+        "source": {
+          "operatorID": "CSVFileScan-operator-02af511d-2912-4d48-a86e-8ac73a6e2b0e",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "Projection-operator-9d955369-5e4d-44f9-a6f3-ec66b1192894",
+          "portID": "input-0"
+        }
+      },
+      {
+        "linkID": "link-1586b353-1954-4064-a38a-3c9539306c07",
+        "source": {
+          "operatorID": "Projection-operator-9d955369-5e4d-44f9-a6f3-ec66b1192894",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "Sort-operator-860e9211-556a-4789-ab06-fa79bc0b36c3",
+          "portID": "input-0"
+        }
+      }
+    ],
+    "commentBoxes": [],
+    "settings": {
+      "dataTransferBatchSize": 400
+    }
+  },
+  "creationTime": 1744844136205,
+  "lastModifiedTime": 1744844136205,
+  "isPublic": false
+}

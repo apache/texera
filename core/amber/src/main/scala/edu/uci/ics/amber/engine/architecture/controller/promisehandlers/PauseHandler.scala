@@ -78,7 +78,8 @@ trait PauseHandler {
         // update frontend workflow status
         sendToClient(
           ExecutionStatsUpdate(
-            cp.workflowExecution.getAllRegionExecutionsStats
+            cp.workflowExecution.getAllRegionExecutionsStats,
+            cp.workflowExecution.getAllRegionExecutionTableProfiles
           )
         )
         sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))

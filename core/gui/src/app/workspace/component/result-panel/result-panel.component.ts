@@ -51,6 +51,7 @@ import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
+import { SuggestionFrameComponent } from "./suggestion-frame/suggestion-frame.component";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 300;
@@ -99,6 +100,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Add suggestions tab to the result panel first
+    // this.displaySuggestions();
+
     const style = localStorage.getItem("result-panel-style");
     if (style) document.getElementById("result-container")!.style.cssText = style;
     const translates = document.getElementById("result-container")!.style.transform;
@@ -218,14 +222,19 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
     if (this.currentOperatorId !== currentHighlightedOperator) {
-      // clear everything, prepare for state change
-      this.clearResultPanel();
+      // clear result-related panels, but keep the suggestions tab
+      this.clearResultPanelExceptSuggestions();
       this.currentOperatorId = currentHighlightedOperator;
 
       if (!this.currentOperatorId) {
         this.operatorTitle = "";
       }
     }
+    //
+    // // Make sure suggestions tab is always available
+    // if (!this.frameComponentConfigs.has("Suggestions")) {
+    //   this.displaySuggestions();
+    // }
 
     if (
       this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed ||
@@ -256,6 +265,22 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
+  }
+
+  /**
+   * Clears result panel components except for the Suggestions tab
+   */
+  clearResultPanelExceptSuggestions(): void {
+    // Temporarily store the suggestions component if it exists
+    const suggestionsComponent = this.frameComponentConfigs.get("Suggestions");
+
+    // Clear all components
+    this.frameComponentConfigs.clear();
+
+    // Restore the suggestions component if it existed
+    if (suggestionsComponent) {
+      this.frameComponentConfigs.set("Suggestions", suggestionsComponent);
+    }
   }
 
   displayConsole(operatorId: string, consoleInputEnabled: boolean) {
@@ -339,11 +364,19 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   openPanel() {
     this.height = DEFAULT_HEIGHT;
     this.width = DEFAULT_WIDTH;
+
+    // // Ensure suggestions tab is available when panel is opened
+    // if (!this.frameComponentConfigs.has("Suggestions")) {
+    //   this.displaySuggestions();
+    // }
   }
 
   closePanel() {
     this.height = 32.5;
     this.width = 0;
+
+    // Don't clear suggestions when closing the panel
+    // Preserve the tab for when the panel is reopened
   }
 
   resetPanelPosition() {
@@ -390,4 +423,14 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     if (!isDefined(newHeight)) return;
     this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
   }
+
+  // /**
+  //  * Displays the workflow suggestions in the result panel
+  //  */
+  // displaySuggestions() {
+  //   this.frameComponentConfigs.set("Suggestions", {
+  //     component: SuggestionFrameComponent,
+  //     componentInputs: {},
+  //   });
+  // }
 }

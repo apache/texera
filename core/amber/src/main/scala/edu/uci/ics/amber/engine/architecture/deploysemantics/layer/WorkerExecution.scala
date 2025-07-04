@@ -23,6 +23,7 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.WorkerPortExec
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 import scala.collection.mutable
 
@@ -36,6 +37,7 @@ case class WorkerExecution() extends Serializable {
   private var state: WorkerState = UNINITIALIZED
   private var stats: WorkerStatistics =
     WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
+  private var tableProfile: TableProfile = TableProfile(None, Seq.empty)
 
   def getState: WorkerState = state
 
@@ -47,6 +49,12 @@ case class WorkerExecution() extends Serializable {
 
   def setStats(stats: WorkerStatistics): Unit = {
     this.stats = stats
+  }
+
+  def getTableProfile: TableProfile = tableProfile
+
+  def setTableProfile(tableProfile: TableProfile): Unit = {
+    this.tableProfile = tableProfile
   }
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {

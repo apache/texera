@@ -1,0 +1,86 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "suggestion": {
+        "type": "string",
+        "description": "A clear description of the improvement"
+      },
+      "suggestionType": {
+        "type": "string",
+        "description": "the type of the proposed suggestion. 2 POSSIBLE VALUES: fix, improve"
+      },
+      "changes": {
+        "type": "object",
+        "properties": {
+          "operatorsToAdd": {
+            "type": "array",
+            "description": "Operators to add or update. If the operatorID exists in the original workflow, treat this as an update.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "operatorType": {
+                  "type": "string",
+                  "description": "The type of operator to be added or updated"
+                },
+                "operatorID": {
+                  "type": "string",
+                  "description": "A unique identifier, may match existing operator in prompt"
+                },
+                "operatorProperties": {
+                  "type": "object",
+                  "description": "Properties to assign or update for the operator",
+                  "additionalProperties": true
+                },
+                "customDisplayName": {
+                  "type": "string",
+                  "description": "Optional logical name describing function"
+                }
+              },
+              "required": ["operatorType", "operatorID", "operatorProperties"]
+            }
+          },
+          "linksToAdd": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "linkID": {
+                  "type": "string",
+                  "description": "A unique ID for the link"
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "operatorID": { "type": "string" },
+                    "portID": { "type": "string", "pattern": "^output-\\d+$" }
+                  },
+                  "required": ["operatorID", "portID"]
+                },
+                "target": {
+                  "type": "object",
+                  "properties": {
+                    "operatorID": { "type": "string" },
+                    "portID": { "type": "string", "pattern": "^input-\\d+$" }
+                  },
+                  "required": ["operatorID", "portID"]
+                }
+              },
+              "required": ["linkID", "source", "target"]
+            }
+          },
+          "operatorsToDelete": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of operator IDs to delete"
+            }
+          }
+        },
+        "required": ["operatorsToAdd", "linksToAdd"]
+      }
+    },
+    "required": ["suggestion", "changes"]
+  }
+}

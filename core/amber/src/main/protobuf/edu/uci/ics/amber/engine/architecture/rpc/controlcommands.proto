@@ -57,6 +57,7 @@ message ControlRequest {
     EmptyRequest emptyRequest = 56;
     PrepareCheckpointRequest prepareCheckpointRequest = 57;
     QueryStatisticsRequest queryStatisticsRequest = 58;
+    QueryTableProfileRequest queryTableProfileRequest = 59;
 
     // request for testing
     Ping ping = 100;
@@ -271,4 +272,8 @@ message PrepareCheckpointRequest{
 
 message QueryStatisticsRequest{
   repeated core.ActorVirtualIdentity filterByWorkers = 1;
+}
+
+message QueryTableProfileRequest{
+
 }

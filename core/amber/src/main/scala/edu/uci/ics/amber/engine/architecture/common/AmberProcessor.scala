@@ -27,7 +27,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
+import edu.uci.ics.amber.engine.architecture.worker.managers.{
+  StatisticsManager,
+  TableProfileManager
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   DirectControlMessagePayload,
@@ -61,6 +64,8 @@ abstract class AmberProcessor(
 
   // statistics manager
   val statisticsManager: StatisticsManager = new StatisticsManager()
+  // table profile manager
+  val tableProfileManager: TableProfileManager = new TableProfileManager()
 
   def processDCM(
       channelId: ChannelIdentity,

@@ -40,6 +40,7 @@ service WorkerService {
   rpc PauseWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (EmptyReturn);
   rpc QueryStatistics(EmptyRequest) returns (WorkerMetricsResponse);
+  rpc QueryTableProfile(EmptyRequest) returns (TableProfileResponse);
   rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc RetrieveState(EmptyRequest) returns (EmptyReturn);
   rpc RetryCurrentTuple(EmptyRequest) returns (EmptyReturn);

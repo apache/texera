@@ -1,0 +1,84 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+.installed.cfg
+develop-eggs/
+downloads/
+eggs/
+parts/
+sdist/
+var/
+wheels/
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+pythonenv*
+.python-version
+
+# Development environments
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# ML specific
+*.model
+*.pkl
+*.h5
+*.joblib
+*.pt
+model_checkpoints/
+
+# Logs
+logs/
+*.log
+
+# Local development settings
+local_settings.py
+instance/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Large media files that might get added accidentally
+*.mp4
+*.mov
+*.wav
+*.mp3
+.env

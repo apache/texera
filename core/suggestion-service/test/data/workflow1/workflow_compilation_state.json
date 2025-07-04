@@ -1,0 +1,64 @@
+{
+  "state": "Succeeded",
+  "physicalPlan": null,
+  "operatorInputSchemaMap": {
+    "Projection-operator-9d955369-5e4d-44f9-a6f3-ec66b1192894": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "is_retweet",
+          "attributeType": "boolean"
+        },
+        {
+          "attributeName": "lang",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "text",
+          "attributeType": "string"
+        },
+        {
+          "attributeName": "user_id",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "Sort-operator-860e9211-556a-4789-ab06-fa79bc0b36c3": [
+      [
+        {
+          "attributeName": "tweet_id",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "create_at_month",
+          "attributeType": "timestamp"
+        },
+        {
+          "attributeName": "favorite_count",
+          "attributeType": "integer"
+        },
+        {
+          "attributeName": "retweet_count",
+          "attributeType": "integer"
+        }
+      ]
+    ],
+    "CSVFileScan-operator-02af511d-2912-4d48-a86e-8ac73a6e2b0e": []
+  },
+  "operatorErrors": {}
+}

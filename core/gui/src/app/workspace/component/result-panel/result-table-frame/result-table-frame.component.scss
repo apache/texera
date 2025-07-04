@@ -135,3 +135,139 @@ th.header-size {
   bottom: 16px;
   right: 0;
 }
+
+.table-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.global-stats-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 8px 4px;
+  transition:
+    background-color 0.2s ease-in-out,
+    color 0.2s ease-in-out;
+
+  &:hover {
+    background-color: #e6f7ff;
+    color: #096dd9;
+  }
+}
+
+.custom-profile-row {
+  background-color: #f9f9f9;
+
+  .profile-header {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .profile-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  .profile-label {
+    font-weight: 500;
+    color: #555;
+  }
+
+  .profile-value {
+    font-weight: normal;
+  }
+}
+
+// Styles for the column details modal
+:host ::ng-deep .column-details,
+:host ::ng-deep .global-stats {
+  .detail-row,
+  .stat-row {
+    display: flex;
+    margin-bottom: 8px;
+
+    .detail-label,
+    .stat-label {
+      font-weight: 500;
+      width: 40%;
+      color: #555;
+    }
+
+    .detail-value,
+    .stat-value {
+      width: 60%;
+    }
+  }
+}
+
+// You might want to add specific styles for the modal content if needed,
+// but ng-zorro components usually come with good defaults.
+// For example, to ensure ngx-charts is responsive within the modal:
+:host ::ng-deep .ngx-charts {
+  display: block;
+  width: 100% !important; // Override default fixed width if necessary
+  height: auto;
+}
+
+:host ::ng-deep .chart-legend .legend-labels {
+  // If legend is enabled and overlaps
+  white-space: normal !important;
+}
+
+// Styles for Data Cleaning Suggestions
+.data-cleaning-suggestions-section {
+  .no-suggestions-message {
+    padding: 10px;
+    background-color: #f0f0f0; // A neutral background for no suggestions
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    text-align: center;
+    color: #555;
+  }
+
+  .suggestions-list {
+    // Changed from ul to .suggestions-list for more specific styling
+    background-color: #fffbe6;
+    border: 1px solid #ffe58f;
+    padding: 10px; // Adjusted padding
+    border-radius: 4px;
+    list-style-type: none; // Remove default bullets, will use custom or none
+    margin: 0;
+
+    .suggestion-item {
+      padding: 8px 12px;
+      margin-bottom: 5px;
+      color: #333;
+      border-radius: 3px;
+      cursor: pointer;
+      transition:
+        background-color 0.2s ease-in-out,
+        color 0.2s ease-in-out;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      &:hover {
+        background-color: #ffe58f; // Darker yellow on hover
+        color: #000;
+      }
+
+      .suggestion-type {
+        font-size: 0.9em;
+        color: #888;
+        margin-left: 5px;
+      }
+    }
+  }
+}

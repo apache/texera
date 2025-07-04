@@ -17,9 +17,6 @@
 
 FROM node:18.17 AS build-gui
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 build-essential git ca-certificates
-
 WORKDIR /gui
 COPY core/gui /gui
 RUN rm -f /gui/.yarnrc.yml

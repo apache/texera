@@ -1,0 +1,170 @@
+<div
+  class="column-profile-container"
+  *ngIf="selectedColumnInfo && columnProfile; else noColumnSelected">
+  <div class="profile-content">
+    <nz-descriptions
+      nzBordered
+      [nzColumn]="1"
+      nzSize="small">
+      <nz-descriptions-item nzTitle="Column Name">{{ columnProfile.columnName }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Data Type">{{ columnProfile.dataType }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Data Label">{{ columnProfile.dataLabel || "N/A" }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Categorical">{{ columnProfile.categorical ? "Yes" : "No" }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Order">{{ columnProfile.order || "N/A" }}</nz-descriptions-item>
+    </nz-descriptions>
+
+    <h4
+      *ngIf="columnProfile.statistics && columnNumericStatsForTable.length > 0"
+      class="section-header">
+      Statistics
+    </h4>
+    <nz-table
+      *ngIf="columnProfile.statistics && columnNumericStatsForTable.length > 0"
+      #columnStatsTable
+      [nzData]="columnNumericStatsForTable"
+      nzSize="small"
+      [nzShowPagination]="false"
+      [nzFrontPagination]="false"
+      nzBordered>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let stat of columnStatsTable.data">
+          <td>{{ stat.metric }}</td>
+          <td>{{ stat.value }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+
+    <div
+      *ngIf="columnProfile.categorical && barChartData.length > 0"
+      class="section-header chart-section">
+      <h4>Top 10 Categorical Distribution</h4>
+      <ngx-charts-bar-vertical
+        [view]="view"
+        [results]="barChartData"
+        [gradient]="gradient"
+        [xAxis]="showXAxis"
+        [yAxis]="showYAxis"
+        [legend]="showLegend"
+        [showXAxisLabel]="showXAxisLabel"
+        [showYAxisLabel]="showYAxisLabel"
+        [xAxisLabel]="xAxisLabel"
+        [yAxisLabel]="yAxisLabel">
+      </ngx-charts-bar-vertical>
+    </div>
+
+    <div class="data-cleaning-suggestions-section section-header">
+      <div class="suggestions-header-main-line">
+        <h4>Data Cleaning Suggestions</h4>
+        <button
+          nz-button
+          nzType="default"
+          nzSize="small"
+          (click)="refreshDataCleaningSuggestions()"
+          [nzLoading]="isLoadingDataCleaningSuggestions"
+          title="Refresh suggestions for {{ columnProfile.columnName }}">
+          <i
+            nz-icon
+            nzType="sync"
+            [nzSpin]="isLoadingDataCleaningSuggestions"></i>
+          Refresh
+        </button>
+      </div>
+      <div class="copilot-attribution-wrapper">
+        <span class="copilot-attribution">
+          <i nz-icon nzType="robot" nzTheme="outline"></i>
+          Powered by Data Copilot
+        </span>
+      </div>
+    </div>
+
+    <div
+      *ngIf="isLoadingDataCleaningSuggestions && dataCleaningSuggestions.length === 0"
+      class="loading-suggestions-message">
+      <i
+        nz-icon
+        nzType="loading"
+        nzTheme="outline"
+        class="loading-icon"></i>
+      Loading data cleaning suggestions...
+    </div>
+
+    <div
+      *ngIf="!isLoadingDataCleaningSuggestions && dataCleaningSuggestions.length === 0 && lastFetchedSuggestionsForColumn"
+      class="no-suggestions-message">
+      No data cleaning suggestions available for this column.
+    </div>
+
+    <ul
+      *ngIf="dataCleaningSuggestions.length > 0"
+      class="suggestions-list">
+      <li
+        *ngFor="let suggestion of dataCleaningSuggestions"
+        class="suggestion-item"
+        (click)="toggleSuggestionExpansion(suggestion)"
+        [class.expanded]="suggestion.isExpanded"
+        title="Click to {{ suggestion.isExpanded ? 'collapse' : 'expand' }} suggestion">
+        <div class="suggestion-summary">
+          {{ suggestion.suggestion }}
+          <i
+            nz-icon
+            [nzType]="suggestion.isExpanded ? 'up' : 'down'"
+            class="expand-icon"></i>
+        </div>
+        <div
+          *ngIf="suggestion.isExpanded"
+          class="suggestion-details-wrapper"
+          (click)="$event.stopPropagation()">
+          <textarea
+            readonly
+            class="suggestion-details-area">
+{{ suggestion.details }}</textarea
+          >
+          <div class="suggestion-actions">
+            <button
+              nz-button
+              nzType="primary"
+              nzShape="circle"
+              nzSize="small"
+              class="action-btn accept-btn"
+              (click)="acceptSuggestion(suggestion, $event)"
+              [nzLoading]="suggestion.isAccepting"
+              title="Accept suggestion">
+              <i
+                nz-icon
+                nzType="check"></i>
+            </button>
+            <button
+              nz-button
+              nzType="primary"
+              nzDanger
+              nzShape="circle"
+              nzSize="small"
+              class="action-btn reject-btn"
+              (click)="rejectSuggestion(suggestion, $event)"
+              title="Reject suggestion">
+              <i
+                nz-icon
+                nzType="close"></i>
+            </button>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<ng-template #noColumnSelected>
+  <div class="no-column-placeholder">
+    <i
+      nz-icon
+      nzType="select"
+      nzTheme="outline"></i>
+    <p>Select a column header in the result table to view its profile.</p>
+  </div>
+</ng-template>

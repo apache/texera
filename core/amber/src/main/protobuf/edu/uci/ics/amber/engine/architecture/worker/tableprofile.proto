@@ -1,0 +1,142 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false,
+  no_default_values_in_constructor: true
+};
+
+/* ------------------------------------------------------------------ */
+/*  GENERIC MATRIX (row-major flat array)                             */
+/* ------------------------------------------------------------------ */
+
+message NumericMatrix {
+  repeated double values = 1;  // length = rows * cols (row-major)
+  uint32 rows           = 2;
+  uint32 cols           = 3;
+}
+
+/* ------------------------------------------------------------------ */
+/*  GLOBAL PROFILE (dataset-wide)                                     */
+/* ------------------------------------------------------------------ */
+
+message GlobalProfile {
+
+  // ---- basic counts ----
+  uint64 samples_used        = 1;  // how many rows were sampled
+  uint64 column_count        = 2;
+  uint64 row_count           = 3;
+
+  // ---- row null / uniqueness ----
+  double row_has_null_ratio  = 4;
+  double row_is_null_ratio   = 5;
+  double unique_row_ratio    = 6;
+  uint64 duplicate_row_count = 7;
+
+  // ---- metadata ----
+  string file_type = 8;   // “csv”, “parquet”, …
+  string encoding  = 9;   // e.g. “utf-8”
+
+  // ---- pairwise stats ----
+  NumericMatrix correlation_matrix = 10;
+  NumericMatrix chi2_matrix        = 11;
+
+  // ---- schema map: column-name -> indices (to mirror DataProfiler) ---
+  map<string, ColumnIndexList> profile_schema = 12;
+
+  // ---- timing ----
+  message Times {
+    double row_stats_ms = 1;
+  }
+  Times times = 13;
+}
+
+// helper for profile_schema
+message ColumnIndexList {
+  repeated uint32 indices = 1;
+}
+
+message ColumnStatistics {
+
+  // ---- numeric summaries (nullable when not applicable) ----
+  double min                   = 1;
+  double max                   = 2;
+  double median                = 3;
+  double mean                  = 4;
+  double variance              = 5;
+  double stddev                = 6;
+  double skewness              = 7;
+  double kurtosis              = 8;
+  double sum                   = 9;
+
+  // ---- distribution ----
+  repeated double quantiles    = 10; // e.g. [q0, q0.5, q1]
+  uint64 num_zeros             = 11;
+  uint64 num_negatives         = 12;
+
+  // ---- uniqueness / cardinality ----
+  uint64 unique_count          = 13;
+  double unique_ratio          = 14;
+
+  // ---- categorical helpers ----
+  bool categorical             = 15;
+  map<string, uint64> categorical_count = 16;
+
+  // ---- nulls ----
+  uint64 null_count            = 17;
+  repeated string null_types   = 18;
+
+  // ---- data-type representation share (DataProfiler style) ----
+  map<string, double> data_type_representation = 19;
+}
+
+/* ------------------------------------------------------------------ */
+/*  FULL COLUMN PROFILE                                               */
+/* ------------------------------------------------------------------ */
+
+message ColumnProfile {
+
+  // identity
+  string column_name = 1;
+  string data_type   = 2;     // “string”, “int”, “float”, …
+  string data_label  = 3;
+  // quick hints
+  bool categorical   = 4;
+  string order       = 5;     // “random”, “ascending”, “constant value”
+
+  // examples
+  repeated string samples = 6;  // a few raw sample strings
+
+  // heavy stats
+  ColumnStatistics statistics = 7;
+}
+
+/* ------------------------------------------------------------------ */
+/*  TOP-LEVEL CONTAINER                                              */
+/* ------------------------------------------------------------------ */
+
+message TableProfile {
+  GlobalProfile global_profile            = 1;
+  repeated ColumnProfile column_profiles  = 2;
+}

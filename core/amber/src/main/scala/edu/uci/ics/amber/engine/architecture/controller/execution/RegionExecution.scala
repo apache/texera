@@ -26,6 +26,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.architecture.worker.tableprofile.TableProfile
 
 import scala.collection.mutable
 
@@ -114,6 +115,13 @@ case class RegionExecution(region: Region) {
     operatorExecutions.map {
       case (physicalOpId, operatorExecution) =>
         physicalOpId -> operatorExecution.getStats
+    }.toMap
+  }
+
+  def getTableProfiles: Map[PhysicalOpIdentity, TableProfile] = {
+    operatorExecutions.map {
+      case (physicalOpId, operatorExecution) =>
+        physicalOpId -> operatorExecution.getTableProfile
     }.toMap
   }
 

@@ -1,0 +1,313 @@
+{
+  "name": "Suggestion Test: 2-path-compilation-failed",
+  "description": null,
+  "wid": 2750,
+  "content": {
+    "operators": [
+      {
+        "operatorID": "CSVFileScan-operator-7249c7e8-6d05-4572-931e-495d47f7ccf1",
+        "operatorType": "CSVFileScan",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "fileEncoding": "UTF_8",
+          "customDelimiter": ",",
+          "hasHeader": true,
+          "fileName": "/workflow_migrator@texera/ds4all-lecture-example/v1/clean_tweets.csv"
+        },
+        "inputPorts": [],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "CSV File Scan",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "Projection-operator-fa6c76fa-3208-4f20-9b44-f920b91e898c",
+        "operatorType": "Projection",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "isDrop": false,
+          "attributes": [
+            {
+              "alias": "",
+              "originalAttribute": "tweet_id"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "create_at_month"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "favorite_count"
+            },
+            {
+              "alias": "",
+              "originalAttribute": "retweet_count"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Projection",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "Sort-operator-3985eaf1-5af2-4f4a-bd0f-1c4b3f7e78c2",
+        "operatorType": "Sort",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "attributes": [
+            {
+              "attribute": "favorite_count",
+              "sortPreference": "DESC"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Sort",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "Projection-operator-9e443d52-a201-4f43-88fc-d8ad2cf4eb16",
+        "operatorType": "Projection",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "isDrop": false,
+          "attributes": [
+            {
+              "alias": "",
+              "originalAttribute": "text"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Projection",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      },
+      {
+        "operatorID": "PythonUDFV2-operator-3e3c9f53-dae3-4dc4-b724-7ffdb8e7b80c",
+        "operatorType": "PythonUDFV2",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "code": "# Choose from the following templates:\n# \nfrom pytexera import *\n\nclass ProcessTupleOperator(UDFOperatorV2):\n    \n    @overrides\n    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n        tuple_['text_length'] = len(tuple_['text'])\n        yield tuple_\n\n# class ProcessBatchOperator(UDFBatchOperator):\n#     BATCH_SIZE = 10 # must be a positive integer\n# \n#     @overrides\n#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n#         yield batch\n# \n# class ProcessTableOperator(UDFTableOperator):\n# \n#     @overrides\n#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n#         yield table\n",
+          "workers": 1,
+          "retainInputColumns": true,
+          "outputColumns": [
+            {
+              "attributeName": "text_length",
+              "attributeType": "integer"
+            }
+          ]
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": true,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Python UDF",
+        "dynamicInputPorts": true,
+        "dynamicOutputPorts": true
+      },
+      {
+        "operatorID": "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865",
+        "operatorType": "LineChart",
+        "operatorVersion": "N/A",
+        "operatorProperties": {
+          "yLabel": "Y Axis",
+          "xLabel": "X Axis"
+        },
+        "inputPorts": [
+          {
+            "portID": "input-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false,
+            "dependencies": []
+          }
+        ],
+        "outputPorts": [
+          {
+            "portID": "output-0",
+            "displayName": "",
+            "allowMultiInputs": false,
+            "isDynamicPort": false
+          }
+        ],
+        "showAdvanced": false,
+        "isDisabled": false,
+        "customDisplayName": "Line Chart",
+        "dynamicInputPorts": false,
+        "dynamicOutputPorts": false
+      }
+    ],
+    "operatorPositions": {
+      "CSVFileScan-operator-7249c7e8-6d05-4572-931e-495d47f7ccf1": {
+        "x": 472,
+        "y": 396
+      },
+      "Projection-operator-fa6c76fa-3208-4f20-9b44-f920b91e898c": {
+        "x": 657,
+        "y": 363
+      },
+      "Sort-operator-3985eaf1-5af2-4f4a-bd0f-1c4b3f7e78c2": {
+        "x": 816,
+        "y": 362
+      },
+      "Projection-operator-9e443d52-a201-4f43-88fc-d8ad2cf4eb16": {
+        "x": 661,
+        "y": 501
+      },
+      "PythonUDFV2-operator-3e3c9f53-dae3-4dc4-b724-7ffdb8e7b80c": {
+        "x": 820,
+        "y": 497
+      },
+      "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865": {
+        "x": 966,
+        "y": 357
+      }
+    },
+    "links": [
+      {
+        "linkID": "link-4a444193-d4a7-4a2d-ac53-3425bc5bfda0",
+        "source": {
+          "operatorID": "CSVFileScan-operator-7249c7e8-6d05-4572-931e-495d47f7ccf1",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "Projection-operator-fa6c76fa-3208-4f20-9b44-f920b91e898c",
+          "portID": "input-0"
+        }
+      },
+      {
+        "linkID": "link-1586b353-1954-4064-a38a-3c9539306c07",
+        "source": {
+          "operatorID": "Projection-operator-fa6c76fa-3208-4f20-9b44-f920b91e898c",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "Sort-operator-3985eaf1-5af2-4f4a-bd0f-1c4b3f7e78c2",
+          "portID": "input-0"
+        }
+      },
+      {
+        "linkID": "63989c89-c9e7-470c-b107-bc6d154b2ed0",
+        "source": {
+          "operatorID": "CSVFileScan-operator-7249c7e8-6d05-4572-931e-495d47f7ccf1",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "Projection-operator-9e443d52-a201-4f43-88fc-d8ad2cf4eb16",
+          "portID": "input-0"
+        }
+      },
+      {
+        "linkID": "710b40d5-3142-4970-ae65-3ee210690f6f",
+        "source": {
+          "operatorID": "Projection-operator-9e443d52-a201-4f43-88fc-d8ad2cf4eb16",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "PythonUDFV2-operator-3e3c9f53-dae3-4dc4-b724-7ffdb8e7b80c",
+          "portID": "input-0"
+        }
+      },
+      {
+        "linkID": "link-2883d565-72d0-4d01-a210-fead4ad076a3",
+        "source": {
+          "operatorID": "Sort-operator-3985eaf1-5af2-4f4a-bd0f-1c4b3f7e78c2",
+          "portID": "output-0"
+        },
+        "target": {
+          "operatorID": "LineChart-operator-e3009841-32e4-4080-a6e4-f659762b3865",
+          "portID": "input-0"
+        }
+      }
+    ],
+    "commentBoxes": [],
+    "settings": {
+      "dataTransferBatchSize": 400
+    }
+  },
+  "creationTime": 1744845299552,
+  "lastModifiedTime": 1744845299552,
+  "isPublished": false,
+  "readonly": false
+}

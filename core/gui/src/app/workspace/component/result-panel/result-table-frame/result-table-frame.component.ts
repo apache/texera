@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ViewChild, TemplateRef } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -27,10 +27,25 @@ import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import {
+  TableProfile,
+  ColumnProfile,
+  ColumnStatistics,
+} from "../../../../common/type/proto/edu/uci/ics/amber/engine/architecture/worker/tableprofile";
+import { WorkflowSuggestionService } from "../../../service/workflow-suggestion/workflow-suggestion.service";
+import { finalize } from "rxjs";
+import {
+  WorkflowDataCleaningSuggestion,
+  WorkflowDataCleaningSuggestionList,
+  WorkflowSuggestion,
+  WorkflowSuggestionList,
+} from "../../../types/workflow-suggestion.interface";
+import { isDefined } from "../../../../common/util/predicate";
+import { ColumnProfileService } from "../../../service/column-profile/column-profile.service";
 
 /**
  * The Component will display the result in an excel table format,
@@ -66,19 +81,23 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   totalNumTuples: number = 0;
   pageSize = 5;
   panelHeight = 0;
-  tableStats: Record<string, Record<string, number>> = {};
-  prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
   private schema: ReadonlyArray<SchemaAttribute> = [];
+  tableProfile: TableProfile | undefined;
+
+  // For Global Stats Modal
+  @ViewChild("globalStatsModalContent") globalStatsModalContent!: TemplateRef<any>;
 
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
-    private sanitizer: DomSanitizer,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private workflowStatusService: WorkflowStatusService,
+    private workflowSuggestionService: WorkflowSuggestionService,
+    private columnProfileService: ColumnProfileService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -90,11 +109,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
         this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
         this.changePaginatedResultData();
-
-        this.tableStats = paginatedResultService.getStats();
-        this.prevTableStats = this.tableStats;
         this.schema = paginatedResultService.getSchema();
       }
+      this.subscribeToTableProfile();
     }
   }
 
@@ -121,24 +138,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       });
 
     this.workflowResultService
-      .getResultTableStats()
-      .pipe(untilDestroyed(this))
-      .subscribe(([prevStats, currentStats]) => {
-        if (!this.operatorId) {
-          return;
-        }
-
-        if (currentStats[this.operatorId]) {
-          this.tableStats = currentStats[this.operatorId];
-          if (prevStats[this.operatorId] && this.checkKeys(this.tableStats, prevStats[this.operatorId])) {
-            this.prevTableStats = prevStats[this.operatorId];
-          } else {
-            this.prevTableStats = this.tableStats;
-          }
-        }
-      });
-
-    this.workflowResultService
       .getSinkStorageMode()
       .pipe(untilDestroyed(this))
       .subscribe(sinkStorageMode => {
@@ -161,55 +160,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.schema = paginatedResultService.getSchema();
       }
     }
-  }
 
-  checkKeys(
-    currentStats: Record<string, Record<string, number>>,
-    prevStats: Record<string, Record<string, number>>
-  ): boolean {
-    let firstSet = Object.keys(currentStats);
-    let secondSet = Object.keys(prevStats);
-
-    if (firstSet.length != secondSet.length) {
-      return false;
+    if (this.operatorId) {
+      this.subscribeToTableProfile();
     }
-
-    for (let i = 0; i < firstSet.length; i++) {
-      if (firstSet[i] != secondSet[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  compare(field: string, stats: string): SafeHtml {
-    let current = this.tableStats[field][stats];
-    let previous = this.prevTableStats[field][stats];
-    let currentStr = "";
-    let previousStr = "";
-
-    if (typeof current === "number" && typeof previous === "number") {
-      currentStr = current.toFixed(2);
-      previousStr = previous !== undefined ? previous.toFixed(2) : currentStr;
-    } else {
-      currentStr = current.toLocaleString();
-      previousStr = previous !== undefined ? previous.toLocaleString() : currentStr;
-    }
-    let styledValue = "";
-
-    for (let i = 0; i < currentStr.length; i++) {
-      const char = currentStr[i];
-      const prevChar = previousStr[i];
-
-      if (char !== prevChar) {
-        styledValue += `<span style="color: red">${char}</span>`;
-      } else {
-        styledValue += `<span style="color: black">${char}</span>`;
-      }
-    }
-
-    return this.sanitizer.bypassSecurityTrustHtml(styledValue);
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
@@ -384,6 +338,87 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         columnIndex: columnIndex,
       },
       nzFooter: null,
+    });
+  }
+
+  private subscribeToTableProfile(): void {
+    if (!this.operatorId) {
+      return;
+    }
+
+    // 1. set existing cached profile (if any)
+    const cached = this.workflowStatusService.getCurrentTableProfiles();
+    if (cached && cached[this.operatorId]) {
+      this.tableProfile = cached[this.operatorId];
+    }
+    // 2. listen to subsequent updates
+    this.workflowStatusService
+      .getTableProfilesUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(profiles => {
+        const prof = profiles[this.operatorId!];
+        if (prof) {
+          this.tableProfile = prof;
+          this.changeDetectorRef.detectChanges();
+        }
+      });
+  }
+
+  getColumnProfile(columnName: string): ColumnProfile | undefined {
+    if (!this.tableProfile || !this.tableProfile.columnProfiles) return undefined;
+
+    const target = columnName.trim();
+
+    // exact match
+    let profile = this.tableProfile.columnProfiles.find(p => p.columnName.trim() === target);
+
+    // case-insensitive fallback
+    if (!profile) {
+      profile = this.tableProfile.columnProfiles.find(p => p.columnName.trim().toLowerCase() === target.toLowerCase());
+    }
+
+    return profile;
+  }
+
+  showColumnDetails(columnName: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.operatorId || !this.tableProfile) {
+      console.warn("OperatorId or TableProfile is not available to show column details.");
+      return;
+    }
+
+    const columnProfile = this.getColumnProfile(columnName);
+    if (!columnProfile) {
+      console.warn(`Could not find profile for column: ${columnName}`);
+      return;
+    }
+
+    // Announce the selected column, now including the schema
+    this.columnProfileService.selectColumn({
+      operatorId: this.operatorId,
+      columnProfile: columnProfile,
+      tableProfile: this.tableProfile,
+      schema: this.schema,
+    });
+
+    // The LeftPanelComponent is responsible for opening the correct frame
+    // when it detects a change from columnProfileService.
+  }
+
+  showGlobalStats(): void {
+    if (!this.tableProfile || !this.tableProfile.globalProfile) return;
+
+    this.modalService.create({
+      nzTitle: "Table Statistics",
+      nzContent: this.globalStatsModalContent,
+      nzWidth: 600,
+      nzFooter: [
+        {
+          label: "OK",
+          type: "primary",
+          onClick: () => this.modalService.closeAll(),
+        },
+      ],
     });
   }
 }

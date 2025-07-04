@@ -102,24 +102,29 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       // Update operator stats if any operator updates its stat
-      if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
+      if (
+        newState.operatorInfo.toSet != oldState.operatorInfo.toSet || newState.operatorTableProfile != oldState.operatorTableProfile
+      ) {
         Iterable(
-          OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
-            case x =>
-              val metrics = x._2
-              val res = OperatorAggregatedMetrics(
-                Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
-                metrics.operatorStatistics.numWorkers,
-                metrics.operatorStatistics.dataProcessingTime,
-                metrics.operatorStatistics.controlProcessingTime,
-                metrics.operatorStatistics.idleTime
-              )
-              (x._1, res)
-          })
+          OperatorStatisticsUpdateEvent(
+            newState.operatorInfo.collect {
+              case x =>
+                val metrics = x._2
+                val res = OperatorAggregatedMetrics(
+                  Utils.aggregatedStateToString(metrics.operatorState),
+                  metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+                  metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                  metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+                  metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+                  metrics.operatorStatistics.numWorkers,
+                  metrics.operatorStatistics.dataProcessingTime,
+                  metrics.operatorStatistics.controlProcessingTime,
+                  metrics.operatorStatistics.idleTime
+                )
+                (x._1, res)
+            },
+            newState.operatorTableProfile
+          )
         )
       } else {
         Iterable.empty
@@ -178,7 +183,9 @@ class ExecutionStatsService(
       client
         .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
-            statsStore.withOperatorInfo(evt.operatorMetrics)
+            statsStore
+              .withOperatorInfo(evt.operatorMetrics)
+              .withOperatorTableProfile(evt.operatorTableProfiles)
           }
           metricsPersistThread.foreach { thread =>
             thread.execute(() => {

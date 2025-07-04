@@ -165,6 +165,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
+                self.context.table_profile_manager.update_table_profile(output_tuple)
                 self.context.statistics_manager.increase_output_statistics(
                     PortIdentity(0), output_tuple.in_mem_size()
                 )

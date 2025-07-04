@@ -197,7 +197,10 @@ class RegionExecutionCoordinator(
     val regionExecution = workflowExecution.getRegionExecution(region.id)
 
     asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(workflowExecution.getAllRegionExecutionsStats)
+      ExecutionStatsUpdate(
+        workflowExecution.getAllRegionExecutionsStats,
+        workflowExecution.getAllRegionExecutionTableProfiles
+      )
     )
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -412,7 +415,8 @@ class RegionExecutionCoordinator(
   ): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
-        workflowExecution.getAllRegionExecutionsStats
+        workflowExecution.getAllRegionExecutionsStats,
+        workflowExecution.getAllRegionExecutionTableProfiles
       )
     )
     val allStarterOperators = region.getStarterOperators

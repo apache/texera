@@ -25,6 +25,20 @@
 <div
   [hidden]="!currentColumns"
   class="result-table">
+  <!-- <div
+    class="table-controls"
+    *ngIf="tableProfile">
+    <button
+      nz-button
+      nzType="default"
+      (click)="showGlobalStats()"
+      class="global-stats-btn">
+      <i
+        nz-icon
+        nzType="bar-chart"></i>
+      Table Statistics
+    </button>
+  </div> -->
   <div class="table-container">
     <nz-table
       #basicTable
@@ -47,72 +61,11 @@
             ngClass="header-size"
             style="text-align: center"
             nzWidth="widthPercent">
-            {{ column.header }}
-          </th>
-        </tr>
-        <tr
-          *ngIf="tableStats && prevTableStats"
-          #statsRow
-          class="custom-stats-row">
-          <th *ngFor="let column of currentColumns">
-            <div class="statsHeader">
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['min'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">Min</h5>
-                  <h5 class="rightAlign">
-                    <span [innerHTML]="compare(column.header, 'min')"></span>
-                  </h5>
-                </div>
-              </ng-container>
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['max'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">Max</h5>
-                  <h5 class="rightAlign">
-                    <span [innerHTML]="compare(column.header, 'max')"></span>
-                  </h5>
-                </div>
-              </ng-container>
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['not_null_count'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">Non-Null Count</h5>
-                  <h5 class="rightAlign">
-                    <span [innerHTML]="compare(column.header, 'not_null_count')"></span>
-                  </h5>
-                </div>
-              </ng-container>
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['firstPercent'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">
-                    {{tableStats[column.header]['firstCat']}}
-                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                  </h5>
-                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'firstPercent')"></span>%</h5>
-                </div>
-              </ng-container>
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['secondPercent'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">
-                    {{tableStats[column.header]['secondCat']}}
-                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                  </h5>
-                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'secondPercent')"></span>%</h5>
-                </div>
-              </ng-container>
-              <ng-container
-                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['other'] !== undefined">
-                <div class="statsLine">
-                  <h5 class="leftAlign">
-                    Other
-                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                  </h5>
-                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'other')"></span>%</h5>
-                </div>
-              </ng-container>
+            <div
+              class="column-header"
+              (click)="showColumnDetails(column.header, $event)"
+              title="View column details for {{ column.header }}">
+              {{ column.header }}
             </div>
           </th>
         </tr>
@@ -143,3 +96,43 @@
     </nz-table>
   </div>
 </div>
+
+<!-- Global Stats Modal Content -->
+<ng-template #globalStatsModalContent>
+  <div *ngIf="tableProfile && tableProfile.globalProfile as gp">
+    <nz-descriptions
+      nzBordered
+      [nzColumn]="1">
+      <nz-descriptions-item nzTitle="Row Count">{{ gp.rowCount.toLocaleString() }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Column Count">{{ gp.columnCount }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Samples Used">{{ gp.samplesUsed.toLocaleString() }}</nz-descriptions-item>
+      <nz-descriptions-item nzTitle="Unique Row Ratio"
+        >{{ (gp.uniqueRowRatio * 100).toFixed(2) }}%</nz-descriptions-item
+      >
+      <nz-descriptions-item nzTitle="Duplicate Row Count"
+        >{{ gp.duplicateRowCount.toLocaleString() }}</nz-descriptions-item
+      >
+      <nz-descriptions-item nzTitle="Rows with Nulls Ratio"
+        >{{ (gp.rowHasNullRatio * 100).toFixed(2) }}%</nz-descriptions-item
+      >
+      <nz-descriptions-item nzTitle="Row Is Null Ratio"
+        >{{ (gp.rowIsNullRatio * 100).toFixed(2) }}%</nz-descriptions-item
+      >
+      <nz-descriptions-item
+        nzTitle="File Type"
+        *ngIf="gp.fileType"
+        >{{ gp.fileType }}</nz-descriptions-item
+      >
+      <nz-descriptions-item
+        nzTitle="Encoding"
+        *ngIf="gp.encoding"
+        >{{ gp.encoding }}</nz-descriptions-item
+      >
+      <nz-descriptions-item
+        nzTitle="Processing Time (ms)"
+        *ngIf="gp.times && gp.times.rowStatsMs !== null">
+        {{ gp.times.rowStatsMs.toFixed(2) }}
+      </nz-descriptions-item>
+    </nz-descriptions>
+  </div>
+</ng-template>

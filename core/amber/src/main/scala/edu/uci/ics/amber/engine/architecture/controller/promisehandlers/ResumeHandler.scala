@@ -57,7 +57,8 @@ trait ResumeHandler {
         // update frontend status
         sendToClient(
           ExecutionStatsUpdate(
-            cp.workflowExecution.getAllRegionExecutionsStats
+            cp.workflowExecution.getAllRegionExecutionsStats,
+            cp.workflowExecution.getAllRegionExecutionTableProfiles
           )
         )
         cp.controllerTimerService
