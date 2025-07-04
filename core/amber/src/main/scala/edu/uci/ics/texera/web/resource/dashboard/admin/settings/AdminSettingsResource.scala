@@ -70,7 +70,7 @@ class AdminSettingsResource {
   }
 
   /**
-    * Resets the specified configuration key to its default value from the config file.
+    * Resets the specified configuration key to its default value defined in default.conf.
     */
   @POST
   @Path("/reset/{key}")
