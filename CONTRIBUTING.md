@@ -22,7 +22,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
   - `fix(ui): prevent racing of requests`
   - `chore(deps): bump numpy to version 2.0.0`
 
-> 💡 You can use the [Conventional Commits plugin](https://plugins.jetbrains.com/plugin/13089-conventional-commits) in IntelliJ to help format commit messages correctly.
+> 💡 You can use the [Conventional Commits plugin](https://plugins.jetbrains.com/plugin/13389-conventional-commit) in IntelliJ to help format commit messages correctly.
 
 #### PR Description
 Your pull request description should include:
