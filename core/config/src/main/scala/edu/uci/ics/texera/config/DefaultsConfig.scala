@@ -23,7 +23,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object DefaultsConfig {
   private val conf = ConfigFactory.parseResources("default.conf").resolve()
-  val reinit: Boolean = conf.getBoolean("configService.reinitialize")
+  val reinit: Boolean =
+    conf.getBoolean("config-service.always-reset-configurations-to-default-values")
 
   val allDefaults: Map[String, String] = {
     conf

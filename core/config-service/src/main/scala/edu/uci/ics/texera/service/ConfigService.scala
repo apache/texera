@@ -68,9 +68,7 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
     try {
       val ctx = SqlServer.getInstance().createDSLContext()
 
-      ctx.transaction { configuration =>
-        val tx = DSL.using(configuration)
-
+      SqlServer.withTransaction(ctx) { tx =>
         if (DefaultsConfig.reinit) {
           tx.deleteFrom(DSL.table("site_settings")).execute()
         }

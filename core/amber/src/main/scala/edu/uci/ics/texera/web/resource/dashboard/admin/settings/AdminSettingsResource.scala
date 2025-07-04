@@ -69,6 +69,9 @@ class AdminSettingsResource {
     Response.ok().build()
   }
 
+  /**
+    * Resets the specified configuration key to its default value from the config file.
+    */
   @POST
   @Path("/reset/{key}")
   @RolesAllowed(Array("ADMIN"))
