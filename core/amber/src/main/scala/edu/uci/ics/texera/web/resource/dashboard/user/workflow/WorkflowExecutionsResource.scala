@@ -56,7 +56,7 @@ object WorkflowExecutionsResource {
     .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
 
-  def getExecutionById(eId: Integer): WorkflowExecutions = {
+  private def getExecutionById(eId: Integer): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
   }
 
@@ -264,7 +264,7 @@ object WorkflowExecutionsResource {
     val eIdsList = eIdsLong.toSeq.asJava
 
     // Collect all related document URIs (runtime stats, console logs, results)
-    val uris: Seq[URI] = eIdsLong.flatMap { eid =>
+    val uris: Seq[URI] = eIdsLong.toIndexedSeq.flatMap { eid =>
       val execId = ExecutionIdentity(eid)
       WorkflowExecutionsResource
         .getRuntimeStatsUriByExecutionId(execId)
@@ -400,42 +400,6 @@ object WorkflowExecutionsResource {
       }
 
     urisOfEid.find(isMatchingExternalPortURI)
-  }
-
-  /**
-    * This method trys to find a URI corresponding to the globalPortId if it exists. If user system is enabled, this
-    * method runs in O(1), otherwise O(n) where n is number of URIs in ExecutionResourceMapping.
-    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
-    */
-  def getResultUriByGlobalPortId(
-      eid: ExecutionIdentity,
-      globalPortId: GlobalPortIdentity
-  ): Option[URI] = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      Option(
-        context
-          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-          .from(OPERATOR_PORT_EXECUTIONS)
-          .where(
-            OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-              .eq(eid.id.toInt)
-              .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
-          )
-          .fetchOneInto(classOf[String])
-      ).map(URI.create)
-    } else {
-      def isMatchingPortURI(uri: URI): Boolean = {
-        val (_, _, globalPortIdOption, resourceType) = VFSURIFactory.decodeURI(uri)
-        globalPortIdOption.exists { retrievedGlobalPortId =>
-          retrievedGlobalPortId == globalPortId &&
-          resourceType == VFSResourceType.RESULT
-        }
-      }
-      ExecutionResourcesMapping
-        .getResourceURIs(eid)
-        .find(isMatchingPortURI)
-    }
-
   }
 
   case class WorkflowExecutionEntry(
@@ -689,8 +653,8 @@ class WorkflowExecutionsResource {
 
   }
 
-  /** Determine if user is authorized to access the workflow, if not raise 401 */
-  def validateUserCanAccessWorkflow(uid: Integer, wid: Integer): Unit = {
+  /** Determine if the user is authorized to access the workflow, if not raise 401 */
+  private def validateUserCanAccessWorkflow(uid: Integer, wid: Integer): Unit = {
     if (!WorkflowAccessResource.hasReadAccess(wid, uid))
       throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }

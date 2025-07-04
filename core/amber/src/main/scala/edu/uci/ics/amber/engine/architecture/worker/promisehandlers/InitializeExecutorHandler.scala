@@ -45,9 +45,12 @@ trait InitializeExecutorHandler {
     dp.executor = req.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, _) =>
+        ExecFactory.newExecFromJavaCode(code)
       case OpExecSource(storageUri, _) =>
         new CacheSourceOpExec(URI.create(storageUri))
+      case OpExecInitInfo.Empty =>
+        throw new IllegalArgumentException("Empty executor initialization info")
     }
     EmptyReturn()
   }

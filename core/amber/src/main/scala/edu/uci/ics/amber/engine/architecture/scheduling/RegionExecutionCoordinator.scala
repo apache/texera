@@ -20,7 +20,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
-import java.util.concurrent.atomic.AtomicReference
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.VFSURIFactory.decodeURI
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
@@ -51,6 +50,8 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
   * The executor of a region.
@@ -103,14 +104,15 @@ class RegionExecutionCoordinator(
     * coordinator is currently in `ExecutingNonDependeePortsPhase` and all the ports of this region are completed.
     */
   private def syncCompletedStatus(): Unit = {
-    // Only `ExecutingNonDependeePortsPhase` can transtion to `Completed`
-    if (currentPhaseRef.get == ExecutingNonDependeePortsPhase) {
-      val regionExecution = workflowExecution.getRegionExecution(region.id)
-      // All the ports of this region should be completed.
-      if (regionExecution.isCompleted) {
-        currentPhaseRef.set(Completed)
-      }
+    // Only `ExecutingNonDependeePortsPhase` can transition to `Completed`
+    if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) {
+      return
     }
+    // All the ports of this region should be completed.
+    if (!workflowExecution.getRegionExecution(region.id).isCompleted) {
+      return
+    }
+    currentPhaseRef.set(Completed)
   }
 
   def isCompleted: Boolean = currentPhaseRef.get == Completed
@@ -142,6 +144,9 @@ class RegionExecutionCoordinator(
         }
       case ExecutingNonDependeePortsPhase =>
         syncCompletedStatus()
+        Future.Unit
+      case Completed =>
+        // Already completed, no further action needed.
         Future.Unit
     }
 

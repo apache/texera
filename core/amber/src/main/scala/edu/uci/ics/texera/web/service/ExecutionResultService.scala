@@ -189,6 +189,10 @@ object ExecutionResultService {
 
         // currently, only visualizations are using single snapshot mode
         case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
+        case OutputMode.Unrecognized(_) =>
+          throw new RuntimeException(
+            s"Unrecognized output mode: $outputMode for workflow ${workflowIdentity.id}"
+          )
       }
     }
 
@@ -376,15 +380,6 @@ class ExecutionResultService(
               }
 
               if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
-                val layerName = physicalPlan.operators
-                  .filter(physicalOp =>
-                    physicalOp.id.logicalOpId == opId &&
-                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
-                  ) // TODO: Remove layerName and use GlobalPortIdentity for storage URIs
-                  .headOption match {
-                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
-                  case None                         => "main"
-                }
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByLogicalPortId(
                     executionId,

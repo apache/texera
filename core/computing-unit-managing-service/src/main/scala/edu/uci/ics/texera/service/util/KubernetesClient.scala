@@ -22,14 +22,15 @@ package edu.uci.ics.texera.service.util
 import edu.uci.ics.texera.config.KubernetesConfig
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList
-import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientBuilder}
+import io.fabric8.kubernetes.client.KubernetesClientBuilder
 
 import scala.jdk.CollectionConverters._
 
 object KubernetesClient {
 
   // Initialize the Kubernetes client
-  private val client: KubernetesClient = new KubernetesClientBuilder().build()
+  private val client: io.fabric8.kubernetes.client.KubernetesClient =
+    new KubernetesClientBuilder().build()
   private val namespace: String = KubernetesConfig.computeUnitPoolNamespace
   private val podNamePrefix = "computing-unit"
 
@@ -174,7 +175,7 @@ object KubernetesClient {
       .endSpec()
       .build()
 
-    client.pods().inNamespace(namespace).create(pod)
+    client.resource(pod).inNamespace(namespace).create()
   }
 
   def deletePod(cuid: Int): Unit = {

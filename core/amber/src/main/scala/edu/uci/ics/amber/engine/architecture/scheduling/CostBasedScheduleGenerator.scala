@@ -376,7 +376,7 @@ class CostBasedScheduleGenerator(
           // Early stop: stopping exploring states beyond a schedulable state since the cost will only increase.
           // A state X is a descendant of an ancestor state Y in the bottom-up search process if Y's set of materialized
           // edges is a subset of that of X's (since X is reachable from Y by adding more materialized edges.)
-          break
+          break()
         }
         visited.add(currentState)
         tryConnectRegionDAG(

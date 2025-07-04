@@ -74,37 +74,6 @@ object WorkflowCompiler {
     opIdToError.toMap
   }
 
-  private def collectInputSchemaFromPhysicalPlan(
-      physicalPlan: PhysicalPlan,
-      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
-  ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    val physicalInputSchemas =
-      physicalPlan.operators.map { physicalOp =>
-        // Process inputPorts and capture Throwable values in the errorList
-        physicalOp.id -> physicalOp.inputPorts.values
-          .filterNot(_._1.id.internal)
-          .map {
-            case (port, _, schema) =>
-              schema match {
-                case Left(err) =>
-                  // Save the Throwable into the errorList
-                  errorList.append((physicalOp.id.logicalOpId, err))
-                  port.id -> None // Use None for this port
-                case Right(validSchema) =>
-                  port.id -> Some(validSchema) // Use the valid schema
-              }
-          }
-          .toList // Convert to a list for further processing
-      }
-
-    // Group the physical input schemas by their logical operator ID and consolidate the schemas
-    physicalInputSchemas
-      .groupBy(_._1.logicalOpId)
-      .view
-      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
-      .toMap
-  }
-
   private def collectOutputSchemaFromPhysicalPlan(
       physicalPlan: PhysicalPlan,
       errorList: ArrayBuffer[(OperatorIdentity, Throwable)]

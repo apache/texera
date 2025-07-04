@@ -446,7 +446,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   private def getParquetFileStream(fileTask: FileScanTask): InputStream = {
     val file = fileTask.file()
     val table = catalog.loadTable(TableIdentifier.of(tableNamespace, tableName))
-    table.io().newInputFile(file.path().toString).newStream()
+    table.io().newInputFile(file.location()).newStream()
   }
 
   /**
