@@ -16,4 +16,4 @@
 # under the License.
 
 cd amber
-target/texera-0.1-SNAPSHOT/bin/texera-web-application
+target/texera-*/bin/texera-web-application
