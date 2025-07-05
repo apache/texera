@@ -104,3 +104,40 @@
     </button>
   </div>
 </nz-card>
+
+<nz-card nzTitle="Sidebar Tabs">
+  <div class="sidebar-tabs-container">
+    <ng-container *ngFor="let g of sidebarTabs">
+      <ng-container *ngIf="g.title !== 'Admin'">
+        <nz-tree
+          [nzData]="[g]"
+          [nzShowLine]="false">
+          <ng-template
+            #nzTreeTemplate
+            let-node>
+            <div class="tree-node-wrapper">
+              <div class="node-content">
+                <i
+                  nz-icon
+                  [nzType]="node.origin.icon"></i>
+                {{ node.origin.title }}
+              </div>
+              <nz-switch
+                [(ngModel)]="node.origin.enabled"
+                (ngModelChange)="saveTabs()"
+                [nzDisabled]="node.level > 0 && !g.enabled"></nz-switch>
+            </div>
+          </ng-template>
+        </nz-tree>
+      </ng-container>
+    </ng-container>
+  </div>
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetTabs()">
+      Reset
+    </button>
+  </div>
+</nz-card>

@@ -61,6 +61,8 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
+  sidebarTabs: any[] = [];
+  isHubEnabled: boolean = false;
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -122,6 +124,15 @@ export class DashboardComponent implements OnInit {
     });
 
     this.loadLogos();
+
+    this.adminSettingsService
+      .getSetting("sidebar_tabs")
+      .pipe(untilDestroyed(this))
+      .subscribe(jsonString => {
+        this.sidebarTabs = JSON.parse(jsonString);
+        const hub = this.sidebarTabs.find(tab => tab.title === "Hub");
+        this.isHubEnabled = !!(hub && hub.enabled);
+      });
   }
 
   loadLogos(): void {
@@ -145,6 +156,10 @@ export class DashboardComponent implements OnInit {
       .subscribe(dataUri => {
         document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
       });
+  }
+
+  isHubRoute(): boolean {
+    return this.router.url.startsWith("/dashboard/hub") || this.router.url === "/dashboard/home";
   }
 
   forumLogin() {

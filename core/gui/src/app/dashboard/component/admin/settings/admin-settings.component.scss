@@ -48,3 +48,20 @@
   display: flex;
   gap: 14px;
 }
+
+.tree-node-wrapper {
+  display: flex;
+  min-height: 30px;
+}
+
+.node-content {
+  display: flex;
+  gap: 8px;
+}
+
+nz-switch {
+  position: absolute;
+  left: 110px;
+  top: 50%;
+  transform: translateY(-50%);
+}
