@@ -97,11 +97,13 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
        |        Y = table["$target"]
        |        X = table.drop("$target", axis=1)
        |        X = ${if (countVectorizer) "X['" + text + "']" else "X"}
-       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
+       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
+      tfidfTransformer
+    ) "TfidfTransformer(),"
+    else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
        |        yield {"model_name" : "$getUserFriendlyModelName", "model" : model}
        |
        |        """.stripMargin
-
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -113,8 +115,8 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Map(
       operatorInfo.outputPorts.head.id -> Schema()
         .add("model_name", AttributeType.STRING)
