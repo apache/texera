@@ -206,7 +206,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.wid, userId, EntityType.Workflow)
+        .postUnlike(this.wid, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -224,7 +224,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         });
     } else {
       this.hubService
-        .postLike(this.wid, userId, EntityType.Workflow)
+        .postLike(this.wid, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {

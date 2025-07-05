@@ -446,7 +446,7 @@ export class DatasetDetailComponent implements OnInit {
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.did, userId, EntityType.Dataset)
+        .postUnlike(this.did, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -461,7 +461,7 @@ export class DatasetDetailComponent implements OnInit {
         });
     } else {
       this.hubService
-        .postLike(this.did, userId, EntityType.Dataset)
+        .postLike(this.did, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {

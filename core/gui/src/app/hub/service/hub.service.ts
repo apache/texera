@@ -87,15 +87,15 @@ export class HubService {
     return this.http.get<LikedStatus[]>(`${this.BASE_URL}/isLiked`, { params });
   }
 
-  public postLike(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    const body = { entityId, userId, entityType };
+  public postLike(entityId: number, entityType: EntityType): Observable<boolean> {
+    const body = { entityId, entityType };
     return this.http.post<boolean>(`${this.BASE_URL}/like`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
   }
 
-  public postUnlike(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    const body = { entityId, userId, entityType };
+  public postUnlike(entityId: number, entityType: EntityType): Observable<boolean> {
+    const body = { entityId, entityType };
     return this.http.post<boolean>(`${this.BASE_URL}/unlike`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
@@ -176,6 +176,6 @@ export class HubService {
     entityTypes.forEach(t => (params = params.append("entityType", t)));
     entityIds.forEach(i => (params = params.append("entityId", i.toString())));
 
-    return this.http.get<AccessResponse[]>(`${this.BASE_URL}/userAccess`, { params });
+    return this.http.get<AccessResponse[]>(`${this.BASE_URL}/user-access`, { params });
   }
 }

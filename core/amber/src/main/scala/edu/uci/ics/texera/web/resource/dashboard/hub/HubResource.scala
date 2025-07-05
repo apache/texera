@@ -61,18 +61,23 @@ import org.jooq.Table
 import scala.collection.mutable.ListBuffer
 
 object HubResource {
+  // Represents an entity reference for general-purpose batch APIs.
   case class UserRequest(entityId: Integer, entityType: EntityType)
+  // 	Extends UserRequest by adding userId, used for view tracking.
   case class ViewRequest(entityId: Integer, userId: Integer, entityType: EntityType)
+  // Response format indicating whether a given entity is liked by the user.
   case class LikedResponse(
       entityId: Integer,
       entityType: EntityType,
       isLiked: Boolean
   )
+  // Response containing all user IDs with access to a specific entity.
   case class AccessResponse(
       entityType: EntityType,
       entityId: Integer,
       userIds: java.util.List[Integer]
   )
+  // Contains aggregated counts (view/like/clone) for a given entity.
   case class CountResponse(
       entityId: Integer,
       entityType: EntityType,
@@ -175,11 +180,12 @@ object HubResource {
     */
   def recordLikeActivity(
       request: HttpServletRequest,
-      userRequest: ViewRequest,
+      userId: Integer,
+      userRequest: UserRequest,
       isLike: Boolean
   ): Boolean = {
-    val (entityId, userId, entityType) =
-      (userRequest.entityId, userRequest.userId, userRequest.entityType)
+    val (entityId, entityType) =
+      (userRequest.entityId, userRequest.entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
@@ -351,20 +357,22 @@ class HubResource {
   @Path("/like")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def postLike(
+      @Auth user: SessionUser,
       @Context request: HttpServletRequest,
-      likeRequest: ViewRequest
+      likeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, likeRequest, isLike = true)
+    recordLikeActivity(request, user.getUid, likeRequest, isLike = true)
   }
 
   @POST
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def postUnlike(
+      @Auth user: SessionUser,
       @Context request: HttpServletRequest,
-      unlikeRequest: ViewRequest
+      unlikeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, unlikeRequest, isLike = false)
+    recordLikeActivity(request, user.getUid, unlikeRequest, isLike = false)
   }
 
   @POST
@@ -641,7 +649,7 @@ class HubResource {
     *                     - userIds:  the list of user IDs with access to that resource
     */
   @GET
-  @Path("/userAccess")
+  @Path("/user-access")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def userAccess(
       @QueryParam("entityType") entityTypes: java.util.List[EntityType],

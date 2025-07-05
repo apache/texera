@@ -111,7 +111,7 @@ export class ListItemComponent implements OnChanges {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
-        this.owners = this.entry.accessUsers;
+        this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
           this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
         } else {
@@ -131,7 +131,7 @@ export class ListItemComponent implements OnChanges {
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
-        this.owners = this.entry.accessUsers;
+        this.owners = this.entry.accessibleUserIds;
         if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
           this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
         } else {
@@ -380,7 +380,7 @@ export class ListItemComponent implements OnChanges {
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(entryId, userId, this.entry.type)
+        .postUnlike(entryId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -395,7 +395,7 @@ export class ListItemComponent implements OnChanges {
         });
     } else {
       this.hubService
-        .postLike(entryId, userId, this.entry.type)
+        .postLike(entryId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {

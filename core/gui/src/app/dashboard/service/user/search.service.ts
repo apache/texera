@@ -134,7 +134,7 @@ export class SearchService {
         const filteredResults =
           type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
 
-        return this.enrichEntries(filteredResults, isLogin).pipe(
+        return this.extendSearchResultsWithHubActivityInfo(filteredResults, isLogin).pipe(
           map(entries => ({
             entries,
             more: results.more,
@@ -154,7 +154,7 @@ export class SearchService {
    *                     Defaults to all three if omitted or empty.
    * @returns            Observable that emits the fully populated DashboardEntry[].
    */
-  public enrichEntries(
+  public extendSearchResultsWithHubActivityInfo(
     items: SearchResultItem[],
     isLogin: boolean,
     activities: EnrichActivity[] = []

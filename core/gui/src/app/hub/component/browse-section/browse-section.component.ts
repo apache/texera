@@ -71,7 +71,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     }
 
     const entityId = entity.id;
-    const owners = entity.accessUsers;
+    const owners = entity.accessibleUserIds;
 
     if (entity.type === "workflow") {
       if (this.currentUid !== undefined && owners.includes(this.currentUid)) {

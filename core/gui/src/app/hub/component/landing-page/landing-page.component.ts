@@ -106,7 +106,9 @@ export class LandingPageComponent implements OnInit {
     const result: { [key: string]: DashboardEntry[] } = {};
     for (const act of actionTypes) {
       const items = topsMap[act] || [];
-      result[act] = await firstValueFrom(this.searchService.enrichEntries(items, true, ["access"]));
+      result[act] = await firstValueFrom(
+        this.searchService.extendSearchResultsWithHubActivityInfo(items, true, ["access"])
+      );
     }
     return result;
   }
