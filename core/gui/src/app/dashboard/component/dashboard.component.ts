@@ -126,16 +126,25 @@ export class DashboardComponent implements OnInit {
 
   loadLogos(): void {
     this.adminSettingsService
-      .getLogoPath()
+      .getSetting("logo")
       .pipe(untilDestroyed(this))
-      .subscribe(path => (this.logo = path));
+      .subscribe(dataUri => {
+        this.logo = dataUri;
+      });
 
     this.adminSettingsService
-      .getMiniLogoPath()
+      .getSetting("mini_logo")
       .pipe(untilDestroyed(this))
-      .subscribe(path => (this.miniLogo = path));
+      .subscribe(dataUri => {
+        this.miniLogo = dataUri;
+      });
 
-    this.adminSettingsService.getFaviconPath().pipe(untilDestroyed(this)).subscribe();
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe(dataUri => {
+        document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
+      });
   }
 
   forumLogin() {
