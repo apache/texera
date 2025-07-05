@@ -3,6 +3,7 @@
 .gitignore
 .ratignore
 README.md
+CONTRIBUTING.md
 DESCRIPTION
 100.jsonl
 1000.jsonl
