@@ -15,4 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-target/file-service-0.1.0/bin/file-service
+target/file-service-*/bin/file-service

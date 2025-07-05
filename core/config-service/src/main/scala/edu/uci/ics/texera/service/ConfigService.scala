@@ -19,23 +19,30 @@
 
 package edu.uci.ics.texera.service
 
-import com.typesafe.config.{Config, ConfigFactory}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.configServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
-import edu.uci.ics.texera.service.resource.{HealthCheckResource, ConfigResource}
+import edu.uci.ics.texera.config.DefaultsConfig
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.service.resource.{ConfigResource, HealthCheckResource}
 import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
+import org.jooq.impl.DSL
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
-  private val config: Config = ConfigFactory.load("gui.conf")
-
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
   }
 
   override def run(configuration: ConfigServiceConfiguration, environment: Environment): Unit = {
@@ -56,6 +63,36 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
     )
 
     environment.jersey.register(new ConfigResource)
+
+    // Preload default.conf into site_setting tables
+    try {
+      val ctx = SqlServer.getInstance().createDSLContext()
+
+      SqlServer.withTransaction(ctx) { tx =>
+        if (DefaultsConfig.reinit) {
+          tx.deleteFrom(DSL.table("site_settings")).execute()
+        }
+
+        DefaultsConfig.allDefaults.foreach {
+          case (key, value) =>
+            tx
+              .insertInto(DSL.table("site_settings"))
+              .columns(
+                DSL.field("key"),
+                DSL.field("value"),
+                DSL.field("updated_by"),
+                DSL.field("updated_at")
+              )
+              .values(key, value, "texera", DSL.currentTimestamp())
+              .onDuplicateKeyIgnore()
+              .execute()
+        }
+      }
+    } catch {
+      case ex: Exception =>
+        logger.error("Failed to preload default settings", ex)
+        throw ex
+    }
   }
 }
 
