@@ -23,7 +23,7 @@ metadata:
   labels:
     app: {{ .Release.Name }}-{{ .Values.fileService.name }}
 spec:
-  replicas: {{ .Values.workflowCompilingService.numOfPods }}
+  replicas: {{ .Values.fileService.numOfPods }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-{{ .Values.fileService.name }}
