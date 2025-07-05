@@ -29,15 +29,12 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
-  // Required time column
   @JsonProperty(value="timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
-  //@JsonSchemaInject(json = """{"enum": "autofill"}""")
   @AutofillAttributeName
   var timeColumn: String = ""
 
-  // Required value column
   @JsonProperty( value="valueColumn" ,required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The numerical column to plot on the Y-axis (e.g., Sales, Temperature).")
@@ -45,29 +42,23 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var valueColumn: String = ""
 
-  // Optional Category column
   @JsonProperty(value="categoryColumn" ,required = false, defaultValue="No Selection")
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
-  //@JsonSchemaInject(json = """{"enum": ["No Selection", "autofill"]}""")
   @AutofillAttributeName
   var CategoryColumn: String = "No Selection"
 
-  // Optional facet column
   @JsonProperty(value="facetColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - A column to create separate subplots.")
-  //@JsonSchemaInject(json = """{"enum": ["No Selection", "autofill"]}""")
   @AutofillAttributeName
   var facetColumn: String = "No Selection"
 
-  // Plot type
   @JsonProperty(value="line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
   @JsonPropertyDescription("Select the type of time series plot (line, area).")
   var plotType: String = "line"
 
-  // Show range slider
   @JsonProperty(value="slider", defaultValue = "false")
   @JsonSchemaTitle("Show Range Slider")
   @JsonPropertyDescription("Display a range slider at the bottom of the plot.")
