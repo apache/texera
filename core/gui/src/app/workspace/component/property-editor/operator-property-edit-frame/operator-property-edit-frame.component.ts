@@ -143,7 +143,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   quillBinding?: QuillBinding;
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
-  private teardownObservable: Subject<void> = new Subject<void>();
+  private teardownObservable: Subject<void> = new Subject();
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -489,15 +489,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
-      // MODIFICATION START:
-      // This is the same modification as before, passing the callback.
-      // We are now making it more direct by calling onFormChanges.
+      // MODIFICATION START FOR PROJECTION OPERATOR:
       if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
         mappedField.type = "repeat-section-dnd";
         mappedField.props = {
           ...mappedField.props,
-          // We now call onFormChanges directly. This is cleaner as it removes the need
-          // for the intermediate forceApplyChanges() function.
           reorder: () => this.onFormChanges(cloneDeep(this.formData)),
         };
       }
@@ -705,11 +701,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];
   }
-
-  // MODIFICATION: The function `isProjectionOperator()` has been removed as it's no longer used by the template.
-
-  // MODIFICATION: The function `forceApplyChanges()` has been removed as it's no longer used.
-  // The auto-update mechanism now calls `onFormChanges()` directly.
 
   allowModifyOperatorLogic(): void {
     this.setInteractivity(true);

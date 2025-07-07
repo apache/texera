@@ -17,20 +17,26 @@
  under the License.
 -->
 
-<div *ngIf="!editingTitle" id="formly-title">
-  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title">
+<div
+  *ngIf="!editingTitle"
+  id="formly-title">
+  <h3
+    *ngIf="!editingTitle && formTitle"
+    class="texera-workspace-property-editor-title">
     {{ formTitle }}
   </h3>
   <button
-    (click)="editingTitle = true; connectQuillToText()"
+    (click)="editingTitle=true; connectQuillToText()"
     nz-button
     nz-tooltip="Customize Operator Name"
     nzSize="small"
     nzTooltipPlacement="bottom"
     nzType="text"
-    [disabled]="!interactive"
-  >
-    <i nz-icon nzTheme="outline" nzType="edit"></i>
+    [disabled]="!interactive">
+    <i
+      nz-icon
+      nzTheme="outline"
+      nzType="edit"></i>
   </button>
   <i
     *ngIf="currentOperatorId?.includes('PythonLambdaFunction')"
@@ -40,8 +46,7 @@
     nzType="question-circle"
     nzTheme="outline"
     [nzPopoverContent]="PythonLambdaPopContent"
-    class="question-circle-button"
-  ></i>
+    class="question-circle-button"></i>
 
   <ng-template #PythonLambdaPopContent>
     You can add a new column by:
@@ -77,58 +82,67 @@
   </ng-template>
 </div>
 
-<div *ngIf="operatorDescription && !editingTitle" class="operator-description">
+<div
+  *ngIf="operatorDescription && !editingTitle"
+  class="operator-description">
   <p>{{ operatorDescription }}</p>
 </div>
 
-<div id="customName" [hidden]="!editingTitle" (focusout)="disconnectQuillFromText()" (keyup.enter)="disconnectQuillFromText()"></div>
+<div
+  id="customName"
+  [hidden]="!editingTitle"
+  (focusout)="disconnectQuillFromText()"
+  (keyup.enter)="disconnectQuillFromText()"></div>
 
-<form nz-form [nzLayout]="'vertical'" *ngIf="formlyFields && formlyFormGroup" [formGroup]="formlyFormGroup" class="property-editor-form">
+<form
+  nz-form
+  [nzLayout]="'vertical'"
+  *ngIf="formlyFields && formlyFormGroup"
+  [formGroup]="formlyFormGroup"
+  class="property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
     [form]="formlyFormGroup"
     [model]="formData"
-    [options]="formlyOptions"
-  >
+    [options]="formlyOptions">
   </formly-form>
   <texera-type-casting-display
     *ngIf="isTypeCasting"
-    currentOperatorId="{{ this.currentOperatorId }}"
-  ></texera-type-casting-display>
+    currentOperatorId="{{ this.currentOperatorId }}"></texera-type-casting-display>
 </form>
-
-<!--
-  MODIFICATION: The manual "Apply Attribute Re-order" button has been completely removed.
--->
 
 <button
   (click)="allowModifyOperatorLogic()"
   *ngIf="
     currentOperatorId !== undefined &&
-    this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused &&
-    !this.interactive
-  "
+    (this.executeWorkflowService.getExecutionState().state ===
+      ExecutionState.Paused) &&
+    !this.interactive"
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
-  [disabled]="currentOperatorSchema?.additionalMetadata?.supportReconfiguration !== true || currentOperatorStatus?.operatorState === OperatorState.Completed"
->
+  [disabled]="
+  currentOperatorSchema?.additionalMetadata?.supportReconfiguration !== true
+  || currentOperatorStatus?.operatorState === OperatorState.Completed
+  ">
   Unlock for Logic Change
-  <i nz-icon nzTheme="outline" nzType="unlock"></i>
+  <i
+    nz-icon
+    nzTheme="outline"
+    nzType="unlock"></i>
 </button>
 
 <button
   (click)="confirmModifyOperatorLogic()"
   *ngIf="
     currentOperatorId !== undefined &&
-    this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused &&
-    this.interactive
-  "
+    (this.executeWorkflowService.getExecutionState().state ===
+      ExecutionState.Paused) &&
+    this.interactive"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
-  nzTooltipPlacement="bottom"
->
+  nzTooltipPlacement="bottom">
   Confirm Change
 </button>
 
