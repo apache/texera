@@ -171,10 +171,15 @@ import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { catchError, of } from "rxjs";
 
+// MODIFICATION 1: IMPORT THE CUSTOM COMPONENT
+import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
+
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    // MODIFICATION 2: ADD THE CUSTOM COMPONENT TO THE DECLARATIONS ARRAY
+    FormlyRepeatDndComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     AppComponent,
