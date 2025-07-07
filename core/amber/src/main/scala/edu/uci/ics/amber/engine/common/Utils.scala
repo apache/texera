@@ -99,6 +99,7 @@ object Utils extends LazyLogging {
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
+      case WorkflowAggregatedState.COMPLETED     => "Terminated"
       case WorkflowAggregatedState.FAILED        => "Failed"
       case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
@@ -119,6 +120,7 @@ object Utils extends LazyLogging {
       case "completed"     => WorkflowAggregatedState.COMPLETED
       case "failed"        => WorkflowAggregatedState.FAILED
       case "killed"        => WorkflowAggregatedState.KILLED
+      case "terminated"    => WorkflowAggregatedState.TERMINATED
       case "unknown"       => WorkflowAggregatedState.UNKNOWN
       case other           => throw new IllegalArgumentException(s"Unrecognized state: $other")
     }
