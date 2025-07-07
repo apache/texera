@@ -148,6 +148,7 @@ export enum ExecutionState {
   Resuming = "Resuming",
   Recovering = "Recovering",
   Completed = "Completed",
+  Terminated = "Terminated",
   Failed = "Failed",
   Killed = "Killed",
 }
@@ -167,7 +168,7 @@ export type ExecutionStateInfo = Readonly<
       currentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
     }
   | {
-      state: ExecutionState.Completed | ExecutionState.Killed;
+      state: ExecutionState.Completed | ExecutionState.Killed | ExecutionState.Terminated;
     }
   | {
       state: ExecutionState.Failed;
