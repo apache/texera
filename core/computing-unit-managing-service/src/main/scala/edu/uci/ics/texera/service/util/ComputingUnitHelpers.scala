@@ -26,11 +26,11 @@ import edu.uci.ics.texera.service.resource.ComputingUnitState.{ComputingUnitStat
 object ComputingUnitHelpers {
   def getComputingUnitStatus(unit: WorkflowComputingUnit): ComputingUnitState = {
     unit.getType match {
-      // ── Local CUs are always “running” ──────────────────────────────
+      // Local CUs are always “running”
       case WorkflowComputingUnitTypeEnum.local =>
         Running
 
-      // ── Kubernetes CUs – only explicit “Running” counts as running ─
+      // Kubernetes CUs – only explicit “Running” counts as running
       case WorkflowComputingUnitTypeEnum.kubernetes =>
         val phaseOpt = KubernetesClient
           .getPodByName(KubernetesClient.generatePodName(unit.getCuid))
@@ -38,7 +38,7 @@ object ComputingUnitHelpers {
 
         if (phaseOpt.contains("Running")) Running else Pending
 
-      // ── Any other (unknown) type is treated as pending ──────────────
+      // Any other (unknown) type is treated as pending
       case _ =>
         Pending
     }

@@ -468,7 +468,7 @@ class ComputingUnitManagingResource {
       val uid = user.getUid
 
       // Always fetch units owned by the user
-      val ownedUnits = computingUnitDao.fetchByUid(uid).toList
+      val ownedUnits = computingUnitDao.fetchByUid(uid).asScala.toList
 
       // Conditionally fetch shared units based on the config flag
       val (sharedUnits, sharedUnitInfo) =
@@ -476,6 +476,7 @@ class ComputingUnitManagingResource {
           val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
           val info = computingUnitUserAccessDao
             .fetchByUid(uid)
+            .asScala
             .map(access => access.getCuid -> access.getPrivilege)
             .toMap
           val sharedCuids = info.keys.toList.map(Integer.valueOf(_))
@@ -483,7 +484,7 @@ class ComputingUnitManagingResource {
           val units = if (sharedCuids.isEmpty) {
             List()
           } else {
-            computingUnitDao.fetchByCuid(sharedCuids: _*).toList
+            computingUnitDao.fetchByCuid(sharedCuids: _*).asScala.toList
           }
           (units, info)
         } else {
@@ -563,6 +564,7 @@ class ComputingUnitManagingResource {
         val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
         val access = cuAccessDao
           .fetchByUid(user.getUid)
+          .asScala
           .find(access => access.getCuid.equals(cuid))
 
         if (access.isDefined) {

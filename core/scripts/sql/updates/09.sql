@@ -19,15 +19,7 @@
 
 SET search_path TO texera_db;
 
-DO $$
-BEGIN
-    -- 1. Create computing_unit_user_access table if it does not exist
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.tables
-        WHERE table_schema = 'texera_db' AND table_name = 'computing_unit_user_access'
-    ) THEN
-CREATE TABLE computing_unit_user_access
+CREATE TABLE IF NOT EXISTS computing_unit_user_access
 (
     cuid      INT NOT NULL,
     uid       INT NOT NULL,
@@ -36,6 +28,3 @@ CREATE TABLE computing_unit_user_access
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
-END IF;
-END
-$$;
