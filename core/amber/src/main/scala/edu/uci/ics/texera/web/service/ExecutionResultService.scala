@@ -35,7 +35,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   COMPLETED,
   FAILED,
   KILLED,
-  RUNNING
+  RUNNING,
+  TERMINATED
 }
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
@@ -189,6 +190,10 @@ object ExecutionResultService {
 
         // currently, only visualizations are using single snapshot mode
         case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
+        case OutputMode.Unrecognized(_) =>
+          throw new RuntimeException(
+            s"Unrecognized output mode: $outputMode for workflow ${workflowIdentity.id}"
+          )
       }
     }
 
@@ -325,7 +330,9 @@ class ExecutionResultService(
     addSubscription(
       client
         .registerCallback[ExecutionStateUpdate](evt => {
-          if (evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED) {
+          if (
+            evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED || evt.state == TERMINATED
+          ) {
             logger.info("Workflow execution terminated. Stop update results.")
             if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
               // immediately perform final update
@@ -376,15 +383,6 @@ class ExecutionResultService(
               }
 
               if (StorageConfig.resultStorageMode == ICEBERG && !hasSingleSnapshot) {
-                val layerName = physicalPlan.operators
-                  .filter(physicalOp =>
-                    physicalOp.id.logicalOpId == opId &&
-                      physicalOp.outputPorts.keys.forall(outputPortId => !outputPortId.internal)
-                  ) // TODO: Remove layerName and use GlobalPortIdentity for storage URIs
-                  .headOption match {
-                  case Some(physicalOp: PhysicalOp) => physicalOp.id.layerName
-                  case None                         => "main"
-                }
                 val storageUri = WorkflowExecutionsResource
                   .getResultUriByLogicalPortId(
                     executionId,

@@ -60,7 +60,8 @@ import org.jooq.{DSLContext, EnumType}
 import java.sql.Timestamp
 import play.api.libs.json._
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.annotation.unused
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object ComputingUnitManagingResource {
   private lazy val context: DSLContext = SqlServer
@@ -229,7 +230,7 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/limits")
   def getComputingUnitLimitOptions(
-      @Auth user: SessionUser
+      @Auth @unused user: SessionUser
   ): ComputingUnitLimitOptionsResponse = {
     ComputingUnitLimitOptionsResponse(cpuLimitOptions, memoryLimitOptions, gpuLimitOptions)
   }
@@ -239,7 +240,7 @@ class ComputingUnitManagingResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/types")
   def getComputingUnitTypes(
-      @Auth user: SessionUser
+      @Auth @unused user: SessionUser
   ): ComputingUnitTypesResponse = ComputingUnitTypesResponse(getSupportedComputingUnitTypes)
 
   /**
@@ -343,6 +344,7 @@ class ComputingUnitManagingResource {
 
       val units = wcDao
         .fetchByUid(user.getUid)
+        .asScala
         .filter(_.getTerminateTime == null) // Filter out terminated units
 
       if (

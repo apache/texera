@@ -47,6 +47,10 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[NetworkMessage]]
   actorRefMapping(SELF) = actorService.self
 
+  def getActorRef(id: ActorVirtualIdentity): ActorRef = {
+    actorRefMapping(id)
+  }
+
   def askForCredit(channelId: ChannelIdentity): Unit = {
     val id = channelId.toWorkerId
     if (actorRefMapping.contains(id)) {

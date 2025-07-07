@@ -20,39 +20,34 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.core.executor._
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  InitializeExecutorRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
-import edu.uci.ics.amber.util.VirtualIdentityUtils
 
-import java.net.URI
-
-trait InitializeExecutorHandler {
+/**
+  * The EndWorker control messages is needed to ensure all the other control messages in a worker
+  * are processed before worker termination.
+  */
+trait EndHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def initializeExecutor(
-      req: InitializeExecutorRequest,
+  /**
+    * The response of endWorker to the controller indicates that this worker has finished not only
+    * the data processing logic, but also , but also the processing of all the control messages.
+    */
+  override def endWorker(
+      request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    dp.serializationManager.setOpInitialization(req)
-    val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
-    val workerCount = req.totalWorkerCount
-    dp.executor = req.opExecInitInfo match {
-      case OpExecWithClassName(className, descString) =>
-        ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, _) =>
-        ExecFactory.newExecFromJavaCode(code)
-      case OpExecSource(storageUri, _) =>
-        new CacheSourceOpExec(URI.create(storageUri))
-      case OpExecInitInfo.Empty =>
-        throw new IllegalArgumentException("Empty executor initialization info")
+    // Ensure this is really the last message.
+    if (!dp.inputManager.inputMessageQueue.isEmpty) {
+      logger.warn(
+        s"Received EndHandler before all messages are processed. Unprocessed messages: " +
+          s"${dp.inputManager.inputMessageQueue.peek()}"
+      )
     }
+    assert(dp.inputManager.inputMessageQueue.isEmpty)
+    // Now we can safely acknowledge that this worker can be terminated.
     EmptyReturn()
   }
-
 }
