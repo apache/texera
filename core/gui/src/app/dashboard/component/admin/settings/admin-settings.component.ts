@@ -94,9 +94,9 @@ export class AdminSettingsComponent {
     }
   }
 
-  resetToDefault(): void {
+  resetBranding(): void {
     this.adminSettingsService
-      .deleteSetting("logo")
+      .resetSetting("logo")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -107,7 +107,7 @@ export class AdminSettingsComponent {
       });
 
     this.adminSettingsService
-      .deleteSetting("mini_logo")
+      .resetSetting("mini_logo")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -118,7 +118,7 @@ export class AdminSettingsComponent {
       });
 
     this.adminSettingsService
-      .deleteSetting("favicon")
+      .resetSetting("favicon")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {

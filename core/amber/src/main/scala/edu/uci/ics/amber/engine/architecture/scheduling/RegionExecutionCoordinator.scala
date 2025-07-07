@@ -121,7 +121,7 @@ class RegionExecutionCoordinator(
     * `gracefulStop`, whose termination logic will also kill the PVMs.
     */
   private def tryCompleteRegionExecution(): Future[Unit] = {
-    // Only `ExecutingNonDependeePortsPhase` can transtion to `Completed`
+    // Only `ExecutingNonDependeePortsPhase` can transition to `Completed`
     if (currentPhaseRef.get != ExecutingNonDependeePortsPhase) {
       return Future.Unit
     }
