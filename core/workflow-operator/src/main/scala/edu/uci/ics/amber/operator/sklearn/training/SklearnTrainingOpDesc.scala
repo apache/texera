@@ -77,7 +77,7 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
     )
   )
-  val tfidfTransformer: Boolean = false
+  var tfidfTransformer: Boolean = false
 
   @JsonIgnore
   def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
