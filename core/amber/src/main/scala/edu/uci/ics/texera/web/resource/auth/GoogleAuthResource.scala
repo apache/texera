@@ -71,7 +71,9 @@ class GoogleAuthResource {
       val googleId = payload.getSubject
       val googleName = payload.get("name").asInstanceOf[String]
       val googleEmail = payload.getEmail
-      val googleAvatar = payload.get("picture").asInstanceOf[String].split("/").last
+      val googleAvatar = Option(payload.get("picture").asInstanceOf[String])
+        .flatMap(_.split("/").lastOption)
+        .getOrElse("")
       val user = Option(userDao.fetchOneByGoogleId(googleId)) match {
         case Some(user) =>
           if (user.getName != googleName) {

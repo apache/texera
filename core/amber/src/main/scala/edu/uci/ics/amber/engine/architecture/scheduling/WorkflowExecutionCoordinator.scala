@@ -21,7 +21,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
@@ -41,6 +41,12 @@ class WorkflowExecutionCoordinator(
   private val regionExecutionCoordinators
       : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
     mutable.HashMap()
+
+  @transient var actorRefService: AkkaActorRefMappingService = _
+
+  def setupActorRefService(actorRefService: AkkaActorRefMappingService): Unit = {
+    this.actorRefService = actorRefService
+  }
 
   /**
     * Each invocation first syncs the internal statuses of each exisiting `RegionExecutionCoordintor`, after which each
@@ -82,7 +88,8 @@ class WorkflowExecutionCoordinator(
               workflowExecution,
               asyncRPCClient,
               controllerConfig,
-              actorService
+              actorService,
+              actorRefService
             )
             regionExecutionCoordinators(region.id)
           })
