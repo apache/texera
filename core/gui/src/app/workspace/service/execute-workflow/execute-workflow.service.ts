@@ -356,6 +356,7 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
+      case ExecutionState.Terminated:
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.Killed:

@@ -21,6 +21,7 @@
 package edu.uci.ics.texera.dao.jooq.generated;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.tables.ComputingUnitUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
@@ -51,6 +52,11 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
+
+    /**
+     * The table <code>texera_db.computing_unit_user_access</code>.
+     */
+    public static final ComputingUnitUserAccess COMPUTING_UNIT_USER_ACCESS = ComputingUnitUserAccess.COMPUTING_UNIT_USER_ACCESS;
 
     /**
      * The table <code>texera_db.dataset</code>.
