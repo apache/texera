@@ -62,22 +62,31 @@ import scala.collection.mutable.ListBuffer
 
 object HubResource {
   // Represents an entity reference for general-purpose batch APIs.
+  // Used by: isLikedHelper, recordLikeActivity, getCounts, userAccess
   case class UserRequest(entityId: Integer, entityType: EntityType)
-  // 	Extends UserRequest by adding userId, used for view tracking.
+
+  // Extends UserRequest by adding userId, used for view tracking.
+  // Used by: postView
   case class ViewRequest(entityId: Integer, userId: Integer, entityType: EntityType)
+
   // Response format indicating whether a given entity is liked by the user.
+  // Returned by: isLiked (which calls isLikedHelper), and by isLikedHelper directly.
   case class LikedResponse(
       entityId: Integer,
       entityType: EntityType,
       isLiked: Boolean
   )
+
   // Response containing all user IDs with access to a specific entity.
+  // Returned by: userAccess endpoint
   case class AccessResponse(
       entityType: EntityType,
       entityId: Integer,
       userIds: java.util.List[Integer]
   )
+
   // Contains aggregated counts (view/like/clone) for a given entity.
+  // Returned by: getCounts endpoint
   case class CountResponse(
       entityId: Integer,
       entityType: EntityType,
