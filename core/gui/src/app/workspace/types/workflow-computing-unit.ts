@@ -48,4 +48,6 @@ export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
   status: "Running" | "Pending";
   metrics: WorkflowComputingUnitMetrics;
+  isOwner: boolean;
+  accessPrivilege: "READ" | "WRITE" | "NONE";
 }

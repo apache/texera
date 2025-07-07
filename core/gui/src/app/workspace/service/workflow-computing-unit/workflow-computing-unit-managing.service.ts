@@ -166,7 +166,7 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * List all active computing units.
-   * @returns An Observable of a list of WorkflowComputingUnit.
+   * @returns An Observable of a list of DashboardWorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.http

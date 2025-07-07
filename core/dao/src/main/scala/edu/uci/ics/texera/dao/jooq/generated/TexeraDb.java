@@ -21,6 +21,7 @@
 package edu.uci.ics.texera.dao.jooq.generated;
 
 
+import edu.uci.ics.texera.dao.jooq.generated.tables.ComputingUnitUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
@@ -65,6 +66,11 @@ public class TexeraDb extends SchemaImpl {
      * The reference instance of <code>texera_db</code>
      */
     public static final TexeraDb TEXERA_DB = new TexeraDb();
+
+    /**
+     * The table <code>texera_db.computing_unit_user_access</code>.
+     */
+    public final ComputingUnitUserAccess COMPUTING_UNIT_USER_ACCESS = ComputingUnitUserAccess.COMPUTING_UNIT_USER_ACCESS;
 
     /**
      * The table <code>texera_db.dataset</code>.
@@ -197,6 +203,7 @@ public class TexeraDb extends SchemaImpl {
     @Override
     public final List<Table<?>> getTables() {
         return Arrays.asList(
+            ComputingUnitUserAccess.COMPUTING_UNIT_USER_ACCESS,
             Dataset.DATASET,
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetUserLikes.DATASET_USER_LIKES,

@@ -128,14 +128,14 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     public final TableField<WorkflowExecutionsRecord, String> RUNTIME_STATS_URI = createField(DSL.name("runtime_stats_uri"), SQLDataType.CLOB, this, "");
 
     /**
-     * The column <code>texera_db.workflow_executions.cuid</code>.
-     */
-    public final TableField<WorkflowExecutionsRecord, Integer> CUID = createField(DSL.name("cuid"), SQLDataType.INTEGER, this, "");
-
-    /**
      * The column <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Integer> RUNTIME_STATS_SIZE = createField(DSL.name("runtime_stats_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.cuid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, Integer> CUID = createField(DSL.name("cuid"), SQLDataType.INTEGER, this, "");
 
     private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
         this(alias, aliased, null);

@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.texera.config.{GuiConfig, UserSystemConfig}
+import edu.uci.ics.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig}
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -50,6 +50,7 @@ class ConfigResource {
       "multipartUploadChunkSizeByte" -> GuiConfig.guiDatasetMultipartUploadChunkSizeByte,
       "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
+      "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
       "hubEnabled" -> GuiConfig.guiDashboardHubEnabled,
       "forumEnabled" -> GuiConfig.guiDashboardForumEnabled,
       "projectEnabled" -> GuiConfig.guiDashboardProjectEnabled,

@@ -154,16 +154,6 @@ public interface IWorkflowExecutions extends Serializable {
     public String getRuntimeStatsUri();
 
     /**
-     * Setter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    public void setCuid(Integer value);
-
-    /**
-     * Getter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    public Integer getCuid();
-
-    /**
      * Setter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     public void setRuntimeStatsSize(Integer value);
@@ -172,6 +162,16 @@ public interface IWorkflowExecutions extends Serializable {
      * Getter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     public Integer getRuntimeStatsSize();
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    public void setCuid(Integer value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    public Integer getCuid();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

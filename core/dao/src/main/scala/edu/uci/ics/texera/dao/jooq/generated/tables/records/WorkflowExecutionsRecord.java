@@ -236,27 +236,11 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
     }
 
     /**
-     * Setter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public void setCuid(Integer value) {
-        set(12, value);
-    }
-
-    /**
-     * Getter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public Integer getCuid() {
-        return (Integer) get(12);
-    }
-
-    /**
      * Setter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     @Override
     public void setRuntimeStatsSize(Integer value) {
-        set(13, value);
+        set(12, value);
     }
 
     /**
@@ -264,6 +248,22 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
      */
     @Override
     public Integer getRuntimeStatsSize() {
+        return (Integer) get(12);
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public void setCuid(Integer value) {
+        set(13, value);
+    }
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public Integer getCuid() {
         return (Integer) get(13);
     }
 
@@ -352,12 +352,12 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public Field<Integer> field13() {
-        return WorkflowExecutions.WORKFLOW_EXECUTIONS.CUID;
+        return WorkflowExecutions.WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE;
     }
 
     @Override
     public Field<Integer> field14() {
-        return WorkflowExecutions.WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE;
+        return WorkflowExecutions.WORKFLOW_EXECUTIONS.CUID;
     }
 
     @Override
@@ -422,12 +422,12 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public Integer component13() {
-        return getCuid();
+        return getRuntimeStatsSize();
     }
 
     @Override
     public Integer component14() {
-        return getRuntimeStatsSize();
+        return getCuid();
     }
 
     @Override
@@ -492,12 +492,12 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public Integer value13() {
-        return getCuid();
+        return getRuntimeStatsSize();
     }
 
     @Override
     public Integer value14() {
-        return getRuntimeStatsSize();
+        return getCuid();
     }
 
     @Override
@@ -574,13 +574,13 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
 
     @Override
     public WorkflowExecutionsRecord value13(Integer value) {
-        setCuid(value);
+        setRuntimeStatsSize(value);
         return this;
     }
 
     @Override
     public WorkflowExecutionsRecord value14(Integer value) {
-        setRuntimeStatsSize(value);
+        setCuid(value);
         return this;
     }
 
@@ -621,8 +621,8 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
         setEnvironmentVersion(from.getEnvironmentVersion());
         setLogLocation(from.getLogLocation());
         setRuntimeStatsUri(from.getRuntimeStatsUri());
-        setCuid(from.getCuid());
         setRuntimeStatsSize(from.getRuntimeStatsSize());
+        setCuid(from.getCuid());
     }
 
     @Override
@@ -645,7 +645,7 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
     /**
      * Create a detached, initialised WorkflowExecutionsRecord
      */
-    public WorkflowExecutionsRecord(Integer eid, Integer vid, Integer uid, Short status, String result, Timestamp startingTime, Timestamp lastUpdateTime, Boolean bookmarked, String name, String environmentVersion, String logLocation, String runtimeStatsUri, Integer cuid, Integer runtimeStatsSize) {
+    public WorkflowExecutionsRecord(Integer eid, Integer vid, Integer uid, Short status, String result, Timestamp startingTime, Timestamp lastUpdateTime, Boolean bookmarked, String name, String environmentVersion, String logLocation, String runtimeStatsUri, Integer runtimeStatsSize, Integer cuid) {
         super(WorkflowExecutions.WORKFLOW_EXECUTIONS);
 
         setEid(eid);
@@ -660,8 +660,8 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
         setEnvironmentVersion(environmentVersion);
         setLogLocation(logLocation);
         setRuntimeStatsUri(runtimeStatsUri);
-        setCuid(cuid);
         setRuntimeStatsSize(runtimeStatsSize);
+        setCuid(cuid);
     }
 
     /**
@@ -683,8 +683,8 @@ public class WorkflowExecutionsRecord extends UpdatableRecordImpl<WorkflowExecut
             setEnvironmentVersion(value.getEnvironmentVersion());
             setLogLocation(value.getLogLocation());
             setRuntimeStatsUri(value.getRuntimeStatsUri());
-            setCuid(value.getCuid());
             setRuntimeStatsSize(value.getRuntimeStatsSize());
+            setCuid(value.getCuid());
         }
     }
 }

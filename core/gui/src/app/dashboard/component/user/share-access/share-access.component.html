@@ -19,7 +19,7 @@
 
 <div
   class="access-button-group"
-  *ngIf="isPublic !== null">
+  *ngIf="isPublic !== null && type !== 'computing-unit'">
   <button
     nz-button
     class="access-button"
@@ -115,7 +115,9 @@
     <br />
 
     <nz-card nzTitle="Share">
-      <div style="height: 50px">
+      <div
+        style="height: 50px"
+        *ngIf="type !== 'computing-unit'">
         Access Level:
         <select formControlName="accessLevel">
           <option value="READ">read</option>

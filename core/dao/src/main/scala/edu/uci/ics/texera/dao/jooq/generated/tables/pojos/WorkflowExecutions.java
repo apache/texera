@@ -46,8 +46,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String    environmentVersion;
     private String    logLocation;
     private String    runtimeStatsUri;
-    private Integer   cuid;
     private Integer   runtimeStatsSize;
+    private Integer   cuid;
 
     public WorkflowExecutions() {}
 
@@ -64,8 +64,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.environmentVersion = value.getEnvironmentVersion();
         this.logLocation = value.getLogLocation();
         this.runtimeStatsUri = value.getRuntimeStatsUri();
-        this.cuid = value.getCuid();
         this.runtimeStatsSize = value.getRuntimeStatsSize();
+        this.cuid = value.getCuid();
     }
 
     public WorkflowExecutions(
@@ -81,8 +81,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         String    environmentVersion,
         String    logLocation,
         String    runtimeStatsUri,
-        Integer   cuid,
-        Integer   runtimeStatsSize
+        Integer   runtimeStatsSize,
+        Integer   cuid
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -96,8 +96,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.environmentVersion = environmentVersion;
         this.logLocation = logLocation;
         this.runtimeStatsUri = runtimeStatsUri;
-        this.cuid = cuid;
         this.runtimeStatsSize = runtimeStatsSize;
+        this.cuid = cuid;
     }
 
     /**
@@ -295,22 +295,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     /**
-     * Getter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public Integer getCuid() {
-        return this.cuid;
-    }
-
-    /**
-     * Setter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public void setCuid(Integer cuid) {
-        this.cuid = cuid;
-    }
-
-    /**
      * Getter for <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     @Override
@@ -324,6 +308,22 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     @Override
     public void setRuntimeStatsSize(Integer runtimeStatsSize) {
         this.runtimeStatsSize = runtimeStatsSize;
+    }
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public Integer getCuid() {
+        return this.cuid;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public void setCuid(Integer cuid) {
+        this.cuid = cuid;
     }
 
     @Override
@@ -342,8 +342,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(environmentVersion);
         sb.append(", ").append(logLocation);
         sb.append(", ").append(runtimeStatsUri);
-        sb.append(", ").append(cuid);
         sb.append(", ").append(runtimeStatsSize);
+        sb.append(", ").append(cuid);
 
         sb.append(")");
         return sb.toString();
@@ -367,8 +367,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setEnvironmentVersion(from.getEnvironmentVersion());
         setLogLocation(from.getLogLocation());
         setRuntimeStatsUri(from.getRuntimeStatsUri());
-        setCuid(from.getCuid());
         setRuntimeStatsSize(from.getRuntimeStatsSize());
+        setCuid(from.getCuid());
     }
 
     @Override

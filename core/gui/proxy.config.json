@@ -14,6 +14,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/access/computing-unit/**": {
+    "target": "http://localhost:8888",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/config/**": {
     "target": "http://localhost:9094",
     "secure": false,
