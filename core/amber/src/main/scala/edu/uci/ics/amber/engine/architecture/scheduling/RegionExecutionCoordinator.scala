@@ -217,6 +217,9 @@ class RegionExecutionCoordinator(
         }
       case ExecutingNonDependeePortsPhase =>
         tryCompleteRegionExecution()
+      case Completed =>
+        // Already completed, no further action needed.
+        Future.Unit
     }
 
   private def executeDependeePortPhase(): Future[Unit] = {
