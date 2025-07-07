@@ -64,6 +64,32 @@ import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sleep.SleepOpDesc
+import edu.uci.ics.amber.operator.sklearn.testing.SklearnTestingOpDesc
+import edu.uci.ics.amber.operator.sklearn.training.{
+  SklearnTrainingAdaptiveBoostingOpDesc,
+  SklearnTrainingBaggingOpDesc,
+  SklearnTrainingBernoulliNaiveBayesOpDesc,
+  SklearnTrainingComplementNaiveBayesOpDesc,
+  SklearnTrainingDecisionTreeOpDesc,
+  SklearnTrainingDummyClassifierOpDesc,
+  SklearnTrainingExtraTreeOpDesc,
+  SklearnTrainingExtraTreesOpDesc,
+  SklearnTrainingGaussianNaiveBayesOpDesc,
+  SklearnTrainingGradientBoostingOpDesc,
+  SklearnTrainingKNNOpDesc,
+  SklearnTrainingLinearSVMOpDesc,
+  SklearnTrainingMultiLayerPerceptronOpDesc,
+  SklearnTrainingMultinomialNaiveBayesOpDesc,
+  SklearnTrainingNearestCentroidOpDesc,
+  SklearnTrainingPassiveAggressiveOpDesc,
+  SklearnTrainingPerceptronOpDesc,
+  SklearnTrainingProbabilityCalibrationOpDesc,
+  SklearnTrainingRandomForestOpDesc,
+  SklearnTrainingRidgeCVOpDesc,
+  SklearnTrainingRidgeOpDesc,
+  SklearnTrainingSDGOpDesc,
+  SklearnTrainingSVMOpDesc
+}
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
@@ -242,6 +268,67 @@ trait StateTransferFunc
       value = classOf[SklearnLogisticRegressionCVOpDesc],
       name = "SklearnLogisticRegressionCV"
     ),
+    new Type(value = classOf[SklearnTrainingRidgeOpDesc], name = "SklearnRidge"),
+    new Type(value = classOf[SklearnTrainingRidgeCVOpDesc], name = "SklearnRidgeCV"),
+    new Type(value = classOf[SklearnTrainingSDGOpDesc], name = "SklearnSDG"),
+    new Type(
+      value = classOf[SklearnTrainingPassiveAggressiveOpDesc],
+      name = "SklearnPassiveAggressive"
+    ),
+    new Type(value = classOf[SklearnTrainingPerceptronOpDesc], name = "SklearnPerceptron"),
+    new Type(value = classOf[SklearnTrainingKNNOpDesc], name = "SklearnKNN"),
+    new Type(
+      value = classOf[SklearnTrainingNearestCentroidOpDesc],
+      name = "SklearnNearestCentroid"
+    ),
+    new Type(value = classOf[SklearnTrainingSVMOpDesc], name = "SklearnSVM"),
+    new Type(value = classOf[SklearnTrainingLinearSVMOpDesc], name = "SklearnLinearSVM"),
+    new Type(value = classOf[SklearnTrainingDecisionTreeOpDesc], name = "SklearnDecisionTree"),
+    new Type(value = classOf[SklearnTrainingExtraTreeOpDesc], name = "SklearnExtraTree"),
+    new Type(
+      value = classOf[SklearnTrainingMultiLayerPerceptronOpDesc],
+      name = "SklearnMultiLayerPerceptron"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingProbabilityCalibrationOpDesc],
+      name = "SklearnProbabilityCalibration"
+    ),
+    new Type(value = classOf[SklearnTrainingRandomForestOpDesc], name = "SklearnRandomForest"),
+    new Type(value = classOf[SklearnTrainingBaggingOpDesc], name = "SklearnBagging"),
+    new Type(
+      value = classOf[SklearnTrainingGradientBoostingOpDesc],
+      name = "SklearnGradientBoosting"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingAdaptiveBoostingOpDesc],
+      name = "SklearnAdaptiveBoosting"
+    ),
+    new Type(value = classOf[SklearnTrainingExtraTreesOpDesc], name = "SklearnExtraTrees"),
+    new Type(
+      value = classOf[SklearnTrainingGaussianNaiveBayesOpDesc],
+      name = "SklearnGaussianNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingMultinomialNaiveBayesOpDesc],
+      name = "SklearnMultinomialNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingComplementNaiveBayesOpDesc],
+      name = "SklearnComplementNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingBernoulliNaiveBayesOpDesc],
+      name = "SklearnBernoulliNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingDummyClassifierOpDesc],
+      name = "SklearnDummyClassifier"
+    ),
+    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
+    new Type(
+      value = classOf[SklearnLogisticRegressionCVOpDesc],
+      name = "SklearnLogisticRegressionCV"
+    ),
     new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
     new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
     new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),
@@ -282,6 +369,7 @@ trait StateTransferFunc
     ),
     new Type(value = classOf[SklearnDummyClassifierOpDesc], name = "SklearnDummyClassifier"),
     new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
+    new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting"),
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],
       name = "HuggingFaceSentimentAnalysis"
