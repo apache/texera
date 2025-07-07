@@ -109,7 +109,7 @@
   </formly-form>
   <texera-type-casting-display
     *ngIf="isTypeCasting"
-    currentOperatorId="{{this.currentOperatorId }}"></texera-type-casting-display>
+    currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
 </form>
 
 <button
@@ -136,10 +136,10 @@
 <button
   (click)="confirmModifyOperatorLogic()"
   *ngIf="
-    currentOperatorId !== undefined &&
-    (this.executeWorkflowService.getExecutionState().state ===
-      ExecutionState.Paused) &&
-    this.interactive"
+		currentOperatorId !== undefined &&
+		(this.executeWorkflowService.getExecutionState().state ===
+			ExecutionState.Paused) &&
+		this.interactive"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
   nzTooltipPlacement="bottom">
