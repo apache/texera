@@ -38,6 +38,7 @@ export interface GuiConfig {
   multipartUploadChunkSizeByte: number;
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
+  sharingComputingUnitEnabled: boolean;
   hubEnabled: boolean;
   forumEnabled: boolean;
   projectEnabled: boolean;
