@@ -117,12 +117,7 @@ export class ListItemComponent implements OnChanges {
         } else {
           this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
         }
-        this.workflowPersistService
-          .getSize(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(size => {
-            this.size = size;
-          });
+        this.size = this.entry.size;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {

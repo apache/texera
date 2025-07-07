@@ -149,6 +149,10 @@ export class DashboardEntry {
     this.accessibleUserIds = accessUsers;
   }
 
+  setSize(size: number): void {
+    this.size = size;
+  }
+
   get project(): DashboardProject {
     if (!isDashboardProject(this.value)) {
       throw new Error("Value is not of type DashboardProject.");

@@ -273,11 +273,17 @@ export class WorkflowPersistService {
   }
 
   /**
-   * Get JSON size of the workflow corresponding to the wid
-   * can be used without logging in
-   * @param wid
+   * Batch-fetch the JSON sizes of workflows by their IDs.
+   * Can be used without logging in
+   *
+   * @param wids Array of workflow IDs to query.
+   * @returns An object mapping each workflow ID to its JSON size.
    */
-  public getSize(wid: number): Observable<number> {
-    return this.http.get<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}?wid=${wid}`);
+  public getSizes(wids: number[]): Observable<Record<number, number>> {
+    let params = new HttpParams();
+    wids.forEach(wid => {
+      params = params.append("wid", wid.toString());
+    });
+    return this.http.get<Record<number, number>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}`, { params });
   }
 }

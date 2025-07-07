@@ -34,11 +34,12 @@ import {
   LikedStatus,
 } from "../../../hub/service/hub.service";
 import { map, switchMap } from "rxjs/operators";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
 const DASHBOARD_USER_INFO_URL = "dashboard/resultsOwnersInfo";
-export type EnrichActivity = "counts" | "liked" | "access";
+export type EnrichActivity = "counts" | "liked" | "access" | "size";
 
 @Injectable({
   providedIn: "root",
@@ -46,7 +47,8 @@ export type EnrichActivity = "counts" | "liked" | "access";
 export class SearchService {
   constructor(
     private http: HttpClient,
-    private hubService: HubService
+    private hubService: HubService,
+    private workflowPersistService: WorkflowPersistService
   ) {}
 
   /**
@@ -159,11 +161,12 @@ export class SearchService {
     isLogin: boolean,
     activities: EnrichActivity[] = []
   ): Observable<DashboardEntry[]> {
-    const acts = activities.length > 0 ? activities : (["counts", "liked", "access"] as EnrichActivity[]);
+    const acts = activities.length > 0 ? activities : (["counts", "liked", "access", "size"] as EnrichActivity[]);
 
     const doCounts = acts.includes("counts");
     const doLiked = acts.includes("liked") && isLogin;
     const doAccess = acts.includes("access");
+    const doSize = acts.includes("size");
 
     const userIds = new Set<number>();
     items.forEach(i => {
@@ -199,8 +202,14 @@ export class SearchService {
         ? this.hubService.getUserAccess(entityTypes, entityIds)
         : of([] as AccessResponse[]);
 
-    return forkJoin([userInfo$, counts$, liked$, access$]).pipe(
-      map(([userMap, counts, liked, access]) => {
+    const workflowIds = items.map(i => i.workflow?.workflow?.wid).filter((wid): wid is number => wid != null);
+    const sizes$ =
+      doSize && workflowIds.length > 0
+        ? this.workflowPersistService.getSizes(workflowIds)
+        : of({} as Record<number, number>);
+
+    return forkJoin([userInfo$, counts$, liked$, access$, sizes$]).pipe(
+      map(([userMap, counts, liked, access, sizesMap]) => {
         const countsMap: Record<string, Partial<Record<ActionType, number>>> = {};
         counts.forEach(r => (countsMap[`${r.entityType}:${r.entityId}`] = r.counts));
 
@@ -239,6 +248,11 @@ export class SearchService {
           if (doAccess) {
             entry.setAccessUsers(accessMap[key] ?? []);
           }
+
+          if (doSize && entry.type === EntityType.Workflow && entry.id != null) {
+            entry.setSize(sizesMap[entry.id] ?? 0);
+          }
+
           return entry;
         });
       })
