@@ -43,6 +43,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
+@Deprecated
 class ExpansionGreedyScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan

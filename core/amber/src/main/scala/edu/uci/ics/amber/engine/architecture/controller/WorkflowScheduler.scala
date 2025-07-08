@@ -43,14 +43,14 @@ class WorkflowScheduler(
     // generate a schedule using a region plan generator.
     val (generatedSchedule, updatedPhysicalPlan) =
       if (ApplicationConfig.enableCostBasedScheduleGenerator) {
-        // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
+        // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan and is the default.
         new CostBasedScheduleGenerator(
           workflowContext,
           physicalPlan,
           actorId
         ).generate()
       } else {
-        // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
+        // ExpansionGreedyRegionPlanGenerator will be gradually deprecated.
         new ExpansionGreedyScheduleGenerator(
           workflowContext,
           physicalPlan
