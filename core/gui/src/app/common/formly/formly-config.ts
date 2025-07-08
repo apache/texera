@@ -80,7 +80,6 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] },
     // MODIFICATION 2: REGISTER THE CUSTOM COMPONENT WITH FORMLY
-    // This tells Formly to use our component when it sees the type "repeat-section-dnd".
     { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
   ],
   wrappers: [

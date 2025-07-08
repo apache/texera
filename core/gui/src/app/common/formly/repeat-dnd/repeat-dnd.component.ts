@@ -23,28 +23,44 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 
 @Component({
   selector: "formly-repeat-section-dnd",
-  // HIGHLIGHT: The template below defines the entire component's view.
   template: `
-    <div cdkDropList (cdkDropListDropped)="onDrop($event)">
-      <div *ngFor="let field of field.fieldGroup; let i = index" cdkDrag class="dnd-row">
-        <div class="drag-handle" cdkDragHandle>
-          <i nz-icon nzType="drag" nzTheme="outline"></i>
+    <div
+      cdkDropList
+      (cdkDropListDropped)="onDrop($event)">
+      <div
+        *ngFor="let field of field.fieldGroup; let i = index"
+        cdkDrag
+        class="dnd-row">
+        <div
+          class="drag-handle"
+          cdkDragHandle>
+          <i
+            nz-icon
+            nzType="drag"
+            nzTheme="outline"></i>
         </div>
-        <formly-field class="dnd-field" [field]="field"></formly-field>
+        <formly-field
+          class="dnd-field"
+          [field]="field"></formly-field>
         <button
           nz-button
           nzType="default"
           (click)="remove(i)"
           class="dnd-remove-button"
-          [disabled]="field.templateOptions?.disabled"
-        >
-          <i nz-icon nzType="delete" nzTheme="outline"></i>
+          [disabled]="field.templateOptions?.disabled">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
         </button>
       </div>
     </div>
-    <!-- HIGHLIGHT: This is the "Add" button. If this line is missing, the button will not appear. -->
-    <!-- The (click)="add()" method is provided by the 'FieldArrayType' class that we extend. -->
-    <button nz-button nzType="default" (click)="add()" [disabled]="field.templateOptions?.disabled">
+
+    <button
+      nz-button
+      nzType="default"
+      (click)="add()"
+      [disabled]="field.templateOptions?.disabled">
       {{ field.templateOptions?.addText || "Add" }}
     </button>
   `,
@@ -78,7 +94,6 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 })
 export class FormlyRepeatDndComponent extends FieldArrayType {
   onDrop(event: CdkDragDrop<string[]>) {
-    // If there's no model or the item wasn't moved, do nothing.
     if (!this.model || event.previousIndex === event.currentIndex) {
       return;
     }
@@ -87,7 +102,6 @@ export class FormlyRepeatDndComponent extends FieldArrayType {
     moveItemInArray(this.model, event.previousIndex, event.currentIndex);
 
     // 2. Reorder the Formly field configurations. This keeps the UI definition in sync with the data.
-    //    The non-null assertion (!) is safe because this is a FieldArrayType.
     moveItemInArray(this.field.fieldGroup!, event.previousIndex, event.currentIndex);
 
     // 3. Reorder the actual Angular FormArray controls. This keeps the live form state in sync.
