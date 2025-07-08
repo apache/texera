@@ -29,42 +29,44 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
-  @JsonProperty(value= "timeColumn", required = true)
+  @JsonProperty(value = "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
   var timeColumn: String = ""
 
-  @JsonProperty( value="valueColumn", required = true)
+  @JsonProperty(value = "valueColumn", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The numerical column to plot on the Y-axis (e.g., Sales, Temperature).")
   @JsonSchemaInject(json = """{"enum": "autofill"}""")
   @AutofillAttributeName
   var valueColumn: String = ""
 
-  @JsonProperty(value="categoryColumn", required = false, defaultValue = "No Selection")
+  @JsonProperty(value = "categoryColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
   @AutofillAttributeName
   var CategoryColumn: String = "No Selection"
 
-  @JsonProperty(value="facetColumn", required = false, defaultValue = "No Selection")
+  @JsonProperty(value = "facetColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - A column to create separate subplots.")
   @AutofillAttributeName
   var facetColumn: String = "No Selection"
 
-  @JsonProperty(value="line", defaultValue = "line", required = true)
+  @JsonProperty(value = "line", defaultValue = "line", required = true)
   @JsonSchemaTitle("Plot Type")
   @JsonPropertyDescription("Select the type of time series plot (line, area).")
   var plotType: String = "line"
 
-  @JsonProperty(value="slider", defaultValue = "false")
+  @JsonProperty(value = "slider", defaultValue = "false")
   @JsonSchemaTitle("Show Range Slider")
   @JsonPropertyDescription("Display a range slider at the bottom of the plot.")
   var showRangeSlider: Boolean = _
 
-  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema().add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
