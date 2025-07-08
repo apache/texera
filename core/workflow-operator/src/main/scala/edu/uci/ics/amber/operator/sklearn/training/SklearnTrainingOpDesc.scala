@@ -109,7 +109,7 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       getUserFriendlyModelName,
       "Sklearn " + getUserFriendlyModelName + " Operator",
-      OperatorGroupConstants.SKLEARN_GROUP,
+      OperatorGroupConstants.SKLEARN_TRAINING_GROUP,
       inputPorts = List(InputPort(PortIdentity(), "training")),
       outputPorts = List(OutputPort(blocking = true))
     )
