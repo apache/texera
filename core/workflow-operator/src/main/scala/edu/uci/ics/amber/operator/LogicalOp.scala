@@ -162,7 +162,7 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
-    new Type(value = classOf[TimeSeriesOpDesc], name="TimeSeriesPlot"),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
