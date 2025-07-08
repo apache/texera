@@ -50,7 +50,7 @@ class WorkflowScheduler(
           actorId
         ).generate()
       } else {
-        // ExpansionGreedyRegionPlanGenerator will be gradually deprecated.
+        // ExpansionGreedyRegionPlanGenerator will is deprecated and will be removed in the future.
         new ExpansionGreedyScheduleGenerator(
           workflowContext,
           physicalPlan
