@@ -74,7 +74,10 @@ export class OperatorMenuComponent {
       .pipe(untilDestroyed(this))
       .subscribe(operatorMetadata => {
         const ops = operatorMetadata.operators.filter(
-          operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy"
+          operatorSchema =>
+            operatorSchema.operatorType !== "PythonUDF" &&
+            operatorSchema.operatorType !== "Dummy" &&
+            operatorSchema.operatorType !== "Sleep"
         );
         this.groupNames = operatorMetadata.groups;
         ops.forEach(x => {
