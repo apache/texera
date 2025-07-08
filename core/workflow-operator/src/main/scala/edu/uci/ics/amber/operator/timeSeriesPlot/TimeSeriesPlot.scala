@@ -29,20 +29,20 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 
 class TimeSeriesOpDesc extends PythonOperatorDescriptor {
 
-  @JsonProperty(value="timeColumn", required = true)
+  @JsonProperty(value= "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
   var timeColumn: String = ""
 
-  @JsonProperty( value="valueColumn" ,required = true)
+  @JsonProperty( value="valueColumn", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The numerical column to plot on the Y-axis (e.g., Sales, Temperature).")
   @JsonSchemaInject(json = """{"enum": "autofill"}""")
   @AutofillAttributeName
   var valueColumn: String = ""
 
-  @JsonProperty(value="categoryColumn" ,required = false, defaultValue="No Selection")
+  @JsonProperty(value="categoryColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
   @AutofillAttributeName
