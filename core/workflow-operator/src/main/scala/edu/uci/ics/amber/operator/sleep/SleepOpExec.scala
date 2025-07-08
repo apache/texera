@@ -27,7 +27,7 @@ class SleepOpExec(descString: String) extends OperatorExecutor {
   private val desc: SleepOpDesc = objectMapper.readValue(descString, classOf[SleepOpDesc])
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-    Thread.sleep(1000 * desc.time)
+    Thread.sleep(1000 * desc.sleepTime)
     Iterator(tuple)
   }
 }

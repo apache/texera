@@ -31,8 +31,8 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 class SleepOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("n")
-  var time: Int = _
+  @JsonSchemaTitle("Sleep Time (seconds)")
+  var sleepTime: Int = _
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
