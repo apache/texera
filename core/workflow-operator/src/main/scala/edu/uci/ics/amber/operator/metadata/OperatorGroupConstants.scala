@@ -64,7 +64,7 @@ object OperatorGroupConstants {
     GroupInfo(
       MACHINE_LEARNING_GROUP,
       List(
-        GroupInfo(SKLEARN_GROUP, List(GroupInfo(SKLEARN_TRAINING_GROUP),
+        GroupInfo(SKLEARN_GROUP, List(GroupInfo(SKLEARN_TRAINING_GROUP))),
         GroupInfo(ADVANCED_SKLEARN_GROUP),
         GroupInfo(HUGGINGFACE_GROUP),
         GroupInfo(MACHINE_LEARNING_GENERAL_GROUP)
