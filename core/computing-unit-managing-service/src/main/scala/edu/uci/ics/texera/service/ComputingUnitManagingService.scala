@@ -24,7 +24,11 @@ import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import edu.uci.ics.texera.auth.{JwtAuthFilter, SessionUser}
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.service.resource.{ComputingUnitManagingResource, HealthCheckResource}
+import edu.uci.ics.texera.service.resource.{
+  ComputingUnitManagingResource,
+  HealthCheckResource,
+  ComputingUnitAccessResource
+}
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.core.Application
@@ -59,6 +63,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
     )
 
     environment.jersey().register(new ComputingUnitManagingResource)
+    environment.jersey().register(new ComputingUnitAccessResource)
   }
 }
 
