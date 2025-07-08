@@ -372,9 +372,6 @@ export class JointUIService {
       ".remove-output-port-button": { visibility: "hidden" },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
-    if (!element) {
-      return;
-    }
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
