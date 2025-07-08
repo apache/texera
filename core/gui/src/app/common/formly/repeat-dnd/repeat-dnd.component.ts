@@ -22,7 +22,7 @@ import { FieldArrayType } from "@ngx-formly/core";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 
 @Component({
-  selector: "formly-repeat-section-dnd",
+  selector: "texera-formly-repeat-section-dnd",
   template: `
     <div
       cdkDropList
