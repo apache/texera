@@ -25,4 +25,5 @@ object ComputingUnitConfig {
   private val conf: Config = ConfigFactory.parseResources("computing-unit.conf").resolve()
 
   val localComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.local.enabled")
+  val sharingComputingUnitEnabled: Boolean = conf.getBoolean("computing-unit.sharing.enabled")
 }

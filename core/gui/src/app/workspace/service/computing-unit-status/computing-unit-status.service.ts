@@ -18,14 +18,13 @@
  */
 
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of, merge } from "rxjs";
+import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of, merge, forkJoin } from "rxjs";
 import { filter, map, switchMap, tap, take, mergeMap, catchError, distinctUntilChanged } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
-import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isDefined } from "../../../common/util/predicate";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { UserService } from "../../../common/service/user/user.service";
@@ -44,7 +43,7 @@ import { UserService } from "../../../common/service/user/user.service";
 export class ComputingUnitStatusService implements OnDestroy {
   // Behavior subjects to track and broadcast state changes
   private selectedUnitSubject = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
-  private allUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
+  private readonly allComputingUnitsSubject = new BehaviorSubject<DashboardWorkflowComputingUnit[]>([]);
 
   private readonly refreshComputingUnitListSignal = new Subject<void>();
 
@@ -69,13 +68,11 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Initialize the service with available computing units
   private initializeService(): void {
-    // Initial load of computing units
     this.computingUnitService
       .listComputingUnits()
       .pipe(untilDestroyed(this))
       .subscribe(units => {
-        // Update the computing units
-        this.updateComputingUnits(units);
+        this.setComputingUnitsState(units);
       });
 
     // Set up periodic refresh
@@ -106,18 +103,17 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll = undefined;
   }
   // Update computing units list and the selected unit
-  private updateComputingUnits(units: DashboardWorkflowComputingUnit[]): void {
-    // Update the all units list
-    this.allUnitsSubject.next(units);
+  private setComputingUnitsState(units: DashboardWorkflowComputingUnit[]): void {
+    this.allComputingUnitsSubject.next(units);
 
-    const updatedUnit = units.find(
+    const updatedSelectedUnit = units.find(
       unit => unit.computingUnit.cuid === this.selectedUnitSubject.value?.computingUnit.cuid
     );
 
-    if (updatedUnit) {
-      this.selectedUnitSubject.next(updatedUnit);
-    } else {
-      // Our selected unit is no longer available
+    if (updatedSelectedUnit) {
+      this.selectedUnitSubject.next(updatedSelectedUnit);
+    } else if (this.selectedUnitSubject.value) {
+      // The selected unit is no longer in the list
       this.selectedUnitSubject.next(null);
       this.stopPollingSelectedUnit();
     }
@@ -148,7 +144,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         untilDestroyed(this)
       )
       .subscribe(units => {
-        this.updateComputingUnits(units);
+        this.setComputingUnitsState(units);
       });
   }
 
@@ -171,7 +167,8 @@ export class ComputingUnitStatusService implements OnDestroy {
     };
 
     // try immediate lookup in the current cache
-    const cachedUnit = this.allUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
+    const cachedUnit = this.allComputingUnitsSubject.value.find(u => u.computingUnit.cuid === cuid);
+
     if (cachedUnit) {
       trySelect(cachedUnit);
       return;
@@ -180,10 +177,10 @@ export class ComputingUnitStatusService implements OnDestroy {
     // otherwise trigger a refresh and wait until the unit appears once
     this.refreshComputingUnitList();
 
-    this.allUnitsSubject
+    this.allComputingUnitsSubject
       .pipe(
         filter(units => units.some(u => u.computingUnit.cuid === cuid)),
-        take(1), // auto-unsubscribe after first match
+        take(1),
         untilDestroyed(this)
       )
       .subscribe(units => {
@@ -191,6 +188,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         trySelect(unit);
       });
   }
+
   // Observable for the currently selected computing unit
   public getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
     return this.selectedUnitSubject.asObservable();
@@ -198,7 +196,7 @@ export class ComputingUnitStatusService implements OnDestroy {
 
   // Observable for all available computing units
   public getAllComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return this.allUnitsSubject.asObservable();
+    return this.allComputingUnitsSubject;
   }
 
   // Get the current status of the selected computing unit as string
@@ -228,18 +226,18 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.selectedUnitPoll?.unsubscribe();
 
     this.selectedUnitSubject.complete();
-    this.allUnitsSubject.complete();
+    this.allComputingUnitsSubject.complete();
   }
 
   /**
    * Helper method to update a single unit in the units list
    */
   private updateUnitInList(updatedUnit: DashboardWorkflowComputingUnit): void {
-    const merged: DashboardWorkflowComputingUnit[] = this.allUnitsSubject.value.map(u =>
+    const merged: DashboardWorkflowComputingUnit[] = this.allComputingUnitsSubject.value.map(u =>
       u.computingUnit.cuid === updatedUnit.computingUnit.cuid ? updatedUnit : u
     );
 
-    this.updateComputingUnits(merged);
+    this.setComputingUnitsState(merged);
   }
 
   /**
