@@ -1131,20 +1131,6 @@ class DatasetResource {
     })
   }
 
-  @GET
-  @Path("/datasetUserAccess")
-  def datasetUserAccess(
-      @QueryParam("did") did: Integer
-  ): java.util.List[Integer] = {
-    val records = context
-      .select(DATASET_USER_ACCESS.UID)
-      .from(DATASET_USER_ACCESS)
-      .where(DATASET_USER_ACCESS.DID.eq(did))
-      .fetch()
-
-    records.getValues(DATASET_USER_ACCESS.UID)
-  }
-
   /**
     * This method returns all owner user names of the dataset that the user has access to
     *
