@@ -24,43 +24,34 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 @Component({
   selector: "texera-formly-repeat-section-dnd",
   template: `
-    <div
-      cdkDropList
-      (cdkDropListDropped)="onDrop($event)">
-      <div
-        *ngFor="let field of field.fieldGroup; let i = index"
-        cdkDrag
-        class="dnd-row">
-        <div
-          class="drag-handle"
-          cdkDragHandle>
-          <i
-            nz-icon
-            nzType="drag"
-            nzTheme="outline"></i>
+    <div cdkDropList (cdkDropListDropped)="onDrop($event)">
+      <div *ngFor="let field of field.fieldGroup; let i = index" cdkDrag class="dnd-row">
+        <div class="drag-handle" cdkDragHandle>
+          <i nz-icon nzType="drag" nzTheme="outline"></i>
         </div>
-        <formly-field
-          class="dnd-field"
-          [field]="field"></formly-field>
+
+        <!-- Fields are now rendered in a flex container for horizontal layout -->
+        <div class="dnd-field-wrapper">
+          <formly-field
+            *ngFor="let subField of field.fieldGroup"
+            class="dnd-field"
+            [field]="subField"
+          ></formly-field>
+        </div>
+
         <button
           nz-button
           nzType="default"
           (click)="remove(i)"
           class="dnd-remove-button"
-          [disabled]="field.templateOptions?.disabled">
-          <i
-            nz-icon
-            nzType="delete"
-            nzTheme="outline"></i>
+          [disabled]="field.templateOptions?.disabled"
+        >
+          <i nz-icon nzType="delete" nzTheme="outline"></i>
         </button>
       </div>
     </div>
 
-    <button
-      nz-button
-      nzType="default"
-      (click)="add()"
-      [disabled]="field.templateOptions?.disabled">
+    <button nz-button nzType="default" (click)="add()" [disabled]="field.templateOptions?.disabled">
       {{ field.templateOptions?.addText || "Add" }}
     </button>
   `,
@@ -83,8 +74,16 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
       .drag-handle:hover {
         color: #333;
       }
-      .dnd-field {
+      /* New wrapper for the horizontal fields */
+      .dnd-field-wrapper {
+        display: flex;
         flex-grow: 1;
+        align-items: baseline; /* Aligns fields nicely if they have different heights */
+        gap: 16px; /* Adds space between the fields */
+      }
+      /* Style for each individual field within the row */
+      .dnd-field {
+        flex: 1; /* Each field will take up an equal amount of space */
       }
       .dnd-remove-button {
         margin-left: 10px;
