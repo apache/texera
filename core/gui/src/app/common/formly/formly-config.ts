@@ -26,8 +26,6 @@ import { CodeareaCustomTemplateComponent } from "../../workspace/component/codea
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { InputAutoCompleteComponent } from "../../workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
-
-// MODIFICATION 1: IMPORT THE CUSTOM REPEAT-DND COMPONENT
 import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 
 /**
@@ -79,7 +77,6 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] },
-    // MODIFICATION 2: REGISTER THE CUSTOM COMPONENT WITH FORMLY
     { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
   ],
   wrappers: [
