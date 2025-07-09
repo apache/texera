@@ -489,7 +489,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
-      // Currently, we handle projection differently since it requires re-ordering:
       if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
         mappedField.type = "repeat-section-dnd";
         mappedField.props = {
