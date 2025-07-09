@@ -23,86 +23,9 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 
 @Component({
   selector: "texera-formly-repeat-section-dnd",
-  template: `
-    <div
-      cdkDropList
-      (cdkDropListDropped)="onDrop($event)">
-      <div
-        *ngFor="let field of field.fieldGroup; let i = index"
-        cdkDrag
-        class="dnd-row">
-        <div
-          class="drag-handle"
-          cdkDragHandle>
-          <i
-            nz-icon
-            nzType="drag"
-            nzTheme="outline"></i>
-        </div>
-
-        <div class="dnd-field-wrapper">
-          <formly-field
-            *ngFor="let subField of field.fieldGroup"
-            class="dnd-field"
-            [field]="subField"></formly-field>
-        </div>
-
-        <button
-          nz-button
-          nzType="default"
-          (click)="remove(i)"
-          class="dnd-remove-button"
-          [disabled]="field.templateOptions?.disabled">
-          <i
-            nz-icon
-            nzType="delete"
-            nzTheme="outline"></i>
-        </button>
-      </div>
-    </div>
-
-    <button
-      nz-button
-      nzType="default"
-      (click)="add()"
-      [disabled]="field.templateOptions?.disabled">
-      {{ field.templateOptions?.addText || "Add" }}
-    </button>
-  `,
-  styles: [
-    `
-      .dnd-row {
-        display: flex;
-        align-items: center;
-        margin-bottom: 12px;
-        padding: 8px;
-        border: 1px solid #f0f0f0;
-        border-radius: 4px;
-        background-color: #fafafa;
-      }
-      .drag-handle {
-        cursor: move;
-        margin: 0 10px;
-        color: #888;
-      }
-      .drag-handle:hover {
-        color: #333;
-      }
-      .dnd-field-wrapper {
-        display: flex;
-        flex-grow: 1;
-        align-items: baseline;
-        gap: 16px;
-      }
-
-      .dnd-field {
-        flex: 1;
-      }
-      .dnd-remove-button {
-        margin-left: 10px;
-      }
-    `,
-  ],
+  // Corrected to match the actual filename
+  templateUrl: "./repeat-dnd.component.html",
+  styleUrls: ["./repeat-dnd.component.css"],
 })
 export class FormlyRepeatDndComponent extends FieldArrayType {
   onDrop(event: CdkDragDrop<string[]>) {
