@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.chatAssistantService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.chatAssistantService.name }}
+spec:
+  replicas: {{ .Values.chatAssistantService.numOfPods }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.chatAssistantService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.chatAssistantService.name }}
+    spec:
+      containers:
+          - name: {{ .Values.chatAssistantService.name }}
+            image: {{ .Values.chatAssistantService.imageName }}
+            imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+            ports:
+              - containerPort: {{ .Values.chatAssistantService.service.port }}
+            env:
+              - name: STORAGE_JDBC_URL
+                value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+              - name: OPENAI_API_KEY
+                value: {{ .Values.chatAssistantService.apiKey }}
+              - name: STORAGE_JDBC_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ .Release.Name }}-postgresql
+                    key: postgres-password
+            livenessProbe:
+              httpGet:
+                path: /api/healthcheck
+                port: {{ .Values.chatAssistantService.service.port }}
+              initialDelaySeconds: 30
+              periodSeconds: 10
+            readinessProbe:
+              httpGet:
+                path: /api/healthcheck
+                port: {{ .Values.chatAssistantService.service.port }}
+              initialDelaySeconds: 5
+              periodSeconds: 5

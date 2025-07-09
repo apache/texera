@@ -73,6 +73,14 @@ export interface OperatorMetadata
     groups: ReadonlyArray<GroupInfo>;
   }> {}
 
+export interface OperatorInfo
+  extends Readonly<{
+    operatorType: string;
+    userFriendlyName: string;
+    operatorVersion: string;
+    operatorDescription?: string;
+  }> {}
+
 export function areOperatorSchemasEqual(schema1: OperatorSchema, schema2: OperatorSchema): boolean {
   if (schema1.operatorType !== schema2.operatorType || schema1.operatorVersion !== schema2.operatorVersion) {
     return false;

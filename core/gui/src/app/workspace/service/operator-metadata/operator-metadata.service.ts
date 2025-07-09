@@ -21,7 +21,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
+import { OperatorInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
@@ -118,5 +118,17 @@ export class OperatorMetadataService {
       return false;
     }
     return true;
+  }
+
+  public getAvailableTexeraOperatorsAndDescriptions(): OperatorInfo[] {
+    if (!this.currentOperatorMetadata) {
+      return [];
+    }
+    return this.currentOperatorMetadata.operators.map(op => ({
+      operatorType: op.operatorType,
+      operatorVersion: op.operatorVersion,
+      userFriendlyName: op.additionalMetadata.userFriendlyName,
+      operatorDescription: op.additionalMetadata.operatorDescription,
+    }));
   }
 }

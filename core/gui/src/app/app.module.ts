@@ -170,6 +170,7 @@ import { ComputingUnitSelectionComponent } from "./workspace/component/power-but
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { catchError, of } from "rxjs";
+import { ChatAssistantMultiAgentComponent } from "./workspace/component/left-panel/chat-assistant-multi-agent/chat-assistant-multi-agent.component";
 
 registerLocaleData(en);
 
@@ -261,6 +262,7 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
+    ChatAssistantMultiAgentComponent,
   ],
   imports: [
     BrowserModule,

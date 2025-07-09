@@ -45,5 +45,11 @@
     "ws": true,
     "secure": false,
     "changeOrigin": false
+  },
+  "/chat-assistant": {
+    "target": "http://0.0.0.0:8001",
+    "secure": false,
+    "changeOrigin": false,
+    "ws": true
   }
 }

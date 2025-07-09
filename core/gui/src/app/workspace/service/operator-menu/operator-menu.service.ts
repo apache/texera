@@ -293,122 +293,126 @@ export class OperatorMenuService {
     // a permission prompt automatically shows up by calling readText()
     navigator.clipboard.readText().then(
       text => {
-        try {
-          // convert the JSON string in the system clipboard to a JS Map
-          var elementsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
-          // check if the fields in a normal serialized string exist after converting the JSON string
-          // if not, throw an error, which is propagated and produces an alert for the user
-          if (
-            !elementsInClipboard.has("operators") &&
-            !elementsInClipboard.has("operatorPositions") &&
-            !elementsInClipboard.has("links") &&
-            !elementsInClipboard.has("groups") &&
-            !elementsInClipboard.has("commentBoxes")
-          ) {
-            throw new Error("You haven't copied any element yet.");
-          }
-        } catch (e) {
-          // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
-          this.notificationService.error("You haven't copied any element yet.");
-          return;
-        }
-
-        // define the arguments required for actually adding operators and links
-        const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-        const positions: Point[] = [];
-        // calling get() will give either the value or undefined
-        // at this point, after checking the existence of fields in the operators in the clipboard,
-        // the fields "links" and "operatorPositions" should exist
-        const linksInClipboard: OperatorLink[] = elementsInClipboard.get("links") as OperatorLink[];
-        const operatorPositionsInClipboard: OperatorPositions = elementsInClipboard.get(
-          "operatorPositions"
-        ) as OperatorPositions;
-        // get all the operators from the clipboard, which are already sorted by their layers
-        let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
-
-        let linksCopy: LinkWithID = {};
-        copiedOps.forEach(copiedOperator => {
-          // copyOperator assigns a new randomly generated operator ID to the new operator
-          const newOperator = this.copyOperator(copiedOperator);
-
-          for (let link of linksInClipboard) {
-            if (linksCopy[link.linkID] === undefined) {
-              const newLinkID = this.workflowUtilService.getLinkRandomUUID();
-              linksCopy[link.linkID] = {
-                linkID: newLinkID,
-                source: { operatorID: "", portID: "" },
-                target: { operatorID: "", portID: "" },
-              };
-            }
-
-            if (link.source.operatorID === copiedOperator.operatorID) {
-              // if current copied operator is the source operator of current link, we assign the new operator ID to be the source operator for the current link, and the port ID should remain unchanged
-              const source = {
-                operatorID: newOperator.operatorID,
-                portID: link.source.portID,
-              };
-              const originalLinkProperties = linksCopy[link.linkID];
-              linksCopy[link.linkID] = {
-                ...originalLinkProperties,
-                source: source,
-              };
-            } else if (link.target.operatorID === copiedOperator.operatorID) {
-              // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
-              const target = {
-                operatorID: newOperator.operatorID,
-                portID: link.target.portID,
-              };
-              const originalLinkProperties = linksCopy[link.linkID];
-              linksCopy[link.linkID] = {
-                ...originalLinkProperties,
-                target: target,
-              };
-            }
-          }
-
-          const position: Point = operatorPositionsInClipboard[copiedOperator.operatorID] as Point;
-          positions.push(position);
-          // calculate the new positions for the pasted operators
-          const newOperatorPosition = this.calcOperatorPosition(position, positions);
-          operatorsAndPositions.push({
-            op: newOperator,
-            pos: newOperatorPosition,
-          });
-          positions.push(newOperatorPosition);
-        });
-
-        const links = Object.values(linksCopy);
-
-        // actually add all operators and links to the workflow
-        try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
-        } catch (e) {
-          this.notificationService.info(
-            "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
-          );
-        }
-
-        //add copied comment boxes and calculate new positions for the pasted comment boxes
-        let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
-        commentBoxesCopy.forEach(commentBoxCopy => {
-          const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
-          positions.push(commentBoxPosition);
-          const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
-          positions.push(newCommentBoxPosition);
-          const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
-          const newCommentBox: CommentBox = {
-            commentBoxID: newCommentBoxID,
-            comments: commentBoxCopy.comments,
-            commentBoxPosition: newCommentBoxPosition,
-          };
-          this.workflowActionService.addCommentBox(newCommentBox);
-        });
+        this.pasteFromText(text);
       },
       // if the Promise returned from readText rejects, the read clipboard permission is not granted, and we send a warning to the user
       () => {
         this.notificationService.error("Paste failed. This site has been blocked from reading the clipboard.");
       }
     );
+  }
+
+  public pasteFromText(text: string) {
+    try {
+      // convert the JSON string in the system clipboard to a JS Map
+      var elementsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
+      // check if the fields in a normal serialized string exist after converting the JSON string
+      // if not, throw an error, which is propagated and produces an alert for the user
+      if (
+        !elementsInClipboard.has("operators") &&
+        !elementsInClipboard.has("operatorPositions") &&
+        !elementsInClipboard.has("links") &&
+        !elementsInClipboard.has("groups") &&
+        !elementsInClipboard.has("commentBoxes")
+      ) {
+        throw new Error("You haven't copied any element yet.");
+      }
+    } catch (e) {
+      // if the text in the clipboard is not a JSON object, then it means the user hasn't copied an element
+      this.notificationService.error("You haven't copied any element yet.");
+      return;
+    }
+
+    // define the arguments required for actually adding operators and links
+    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+    const positions: Point[] = [];
+    // calling get() will give either the value or undefined
+    // at this point, after checking the existence of fields in the operators in the clipboard,
+    // the fields "links" and "operatorPositions" should exist
+    const linksInClipboard: OperatorLink[] = elementsInClipboard.get("links") as OperatorLink[];
+    const operatorPositionsInClipboard: OperatorPositions = elementsInClipboard.get(
+      "operatorPositions"
+    ) as OperatorPositions;
+    // get all the operators from the clipboard, which are already sorted by their layers
+    let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
+
+    let linksCopy: LinkWithID = {};
+    copiedOps.forEach(copiedOperator => {
+      // copyOperator assigns a new randomly generated operator ID to the new operator
+      const newOperator = this.copyOperator(copiedOperator);
+
+      for (let link of linksInClipboard) {
+        if (linksCopy[link.linkID] === undefined) {
+          const newLinkID = this.workflowUtilService.getLinkRandomUUID();
+          linksCopy[link.linkID] = {
+            linkID: newLinkID,
+            source: { operatorID: "", portID: "" },
+            target: { operatorID: "", portID: "" },
+          };
+        }
+
+        if (link.source.operatorID === copiedOperator.operatorID) {
+          // if current copied operator is the source operator of current link, we assign the new operator ID to be the source operator for the current link, and the port ID should remain unchanged
+          const source = {
+            operatorID: newOperator.operatorID,
+            portID: link.source.portID,
+          };
+          const originalLinkProperties = linksCopy[link.linkID];
+          linksCopy[link.linkID] = {
+            ...originalLinkProperties,
+            source: source,
+          };
+        } else if (link.target.operatorID === copiedOperator.operatorID) {
+          // if current copied operator is the target operator of current link, we assign the new operator ID to be the target operator for the current link, and the port ID should remain unchanged
+          const target = {
+            operatorID: newOperator.operatorID,
+            portID: link.target.portID,
+          };
+          const originalLinkProperties = linksCopy[link.linkID];
+          linksCopy[link.linkID] = {
+            ...originalLinkProperties,
+            target: target,
+          };
+        }
+      }
+
+      const position: Point = operatorPositionsInClipboard[copiedOperator.operatorID] as Point;
+      positions.push(position);
+      // calculate the new positions for the pasted operators
+      const newOperatorPosition = this.calcOperatorPosition(position, positions);
+      operatorsAndPositions.push({
+        op: newOperator,
+        pos: newOperatorPosition,
+      });
+      positions.push(newOperatorPosition);
+    });
+
+    const links = Object.values(linksCopy);
+
+    // actually add all operators and links to the workflow
+    try {
+      this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+    } catch (e) {
+      this.notificationService.info(
+        "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
+      );
+    }
+
+    //add copied comment boxes and calculate new positions for the pasted comment boxes
+    let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
+    commentBoxesCopy.forEach(commentBoxCopy => {
+      const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
+      positions.push(commentBoxPosition);
+      const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
+      positions.push(newCommentBoxPosition);
+      const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
+      const newCommentBox: CommentBox = {
+        commentBoxID: newCommentBoxID,
+        comments: commentBoxCopy.comments,
+        commentBoxPosition: newCommentBoxPosition,
+      };
+      this.workflowActionService.addCommentBox(newCommentBox);
+    });
   }
 
   /**
