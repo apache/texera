@@ -24,19 +24,43 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 @Component({
   selector: "texera-formly-repeat-section-dnd",
   template: `
-    <div cdkDropList (cdkDropListDropped)="onDrop($event)">
-      <div *ngFor="let field of field.fieldGroup; let i = index" cdkDrag class="dnd-row">
-        <div class="drag-handle" cdkDragHandle>
-          <i nz-icon nzType="drag" nzTheme="outline"></i>
+    <div
+      cdkDropList
+      (cdkDropListDropped)="onDrop($event)">
+      <div
+        *ngFor="let field of field.fieldGroup; let i = index"
+        cdkDrag
+        class="dnd-row">
+        <div
+          class="drag-handle"
+          cdkDragHandle>
+          <i
+            nz-icon
+            nzType="drag"
+            nzTheme="outline"></i>
         </div>
-        <formly-field class="dnd-field" [field]="field"></formly-field>
-        <button nz-button nzType="default" (click)="remove(i)" class="dnd-remove-button" [disabled]="field.templateOptions?.disabled">
-          <i nz-icon nzType="delete" nzTheme="outline"></i>
+        <formly-field
+          class="dnd-field"
+          [field]="field"></formly-field>
+        <button
+          nz-button
+          nzType="default"
+          (click)="remove(i)"
+          class="dnd-remove-button"
+          [disabled]="field.templateOptions?.disabled">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
         </button>
       </div>
     </div>
 
-    <button nz-button nzType="default" (click)="add()" [disabled]="field.templateOptions?.disabled">
+    <button
+      nz-button
+      nzType="default"
+      (click)="add()"
+      [disabled]="field.templateOptions?.disabled">
       {{ field.templateOptions?.addText || "Add" }}
     </button>
   `,
