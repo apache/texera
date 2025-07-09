@@ -581,19 +581,19 @@ export class JointUIService {
 
     let color: string;
     if (p === 0) {
-      color = 'gray';
-    } else if (p < 0.6) {
-      color = 'green';
-    } else if (p < 0.9) {
-      color = 'orange';
+      color = "gray";
+    } else if (p < 0.5) {
+      color = "green";
+    } else if (p < 0.8) {
+      color = "orange";
     } else {
-      color = 'red';
+      color = "red";
     }
 
     const link = jointPaper.getModelById(linkId) as joint.dia.Link;
 
       link.attr({
-        '.connection': {
+        ".connection": {
           stroke: color,
         },
       });
