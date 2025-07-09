@@ -82,8 +82,6 @@ object ApplicationConfig {
   val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
   // Scheduling
-  val enableCostBasedScheduleGenerator: Boolean =
-    getConfSource.getBoolean("schedule-generator.enable-cost-based-schedule-generator")
   val useGlobalSearch: Boolean = getConfSource.getBoolean("schedule-generator.use-global-search")
   val useTopDownSearch: Boolean = getConfSource.getBoolean("schedule-generator.use-top-down-search")
   val searchTimeoutMilliseconds: Int =
