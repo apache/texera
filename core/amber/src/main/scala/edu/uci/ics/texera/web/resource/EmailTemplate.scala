@@ -32,7 +32,7 @@ object EmailTemplate {
     val config = ConfigFactory.load()
     val rawDomain =
       if (config.hasPath("user-sys.domain")) config.getString("user-sys.domain")
-      else "https://hub.texera.io"
+      else ""
     rawDomain.replaceFirst("^https?://", "")
   }
 
@@ -52,7 +52,12 @@ object EmailTemplate {
       toAdmin: Boolean
   ): EmailMessage = {
     if (toAdmin) {
-      val subject = s"New Account Request to $deployment Pending Approval"
+      val subject =
+        if (deployment.nonEmpty)
+          s"New Account Request to $deployment Pending Approval"
+        else
+          "New Account Request Pending Approval"
+
       val content =
         s"""
            |Hello Admin,
@@ -77,7 +82,7 @@ object EmailTemplate {
            |We have received your request and it is currently under review.
            |You will be notified once your account has been approved.
            |
-           |Thank you for your interest in $deployment!
+           |Thank you for your interest in Texera!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
@@ -92,7 +97,12 @@ object EmailTemplate {
     * @return an EmailMessage ready to be sent to the user
     */
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
-    val subject = s"Your Role Has Been Updated on $deployment"
+    val subject =
+      if (deployment.nonEmpty)
+        s"Your Role Has Been Updated on $deployment"
+      else
+        "Your Role Has Been Updated"
+
     val content =
       s"""
          |Hello,
@@ -101,7 +111,7 @@ object EmailTemplate {
          |
          |If you have any questions, please contact the administrator.
          |
-         |Thank you for using $deployment!
+         |Thank you for using Texera!
          |""".stripMargin
 
     EmailMessage(subject = subject, content = content, receiver = receiverEmail)
