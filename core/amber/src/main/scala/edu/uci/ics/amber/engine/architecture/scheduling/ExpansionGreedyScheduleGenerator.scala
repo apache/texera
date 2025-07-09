@@ -43,6 +43,9 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
+/**
+  * This greedy schedule generator will be removed in the future. Use `CostBasedScheduleGenerator` instead.
+  */
 @Deprecated
 class ExpansionGreedyScheduleGenerator(
     workflowContext: WorkflowContext,
