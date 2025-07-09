@@ -30,7 +30,6 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
           <i nz-icon nzType="drag" nzTheme="outline"></i>
         </div>
 
-        <!-- Fields are now rendered in a flex container for horizontal layout -->
         <div class="dnd-field-wrapper">
           <formly-field
             *ngFor="let subField of field.fieldGroup"
@@ -74,16 +73,15 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
       .drag-handle:hover {
         color: #333;
       }
-      /* New wrapper for the horizontal fields */
       .dnd-field-wrapper {
         display: flex;
         flex-grow: 1;
-        align-items: baseline; /* Aligns fields nicely if they have different heights */
-        gap: 16px; /* Adds space between the fields */
+        align-items: baseline;
+        gap: 16px;
       }
-      /* Style for each individual field within the row */
+
       .dnd-field {
-        flex: 1; /* Each field will take up an equal amount of space */
+        flex: 1;
       }
       .dnd-remove-button {
         margin-left: 10px;
