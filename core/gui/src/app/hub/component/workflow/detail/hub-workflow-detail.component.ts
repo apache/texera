@@ -25,7 +25,7 @@ import { WorkflowActionService } from "../../../../workspace/service/workflow-gr
 import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { isDefined } from "../../../../common/util/predicate";
-import { ActionType, EntityType, HubService } from "../../../service/hub.service";
+import { ActionType, EntityType, HubService, LikedStatus } from "../../../service/hub.service";
 import { Role, User } from "src/app/common/type/user";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -121,10 +121,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       return;
     }
     this.hubService
-      .isLiked(this.wid, this.currentUser.uid, EntityType.Workflow)
+      .isLiked([this.wid], [EntityType.Workflow])
       .pipe(untilDestroyed(this))
-      .subscribe((isLiked: boolean) => {
-        this.isLiked = isLiked;
+      .subscribe((isLiked: LikedStatus[]) => {
+        this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
       });
   }
 
@@ -206,7 +206,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.wid, userId, EntityType.Workflow)
+        .postUnlike(this.wid, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -224,7 +224,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         });
     } else {
       this.hubService
-        .postLike(this.wid, userId, EntityType.Workflow)
+        .postLike(this.wid, EntityType.Workflow)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {

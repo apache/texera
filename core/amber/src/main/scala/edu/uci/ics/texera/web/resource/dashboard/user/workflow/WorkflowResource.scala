@@ -774,28 +774,22 @@ class WorkflowResource extends LazyLogging {
       .fetchOneInto(classOf[String])
   }
 
-  @GET
-  @Path("/workflow_user_access")
-  def workflowUserAccess(
-      @QueryParam("wid") wid: Integer
-  ): util.List[Integer] = {
-    val records = context
-      .select(WORKFLOW_USER_ACCESS.UID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
-      .fetch()
-
-    records.getValues(WORKFLOW_USER_ACCESS.UID)
-  }
-
   //TODO Get size from database
   @GET
   @Path("/size")
-  def getSize(@QueryParam("wid") wid: Integer): Int = {
-    val workflow = workflowDao.ctx
-      .selectFrom(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOne()
-    workflow.getContent.length;
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getSize(@QueryParam("wid") wids: java.util.List[Integer]): java.util.Map[Integer, Int] = {
+    val result = new java.util.HashMap[Integer, Int]()
+    if (wids != null && !wids.isEmpty) {
+      workflowDao.ctx
+        .selectFrom(WORKFLOW)
+        .where(WORKFLOW.WID.in(wids))
+        .fetch()
+        .asScala
+        .foreach { wf =>
+          result.put(wf.getWid, wf.getContent.length)
+        }
+    }
+    result
   }
 }

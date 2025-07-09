@@ -78,6 +78,7 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
   }
