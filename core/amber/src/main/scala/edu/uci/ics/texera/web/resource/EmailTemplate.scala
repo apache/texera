@@ -19,6 +19,7 @@
 
 package edu.uci.ics.texera.web.resource
 
+import com.typesafe.config.ConfigFactory
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 
 /**
@@ -26,6 +27,14 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
   * for different user notification scenarios.
   */
 object EmailTemplate {
+
+  private val deployment: String = {
+    val config = ConfigFactory.load()
+    val rawDomain =
+      if (config.hasPath("user-sys.domain")) config.getString("user-sys.domain")
+      else "https://hub.texera.io"
+    rawDomain.replaceFirst("^https?://", "")
+  }
 
   /**
     * Creates an email message for user registration notifications.
@@ -43,7 +52,7 @@ object EmailTemplate {
       toAdmin: Boolean
   ): EmailMessage = {
     if (toAdmin) {
-      val subject = "New Account Request Pending Approval"
+      val subject = s"New Account Request to $deployment Pending Approval"
       val content =
         s"""
            |Hello Admin,
@@ -52,6 +61,8 @@ object EmailTemplate {
            |Please review the account request for the following email:
            |
            |${userEmail.getOrElse("Unknown")}
+           |
+           |Visit the admin panel at: $deployment
            |
            |Thanks!
            |""".stripMargin
@@ -64,9 +75,9 @@ object EmailTemplate {
            |
            |Thank you for submitting your account request.
            |We have received your request and it is currently under review.
-           |Please be patient during this process. You will be notified once your account has been approved.
+           |You will be notified once your account has been approved.
            |
-           |Thank you for your interest!
+           |Thank you for your interest in $deployment!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
@@ -81,7 +92,7 @@ object EmailTemplate {
     * @return an EmailMessage ready to be sent to the user
     */
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
-    val subject = "Your Role Has Been Updated"
+    val subject = s"Your Role Has Been Updated on $deployment"
     val content =
       s"""
          |Hello,
@@ -90,7 +101,7 @@ object EmailTemplate {
          |
          |If you have any questions, please contact the administrator.
          |
-         |Thank you!
+         |Thank you for using $deployment!
          |""".stripMargin
 
     EmailMessage(subject = subject, content = content, receiver = receiverEmail)
