@@ -44,6 +44,7 @@ import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import javax.ws.rs.core.{Context, MediaType}
+import scala.language.existentials
 import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
@@ -105,7 +106,7 @@ object HubResource {
     * Checks if a given user has liked a specific entity.
     *
     * @param userId The ID of the user.
-    * @param workflowId The ID of the entity.
+    * @param entityId The ID of the entity.
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
@@ -163,7 +164,7 @@ object HubResource {
       entityType: EntityType,
       action: ActionType
   ): Unit = {
-    val userIp = request.getRemoteAddr()
+    val userIp = request.getRemoteAddr
 
     val query = context
       .insertInto(USER_ACTIVITY)

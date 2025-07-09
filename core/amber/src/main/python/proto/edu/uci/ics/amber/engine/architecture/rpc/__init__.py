@@ -76,6 +76,7 @@ class WorkflowAggregatedState(betterproto.Enum):
     FAILED = 7
     UNKNOWN = 8
     KILLED = 9
+    TERMINATED = 10
 
 
 @dataclass(eq=False, repr=False)
@@ -533,263 +534,6 @@ class WorkerMetricsResponse(betterproto.Message):
     metrics: "_worker__.WorkerMetrics" = betterproto.message_field(1)
 
 
-class ControllerServiceStub(betterproto.ServiceStub):
-    async def retrieve_workflow_state(
-        self,
-        empty_request: "EmptyRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "RetrieveWorkflowStateResponse":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetrieveWorkflowState",
-            empty_request,
-            RetrieveWorkflowStateResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def propagate_embedded_control_message(
-        self,
-        propagate_embedded_control_message_request: "PropagateEmbeddedControlMessageRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PropagateEmbeddedControlMessageResponse":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateEmbeddedControlMessage",
-            propagate_embedded_control_message_request,
-            PropagateEmbeddedControlMessageResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def take_global_checkpoint(
-        self,
-        take_global_checkpoint_request: "TakeGlobalCheckpointRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "TakeGlobalCheckpointResponse":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/TakeGlobalCheckpoint",
-            take_global_checkpoint_request,
-            TakeGlobalCheckpointResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def debug_command(
-        self,
-        debug_command_request: "DebugCommandRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/DebugCommand",
-            debug_command_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def evaluate_python_expression(
-        self,
-        evaluate_python_expression_request: "EvaluatePythonExpressionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EvaluatePythonExpressionResponse":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/EvaluatePythonExpression",
-            evaluate_python_expression_request,
-            EvaluatePythonExpressionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def console_message_triggered(
-        self,
-        console_message_triggered_request: "ConsoleMessageTriggeredRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ConsoleMessageTriggered",
-            console_message_triggered_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def port_completed(
-        self,
-        port_completed_request: "PortCompletedRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PortCompleted",
-            port_completed_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def start_workflow(
-        self,
-        empty_request: "EmptyRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "StartWorkflowResponse":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/StartWorkflow",
-            empty_request,
-            StartWorkflowResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def resume_workflow(
-        self,
-        empty_request: "EmptyRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ResumeWorkflow",
-            empty_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def pause_workflow(
-        self,
-        empty_request: "EmptyRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PauseWorkflow",
-            empty_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def worker_state_updated(
-        self,
-        worker_state_updated_request: "WorkerStateUpdatedRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/WorkerStateUpdated",
-            worker_state_updated_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def worker_execution_completed(
-        self,
-        empty_request: "EmptyRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/WorkerExecutionCompleted",
-            empty_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def link_workers(
-        self,
-        link_workers_request: "LinkWorkersRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/LinkWorkers",
-            link_workers_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def controller_initiate_query_statistics(
-        self,
-        query_statistics_request: "QueryStatisticsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ControllerInitiateQueryStatistics",
-            query_statistics_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def retry_workflow(
-        self,
-        retry_workflow_request: "RetryWorkflowRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "EmptyReturn":
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetryWorkflow",
-            retry_workflow_request,
-            EmptyReturn,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-
 class RpcTesterStub(betterproto.ServiceStub):
     async def send_ping(
         self,
@@ -1201,6 +945,23 @@ class WorkerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def end_worker(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def start_channel(
         self,
         empty_request: "EmptyRequest",
@@ -1285,6 +1046,789 @@ class WorkerServiceStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+
+class ControllerServiceStub(betterproto.ServiceStub):
+    async def retrieve_workflow_state(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "RetrieveWorkflowStateResponse":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetrieveWorkflowState",
+            empty_request,
+            RetrieveWorkflowStateResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def propagate_embedded_control_message(
+        self,
+        propagate_embedded_control_message_request: "PropagateEmbeddedControlMessageRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PropagateEmbeddedControlMessageResponse":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PropagateEmbeddedControlMessage",
+            propagate_embedded_control_message_request,
+            PropagateEmbeddedControlMessageResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def take_global_checkpoint(
+        self,
+        take_global_checkpoint_request: "TakeGlobalCheckpointRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "TakeGlobalCheckpointResponse":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/TakeGlobalCheckpoint",
+            take_global_checkpoint_request,
+            TakeGlobalCheckpointResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def debug_command(
+        self,
+        debug_command_request: "DebugCommandRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/DebugCommand",
+            debug_command_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def evaluate_python_expression(
+        self,
+        evaluate_python_expression_request: "EvaluatePythonExpressionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EvaluatePythonExpressionResponse":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/EvaluatePythonExpression",
+            evaluate_python_expression_request,
+            EvaluatePythonExpressionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def console_message_triggered(
+        self,
+        console_message_triggered_request: "ConsoleMessageTriggeredRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ConsoleMessageTriggered",
+            console_message_triggered_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def port_completed(
+        self,
+        port_completed_request: "PortCompletedRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PortCompleted",
+            port_completed_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def start_workflow(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "StartWorkflowResponse":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/StartWorkflow",
+            empty_request,
+            StartWorkflowResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def resume_workflow(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ResumeWorkflow",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def pause_workflow(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/PauseWorkflow",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def worker_state_updated(
+        self,
+        worker_state_updated_request: "WorkerStateUpdatedRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/WorkerStateUpdated",
+            worker_state_updated_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def worker_execution_completed(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/WorkerExecutionCompleted",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def link_workers(
+        self,
+        link_workers_request: "LinkWorkersRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/LinkWorkers",
+            link_workers_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def controller_initiate_query_statistics(
+        self,
+        query_statistics_request: "QueryStatisticsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ControllerInitiateQueryStatistics",
+            query_statistics_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def retry_workflow(
+        self,
+        retry_workflow_request: "RetryWorkflowRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetryWorkflow",
+            retry_workflow_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+
+class RpcTesterBase(ServiceBase):
+
+    async def send_ping(self, ping: "Ping") -> "IntResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_pong(self, pong: "Pong") -> "IntResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_nested(self, nested: "Nested") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_pass(self, pass_: "Pass") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_error_command(
+        self, error_command: "ErrorCommand"
+    ) -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_recursion(self, recursion: "Recursion") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_collect(self, collect: "Collect") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_generate_number(
+        self, generate_number: "GenerateNumber"
+    ) -> "IntResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_multi_call(self, multi_call: "MultiCall") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def send_chain(self, chain: "Chain") -> "StringResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_send_ping(
+        self, stream: "grpclib.server.Stream[Ping, IntResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_ping(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_pong(
+        self, stream: "grpclib.server.Stream[Pong, IntResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_pong(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_nested(
+        self, stream: "grpclib.server.Stream[Nested, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_nested(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_pass(
+        self, stream: "grpclib.server.Stream[Pass, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_pass(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_error_command(
+        self, stream: "grpclib.server.Stream[ErrorCommand, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_error_command(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_recursion(
+        self, stream: "grpclib.server.Stream[Recursion, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_recursion(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_collect(
+        self, stream: "grpclib.server.Stream[Collect, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_collect(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_generate_number(
+        self, stream: "grpclib.server.Stream[GenerateNumber, IntResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_generate_number(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_multi_call(
+        self, stream: "grpclib.server.Stream[MultiCall, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_multi_call(request)
+        await stream.send_message(response)
+
+    async def __rpc_send_chain(
+        self, stream: "grpclib.server.Stream[Chain, StringResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.send_chain(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPing": grpclib.const.Handler(
+                self.__rpc_send_ping,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Ping,
+                IntResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPong": grpclib.const.Handler(
+                self.__rpc_send_pong,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Pong,
+                IntResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendNested": grpclib.const.Handler(
+                self.__rpc_send_nested,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Nested,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPass": grpclib.const.Handler(
+                self.__rpc_send_pass,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Pass,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendErrorCommand": grpclib.const.Handler(
+                self.__rpc_send_error_command,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ErrorCommand,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendRecursion": grpclib.const.Handler(
+                self.__rpc_send_recursion,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Recursion,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendCollect": grpclib.const.Handler(
+                self.__rpc_send_collect,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Collect,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendGenerateNumber": grpclib.const.Handler(
+                self.__rpc_send_generate_number,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                GenerateNumber,
+                IntResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendMultiCall": grpclib.const.Handler(
+                self.__rpc_send_multi_call,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                MultiCall,
+                StringResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendChain": grpclib.const.Handler(
+                self.__rpc_send_chain,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                Chain,
+                StringResponse,
+            ),
+        }
+
+
+class WorkerServiceBase(ServiceBase):
+
+    async def add_input_channel(
+        self, add_input_channel_request: "AddInputChannelRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def add_partitioning(
+        self, add_partitioning_request: "AddPartitioningRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def assign_port(
+        self, assign_port_request: "AssignPortRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def finalize_checkpoint(
+        self, finalize_checkpoint_request: "FinalizeCheckpointRequest"
+    ) -> "FinalizeCheckpointResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def flush_network_buffer(
+        self, empty_request: "EmptyRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def initialize_executor(
+        self, initialize_executor_request: "InitializeExecutorRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def open_executor(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def pause_worker(
+        self, empty_request: "EmptyRequest"
+    ) -> "WorkerStateResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def prepare_checkpoint(
+        self, prepare_checkpoint_request: "PrepareCheckpointRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def query_statistics(
+        self, empty_request: "EmptyRequest"
+    ) -> "WorkerMetricsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def resume_worker(
+        self, empty_request: "EmptyRequest"
+    ) -> "WorkerStateResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def retrieve_state(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def retry_current_tuple(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def start_worker(
+        self, empty_request: "EmptyRequest"
+    ) -> "WorkerStateResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def end_worker(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def start_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def end_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def debug_command(
+        self, debug_command_request: "DebugCommandRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def evaluate_python_expression(
+        self, evaluate_python_expression_request: "EvaluatePythonExpressionRequest"
+    ) -> "EvaluatedValue":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def no_operation(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_add_input_channel(
+        self, stream: "grpclib.server.Stream[AddInputChannelRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.add_input_channel(request)
+        await stream.send_message(response)
+
+    async def __rpc_add_partitioning(
+        self, stream: "grpclib.server.Stream[AddPartitioningRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.add_partitioning(request)
+        await stream.send_message(response)
+
+    async def __rpc_assign_port(
+        self, stream: "grpclib.server.Stream[AssignPortRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.assign_port(request)
+        await stream.send_message(response)
+
+    async def __rpc_finalize_checkpoint(
+        self,
+        stream: "grpclib.server.Stream[FinalizeCheckpointRequest, FinalizeCheckpointResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.finalize_checkpoint(request)
+        await stream.send_message(response)
+
+    async def __rpc_flush_network_buffer(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.flush_network_buffer(request)
+        await stream.send_message(response)
+
+    async def __rpc_initialize_executor(
+        self, stream: "grpclib.server.Stream[InitializeExecutorRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.initialize_executor(request)
+        await stream.send_message(response)
+
+    async def __rpc_open_executor(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.open_executor(request)
+        await stream.send_message(response)
+
+    async def __rpc_pause_worker(
+        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.pause_worker(request)
+        await stream.send_message(response)
+
+    async def __rpc_prepare_checkpoint(
+        self, stream: "grpclib.server.Stream[PrepareCheckpointRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.prepare_checkpoint(request)
+        await stream.send_message(response)
+
+    async def __rpc_query_statistics(
+        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerMetricsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.query_statistics(request)
+        await stream.send_message(response)
+
+    async def __rpc_resume_worker(
+        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.resume_worker(request)
+        await stream.send_message(response)
+
+    async def __rpc_retrieve_state(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.retrieve_state(request)
+        await stream.send_message(response)
+
+    async def __rpc_retry_current_tuple(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.retry_current_tuple(request)
+        await stream.send_message(response)
+
+    async def __rpc_start_worker(
+        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.start_worker(request)
+        await stream.send_message(response)
+
+    async def __rpc_end_worker(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.end_worker(request)
+        await stream.send_message(response)
+
+    async def __rpc_start_channel(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.start_channel(request)
+        await stream.send_message(response)
+
+    async def __rpc_end_channel(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.end_channel(request)
+        await stream.send_message(response)
+
+    async def __rpc_debug_command(
+        self, stream: "grpclib.server.Stream[DebugCommandRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.debug_command(request)
+        await stream.send_message(response)
+
+    async def __rpc_evaluate_python_expression(
+        self,
+        stream: "grpclib.server.Stream[EvaluatePythonExpressionRequest, EvaluatedValue]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.evaluate_python_expression(request)
+        await stream.send_message(response)
+
+    async def __rpc_no_operation(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.no_operation(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AddInputChannel": grpclib.const.Handler(
+                self.__rpc_add_input_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AddInputChannelRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AddPartitioning": grpclib.const.Handler(
+                self.__rpc_add_partitioning,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AddPartitioningRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AssignPort": grpclib.const.Handler(
+                self.__rpc_assign_port,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AssignPortRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/FinalizeCheckpoint": grpclib.const.Handler(
+                self.__rpc_finalize_checkpoint,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                FinalizeCheckpointRequest,
+                FinalizeCheckpointResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/FlushNetworkBuffer": grpclib.const.Handler(
+                self.__rpc_flush_network_buffer,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/InitializeExecutor": grpclib.const.Handler(
+                self.__rpc_initialize_executor,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                InitializeExecutorRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/OpenExecutor": grpclib.const.Handler(
+                self.__rpc_open_executor,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/PauseWorker": grpclib.const.Handler(
+                self.__rpc_pause_worker,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                WorkerStateResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/PrepareCheckpoint": grpclib.const.Handler(
+                self.__rpc_prepare_checkpoint,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PrepareCheckpointRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/QueryStatistics": grpclib.const.Handler(
+                self.__rpc_query_statistics,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                WorkerMetricsResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/ResumeWorker": grpclib.const.Handler(
+                self.__rpc_resume_worker,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                WorkerStateResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetrieveState": grpclib.const.Handler(
+                self.__rpc_retrieve_state,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetryCurrentTuple": grpclib.const.Handler(
+                self.__rpc_retry_current_tuple,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartWorker": grpclib.const.Handler(
+                self.__rpc_start_worker,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                WorkerStateResponse,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndWorker": grpclib.const.Handler(
+                self.__rpc_end_worker,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel": grpclib.const.Handler(
+                self.__rpc_start_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel": grpclib.const.Handler(
+                self.__rpc_end_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/DebugCommand": grpclib.const.Handler(
+                self.__rpc_debug_command,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                DebugCommandRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EvaluatePythonExpression": grpclib.const.Handler(
+                self.__rpc_evaluate_python_expression,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EvaluatePythonExpressionRequest,
+                EvaluatedValue,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NoOperation": grpclib.const.Handler(
+                self.__rpc_no_operation,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+        }
 
 
 class ControllerServiceBase(ServiceBase):
@@ -1561,516 +2105,6 @@ class ControllerServiceBase(ServiceBase):
                 self.__rpc_retry_workflow,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RetryWorkflowRequest,
-                EmptyReturn,
-            ),
-        }
-
-
-class RpcTesterBase(ServiceBase):
-
-    async def send_ping(self, ping: "Ping") -> "IntResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_pong(self, pong: "Pong") -> "IntResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_nested(self, nested: "Nested") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_pass(self, pass_: "Pass") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_error_command(
-        self, error_command: "ErrorCommand"
-    ) -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_recursion(self, recursion: "Recursion") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_collect(self, collect: "Collect") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_generate_number(
-        self, generate_number: "GenerateNumber"
-    ) -> "IntResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_multi_call(self, multi_call: "MultiCall") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def send_chain(self, chain: "Chain") -> "StringResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_send_ping(
-        self, stream: "grpclib.server.Stream[Ping, IntResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_ping(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_pong(
-        self, stream: "grpclib.server.Stream[Pong, IntResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_pong(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_nested(
-        self, stream: "grpclib.server.Stream[Nested, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_nested(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_pass(
-        self, stream: "grpclib.server.Stream[Pass, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_pass(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_error_command(
-        self, stream: "grpclib.server.Stream[ErrorCommand, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_error_command(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_recursion(
-        self, stream: "grpclib.server.Stream[Recursion, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_recursion(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_collect(
-        self, stream: "grpclib.server.Stream[Collect, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_collect(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_generate_number(
-        self, stream: "grpclib.server.Stream[GenerateNumber, IntResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_generate_number(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_multi_call(
-        self, stream: "grpclib.server.Stream[MultiCall, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_multi_call(request)
-        await stream.send_message(response)
-
-    async def __rpc_send_chain(
-        self, stream: "grpclib.server.Stream[Chain, StringResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.send_chain(request)
-        await stream.send_message(response)
-
-    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
-        return {
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPing": grpclib.const.Handler(
-                self.__rpc_send_ping,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Ping,
-                IntResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPong": grpclib.const.Handler(
-                self.__rpc_send_pong,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Pong,
-                IntResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendNested": grpclib.const.Handler(
-                self.__rpc_send_nested,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Nested,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendPass": grpclib.const.Handler(
-                self.__rpc_send_pass,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Pass,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendErrorCommand": grpclib.const.Handler(
-                self.__rpc_send_error_command,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                ErrorCommand,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendRecursion": grpclib.const.Handler(
-                self.__rpc_send_recursion,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Recursion,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendCollect": grpclib.const.Handler(
-                self.__rpc_send_collect,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Collect,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendGenerateNumber": grpclib.const.Handler(
-                self.__rpc_send_generate_number,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                GenerateNumber,
-                IntResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendMultiCall": grpclib.const.Handler(
-                self.__rpc_send_multi_call,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                MultiCall,
-                StringResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.RPCTester/SendChain": grpclib.const.Handler(
-                self.__rpc_send_chain,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                Chain,
-                StringResponse,
-            ),
-        }
-
-
-class WorkerServiceBase(ServiceBase):
-
-    async def add_input_channel(
-        self, add_input_channel_request: "AddInputChannelRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def add_partitioning(
-        self, add_partitioning_request: "AddPartitioningRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def assign_port(
-        self, assign_port_request: "AssignPortRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def finalize_checkpoint(
-        self, finalize_checkpoint_request: "FinalizeCheckpointRequest"
-    ) -> "FinalizeCheckpointResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def flush_network_buffer(
-        self, empty_request: "EmptyRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def initialize_executor(
-        self, initialize_executor_request: "InitializeExecutorRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def open_executor(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def pause_worker(
-        self, empty_request: "EmptyRequest"
-    ) -> "WorkerStateResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def prepare_checkpoint(
-        self, prepare_checkpoint_request: "PrepareCheckpointRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def query_statistics(
-        self, empty_request: "EmptyRequest"
-    ) -> "WorkerMetricsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def resume_worker(
-        self, empty_request: "EmptyRequest"
-    ) -> "WorkerStateResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def retrieve_state(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def retry_current_tuple(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def start_worker(
-        self, empty_request: "EmptyRequest"
-    ) -> "WorkerStateResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def start_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def end_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def debug_command(
-        self, debug_command_request: "DebugCommandRequest"
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def evaluate_python_expression(
-        self, evaluate_python_expression_request: "EvaluatePythonExpressionRequest"
-    ) -> "EvaluatedValue":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def no_operation(self, empty_request: "EmptyRequest") -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_add_input_channel(
-        self, stream: "grpclib.server.Stream[AddInputChannelRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.add_input_channel(request)
-        await stream.send_message(response)
-
-    async def __rpc_add_partitioning(
-        self, stream: "grpclib.server.Stream[AddPartitioningRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.add_partitioning(request)
-        await stream.send_message(response)
-
-    async def __rpc_assign_port(
-        self, stream: "grpclib.server.Stream[AssignPortRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.assign_port(request)
-        await stream.send_message(response)
-
-    async def __rpc_finalize_checkpoint(
-        self,
-        stream: "grpclib.server.Stream[FinalizeCheckpointRequest, FinalizeCheckpointResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.finalize_checkpoint(request)
-        await stream.send_message(response)
-
-    async def __rpc_flush_network_buffer(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.flush_network_buffer(request)
-        await stream.send_message(response)
-
-    async def __rpc_initialize_executor(
-        self, stream: "grpclib.server.Stream[InitializeExecutorRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.initialize_executor(request)
-        await stream.send_message(response)
-
-    async def __rpc_open_executor(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.open_executor(request)
-        await stream.send_message(response)
-
-    async def __rpc_pause_worker(
-        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.pause_worker(request)
-        await stream.send_message(response)
-
-    async def __rpc_prepare_checkpoint(
-        self, stream: "grpclib.server.Stream[PrepareCheckpointRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.prepare_checkpoint(request)
-        await stream.send_message(response)
-
-    async def __rpc_query_statistics(
-        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerMetricsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.query_statistics(request)
-        await stream.send_message(response)
-
-    async def __rpc_resume_worker(
-        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.resume_worker(request)
-        await stream.send_message(response)
-
-    async def __rpc_retrieve_state(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.retrieve_state(request)
-        await stream.send_message(response)
-
-    async def __rpc_retry_current_tuple(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.retry_current_tuple(request)
-        await stream.send_message(response)
-
-    async def __rpc_start_worker(
-        self, stream: "grpclib.server.Stream[EmptyRequest, WorkerStateResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.start_worker(request)
-        await stream.send_message(response)
-
-    async def __rpc_start_channel(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.start_channel(request)
-        await stream.send_message(response)
-
-    async def __rpc_end_channel(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.end_channel(request)
-        await stream.send_message(response)
-
-    async def __rpc_debug_command(
-        self, stream: "grpclib.server.Stream[DebugCommandRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.debug_command(request)
-        await stream.send_message(response)
-
-    async def __rpc_evaluate_python_expression(
-        self,
-        stream: "grpclib.server.Stream[EvaluatePythonExpressionRequest, EvaluatedValue]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.evaluate_python_expression(request)
-        await stream.send_message(response)
-
-    async def __rpc_no_operation(
-        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.no_operation(request)
-        await stream.send_message(response)
-
-    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
-        return {
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AddInputChannel": grpclib.const.Handler(
-                self.__rpc_add_input_channel,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                AddInputChannelRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AddPartitioning": grpclib.const.Handler(
-                self.__rpc_add_partitioning,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                AddPartitioningRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AssignPort": grpclib.const.Handler(
-                self.__rpc_assign_port,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                AssignPortRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/FinalizeCheckpoint": grpclib.const.Handler(
-                self.__rpc_finalize_checkpoint,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                FinalizeCheckpointRequest,
-                FinalizeCheckpointResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/FlushNetworkBuffer": grpclib.const.Handler(
-                self.__rpc_flush_network_buffer,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/InitializeExecutor": grpclib.const.Handler(
-                self.__rpc_initialize_executor,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                InitializeExecutorRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/OpenExecutor": grpclib.const.Handler(
-                self.__rpc_open_executor,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/PauseWorker": grpclib.const.Handler(
-                self.__rpc_pause_worker,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                WorkerStateResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/PrepareCheckpoint": grpclib.const.Handler(
-                self.__rpc_prepare_checkpoint,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PrepareCheckpointRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/QueryStatistics": grpclib.const.Handler(
-                self.__rpc_query_statistics,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                WorkerMetricsResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/ResumeWorker": grpclib.const.Handler(
-                self.__rpc_resume_worker,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                WorkerStateResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetrieveState": grpclib.const.Handler(
-                self.__rpc_retrieve_state,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetryCurrentTuple": grpclib.const.Handler(
-                self.__rpc_retry_current_tuple,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartWorker": grpclib.const.Handler(
-                self.__rpc_start_worker,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                WorkerStateResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/StartChannel": grpclib.const.Handler(
-                self.__rpc_start_channel,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel": grpclib.const.Handler(
-                self.__rpc_end_channel,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/DebugCommand": grpclib.const.Handler(
-                self.__rpc_debug_command,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                DebugCommandRequest,
-                EmptyReturn,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EvaluatePythonExpression": grpclib.const.Handler(
-                self.__rpc_evaluate_python_expression,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EvaluatePythonExpressionRequest,
-                EvaluatedValue,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NoOperation": grpclib.const.Handler(
-                self.__rpc_no_operation,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                EmptyRequest,
                 EmptyReturn,
             ),
         }

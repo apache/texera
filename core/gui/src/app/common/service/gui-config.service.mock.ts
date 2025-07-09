@@ -47,6 +47,7 @@ export class MockGuiConfigService {
     multipartUploadChunkSizeByte: 1048576, // 1MB
     defaultDataTransferBatchSize: 100,
     workflowEmailNotificationEnabled: false,
+    sharingComputingUnitEnabled: false,
     hubEnabled: false,
     forumEnabled: false,
     projectEnabled: true,

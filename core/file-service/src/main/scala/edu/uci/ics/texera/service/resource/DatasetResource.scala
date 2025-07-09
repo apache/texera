@@ -195,8 +195,6 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
-  private val ERR_DATASET_CREATION_FAILED_MESSAGE =
-    "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -476,14 +474,14 @@ class DatasetResource {
           if (needed > MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
             partSize = math.max(
               MINIMUM_NUM_OF_MULTIPART_S3_PART,
-              (ln / (MAXIMUM_NUM_OF_MULTIPART_S3_PARTS - 1))
+              ln / (MAXIMUM_NUM_OF_MULTIPART_S3_PARTS - 1)
             )
         }
 
         val expectedParts = declaredLen
           .map(ln =>
             ((ln + partSize - 1) / partSize).toInt + 1
-          ) // “+1” for last (possibly small) part
+          ) // “+1” for the last (possibly small) part
           .getOrElse(MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
 
         // ---------- ask LakeFS for presigned URLs ----------
@@ -664,22 +662,34 @@ class DatasetResource {
             throw new BadRequestException("uploadId is required for completion")
           )
 
-          // Extract parts from payload
+          // Extract parts from the payload
           val partsList = payload.get("parts") match {
-            case Some(parts: List[Map[String, Any]]) => // Fix: Accept `Any` type for mixed values
-              parts.map { part =>
-                val partNumber = part("PartNumber") match {
-                  case i: Int    => i
-                  case s: String => s.toInt
-                  case _         => throw new BadRequestException("Invalid PartNumber format")
+            case Some(rawList: List[_]) =>
+              try {
+                rawList.map {
+                  case part: Map[_, _] =>
+                    val partMap = part.asInstanceOf[Map[String, Any]]
+                    val partNumber = partMap.get("PartNumber") match {
+                      case Some(i: Int)    => i
+                      case Some(s: String) => s.toInt
+                      case _               => throw new BadRequestException("Invalid or missing PartNumber")
+                    }
+                    val eTag = partMap.get("ETag") match {
+                      case Some(s: String) => s
+                      case _               => throw new BadRequestException("Invalid or missing ETag")
+                    }
+                    (partNumber, eTag)
+
+                  case _ =>
+                    throw new BadRequestException("Each part must be a Map[String, Any]")
                 }
-                val eTag = part("ETag") match {
-                  case s: String => s
-                  case _         => throw new BadRequestException("Invalid ETag format")
-                }
-                (partNumber, eTag)
+              } catch {
+                case e: NumberFormatException =>
+                  throw new BadRequestException("PartNumber must be an integer", e)
               }
-            case _ => throw new BadRequestException("Missing or invalid parts data for completion")
+
+            case _ =>
+              throw new BadRequestException("Missing or invalid 'parts' list in payload")
           }
 
           // Extract physical address from payload
@@ -701,7 +711,7 @@ class DatasetResource {
             .ok(
               Map(
                 "message" -> "Multipart upload completed successfully",
-                "filePath" -> objectStats.getPath()
+                "filePath" -> objectStats.getPath
               )
             )
             .build()
@@ -978,8 +988,6 @@ class DatasetResource {
       @Auth user: SessionUser
   ): Response = {
 
-    val uid = user.getUid
-
     withTransaction(context) { ctx =>
       if ((dvid != null && latest != null) || (dvid == null && latest == null)) {
         throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
@@ -1028,7 +1036,7 @@ class DatasetResource {
         }
       }
 
-      val zipFilename = s"""attachment; filename="${datasetName}-${datasetVersion.getName}.zip""""
+      val zipFilename = s"""attachment; filename="$datasetName-${datasetVersion.getName}.zip""""
 
       Response
         .ok(streamingOutput, "application/zip")
@@ -1084,7 +1092,7 @@ class DatasetResource {
   ): Response = {
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
-    withTransaction(context)(ctx => {
+    withTransaction(context)(_ => {
       val fileUri = FileResolver.resolve(decodedPathStr)
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
