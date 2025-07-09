@@ -489,7 +489,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
-      // MODIFICATION START FOR PROJECTION OPERATOR:
+      // Currently, we handle projection differently since it requires re-ordering:
       if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
         mappedField.type = "repeat-section-dnd";
         mappedField.props = {
@@ -497,7 +497,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           reorder: () => this.onFormChanges(cloneDeep(this.formData)),
         };
       }
-      // MODIFICATION END
 
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
