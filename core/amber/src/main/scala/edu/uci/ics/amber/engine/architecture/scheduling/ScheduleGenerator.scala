@@ -72,6 +72,7 @@ abstract class ScheduleGenerator(
   private val executionClusterInfo = new ExecutionClusterInfo()
 
   def generate(): (Schedule, PhysicalPlan)
+
   /**
     * A schedule is a ranking on the regions of a region plan.
     * Regions are dispatched in batches of up to AmberConfig.maxConcurrentRegions, respecting the DAG dependencies.
@@ -80,8 +81,7 @@ abstract class ScheduleGenerator(
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
     val inDegree = mutable.Map.empty[RegionIdentity, Int]
     regionPlan.topologicalIterator().foreach { rid =>
-      inDegree(rid) =
-        regionPlan.dag.incomingEdgesOf(rid).asScala.size
+      inDegree(rid) = regionPlan.dag.incomingEdgesOf(rid).asScala.size
     }
 
     val ready = mutable.Queue(
@@ -109,11 +109,10 @@ abstract class ScheduleGenerator(
       }
       level += 1
     }
-    val levelSets: Map[Int, Set[Region]] = tmpLevelSets.view
-      .map { case (lvl, idSet) =>
+    val levelSets: Map[Int, Set[Region]] = tmpLevelSets.view.map {
+      case (lvl, idSet) =>
         lvl -> idSet.iterator.map(regionPlan.getRegion).toSet
-      }
-      .toMap
+    }.toMap
     Schedule(levelSets)
   }
 
