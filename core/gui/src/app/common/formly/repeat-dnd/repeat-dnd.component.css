@@ -19,35 +19,43 @@
 
 .dnd-row {
   display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 8px;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
-  background-color: #fafafa;
-}
-
-.drag-handle {
-  cursor: move;
-  margin: 0 10px;
-  color: #888;
-}
-
-.drag-handle:hover {
-  color: #333;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  background: none;
 }
 
 .dnd-field-wrapper {
   display: flex;
-  flex-grow: 1;
-  align-items: baseline;
-  gap: 16px;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  order: 2;
 }
 
 .dnd-field {
-  flex: 1;
+  flex: 0 1 auto;
+  width: 150px;
 }
 
 .dnd-remove-button {
-  margin-left: 10px;
+  margin-left: 0;
+  margin-top: 28px;
+  order: 1;
+}
+
+.drag-handle {
+  cursor: move;
+  color: #888;
+  margin-top: 32px;
+  order: 0;
+}
+.drag-handle:hover {
+  color: #333;
+}
+
+:host ::ng-deep .dnd-field .ant-form-item {
+  margin-bottom: 0 !important;
 }
