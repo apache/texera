@@ -80,7 +80,6 @@ trait QueryWorkerStatisticsHandler {
       }
     }
 
-
     // Traverse the physical plan in reverse topological order (sink to source),
     // grouped by layers of parallel operators.
     val layers = cp.workflowScheduler.physicalPlan.layeredReversedTopologicalOrder
