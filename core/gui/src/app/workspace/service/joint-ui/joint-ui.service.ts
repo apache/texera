@@ -616,10 +616,8 @@ export class JointUIService {
     setInterval(() => {
       const p = mockPressures[idx];
       this.changeLinkBackpressureColor(paper, linkId, p);
-      console.log(`↔️  backpressure(${linkId}) = ${p}`);
       idx = (idx + 1) % mockPressures.length;
     }, 1000);
-    console.log(1);
   }
 
 
