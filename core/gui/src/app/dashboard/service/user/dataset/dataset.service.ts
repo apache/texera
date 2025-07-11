@@ -392,10 +392,6 @@ export class DatasetService {
     );
   }
 
-  public getDatasetOwners(did: number): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}?did=${did}`);
-  }
-
   public retrieveOwners(): Observable<string[]> {
     return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}`);
   }
