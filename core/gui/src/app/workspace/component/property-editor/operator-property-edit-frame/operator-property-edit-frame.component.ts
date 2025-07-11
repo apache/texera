@@ -489,6 +489,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
+      if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
+        mappedField.type = "repeat-section-dnd";
+        mappedField.props = {
+          ...mappedField.props,
+          reorder: () => this.onFormChanges(cloneDeep(this.formData)),
+        };
+      }
+
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
         // set show to true, or else the error will only show after the user changes the field
