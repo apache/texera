@@ -35,7 +35,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   COMPLETED,
   FAILED,
   KILLED,
-  RUNNING
+  RUNNING,
+  TERMINATED
 }
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
@@ -329,7 +330,9 @@ class ExecutionResultService(
     addSubscription(
       client
         .registerCallback[ExecutionStateUpdate](evt => {
-          if (evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED) {
+          if (
+            evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED || evt.state == TERMINATED
+          ) {
             logger.info("Workflow execution terminated. Stop update results.")
             if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
               // immediately perform final update

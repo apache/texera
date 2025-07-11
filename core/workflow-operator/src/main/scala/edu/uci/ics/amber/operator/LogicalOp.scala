@@ -64,7 +64,6 @@ import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sleep.SleepOpDesc
-import edu.uci.ics.amber.operator.sklearn.testing.SklearnTestingOpDesc
 import edu.uci.ics.amber.operator.sklearn.training.{
   SklearnTrainingAdaptiveBoostingOpDesc,
   SklearnTrainingBaggingOpDesc,
@@ -133,6 +132,7 @@ import edu.uci.ics.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpD
 import edu.uci.ics.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
+import edu.uci.ics.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import edu.uci.ics.amber.operator.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
@@ -154,6 +154,7 @@ import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import edu.uci.ics.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -187,6 +188,7 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
@@ -235,6 +237,7 @@ trait StateTransferFunc
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
+    new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),

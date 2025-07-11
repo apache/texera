@@ -98,7 +98,13 @@ describe("CodeDebuggerComponent", () => {
 
     // Emit a Running state event
     statusUpdateStream.next({
-      [operatorId]: { operatorState: OperatorState.Running, aggregatedOutputRowCount: 0, aggregatedInputRowCount: 0 },
+      [operatorId]: {
+        operatorState: OperatorState.Running,
+        aggregatedOutputRowCount: 0,
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      },
     });
 
     tick();
@@ -109,7 +115,13 @@ describe("CodeDebuggerComponent", () => {
 
     // Emit the same state again (should not trigger setup again)
     statusUpdateStream.next({
-      [operatorId]: { operatorState: OperatorState.Running, aggregatedOutputRowCount: 0, aggregatedInputRowCount: 0 },
+      [operatorId]: {
+        operatorState: OperatorState.Running,
+        aggregatedOutputRowCount: 0,
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      },
     });
 
     tick();
@@ -120,7 +132,13 @@ describe("CodeDebuggerComponent", () => {
 
     // Emit the paused state (should not trigger setup)
     statusUpdateStream.next({
-      [operatorId]: { operatorState: OperatorState.Paused, aggregatedOutputRowCount: 0, aggregatedInputRowCount: 0 },
+      [operatorId]: {
+        operatorState: OperatorState.Paused,
+        aggregatedOutputRowCount: 0,
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      },
     });
 
     tick();
@@ -131,7 +149,13 @@ describe("CodeDebuggerComponent", () => {
 
     // Emit the running state once more (should not trigger setup)
     statusUpdateStream.next({
-      [operatorId]: { operatorState: OperatorState.Paused, aggregatedOutputRowCount: 0, aggregatedInputRowCount: 0 },
+      [operatorId]: {
+        operatorState: OperatorState.Paused,
+        aggregatedOutputRowCount: 0,
+        aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
+      },
     });
 
     tick();
@@ -150,6 +174,8 @@ describe("CodeDebuggerComponent", () => {
         operatorState: OperatorState.Uninitialized,
         aggregatedOutputRowCount: 0,
         aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
       },
     });
 
@@ -163,6 +189,8 @@ describe("CodeDebuggerComponent", () => {
         operatorState: OperatorState.Uninitialized,
         aggregatedOutputRowCount: 0,
         aggregatedInputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
       },
     });
 
