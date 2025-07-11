@@ -106,6 +106,7 @@ import edu.uci.ics.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpD
 import edu.uci.ics.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
+import edu.uci.ics.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import edu.uci.ics.amber.operator.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
@@ -161,6 +162,7 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
