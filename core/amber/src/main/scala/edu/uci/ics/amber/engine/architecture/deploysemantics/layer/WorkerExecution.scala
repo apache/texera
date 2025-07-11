@@ -34,20 +34,36 @@ case class WorkerExecution() extends Serializable {
     mutable.HashMap()
 
   private var state: WorkerState = UNINITIALIZED
-  private var stats: WorkerStatistics =
+  private var stats: WorkerStatistics = {
     WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
+  }
+  private var lastUpdateTimeStamp = 0L
+
+  def update(timeStamp: Long, state: WorkerState, stats: WorkerStatistics): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.stats = stats
+      this.state = state
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
+
+  def update(timeStamp: Long, state: WorkerState): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.state = state
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
+
+  def update(timeStamp: Long, stats: WorkerStatistics): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.stats = stats
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
 
   def getState: WorkerState = state
 
-  def setState(state: WorkerState): Unit = {
-    this.state = state
-  }
-
   def getStats: WorkerStatistics = stats
-
-  def setStats(stats: WorkerStatistics): Unit = {
-    this.stats = stats
-  }
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {
     if (!inputPortExecutions.contains(portId)) {

@@ -30,6 +30,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
+import org.jgrapht.alg.util.NeighborCache
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 import org.jgrapht.util.SupplierUtil
@@ -99,6 +100,50 @@ case class PhysicalPlan(
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
+
+  // Since the DAG is immutable, the topological order won't change.
+  // We lazily compute the reverse topological layering once.
+  lazy val layeredReversedTopologicalOrder: Seq[Set[PhysicalOpIdentity]] = {
+    val neighborCache = new NeighborCache(dag)
+
+    // Track the number of remaining successors (outgoing edges) per node
+    val remainingSuccessors = scala.collection.mutable.Map[PhysicalOpIdentity, Int]()
+    dag.vertexSet().forEach { v =>
+      remainingSuccessors(v) = dag.outDegreeOf(v)
+    }
+
+    // Initialize with sink nodes (nodes with no outgoing edges)
+    var currentLayer = remainingSuccessors.collect {
+      case (v, 0) => v
+    }.toSet
+    currentLayer.foreach(remainingSuccessors.remove)
+
+    // Accumulate layers from sink to source
+    val layers = scala.collection.mutable.ArrayBuffer.empty[Set[PhysicalOpIdentity]]
+
+    while (currentLayer.nonEmpty) {
+      layers.append(currentLayer)
+      val nextLayer = scala.collection.mutable.Set[PhysicalOpIdentity]()
+
+      for (node <- currentLayer) {
+        val predecessors = neighborCache.predecessorsOf(node)
+        predecessors.forEach { pred =>
+          if (remainingSuccessors.contains(pred)) {
+            remainingSuccessors(pred) -= 1
+            if (remainingSuccessors(pred) == 0) {
+              nextLayer += pred
+              remainingSuccessors.remove(pred)
+            }
+          }
+        }
+      }
+
+      currentLayer = nextLayer.toSet
+    }
+
+    layers.toSeq
+  }
+
   def addOperator(physicalOp: PhysicalOp): PhysicalPlan = {
     this.copy(operators = Set(physicalOp) ++ operators)
   }
