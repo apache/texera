@@ -107,12 +107,21 @@ class ExecutionStatsService(
           OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
             case x =>
               val metrics = x._2
+              val inMap = metrics.operatorStatistics.inputMetrics
+                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
+                .toMap
+              val outMap = metrics.operatorStatistics.outputMetrics
+                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
+                .toMap
+
               val res = OperatorAggregatedMetrics(
                 Utils.aggregatedStateToString(metrics.operatorState),
                 metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
                 metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                inMap,
                 metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
                 metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+                outMap,
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
                 metrics.operatorStatistics.controlProcessingTime,
