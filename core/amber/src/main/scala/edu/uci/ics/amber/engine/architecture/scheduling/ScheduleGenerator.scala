@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
@@ -29,6 +30,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object ScheduleGenerator {
@@ -70,19 +72,49 @@ abstract class ScheduleGenerator(
   private val executionClusterInfo = new ExecutionClusterInfo()
 
   def generate(): (Schedule, PhysicalPlan)
-
   /**
-    * A schedule is a ranking on the regions of a region plan. Currently we use a total order of the regions.
+    * A schedule is a ranking on the regions of a region plan.
+    * Regions are dispatched in batches of up to AmberConfig.maxConcurrentRegions, respecting the DAG dependencies.
+    * When maxConcurrentRegions == 1, this degenerates into a total order (fully sequential execution).
     */
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
-    val levelSets = regionPlan
-      .topologicalIterator()
-      .zipWithIndex
-      .map(zippedRegionId => {
-        zippedRegionId._2 -> Set.apply(regionPlan.getRegion(zippedRegionId._1))
-      })
+    val inDegree = mutable.Map.empty[RegionIdentity, Int]
+    regionPlan.topologicalIterator().foreach { rid =>
+      inDegree(rid) =
+        regionPlan.dag.incomingEdgesOf(rid).asScala.size
+    }
+
+    val ready = mutable.Queue(
+      inDegree.collect { case (rid, 0) => rid }.toSeq: _*
+    )
+
+    val tmpLevelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+    var level = 0
+
+    while (ready.nonEmpty) {
+      val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
+        if (ready.nonEmpty) Some(ready.dequeue()) else None
+      }.toSet
+      tmpLevelSets(level) = batchIds.to(mutable.Set)
+
+      batchIds.foreach { rid =>
+        regionPlan.dag
+          .outgoingEdgesOf(rid)
+          .asScala
+          .map(edge => regionPlan.dag.getEdgeTarget(edge))
+          .foreach { succ =>
+            inDegree(succ) -= 1
+            if (inDegree(succ) == 0) ready.enqueue(succ)
+          }
+      }
+      level += 1
+    }
+    val levelSets: Map[Int, Set[Region]] = tmpLevelSets.view
+      .map { case (lvl, idSet) =>
+        lvl -> idSet.iterator.map(regionPlan.getRegion).toSet
+      }
       .toMap
-    Schedule.apply(levelSets)
+    Schedule(levelSets)
   }
 
   def allocateResource(
