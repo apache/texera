@@ -132,7 +132,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.editorWrapper = document.getElementById("workflow-editor-wrapper")!;
     document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
     this.initializeJointPaper();
-
     this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
