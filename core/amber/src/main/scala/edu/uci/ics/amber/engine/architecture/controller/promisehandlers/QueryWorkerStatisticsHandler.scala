@@ -50,15 +50,13 @@ trait QueryWorkerStatisticsHandler {
   ): Future[EmptyReturn] = {
     // Avoid issuing concurrent full-graph statistics queries.
     // If a global query is already in progress, skip this request.
-    if (globalQueryStatsOngoing) {
-      logger.info("query stats is ongoing. skip")
+    if (globalQueryStatsOngoing && msg.filterByWorkers.isEmpty) {
       return EmptyReturn()
     }
 
     var opFilter: Set[PhysicalOpIdentity] = Set.empty
     // Only enforce the single-query restriction for full-graph queries.
     if (msg.filterByWorkers.isEmpty) {
-      logger.info("start query stats")
       globalQueryStatsOngoing = true
     } else {
       // Map the filtered worker IDs (if any) to their corresponding physical operator IDs
@@ -82,7 +80,6 @@ trait QueryWorkerStatisticsHandler {
       }
     }
 
-    logger.info(s"current opFilter: $opFilter")
 
     // Traverse the physical plan in reverse topological order (sink to source),
     // grouped by layers of parallel operators.
@@ -97,7 +94,6 @@ trait QueryWorkerStatisticsHandler {
       layers match {
         case Nil =>
           // All layers have been processed
-          logger.info("Done processing all layers")
           Future.Done
 
         case layer +: rest =>
@@ -107,7 +103,6 @@ trait QueryWorkerStatisticsHandler {
             if (opFilter.nonEmpty && !opFilter.contains(opId)) {
               Seq.empty
             } else {
-              logger.info(s"Start querying $opId")
               val exec = cp.workflowExecution.getLatestOperatorExecution(opId)
 
               // Skip completed operators
@@ -124,8 +119,6 @@ trait QueryWorkerStatisticsHandler {
                 // Send queryStatistics to each worker and update internal state on reply
                 workerIds.map { wid =>
                   workerInterface.queryStatistics(EmptyRequest(), wid).map { resp =>
-                    logger
-                      .info(s"$wid, ${resp.metrics.workerState}, ${resp.metrics.workerStatistics}")
                     collectedResults.addOne((exec.getWorkerExecution(wid), resp, System.nanoTime()))
                   }
                 }
@@ -139,7 +132,6 @@ trait QueryWorkerStatisticsHandler {
 
     // Start processing all layers and update the frontend after completion
     processLayers(layers).map { _ =>
-      logger.info(s"finished query states")
       collectedResults.foreach {
         case (wExec, resp, timestamp) =>
           wExec.update(timestamp, resp.metrics.workerState, resp.metrics.workerStatistics)
