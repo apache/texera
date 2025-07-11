@@ -111,24 +111,13 @@ export class ListItemComponent implements OnChanges {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
-        this.workflowPersistService
-          .getWorkflowOwners(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe((data: number[]) => {
-            this.owners = data;
-            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-              this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
-            } else {
-              this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
-            }
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
-        this.workflowPersistService
-          .getSize(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(size => {
-            this.size = size;
-          });
+        this.owners = this.entry.accessibleUserIds;
+        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+          this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
+        } else {
+          this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
+        }
+        this.size = this.entry.size;
       }
       this.iconType = "project";
     } else if (this.entry.type === "project") {
@@ -137,18 +126,12 @@ export class ListItemComponent implements OnChanges {
     } else if (this.entry.type === "dataset") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.dataset.isOwner;
-        this.datasetService
-          .getDatasetOwners(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe((data: number[]) => {
-            this.owners = data;
-            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-              this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
-            } else {
-              this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
-            }
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
+        this.owners = this.entry.accessibleUserIds;
+        if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+          this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
+        } else {
+          this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
+        }
         this.iconType = "database";
         this.size = this.entry.size;
       }
@@ -160,23 +143,12 @@ export class ListItemComponent implements OnChanges {
     }
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
+    this.isLiked = this.entry.isLiked;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
-      this.checkLikeStatus();
-    }
-  }
-
-  private checkLikeStatus(): void {
-    if (this.entry?.id !== undefined && this.currentUid !== undefined) {
-      this.hubService
-        .isLiked(this.entry.id, this.currentUid, this.entry.type)
-        .pipe(untilDestroyed(this))
-        .subscribe((isLiked: boolean) => {
-          this.isLiked = isLiked;
-        });
     }
   }
 
@@ -403,7 +375,7 @@ export class ListItemComponent implements OnChanges {
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(entryId, userId, this.entry.type)
+        .postUnlike(entryId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -418,7 +390,7 @@ export class ListItemComponent implements OnChanges {
         });
     } else {
       this.hubService
-        .postLike(entryId, userId, this.entry.type)
+        .postLike(entryId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
