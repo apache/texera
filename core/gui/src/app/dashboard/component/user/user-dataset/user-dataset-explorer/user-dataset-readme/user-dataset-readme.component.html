@@ -1,0 +1,275 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Loading State -->
+<nz-card
+  *ngIf="isLoading"
+  class="readme-loading-card">
+  <nz-spin nzTip="Loading README...">
+    <nz-alert
+      nzType="info"
+      nzMessage="Loading README content"></nz-alert>
+  </nz-spin>
+</nz-card>
+
+<!-- No README State-->
+<nz-card
+  *ngIf="!isLoading && !readmeExists"
+  class="readme-empty-card">
+  <nz-empty
+    nzNotFoundImage="simple"
+    [nzNotFoundContent]="notFoundTemplate">
+    <ng-template #notFoundTemplate>
+      <p>No README found</p>
+      <p>This dataset doesn't have a README yet.</p>
+      <button
+        *ngIf="userHasWriteAccess"
+        nz-button
+        nzType="primary"
+        (click)="createReadme()">
+        <i
+          nz-icon
+          nzType="file-add"></i>
+        Create README
+      </button>
+    </ng-template>
+  </nz-empty>
+</nz-card>
+
+<!-- Show README content if it exists -->
+<nz-card
+  *ngIf="!isLoading && readmeExists"
+  class="readme-content-card">
+  <div class="readme-header">
+    <h4 class="readme-title">
+      <i
+        nz-icon
+        nzType="file-markdown"></i>
+      README.md
+    </h4>
+
+    <div
+      class="readme-controls"
+      *ngIf="userHasWriteAccess">
+      <button
+        *ngIf="!isEditing"
+        nz-button
+        nzType="text"
+        nzSize="small"
+        nz-tooltip="Edit README"
+        (click)="startEditing()">
+        <i
+          nz-icon
+          nzType="edit"></i>
+      </button>
+
+      <button
+        *ngIf="!isEditing"
+        nz-button
+        nzType="text"
+        nzSize="small"
+        nz-tooltip="Delete README"
+        nz-popconfirm
+        nzPopconfirmTitle="Are you sure you want to delete this README?"
+        (nzOnConfirm)="deleteReadme()">
+        <i
+          nz-icon
+          nzType="delete"></i>
+      </button>
+
+      <nz-button-group *ngIf="isEditing">
+        <button
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          (click)="saveReadme()">
+          <i
+            nz-icon
+            nzType="check"></i>
+          Save
+        </button>
+        <button
+          nz-button
+          nzType="default"
+          nzSize="small"
+          (click)="cancelEditing()">
+          <i
+            nz-icon
+            nzType="close"></i>
+          Cancel
+        </button>
+      </nz-button-group>
+    </div>
+  </div>
+
+  <!-- README Content View Mode -->
+  <div
+    *ngIf="!isEditing"
+    class="readme-view">
+    <markdown [data]="readmeContent"></markdown>
+  </div>
+
+  <!-- README Editor Mode with Split View -->
+  <div
+    *ngIf="isEditing"
+    class="readme-editor-container">
+    <div class="editor-split-view">
+      <!-- Left pane: text editor -->
+      <div class="editor-pane">
+        <h5 class="pane-title">
+          <i
+            nz-icon
+            nzType="edit"></i>
+          Editor
+        </h5>
+
+        <!-- Markdown Toolbar -->
+        <div class="markdown-toolbar">
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Bold"
+            (click)="insertMarkdown('**', '**', 'bold text')">
+            <i
+              nz-icon
+              nzType="bold"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Italic"
+            (click)="insertMarkdown('_', '_', 'italic text')">
+            <i
+              nz-icon
+              nzType="italic"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Strikethrough"
+            (click)="insertMarkdown('~~', '~~', 'strikethrough text')">
+            <i
+              nz-icon
+              nzType="strikethrough"></i>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Heading"
+            (click)="insertMarkdown('## ', '', 'Heading')">
+            <span class="toolbar-text">H</span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Quote"
+            (click)="insertMarkdown('> ', '', 'Quote')">
+            <i
+              nz-icon
+              nzType="font-colors"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Code"
+            (click)="insertMarkdown('`', '`', 'code')">
+            <i
+              nz-icon
+              nzType="code"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Code Block"
+            (click)="insertMarkdown('```\n', '\n```', 'code block')">
+            <i
+              nz-icon
+              nzType="file-text"></i>
+          </button>
+
+          <div class="toolbar-divider"></div>
+
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Link"
+            (click)="insertMarkdown('[text](', ')', 'linkUrl')">
+            <i
+              nz-icon
+              nzType="link"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Unordered List"
+            (click)="insertMarkdown('- ', '', 'list item')">
+            <i
+              nz-icon
+              nzType="unordered-list"></i>
+          </button>
+          <button
+            type="button"
+            class="toolbar-btn"
+            nz-tooltip="Ordered List"
+            (click)="insertMarkdown('1. ', '', 'list item')">
+            <i
+              nz-icon
+              nzType="ordered-list"></i>
+          </button>
+        </div>
+
+        <textarea
+          #markdownTextarea
+          [(ngModel)]="editingContent"
+          class="markdown-textarea"
+          placeholder="Write your README in Markdown..."
+          spellcheck="false"
+          (keydown)="onEditorKeydown($event)">
+        </textarea>
+      </div>
+
+      <div class="editor-divider"></div>
+
+      <!-- Right pane: markdown preview -->
+      <div class="preview-pane">
+        <h5 class="pane-title">
+          <i
+            nz-icon
+            nzType="eye"></i>
+          Preview
+        </h5>
+        <div class="preview-content">
+          <markdown [data]="editingContent"></markdown>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-help">
+      <small>
+        <i
+          nz-icon
+          nzType="info-circle"></i>
+        You can use Markdown syntax. Changes will create a new dataset version.
+      </small>
+    </div>
+  </div>
+</nz-card>

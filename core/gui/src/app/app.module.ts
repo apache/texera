@@ -170,6 +170,7 @@ import { ComputingUnitSelectionComponent } from "./workspace/component/power-but
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { catchError, of } from "rxjs";
+import { UserDatasetReadmeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-readme/user-dataset-readme.component";
 
 registerLocaleData(en);
 
@@ -261,6 +262,7 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
+    UserDatasetReadmeComponent,
   ],
   imports: [
     BrowserModule,

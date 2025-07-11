@@ -199,6 +199,23 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
+  public onReadmeChanged(): void {
+    this.userMakeChanges.emit();
+
+    this.retrieveDatasetVersionList();
+
+    if (this.selectedVersion) {
+      // Small delay to ensure the new version is available
+      setTimeout(() => {
+        // Re-select the latest version (which should be the new one we just created)
+        if (this.versions.length > 0) {
+          this.selectedVersion = this.versions[0];
+          this.onVersionSelected(this.selectedVersion);
+        }
+      }, 0);
+    }
+  }
+
   onPublicStatusChange(checked: boolean): void {
     // Handle the change in dataset public status
     if (this.did) {
