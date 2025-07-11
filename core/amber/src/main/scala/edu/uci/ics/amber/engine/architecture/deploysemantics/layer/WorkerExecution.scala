@@ -39,6 +39,15 @@ case class WorkerExecution() extends Serializable {
   }
   private var lastUpdateTimeStamp = 0L
 
+  /**
+    * Updates both the worker state and statistics if the provided timestamp is newer
+    * than the last recorded update timestamp. This ensures that only the most recent
+    * data is reflected in the execution state.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param state the new WorkerState to set
+    * @param stats the new WorkerStatistics to set
+    */
   def update(timeStamp: Long, state: WorkerState, stats: WorkerStatistics): Unit = {
     if (this.lastUpdateTimeStamp < timeStamp) {
       this.stats = stats
@@ -47,6 +56,13 @@ case class WorkerExecution() extends Serializable {
     }
   }
 
+  /**
+    * Updates only the worker state if the provided timestamp is newer than the
+    * last recorded update timestamp.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param state the new WorkerState to set
+    */
   def update(timeStamp: Long, state: WorkerState): Unit = {
     if (this.lastUpdateTimeStamp < timeStamp) {
       this.state = state
@@ -54,6 +70,13 @@ case class WorkerExecution() extends Serializable {
     }
   }
 
+  /**
+    * Updates only the worker statistics if the provided timestamp is newer than the
+    * last recorded update timestamp.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param stats the new WorkerStatistics to set
+    */
   def update(timeStamp: Long, stats: WorkerStatistics): Unit = {
     if (this.lastUpdateTimeStamp < timeStamp) {
       this.stats = stats
