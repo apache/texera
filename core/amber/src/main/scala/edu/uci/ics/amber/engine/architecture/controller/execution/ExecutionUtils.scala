@@ -22,8 +22,7 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{
   PortTupleMetricsMapping,
-  TupleMetrics,
-  WorkerState
+  TupleMetrics
 }
 import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 
