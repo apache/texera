@@ -39,11 +39,6 @@ import KubernetesConfig.{
 }
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
-  getComputingUnitMetrics,
-  getComputingUnitStatus
-}
-import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.util.{
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
