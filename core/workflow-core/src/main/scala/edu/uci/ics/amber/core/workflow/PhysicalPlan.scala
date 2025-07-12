@@ -101,18 +101,19 @@ case class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
 
-  // Since the DAG is immutable, the topological order won't change.
-  // We lazily compute the reverse topological layering once.
+  /**
+    * Computes the reverse topological layering of the DAG.
+    * Each layer contains a set of operators with the same "distance" from the sinks.
+    * This version correctly handles cases where multiple edges exist between nodes.
+    */
   lazy val layeredReversedTopologicalOrder: Seq[Set[PhysicalOpIdentity]] = {
-    val neighborCache = new NeighborCache(dag)
-
-    // Track the number of remaining successors (outgoing edges) per node
+    // Track the number of remaining outgoing edges for each node
     val remainingSuccessors = scala.collection.mutable.Map[PhysicalOpIdentity, Int]()
     dag.vertexSet().forEach { v =>
-      remainingSuccessors(v) = dag.outDegreeOf(v)
+      remainingSuccessors(v) = dag.outgoingEdgesOf(v).size()
     }
 
-    // Initialize with sink nodes (nodes with no outgoing edges)
+    // Initialize with sink nodes (those with zero outgoing edges)
     var currentLayer = remainingSuccessors.collect {
       case (v, 0) => v
     }.toSet
@@ -126,8 +127,9 @@ case class PhysicalPlan(
       val nextLayer = scala.collection.mutable.Set[PhysicalOpIdentity]()
 
       for (node <- currentLayer) {
-        val predecessors = neighborCache.predecessorsOf(node)
-        predecessors.forEach { pred =>
+        val incomingEdges = dag.incomingEdgesOf(node)
+        incomingEdges.forEach { edge =>
+          val pred = dag.getEdgeSource(edge)
           if (remainingSuccessors.contains(pred)) {
             remainingSuccessors(pred) -= 1
             if (remainingSuccessors(pred) == 0) {

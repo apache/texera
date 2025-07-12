@@ -103,17 +103,12 @@ trait QueryWorkerStatisticsHandler {
               Seq.empty
             } else {
               val exec = cp.workflowExecution.getLatestOperatorExecution(opId)
-
               // Skip completed operators
               if (exec.getState == COMPLETED) {
                 Seq.empty
               } else {
-                // Select all workers for this operator, or only those in the filter
-                val workerIds =
-                  if (msg.filterByWorkers.nonEmpty)
-                    exec.getWorkerIds.filter(msg.filterByWorkers.contains)
-                  else
-                    exec.getWorkerIds
+                // Select all workers for this operator
+                val workerIds = exec.getWorkerIds
 
                 // Send queryStatistics to each worker and update internal state on reply
                 workerIds.map { wid =>
