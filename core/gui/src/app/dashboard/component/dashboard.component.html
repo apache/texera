@@ -39,58 +39,155 @@
           height="50"
           [src]="logo" />
       </li>
+
       <li
-        *ngIf="isHubEnabled"
+        *ngIf="sidebarTabs?.hub_enabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
-        nzOpen="true"
-        [class.ant-menu-submenu-selected]="isHubRoute()">
-        <texera-hub [isLogin]="isLogin"></texera-hub>
+        nzOpen="true">
+        <texera-hub
+          [isLogin]="isLogin"
+          [sidebarTabs]="sidebarTabs">
+        </texera-hub>
       </li>
 
-      <ng-container *ngFor="let g of sidebarTabs">
-        <ng-container
-          *ngIf="g.key !== 'hub' && g.enabled && (g.key !== 'your-work' || isLogin) && (g.key !== 'admin' || isAdmin)">
+      <li
+        *ngIf="isLogin && sidebarTabs?.your_work_enabled"
+        nz-submenu
+        nzTitle="Your Work"
+        nzIcon="user"
+        nzOpen="true">
+        <ul>
           <li
-            *ngIf="g.children?.length; else singleItem"
-            nz-submenu
-            [nzTitle]="g.title"
-            [nzIcon]="g.icon"
-            nzOpen="true">
-            <ul>
-              <li
-                *ngFor="let t of g.children"
-                [hidden]="!t.enabled"
-                nz-menu-item
-                nzMatchRouter="true"
-                [routerLink]="t.route"
-                nz-tooltip
-                [nzTooltipTitle]="t.tooltip"
-                nzTooltipPlacement="right">
-                <span
-                  nz-icon
-                  [nzType]="t.icon"></span>
-                <span>{{ t.title }}</span>
-              </li>
-            </ul>
+            *ngIf="sidebarTabs?.your_work?.projects_enabled"
+            nz-menu-item
+            nz-tooltip="Look up the user projects"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_PROJECT">
+            <span
+              nz-icon
+              nzType="container"></span>
+            <span>Projects</span>
           </li>
-          <ng-template #singleItem>
-            <li
-              nz-menu-item
-              nzMatchRouter="true"
-              [routerLink]="g.route"
-              nz-tooltip
-              [nzTooltipTitle]="g.tooltip"
-              nzTooltipPlacement="right">
-              <span
-                nz-icon
-                [nzType]="g.icon"></span>
-              <span>{{ g.title }}</span>
-            </li>
-          </ng-template>
-        </ng-container>
-      </ng-container>
+
+          <li
+            *ngIf="sidebarTabs?.your_work?.workflows_enabled"
+            nz-menu-item
+            nz-tooltip="Open the saved workflows"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_WORKFLOW">
+            <span
+              nz-icon
+              nzType="project"></span>
+            <span>Workflows</span>
+          </li>
+
+          <li
+            *ngIf="sidebarTabs?.your_work?.datasets_enabled"
+            nz-menu-item
+            nz-tooltip="Look up for datasets"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_DATASET">
+            <span
+              nz-icon
+              nzType="database"></span>
+            <span>Datasets</span>
+          </li>
+          <li
+            *ngIf="sidebarTabs?.your_work?.quota_enabled"
+            nz-menu-item
+            nz-tooltip="Quota information"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_QUOTA">
+            <span
+              nz-icon
+              nzType="dashboard"></span>
+            <span>Quota</span>
+          </li>
+          <li
+            *ngIf="sidebarTabs?.your_work?.forum_enabled"
+            nz-menu-item
+            nz-tooltip="Open the discussion forum"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_USER_DISCUSSION">
+            <span
+              nz-icon
+              nzType="comment"></span>
+            <span>Forum</span>
+          </li>
+        </ul>
+      </li>
+
+      <li
+        *ngIf="isAdmin"
+        nz-submenu
+        nzTitle="Admin"
+        nzIcon="tool">
+        <ul>
+          <li
+            nz-menu-item
+            nz-tooltip="Look up the users"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_USER">
+            <span
+              nz-icon
+              nzType="user"></span>
+            <span>Users</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="View statistics"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_EXECUTION">
+            <span
+              nz-icon
+              nzType="setting"></span>
+            <span>Executions</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Setup gmail"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_GMAIL">
+            <span
+              nz-icon
+              nzType="mail"></span>
+            <span>Gmail</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Settings"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_SETTINGS">
+            <span
+              nz-icon
+              nzType="edit"></span>
+            <span>Settings</span>
+          </li>
+        </ul>
+      </li>
+
+      <li
+        *ngIf="sidebarTabs?.about_enabled"
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT">
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
+      </li>
     </ul>
     <span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
   </nz-sider>

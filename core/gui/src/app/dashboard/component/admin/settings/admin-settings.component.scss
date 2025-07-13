@@ -49,19 +49,18 @@
   gap: 14px;
 }
 
+.tree-container {
+  max-width: 200px;
+  margin-bottom: 16px;
+}
+
 .tree-node-wrapper {
   display: flex;
-  min-height: 30px;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
-.node-content {
-  display: flex;
-  gap: 8px;
-}
-
-nz-switch {
-  position: absolute;
-  left: 110px;
-  top: 50%;
-  transform: translateY(-50%);
+/*TODO: Alternative...*/
+::ng-deep .ant-tree-node-content-wrapper {
+  width: 100%;
 }

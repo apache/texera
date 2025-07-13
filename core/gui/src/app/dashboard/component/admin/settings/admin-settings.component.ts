@@ -33,6 +33,9 @@ export class AdminSettingsComponent implements OnInit {
   miniLogoData: string | null = null;
   faviconData: string | null = null;
   sidebarTabs: any[] = [];
+  visibleTabs: any[] = [];
+  private parentOrder: string[] = [];
+  private childOrder: Record<string, string[]> = {};
 
   constructor(
     private adminSettingsService: AdminSettingsService,
@@ -44,20 +47,48 @@ export class AdminSettingsComponent implements OnInit {
 
   private loadTabs(): void {
     this.adminSettingsService
-      .getSetting("sidebar_tabs")
+      .getSetting("tabs")
       .pipe(untilDestroyed(this))
       .subscribe(json => {
-        this.sidebarTabs = JSON.parse(json);
-        this.processTreeData(this.sidebarTabs);
+        const raw = JSON.parse(json);
+        this.parentOrder = raw.tabs_parent_order ?? [];
+        this.childOrder = raw.tabs_child_order ?? {};
+
+        this.sidebarTabs = this.buildTreeData(raw);
+        this.visibleTabs = this.sidebarTabs.filter(n => n.title !== "Admin");
       });
   }
 
-  private processTreeData(nodes: any[]): void {
-    nodes.forEach(node => {
-      if (!node.children || node.children.length === 0) {
-        node.isLeaf = true;
+  private buildTreeData(raw: any) {
+    const toBool = (v: any) => v === true || v === "true";
+    const format = (key: string) => key.replace(/_/g, " ").replace(/\b\w/g, key => key.toUpperCase());
+
+    return this.parentOrder.map(parentKey => {
+      const name = parentKey.replace("_enabled", "");
+      const childObj = raw[name] ?? {};
+      const childKeys = this.childOrder[parentKey] ?? Object.keys(childObj).filter(k => k.endsWith("_enabled"));
+
+      const children = childKeys.map(c => ({
+        title: format(c.replace("_enabled", "")),
+        key: `${name}.${c}`,
+        enabled: toBool(childObj[c]),
+        isLeaf: true,
+      }));
+
+      if (children.length === 0) {
+        return {
+          title: format(name),
+          key: parentKey,
+          enabled: toBool(raw[parentKey]),
+          isLeaf: true,
+        };
       } else {
-        this.processTreeData(node.children);
+        return {
+          title: format(name),
+          key: parentKey,
+          enabled: toBool(raw[parentKey]),
+          children,
+        };
       }
     });
   }
@@ -156,9 +187,22 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveTabs(): void {
-    const payload = JSON.stringify(this.sidebarTabs);
+    // TODO: Parent → Child Disable Behavior
+    const result: any = {
+      tabs_parent_order: this.parentOrder,
+      tabs_child_order: this.childOrder,
+    };
+
+    this.sidebarTabs.forEach(p => {
+      result[p.key] = p.enabled;
+      p.children?.forEach((c: any) => {
+        const [sectionKey, childKey] = c.key.split(".");
+        (result[sectionKey] ??= {})[childKey] = c.enabled;
+      });
+    });
+
     this.adminSettingsService
-      .updateSetting("sidebar_tabs", payload)
+      .updateSetting("tabs", JSON.stringify(result))
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.message.success("Tabs saved successfully."),
@@ -168,7 +212,7 @@ export class AdminSettingsComponent implements OnInit {
 
   resetTabs(): void {
     this.adminSettingsService
-      .resetSetting("sidebar_tabs")
+      .resetSetting("tabs")
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {

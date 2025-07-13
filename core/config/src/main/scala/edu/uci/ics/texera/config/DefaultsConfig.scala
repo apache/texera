@@ -30,6 +30,7 @@ object DefaultsConfig {
     conf
       .entrySet()
       .asScala
+      .filterNot(_.getKey.startsWith("gui.tabs"))
       .map { entry =>
         val shortKey = entry.getKey.split("\\.").last
         val value = entry.getValue.valueType() match {
@@ -40,6 +41,6 @@ object DefaultsConfig {
         }
         shortKey -> value
       }
-      .toMap
+      .toMap + ("tabs" -> conf.getConfig("gui.tabs").root().render(ConfigRenderOptions.concise()))
   }
 }
