@@ -49,18 +49,30 @@
   gap: 14px;
 }
 
-.tree-container {
-  max-width: 200px;
-  margin-bottom: 16px;
+.tabs-group {
+  width: 200px;
 }
 
-.tree-node-wrapper {
+.tab-row {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 0.5rem;
+  margin-bottom: 8px;
 }
 
-/*TODO: Alternative...*/
-::ng-deep .ant-tree-node-content-wrapper {
-  width: 100%;
+.tab-switch {
+  margin-left: auto;
+}
+
+details[open] .arrow {
+  transform: rotate(90deg);
+}
+
+.tab-row:not(:has(.arrow)) {
+  margin-left: 22px;
+}
+
+.submenu-item {
+  display: flex;
+  margin-left: 2rem;
+  margin-bottom: 8px;
 }

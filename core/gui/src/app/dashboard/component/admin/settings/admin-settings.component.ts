@@ -32,10 +32,7 @@ export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
-  sidebarTabs: any[] = [];
-  visibleTabs: any[] = [];
-  private parentOrder: string[] = [];
-  private childOrder: Record<string, string[]> = {};
+  sidebarTabs: any = {};
 
   constructor(
     private adminSettingsService: AdminSettingsService,
@@ -50,47 +47,8 @@ export class AdminSettingsComponent implements OnInit {
       .getSetting("tabs")
       .pipe(untilDestroyed(this))
       .subscribe(json => {
-        const raw = JSON.parse(json);
-        this.parentOrder = raw.tabs_parent_order ?? [];
-        this.childOrder = raw.tabs_child_order ?? {};
-
-        this.sidebarTabs = this.buildTreeData(raw);
-        this.visibleTabs = this.sidebarTabs.filter(n => n.title !== "Admin");
+        this.sidebarTabs = JSON.parse(json);
       });
-  }
-
-  private buildTreeData(raw: any) {
-    const toBool = (v: any) => v === true || v === "true";
-    const format = (key: string) => key.replace(/_/g, " ").replace(/\b\w/g, key => key.toUpperCase());
-
-    return this.parentOrder.map(parentKey => {
-      const name = parentKey.replace("_enabled", "");
-      const childObj = raw[name] ?? {};
-      const childKeys = this.childOrder[parentKey] ?? Object.keys(childObj).filter(k => k.endsWith("_enabled"));
-
-      const children = childKeys.map(c => ({
-        title: format(c.replace("_enabled", "")),
-        key: `${name}.${c}`,
-        enabled: toBool(childObj[c]),
-        isLeaf: true,
-      }));
-
-      if (children.length === 0) {
-        return {
-          title: format(name),
-          key: parentKey,
-          enabled: toBool(raw[parentKey]),
-          isLeaf: true,
-        };
-      } else {
-        return {
-          title: format(name),
-          key: parentKey,
-          enabled: toBool(raw[parentKey]),
-          children,
-        };
-      }
-    });
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -187,22 +145,8 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveTabs(): void {
-    // TODO: Parent → Child Disable Behavior
-    const result: any = {
-      tabs_parent_order: this.parentOrder,
-      tabs_child_order: this.childOrder,
-    };
-
-    this.sidebarTabs.forEach(p => {
-      result[p.key] = p.enabled;
-      p.children?.forEach((c: any) => {
-        const [sectionKey, childKey] = c.key.split(".");
-        (result[sectionKey] ??= {})[childKey] = c.enabled;
-      });
-    });
-
     this.adminSettingsService
-      .updateSetting("tabs", JSON.stringify(result))
+      .updateSetting("tabs", JSON.stringify(this.sidebarTabs))
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.message.success("Tabs saved successfully."),
@@ -216,10 +160,10 @@ export class AdminSettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.message.success("Sidebar tabs reset to default.");
+          this.message.success("Tabs reset to default.");
           this.loadTabs();
         },
-        error: () => this.message.error("Failed to reset sidebar tabs."),
+        error: () => this.message.error("Failed to reset tabs."),
       });
   }
 }

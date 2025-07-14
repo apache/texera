@@ -32,7 +32,7 @@ import { GuiConfigService } from "../../common/service/gui-config.service";
 })
 export class HubComponent {
   @Input() isLogin: boolean = false;
-  @Input() sidebarTabs!: any;
+  @Input() sidebarTabs: any = {};
   protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
   protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
   protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;

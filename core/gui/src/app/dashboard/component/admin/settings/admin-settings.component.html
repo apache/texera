@@ -105,29 +105,129 @@
   </div>
 </nz-card>
 
-<div class="tab-container">
-  <nz-card nzTitle="Sidebar Tabs">
-    <div class="tree-container">
-      <nz-tree
-        [nzData]="visibleTabs"
-        [nzShowLine]="false"
-        [nzTreeTemplate]="treeTpl">
-      </nz-tree>
+<nz-card nzTitle="Sidebar Tabs">
+  <div class="tabs-group">
+    <details>
+      <summary class="tab-row">
+        <i
+          nz-icon
+          nzType="caret-right"
+          nzTheme="outline"
+          class="arrow"></i>
+        <span>Hub</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.hub_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </summary>
 
-      <ng-template
-        #treeTpl
-        let-node>
-        <div class="tree-node-wrapper">
-          <span>{{ node.origin.title }}</span>
+      <div class="submenu-item">
+        <span>Home</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.hub.home_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
 
-          <nz-switch
-            [(ngModel)]="node.origin.enabled"
-            (ngModelChange)="saveTabs()"
-            [nzDisabled]="!!node.parent && !node.parent.origin.enabled">
-          </nz-switch>
-        </div>
-      </ng-template>
+      <div class="submenu-item">
+        <span>Workflows</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.hub.workflow_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Datasets</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.hub.dataset_enabled"
+          [nzDisabled]="!sidebarTabs.hub_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+    </details>
+
+    <details>
+      <summary class="tab-row">
+        <i
+          nz-icon
+          nzType="caret-right"
+          nzTheme="outline"
+          class="arrow"></i>
+        <span>Your Work</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </summary>
+
+      <div class="submenu-item">
+        <span>Projects</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work.projects_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Workflows</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work.workflows_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Datasets</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work.datasets_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Quota</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work.quota_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+
+      <div class="submenu-item">
+        <span>Forum</span>
+        <nz-switch
+          class="tab-switch"
+          [(ngModel)]="sidebarTabs.your_work.forum_enabled"
+          [nzDisabled]="!sidebarTabs.your_work_enabled"
+          (ngModelChange)="saveTabs()">
+        </nz-switch>
+      </div>
+    </details>
+
+    <div class="tab-row">
+      <span>About</span>
+      <nz-switch
+        class="tab-switch"
+        [(ngModel)]="sidebarTabs.about_enabled"
+        (ngModelChange)="saveTabs()">
+      </nz-switch>
     </div>
+
     <div class="button-row">
       <button
         nz-button
@@ -136,5 +236,5 @@
         Reset
       </button>
     </div>
-  </nz-card>
-</div>
+  </div>
+</nz-card>
