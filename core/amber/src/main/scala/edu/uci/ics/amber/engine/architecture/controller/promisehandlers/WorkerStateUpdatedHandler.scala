@@ -48,7 +48,7 @@ trait WorkerStateUpdatedHandler {
       .find(_.hasOperatorExecution(physicalOpId))
       .map(_.getOperatorExecution(physicalOpId))
       .foreach(operatorExecution =>
-        operatorExecution.getWorkerExecution(ctx.sender).setState(msg.state)
+        operatorExecution.getWorkerExecution(ctx.sender).update(System.nanoTime(), msg.state)
       )
     sendToClient(
       ExecutionStatsUpdate(
