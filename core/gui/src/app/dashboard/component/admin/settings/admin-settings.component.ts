@@ -32,7 +32,7 @@ export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
-  sidebarTabs: any = {};
+  sidebarTabs: any;
 
   constructor(
     private adminSettingsService: AdminSettingsService,
