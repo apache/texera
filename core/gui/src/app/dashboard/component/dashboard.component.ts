@@ -62,6 +62,19 @@ export class DashboardComponent implements OnInit {
   logo: string = "";
   miniLogo: string = "";
   sidebarTabs: any = {};
+  tabSettings = [
+    "hub_enabled",
+    "home_enabled",
+    "workflow_enabled",
+    "dataset_enabled",
+    "your_work_enabled",
+    "projects_enabled",
+    "workflows_enabled",
+    "datasets_enabled",
+    "quota_enabled",
+    "forum_enabled",
+    "about_enabled",
+  ];
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -124,12 +137,7 @@ export class DashboardComponent implements OnInit {
 
     this.loadLogos();
 
-    this.adminSettingsService
-      .getSetting("tabs")
-      .pipe(untilDestroyed(this))
-      .subscribe(jsonString => {
-        this.sidebarTabs = JSON.parse(jsonString);
-      });
+    this.loadTabs();
   }
 
   loadLogos(): void {
@@ -153,6 +161,15 @@ export class DashboardComponent implements OnInit {
       .subscribe(dataUri => {
         document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
       });
+  }
+
+  loadTabs(): void {
+    this.tabSettings.forEach(tab => {
+      this.adminSettingsService
+        .getSetting(tab)
+        .pipe(untilDestroyed(this))
+        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+    });
   }
 
   forumLogin() {

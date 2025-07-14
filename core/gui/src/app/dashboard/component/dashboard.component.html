@@ -41,7 +41,7 @@
       </li>
 
       <li
-        *ngIf="sidebarTabs?.hub_enabled"
+        *ngIf="sidebarTabs.hub_enabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
@@ -53,14 +53,14 @@
       </li>
 
       <li
-        *ngIf="isLogin && sidebarTabs?.your_work_enabled"
+        *ngIf="isLogin && sidebarTabs.your_work_enabled"
         nz-submenu
         nzTitle="Your Work"
         nzIcon="user"
         nzOpen="true">
         <ul>
           <li
-            *ngIf="sidebarTabs?.your_work?.projects_enabled"
+            *ngIf="sidebarTabs.projects_enabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
@@ -73,7 +73,7 @@
           </li>
 
           <li
-            *ngIf="sidebarTabs?.your_work?.workflows_enabled"
+            *ngIf="sidebarTabs.workflows_enabled"
             nz-menu-item
             nz-tooltip="Open the saved workflows"
             nzMatchRouter="true"
@@ -86,7 +86,7 @@
           </li>
 
           <li
-            *ngIf="sidebarTabs?.your_work?.datasets_enabled"
+            *ngIf="sidebarTabs.datasets_enabled"
             nz-menu-item
             nz-tooltip="Look up for datasets"
             nzMatchRouter="true"
@@ -98,7 +98,7 @@
             <span>Datasets</span>
           </li>
           <li
-            *ngIf="sidebarTabs?.your_work?.quota_enabled"
+            *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"
             nzMatchRouter="true"
@@ -110,7 +110,7 @@
             <span>Quota</span>
           </li>
           <li
-            *ngIf="sidebarTabs?.your_work?.forum_enabled"
+            *ngIf="sidebarTabs.forum_enabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
@@ -178,7 +178,7 @@
       </li>
 
       <li
-        *ngIf="sidebarTabs?.about_enabled"
+        *ngIf="sidebarTabs.about_enabled"
         nz-menu-item
         nz-tooltip
         nzTooltipPlacement="right"

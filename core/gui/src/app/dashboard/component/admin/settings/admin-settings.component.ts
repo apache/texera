@@ -32,7 +32,20 @@ export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
-  sidebarTabs: any;
+  sidebarTabs: any = {};
+  tabSettings = [
+    "hub_enabled",
+    "home_enabled",
+    "workflow_enabled",
+    "dataset_enabled",
+    "your_work_enabled",
+    "projects_enabled",
+    "workflows_enabled",
+    "datasets_enabled",
+    "quota_enabled",
+    "forum_enabled",
+    "about_enabled",
+  ];
 
   constructor(
     private adminSettingsService: AdminSettingsService,
@@ -43,12 +56,12 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   private loadTabs(): void {
-    this.adminSettingsService
-      .getSetting("tabs")
-      .pipe(untilDestroyed(this))
-      .subscribe(json => {
-        this.sidebarTabs = JSON.parse(json);
-      });
+    this.tabSettings.forEach(tab => {
+      this.adminSettingsService
+        .getSetting(tab)
+        .pipe(untilDestroyed(this))
+        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+    });
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -144,26 +157,40 @@ export class AdminSettingsComponent implements OnInit {
     setTimeout(() => window.location.reload(), 500);
   }
 
-  saveTabs(): void {
+  saveTabs(tab: string): void {
+    const displayTab = tab
+      .replace("_enabled", "")
+      .split("_")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
     this.adminSettingsService
-      .updateSetting("tabs", JSON.stringify(this.sidebarTabs))
+      .updateSetting(tab, this.sidebarTabs[tab].toString())
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.message.success("Tabs saved successfully."),
-        error: () => this.message.error("Failed to save."),
+        next: () => this.message.success(`${displayTab} tab saved successfully.`),
+        error: () => this.message.error(`Failed to save ${displayTab} tab.`),
       });
   }
 
   resetTabs(): void {
-    this.adminSettingsService
-      .resetSetting("tabs")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.message.success("Tabs reset to default.");
-          this.loadTabs();
-        },
-        error: () => this.message.error("Failed to reset tabs."),
-      });
+    this.tabSettings.forEach(tab => {
+      this.adminSettingsService
+        .resetSetting(tab)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          error: () => {
+            const displayTab = tab
+              .replace("_enabled", "")
+              .split("_")
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ");
+            this.message.error(`Failed to reset ${displayTab}.`);
+          },
+        });
+    });
+
+    this.message.info("Resetting tabs...");
+    setTimeout(() => window.location.reload(), 1000);
   }
 }
