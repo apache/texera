@@ -84,18 +84,18 @@ abstract class ScheduleGenerator(
       inDegree(rid) = regionPlan.dag.incomingEdgesOf(rid).asScala.size
     }
 
-    val ready = mutable.Queue(
+    val readyRegionsQueue = mutable.Queue(
       inDegree.collect { case (rid, 0) => rid }.toSeq: _*
     )
 
-    val tmpLevelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+    val tmpLevelSets = mutable.Map.empty[Int, Set[RegionIdentity]]
     var level = 0
 
-    while (ready.nonEmpty) {
+    while (readyRegionsQueue.nonEmpty) {
       val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
-        if (ready.nonEmpty) Some(ready.dequeue()) else None
+        if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
       }.toSet
-      tmpLevelSets(level) = batchIds.to(mutable.Set)
+      tmpLevelSets(level) = batchIds
 
       batchIds.foreach { rid =>
         regionPlan.dag
@@ -104,7 +104,7 @@ abstract class ScheduleGenerator(
           .map(edge => regionPlan.dag.getEdgeTarget(edge))
           .foreach { succ =>
             inDegree(succ) -= 1
-            if (inDegree(succ) == 0) ready.enqueue(succ)
+            if (inDegree(succ) == 0) readyRegionsQueue.enqueue(succ)
           }
       }
       level += 1
