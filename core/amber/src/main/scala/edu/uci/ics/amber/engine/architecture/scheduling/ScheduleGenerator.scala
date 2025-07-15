@@ -76,7 +76,7 @@ abstract class ScheduleGenerator(
   /**
     * A schedule is a ranking on the regions of a region plan.
     * Regions are dispatched in batches of up to AmberConfig.maxConcurrentRegions, respecting the DAG dependencies.
-    * When maxConcurrentRegions == 1, this degenerates into a total order (fully sequential execution).
+    * When maxConcurrentRegions == 1, this is equivalent to a total order (fully sequential execution).
     */
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
     val inDegree = mutable.Map.empty[RegionIdentity, Int]
