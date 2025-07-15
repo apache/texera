@@ -21,6 +21,7 @@ import { Component, OnInit } from "@angular/core";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { SidebarTabs, SIDEBAR_TAB_KEYS } from "../../../../common/type/gui-config";
 
 @UntilDestroy()
 @Component({
@@ -32,20 +33,7 @@ export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
-  sidebarTabs: any = {};
-  tabSettings = [
-    "hub_enabled",
-    "home_enabled",
-    "workflow_enabled",
-    "dataset_enabled",
-    "your_work_enabled",
-    "projects_enabled",
-    "workflows_enabled",
-    "datasets_enabled",
-    "quota_enabled",
-    "forum_enabled",
-    "about_enabled",
-  ];
+  sidebarTabs: SidebarTabs = {} as SidebarTabs;
 
   constructor(
     private adminSettingsService: AdminSettingsService,
@@ -56,7 +44,7 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   private loadTabs(): void {
-    this.tabSettings.forEach(tab => {
+    SIDEBAR_TAB_KEYS.forEach(tab => {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
@@ -157,7 +145,7 @@ export class AdminSettingsComponent implements OnInit {
     setTimeout(() => window.location.reload(), 500);
   }
 
-  saveTabs(tab: string): void {
+  saveTabs(tab: keyof SidebarTabs): void {
     const displayTab = tab
       .replace("_enabled", "")
       .split("_")
@@ -174,20 +162,8 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   resetTabs(): void {
-    this.tabSettings.forEach(tab => {
-      this.adminSettingsService
-        .resetSetting(tab)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          error: () => {
-            const displayTab = tab
-              .replace("_enabled", "")
-              .split("_")
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(" ");
-            this.message.error(`Failed to reset ${displayTab}.`);
-          },
-        });
+    SIDEBAR_TAB_KEYS.forEach(tab => {
+      this.adminSettingsService.resetSetting(tab).pipe(untilDestroyed(this)).subscribe({});
     });
 
     this.message.info("Resetting tabs...");
