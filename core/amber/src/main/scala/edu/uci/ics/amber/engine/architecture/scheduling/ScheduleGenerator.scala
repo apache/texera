@@ -91,6 +91,13 @@ abstract class ScheduleGenerator(
     val tmpLevelSets = mutable.Map.empty[Int, Set[RegionIdentity]]
     var level = 0
 
+    // While there are ready regions:
+    // 1. Dequeue up to maxConcurrentRegions regions to form the current batch.
+    // 2. Record this batch under the current level.
+    // 3. For each region in the batch:
+    //      a. For each successor region, decrement its in-degree.
+    //      b. If a successor's in-degree reaches zero, enqueue it to the readyRegionsQueue.
+    // 4. Increment level and repeat.
     while (readyRegionsQueue.nonEmpty) {
       val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
         if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
