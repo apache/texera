@@ -143,7 +143,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(sinkStorageMode => {
         this.sinkStorageMode = sinkStorageMode;
-        this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
+        // this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
       });
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
@@ -161,6 +161,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.schema = paginatedResultService.getSchema();
       }
     }
+
+    this.adjustPageSizeBasedOnPanelSize(300);
   }
 
   checkKeys(
@@ -213,16 +215,35 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 39; // use the rendered height of a row.
-    let extra: number;
+    // console.log("+++")
+    // console.log(panelHeight)
+    // console.log("+++")
+    // const rowHeight = 39; // use the rendered height of a row.
+    // let extra: number;
+    //
+    // extra = Math.floor((panelHeight - 170) / rowHeight);
+    //
+    // if (extra < 0) {
+    //   extra = 0;
+    // }
+    // this.pageSize = 1 + extra;
+    // this.resizeService.pageSize = this.pageSize;
 
-    extra = Math.floor((panelHeight - 170) / rowHeight);
+    console.log("+++")
+    console.log(panelHeight)
+    console.log("+++")
+    const rowHeight = 39;
+    const headerHeight = 230;
 
-    if (extra < 0) {
-      extra = 0;
-    }
-    this.pageSize = 1 + extra;
-    this.resizeService.pageSize = this.pageSize;
+    const extraRows = Math.max(0, Math.floor((panelHeight - headerHeight) / rowHeight));
+    const newPageSize = extraRows + 1;
+
+    const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
+
+    this.pageSize = newPageSize;
+    this.resizeService.pageSize = newPageSize;
+
+    this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
   }
 
   /**
