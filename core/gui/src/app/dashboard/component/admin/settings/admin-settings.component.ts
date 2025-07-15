@@ -21,7 +21,7 @@ import { Component, OnInit } from "@angular/core";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { SidebarTabs, SIDEBAR_TAB_KEYS } from "../../../../common/type/gui-config";
+import { SidebarTabs } from "../../../../common/type/gui-config";
 
 @UntilDestroy()
 @Component({
@@ -33,7 +33,19 @@ export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
-  sidebarTabs: SidebarTabs = {} as SidebarTabs;
+  sidebarTabs: SidebarTabs = {
+    hub_enabled: true,
+    home_enabled: true,
+    workflow_enabled: true,
+    dataset_enabled: true,
+    your_work_enabled: true,
+    projects_enabled: true,
+    workflows_enabled: true,
+    datasets_enabled: true,
+    quota_enabled: true,
+    forum_enabled: true,
+    about_enabled: true,
+  };
 
   constructor(
     private adminSettingsService: AdminSettingsService,
@@ -44,7 +56,7 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   private loadTabs(): void {
-    SIDEBAR_TAB_KEYS.forEach(tab => {
+    (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))
@@ -162,11 +174,11 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   resetTabs(): void {
-    SIDEBAR_TAB_KEYS.forEach(tab => {
+    Object.keys(this.sidebarTabs).forEach(tab => {
       this.adminSettingsService.resetSetting(tab).pipe(untilDestroyed(this)).subscribe({});
     });
 
     this.message.info("Resetting tabs...");
-    setTimeout(() => window.location.reload(), 1000);
+    setTimeout(() => window.location.reload(), 500);
   }
 }

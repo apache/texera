@@ -41,7 +41,7 @@ import {
   DASHBOARD_USER_WORKFLOW,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
-import { SidebarTabs, SIDEBAR_TAB_KEYS } from "../../common/type/gui-config";
+import { SidebarTabs } from "../../common/type/gui-config";
 
 @Component({
   selector: "texera-dashboard",
@@ -62,7 +62,19 @@ export class DashboardComponent implements OnInit {
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
-  sidebarTabs = {} as SidebarTabs;
+  sidebarTabs: SidebarTabs = {
+    hub_enabled: true,
+    home_enabled: true,
+    workflow_enabled: true,
+    dataset_enabled: true,
+    your_work_enabled: true,
+    projects_enabled: true,
+    workflows_enabled: true,
+    datasets_enabled: true,
+    quota_enabled: true,
+    forum_enabled: true,
+    about_enabled: true,
+  };
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -152,7 +164,7 @@ export class DashboardComponent implements OnInit {
   }
 
   loadTabs(): void {
-    SIDEBAR_TAB_KEYS.forEach(tab => {
+    (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
       this.adminSettingsService
         .getSetting(tab)
         .pipe(untilDestroyed(this))

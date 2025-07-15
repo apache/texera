@@ -56,17 +56,3 @@ export interface SidebarTabs {
   forum_enabled: boolean;
   about_enabled: boolean;
 }
-
-export const SIDEBAR_TAB_KEYS: (keyof SidebarTabs)[] = [
-  "hub_enabled",
-  "home_enabled",
-  "workflow_enabled",
-  "dataset_enabled",
-  "your_work_enabled",
-  "projects_enabled",
-  "workflows_enabled",
-  "datasets_enabled",
-  "quota_enabled",
-  "forum_enabled",
-  "about_enabled",
-];
