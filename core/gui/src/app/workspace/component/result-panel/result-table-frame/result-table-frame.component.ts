@@ -48,7 +48,6 @@ import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
   styleUrls: ["./result-table-frame.component.scss"],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
-  @Input() defaultHeight!: number;
   @Input() operatorId?: string;
 
 
