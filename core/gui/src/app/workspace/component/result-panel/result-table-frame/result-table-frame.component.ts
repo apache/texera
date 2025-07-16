@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -251,11 +251,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     // this.pageSize = 1 + extra;
     // this.resizeService.pageSize = this.pageSize;
 
-    console.log("+++")
-    console.log(panelHeight)
-    console.log("+++")
-
-    console.log("panel高度 =", panelHeight,  "px");
     const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
