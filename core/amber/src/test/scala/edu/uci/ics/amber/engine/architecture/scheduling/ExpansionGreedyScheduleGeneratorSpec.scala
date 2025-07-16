@@ -29,6 +29,8 @@ import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
+
+@deprecated("This greedy schedule generator test will be removed in the future.")
 class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword workflow" in {
