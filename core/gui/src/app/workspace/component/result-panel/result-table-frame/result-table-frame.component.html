@@ -41,7 +41,7 @@
       [nzTotal]="totalNumTuples"
       nzBordered="true">
       <thead>
-        <tr>
+        <tr #header>
           <th
             *ngFor="let column of currentColumns; let i = index"
             ngClass="header-size"
@@ -119,6 +119,7 @@
       </thead>
       <tbody>
         <tr
+          #dataRow
           *ngFor="let row of basicTable.data; let i = index"
           class="table-row-hover">
           <td
