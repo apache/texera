@@ -28,7 +28,6 @@ export class PanelResizeService {
   public initHeight = 300;
   public initWidth = 800;
 
-
   private panelSizeSource = new BehaviorSubject<{ width: number; height: number }>({ width: this.initWidth, height: this.initHeight });
   currentSize = this.panelSizeSource.asObservable();
   public pageSize = 1 + Math.floor((300 - 200) / 35);
