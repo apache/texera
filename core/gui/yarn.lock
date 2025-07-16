@@ -4040,27 +4040,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ngx-formly/core@npm:6.3.0":
-  version: 6.3.0
-  resolution: "@ngx-formly/core@npm:6.3.0"
+"@ngx-formly/core@npm:6.3.12":
+  version: 6.3.12
+  resolution: "@ngx-formly/core@npm:6.3.12"
   dependencies:
     tslib: "npm:^2.0.0"
   peerDependencies:
     "@angular/forms": ">=13.2.0"
     rxjs: ^6.5.3 || ^7.0.0
-  checksum: 10c0/97cc6e48fe21a36bb9e27a31563b58f3af35a1d24831bec005899a03a0611129e537a9378c2efb6e3b7d722bf3ee11426de434025059befb7b5d2f72c5e57a8a
+  checksum: 10c0/c12c8aba938aa8c644e23a7b32aeca990e74603eb83246d35439b757d152d7655251b81e65ac30dbf1bf9e503afb7787e6b38fee59aeba4d93b0072cb7d32ffc
   languageName: node
   linkType: hard
 
-"@ngx-formly/ng-zorro-antd@npm:6.3.0":
-  version: 6.3.0
-  resolution: "@ngx-formly/ng-zorro-antd@npm:6.3.0"
+"@ngx-formly/ng-zorro-antd@npm:6.3.12":
+  version: 6.3.12
+  resolution: "@ngx-formly/ng-zorro-antd@npm:6.3.12"
   dependencies:
     tslib: "npm:^2.0.0"
   peerDependencies:
-    "@ngx-formly/core": 6.3.0
+    "@ngx-formly/core": 6.3.12
     ng-zorro-antd: ">=13.0.0"
-  checksum: 10c0/5abbb9e32fdf35e8343d9dbe7c549f4812d48dce4005571f03fe721fbcd4a1837e432b5d33fee773a1ea313f9a81f665b519377f240502fbf170b71c1793d67c
+  checksum: 10c0/15686a2cbbaaf2a34cad250e9b0a4fe5d533e4c1c8b917dccc825ba76ac2e9bbabe588f0dde8566d726dd800d347b90098dfebf7c1fca4bf6a9edd7e097a0a64
   languageName: node
   linkType: hard
 
@@ -11111,8 +11111,8 @@ __metadata:
     "@loaders.gl/core": "npm:3.4.2"
     "@luma.gl/core": "npm:8.5.20"
     "@ngneat/until-destroy": "npm:8.1.4"
-    "@ngx-formly/core": "npm:6.3.0"
-    "@ngx-formly/ng-zorro-antd": "npm:6.3.0"
+    "@ngx-formly/core": "npm:6.3.12"
+    "@ngx-formly/ng-zorro-antd": "npm:6.3.12"
     "@nrwl/cli": "npm:15.9.7"
     "@nrwl/nx-cloud": "npm:19.1.0"
     "@nx/angular": "npm:20.0.3"
