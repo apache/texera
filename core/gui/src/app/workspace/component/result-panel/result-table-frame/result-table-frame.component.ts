@@ -32,6 +32,8 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { ExecutionState } from "../../../types/execute-workflow.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -73,14 +75,16 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   sinkStorageMode: string = "";
   private schema: ReadonlyArray<SchemaAttribute> = [];
+  isWorkflowFinished: boolean = false;
 
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
+    private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private changeDetectorRef: ChangeDetectorRef
+    private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -101,6 +105,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        if (event.current.state === ExecutionState.Completed) {
+          this.isWorkflowFinished = true;
+          this.changeDetectorRef.detectChanges();
+        } else if (event.current.state === ExecutionState.Running) {
+          this.isWorkflowFinished = false;
+        }
+      });
+
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
@@ -198,6 +214,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       previousStr = previous !== undefined ? previous.toLocaleString() : currentStr;
     }
     let styledValue = "";
+
+    if (this.isWorkflowFinished) {
+      for (let i = 0; i < currentStr.length; i++) {
+        styledValue += `<span style="color: black">${currentStr[i]}</span>`;
+      }
+      return this.sanitizer.bypassSecurityTrustHtml(styledValue);
+    }
 
     for (let i = 0; i < currentStr.length; i++) {
       const char = currentStr[i];
