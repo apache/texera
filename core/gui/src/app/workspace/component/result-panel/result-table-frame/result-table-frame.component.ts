@@ -50,15 +50,6 @@ import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
 
-
-  @ViewChild("statsRow", { read: ElementRef }) statsRowRef?: ElementRef<HTMLElement>;
-  @ViewChild("dataRow",  { read: ElementRef }) dataRowRef?: ElementRef<HTMLElement>;
-  @ViewChild("header", { read: ElementRef }) headerRef?: ElementRef<HTMLElement>;
-
-  headerHeight = 0;
-  statsRowHeight = 0;
-  dataRowHeight  = 0;
-
   // display result table
   currentColumns?: TableColumn[];
   currentResult: IndexableObject[] = [];
@@ -213,7 +204,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       const prevChar = previousStr[i];
 
       if (char !== prevChar) {
-        styledValue += `<span style="color: red">${char}</span>`;
+        styledValue += `<span style="color: blue">${char}</span>`;
       } else {
         styledValue += `<span style="color: black">${char}</span>`;
       }
@@ -237,33 +228,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     // this.pageSize = 1 + extra;
     // this.resizeService.pageSize = this.pageSize;
 
-
-    if (this.statsRowRef?.nativeElement) {
-      this.statsRowHeight = this.statsRowRef.nativeElement.offsetHeight;
-    }
-
-    if (this.headerRef?.nativeElement) {
-      this.headerHeight = this.headerRef.nativeElement.offsetHeight;
-    }
-
-    if (this.dataRowRef?.nativeElement) {
-      this.dataRowHeight = this.dataRowRef.nativeElement.offsetHeight;
-    }
-
-    console.log("统计行高度 =", this.statsRowHeight, "px");
-    console.log("普通行高度 =", this.dataRowHeight,  "px");
-    console.log("头行高度 =", this.headerHeight,  "px");
-
     console.log("+++")
     console.log(panelHeight)
     console.log("+++")
 
-    const rowHeight = this.dataRowHeight  > 0 ? this.dataRowHeight  : 38.62;
-    const headerHeight = this.headerHeight > 0 ? this.statsRowHeight : 38.62;
-    const statsHeight = this.statsRowHeight > 0 ? this.statsRowHeight : 64.41;
-
     console.log("panel高度 =", panelHeight,  "px");
-    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.41 - 56.6 - 32.63) / 38.62));
+    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
