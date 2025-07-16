@@ -30,7 +30,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
-import org.jgrapht.alg.util.NeighborCache
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 import org.jgrapht.util.SupplierUtil
