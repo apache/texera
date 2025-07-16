@@ -279,7 +279,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       // display table result if it has paginated results
       this.frameComponentConfigs.set("Result", {
         component: ResultTableFrameComponent,
-        componentInputs: { operatorId },
+        componentInputs: { operatorId, defaultHeight: DEFAULT_HEIGHT, },
       });
     } else if (resultService) {
       // display visualization result

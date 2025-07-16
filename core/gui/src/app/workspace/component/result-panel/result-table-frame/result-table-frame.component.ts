@@ -47,6 +47,7 @@ import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
   styleUrls: ["./result-table-frame.component.scss"],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
+  @Input() defaultHeight!: number;
   @Input() operatorId?: string;
   // display result table
   currentColumns?: TableColumn[];
@@ -162,7 +163,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       }
     }
 
-    this.adjustPageSizeBasedOnPanelSize(300);
+    this.adjustPageSizeBasedOnPanelSize(this.defaultHeight);
   }
 
   checkKeys(
