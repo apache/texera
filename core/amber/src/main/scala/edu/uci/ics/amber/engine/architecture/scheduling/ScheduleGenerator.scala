@@ -29,7 +29,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 }
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
-
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
