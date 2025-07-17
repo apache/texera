@@ -86,7 +86,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private workflowStatusService: WorkflowStatusService // 新增注入
+    private workflowStatusService: WorkflowStatusService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
