@@ -107,7 +107,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.workflowStatusService.getStatusUpdateStream()
+    this.workflowStatusService
+      .getStatusUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(statusMap => {
         if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
@@ -238,7 +239,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-
     const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
