@@ -258,9 +258,9 @@ export class JointUIService {
         label: {
           position: {
             name: "left",
-            args: { x: -5, y: 10}
-          }
-        }
+            args: { x: -5, y: 10 },
+          },
+        },
       })
     );
     operator.outputPorts.forEach(port =>
@@ -276,9 +276,9 @@ export class JointUIService {
         label: {
           position: {
             name: "right",
-            args: { x: 5, y: -10}
-          }
-        }
+            args: { x: 5, y: -10 },
+          },
+        },
       })
     );
 
