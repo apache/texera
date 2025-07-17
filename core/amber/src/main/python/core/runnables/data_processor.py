@@ -88,29 +88,30 @@ class DataProcessor(Runnable, Stoppable):
                 elif isinstance(marker, State):
                     self._set_output_state(executor.process_state(marker, port_id))
                 elif isinstance(marker, EndOfInputPort):
-
-
                     self._set_output_state(executor.produce_state_on_finish(port_id))
                     self._switch_context()
-                    method_name = "process_table_" + str(port_id)
-                    if hasattr(executor, method_name):
-                        from core.models.table import Table
-                        table = Table(executor.TABLE_DATA_INTERNAL[port_id])
-                        method_name = 'process_table_' + str(port_id)
-                        process_method = getattr(executor, method_name, None)
-                        self._set_output_tuple(process_method(table))
+                    if self._context.input_manager.is_source:
+                        if hasattr(executor, "produce"):
+                            self._set_output_tuple(executor.produce())
                     else:
-
-                        method_name = f'on_finish_{port_id}'
-                        # Check if the executor has this method
-                        process_method = getattr(executor, method_name, None)
-                        if callable(process_method):
-                            it = process_method()
-                            self._set_output_tuple(it)
+                        method_name = "process_table_" + str(port_id)
+                        if hasattr(executor, method_name):
+                            from core.models.table import Table
+                            table = Table(executor.TABLE_DATA_INTERNAL[port_id])
+                            method_name = 'process_table_' + str(port_id)
+                            process_method = getattr(executor, method_name, None)
+                            self._set_output_tuple(process_method(table))
                         else:
-                            logger.info(f"on_finish for port {port_id} not "
-                                        f"found, skipped.")
-                            self._set_output_tuple([])
+                            method_name = f'on_finish_{port_id}'
+                            # Check if the executor has this method
+                            process_method = getattr(executor, method_name, None)
+                            if callable(process_method):
+                                it = process_method()
+                                self._set_output_tuple(it)
+                            else:
+                                logger.info(f"on_finish for port {port_id} not "
+                                            f"found, skipped.")
+                                self._set_output_tuple([])
                 elif isinstance(marker, EndOfInputPorts):
                     # End of all input ports, finalize the processing.
                     self._set_output_tuple(executor.on_finish_all())

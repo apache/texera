@@ -29,18 +29,16 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.common.FutureBijection._
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  CommandRequest,
-  InitializeRequest,
-  ObservableRequest
-}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{CommandRequest, InitializeRequest, ObservableRequest}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
+import java.nio.file.Files
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -72,6 +70,12 @@ class AmberClient(
     if (isActive) {
       isActive = false
       clientActor ! PoisonPill
+      Utils.listFilesWithPrefix(Utils.amberHomePath.getParent, "Worker:").foreach{
+        file => Files.delete(file)
+      }
+      Utils.listFilesWithPrefix(Utils.amberHomePath, "Worker:").foreach {
+        file => Files.delete(file)
+      }
     }
   }
 

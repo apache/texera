@@ -32,6 +32,7 @@ import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object Utils extends LazyLogging {
 
@@ -41,6 +42,18 @@ object Utils extends LazyLogging {
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
+
+  def listFilesWithPrefix(dirPath: Path, prefix: String): List[Path] = {
+    if (Files.isDirectory(dirPath)) {
+      Files.list(dirPath)
+        .iterator()
+        .asScala
+        .filter(p => Files.isRegularFile(p) && p.getFileName.toString.startsWith(prefix))
+        .toList
+    } else {
+      List.empty
+    }
+  }
 
   /**
     * Gets the real path of the amber home directory by:

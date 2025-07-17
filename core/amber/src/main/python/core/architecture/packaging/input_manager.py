@@ -74,6 +74,7 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
         self.all_ports_completed = False
+        self.is_source = False
 
     def get_all_channel_ids(self) -> Dict["ChannelIdentity", "Channel"].keys:
         return self._channels.keys()

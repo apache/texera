@@ -253,6 +253,48 @@ class CostBasedScheduleGenerator(
       GlobalPortIdentity(opId = link.fromOpId, portId = link.fromPortId)
     )
     updateRegionsWithOutputPortStorage(outputPortsToMaterialize, regionDAG)
+
+    physicalPlan.operators.foreach{
+      case op if op.isPythonBased && op.getCode.contains("input_output_dep") =>
+        val region = regionDAG.vertexSet().asScala.filter(v => v.physicalOps.contains(op)).head
+        val idx = regionDAG.vertexSet().size()
+        val upstreamOps = physicalPlan.getUpstreamPhysicalOpIds(op.id).map(physicalPlan.getOperator) + op
+        val downstreamOps = region.physicalOps.diff(upstreamOps) + op
+        val upstreamOpIds = upstreamOps.map(_.id)
+        val upstreamLinks = region.physicalLinks.filter(l => upstreamOpIds.contains(l.toOpId) && upstreamOpIds.contains(l.fromOpId))
+        val downstreamLinks = region.physicalLinks.diff(upstreamLinks)
+        val upstreamPorts = region.ports.filter(p => upstreamOpIds.contains(p.opId) && (p.opId != op.id || p.input == true))
+        val downstreamPorts = region.ports.diff(upstreamPorts)
+        val upRegion = Region(id = region.id,
+          physicalOps = upstreamOps.intersect(region.physicalOps),
+          physicalLinks = upstreamLinks,
+          ports = upstreamPorts
+        )
+        val downId = RegionIdentity(idx+1)
+        val downRegion = Region(id = downId,
+          physicalOps = downstreamOps.intersect(region.physicalOps),
+          physicalLinks = downstreamLinks,
+          ports = downstreamPorts
+        )
+        val outgoingEdges = regionDAG.outgoingEdgesOf(region)
+        outgoingEdges.forEach{
+          e => regionDAG.removeEdge(e)
+        }
+        regionDAG.removeVertex(region)
+        regionDAG.addVertex(upRegion)
+        regionDAG.addVertex(downRegion)
+        outgoingEdges.forEach{
+          e =>
+            regionDAG.removeEdge(e)
+            regionDAG.addEdge(downRegion,
+              regionDAG.vertexSet().asScala.filter(r => r.id == e.toRegionId).head,
+              e.copy(fromRegionId = downId))
+        }
+        regionDAG.addEdge(upRegion, downRegion, RegionLink(upRegion.id, downRegion.id))
+      case other => //skip
+    }
+
+
     allocateResource(regionDAG)
     regionDAG
   }
@@ -262,7 +304,7 @@ class CostBasedScheduleGenerator(
     * This method processes each physical link in the input set, identifying the source and destination
     * regions for each link. It then adds an edge between these regions in the DAG to represent
     * the materialization relationship.
-    *
+    *ve
     * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
     * @param regionDAG The DAG of regions to be modified
     */

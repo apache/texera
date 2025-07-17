@@ -179,7 +179,11 @@ class RegionExecutionCoordinator(
                 // Currently input ports do not have URIs associated with them because
                 // we are using cache read operators to read materialized port storage.
                 // TODO: also add storageURI for input ports when cache read ops are removed.
-                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
+                if(region.getSourceOperators.contains(physicalOp)){
+                  None
+                }else{
+                  Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
+                }
               case _ => None
             }
           val outputPortMapping = physicalOp.outputPorts

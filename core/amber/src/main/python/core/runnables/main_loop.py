@@ -292,7 +292,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     input=True,
                 )
             )
-        if self.context.input_manager.all_ports_completed:
+        if self.context.input_manager.all_ports_completed or self.context.input_manager.is_source:
             self._process_end_of_input_ports()
 
     def _process_start_of_output_port(self, port_id) -> None:

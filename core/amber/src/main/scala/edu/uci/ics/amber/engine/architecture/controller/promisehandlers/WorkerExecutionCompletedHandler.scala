@@ -39,18 +39,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 trait WorkerExecutionCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  def listFilesWithPrefix(dirPath: Path, prefix: String): List[Path] = {
-    if (Files.isDirectory(dirPath)) {
-      Files.list(dirPath)
-        .iterator()
-        .asScala
-        .filter(p => Files.isRegularFile(p) && p.getFileName.toString.startsWith(prefix))
-        .toList
-    } else {
-      List.empty
-    }
-  }
-
   override def workerExecutionCompleted(
       msg: EmptyRequest,
       ctx: AsyncRPCContext
@@ -70,10 +58,10 @@ trait WorkerExecutionCompletedHandler {
       .flatMap(_ => {
         // if entire workflow is completed, clean up
         if (cp.workflowExecution.isCompleted) {
-          listFilesWithPrefix(Utils.amberHomePath.getParent, "Worker:").foreach{
+          Utils.listFilesWithPrefix(Utils.amberHomePath.getParent, "Worker:").foreach{
             file => Files.delete(file)
           }
-          listFilesWithPrefix(Utils.amberHomePath, "Worker:").foreach {
+          Utils.listFilesWithPrefix(Utils.amberHomePath, "Worker:").foreach {
             file => Files.delete(file)
           }
           // after query result come back: send completed event, cleanup ,and kill workflow
