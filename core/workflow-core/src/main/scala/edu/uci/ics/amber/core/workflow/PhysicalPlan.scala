@@ -30,6 +30,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
+import org.jgrapht.alg.util.NeighborCache
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 import org.jgrapht.util.SupplierUtil
@@ -99,6 +100,52 @@ case class PhysicalPlan(
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
+
+  /**
+    * Computes the reverse topological layering of the DAG.
+    * Each layer contains a set of operators with the same "distance" from the sinks.
+    * This version correctly handles cases where multiple edges exist between nodes.
+    */
+  lazy val layeredReversedTopologicalOrder: Seq[Set[PhysicalOpIdentity]] = {
+    // Track the number of remaining outgoing edges for each node
+    val remainingSuccessors = scala.collection.mutable.Map[PhysicalOpIdentity, Int]()
+    dag.vertexSet().forEach { v =>
+      remainingSuccessors(v) = dag.outgoingEdgesOf(v).size()
+    }
+
+    // Initialize with sink nodes (those with zero outgoing edges)
+    var currentLayer = remainingSuccessors.collect {
+      case (v, 0) => v
+    }.toSet
+    currentLayer.foreach(remainingSuccessors.remove)
+
+    // Accumulate layers from sink to source
+    val layers = scala.collection.mutable.ArrayBuffer.empty[Set[PhysicalOpIdentity]]
+
+    while (currentLayer.nonEmpty) {
+      layers.append(currentLayer)
+      val nextLayer = scala.collection.mutable.Set[PhysicalOpIdentity]()
+
+      for (node <- currentLayer) {
+        val incomingEdges = dag.incomingEdgesOf(node)
+        incomingEdges.forEach { edge =>
+          val pred = dag.getEdgeSource(edge)
+          if (remainingSuccessors.contains(pred)) {
+            remainingSuccessors(pred) -= 1
+            if (remainingSuccessors(pred) == 0) {
+              nextLayer += pred
+              remainingSuccessors.remove(pred)
+            }
+          }
+        }
+      }
+
+      currentLayer = nextLayer.toSet
+    }
+
+    layers.toSeq
+  }
+
   def addOperator(physicalOp: PhysicalOp): PhysicalPlan = {
     this.copy(operators = Set(physicalOp) ++ operators)
   }
