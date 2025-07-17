@@ -34,6 +34,8 @@ import { ChangeDetectorRef } from "@angular/core";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -75,7 +77,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   sinkStorageMode: string = "";
   private schema: ReadonlyArray<SchemaAttribute> = [];
-  isWorkflowFinished: boolean = false;
+  isOperatorFinished: boolean = false;
 
   constructor(
     private modalService: NzModalService,
@@ -84,7 +86,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private executeWorkflowService: ExecuteWorkflowService
+    private workflowStatusService: WorkflowStatusService // 新增注入
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -105,15 +107,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.executeWorkflowService
-      .getExecutionStateStream()
+    this.workflowStatusService.getStatusUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        if (event.current.state === ExecutionState.Completed) {
-          this.isWorkflowFinished = true;
+      .subscribe(statusMap => {
+        if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
+          this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
-        } else if (event.current.state === ExecutionState.Running) {
-          this.isWorkflowFinished = false;
+        } else {
+          this.isOperatorFinished = false;
         }
       });
 
@@ -215,7 +216,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     let styledValue = "";
 
-    if (this.isWorkflowFinished) {
+    if (this.isOperatorFinished) {
       for (let i = 0; i < currentStr.length; i++) {
         styledValue += `<span style="color: black">${currentStr[i]}</span>`;
       }
