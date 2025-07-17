@@ -18,7 +18,6 @@
  */
 
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
-
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
