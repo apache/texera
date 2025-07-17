@@ -41,6 +41,7 @@ object OperatorGroupConstants {
   final val ADVANCED_SKLEARN_GROUP = "Advanced Sklearn"
   final val HUGGINGFACE_GROUP = "Hugging Face"
   final val SKLEARN_GROUP = "Sklearn"
+  final val SKLEARN_TRAINING_GROUP = "Sklearn Training"
   final val UDF_GROUP = "User-defined Functions"
   final val PYTHON_GROUP = "Python"
   final val JAVA_GROUP = "Java"
@@ -63,7 +64,7 @@ object OperatorGroupConstants {
     GroupInfo(
       MACHINE_LEARNING_GROUP,
       List(
-        GroupInfo(SKLEARN_GROUP),
+        GroupInfo(SKLEARN_GROUP, List(GroupInfo(SKLEARN_TRAINING_GROUP))),
         GroupInfo(ADVANCED_SKLEARN_GROUP),
         GroupInfo(HUGGINGFACE_GROUP),
         GroupInfo(MACHINE_LEARNING_GENERAL_GROUP)
