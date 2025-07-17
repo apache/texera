@@ -102,7 +102,6 @@ abstract class ScheduleGenerator(
         if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
       }.toSet
       tmpLevelSets(level) = batchIds
-
       batchIds.foreach { rid =>
         regionPlan.dag
           .outgoingEdgesOf(rid)
