@@ -157,6 +157,14 @@ configService:
     type: ClusterIP
     port: 9094
 
+permissionService:
+  name: permission-service
+  numOfPods: 1
+  imageName: alirisheh876/texera-permission
+  service:
+    type: ClusterIP
+    port: 9096
+
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
   replicas: 1

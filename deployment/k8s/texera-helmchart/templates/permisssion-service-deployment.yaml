@@ -1,0 +1,60 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  {{.Release.Name}}-{{ .Values.permissionService.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.permissionService.name }}
+spec:
+  replicas: {{ .Values.permissionService.numOfPods | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.permissionService.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.permissionService.name }}
+    spec:
+      containers:
+        - name: {{ .Values.permissionService.name }}
+          image: {{ .Values.permissionService.imageName }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.permissionService.service.port }}
+          env:
+            - name: STORAGE_JDBC_URL
+              value: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/texera_db?currentSchema=texera_db,public
+            - name: STORAGE_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgres-password
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.permissionService.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.permissionService.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
