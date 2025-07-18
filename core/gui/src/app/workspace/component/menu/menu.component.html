@@ -291,22 +291,22 @@
               nzType="database"
               nzTheme="twotone"></i>
           </button>
-          <button
-            (click)="undoRedoService.undoAction()"
-            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
-            nz-button>
-            <i
-              nz-icon
-              nzType="undo"></i>
-          </button>
-          <button
-            (click)="undoRedoService.redoAction()"
-            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
-            nz-button>
-            <i
-              nz-icon
-              nzType="redo"></i>
-          </button>
+          <!--          <button-->
+          <!--            (click)="undoRedoService.undoAction()"-->
+          <!--            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"-->
+          <!--            nz-button>-->
+          <!--            <i-->
+          <!--              nz-icon-->
+          <!--              nzType="undo"></i>-->
+          <!--          </button>-->
+          <!--          <button-->
+          <!--            (click)="undoRedoService.redoAction()"-->
+          <!--            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"-->
+          <!--            nz-button>-->
+          <!--            <i-->
+          <!--              nz-icon-->
+          <!--              nzType="redo"></i>-->
+          <!--          </button>-->
         </nz-button-group>
       </ng-template>
       <nz-dropdown-menu #menu="nzDropdownMenu">
