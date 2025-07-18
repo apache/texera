@@ -63,17 +63,17 @@ export class DashboardComponent implements OnInit {
   logo: string = "";
   miniLogo: string = "";
   sidebarTabs: SidebarTabs = {
-    hub_enabled: true,
-    home_enabled: true,
-    workflow_enabled: true,
-    dataset_enabled: true,
-    your_work_enabled: true,
-    projects_enabled: true,
-    workflows_enabled: true,
-    datasets_enabled: true,
-    quota_enabled: true,
-    forum_enabled: true,
-    about_enabled: true,
+    hub_enabled: false,
+    home_enabled: false,
+    workflow_enabled: false,
+    dataset_enabled: false,
+    your_work_enabled: false,
+    projects_enabled: false,
+    workflows_enabled: false,
+    datasets_enabled: false,
+    quota_enabled: false,
+    forum_enabled: false,
+    about_enabled: false,
   };
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
