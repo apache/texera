@@ -101,6 +101,7 @@ abstract class ScheduleGenerator(
       val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
         if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
       }.toSet
+
       tmpLevelSets(level) = batchIds
       batchIds.foreach { rid =>
         regionPlan.dag
