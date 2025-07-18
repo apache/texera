@@ -186,7 +186,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
             // UNDO
             if (this.undoRedoService.canUndo()) {
-              this.undoRedoService.undoAction();
+              // Temporarily disabling undo-redo because of a bug that can cause invalid workflow structures.
+              // TODO: enable after fixing the bug.
+              // this.undoRedoService.undoAction();
             }
           } else if (
             ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
@@ -194,7 +196,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           ) {
             // redo
             if (this.undoRedoService.canRedo()) {
-              this.undoRedoService.redoAction();
+              // this.undoRedoService.redoAction();
             }
           }
           // below for future hotkeys
