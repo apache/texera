@@ -39,9 +39,20 @@ export interface GuiConfig {
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;
-  hubEnabled: boolean;
-  forumEnabled: boolean;
-  projectEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
+}
+
+export interface SidebarTabs {
+  hub_enabled: boolean;
+  home_enabled: boolean;
+  workflow_enabled: boolean;
+  dataset_enabled: boolean;
+  your_work_enabled: boolean;
+  projects_enabled: boolean;
+  workflows_enabled: boolean;
+  datasets_enabled: boolean;
+  quota_enabled: boolean;
+  forum_enabled: boolean;
+  about_enabled: boolean;
 }

@@ -38,12 +38,6 @@ object GuiConfig {
       conf.getString("gui.login.default-local-user.password")
     else ""
 
-  // GUI Dashboard Configuration
-  val guiDashboardHubEnabled: Boolean = conf.getBoolean("gui.dashboard.hub-enabled")
-  val guiDashboardForumEnabled: Boolean = conf.getBoolean("gui.dashboard.forum-enabled")
-  val guiDashboardProjectEnabled: Boolean =
-    conf.getBoolean("gui.dashboard.project-enabled")
-
   // GUI Workflow Workspace Configuration
   val guiWorkflowWorkspaceUserPresetEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.user-preset-enabled")

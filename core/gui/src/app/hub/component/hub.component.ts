@@ -24,6 +24,7 @@ import {
   DASHBOARD_HUB_DATASET_RESULT,
 } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { SidebarTabs } from "../../common/type/gui-config";
 
 @Component({
   selector: "texera-hub",
@@ -32,6 +33,7 @@ import { GuiConfigService } from "../../common/service/gui-config.service";
 })
 export class HubComponent {
   @Input() isLogin: boolean = false;
+  @Input() sidebarTabs: SidebarTabs = {} as SidebarTabs;
   protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
   protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
   protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;

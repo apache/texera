@@ -19,7 +19,7 @@
 
 <ul>
   <li
-    *ngIf="config.env.hubEnabled"
+    *ngIf="sidebarTabs.home_enabled"
     nz-menu-item
     nz-tooltip="Home Page"
     nzMatchRouter="true"
@@ -31,7 +31,7 @@
     <span> Home </span>
   </li>
   <li
-    *ngIf="config.env.hubEnabled"
+    *ngIf="sidebarTabs.workflow_enabled"
     nz-menu-item
     nz-tooltip="Search public workflows"
     nzMatchRouter="true"
@@ -43,7 +43,7 @@
     <span>Workflows</span>
   </li>
   <li
-    *ngIf="config.env.hubEnabled"
+    *ngIf="sidebarTabs.dataset_enabled"
     nz-menu-item
     nz-tooltip="Search public dataset"
     nzMatchRouter="true"

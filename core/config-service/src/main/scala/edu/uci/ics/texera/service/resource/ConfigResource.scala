@@ -51,9 +51,6 @@ class ConfigResource {
       "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
-      "hubEnabled" -> GuiConfig.guiDashboardHubEnabled,
-      "forumEnabled" -> GuiConfig.guiDashboardForumEnabled,
-      "projectEnabled" -> GuiConfig.guiDashboardProjectEnabled,
       "operatorConsoleMessageBufferSize" -> GuiConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "defaultLocalUser" -> Map(

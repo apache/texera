@@ -17,10 +17,11 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { SidebarTabs } from "../../../../common/type/gui-config";
 
 @UntilDestroy()
 @Component({
@@ -28,15 +29,40 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./admin-settings.component.html",
   styleUrls: ["./admin-settings.component.scss"],
 })
-export class AdminSettingsComponent {
+export class AdminSettingsComponent implements OnInit {
   logoData: string | null = null;
   miniLogoData: string | null = null;
   faviconData: string | null = null;
+  sidebarTabs: SidebarTabs = {
+    hub_enabled: false,
+    home_enabled: false,
+    workflow_enabled: false,
+    dataset_enabled: false,
+    your_work_enabled: false,
+    projects_enabled: false,
+    workflows_enabled: false,
+    datasets_enabled: false,
+    quota_enabled: false,
+    forum_enabled: false,
+    about_enabled: false,
+  };
 
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
+  ngOnInit(): void {
+    this.loadTabs();
+  }
+
+  private loadTabs(): void {
+    (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
+      this.adminSettingsService
+        .getSetting(tab)
+        .pipe(untilDestroyed(this))
+        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+    });
+  }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -128,6 +154,31 @@ export class AdminSettingsComponent {
         error: () => this.message.error("Failed to reset favicon."),
       });
 
+    setTimeout(() => window.location.reload(), 500);
+  }
+
+  saveTabs(tab: keyof SidebarTabs): void {
+    const displayTab = tab
+      .replace("_enabled", "")
+      .split("_")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    this.adminSettingsService
+      .updateSetting(tab, this.sidebarTabs[tab].toString())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.message.success(`${displayTab} tab saved successfully.`),
+        error: () => this.message.error(`Failed to save ${displayTab} tab.`),
+      });
+  }
+
+  resetTabs(): void {
+    Object.keys(this.sidebarTabs).forEach(tab => {
+      this.adminSettingsService.resetSetting(tab).pipe(untilDestroyed(this)).subscribe({});
+    });
+
+    this.message.info("Resetting tabs...");
     setTimeout(() => window.location.reload(), 500);
   }
 }
