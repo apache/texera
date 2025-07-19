@@ -168,7 +168,7 @@ export class ValidationWorkflowService {
     this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
-  public checkIfWorkflowBrokwn(workflow: Workflow): boolean {
+  public checkIfWorkflowBroken(workflow: Workflow): boolean {
     // Check the provided workflow
     const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
     return workflow.content.links.some(
