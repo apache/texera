@@ -78,7 +78,6 @@ export class ValidationWorkflowService {
   // this map record --> <operatorID, error string>
   private workflowErrors: Record<string, ValidationError> = {};
   private workflowEmpty: boolean = false;
-  private previouslyBroken: boolean = false;
 
   /**
    * subcribe the add opertor event, delete operator event, add link event, delete link event
@@ -163,22 +162,6 @@ export class ValidationWorkflowService {
     this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
-  private checkIfWorkflowBorken(): boolean {
-    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
-    const edges = this.workflowActionService.getTexeraGraph().getAllLinks();
-    
-    // Create a set of existing operator IDs for fast lookup
-    const operatorIds = new Set(operators.map(operator => operator.operatorID));
-    
-    // Check if any edge references a non-existent operator
-    for (const edge of edges) {
-      if (!operatorIds.has(edge.source.operatorID) || !operatorIds.has(edge.target.operatorID)) {
-        return true; // Workflow is broken
-      }
-    }
-    
-    return false; // Workflow is not broken
-  }
   /**
    * Initialize all the event listener for validation on the workflow editor
    */
@@ -272,17 +255,6 @@ export class ValidationWorkflowService {
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        const isBroken = this.checkIfWorkflowBorken();
-        console.log("Workflow broken:", isBroken);
-        
-        // Show alert popup only when workflow becomes broken (state change from not broken to broken)
-        if (isBroken && !this.previouslyBroken) {
-          alert("Warning: The workflow is broken! Some edges reference operators that do not exist. Please check your workflow connections.");
-        }
-        
-        // Update the previous state
-        this.previouslyBroken = isBroken;
-        
         this.checkIfWorkflowEmpty();
         this.workflowValidationErrorStream.next({
           errors: this.workflowErrors,
