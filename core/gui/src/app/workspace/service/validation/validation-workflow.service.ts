@@ -160,7 +160,7 @@ export class ValidationWorkflowService {
   /**
    * Checks if the given workflow is "broken".
    * A workflow is considered broken if any of its links reference an operator ID
-   * that does not exist in the list of operators.
+   * that does not exist in the list of operators within the workflow.
    *
    * @param workflow - The workflow to validate, containing operators and links.
    * @returns `true` if the workflow is broken, `false` otherwise.
