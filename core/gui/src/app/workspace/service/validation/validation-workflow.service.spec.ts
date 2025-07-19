@@ -36,6 +36,7 @@ import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { Workflow } from "../../../common/type/workflow";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
