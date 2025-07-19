@@ -182,21 +182,23 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntil(this._onProcessKeyboardActionObservable))
       .subscribe(displayParticularWorkflowVersion => {
         if (!displayParticularWorkflowVersion) {
-          // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
-          if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
-            // UNDO
-            if (this.undoRedoService.canUndo()) {
-              this.undoRedoService.undoAction();
-            }
-          } else if (
-            ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
-            ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
-          ) {
-            // redo
-            if (this.undoRedoService.canRedo()) {
-              this.undoRedoService.redoAction();
-            }
-          }
+          // Temporarily disabling undo-redo because of a bug that can cause invalid workflow structures.
+          // TODO: enable after fixing the bug.
+          // // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
+          // if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+          //   // UNDO
+          //   if (this.undoRedoService.canUndo()) {
+          //     this.undoRedoService.undoAction();
+          //   }
+          // } else if (
+          //   ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
+          //   ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
+          // ) {
+          //   // redo
+          //   if (this.undoRedoService.canRedo()) {
+          //     this.undoRedoService.redoAction();
+          //   }
+          // }
           // below for future hotkeys
         }
         this._onProcessKeyboardActionObservable.complete();
