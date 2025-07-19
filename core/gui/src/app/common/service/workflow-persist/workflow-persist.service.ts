@@ -67,11 +67,10 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
-    
-    if(checkIfWorkflowBroken(workflow)){
-      alert("Workflow is Broken")
+    if (checkIfWorkflowBroken(workflow)) {
+      alert("Workflow is Broken");
     }
-    
+
     return this.http
       .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
