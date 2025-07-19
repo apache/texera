@@ -69,7 +69,9 @@ export class WorkflowPersistService {
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
     if (this.validationWorkflowService.checkIfWorkflowBroken(workflow)) {
-      alert("Workflow is Broken");
+      this.notificationService.error(
+        "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
+      );
     }
 
     return this.http

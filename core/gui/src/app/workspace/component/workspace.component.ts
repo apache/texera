@@ -208,7 +208,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         (workflow: Workflow) => {
           if (this.validationWorkflowService.checkIfWorkflowBroken(workflow)) {
-            alert("Workflow is Broken");
+            this.notificationService.error(
+              "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
+            );
           }
 
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());

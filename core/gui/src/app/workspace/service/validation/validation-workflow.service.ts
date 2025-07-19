@@ -157,6 +157,14 @@ export class ValidationWorkflowService {
     }
   }
 
+  /**
+   * Checks if the given workflow is "broken".
+   * A workflow is considered broken if any of its links reference an operator ID
+   * that does not exist in the list of operators within the workflow.
+   *
+   * @param workflow - The workflow to validate, containing operators and links.
+   * @returns `true` if the workflow is broken, `false` otherwise.
+   */
   public checkIfWorkflowBroken(workflow: Workflow): boolean {
     // Check the provided workflow
     const validOperatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
