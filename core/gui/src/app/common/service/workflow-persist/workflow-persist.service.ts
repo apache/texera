@@ -28,7 +28,7 @@ import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/u
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
-import { ValidationWorkflowService } from "../../../workspace/service/validation/validation-workflow.service"
+import { ValidationWorkflowService } from "../../../workspace/service/validation/validation-workflow.service";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -69,7 +69,7 @@ export class WorkflowPersistService {
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
     if (this.validationWorkflowService.checkIfWorkflowBroken(workflow)) {
-            alert("Workflow is Broken");
+      alert("Workflow is Broken");
     }
 
     return this.http

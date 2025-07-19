@@ -399,4 +399,3 @@ export class ValidationWorkflowService {
     return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }
-
