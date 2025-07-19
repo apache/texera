@@ -28,6 +28,7 @@ import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
+import { Workflow } from "../../../common/type/workflow";
 
 export type ValidationError = {
   isValid: false;
@@ -154,6 +155,14 @@ export class ValidationWorkflowService {
         this.workflowActionService.getTexeraGraph().isOperatorDisabled(operator.operatorID)
       );
     }
+  }
+
+  public checkIfWorkflowBroken(workflow: Workflow): boolean {
+    // Check the provided workflow
+    const validOperatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
+    return workflow.content.links.some(
+      link => !validOperatorIDs.has(link.source.operatorID) || !validOperatorIDs.has(link.target.operatorID)
+    );
   }
 
   private updateValidationStateOnDelete(operatorID: string) {
@@ -390,3 +399,4 @@ export class ValidationWorkflowService {
     return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }
+

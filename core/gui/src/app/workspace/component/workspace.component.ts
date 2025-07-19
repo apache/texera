@@ -42,6 +42,7 @@ import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workfl
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { ValidationWorkflowService } from "../service/validation/validation-workflow.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -88,7 +89,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private validationWorkflowService: ValidationWorkflowService
   ) {}
 
   ngOnInit() {
@@ -205,6 +207,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
+          if (this.validationWorkflowService.checkIfWorkflowBroken(workflow)) {
+            alert("Workflow is Broken");
+          }
+
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
