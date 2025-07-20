@@ -23,7 +23,6 @@ import { WorkflowPersistService } from "./workflow-persist.service";
 import { jsonCast } from "../../util/storage";
 import { WorkflowContent } from "../../type/workflow";
 import { last } from "rxjs/operators";
-import { ValidationWorkflowService } from "../../../workspace/service/validation/validation-workflow.service";
 
 describe("WorkflowPersistService", () => {
   let service: WorkflowPersistService;
