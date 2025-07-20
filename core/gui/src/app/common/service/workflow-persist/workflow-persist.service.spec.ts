@@ -23,6 +23,21 @@ import { WorkflowPersistService } from "./workflow-persist.service";
 import { jsonCast } from "../../util/storage";
 import { WorkflowContent } from "../../type/workflow";
 import { last } from "rxjs/operators";
+import { ValidationWorkflowService } from "../../../workspace/service/validation/validation-workflow.service";
+import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
+import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
+import { OperatorMetadataService } from "../../../workspace/service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../workspace/service/operator-metadata/stub-operator-metadata.service";
+import { JointUIService } from "../../../workspace/service/joint-ui/joint-ui.service";
+import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
+
+// import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
+// import { JointUIService } from "../joint-ui/joint-ui.service";
+// import { marbles } from "rxjs-marbles";
+// import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+// import { map } from "rxjs/operators";
+// import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowPersistService", () => {
   let service: WorkflowPersistService;
@@ -49,6 +64,18 @@ describe("WorkflowPersistService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [
+        WorkflowActionService,
+        WorkflowUtilService,
+        UndoRedoService,
+        ValidationWorkflowService,
+        JointUIService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        ...commonTestProviders,
+      ],
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.get(HttpTestingController);
