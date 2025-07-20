@@ -157,17 +157,11 @@ export class ValidationWorkflowService {
     }
   }
 
-  /**
+   /**
    * Checks if the given workflow is "broken"
    * A workflow is considered broken if any of its links reference an operator ID
    * that does not exist in the list of operators within the workflow.
    */
-  private updateValidationStateOnDelete(operatorID: string) {
-    this.checkIfWorkflowEmpty();
-    delete this.workflowErrors[operatorID];
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
-  }
-
   public checkIfWorkflowBroken(workflow: Workflow): boolean {
     // Check the provided workflow
     const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
@@ -175,6 +169,13 @@ export class ValidationWorkflowService {
       link => !operatorIDs.has(link.source.operatorID) || !operatorIDs.has(link.target.operatorID)
     );
   }
+  
+  private updateValidationStateOnDelete(operatorID: string) {
+    this.checkIfWorkflowEmpty();
+    delete this.workflowErrors[operatorID];
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
+  }
+
   /**
    * Initialize all the event listener for validation on the workflow editor
    */
