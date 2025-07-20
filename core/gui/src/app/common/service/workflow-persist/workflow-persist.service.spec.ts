@@ -31,6 +31,10 @@ import { StubOperatorMetadataService } from "../../../workspace/service/operator
 import { JointUIService } from "../../../workspace/service/joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { NotificationService } from "../notification/notification.service";
+import { HttpClient } from "@angular/common/http";
+
+// import { ValidationWorkflowService } from "./validation-workflow.service";
 
 // import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 // import { JointUIService } from "../joint-ui/joint-ui.service";
@@ -42,6 +46,8 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 describe("WorkflowPersistService", () => {
   let service: WorkflowPersistService;
   let httpTestingController: HttpTestingController;
+  let validationWorkflowService: ValidationWorkflowService;
+  let workflowActionservice: WorkflowActionService;
   const testContent =
     "{\"operators\":[{\"operatorID\":\"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9\"," +
     "\"operatorType\":\"Limit\",\"operatorProperties\":{\"limit\":2},\"inputPorts\":[{\"portID\":\"input-0\",\"displayName\":\"\"}]," +
@@ -70,6 +76,8 @@ describe("WorkflowPersistService", () => {
         UndoRedoService,
         ValidationWorkflowService,
         JointUIService,
+        NotificationService,
+        HttpClient,
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
@@ -79,6 +87,8 @@ describe("WorkflowPersistService", () => {
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.get(HttpTestingController);
+    validationWorkflowService = TestBed.get(ValidationWorkflowService);
+    workflowActionservice = TestBed.get(WorkflowActionService);
   });
 
   it("should be created", () => {
