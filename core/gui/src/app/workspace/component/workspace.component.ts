@@ -205,6 +205,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
+          // TODO: create function for checking if workflow is broken
+          const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
+          if (
+            workflow.content.links.some(
+              link => !operatorIDs.has(link.source.operatorID) || !operatorIDs.has(link.target.operatorID)
+            )
+          ) {
+            this.notificationService.error(
+              "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
+            );
+          }
+
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
