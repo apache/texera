@@ -22,29 +22,20 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.ComputingUnitConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
   UserDao,
   WorkflowComputingUnitDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
-import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  context
-}
-import edu.uci.ics.texera.service.util.KubernetesClient
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
-  getComputingUnitMetrics,
-  getComputingUnitStatus
-}
 import edu.uci.ics.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 
 import scala.jdk.CollectionConverters._
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{DELETE, ForbiddenException, GET, PUT, Path, PathParam, Produces}
 import org.jooq.{DSLContext, EnumType}
 

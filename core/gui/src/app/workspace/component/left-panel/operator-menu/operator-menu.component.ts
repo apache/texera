@@ -78,10 +78,12 @@ export class OperatorMenuComponent {
         );
         this.groupNames = operatorMetadata.groups;
         ops.forEach(x => {
-          const group = x.additionalMetadata.operatorGroupName;
-          const list = this.opList.get(group) || [];
-          list.push(x);
-          this.opList.set(group, list);
+          if (x.operatorType !== "Sleep") {
+            const group = x.additionalMetadata.operatorGroupName;
+            const list = this.opList.get(group) || [];
+            list.push(x);
+            this.opList.set(group, list);
+          }
         });
         this.opList.forEach(value => {
           value.sort((a, b) => a.operatorType.localeCompare(b.operatorType));

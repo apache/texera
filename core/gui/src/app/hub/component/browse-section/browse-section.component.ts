@@ -71,31 +71,20 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     }
 
     const entityId = entity.id;
+    const owners = entity.accessibleUserIds;
 
     if (entity.type === "workflow") {
-      this.workflowPersistService
-        .getWorkflowOwners(entityId)
-        .pipe(untilDestroyed(this))
-        .subscribe((owners: number[]) => {
-          if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
-            this.entityRoutes[entityId] = [this.DASHBOARD_USER_WORKSPACE, String(entityId)];
-          } else {
-            this.entityRoutes[entityId] = [this.DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(entityId)];
-          }
-          this.cdr.detectChanges();
-        });
+      if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
+        this.entityRoutes[entityId] = [this.DASHBOARD_USER_WORKSPACE, String(entityId)];
+      } else {
+        this.entityRoutes[entityId] = [this.DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(entityId)];
+      }
     } else if (entity.type === "dataset") {
-      this.datasetService
-        .getDatasetOwners(entityId)
-        .pipe(untilDestroyed(this))
-        .subscribe((owners: number[]) => {
-          if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
-            this.entityRoutes[entityId] = [this.DASHBOARD_USER_DATASET, String(entityId)];
-          } else {
-            this.entityRoutes[entityId] = [this.DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(entityId)];
-          }
-          this.cdr.detectChanges();
-        });
+      if (this.currentUid !== undefined && owners.includes(this.currentUid)) {
+        this.entityRoutes[entityId] = [this.DASHBOARD_USER_DATASET, String(entityId)];
+      } else {
+        this.entityRoutes[entityId] = [this.DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(entityId)];
+      }
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }

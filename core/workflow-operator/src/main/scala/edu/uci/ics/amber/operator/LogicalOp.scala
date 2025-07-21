@@ -63,6 +63,32 @@ import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sklearn._
+import edu.uci.ics.amber.operator.sleep.SleepOpDesc
+import edu.uci.ics.amber.operator.sklearn.training.{
+  SklearnTrainingAdaptiveBoostingOpDesc,
+  SklearnTrainingBaggingOpDesc,
+  SklearnTrainingBernoulliNaiveBayesOpDesc,
+  SklearnTrainingComplementNaiveBayesOpDesc,
+  SklearnTrainingDecisionTreeOpDesc,
+  SklearnTrainingDummyClassifierOpDesc,
+  SklearnTrainingExtraTreeOpDesc,
+  SklearnTrainingExtraTreesOpDesc,
+  SklearnTrainingGaussianNaiveBayesOpDesc,
+  SklearnTrainingGradientBoostingOpDesc,
+  SklearnTrainingKNNOpDesc,
+  SklearnTrainingLinearSVMOpDesc,
+  SklearnTrainingMultiLayerPerceptronOpDesc,
+  SklearnTrainingMultinomialNaiveBayesOpDesc,
+  SklearnTrainingNearestCentroidOpDesc,
+  SklearnTrainingPassiveAggressiveOpDesc,
+  SklearnTrainingPerceptronOpDesc,
+  SklearnTrainingProbabilityCalibrationOpDesc,
+  SklearnTrainingRandomForestOpDesc,
+  SklearnTrainingRidgeCVOpDesc,
+  SklearnTrainingRidgeOpDesc,
+  SklearnTrainingSDGOpDesc,
+  SklearnTrainingSVMOpDesc
+}
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
@@ -106,6 +132,7 @@ import edu.uci.ics.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpD
 import edu.uci.ics.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
+import edu.uci.ics.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import edu.uci.ics.amber.operator.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
@@ -127,6 +154,7 @@ import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import edu.uci.ics.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import edu.uci.ics.amber.operator.visualization.nestedTable.NestedTableOpDesc
+import edu.uci.ics.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -160,6 +188,7 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
@@ -187,6 +216,7 @@ trait StateTransferFunc
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
+    new Type(value = classOf[SleepOpDesc], name = "Sleep"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
     new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
     new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin"),
@@ -207,6 +237,7 @@ trait StateTransferFunc
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
+    new Type(value = classOf[TreePlotOpDesc], name = "TreePlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
     new Type(value = classOf[BulletChartOpDesc], name = "BulletChart"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
@@ -235,6 +266,67 @@ trait StateTransferFunc
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
+    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
+    new Type(
+      value = classOf[SklearnLogisticRegressionCVOpDesc],
+      name = "SklearnLogisticRegressionCV"
+    ),
+    new Type(value = classOf[SklearnTrainingRidgeOpDesc], name = "SklearnRidge"),
+    new Type(value = classOf[SklearnTrainingRidgeCVOpDesc], name = "SklearnRidgeCV"),
+    new Type(value = classOf[SklearnTrainingSDGOpDesc], name = "SklearnSDG"),
+    new Type(
+      value = classOf[SklearnTrainingPassiveAggressiveOpDesc],
+      name = "SklearnPassiveAggressive"
+    ),
+    new Type(value = classOf[SklearnTrainingPerceptronOpDesc], name = "SklearnPerceptron"),
+    new Type(value = classOf[SklearnTrainingKNNOpDesc], name = "SklearnKNN"),
+    new Type(
+      value = classOf[SklearnTrainingNearestCentroidOpDesc],
+      name = "SklearnNearestCentroid"
+    ),
+    new Type(value = classOf[SklearnTrainingSVMOpDesc], name = "SklearnSVM"),
+    new Type(value = classOf[SklearnTrainingLinearSVMOpDesc], name = "SklearnLinearSVM"),
+    new Type(value = classOf[SklearnTrainingDecisionTreeOpDesc], name = "SklearnDecisionTree"),
+    new Type(value = classOf[SklearnTrainingExtraTreeOpDesc], name = "SklearnExtraTree"),
+    new Type(
+      value = classOf[SklearnTrainingMultiLayerPerceptronOpDesc],
+      name = "SklearnMultiLayerPerceptron"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingProbabilityCalibrationOpDesc],
+      name = "SklearnProbabilityCalibration"
+    ),
+    new Type(value = classOf[SklearnTrainingRandomForestOpDesc], name = "SklearnRandomForest"),
+    new Type(value = classOf[SklearnTrainingBaggingOpDesc], name = "SklearnBagging"),
+    new Type(
+      value = classOf[SklearnTrainingGradientBoostingOpDesc],
+      name = "SklearnGradientBoosting"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingAdaptiveBoostingOpDesc],
+      name = "SklearnAdaptiveBoosting"
+    ),
+    new Type(value = classOf[SklearnTrainingExtraTreesOpDesc], name = "SklearnExtraTrees"),
+    new Type(
+      value = classOf[SklearnTrainingGaussianNaiveBayesOpDesc],
+      name = "SklearnGaussianNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingMultinomialNaiveBayesOpDesc],
+      name = "SklearnMultinomialNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingComplementNaiveBayesOpDesc],
+      name = "SklearnComplementNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingBernoulliNaiveBayesOpDesc],
+      name = "SklearnBernoulliNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingDummyClassifierOpDesc],
+      name = "SklearnDummyClassifier"
+    ),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
       value = classOf[SklearnLogisticRegressionCVOpDesc],

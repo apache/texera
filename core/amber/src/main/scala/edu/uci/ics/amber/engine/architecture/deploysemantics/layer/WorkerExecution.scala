@@ -34,20 +34,59 @@ case class WorkerExecution() extends Serializable {
     mutable.HashMap()
 
   private var state: WorkerState = UNINITIALIZED
-  private var stats: WorkerStatistics =
+  private var stats: WorkerStatistics = {
     WorkerStatistics(Seq.empty, Seq.empty, 0, 0, 0)
+  }
+  private var lastUpdateTimeStamp = 0L
+
+  /**
+    * Updates both the worker state and statistics if the provided timestamp is newer
+    * than the last recorded update timestamp. This ensures that only the most recent
+    * data is reflected in the execution state.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param state the new WorkerState to set
+    * @param stats the new WorkerStatistics to set
+    */
+  def update(timeStamp: Long, state: WorkerState, stats: WorkerStatistics): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.stats = stats
+      this.state = state
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
+
+  /**
+    * Updates only the worker state if the provided timestamp is newer than the
+    * last recorded update timestamp.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param state the new WorkerState to set
+    */
+  def update(timeStamp: Long, state: WorkerState): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.state = state
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
+
+  /**
+    * Updates only the worker statistics if the provided timestamp is newer than the
+    * last recorded update timestamp.
+    *
+    * @param timeStamp the nanosecond-timestamp of this update
+    * @param stats the new WorkerStatistics to set
+    */
+  def update(timeStamp: Long, stats: WorkerStatistics): Unit = {
+    if (this.lastUpdateTimeStamp < timeStamp) {
+      this.stats = stats
+      this.lastUpdateTimeStamp = timeStamp
+    }
+  }
 
   def getState: WorkerState = state
 
-  def setState(state: WorkerState): Unit = {
-    this.state = state
-  }
-
   def getStats: WorkerStatistics = stats
-
-  def setStats(stats: WorkerStatistics): Unit = {
-    this.stats = stats
-  }
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {
     if (!inputPortExecutions.contains(portId)) {

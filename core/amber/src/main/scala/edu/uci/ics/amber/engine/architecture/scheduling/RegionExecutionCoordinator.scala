@@ -178,7 +178,7 @@ class RegionExecutionCoordinator(
         regionExecution.getAllOperatorExecutions.foreach {
           case (_, opExec) =>
             opExec.getWorkerIds.foreach { workerId =>
-              opExec.getWorkerExecution(workerId).setState(WorkerState.TERMINATED)
+              opExec.getWorkerExecution(workerId).update(System.nanoTime(), WorkerState.TERMINATED)
             }
         }
         Future.Unit // propagate success
@@ -513,7 +513,7 @@ class RegionExecutionCoordinator(
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .setState(resp.state)
+                    .update(System.nanoTime(), resp.state)
                 )
             }
         }

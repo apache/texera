@@ -40,7 +40,8 @@ th.header-size {
   border-bottom: 1px solid #ccc;
   border-top: 1px solid #ccc;
   border-left: 1px solid #ccc;
-  height: 88px;
+  height: auto;
+  padding: 2px 4px;
 }
 
 .custom-stats-row th:first-child {
@@ -48,9 +49,8 @@ th.header-size {
 }
 
 .statsHeader {
-  max-height: 70px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  max-height: none;
+  padding: 2px 0;
 }
 
 .statsLine {
@@ -58,6 +58,13 @@ th.header-size {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 16px;
+}
+
+.statsLine h5 {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 12px;
 }
 
 .leftAlign {
