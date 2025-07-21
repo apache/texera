@@ -66,6 +66,7 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
+    // TODO: create function for checking if workflow is broken
     const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
     if (
       workflow.content.links.some(
