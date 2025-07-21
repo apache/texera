@@ -23,33 +23,10 @@ import { WorkflowPersistService } from "./workflow-persist.service";
 import { jsonCast } from "../../util/storage";
 import { WorkflowContent } from "../../type/workflow";
 import { last } from "rxjs/operators";
-import { ValidationWorkflowService } from "../../../workspace/service/validation/validation-workflow.service";
-import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
-import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
-import { OperatorMetadataService } from "../../../workspace/service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../../workspace/service/operator-metadata/stub-operator-metadata.service";
-import { JointUIService } from "../../../workspace/service/joint-ui/joint-ui.service";
-import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
-import { commonTestProviders } from "../../../common/testing/test-utils";
-import { NotificationService } from "../notification/notification.service";
-import { HttpClient } from "@angular/common/http";
-import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
-
-// import { ValidationWorkflowService } from "./validation-workflow.service";
-
-// import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
-// import { JointUIService } from "../joint-ui/joint-ui.service";
-// import { marbles } from "rxjs-marbles";
-// import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-// import { map } from "rxjs/operators";
-// import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowPersistService", () => {
   let service: WorkflowPersistService;
   let httpTestingController: HttpTestingController;
-  let validationWorkflowService: ValidationWorkflowService;
-  let workflowActionservice: WorkflowActionService;
   const testContent =
     "{\"operators\":[{\"operatorID\":\"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9\"," +
     "\"operatorType\":\"Limit\",\"operatorProperties\":{\"limit\":2},\"inputPorts\":[{\"portID\":\"input-0\",\"displayName\":\"\"}]," +
@@ -72,28 +49,9 @@ describe("WorkflowPersistService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [
-        WorkflowActionService,
-        WorkflowUtilService,
-        UndoRedoService,
-        // stub validation to skip dynamic schema initialization
-        { provide: ValidationWorkflowService, useValue: { checkIfWorkflowBroken: () => false } },
-        JointUIService,
-        NotificationService,
-        { provide: NzMessageService, useValue: { success: () => {}, info: () => {}, error: () => {}, warning: () => {}, loading: () => {} } },
-        { provide: NzNotificationService, useValue: { blank: () => {}, remove: () => {} } },
-        HttpClient,
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-        ...commonTestProviders,
-      ],
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.get(HttpTestingController);
-    validationWorkflowService = TestBed.get(ValidationWorkflowService);
-    workflowActionservice = TestBed.get(WorkflowActionService);
   });
 
   it("should be created", () => {

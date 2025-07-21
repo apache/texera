@@ -89,8 +89,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private notificationService: NotificationService,
     private hubService: HubService,
     private codeEditorService: CodeEditorService,
-    private config: GuiConfigService,
-    private validationWorkflowService: ValidationWorkflowService
+    private config: GuiConfigService
   ) {}
 
   ngOnInit() {
@@ -207,7 +206,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          if (this.validationWorkflowService.checkIfWorkflowBroken(workflow)) {
+          const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
+          if (
+            workflow.content.links.some(
+              link => !operatorIDs.has(link.source.operatorID) || !operatorIDs.has(link.target.operatorID)
+            )
+          ) {
             this.notificationService.error(
               "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
             );
