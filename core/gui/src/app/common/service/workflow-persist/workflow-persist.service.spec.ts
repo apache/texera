@@ -33,6 +33,8 @@ import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/u
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { NotificationService } from "../notification/notification.service";
 import { HttpClient } from "@angular/common/http";
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 
 // import { ValidationWorkflowService } from "./validation-workflow.service";
 
@@ -74,9 +76,12 @@ describe("WorkflowPersistService", () => {
         WorkflowActionService,
         WorkflowUtilService,
         UndoRedoService,
-        ValidationWorkflowService,
+        // stub validation to skip dynamic schema initialization
+        { provide: ValidationWorkflowService, useValue: { checkIfWorkflowBroken: () => false } },
         JointUIService,
         NotificationService,
+        { provide: NzMessageService, useValue: { success: () => {}, info: () => {}, error: () => {}, warning: () => {}, loading: () => {} } },
+        { provide: NzNotificationService, useValue: { blank: () => {}, remove: () => {} } },
         HttpClient,
         {
           provide: OperatorMetadataService,
