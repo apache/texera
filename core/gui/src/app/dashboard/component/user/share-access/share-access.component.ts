@@ -71,7 +71,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
-      accessLevel: ["READ"],
+      accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
   }
