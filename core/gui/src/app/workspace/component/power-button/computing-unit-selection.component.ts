@@ -64,6 +64,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
 
+  // variables for renaming a computing unit
+  renameModalVisible = false;
+  renamingComputingUnitName: string = "";
+  renamingComputingUnit: DashboardWorkflowComputingUnit | null = null;
+
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
   jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
@@ -421,6 +426,65 @@ export class ComputingUnitSelectionComponent implements OnInit {
       },
       nzCancelText: "Cancel",
     });
+  }
+
+  /**
+   * Show rename modal for a computing unit.
+   */
+  showRenameModal(unit: DashboardWorkflowComputingUnit): void {
+    if (!unit.isOwner) {
+      this.notificationService.error("Only owners can rename computing units");
+      return;
+    }
+
+    this.renamingComputingUnit = unit;
+    this.renamingComputingUnitName = unit.computingUnit.name;
+    this.renameModalVisible = true;
+  }
+
+  /**
+   * Handle the OK button in rename modal.
+   */
+  handleRenameModalOk(): void {
+    if (!this.renamingComputingUnit) {
+      return;
+    }
+
+    this.renameComputingUnit(this.renamingComputingUnit.computingUnit.cuid, this.renamingComputingUnitName);
+    this.renameModalVisible = false;
+  }
+
+  /**
+   * Handle the Cancel button in rename modal.
+   */
+  handleRenameModalCancel(): void {
+    this.renameModalVisible = false;
+    this.renamingComputingUnit = null;
+    this.renamingComputingUnitName = "";
+  }
+
+  /**
+   * Rename a computing unit.
+   */
+  renameComputingUnit(cuid: number, newName: string): void {
+    if (!newName || newName.trim() === "") {
+      this.notificationService.error("Computing unit name cannot be empty");
+      return;
+    }
+
+    this.computingUnitService
+      .renameComputingUnit(cuid, newName.trim())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success("Successfully renamed computing unit");
+          // Refresh the computing units list
+          this.computingUnitStatusService.refreshComputingUnits();
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(`Failed to rename computing unit: ${extractErrorMessage(err)}`);
+        },
+      });
   }
 
   parseResourceUnit(resource: string): string {
@@ -838,3 +902,4 @@ export class ComputingUnitSelectionComponent implements OnInit {
     },
   } as const;
 }
+

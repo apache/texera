@@ -273,4 +273,11 @@ export class ComputingUnitStatusService implements OnDestroy {
   public getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
     return this.selectedUnitSubject.value;
   }
+
+  /**
+   * Refresh the computing units list after a rename operation or other changes.
+   */
+  public refreshComputingUnits(): void {
+    this.refreshComputingUnitList();
+  }
 }

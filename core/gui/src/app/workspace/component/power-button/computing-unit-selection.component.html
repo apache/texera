@@ -141,6 +141,16 @@
           </i>
           <i
             nz-icon
+            nzType="edit"
+            nz-tooltip
+            *ngIf="unit.isOwner"
+            [nzTooltipTitle]="'Rename computing unit'"
+            (click)="showRenameModal(unit); $event.stopPropagation()"
+            role="button"
+            aria-label="Rename computing unit">
+          </i>
+          <i
+            nz-icon
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
@@ -387,3 +397,27 @@
     </div>
   </div>
 </ng-template>
+
+<!-- Rename computing unit modal -->
+<nz-modal
+  [nzVisible]="renameModalVisible"
+  [nzTitle]="'Rename Computing Unit'"
+  [nzOkText]="'Rename'"
+  [nzCancelText]="'Cancel'"
+  (nzOnOk)="handleRenameModalOk()"
+  (nzOnCancel)="handleRenameModalCancel()">
+  <div *nzModalContent>
+    <nz-form-item>
+      <nz-form-label [nzSpan]="6">New Name</nz-form-label>
+      <nz-form-control [nzSpan]="18">
+        <input
+          nz-input
+          [(ngModel)]="renamingComputingUnitName"
+          placeholder="Enter new computing unit name"
+          maxlength="128" />
+      </nz-form-control>
+    </nz-form-item>
+  </div>
+</nz-modal>
+
+
