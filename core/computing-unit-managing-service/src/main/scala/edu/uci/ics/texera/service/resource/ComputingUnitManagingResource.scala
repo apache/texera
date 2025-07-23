@@ -632,8 +632,10 @@ class ComputingUnitManagingResource {
       @Auth user: SessionUser
   ): Response = {
     // Verify ownership or write access
-    if (!userOwnComputingUnit(context, cuid, user.getUid) && 
-        !ComputingUnitAccessResource.hasWriteAccess(cuid, user.getUid)) {
+    if (
+      !userOwnComputingUnit(context, cuid, user.getUid) &&
+      !ComputingUnitAccessResource.hasWriteAccess(cuid, user.getUid)
+    ) {
       return Response
         .status(Response.Status.FORBIDDEN)
         .entity("User does not have permission to rename this computing unit")
@@ -651,19 +653,19 @@ class ComputingUnitManagingResource {
     withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = getComputingUnitByCuid(ctx, cuid)
-      
+
       try {
         unit.setName(name)
         cuDao.update(unit)
       } catch {
-        case _: Throwable => 
+        case _: Throwable =>
           return Response
             .status(Response.Status.BAD_REQUEST)
             .entity("Cannot rename computing unit to provided name")
             .build()
       }
     }
-    
+
     Response.ok().build()
   }
 
