@@ -469,23 +469,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
       return;
     }
 
-    this.renameComputingUnit(cuid, trimmedName);
-  }
-
-  /**
-   * Cancel editing the computing unit name.
-   */
-  cancelEditingUnitName(): void {
-    this.editingNameOfUnit = null;
-    this.editingUnitName = "";
-  }
-
-  /**
-   * Rename a computing unit.
-   */
-  renameComputingUnit(cuid: number, newName: string): void {
     this.computingUnitService
-      .renameComputingUnit(cuid, newName)
+      .renameComputingUnit(cuid, trimmedName)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
@@ -493,11 +478,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
           // Update the local unit name immediately for better UX
           const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
           if (unit) {
-            unit.computingUnit.name = newName;
+            unit.computingUnit.name = trimmedName;
           }
           // Also update the selected unit if it's the one being renamed
           if (this.selectedComputingUnit?.computingUnit.cuid === cuid) {
-            this.selectedComputingUnit.computingUnit.name = newName;
+            this.selectedComputingUnit.computingUnit.name = trimmedName;
           }
           // Refresh the computing units list
           this.computingUnitStatusService.refreshComputingUnitList();
@@ -510,6 +495,14 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.editingNameOfUnit = null;
         this.editingUnitName = "";
       });
+  }
+
+  /**
+   * Cancel editing the computing unit name.
+   */
+  cancelEditingUnitName(): void {
+    this.editingNameOfUnit = null;
+    this.editingUnitName = "";
   }
 
   parseResourceUnit(resource: string): string {

@@ -136,6 +136,15 @@
           </div>
           <i
             nz-icon
+            nzType="edit"
+            nz-tooltip
+            *ngIf="unit.isOwner"
+            [nzTooltipTitle]="'Rename computing unit'"
+            (click)="startEditingUnitName(unit); $event.stopPropagation()"
+            role="button">
+          </i>
+          <i
+            nz-icon
             nzType="share-alt"
             nz-tooltip
             *ngIf="this.config.env.sharingComputingUnitEnabled"
@@ -152,16 +161,6 @@
             (click)="openComputingUnitMetadataModal(unit); $event.stopPropagation()"
             role="button"
             aria-label="View logs">
-          </i>
-          <i
-            nz-icon
-            nzType="edit"
-            nz-tooltip
-            *ngIf="unit.isOwner"
-            [nzTooltipTitle]="'Rename computing unit'"
-            (click)="startEditingUnitName(unit); $event.stopPropagation()"
-            role="button"
-            aria-label="Rename computing unit">
           </i>
           <i
             nz-icon
