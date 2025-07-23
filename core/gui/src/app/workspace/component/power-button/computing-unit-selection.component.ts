@@ -467,13 +467,20 @@ export class ComputingUnitSelectionComponent implements OnInit {
    * Rename a computing unit.
    */
   renameComputingUnit(cuid: number, newName: string): void {
-    if (!newName || newName.trim() === "") {
+    const trimmedName = newName.trim();
+
+    if (!trimmedName) {
       this.notificationService.error("Computing unit name cannot be empty");
       return;
     }
 
+    if (trimmedName.length > 128) {
+      this.notificationService.error("Computing unit name cannot exceed 128 characters");
+      return;
+    }
+
     this.computingUnitService
-      .renameComputingUnit(cuid, newName.trim())
+      .renameComputingUnit(cuid, trimmedName)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {

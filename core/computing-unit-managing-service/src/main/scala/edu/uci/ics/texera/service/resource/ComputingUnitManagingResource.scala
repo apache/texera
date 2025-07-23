@@ -658,10 +658,22 @@ class ComputingUnitManagingResource {
         unit.setName(name)
         cuDao.update(unit)
       } catch {
-        case _: Throwable =>
+        case e: org.jooq.exception.DataAccessException =>
+          return Response
+            .status(Response.Status.CONFLICT)
+            .entity(s"Database error: ${e.getMessage}")
+            .build()
+        case e: IllegalArgumentException =>
           return Response
             .status(Response.Status.BAD_REQUEST)
-            .entity("Cannot rename computing unit to provided name")
+            .entity(s"Invalid input: ${e.getMessage}")
+            .build()
+        case e: Exception =>
+          // Log the unexpected exception for debugging purposes
+          e.printStackTrace()
+          return Response
+            .status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity("An unexpected error occurred while renaming the computing unit")
             .build()
       }
     }
