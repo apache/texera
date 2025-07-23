@@ -110,6 +110,7 @@
               [nzColor]="getBadgeColor(unit.status)"
               [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
+              *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName"
               nz-tooltip
               [nzTooltipTitle]="unit.computingUnit.uri">
               {{ unit.computingUnit.name }}
@@ -119,6 +120,19 @@
                 >(Connecting)</span
               >
             </span>
+            <ng-template #editableUnitName>
+              <input
+                #unitNameInput
+                (focusout)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.enter)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.escape)="cancelEditingUnitName()"
+                [value]="editingUnitName"
+                nz-input
+                class="unit-name-edit-input"
+                maxlength="128"
+                (click)="$event.stopPropagation()"
+                autofocus />
+            </ng-template>
           </div>
           <i
             nz-icon
@@ -145,7 +159,7 @@
             nz-tooltip
             *ngIf="unit.isOwner"
             [nzTooltipTitle]="'Rename computing unit'"
-            (click)="showRenameModal(unit); $event.stopPropagation()"
+            (click)="startEditingUnitName(unit); $event.stopPropagation()"
             role="button"
             aria-label="Rename computing unit">
           </i>
@@ -397,25 +411,3 @@
     </div>
   </div>
 </ng-template>
-
-<!-- Rename computing unit modal -->
-<nz-modal
-  [nzVisible]="renameModalVisible"
-  [nzTitle]="'Rename Computing Unit'"
-  [nzOkText]="'Rename'"
-  [nzCancelText]="'Cancel'"
-  (nzOnOk)="handleRenameModalOk()"
-  (nzOnCancel)="handleRenameModalCancel()">
-  <div *nzModalContent>
-    <nz-form-item>
-      <nz-form-label [nzSpan]="6">New Name</nz-form-label>
-      <nz-form-control [nzSpan]="18">
-        <input
-          nz-input
-          [(ngModel)]="renamingComputingUnitName"
-          placeholder="Enter new computing unit name"
-          maxlength="128" />
-      </nz-form-control>
-    </nz-form-item>
-  </div>
-</nz-modal>

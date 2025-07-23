@@ -79,7 +79,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.startRefreshInterval();
   }
 
-  private refreshComputingUnitList(): void {
+  public refreshComputingUnitList(): void {
     this.refreshComputingUnitListSignal.next();
   }
 
@@ -272,12 +272,5 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public getSelectedComputingUnitValue(): DashboardWorkflowComputingUnit | null {
     return this.selectedUnitSubject.value;
-  }
-
-  /**
-   * Refresh the computing units list after a rename operation or other changes.
-   */
-  public refreshComputingUnits(): void {
-    this.refreshComputingUnitList();
   }
 }
