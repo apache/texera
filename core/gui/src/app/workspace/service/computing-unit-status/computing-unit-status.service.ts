@@ -79,7 +79,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     this.startRefreshInterval();
   }
 
-  private refreshComputingUnitList(): void {
+  public refreshComputingUnitList(): void {
     this.refreshComputingUnitListSignal.next();
   }
 

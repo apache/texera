@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
@@ -64,6 +64,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
 
+  // variables for renaming a computing unit
+  editingNameOfUnit: number | null = null;
+  editingUnitName: string = "";
+
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
   jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
@@ -83,7 +87,8 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -421,6 +426,83 @@ export class ComputingUnitSelectionComponent implements OnInit {
       },
       nzCancelText: "Cancel",
     });
+  }
+
+  /**
+   * Start editing the name of a computing unit.
+   */
+  startEditingUnitName(unit: DashboardWorkflowComputingUnit): void {
+    if (!unit.isOwner) {
+      this.notificationService.error("Only owners can rename computing units");
+      return;
+    }
+
+    this.editingNameOfUnit = unit.computingUnit.cuid;
+    this.editingUnitName = unit.computingUnit.name;
+
+    // Force change detection and focus the input
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const input = document.querySelector(".unit-name-edit-input") as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  /**
+   * Confirm the new name and update the computing unit.
+   */
+  confirmUpdateUnitName(cuid: number, newName: string): void {
+    const trimmedName = newName.trim();
+
+    if (!trimmedName) {
+      this.notificationService.error("Computing unit name cannot be empty");
+      this.editingNameOfUnit = null;
+      return;
+    }
+
+    if (trimmedName.length > 128) {
+      this.notificationService.error("Computing unit name cannot exceed 128 characters");
+      this.editingNameOfUnit = null;
+      return;
+    }
+
+    this.computingUnitService
+      .renameComputingUnit(cuid, trimmedName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success("Successfully renamed computing unit");
+          // Update the local unit name immediately for better UX
+          const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
+          if (unit) {
+            unit.computingUnit.name = trimmedName;
+          }
+          // Also update the selected unit if it's the one being renamed
+          if (this.selectedComputingUnit?.computingUnit.cuid === cuid) {
+            this.selectedComputingUnit.computingUnit.name = trimmedName;
+          }
+          // Refresh the computing units list
+          this.computingUnitStatusService.refreshComputingUnitList();
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(`Failed to rename computing unit: ${extractErrorMessage(err)}`);
+        },
+      })
+      .add(() => {
+        this.editingNameOfUnit = null;
+        this.editingUnitName = "";
+      });
+  }
+
+  /**
+   * Cancel editing the computing unit name.
+   */
+  cancelEditingUnitName(): void {
+    this.editingNameOfUnit = null;
+    this.editingUnitName = "";
   }
 
   parseResourceUnit(resource: string): string {
