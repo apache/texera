@@ -24,7 +24,7 @@ import { Workflow } from "../../common/type/workflow";
  * that does not exist in the list of operators within the workflow.
  *
  * @param workflow - The workflow to validate, containing operators and links.
- * @returns `true` if the workflow is broken, `false` otherwise.
+ * @returns 'true' if the workflow is broken, 'false' otherwise.
  */
 export function checkIfWorkflowBroken(workflow: Workflow): boolean {
   const validOperatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
