@@ -41,6 +41,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
 
 export const THROTTLE_TIME_MS = 1000;
+const DOWNLOAD_VIA_BROWSER: boolean = true;
 
 @UntilDestroy()
 @Component({
@@ -264,7 +265,11 @@ export class DatasetDetailComponent implements OnInit {
   onClickDownloadCurrentFile = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
 
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
+    if (DOWNLOAD_VIA_BROWSER) {
+      this.downloadService.downloadSingleFileViaBrowser(this.currentDisplayedFileName);
+    } else {
+      this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
+    }
   };
 
   onClickScaleTheView() {
