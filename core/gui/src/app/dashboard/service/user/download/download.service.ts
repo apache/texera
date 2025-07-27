@@ -93,19 +93,7 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string): Observable<Blob> {
-    const DEFAULT_FILE_NAME = "download";
-    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
-    return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
-      fileName,
-      `Starting to download file ${filePath}`,
-      `File ${filePath} has been downloaded`,
-      `Error downloading file '${filePath}'`
-    );
-  }
-
-  downloadSingleFileViaBrowser(filePath: string): void {
+  downloadSingleFile(filePath: string): void {
     this.notificationService.info(`Starting to download file ${filePath}`);
     this.datasetService.retrieveDatasetVersionSingleFileViaBrowser(filePath)
   }

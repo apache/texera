@@ -60,48 +60,6 @@ describe("DownloadService", () => {
     notificationServiceSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
   });
 
-  it("should download a single file successfully", (done: DoneFn) => {
-    const filePath = "test/file.txt";
-    const mockBlob = new Blob(["test content"], { type: "text/plain" });
-
-    datasetServiceSpy.retrieveDatasetVersionSingleFile.and.returnValue(of(mockBlob));
-
-    downloadService.downloadSingleFile(filePath).subscribe({
-      next: blob => {
-        expect(blob).toBe(mockBlob);
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath);
-        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "file.txt");
-        expect(notificationServiceSpy.success).toHaveBeenCalledWith("File test/file.txt has been downloaded");
-        done();
-      },
-      error: (error: unknown) => {
-        fail("Should not have thrown an error: " + error);
-      },
-    });
-  });
-
-  it("should handle download failure correctly", done => {
-    const filePath = "test/file.txt";
-    const errorMessage = "Download failed";
-
-    datasetServiceSpy.retrieveDatasetVersionSingleFile.and.returnValue(throwError(() => new Error(errorMessage)));
-
-    downloadService.downloadSingleFile(filePath).subscribe({
-      next: () => {
-        fail("Should have thrown an error");
-      },
-      error: (error: unknown) => {
-        expect(error).toBeTruthy();
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath);
-        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
-        expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
-        done();
-      },
-    });
-  });
-
   it("should download a dataset successfully", done => {
     const datasetId = 1;
     const datasetName = "TestDataset";
