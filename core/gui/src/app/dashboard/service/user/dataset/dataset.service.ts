@@ -44,7 +44,7 @@ export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
 export const DEFAULT_DATASET_NAME = "Untitled dataset";
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
-export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
+export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/user-dataset-owners";
 
 export interface MultipartUploadProgress {
   filePath: string;

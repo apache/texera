@@ -255,6 +255,12 @@ export class JointUIService {
             event: "input-port-label:pointerdown",
           },
         },
+        label: {
+          position: {
+            name: "left",
+            args: { x: -5, y: 10 },
+          },
+        },
       })
     );
     operator.outputPorts.forEach(port =>
@@ -265,6 +271,12 @@ export class JointUIService {
           ".port-label": {
             text: port.displayName ?? "",
             event: "output-port-label:pointerdown",
+          },
+        },
+        label: {
+          position: {
+            name: "right",
+            args: { x: 5, y: -10 },
           },
         },
       })
@@ -310,8 +322,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${originalName}: ${count}`;
-
+        const labelText = `${count}`;
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
@@ -331,12 +342,11 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${originalName}: ${count}`;
+        const labelText = `${count}`;
 
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
-
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
@@ -893,8 +903,8 @@ export class JointUIService {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
         width: 20,
         height: 20,
-        "ref-x": 75,
-        "ref-y": 20,
+        "ref-x": 49,
+        "ref-y": 9,
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",

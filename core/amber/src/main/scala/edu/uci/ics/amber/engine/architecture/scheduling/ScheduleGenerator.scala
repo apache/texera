@@ -19,6 +19,7 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
@@ -28,7 +29,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 }
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
-
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object ScheduleGenerator {
@@ -72,17 +73,53 @@ abstract class ScheduleGenerator(
   def generate(): (Schedule, PhysicalPlan)
 
   /**
-    * A schedule is a ranking on the regions of a region plan. Currently we use a total order of the regions.
+    * A schedule is a ranking on the regions of a region plan.
+    * Regions are dispatched in batches of up to AmberConfig.maxConcurrentRegions, respecting the DAG dependencies.
+    * When maxConcurrentRegions == 1, this is equivalent to a total order (fully sequential execution).
     */
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
-    val levelSets = regionPlan
-      .topologicalIterator()
-      .zipWithIndex
-      .map(zippedRegionId => {
-        zippedRegionId._2 -> Set.apply(regionPlan.getRegion(zippedRegionId._1))
-      })
-      .toMap
-    Schedule.apply(levelSets)
+    val inDegree = mutable.Map.empty[RegionIdentity, Int]
+    regionPlan.topologicalIterator().foreach { rid =>
+      inDegree(rid) = regionPlan.dag.incomingEdgesOf(rid).asScala.size
+    }
+
+    val readyRegionsQueue = mutable.Queue(
+      inDegree.collect { case (rid, 0) => rid }.toSeq: _*
+    )
+
+    val tmpLevelSets = mutable.Map.empty[Int, Set[RegionIdentity]]
+    var level = 0
+
+    // While there are ready regions:
+    // 1. Dequeue up to maxConcurrentRegions regions to form the current batch.
+    // 2. Record this batch under the current level.
+    // 3. For each region in the batch:
+    //      a. For each successor region, decrement its in-degree.
+    //      b. If a successor's in-degree reaches zero, enqueue it to the readyRegionsQueue.
+    // 4. Increment level and repeat.
+    while (readyRegionsQueue.nonEmpty) {
+      val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
+        if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
+      }.toSet
+
+      tmpLevelSets(level) = batchIds
+      batchIds.foreach { rid =>
+        regionPlan.dag
+          .outgoingEdgesOf(rid)
+          .asScala
+          .map(edge => regionPlan.dag.getEdgeTarget(edge))
+          .foreach { succ =>
+            inDegree(succ) -= 1
+            if (inDegree(succ) == 0) readyRegionsQueue.enqueue(succ)
+          }
+      }
+      level += 1
+    }
+    val levelSets: Map[Int, Set[Region]] = tmpLevelSets.view.map {
+      case (lvl, idSet) =>
+        lvl -> idSet.iterator.map(regionPlan.getRegion).toSet
+    }.toMap
+    Schedule(levelSets)
   }
 
   def allocateResource(

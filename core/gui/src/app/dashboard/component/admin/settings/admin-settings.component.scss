@@ -45,6 +45,35 @@
 }
 
 .button-row {
+  margin-top: 20px;
   display: flex;
   gap: 14px;
+}
+
+.tabs-group {
+  width: 200px;
+}
+
+.tab-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 8px;
+}
+
+.tab-switch {
+  margin-left: auto;
+}
+
+details[open] .arrow {
+  transform: rotate(90deg);
+}
+
+.tab-row:not(:has(.arrow)) {
+  margin-left: 22px;
+}
+
+.submenu-item {
+  display: flex;
+  margin-left: 2rem;
+  margin-bottom: 8px;
 }

@@ -339,6 +339,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   openPanel() {
     this.height = DEFAULT_HEIGHT;
     this.width = DEFAULT_WIDTH;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 
   closePanel() {
