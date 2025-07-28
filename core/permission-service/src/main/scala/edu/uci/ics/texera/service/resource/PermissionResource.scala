@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.service.resource
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.auth.JwtParser.parseToken
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
@@ -13,7 +14,7 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/authorize")
-class PermissionResource {
+class PermissionResource extends LazyLogging {
 
   val computingUnit: ComputingUnit = new ComputingUnit()
 
@@ -28,6 +29,8 @@ class PermissionResource {
       .view
       .mapValues(values => values.asScala.headOption.getOrElse(""))
       .toMap
+
+    logger.debug(s"uriInfo: $uriInfo")
 
     val token = queryParams.getOrElse("access-token", "")
     val cuid = queryParams.getOrElse("cuid", "")
