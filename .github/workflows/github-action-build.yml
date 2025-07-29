@@ -121,7 +121,7 @@ jobs:
       - name: Install R dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          cache-version: 3
+          cache: false
           working-directory: "./core/amber"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
