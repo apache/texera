@@ -8,8 +8,6 @@ Description: Below are the required libraries that should be installed to your R
 URL: https://github.com/Texera/texera/
 BugReports: https://github.com/Texera/texera/
 Depends: R (>= 4.3.3)
-Remotes:
-    arrow: "https://cran.r-project.org/src/contrib/Archive/arrow/arrow_19.0.1.tar.gz"
 Imports:
     arrow (== 19.0.1),
     coro (>= 1.0.4),
