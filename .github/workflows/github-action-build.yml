@@ -117,8 +117,8 @@ jobs:
       - name: Install R dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         env:
-          RSPM: "https://packagemanager.posit.co/cran/2025-04-15"
-          PKG_SYSREQS_RSPM_URL: "https://packagemanager.posit.co/cran/2025-04-15"
+          RSPM: "https://packagemanager.posit.co/cran/2025-03-27"
+          PKG_SYSREQS_RSPM_URL: "https://packagemanager.posit.co/cran/2025-03-27"
         with:
           cache-version: 2
           working-directory: "./core/amber"
