@@ -120,7 +120,7 @@ jobs:
           RSPM: "https://packagemanager.posit.co/cran/2025-03-27"
           PKG_SYSREQS_RSPM_URL: "https://packagemanager.posit.co/cran/2025-03-27"
         with:
-          cache-version: 2
+          cache-version: 3
           working-directory: "./core/amber"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
