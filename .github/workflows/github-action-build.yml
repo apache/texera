@@ -118,7 +118,10 @@ jobs:
         run: R -e "install.packages(c('assertthat', 'bit64', 'glue', 'purrr', 'R6', 'rlang', 'tidyselect', 'vctrs', 'cpp11'))"
       - name: Install specific arrow version from archive
         run: R -e "install.packages('https://cran.r-project.org/src/contrib/Archive/arrow/arrow_19.0.1.tar.gz', repos=NULL, type='source')"
-      - uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Install R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        env:
+          RSPM: "https://packagemanager.posit.co/cran/__linux__/jammy/2025-05-15"
         with:
           cache-version: 2
           working-directory: "./core/amber"
