@@ -16,13 +16,12 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 @Path("/authorize")
 class PermissionResource extends LazyLogging {
 
-  val computingUnit: ComputingUnit = new ComputingUnit()
+  private val computingUnit: ComputingUnit = new ComputingUnit()
 
-  @GET
-  @Path("/{path:.*}")
-  def authorize(
-                 @Context uriInfo: UriInfo
-               ): Response = {
+  private def performAuth(
+      uriInfo: UriInfo,
+      headers: HttpHeaders
+  ): Response = {
     val queryParams: Map[String, String] = uriInfo
       .getQueryParameters()
       .asScala
@@ -30,16 +29,24 @@ class PermissionResource extends LazyLogging {
       .mapValues(values => values.asScala.headOption.getOrElse(""))
       .toMap
 
-    logger.debug(s"uriInfo: $uriInfo")
+    logger.info(s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams")
 
-    val token = queryParams.getOrElse("access-token", "")
+    val token = queryParams.getOrElse(
+      "access-token",
+      headers
+        .getRequestHeader("Authorization")
+        .asScala
+        .headOption
+        .getOrElse("")
+        .replace("Bearer ", "")
+    )
     val cuid = queryParams.getOrElse("cuid", "")
     val cuidInt = try {
-        cuid.toInt
-      } catch {
-        case _: NumberFormatException =>
-          return Response.status(Response.Status.FORBIDDEN).build()
-      }
+      cuid.toInt
+    } catch {
+      case _: NumberFormatException =>
+        return Response.status(Response.Status.FORBIDDEN).build()
+    }
 
     var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
     var userSession: Optional[SessionUser] = Optional.empty()
@@ -57,11 +64,30 @@ class PermissionResource extends LazyLogging {
         return Response.status(Response.Status.FORBIDDEN).build()
     }
 
-    Response.ok()
+    Response
+      .ok()
       .header("x-user-cu-access", cuAccess.toString)
       .header("x-user-id", userSession.get().getUid.toString)
       .header("x-user-name", userSession.get().getName)
       .header("x-user-email", userSession.get().getEmail)
       .build()
+  }
+
+  @GET
+  @Path("/{path:.*}")
+  def authorizeGet(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    performAuth(uriInfo, headers)
+  }
+
+  @POST
+  @Path("/{path:.*}")
+  def authorizePost(
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
+    performAuth(uriInfo, headers)
   }
 }

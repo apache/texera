@@ -56,7 +56,10 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
         val userId = headers.get("x-user-id").flatten.map(_.toInt).get
         val userName = headers.get("x-user-name").flatten.get
         val userEmail = headers.get("x-user-email").flatten.get
-        println(s"User ID: $userId, User Name: $userName, User Email: $userEmail")
+        val cuAccess = headers.get("x-user-cu-access").flatten.getOrElse("")
+        config.getUserProperties.put("cuAccess", cuAccess)
+        logger.info(s"User ID: $userId, User Name: $userName, User Email: $userEmail with CU Access: $cuAccess")
+
         config.getUserProperties.put(
           classOf[User].getName,
           new User(
