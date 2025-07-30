@@ -117,7 +117,7 @@ jobs:
       - name: Install remotes
         run: R -e "install.packages('remotes')"
       - name: Install specific arrow version
-        run: R -e "remotes::install_version('arrow', version = '19.0.1')"
+        run: R -e "remotes::install_version('arrow', version = '20.0.0.2')"
       - name: Install R dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
