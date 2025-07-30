@@ -28,6 +28,7 @@ import { JwtHelperService } from "@auth0/angular-jwt";
 import { NotificationService } from "../notification/notification.service";
 import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -55,7 +56,8 @@ export class AuthService {
     private jwtHelperService: JwtHelperService,
     private notificationService: NotificationService,
     private gmailService: GmailService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private modal: NzModalService
   ) {}
 
   /**
@@ -131,8 +133,15 @@ export class AuthService {
     const role = this.jwtHelperService.decodeToken(token).role;
     const email = this.jwtHelperService.decodeToken(token).email;
     if (this.config.env.inviteOnly && role == Role.INACTIVE) {
-      alert("The account request of " + email + " is received and pending.");
-      this.gmailService.notifyUnauthorizedLogin(email);
+      this.modal.confirm({
+        nzTitle: "You Need Access",
+        nzContent:
+          "Currently the platform is invitation-only. Please request access from the platform admin or switch to an account that already has access.",
+        nzOkText: "Send request to Admin",
+        nzCancelText: "Cancel",
+        nzOnOk: () => this.gmailService.notifyUnauthorizedLogin(email),
+      });
+
       return this.logout();
     }
 
