@@ -28,11 +28,10 @@
     margin-left: auto;
   }
 
-  /* your big button */
   button.create-workflow-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;                   // space between <i> and <span>
+    gap: 2px;                   // space between <i> and <span>
     height: 40px;
     padding: 0 20px;
     font-size: 16px;
