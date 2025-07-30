@@ -79,8 +79,8 @@
             nzType="search"></span>
         </nz-filter-trigger>
       </th>
-      <th>Action</th>
       <th
+        nzWidth="200px"
         [nzFilterFn]="filterByRole"
         [nzSortDirections]="['ascend', 'descend']"
         [nzFilters]="[
@@ -89,7 +89,7 @@
       { text: 'ADMIN', value: 'ADMIN'},
       { text: 'RESTRICTED', value: 'RESTRICTED'}]"
         [nzSortFn]="sortByRole">
-        Role
+        User Role
       </th>
       <th>Quota</th>
     </tr>
