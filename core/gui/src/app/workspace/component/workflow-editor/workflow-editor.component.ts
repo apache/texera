@@ -460,12 +460,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           const elementID = clickedElement.id.toString();
           this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
 
-          // Handle comment box double-click
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
-          }
-          // Handle operator double-click
-          else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+          } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.openResultPanel();
           }
         }
