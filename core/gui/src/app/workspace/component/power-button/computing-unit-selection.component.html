@@ -110,6 +110,7 @@
               [nzColor]="getBadgeColor(unit.status)"
               [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
+              *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName"
               nz-tooltip
               [nzTooltipTitle]="unit.computingUnit.uri">
               {{ unit.computingUnit.name }}
@@ -119,7 +120,29 @@
                 >(Connecting)</span
               >
             </span>
+            <ng-template #editableUnitName>
+              <input
+                #unitNameInput
+                (focusout)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.enter)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.escape)="cancelEditingUnitName()"
+                [value]="editingUnitName"
+                nz-input
+                class="unit-name-edit-input"
+                maxlength="128"
+                (click)="$event.stopPropagation()"
+                autofocus />
+            </ng-template>
           </div>
+          <i
+            nz-icon
+            nzType="edit"
+            nz-tooltip
+            *ngIf="unit.isOwner"
+            [nzTooltipTitle]="'Rename computing unit'"
+            (click)="startEditingUnitName(unit); $event.stopPropagation()"
+            role="button">
+          </i>
           <i
             nz-icon
             nzType="share-alt"
