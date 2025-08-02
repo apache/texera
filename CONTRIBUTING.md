@@ -63,7 +63,7 @@ Do not include any of the following in your PR:
 
 > ℹ️ If your PR is not ready for review, please mark it as a draft. You can change it to “Ready for review” when it is complete.
 
-### 5. After 
+### 5. After PR Approval
 - [ ] Wait for a Texera Committer, usually the reviewer, to merge the PR once it is approved.
 - [ ] Close the related issue (if it is not automatically closed).
 
