@@ -18,7 +18,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 - Fork the [Texera repository](https://github.com/Texera/texera) to your own GitHub account.
 
 ### 2. Find an Existing Issue or Open an Issue
-- Find an exsiting issue that you want to work on, or create one issue for new proposal/bug description.
+- Find an existing issue that you want to work on, or create one issue for new proposal/bug description.
 - Have a discussion on the issue with Texera Committers (@Committer).
 - Reach a consensus before you work on the development related to the issue.
 
