@@ -3,6 +3,14 @@
 Thank you for your interest in contributing to Texera! Please follow the steps below to submit your contributions effectively. We follow a **fork-based development workflow** and adopt the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for commit messages and pull request titles.
 
 ---
+## Different roles in the project
+
+| Role    | Key Permissions | How to Join
+| -------- | ------- | ------- |
+| Contributor  | Submit issues & PRs, join discussions    | Start contributing — no formal process |
+| Committer | Merge PRs, push code, vote on code changes     | Voted by PPMC based on quality contributions |
+| PPMC Member | Governance, vote on releases & new committers/PPMC     | Voted  by PPMC members |
+| Mentor | Guide project, oversee releases, ensure Apache policies followed     | Appointed by Incubator PMC — must be an experienced Apache member |
 
 ## 🛠 Contribution Steps
 
