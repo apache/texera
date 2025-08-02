@@ -65,7 +65,7 @@ Do not include any of the following in your PR:
 
 ### 5. After PR Approval
 - [ ] Wait for a Texera Committer, usually the reviewer, to merge the PR once it is approved.
-- [ ] Close the related issue (if it is not automatically closed).
+- [ ] Close the related issue once the PR is merged (if it is not automatically closed).
 
 ---
 
