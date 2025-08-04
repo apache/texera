@@ -169,6 +169,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleURLFragment();
     this.invokeResize();
     this.handleCenterEvent();
+
+    // Mock test code
+    this.wrapper
+      .getJointLinkCellAddStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(linkModel => {
+        const linkId = linkModel.id.toString();
+        this.jointUIService.startMockBackpressure(this.paper, linkId);
+      });
   }
 
   ngOnDestroy(): void {

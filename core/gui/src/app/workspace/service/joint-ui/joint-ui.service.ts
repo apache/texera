@@ -622,6 +622,63 @@ export class JointUIService {
   }
 
   /**
+   * This function changes the color of links based on the back pressure data from backend.
+   * Based on the pressure input (0~1), the links would change colors varying from green, yellow to red
+   * @param jointPaper
+   * @param linkId
+   * @param pressure
+   */
+
+  public changeLinkBackpressureColor(
+    jointPaper: joint.dia.Paper,
+    linkId: string,
+    pressure: number
+  ): void {
+    const p = Math.max(0, Math.min(1, pressure));
+
+    let color: string;
+    if (p === 0) {
+      color = "gray";
+    } else if (p < 0.5) {
+      color = "green";
+    } else if (p < 0.8) {
+      color = "orange";
+    } else {
+      color = "red";
+    }
+
+    const link = jointPaper.getModelById(linkId) as joint.dia.Link;
+
+      link.attr({
+        ".connection": {
+          stroke: color,
+        },
+      });
+  }
+
+  public updateAllLinksByPressure(paper: joint.dia.Paper, pressure: number): void {
+    const links = paper.model.getLinks();
+    links.forEach(link => {
+      const linkId = link.id.toString();
+      this.changeLinkBackpressureColor(paper, linkId, pressure);
+    });
+  }
+
+  public startMockBackpressure(
+    paper: joint.dia.Paper,
+    linkId: string
+  ): void {
+    const mockPressures = [0.5, 0.5,0.5,0.5,0.5, 0.8, 0.7, 0.6, 0.5, 0.9, 0.9, 0.3, 0, 0, 0, 0];
+    let idx = 0;
+    setInterval(() => {
+      const p = mockPressures[idx];
+      this.changeLinkBackpressureColor(paper, linkId, p);
+      idx = (idx + 1) % mockPressures.length;
+    }, 1000);
+  }
+
+
+  /**
    * This function changes the default svg of the operator ports.
    * It hides the port label that will display 'out/in' beside the operators.
    *
