@@ -26,6 +26,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.index.memory.MemoryIndex
 import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.Query
+import org.apache.lucene.analysis.Analyzer
 
 class KeywordSearchOpExec(descString: String) extends FilterOpExec {
   private val desc: KeywordSearchOpDesc =
@@ -33,7 +34,11 @@ class KeywordSearchOpExec(descString: String) extends FilterOpExec {
 
   // We chose StandardAnalyzer because it provides more comprehensive tokenization, retaining numeric tokens and handling a broader range of characters.
   // This ensures that search functionality can include standalone numbers (e.g., "3") and complex queries while offering robust performance for most use cases.
-  @transient private lazy val analyzer = new StandardAnalyzer()
+
+  @transient private lazy val analyzer: Analyzer = {
+    if (desc.isCaseSensitive) new CaseSensitiveAnalyzer() else new StandardAnalyzer()
+  }
+
   @transient lazy val query: Query = new QueryParser(desc.attribute, analyzer).parse(desc.keyword)
   @transient private lazy val memoryIndex: MemoryIndex = new MemoryIndex()
 
