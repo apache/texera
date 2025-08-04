@@ -59,12 +59,20 @@ object S3StorageClient {
   // Initialize S3-compatible presigner for LakeFS S3 Gateway
   private lazy val s3Presigner: S3Presigner = {
     val fullUri = new URI(StorageConfig.lakefsEndpoint)
-    val baseUri = new URI(fullUri.getScheme, null, fullUri.getHost, fullUri.getPort, null, null, null)  // Extract just the base (scheme + host + port)
+    val baseUri = new URI(
+      fullUri.getScheme,
+      null,
+      fullUri.getHost,
+      fullUri.getPort,
+      null,
+      null,
+      null
+    ) // Extract just the base (scheme + host + port)
     S3Presigner
       .builder()
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
       .region(Region.of(StorageConfig.s3Region))
-      .endpointOverride(baseUri)  // LakeFS base URL ("http://localhost:8000" on local)
+      .endpointOverride(baseUri) // LakeFS base URL ("http://localhost:8000" on local)
       .serviceConfiguration(
         S3Configuration.builder().pathStyleAccessEnabled(true).build()
       )
@@ -161,24 +169,33 @@ object S3StorageClient {
   }
 
   /**
-   * Retrieves file content from a specific commit and path.
-   *
-   * @param repoName            Repository name.
-   * @param commitHash          Commit hash of the version.
-   * @param filePath            Path to the file in the repository.
-   * @param fileName            Name of the file downloaded via the presigned URL.
-   * @param contentType         Type of the file downloaded via the presigned URL.
-   * @param expirationMinutes   Duration in minutes that the presigned URL is valid.
-   */
-  def getFilePresignedUrl(repoName: String, commitHash: String, filePath: String, fileName: String, contentType: String, expirationMinutes: Long): String = {
-    val getObjectRequest = GetObjectRequest.builder()
+    * Retrieves file content from a specific commit and path.
+    *
+    * @param repoName            Repository name.
+    * @param commitHash          Commit hash of the version.
+    * @param filePath            Path to the file in the repository.
+    * @param fileName            Name of the file downloaded via the presigned URL.
+    * @param contentType         Type of the file downloaded via the presigned URL.
+    * @param expirationMinutes   Duration in minutes that the presigned URL is valid.
+    */
+  def getFilePresignedUrl(
+      repoName: String,
+      commitHash: String,
+      filePath: String,
+      fileName: String,
+      contentType: String,
+      expirationMinutes: Long
+  ): String = {
+    val getObjectRequest = GetObjectRequest
+      .builder()
       .bucket(repoName)
       .key(s"$commitHash/$filePath")
-      .responseContentDisposition(s"attachment; filename=\"$fileName\"")
+      .responseContentDisposition(s"attachment; filename='$fileName'")
       .responseContentType(contentType)
       .build()
 
-    val presignRequest = GetObjectPresignRequest.builder()
+    val presignRequest = GetObjectPresignRequest
+      .builder()
       .signatureDuration(Duration.ofMinutes(expirationMinutes))
       .getObjectRequest(getObjectRequest)
       .build()

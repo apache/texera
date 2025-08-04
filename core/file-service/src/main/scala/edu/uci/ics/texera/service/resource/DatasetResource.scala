@@ -69,6 +69,7 @@ import edu.uci.ics.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
   MINIMUM_NUM_OF_MULTIPART_S3_PART
 }
+import edu.uci.ics.texera.config.GuiConfig
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -195,6 +196,7 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val PART_SIZE: Long = GuiConfig.guiDatasetMultipartUploadChunkSizeByte
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -568,11 +570,11 @@ class DatasetResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/presign-download-s3")
   def getPresignedUrlWithS3(
-     @QueryParam("filePath") encodedUrl: String,
-     @QueryParam("datasetName") datasetName: String,
-     @QueryParam("commitHash") commitHash: String,
-     @Auth user: SessionUser
-   ): Response = {
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
     val uid = user.getUid
     generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
   }
@@ -592,10 +594,10 @@ class DatasetResource {
   @GET
   @Path("/public-presign-download-s3")
   def getPublicPresignedUrlWithS3(
-     @QueryParam("filePath") encodedUrl: String,
-     @QueryParam("datasetName") datasetName: String,
-     @QueryParam("commitHash") commitHash: String
-   ): Response = {
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
     val user = new SessionUser(new User())
     val uid = user.getUid
     generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
@@ -1241,11 +1243,11 @@ class DatasetResource {
   }
 
   private def generatePresignedResponseWithS3(
-     encodedUrl: String,
-     datasetName: String,
-     commitHash: String,
-     uid: Integer
-   ): Response = {
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response = {
     resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
       case Left(errorResponse) =>
         errorResponse
@@ -1268,11 +1270,11 @@ class DatasetResource {
   }
 
   private def resolveDatasetAndPath(
-                                     encodedUrl: String,
-                                     datasetName: String,
-                                     commitHash: String,
-                                     uid: Integer
-                                   ): Either[Response, (String, String, String)] = {
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Either[Response, (String, String, String)] = {
     val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
     (Option(datasetName), Option(commitHash)) match {
