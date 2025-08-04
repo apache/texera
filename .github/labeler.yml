@@ -1,0 +1,67 @@
+gui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/gui/**'
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/**'
+      - all-globs-to-any-files:
+          - '!core/gui/**'
+          - '!core/log/**'
+          - '!core/scripts/**'
+engine:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/amber/**'
+
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/amber/src/main/python/**'
+          - '**/*.py'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
+          - 'NOTICE'
+          - 'LICENSE'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/scripts/**'
+          - 'deployment/**'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/requirements.txt'
+          - '**/package.json'
+          - '**/build.sbt'
+          - '**/project.sbt'
+
+ddl-change:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.sql'
+
+feature:
+  - head-branch:
+    - '^feat'
+    - 'feature'
+
+fix:
+  - head-branch: '^fix'
+
+refactor:
+  - head-branch: '^refactor'
+
