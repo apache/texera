@@ -259,6 +259,10 @@ class OutputManager(
     outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
   }
 
+  def finalizeIteration(worker: ActorVirtualIdentity): Unit = {
+    outputIterator.appendSpecialTupleToEnd(FinalizeIteration(worker))
+  }
+
   /**
     * This method is only used for ensuring correct region execution. Some operators may have input port dependency
     * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionCoordinator`

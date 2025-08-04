@@ -64,6 +64,13 @@ class Operator(ABC):
         """
         pass
 
+    def reset(self) -> None:
+        """
+        Reset the operator to its initial state.
+        """
+        self.close()
+        self.open()
+
     def process_state(self, state: State, port: int) -> Optional[State]:
         """
         Process an input State from the given link.
@@ -238,6 +245,7 @@ class TableOperator(TupleOperatorV2):
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(self.__table_data[port])
+        self.__table_data.clear()
         yield from self.process_table(table, port)
 
     @abstractmethod

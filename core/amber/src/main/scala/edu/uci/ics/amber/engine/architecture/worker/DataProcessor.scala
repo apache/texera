@@ -24,6 +24,7 @@ import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.state.State
 import edu.uci.ics.amber.core.tuple.{
   FinalizeExecutor,
+  FinalizeIteration,
   FinalizePort,
   SchemaEnforceable,
   Tuple,
@@ -62,9 +63,10 @@ import edu.uci.ics.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_CHANNEL
-import io.grpc.MethodDescriptor
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
+  METHOD_END_ITERATION
+}
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -163,7 +165,7 @@ class DataProcessor(
     if (outputTuple == null) return
     outputTuple match {
       case FinalizeExecutor() =>
-        sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
+        sendECMToDataChannels(METHOD_END_CHANNEL.getBareMethodName, PORT_ALIGNMENT)
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -185,6 +187,13 @@ class DataProcessor(
           PortCompletedRequest(portId, input),
           asyncRPCClient.mkContext(CONTROLLER)
         )
+      case FinalizeIteration(worker: ActorVirtualIdentity) =>
+        sendECMToDataChannels(
+          METHOD_END_ITERATION.getBareMethodName,
+          PORT_ALIGNMENT,
+          EndIterationRequest(worker)
+        )
+        executor.reset()
       case schemaEnforceable: SchemaEnforceable =>
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
         val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)
@@ -270,23 +279,54 @@ class DataProcessor(
     }
   }
 
+  def processOnStart(): Unit = {
+    val portId = inputGateway.getChannel(inputManager.currentChannelId).getPortId
+    try {
+      val outputState = executor.produceStateOnStart(portId.id)
+      if (outputState.isDefined) {
+        outputManager.emitState(outputState.get)
+      }
+    } catch safely {
+      case e =>
+        handleExecutorException(e)
+    }
+  }
+
+  def processOnFinish(): Unit = {
+    val portId = inputGateway.getChannel(inputManager.currentChannelId).getPortId
+    try {
+      val outputState = executor.produceStateOnFinish(portId.id)
+      if (outputState.isDefined) {
+        outputManager.emitState(outputState.get)
+      }
+      outputManager.outputIterator.setTupleOutput(
+        executor.onFinishMultiPort(portId.id)
+      )
+    } catch safely {
+      case e =>
+        // forward input tuple to the user and pause DP thread
+        handleExecutorException(e)
+    }
+  }
+
   def sendECMToDataChannels(
-      method: MethodDescriptor[EmptyRequest, EmptyReturn],
-      alignment: EmbeddedControlMessageType
+      method: String,
+      alignment: EmbeddedControlMessageType,
+      request: ControlRequest = EmptyRequest()
   ): Unit = {
     outputManager.flush()
     outputGateway.getActiveChannels
       .filter(!_.isControl)
       .foreach { activeChannelId =>
         asyncRPCClient.sendECMToChannel(
-          EmbeddedControlMessageIdentity(method.getBareMethodName),
+          EmbeddedControlMessageIdentity(method),
           alignment,
           Set(),
           Map(
             activeChannelId.toWorkerId.name ->
               ControlInvocation(
-                method.getBareMethodName,
-                EmptyRequest(),
+                method,
+                request,
                 AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
                 -1
               )
@@ -296,7 +336,7 @@ class DataProcessor(
       }
   }
 
-  def handleExecutorException(e: Throwable): Unit = {
+  private[this] def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.controllerInterface.consoleMessageTriggered(
       ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
       asyncRPCClient.mkContext(CONTROLLER)

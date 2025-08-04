@@ -24,7 +24,7 @@ from loguru import logger
 from typing import Iterator, Optional
 from core.architecture.managers import Context
 from core.models import ExceptionInfo, State, TupleLike, InternalMarker
-from core.models.internal_marker import StartChannel, EndChannel
+from core.models.internal_marker import StartChannel, EndChannel, EndIteration
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -74,7 +74,9 @@ class DataProcessor(Runnable, Stoppable):
             ):
                 if isinstance(internal_marker, StartChannel):
                     self._set_output_state(executor.produce_state_on_start(port_id))
-                elif isinstance(internal_marker, EndChannel):
+                elif isinstance(internal_marker, EndChannel) or isinstance(
+                    internal_marker, EndIteration
+                ):
                     self._set_output_state(executor.produce_state_on_finish(port_id))
                     self._switch_context()
                     self._set_output_tuple(executor.on_finish(port_id))

@@ -20,21 +20,31 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.core.tuple.FinalizeIteration
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.PORT_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  EmptyRequest,
+  EndIterationRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_CHANNEL
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_ITERATION
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.operator.loop.LoopStartOpExec
 
-trait StartChannelHandler {
+trait NextIterationHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def startChannel(
+  override def nextIteration(
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    dp.sendECMToDataChannels(METHOD_START_CHANNEL.getBareMethodName, NO_ALIGNMENT)
-    dp.processOnStart()
+    dp.processOnFinish()
+    if (dp.executor.asInstanceOf[LoopStartOpExec].checkCondition()) {
+      dp.outputManager.finalizeIteration(dp.actorId)
+    } else {
+      dp.outputManager.finalizeOutput()
+    }
     EmptyReturn()
   }
 }

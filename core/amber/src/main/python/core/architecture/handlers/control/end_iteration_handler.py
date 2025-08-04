@@ -15,27 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from dataclasses import dataclass
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    EndIterationRequest,
+)
+from core.models.internal_marker import EndIteration
 
 
-class InternalMarker:
-    """
-    A special Data Message, only being generated in un-packaging a batch into Tuples.
-    Markers retain the order information and served as a indicator of data state.
-    """
-
-    pass
-
-
-class StartChannel(InternalMarker):
-    pass
-
-
-class EndChannel(InternalMarker):
-    pass
-
-
-@dataclass
-class EndIteration(InternalMarker):
-    worker: ActorVirtualIdentity
+class EndIterationHandler(ControlHandler):
+    async def end_iteration(self, req: EndIterationRequest) -> EmptyReturn:
+        self.context.tuple_processing_manager.current_internal_marker = EndIteration(
+            req.worker
+        )
+        return EmptyReturn()

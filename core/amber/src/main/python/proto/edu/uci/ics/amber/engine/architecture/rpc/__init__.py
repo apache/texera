@@ -140,6 +140,9 @@ class ControlRequest(betterproto.Message):
     query_statistics_request: "QueryStatisticsRequest" = betterproto.message_field(
         58, group="sealed_value"
     )
+    end_iteration_request: "EndIterationRequest" = betterproto.message_field(
+        59, group="sealed_value"
+    )
     ping: "Ping" = betterproto.message_field(100, group="sealed_value")
     """request for testing"""
 
@@ -402,6 +405,11 @@ class QueryStatisticsRequest(betterproto.Message):
     filter_by_workers: List["___core__.ActorVirtualIdentity"] = (
         betterproto.message_field(1)
     )
+
+
+@dataclass(eq=False, repr=False)
+class EndIterationRequest(betterproto.Message):
+    worker: "___core__.ActorVirtualIdentity" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -996,6 +1004,40 @@ class WorkerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def end_iteration(
+        self,
+        end_iteration_request: "EndIterationRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndIteration",
+            end_iteration_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def next_iteration(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NextIteration",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def debug_command(
         self,
         debug_command_request: "DebugCommandRequest",
@@ -1551,6 +1593,14 @@ class WorkerServiceBase(ServiceBase):
     async def end_channel(self, empty_request: "EmptyRequest") -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def end_iteration(
+        self, end_iteration_request: "EndIterationRequest"
+    ) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def next_iteration(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def debug_command(
         self, debug_command_request: "DebugCommandRequest"
     ) -> "EmptyReturn":
@@ -1684,6 +1734,20 @@ class WorkerServiceBase(ServiceBase):
         response = await self.end_channel(request)
         await stream.send_message(response)
 
+    async def __rpc_end_iteration(
+        self, stream: "grpclib.server.Stream[EndIterationRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.end_iteration(request)
+        await stream.send_message(response)
+
+    async def __rpc_next_iteration(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.next_iteration(request)
+        await stream.send_message(response)
+
     async def __rpc_debug_command(
         self, stream: "grpclib.server.Stream[DebugCommandRequest, EmptyReturn]"
     ) -> None:
@@ -1806,6 +1870,18 @@ class WorkerServiceBase(ServiceBase):
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndChannel": grpclib.const.Handler(
                 self.__rpc_end_channel,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/EndIteration": grpclib.const.Handler(
+                self.__rpc_end_iteration,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EndIterationRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NextIteration": grpclib.const.Handler(
+                self.__rpc_next_iteration,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
                 EmptyReturn,

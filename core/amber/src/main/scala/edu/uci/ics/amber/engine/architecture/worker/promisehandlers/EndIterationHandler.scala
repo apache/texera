@@ -20,21 +20,30 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.core.tuple.FinalizeIteration
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  EmptyRequest,
+  EndIterationRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_CHANNEL
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.operator.loop.LoopEndOpExec
 
-trait StartChannelHandler {
+trait EndIterationHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def startChannel(
-      request: EmptyRequest,
+  override def endIteration(
+      request: EndIterationRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    dp.sendECMToDataChannels(METHOD_START_CHANNEL.getBareMethodName, NO_ALIGNMENT)
-    dp.processOnStart()
+    dp.executor match {
+      case _: LoopEndOpExec =>
+        workerInterface.nextIteration(EmptyRequest(), mkContext(request.worker))
+      case _ =>
+        dp.processOnFinish()
+        dp.outputManager.finalizeIteration(request.worker)
+    }
     EmptyReturn()
   }
 }
