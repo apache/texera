@@ -69,7 +69,6 @@ import edu.uci.ics.texera.service.util.S3StorageClient.{
   MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
   MINIMUM_NUM_OF_MULTIPART_S3_PART
 }
-import edu.uci.ics.texera.config.GuiConfig
 import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
@@ -196,7 +195,6 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
-  private val PART_SIZE: Long = GuiConfig.guiDatasetMultipartUploadChunkSizeByte
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
