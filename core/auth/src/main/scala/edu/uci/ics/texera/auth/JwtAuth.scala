@@ -34,6 +34,7 @@ object JwtAuth {
 
   final val TOKEN_EXPIRE_TIME_IN_DAYS = AuthConfig.jwtExpirationDays
   final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey
+  final val TOKEN_EXPIRE_TIME_IN_MINUTES: Int = 15
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
     .setAllowedClockSkewInSeconds(30)
@@ -59,7 +60,7 @@ object JwtAuth {
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
     claims.setClaim("googleAvatar", user.getGoogleAvatar)
-    claims.setExpirationTimeMinutesInTheFuture(dayToMin(expireInDays).toFloat)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }
 

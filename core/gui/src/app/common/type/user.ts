@@ -43,6 +43,7 @@ export interface User
     color?: string;
     googleAvatar?: string;
     comment: string;
+    lastActive?: any
   }> {}
 
 export interface File

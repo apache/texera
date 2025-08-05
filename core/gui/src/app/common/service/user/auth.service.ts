@@ -30,7 +30,7 @@ import { GmailService } from "../gmail/gmail.service";
 import { GuiConfigService } from "../gui-config.service";
 
 export const TOKEN_KEY = "access_token";
-export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
+export const TOKEN_REFRESH_INTERVAL_IN_MIN = 16;
 
 /**
  * User Service contains the function of registering and logging the user.

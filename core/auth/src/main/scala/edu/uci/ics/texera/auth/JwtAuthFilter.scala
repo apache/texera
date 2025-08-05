@@ -20,11 +20,14 @@
 package edu.uci.ics.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter, ResourceInfo}
 import jakarta.ws.rs.core.{Context, HttpHeaders, SecurityContext}
 import jakarta.ws.rs.ext.Provider
-
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.TimeLogDao
+import edu.uci.ics.texera.dao.jooq.generated.Tables.TIME_LOG
+import java.time.OffsetDateTime
 import java.security.Principal
 
 @Provider
@@ -42,6 +45,16 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
 
       if (userOpt.isPresent) {
         val user = userOpt.get()
+
+        val ctx = SqlServer.getInstance().createDSLContext()
+        ctx.insertInto(TIME_LOG)
+          .set(TIME_LOG.UID, user.getUid)
+          .set(TIME_LOG.LAST_LOGIN, OffsetDateTime.now())
+          .onConflict(TIME_LOG.UID)         // conflict on primary key uid
+          .doUpdate()
+          .set(TIME_LOG.LAST_LOGIN, OffsetDateTime.now())
+          .execute()
+
         requestContext.setSecurityContext(new SecurityContext {
           override def getUserPrincipal: Principal = user
           override def isUserInRole(role: String): Boolean =

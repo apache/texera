@@ -25,7 +25,7 @@ import { Role, User, File, Workflow, ExecutionQuota } from "../../../../common/t
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
-export const USER_LIST_URL = `${USER_BASE_URL}/list`;
+export const USER_LIST_URL = `${USER_BASE_URL}/listWithActivity`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
 export const USER_ADD_URL = `${USER_BASE_URL}/add`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
