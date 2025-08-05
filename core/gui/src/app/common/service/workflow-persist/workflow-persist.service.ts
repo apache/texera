@@ -28,6 +28,7 @@ import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/u
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
+import { checkIfWorkflowBroken } from "../../util/workflow-check";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -66,13 +67,7 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
-    // TODO: create function for checking if workflow is broken
-    const operatorIDs = new Set(workflow.content.operators.map(o => o.operatorID));
-    if (
-      workflow.content.links.some(
-        link => !operatorIDs.has(link.source.operatorID) || !operatorIDs.has(link.target.operatorID)
-      )
-    ) {
+    if (checkIfWorkflowBroken(workflow)) {
       this.notificationService.error(
         "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
       );

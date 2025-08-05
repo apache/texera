@@ -19,11 +19,7 @@
 
 @import "../../dashboard.component.scss";
 @import "../../section-style";
-.button-group {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+@import "../../button-style";
 
 ::ng-deep .ant-badge-dot {
   right: 8px;
