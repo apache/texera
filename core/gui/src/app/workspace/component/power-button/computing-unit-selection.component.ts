@@ -896,6 +896,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
     });
   }
 
+  onDropdownVisibilityChange(visible: boolean): void {
+    if (visible) {
+      this.computingUnitStatusService.refreshComputingUnitList();
+    }
+  }
+
   unitTypeMessageTemplate = {
     local: {
       createTitle: "Connect to a Local Computing Unit",

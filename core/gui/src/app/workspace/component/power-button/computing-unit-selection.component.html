@@ -64,6 +64,7 @@
     nzTrigger="click"
     [nzDropdownMenu]="menu"
     [nzPlacement]="'bottomRight'"
+    (nzVisibleChange)="onDropdownVisibilityChange($event)"
     class="computing-units-dropdown-button">
     <div class="button-content">
       <nz-badge
