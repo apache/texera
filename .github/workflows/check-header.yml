@@ -35,3 +35,7 @@ jobs:
             fi
           fi
           tar zxf apache-rat-${RAT_VERSION}-bin.tar.gz
+
+      - name: Run Apache Creadur RAT
+        shell: bash
+        run: java -jar "${{ github.action_path }}/apache-rat-${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" -s "${{ github.action_path }}/json.xsl" -E ".ratignore" -d "${{ github.workspace }}" > .ratresults.json
