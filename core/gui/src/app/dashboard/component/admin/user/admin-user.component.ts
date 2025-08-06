@@ -187,13 +187,11 @@ export class AdminUserComponent implements OnInit {
   private static readonly ACTIVE_WINDOW = 15 * 60 * 1000;
 
   isUserActive(user: User): boolean {
-    if (!user.lastActive) {
+    if (!user.lastLogin) {
       return false;
     }
 
-    const lastSeconds = typeof user.lastActive === "string" ? parseFloat(user.lastActive) : user.lastActive;
-    const lastMs = lastSeconds * 1000;
-
+    const lastMs = user.lastLogin * 1000;
     return Date.now() - lastMs < AdminUserComponent.ACTIVE_WINDOW;
   }
 

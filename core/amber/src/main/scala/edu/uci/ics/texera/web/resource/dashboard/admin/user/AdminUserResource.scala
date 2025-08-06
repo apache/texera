@@ -44,7 +44,7 @@ case class UserWithLastLogin(
     role: UserRoleEnum,
     googleAvatar: String,
     comment: String,
-    lastActive: java.time.OffsetDateTime // will be null if never logged in
+    lastLogin: java.time.OffsetDateTime // will be null if never logged in
 )
 
 object AdminUserResource {
@@ -71,7 +71,7 @@ class AdminUserResource {
   }
 
   /**
-    * This method returns the list of users with lastActive time
+    * This method returns the list of users with lastLogin time
     *
     * @return a list of UserWithLastLogin
     */
