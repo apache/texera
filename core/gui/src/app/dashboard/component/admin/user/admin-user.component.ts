@@ -191,12 +191,10 @@ export class AdminUserComponent implements OnInit {
       return false;
     }
 
-    const lastSeconds = typeof user.lastActive === "string"
-      ? parseFloat(user.lastActive)
-      : user.lastActive;
+    const lastSeconds = typeof user.lastActive === "string" ? parseFloat(user.lastActive) : user.lastActive;
     const lastMs = lastSeconds * 1000;
 
-    return (Date.now() - lastMs) < AdminUserComponent.ACTIVE_WINDOW;
+    return Date.now() - lastMs < AdminUserComponent.ACTIVE_WINDOW;
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>

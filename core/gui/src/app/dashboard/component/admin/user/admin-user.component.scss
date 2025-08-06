@@ -84,9 +84,9 @@
   border: 2.5px solid #ccc;
   border-radius: 50%;
   padding: 2px;
-  transition: border-color .2s ease;
+  transition: border-color 0.2s ease;
 }
 
 :host ::ng-deep .user-avatar.active {
-  border-color: #4CAF50;
+  border-color: #4caf50;
 }

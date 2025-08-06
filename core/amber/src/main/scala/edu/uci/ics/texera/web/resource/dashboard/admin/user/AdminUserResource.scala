@@ -37,15 +37,15 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 case class UserWithLastLogin(
-                                  uid:           Int,
-                                  name:          String,
-                                  email:         String,
-                                  googleId:      String,
-                                  role:          UserRoleEnum,
-                                  googleAvatar:  String,
-                                  comment:       String,
-                                  lastActive:     java.time.OffsetDateTime // will be null if never logged in
-                            )
+    uid: Int,
+    name: String,
+    email: String,
+    googleId: String,
+    role: UserRoleEnum,
+    googleAvatar: String,
+    comment: String,
+    lastActive: java.time.OffsetDateTime // will be null if never logged in
+)
 
 object AdminUserResource {
   final private lazy val context = SqlServer
@@ -71,10 +71,10 @@ class AdminUserResource {
   }
 
   /**
-   * This method returns the list of users with lastActive time
-   *
-   * @return a list of UserWithLastLogin
-   */
+    * This method returns the list of users with lastActive time
+    *
+    * @return a list of UserWithLastLogin
+    */
   @GET
   @Path("/listWithActivity")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -91,7 +91,8 @@ class AdminUserResource {
         TIME_LOG.LAST_LOGIN
       )
       .from(USER)
-      .leftJoin(TIME_LOG).on(USER.UID.eq(TIME_LOG.UID))
+      .leftJoin(TIME_LOG)
+      .on(USER.UID.eq(TIME_LOG.UID))
       .fetchInto(classOf[UserWithLastLogin])
   }
 
