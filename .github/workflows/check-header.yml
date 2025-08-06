@@ -16,6 +16,7 @@ jobs:
     name: Check License Headers
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Setup Apache Creadur RAT
         shell: bash
         working-directory: ${{ github.action_path }}
