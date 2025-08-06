@@ -81,7 +81,7 @@ minio:
     existingClaim: "minio-data-pvc"
 
 
-##### COMMENT THE FOLLOWING BLCOK OUT IF YOU WANT TO USE LOCAL MINIO #####
+##### COMMENT THE FOLLOWING BLOCK OUT IF YOU WANT TO USE LOCAL MINIO #####
 lakefs:
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
