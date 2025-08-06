@@ -62,7 +62,17 @@ export class DragDropService {
       .getJointGraphWrapper()
       .getMainJointPaper()
       ?.pageToLocalPoint(dropPoint.x, dropPoint.y)!;
-    const newLinks = this.getNewOperatorLinks(this.op, this.suggestionInputs, this.suggestionOutputs);
+
+    // Check if the operator is dropped on top of an existing edge
+    const intersectedLink = this.findIntersectedLink(coordinates);
+
+    let newLinks: OperatorLink[];
+    if (intersectedLink) {
+      newLinks = this.createEdgeReconnectionLinks(this.op, intersectedLink);
+    } else {
+      newLinks = this.getNewOperatorLinks(this.op, this.suggestionInputs, this.suggestionOutputs);
+    }
+
     this.workflowActionService.addOperatorsAndLinks([{ op: this.op, pos: coordinates }], newLinks);
     this.resetSuggestions();
     this.operatorDroppedSubject.next();
@@ -97,10 +107,18 @@ export class DragDropService {
    */
   private handleOperatorRecommendationOnDrag(): void {
     let isOperatorDropped = false;
+    let currentIntersectedLink: OperatorLink | null = null;
 
     fromEvent<MouseEvent>(window, "mouseup")
       .pipe(first())
-      .subscribe(() => (isOperatorDropped = true));
+      .subscribe(() => {
+        isOperatorDropped = true;
+        // Clear any edge intersection highlighting when drag ends
+        if (currentIntersectedLink) {
+          this.clearEdgeIntersectionHighlight(currentIntersectedLink);
+          currentIntersectedLink = null;
+        }
+      });
 
     fromEvent<MouseEvent>(window, "mousemove")
       .pipe(
@@ -141,6 +159,53 @@ export class DragDropService {
         this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
         // assign new suggestions
         [this.suggestionInputs, this.suggestionOutputs] = [newInputs, newOutputs];
+      });
+
+    // Edge intersection detection
+    fromEvent<MouseEvent>(window, "mousemove")
+      .pipe(
+        map(value => [value.clientX, value.clientY]),
+        filter(() => !isOperatorDropped)
+      )
+      .subscribe(mouseCoordinates => {
+        const currentMouseCoordinates = {
+          x: mouseCoordinates[0],
+          y: mouseCoordinates[1],
+        };
+
+        let coordinates: Point | undefined = this.workflowActionService
+          .getJointGraphWrapper()
+          .getMainJointPaper()
+          ?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
+        if (!coordinates) {
+          coordinates = currentMouseCoordinates;
+        }
+
+        // Only check for edge intersection if the operator can be inserted into edges
+        const hasInputPorts = this.op.inputPorts.length > 0;
+        const hasOutputPorts = this.op.outputPorts.length > 0;
+
+        let intersectedLink: OperatorLink | null = null;
+
+        if (hasInputPorts && hasOutputPorts) {
+          // Check for edge intersection for visual feedback
+          intersectedLink = this.findIntersectedLink(coordinates);
+        }
+
+        // Update edge intersection highlighting only when it changes
+        if (intersectedLink !== currentIntersectedLink) {
+          // Clear previous highlighting
+          if (currentIntersectedLink) {
+            this.clearEdgeIntersectionHighlight(currentIntersectedLink);
+          }
+
+          // Add new highlighting
+          if (intersectedLink) {
+            this.highlightEdgeIntersection(intersectedLink);
+          }
+
+          currentIntersectedLink = intersectedLink;
+        }
       });
   }
 
@@ -344,5 +409,204 @@ export class DragDropService {
     }
 
     return newLinks;
+  }
+
+  /**
+   * Finds if the dropped operator intersects with any existing link on the workflow graph.
+   * This checks if the operator's bounding box intersects with the edge, not just the cursor position.
+   *
+   * @param dropPoint The point where the operator is currently being dragged
+   * @returns The intersected OperatorLink if found, null otherwise
+   */
+  private findIntersectedLink(dropPoint: Point): OperatorLink | null {
+    const allLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+
+    if (!paper) {
+      return null;
+    }
+
+    // Get operator dimensions for bounding box calculation
+    const operatorWidth = JointUIService.DEFAULT_OPERATOR_WIDTH;
+    const operatorHeight = JointUIService.DEFAULT_OPERATOR_HEIGHT;
+
+    // Create operator bounding box (centered on drop point)
+    const operatorBounds = {
+      x: dropPoint.x - operatorWidth / 2,
+      y: dropPoint.y - operatorHeight / 2,
+      width: operatorWidth,
+      height: operatorHeight,
+    };
+
+    for (const link of allLinks) {
+      const jointLink = paper.getModelById(link.linkID) as joint.dia.Link;
+      if (!jointLink) {
+        continue;
+      }
+
+      const linkView = paper.findViewByModel(jointLink) as joint.dia.LinkView;
+      if (!linkView) {
+        continue;
+      }
+
+      // Get the path of the link
+      const pathElement = linkView.el.querySelector(".connection") as SVGPathElement;
+      if (!pathElement) {
+        continue;
+      }
+
+      // Check if the operator bounding box intersects with the link path
+      if (this.doesOperatorIntersectPath(operatorBounds, pathElement)) {
+        return link;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Checks if an operator's bounding box intersects with an SVG path element.
+   *
+   * @param operatorBounds The bounding box of the operator
+   * @param pathElement The SVG path element representing the link
+   * @returns True if the operator intersects with the path, false otherwise
+   */
+  private doesOperatorIntersectPath(
+    operatorBounds: { x: number; y: number; width: number; height: number },
+    pathElement: SVGPathElement
+  ): boolean {
+    const pathLength = pathElement.getTotalLength();
+
+    const samples = Math.min(20, Math.max(5, Math.floor(pathLength / 20)));
+
+    for (let i = 0; i <= samples; i++) {
+      const lengthRatio = (i / samples) * pathLength;
+      const pathPoint = pathElement.getPointAtLength(lengthRatio);
+
+      // Check if this point on the path is within the operator's bounding box
+      if (
+        pathPoint.x >= operatorBounds.x &&
+        pathPoint.x <= operatorBounds.x + operatorBounds.width &&
+        pathPoint.y >= operatorBounds.y &&
+        pathPoint.y <= operatorBounds.y + operatorBounds.height
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Creates new links to reconnect operators when an operator is dropped on an edge.
+   * This removes the original link and creates two new links: one from the source to the new operator,
+   * and one from the new operator to the original target.
+   *
+   * @param newOperator The operator being inserted into the edge
+   * @param intersectedLink The link that was intersected
+   * @returns Array of new OperatorLink objects for reconnection
+   */
+  private createEdgeReconnectionLinks(newOperator: OperatorPredicate, intersectedLink: OperatorLink): OperatorLink[] {
+    const newLinks: OperatorLink[] = [];
+
+    // Get source and target operators
+    const sourceOperator = this.workflowActionService.getTexeraGraph().getOperator(intersectedLink.source.operatorID);
+    const targetOperator = this.workflowActionService.getTexeraGraph().getOperator(intersectedLink.target.operatorID);
+
+    if (!sourceOperator || !targetOperator) {
+      return [];
+    }
+
+    // Check if the new operator has compatible ports
+    const hasInputPorts = newOperator.inputPorts.length > 0;
+    const hasOutputPorts = newOperator.outputPorts.length > 0;
+
+    if (!hasInputPorts || !hasOutputPorts) {
+      // If the new operator doesn't have both input and output ports, fall back to regular suggestions
+      return this.getNewOperatorLinks(newOperator, this.suggestionInputs, this.suggestionOutputs);
+    }
+
+    // Delete the original link
+    this.workflowActionService.deleteLinkWithID(intersectedLink.linkID);
+
+    // Create link from source to new operator
+    const sourceToNewLink: OperatorLink = {
+      linkID: this.workflowUtilService.getLinkRandomUUID(),
+      source: {
+        operatorID: sourceOperator.operatorID,
+        portID: intersectedLink.source.portID,
+      },
+      target: {
+        operatorID: newOperator.operatorID,
+        portID: newOperator.inputPorts[0].portID, // Use first available input port
+      },
+    };
+    newLinks.push(sourceToNewLink);
+
+    // Create link from new operator to target
+    const newToTargetLink: OperatorLink = {
+      linkID: this.workflowUtilService.getLinkRandomUUID(),
+      source: {
+        operatorID: newOperator.operatorID,
+        portID: newOperator.outputPorts[0].portID, // Use first available output port
+      },
+      target: {
+        operatorID: targetOperator.operatorID,
+        portID: intersectedLink.target.portID,
+      },
+    };
+    newLinks.push(newToTargetLink);
+
+    return newLinks;
+  }
+
+  /**
+   * Highlights an edge.
+   *
+   * @param link The link to highlight
+   */
+  private highlightEdgeIntersection(link: OperatorLink): void {
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    if (!paper) {
+      return;
+    }
+
+    const jointLink = paper.getModelById(link.linkID);
+    if (jointLink) {
+      jointLink.attr({
+        ".connection": {
+          stroke: "#FF6B35",
+          "stroke-width": 4,
+          "stroke-dasharray": "5,5",
+        },
+        ".marker-source": { fill: "#FF6B35" },
+        ".marker-target": { fill: "#FF6B35" },
+      });
+    }
+  }
+
+  /**
+   * Clears the highlighting on an edge.
+   *
+   * @param link The link to clear highlighting from
+   */
+  private clearEdgeIntersectionHighlight(link: OperatorLink): void {
+    const paper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    if (!paper) {
+      return;
+    }
+
+    const jointLink = paper.getModelById(link.linkID);
+    if (jointLink) {
+      jointLink.attr({
+        ".connection": {
+          stroke: "#848484", // Default link color
+          "stroke-width": 2,
+          "stroke-dasharray": "none",
+        },
+        ".marker-source": { fill: "none" },
+        ".marker-target": { fill: "none" },
+      });
+    }
   }
 }

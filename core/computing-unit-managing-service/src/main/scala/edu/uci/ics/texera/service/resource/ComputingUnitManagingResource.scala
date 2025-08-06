@@ -39,11 +39,7 @@ import KubernetesConfig.{
 }
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
-import edu.uci.ics.texera.service.util.ComputingUnitHelpers.{
-  getComputingUnitMetrics,
-  getComputingUnitStatus
-}
-import edu.uci.ics.texera.service.util.KubernetesClient
+import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource
 import edu.uci.ics.texera.service.util.{
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
@@ -55,6 +51,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
+import org.apache.commons.lang3.StringUtils
 import org.jooq.{DSLContext, EnumType}
 
 import java.sql.Timestamp
@@ -613,6 +610,62 @@ class ComputingUnitManagingResource {
       unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
       cuDao.update(unit)
     }
+    Response.ok().build()
+  }
+
+  /**
+    * Rename a computing unit.
+    *
+    * @param cuid The computing unit ID.
+    * @param name The new name for the computing unit.
+    * @param user The authenticated user.
+    * @return A response indicating success or failure.
+    */
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{cuid}/rename/{name}")
+  def renameComputingUnit(
+      @PathParam("cuid") cuid: Integer,
+      @PathParam("name") name: String,
+      @Auth user: SessionUser
+  ): Response = {
+    // Verify ownership or write access
+    if (
+      !userOwnComputingUnit(context, cuid, user.getUid) &&
+      !ComputingUnitAccessResource.hasWriteAccess(cuid, user.getUid)
+    ) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("User does not have permission to rename this computing unit")
+        .build()
+    }
+
+    // Validate name
+    if (StringUtils.isBlank(name)) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity("Computing unit name cannot be empty or blank")
+        .build()
+    }
+
+    withTransaction(context) { ctx =>
+      val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
+      val unit = getComputingUnitByCuid(ctx, cuid)
+
+      try {
+        unit.setName(name)
+        cuDao.update(unit)
+      } catch {
+        case e: Exception =>
+          return Response
+            .status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(e.getMessage)
+            .build()
+      }
+    }
+
     Response.ok().build()
   }
 

@@ -20,7 +20,6 @@
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-import { abbreviateNumber } from "js-abbreviation-number";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
@@ -104,8 +103,6 @@ export const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
 export const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
 export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
-export const operatorProcessedCountClass = "texera-operator-processed-count";
-export const operatorOutputCountClass = "texera-operator-output-count";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
 
@@ -130,8 +127,6 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
-      <text class="${operatorProcessedCountClass}"></text>
-      <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -260,6 +255,12 @@ export class JointUIService {
             event: "input-port-label:pointerdown",
           },
         },
+        label: {
+          position: {
+            name: "left",
+            args: { x: -5, y: 10 },
+          },
+        },
       })
     );
     operator.outputPorts.forEach(port =>
@@ -270,6 +271,12 @@ export class JointUIService {
           ".port-label": {
             text: port.displayName ?? "",
             event: "output-port-label:pointerdown",
+          },
+        },
+        label: {
+          position: {
+            name: "right",
+            args: { x: 5, y: -10 },
           },
         },
       })
@@ -286,21 +293,11 @@ export class JointUIService {
     isSink: boolean
   ): void {
     if (!statistics) {
-      jointPaper.getModelById(operatorID).attr({
-        [`.${operatorProcessedCountClass}`]: { text: "" },
-        [`.${operatorOutputCountClass}`]: { text: "" },
-      });
       this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
       return;
     }
 
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
-
-    const processedText = isSource ? "" : "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
-    const outputText = isSink ? "" : "Output: " + statistics.aggregatedOutputRowCount.toLocaleString();
-    const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
-    const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
-    const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
 
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -325,8 +322,7 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${originalName}: ${count}`;
-
+        const labelText = `${count}`;
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
@@ -346,23 +342,15 @@ export class JointUIService {
           originalName = portId;
         }
 
-        const labelText = `${originalName}: ${count}`;
+        const labelText = `${count}`;
 
         element.portProp(portId, "attrs/.port-label/text", labelText);
       }
     });
-
-    jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
-      [`.${operatorOutputCountClass}`]: { text: outputText },
-    });
-
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
-      [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       [`.${operatorPortMetricsClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
@@ -371,13 +359,10 @@ export class JointUIService {
       ".remove-input-port-button": { visibility: "hidden" },
       ".remove-output-port-button": { visibility: "hidden" },
     });
-    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
-      [`.${operatorOutputCountClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
       [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
@@ -417,8 +402,6 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { text: operatorState.toString() },
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
-      [`.${operatorProcessedCountClass}`]: { fill: fillColor },
-      [`.${operatorOutputCountClass}`]: { fill: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
@@ -920,8 +903,8 @@ export class JointUIService {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
         width: 20,
         height: 20,
-        "ref-x": 75,
-        "ref-y": 20,
+        "ref-x": 49,
+        "ref-y": 9,
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",

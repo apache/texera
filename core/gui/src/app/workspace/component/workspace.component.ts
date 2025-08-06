@@ -42,6 +42,7 @@ import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workfl
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 import { DASHBOARD_USER_WORKSPACE } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
+import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -205,6 +206,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
+          if (checkIfWorkflowBroken(workflow)) {
+            this.notificationService.error(
+              "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
+            );
+          }
+
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;

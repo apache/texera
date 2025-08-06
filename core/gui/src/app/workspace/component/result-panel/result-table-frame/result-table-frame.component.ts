@@ -31,6 +31,10 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { ChangeDetectorRef } from "@angular/core";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { ExecutionState } from "../../../types/execute-workflow.interface";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -48,6 +52,7 @@ import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+
   // display result table
   currentColumns?: TableColumn[];
   currentResult: IndexableObject[] = [];
@@ -71,14 +76,16 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   sinkStorageMode: string = "";
   private schema: ReadonlyArray<SchemaAttribute> = [];
+  isOperatorFinished: boolean = false;
 
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
+    private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
-    private changeDetectorRef: ChangeDetectorRef
+    private workflowStatusService: WorkflowStatusService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -99,6 +106,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
+    this.workflowStatusService
+      .getStatusUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(statusMap => {
+        if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
+          this.isOperatorFinished = true;
+          this.changeDetectorRef.detectChanges();
+        } else {
+          this.isOperatorFinished = false;
+        }
+      });
+
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
@@ -143,7 +162,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(sinkStorageMode => {
         this.sinkStorageMode = sinkStorageMode;
-        this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
       });
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
@@ -198,12 +216,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     let styledValue = "";
 
+    if (this.isOperatorFinished) {
+      for (let i = 0; i < currentStr.length; i++) {
+        styledValue += `<span style="color: black">${currentStr[i]}</span>`;
+      }
+      return this.sanitizer.bypassSecurityTrustHtml(styledValue);
+    }
+
     for (let i = 0; i < currentStr.length; i++) {
       const char = currentStr[i];
       const prevChar = previousStr[i];
 
       if (char !== prevChar) {
-        styledValue += `<span style="color: red">${char}</span>`;
+        styledValue += `<span style="color: blue">${char}</span>`;
       } else {
         styledValue += `<span style="color: black">${char}</span>`;
       }
@@ -213,16 +238,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 39; // use the rendered height of a row.
-    let extra: number;
+    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
-    extra = Math.floor((panelHeight - 170) / rowHeight);
+    const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
-    if (extra < 0) {
-      extra = 0;
-    }
-    this.pageSize = 1 + extra;
-    this.resizeService.pageSize = this.pageSize;
+    this.pageSize = newPageSize;
+    this.resizeService.pageSize = newPageSize;
+
+    this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
   }
 
   /**

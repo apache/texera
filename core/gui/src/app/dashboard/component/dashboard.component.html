@@ -41,23 +41,26 @@
       </li>
 
       <li
-        *ngIf="config.env.hubEnabled"
+        *ngIf="sidebarTabs.hub_enabled"
         nz-submenu
         nzTitle="Hub"
         nzIcon="usergroup-add"
         nzOpen="true">
-        <texera-hub [isLogin]="isLogin"></texera-hub>
+        <texera-hub
+          [isLogin]="isLogin"
+          [sidebarTabs]="sidebarTabs">
+        </texera-hub>
       </li>
 
       <li
-        *ngIf="isLogin"
+        *ngIf="isLogin && sidebarTabs.your_work_enabled"
         nz-submenu
         nzTitle="Your Work"
         nzIcon="user"
         nzOpen="true">
         <ul>
           <li
-            *ngIf="config.env.projectEnabled"
+            *ngIf="sidebarTabs.projects_enabled"
             nz-menu-item
             nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
@@ -70,6 +73,7 @@
           </li>
 
           <li
+            *ngIf="sidebarTabs.workflows_enabled"
             nz-menu-item
             nz-tooltip="Open the saved workflows"
             nzMatchRouter="true"
@@ -82,6 +86,7 @@
           </li>
 
           <li
+            *ngIf="sidebarTabs.datasets_enabled"
             nz-menu-item
             nz-tooltip="Look up for datasets"
             nzMatchRouter="true"
@@ -93,6 +98,7 @@
             <span>Datasets</span>
           </li>
           <li
+            *ngIf="sidebarTabs.quota_enabled"
             nz-menu-item
             nz-tooltip="Quota information"
             nzMatchRouter="true"
@@ -104,7 +110,7 @@
             <span>Quota</span>
           </li>
           <li
-            *ngIf="config.env.forumEnabled"
+            *ngIf="sidebarTabs.forum_enabled"
             nz-menu-item
             nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
@@ -115,62 +121,64 @@
               nzType="comment"></span>
             <span>Forum</span>
           </li>
+        </ul>
+      </li>
+
+      <li
+        *ngIf="isAdmin"
+        nz-submenu
+        nzTitle="Admin"
+        nzIcon="tool">
+        <ul>
           <li
-            *ngIf="isAdmin"
-            nz-submenu
-            nzTitle="Admin"
-            nzIcon="tool">
-            <ul>
-              <li
-                nz-menu-item
-                nz-tooltip="Look up the users"
-                nzMatchRouter="true"
-                nzTooltipPlacement="right"
-                [routerLink]="DASHBOARD_ADMIN_USER">
-                <span
-                  nz-icon
-                  nzType="user"></span>
-                <span>Users</span>
-              </li>
-              <li
-                nz-menu-item
-                nz-tooltip="View statistics"
-                nzMatchRouter="true"
-                nzTooltipPlacement="right"
-                [routerLink]="DASHBOARD_ADMIN_EXECUTION">
-                <span
-                  nz-icon
-                  nzType="setting"></span>
-                <span>Executions</span>
-              </li>
-              <li
-                nz-menu-item
-                nz-tooltip="Setup gmail"
-                nzMatchRouter="true"
-                nzTooltipPlacement="right"
-                [routerLink]="DASHBOARD_ADMIN_GMAIL">
-                <span
-                  nz-icon
-                  nzType="mail"></span>
-                <span>Gmail</span>
-              </li>
-              <li
-                nz-menu-item
-                nz-tooltip="Settings"
-                nzMatchRouter="true"
-                nzTooltipPlacement="right"
-                [routerLink]="DASHBOARD_ADMIN_SETTINGS">
-                <span
-                  nz-icon
-                  nzType="edit"></span>
-                <span>Settings</span>
-              </li>
-            </ul>
+            nz-menu-item
+            nz-tooltip="Look up the users"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_USER">
+            <span
+              nz-icon
+              nzType="user"></span>
+            <span>Users</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="View statistics"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_EXECUTION">
+            <span
+              nz-icon
+              nzType="setting"></span>
+            <span>Executions</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Setup gmail"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_GMAIL">
+            <span
+              nz-icon
+              nzType="mail"></span>
+            <span>Gmail</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Settings"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            [routerLink]="DASHBOARD_ADMIN_SETTINGS">
+            <span
+              nz-icon
+              nzType="edit"></span>
+            <span>Settings</span>
           </li>
         </ul>
       </li>
 
       <li
+        *ngIf="sidebarTabs.about_enabled"
         nz-menu-item
         nz-tooltip
         nzTooltipPlacement="right"
