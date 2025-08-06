@@ -12,10 +12,26 @@ jobs:
   test:
     name: Check License Headers
     runs-on: ubuntu-latest
+    env:
+      RAT_VERSION: 0.16.1
     steps:
-      - uses: actions/checkout@v4
-      - name: Run Apache RAT license check
+      - name: Setup Apache Creadur RAT
+        shell: bash
+        working-directory: ${{ github.action_path }}
         run: |
-          wget https://archive.apache.org/dist/creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.zip
-          unzip apache-rat-0.16.1-bin.zip
-          java -jar apache-rat-0.16.1/apache-rat-0.16.1.jar -d .
+          set +e
+          # Try Apache's Download CDN
+          echo "Attempting to download from Apache's Download CDN"
+          curl --fail --silent --no-progress-meter https://dlcdn.apache.org/creadur/apache-rat-${RAT_VERSION}/apache-rat-${RAT_VERSION}-bin.tar.gz --output apache-rat-${RAT_VERSION}-bin.tar.gz
+  
+          if [ $? -ne 0 ]; then
+            # It is possible that a new version was released and last version removed from dlcdn.
+            echo "Attempting to download from Apache's Archive"
+            curl --no-progress-meter https://archive.apache.org/dist/creadur/apache-rat-${RAT_VERSION}/apache-rat-${RAT_VERSION}-bin.tar.gz --output apache-rat-${RAT_VERSION}-bin.tar.gz
+  
+            if [ $? -ne 0 ]; then
+              echo "Failed to download Apache RAT"
+              exit 1
+            fi
+          fi
+          tar zxf apache-rat-${RAT_VERSION}-bin.tar.gz
