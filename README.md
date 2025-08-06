@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://texera.io"> <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" height="150px"/> </a>
   <br>
-  <i>Apache Texera supports scalable data computation and enables advanced AI/ML techniques.</i>
+  <i>Apache Texera (Incubating) supports scalable data computation and enables advanced AI/ML techniques.</i>
   <br>
   <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data science. </i>
   <br>
