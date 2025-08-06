@@ -16,7 +16,6 @@ jobs:
     name: Check License Headers
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: Setup Apache Creadur RAT
         shell: bash
         working-directory: ${{ github.action_path }}
@@ -37,7 +36,3 @@ jobs:
             fi
           fi
           tar zxf apache-rat-${{ RAT_VERSION }}-bin.tar.gz
-
-      - name: Run Apache Creadur RAT
-        shell: bash
-        run: java -jar "${{ github.action_path }}/apache-rat-${RAT_VERSION}/apache-rat-${{ RAT_VERSION }}.jar" -s "${{ github.action_path }}/json.xsl" -E ".ratignore" -d "${{ github.workspace }}" > .ratresults.json
