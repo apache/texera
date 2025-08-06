@@ -21,8 +21,8 @@ global:
 
 # Persistence Configuration
 # This controls how Persistent Volumes (PVs) and Persistent Volume Claims (PVCs) are managed
-# 
-# removeAfterUninstall: 
+#
+# removeAfterUninstall:
 #   - true: PVCs will be deleted when helm uninstalls the chart
 #   - false: PVCs will remain after uninstall to preserve the data
 persistence:
@@ -58,6 +58,7 @@ postgresql:
 
 minio:
   mode: standalone
+  enabled: false  # set this to true if you want to use local minio
   customIngress:
     enabled: false
     ingressClassName: "" # e.g., "nginx"
@@ -74,11 +75,13 @@ minio:
     nodePorts:
       api: 31000
   persistence:
-    enabled: true
+    enabled: false  # set this to true is you want to use local minio
     size: 20Gi
     storageClass: local-path
     existingClaim: "minio-data-pvc"
 
+
+##### COMMENT THE FOLLOWING BLCOK OUT IF YOU WANT TO USE LOCAL MINIO #####
 lakefs:
   secrets:
     authEncryptSecretKey: random_string_for_lakefs
@@ -95,13 +98,41 @@ lakefs:
     blockstore:
       type: s3
       s3:
-        endpoint: http://texera-minio:9000
+        endpoint: https://s3.us-east-2.amazonaws.com  # change to the endpoint that your S3 bucket uses
+        region: us-east-2  # change to the region that your S3 bucket is in
         pre_signed_expiry: 15m
-        pre_signed_endpoint: http://localhost:31000
-        force_path_style: true
+        pre_signed_endpoint: https://s3.us-east-2.amazonaws.com  # change to the endpoint that your S3 bucket uses
+        force_path_style: false
         credentials:
-          access_key_id: texera_minio
-          secret_access_key: password
+          access_key_id: AKACCESSKEYSAMPLE  # change to the actual AWS access key you have
+          secret_access_key: SECRETACCESSKEY  # change to the actual AWS secret access key you have
+##### YOUR COMMENT ENDS HERE #####
+
+##### COMMENT THIS OUT IF YOU WANT USE AWS S3 #####
+#lakefs:  # commented out by Yichen, serves as a backup to show what previous configurations look like
+#  secrets:
+#    authEncryptSecretKey: random_string_for_lakefs
+#    databaseConnectionString: postgres://postgres:root_password@texera-postgresql:5432/texera_lakefs?sslmode=disable
+#  auth:
+#    username: texera-admin
+#    accessKey: AKIAIOSFOLKFSSAMPLES
+#    secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+#  service:
+#    port: 8000
+#  lakefsConfig: |
+#    database:
+#      type: postgres
+#    blockstore:
+#      type: s3
+#      s3:
+#        endpoint: http://texera-minio:9000
+#        pre_signed_expiry: 15m
+#        pre_signed_endpoint: http://localhost:31000
+#        force_path_style: true
+#        credentials:
+#          access_key_id: texera_minio
+#          secret_access_key: password
+##### YOUR COMMENT ENDS HERE #####
 
 # Part2: configurations of Texera-related micro services
 texeraImages:
@@ -242,6 +273,19 @@ texeraEnvVars:
     value: ""
   - name: USER_SYS_DOMAIN
     value: ""
+
+    ##### COMMENT THIS OUT IF YOU WANT TO USE LOCAL MINIO #####
+  - name: STORAGE_S3_ENDPOINT
+    value: "https://s3.us-east-2.amazonaws.com"  # change to the endpoint that your S3 bucket uses
+  - name: STORAGE_S3_AUTH_USERNAME
+    value: "AKACCESSKEYSAMPLE" # change to the actual AWS Access Key you have
+  - name: STORAGE_S3_AUTH_PASSWORD
+    value: "SECRETACCESSKEY" # change to the actual AWS Secret Access Key you have
+  - name: AWS_REGION
+    value: "us-east-2"  # change to the region that your S3 bucket is in
+  - name: STORAGE_S3_REGION
+    value: "us-east-2"  # change to the region that your S3 bucket is in
+##### YOUR COMMENT ENDS HERE #####
 
 # Ingress dependency configs
 ingress-nginx:
