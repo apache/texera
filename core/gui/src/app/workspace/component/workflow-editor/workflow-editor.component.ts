@@ -959,12 +959,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     const highlightedOperatorIDs = Array.from(this.wrapper.getCurrentHighlightedOperatorIDs());
     const highlightedCommentBoxIDs = Array.from(this.wrapper.getCurrentHighlightedCommentBoxIDs());
     const highlightedLinkIDs = Array.from(this.wrapper.getCurrentHighlightedLinkIDs());
-    
+
     // Bundle all deletions together for proper undo/redo support
     this.workflowActionService.getTexeraGraph().bundleActions(() => {
       // Delete operators and their connected links
       this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs);
-      
+
       // Delete standalone selected links
       highlightedLinkIDs.forEach(highlightedLinkID => {
         // Only delete if the link still exists (might have been deleted with operators)
@@ -972,9 +972,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.deleteLinkWithID(highlightedLinkID);
         }
       });
-      
+
       // Delete comment boxes
-      highlightedCommentBoxIDs.forEach(highlightedCommentBoxID => 
+      highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
         this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
       );
     });

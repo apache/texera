@@ -92,17 +92,21 @@ export class ContextMenuComponent {
 
   public onDelete(): void {
     // Capture all highlighted IDs before starting deletion to avoid modification during iteration
-    const highlightedOperatorIDs = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
-    const highlightedCommentBoxIDs = Array.from(this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs());
-    const highlightedLinkIDs = Array.from(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs());
-    
+    const highlightedOperatorIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
+    );
+    const highlightedCommentBoxIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs()
+    );
+    const highlightedLinkIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()
+    );
+
     // Bundle all deletions together for proper undo/redo support
     this.workflowActionService.getTexeraGraph().bundleActions(() => {
       // Delete operators and their connected links
       this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs);
-      
+
       // Delete standalone selected links
       highlightedLinkIDs.forEach(highlightedLinkID => {
         // Only delete if the link still exists (might have been deleted with operators)
@@ -110,7 +114,7 @@ export class ContextMenuComponent {
           this.workflowActionService.deleteLinkWithID(highlightedLinkID);
         }
       });
-      
+
       // Delete comment boxes
       highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
         this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
