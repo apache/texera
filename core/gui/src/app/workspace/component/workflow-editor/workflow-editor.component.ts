@@ -967,7 +967,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
       // Delete standalone selected links
       highlightedLinkIDs.forEach(highlightedLinkID => {
-        // Only delete if the link still exists (might have been deleted with operators)
+        // Delete if the link still exists (might have been deleted with operators)
         if (this.workflowActionService.getTexeraGraph().hasLinkWithID(highlightedLinkID)) {
           this.workflowActionService.deleteLinkWithID(highlightedLinkID);
         }
