@@ -14,4 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-#      - uses: erisu/apache-rat-action@v1
+      - name: Run Apache RAT license check
+        run: |
+          wget https://archive.apache.org/dist/creadur/apache-rat-0.15/apache-rat-0.15-bin.zip
+          unzip apache-rat-0.15-bin.zip
+          java -jar apache-rat-0.15/apache-rat-0.15.jar -d .
