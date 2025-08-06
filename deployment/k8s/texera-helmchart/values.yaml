@@ -75,7 +75,7 @@ minio:
     nodePorts:
       api: 31000
   persistence:
-    enabled: false  # set this to true is you want to use local minio
+    enabled: false  # set this to true if you want to use local minio
     size: 20Gi
     storageClass: local-path
     existingClaim: "minio-data-pvc"
