@@ -16,6 +16,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Apache RAT license check
         run: |
-          wget https://archive.apache.org/dist/creadur/apache-rat-0.15/apache-rat-0.15-bin.zip
-          unzip apache-rat-0.15-bin.zip
-          java -jar apache-rat-0.15/apache-rat-0.15.jar -d .
+          wget https://archive.apache.org/dist/creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.zip
+          unzip apache-rat-0.16.1-bin.zip
+          java -jar apache-rat-0.15/apache-rat-0.16.1.jar -d .
