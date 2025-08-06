@@ -1,0 +1,53 @@
+# https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
+
+github:
+  description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
+  homepage: https://texera.io/
+  labels:
+    - workflow
+    - data-science
+    - data
+    - machine-learning
+    - artificial-intelligence
+    - cloud-native
+    - data-analytics
+    - texera
+
+  protected_tags:
+    - "v*.*.*"
+
+  dependabot_alerts:  true
+  dependabot_updates: false
+
+  features:
+    # Enable wiki for documentation
+    wiki: true
+    # Enable issue management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
+    # Enable github discussions
+    discussions: true
+
+  enabled_merge_buttons:
+    squash:  true
+    merge:   false
+    rebase:  true
+
+  protected_branches:
+    master:
+      required_status_checks:
+        # strict means "Require branches to be up to date before merging".
+        strict: false
+        # contexts are the names of checks that must pass
+      required_pull_request_reviews:
+        dismiss_stale_reviews: false
+        require_code_owner_reviews: false
+        required_approving_review_count: 1
+
+notifications:
+  commits:              commits@texera.apache.org
+  issues:               dev@texera.apache.org
+  pullrequests:         dev@texera.apache.org
+  discussions:          dev@texera.apache.org
+  jobs:                 dev@texera.apache.org
