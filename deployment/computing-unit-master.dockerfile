@@ -39,7 +39,7 @@ RUN sbt clean WorkflowExecutionService/dist
 # Unzip the texera binary
 RUN unzip amber/target/universal/texera-*.zip -d amber/target/
 
-FROM eclipse-temurin:11-jre-jammy AS runtime
+FROM eclipse-temurin:11-jdk-jammy AS runtime
 
 WORKDIR /core/amber
 
