@@ -31,4 +31,4 @@ header:
     - 'country_sales_small.csv'
     - 'country_sales_small_multi_line.csv'
 
-  comment: on-failure
+  comment: never
