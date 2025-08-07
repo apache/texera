@@ -13,5 +13,4 @@ jobs:
     name: Check License Headers
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: erisu/apache-rat-action@v1
+      - uses: apache/skywalking-eyes@v0.7.0
