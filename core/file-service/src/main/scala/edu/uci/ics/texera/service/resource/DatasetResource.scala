@@ -585,9 +585,7 @@ class DatasetResource {
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    val user = new SessionUser(new User())
-    val uid = user.getUid
-    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
   }
 
   @GET
@@ -597,9 +595,7 @@ class DatasetResource {
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    val user = new SessionUser(new User())
-    val uid = user.getUid
-    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, null)
   }
 
   @DELETE
