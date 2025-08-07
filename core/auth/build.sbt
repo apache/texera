@@ -60,4 +60,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",            // for LazyLogging
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",                             // for jwt parser
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0"                       // for JwtAuthFilter
+
+
 )
