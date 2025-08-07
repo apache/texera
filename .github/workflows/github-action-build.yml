@@ -18,10 +18,6 @@
 name: build
 
 on:
-  workflow_run:
-      workflows: ["Release Auditing"]
-      types:
-        - completed
   push:
     branches:
       - 'ci-enable/**'
