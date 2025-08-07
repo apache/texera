@@ -21,6 +21,5 @@ header:
     - '.gitkeep'
     - 'site.webmanifest'
     - '.gitignore'
-    - '.gitignore'
     - '.licenserc.yaml'
 
