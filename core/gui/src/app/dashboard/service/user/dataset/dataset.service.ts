@@ -104,16 +104,16 @@ export class DatasetService {
     const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
 
     this.http.get<{ presignedUrl: string }>(endpoint).subscribe({
-      next: (response) => {
-        const presignedUrl = response.presignedUrl
+      next: response => {
+        const presignedUrl = response.presignedUrl;
         const downloadUrl = document.createElement("a");
 
         downloadUrl.href = presignedUrl;
         document.body.appendChild(downloadUrl);
         downloadUrl.click();
         downloadUrl.remove();
-      }
-    })
+      },
+    });
   }
 
   /**
