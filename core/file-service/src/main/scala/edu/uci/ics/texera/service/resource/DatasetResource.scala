@@ -195,6 +195,7 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val EXPIRATION_MINUTES = 5
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -1253,7 +1254,6 @@ class DatasetResource {
       case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
         val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
         val contentType = "application/octet-stream"
-        val EXPIRATION_MINUTES = 5
         val url = S3StorageClient.getFilePresignedUrl(
           resolvedDatasetName,
           resolvedCommitHash,
