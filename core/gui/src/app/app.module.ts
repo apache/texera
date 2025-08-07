@@ -373,6 +373,8 @@ registerLocaleData(en);
       multi: true,
     },
   ],
-  bootstrap: [AppComponent],
+  bootstrap:
+    wrfewrfewrfger
+    [AppComponent],
 })
 export class AppModule {}
