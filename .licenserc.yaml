@@ -4,7 +4,6 @@ header:
     copyright-owner: Apache Software Foundation
 
   paths-ignore:
-    - 'dist'
     - 'licenses'
     - '**/*.md'
     - '**/*.csv'
@@ -21,3 +20,7 @@ header:
     - '.htaccess'
     - '.gitkeep'
     - 'site.webmanifest'
+    - '.gitignore'
+    - '.gitignore'
+    - '.licenserc.yaml'
+
