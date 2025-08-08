@@ -71,13 +71,6 @@ github:
         require_code_owner_reviews: false
         required_approving_review_count: 1
       required_linear_history: true
-    testbranch:
-      required_status_checks:
-        strict: true
-        contexts:
-          - Build
-          - Release Auditing
-          - Lint PR
 
 notifications:
   commits:              commits@texera.apache.org
