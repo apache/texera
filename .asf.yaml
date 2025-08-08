@@ -65,11 +65,20 @@ github:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
+        context: ~
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
         required_approving_review_count: 1
       required_linear_history: true
+    
+    test-branch:
+      required_status_checks:
+        strict: true
+        context:
+          - Build
+          - Release Auditing
+          - Lint PR
 
 notifications:
   commits:              commits@texera.apache.org
