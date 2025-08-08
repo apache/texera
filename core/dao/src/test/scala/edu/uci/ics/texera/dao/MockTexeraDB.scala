@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package edu.uci.ics.texera.dao
+package edu.uci.ics.texera.daoererer
 
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.jooq.{DSLContext, SQLDialect}
