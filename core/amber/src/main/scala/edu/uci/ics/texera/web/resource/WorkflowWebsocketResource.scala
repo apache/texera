@@ -53,16 +53,15 @@ class WorkflowWebsocketResource extends LazyLogging {
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
     val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
     val cuAccess = session.getUserProperties.get("cuAccess").asInstanceOf[String]
-//    val cuAccess = PrivilegeEnum.valueOf(session.getUserProperties.get("cuAccess").asInstanceOf[String])
-//    sessionState.setUserCUAccess(cuAccess)
-    logger.info(s"Websocket connection opened for workflow $wid with computing unit $cuid and access $cuAccess")
+    val cuAccessEnum = PrivilegeEnum.valueOf(session.getUserProperties.get("cuAccess").asInstanceOf[String])
+    sessionState.setUserCUAccess(cuAccessEnum)
+    logger.info(s"Websocket connection opened for workflow $wid with computing unit $cuid and access $cuAccessEnum")
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
       WorkflowService.getOrCreate(WorkflowIdentity(wid), cuid)
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-    logger.info("connection open")
   }
 
   @OnClose
