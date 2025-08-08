@@ -63,6 +63,28 @@ data:
                                 prefix_rewrite: "/api/executions/result/export"
                                 timeout: "0s"
                     http_filters:
+                      - name: envoy.filters.http.ext_authz
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                          http_service:
+                            server_uri:
+                              uri: http://{{ .Values.permissionService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local
+                              cluster: permission_service_cluster
+                              timeout: 5s
+                            path_prefix: /api/authorize
+                            authorization_request:
+                              allowed_headers:
+                                patterns:
+                                  - exact: "authorization"
+                                  - exact: "x-envoy-original-path"
+                            authorization_response:
+                              allowed_upstream_headers:
+                                patterns:
+                                  - exact: "x-user-cu-access"
+                                  - exact: "x-user-id"
+                                  - exact: "x-user-name"
+                                  - exact: "x-user-email"
+                          failure_mode_allow: false
                       - name: envoy.filters.http.lua
                         typed_config:
                           "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
@@ -90,6 +112,9 @@ data:
                       - name: envoy.access_loggers.stdout
                         typed_config:
                           "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                          log_format:
+                            text_format_source:
+                              inline_string: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" AuthHeaders[user-id:\"%REQ(X-USER-ID)%\" email:\"%REQ(X-USER-EMAIL)%\" cu-access:\"%REQ(X-USER-CU-ACCESS)%\"]\n"
 
       clusters:
         - name: dynamic_service
@@ -103,3 +128,16 @@ data:
                 name: dynamic_dns_cache
                 dns_lookup_family: V4_ONLY
                 dns_refresh_rate: 1s
+        - name: permission_service_cluster
+          connect_timeout: 0.25s
+          type: strict_dns
+          lb_policy: round_robin
+          load_assignment:
+            cluster_name: permission_service_cluster
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: {{ .Values.permissionService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local
+                          port_value: {{ .Values.permissionService.service.port }}

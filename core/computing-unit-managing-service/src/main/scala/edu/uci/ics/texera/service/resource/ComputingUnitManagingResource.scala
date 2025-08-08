@@ -25,20 +25,14 @@ import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
 import edu.uci.ics.texera.config.{ComputingUnitConfig, KubernetesConfig}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  WorkflowComputingUnitDao
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, WorkflowComputingUnitDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
-import KubernetesConfig.{
-  cpuLimitOptions,
-  gpuLimitOptions,
-  maxNumOfRunningComputingUnitsPerUser,
-  memoryLimitOptions
-}
+import KubernetesConfig.{cpuLimitOptions, gpuLimitOptions, maxNumOfRunningComputingUnitsPerUser, memoryLimitOptions}
+import edu.uci.ics.amber.config
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
+import edu.uci.ics.texera.service.util.{ComputingUnitManagingServiceException, InsufficientComputingUnitQuota, KubernetesClient}
 import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource
 import edu.uci.ics.texera.service.util.{
   ComputingUnitManagingServiceException,
@@ -96,7 +90,8 @@ object ComputingUnitManagingResource {
       .get,
     EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
-      .get
+      .get,
+    EnvironmentalVariable.ENV_KUBERNETES_COMPUTING_UNIT_ENABLED -> KubernetesConfig.kubernetesComputingUnitEnabled,
   )
 
   case class WorkflowComputingUnitCreationParams(

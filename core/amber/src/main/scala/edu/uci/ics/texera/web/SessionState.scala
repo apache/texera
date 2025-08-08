@@ -20,6 +20,7 @@
 package edu.uci.ics.texera.web
 
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.service.WorkflowService
 import io.reactivex.rxjava3.disposables.Disposable
@@ -53,6 +54,7 @@ class SessionState(session: Session) {
   private var currentWorkflowState: Option[WorkflowService] = None
   private var workflowSubscription = Disposable.empty()
   private var executionSubscription = Disposable.empty()
+  private var userCUAccess: PrivilegeEnum = PrivilegeEnum.NONE
 
   def send(msg: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
@@ -80,4 +82,9 @@ class SessionState(session: Session) {
     )
 
   }
+
+  def setUserCUAccess(cuAccess: PrivilegeEnum): Unit = {
+    this.userCUAccess = cuAccess
+  }
+  def getUserCUAccess: PrivilegeEnum = this.userCUAccess
 }
