@@ -109,7 +109,7 @@ export class ContextMenuComponent {
 
       // Delete standalone selected links
       highlightedLinkIDs.forEach(highlightedLinkID => {
-        // Delete if the link still exists (might have been deleted with operators)
+        // Only delete if the link still exists (might have been deleted with operators)
         if (this.workflowActionService.getTexeraGraph().hasLinkWithID(highlightedLinkID)) {
           this.workflowActionService.deleteLinkWithID(highlightedLinkID);
         }
