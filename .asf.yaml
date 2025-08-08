@@ -71,7 +71,7 @@ github:
         require_code_owner_reviews: false
         required_approving_review_count: 1
       required_linear_history: true
-    "test-branch":
+    testbranch:
       required_status_checks:
         strict: true
         contexts:
