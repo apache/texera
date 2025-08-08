@@ -47,6 +47,150 @@
     nzTheme="outline"
     [nzPopoverContent]="PythonLambdaPopContent"
     class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('TypeCasting')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Type Casting Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="TypeCastingPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('CSVFileScan')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="CSV File Scan Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="CSVScanPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Projection')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Projection Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="ProjectionPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('HashJoin')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Join Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="HashJoinPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Filter')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Filter Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="FilterPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Aggregate')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Aggregate Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="AggregatePopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Regex')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Regex Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="RegexPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('HTMLVisualizer')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="HTML Visualizer Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="HTMLVisualizerPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('RUDF')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="R User-Defined Function Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="RUDFPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('PythonUDF')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Python User-Defined Function Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="PythonUDFPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Dumbbell')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Dumbbell Plot Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="DumbbellPlotPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('NestedTable')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Table Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="NestedTablePopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('LineChart')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Line Chart Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="LineChartPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('Sort')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Sort Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="SortPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('SortPartitions')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Sort Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="SortPartitionsPopContent"
+    class="question-circle-button"></i>
+  <i
+    *ngIf="currentOperatorId?.includes('BarChart')"
+    nz-icon
+    nz-popover
+    nzPopoverTitle="Bar Chart Instructions"
+    nzType="question-circle"
+    nzTheme="outline"
+    [nzPopoverContent]="BarChartPopContent"
+    class="question-circle-button"></i>
 
   <ng-template #PythonLambdaPopContent>
     You can add a new column by:
@@ -78,6 +222,476 @@
       <li>Typing in the name of the new column as <strong>IsExpensive</strong></li>
       <li>Selecting the attribute type as <strong>boolean</strong></li>
       <li>Typing in the expression as <strong>True if tuple_["Unit Price"] > 500 else False</strong></li>
+    </ul>
+  </ng-template>
+  <ng-template #TypeCastingPopContent>
+    You can cast the type of existing columns by:
+    <ul>
+      <li>Clicking on the blue <strong>"+"</strong> button</li>
+      <li>Selecting the existing column you want to cast in the drop-down list</li>
+      <li>Selecting the target data type you want to convert to</li>
+      <li>The column will maintain its name but change its data type</li>
+    </ul>
+    Available data types include:
+    <ul>
+      <li><strong>String</strong> - Text data</li>
+      <li><strong>Integer</strong> - Whole numbers</li>
+      <li><strong>Double</strong> - Decimal numbers</li>
+      <li><strong>Long</strong> - Large integer values</li>
+      <li><strong>Boolean</strong> - True/false values</li>
+      <li><strong>TimeStamp</strong> - Date and datetime values</li>
+      <li><strong>Binary</strong> - Binary data</li>
+    </ul>
+    <br />
+    Example: Convert a text column "Age" containing numbers to integer type<br />
+    Operations:
+    <ul>
+      <li>Clicking on the blue "+" button</li>
+      <li>Selecting <strong>"Age"</strong> from the column drop-down list</li>
+      <li>Selecting <strong>"Integer"</strong> as the target data type</li>
+      <li>The "Age" column will now be treated as integer values instead of text</li>
+    </ul>
+    <br />
+    <strong>Note:</strong> Type casting may fail if the source data cannot be converted to the target type (e.g.,
+    converting "abc" to integer). <br />
+    Ensure your data is compatible with the target type.
+  </ng-template>
+
+  <ng-template #CSVScanPopContent>
+    You can load data from a CSV file by:
+    <ul>
+      <li>Clicking <strong>"Select File"</strong> to select your CSV file</li>
+      <li>Setting the appropriate <strong>File Encoding</strong> (usually UTF-8)</li>
+      <li>Configuring the <strong>Delimiter</strong> if not using commas</li>
+      <li>Enabling <strong>"Header"</strong> if your CSV has column names in the first row</li>
+      <li>Setting a <strong>Limit</strong> to control how many rows to read (optional)</li>
+    </ul>
+    File format options:
+    <ul>
+      <li><strong>File Encoding</strong> - Character encoding (UTF-8, UTF-16, etc.)</li>
+      <li><strong>Delimiter</strong> - Character separating values (comma, semicolon, etc.)</li>
+      <li><strong>Header</strong> - Whether first row contains column names</li>
+      <li><strong>Limit</strong> - Maximum number of rows to read</li>
+    </ul>
+    <br />
+    Example: Load a CSV file with headers and comma-separated values<br />
+    Operations:
+    <ul>
+      <li>Clicking <strong>"Select File"</strong> and selecting your CSV file</li>
+      <li>Setting <strong>File Encoding</strong> to <strong>"UTF-8"</strong></li>
+      <li>Setting <strong>Delimiter</strong> to <strong>","</strong> (comma)</li>
+      <li>Enabling <strong>"Header"</strong> checkbox</li>
+      <li>Leaving <strong>Limit</strong> empty to read all rows</li>
+    </ul>
+    <br />
+    <strong>Note:</strong> Make sure your CSV file is properly formatted and accessible. Large files may take longer to
+    process.
+  </ng-template>
+
+  <ng-template #ProjectionPopContent>
+    You can select and reorder columns by:
+    <ul>
+      <li>Clicking the <strong>"Add"</strong> button to add columns to the output</li>
+      <li>Selecting which columns to include from the dropdown</li>
+      <li>Using the <strong>Drag Handles</strong> to reorder columns by dragging up or down</li>
+      <li>Clicking the <strong>Trash Can</strong> button to remove columns from the output</li>
+      <li>Only the selected columns will appear in the final result</li>
+    </ul>
+    Drop Option:
+    <ul>
+      <li>Check the <strong>"Drop Option"</strong> box to instead drop selected columns</li>
+    </ul>
+    Column operations:
+    <ul>
+      <li><strong>Add Column</strong> - Include a column in the selection</li>
+      <li><strong>Remove Column</strong> - Click the trash can to remove from selection</li>
+      <li><strong>Reorder Columns</strong> - Drag the handles to change column order</li>
+      <li><strong>Alias</strong> - Rename columns in the output by typing a new name in the alias field</li>
+    </ul>
+    <br />
+    Example: Keep only "state", "year", and "custody_tot" columns and rename "custody_tot" to "Total"<br />
+    Operations:
+    <ul>
+      <li>Setting <strong>"Drop Option"</strong> to <strong>"Keep Columns"</strong></li>
+      <li>Clicking the <strong>"Add"</strong> button</li>
+      <li>Selecting <strong>"state"</strong> from the dropdown</li>
+      <li>Adding <strong>"year"</strong> and <strong>"custody_tot"</strong> columns similarly</li>
+      <li>Typing <strong>"Total"</strong> in the alias field for "custody_tot"</li>
+    </ul>
+  </ng-template>
+
+  <ng-template #HashJoinPopContent>
+    You can join two datasets by:
+    <ul>
+      <li>Selecting the <strong>Left Input Attribute</strong> from the first dataset</li>
+      <li>Selecting the <strong>Right Input Attribute</strong> from the second dataset</li>
+      <li>Choosing the <strong>Join Type</strong> from the dropdown</li>
+      <li>Rows with matching values in both attributes will be combined according to the join type</li>
+    </ul>
+    Join types explained:
+    <ul>
+      <li><strong>Inner Join</strong> - Only rows with matches in both datasets</li>
+      <li>
+        <strong>Left Outer Join</strong> - All rows from left dataset, matched rows from right (nulls for non-matches)
+      </li>
+      <li>
+        <strong>Right Outer Join</strong> - All rows from right dataset, matched rows from left (nulls for non-matches)
+      </li>
+      <li><strong>Full Outer Join</strong> - All rows from both datasets (nulls where no match exists)</li>
+    </ul>
+    <br />
+    Example: Join annual and quarterly prison data on custody_tot values using inner join<br />
+    Operations:
+    <ul>
+      <li>Selecting <strong>"custody_tot"</strong> as the Left Input Attribute</li>
+      <li>Selecting <strong>"custody_tot"</strong> as the Right Input Attribute</li>
+      <li>Setting Join Type to <strong>"inner"</strong></li>
+      <li>Only records with matching custody_tot values in both datasets will appear</li>
+    </ul>
+    <br />
+    <strong>Note:</strong> Make sure the join attributes have compatible data types and meaningful matching values for
+    the best results.
+  </ng-template>
+
+  <ng-template #FilterPopContent>
+    You can filter rows based on conditions by:
+    <ul>
+      <li>Selecting the <strong>Attribute</strong> (column) you want to filter on</li>
+      <li>Choosing a <strong>Condition</strong> operator (=, !=, >, <, etc.)</li>
+      <li>Entering the <strong>Value</strong> to compare against</li>
+      <li>Adding multiple predicates for complex filtering using the <strong>Predicates</strong> section</li>
+    </ul>
+    Available operators include:
+    <ul>
+      <li><strong>Equals (=)</strong> - Exact match</li>
+      <li><strong>Not Equals (!=)</strong> - Does not match</li>
+      <li><strong>Greater Than (>)</strong> - Numeric comparison</li>
+      <li><strong>Less Than (<)</strong> - Numeric comparison</li>
+      <li><strong>Greater Than or Equal (>=)</strong> - Numeric comparison</li>
+      <li><strong>Less Than or Equal (<=)</strong> - Numeric comparison</li>
+      <li><strong>Is Null</strong> - Null attributes</li>
+      <li><strong>Is Not Null</strong> - Non-Null attributes</li>
+    </ul>
+    <br />
+    Example: Filter to show only data for Alabama<br />
+    Operations:
+    <ul>
+      <li>Selecting <strong>"state"</strong> as the Attribute</li>
+      <li>Selecting <strong>"="</strong> (equals) as the Condition</li>
+      <li>Entering <strong>"Alabama"</strong> as the Value</li>
+      <li>Only rows where state equals "Alabama" will pass through the filter</li>
+    </ul>
+    <br />
+    <strong>Multiple Conditions:</strong> Use the Predicates section to add multiple filter conditions.<br />
+    All predicates are combined with <strong>OR</strong> logic - a row passes through if it matches
+    <strong>ANY</strong> of the conditions.
+  </ng-template>
+
+  <ng-template #AggregatePopContent>
+    You can perform aggregations by:
+    <ul>
+      <li>Selecting an <strong>Aggregate Function</strong> (sum, count, average, etc.)</li>
+      <li>Choosing the <strong>Attribute</strong> (column) to aggregate</li>
+      <li>Specifying a <strong>Result Attribute</strong> name for the output column</li>
+      <li>Clicking the <strong>+</strong> button to add more aggregations</li>
+    </ul>
+    Available aggregation functions:
+    <ul>
+      <li><strong>Sum</strong> - Total of numeric values</li>
+      <li><strong>Count</strong> - Number of rows</li>
+      <li><strong>Average</strong> - Mean of numeric values</li>
+      <li><strong>Min</strong> - Smallest value</li>
+      <li><strong>Max</strong> - Largest value</li>
+      <li><strong>Concat</strong> - Concatenate text values</li>
+    </ul>
+    <br />
+    Example: Calculate total mortality and average custody statistics<br />
+    Operations:
+    <ul>
+      <li>Setting Aggregate Function to <strong>"sum"</strong></li>
+      <li>Selecting <strong>"mortality_tot"</strong> as the Attribute</li>
+      <li>Setting Result Attribute to <strong>"mortality_tot_by_year"</strong></li>
+      <li>Adding another aggregation for average custody statistics</li>
+    </ul>
+    <br />
+    <strong>Multiple Aggregations:</strong> You can add multiple aggregation functions to calculate different
+    statistics.<br />
+    Each aggregation will create a new column in the output with the specified result attribute name.
+  </ng-template>
+
+  <ng-template #SortPartitionsPopContent>
+    You can sort your data by:
+    <ul>
+      <li>Selecting the <strong>Attribute</strong> (column) you want to sort by</li>
+      <li>Specifying the <strong>Attribute Domain Min</strong> (minimum expected value)</li>
+      <li>Specifying the <strong>Attribute Domain Max</strong> (maximum expected value)</li>
+      <li>The data will be sorted in ascending order by the selected attribute</li>
+    </ul>
+    Domain configuration:
+    <ul>
+      <li><strong>Attribute Domain Min</strong> - Sets the minimum value in the sorting range</li>
+      <li><strong>Attribute Domain Max</strong> - Sets the maximum value in the sorting range</li>
+    </ul>
+    <br />
+    Example: Sort data by year from 2013 to 2020<br />
+    Operations:
+    <ul>
+      <li>Selecting <strong>"year"</strong> as the Attribute</li>
+      <li>Setting Attribute Domain Min to <strong>"2013"</strong></li>
+      <li>Setting Attribute Domain Max to <strong>"2020"</strong></li>
+      <li>Data will be sorted by year in ascending order within the specified range</li>
+    </ul>
+    <br />
+  </ng-template>
+  <ng-template #RegexPopContent>
+    You can filter data using regular expressions by:
+    <ul>
+      <li>Selecting the <strong>Attribute</strong> (column) to search in</li>
+      <li>Entering a <strong>Regex</strong> pattern to match against</li>
+      <li>Optionally enabling <strong>Case Insensitive</strong> matching</li>
+      <li>Only rows where the attribute matches the regex pattern will pass through</li>
+    </ul>
+    Common regex patterns:
+    <ul>
+      <li><strong>15-31</strong> - Matches any text containing "15-31"</li>
+      <li><strong>^2020</strong> - Matches text starting with "2020"</li>
+      <li><strong>Dec$</strong> - Matches text ending with "Dec"</li>
+      <li><strong>[0-9]+</strong> - Matches one or more digits</li>
+      <li><strong>.*EOY.*</strong> - Matches text containing "EOY" anywhere</li>
+    </ul>
+    <br />
+    Example: Keep only end-of-year data (dates containing "15-31")<br />
+    Operations:
+    <ul>
+      <li>Selecting <strong>"date"</strong> as the Attribute</li>
+      <li>Entering <strong>"12-31"</strong> as the Regex pattern</li>
+      <li>Enabling <strong>Case Insensitive</strong> if needed</li>
+      <li>Only rows with dates containing "12-31" will be kept</li>
+    </ul>
+    <br />
+  </ng-template>
+
+  <ng-template #HTMLVisualizerPopContent>
+    You can render HTML content by:
+    <ul>
+      <li>Specifying the <strong>HTML content</strong> field name (usually html-content)</li>
+      <li>The selected field should contain valid HTML</li>
+      <li>The visualizer will render the HTML content in the result panel</li>
+      <li>This is useful for Visualization Operators and formatted displays</li>
+    </ul>
+
+    <br />
+    Example: Display formatted mortality statistics in HTML<br />
+    Operations:
+    <ul>
+      <li>Setting <strong>HTML content</strong> to <strong>"html-content"</strong></li>
+      <li>Ensuring the "html-content" field contains valid HTML markup</li>
+      <li>The visualizer will render tables, charts, or formatted text</li>
+      <li>Results appear in a web-friendly format in the result panel</li>
+    </ul>
+    <br />
+  </ng-template>
+
+  <ng-template #RUDFPopContent>
+    You can create custom R functions by:
+    <ul>
+      <li>Clicking <strong>"Edit code content"</strong> to write your R code</li>
+      <li>Setting the <strong>Worker count</strong> for parallel processing</li>
+      <li>Defining <strong>Attribute Names</strong> and <strong>Attribute Types</strong> for output columns</li>
+      <li>Optionally enabling <strong>Use Tuple API</strong> for advanced data access</li>
+      <li>Optionally enabling <strong>Retain input columns</strong> to keep original data</li>
+    </ul>
+    Configuration options:
+    <ul>
+      <li><strong>Edit code content</strong> - Write custom R code to process your data</li>
+      <li><strong>Worker count</strong> - Number of parallel R workers for processing</li>
+      <li><strong>Use Tuple API</strong> - Enable row-by-row processing with tuple access</li>
+      <li><strong>Retain input columns</strong> - Keep original input columns in the output</li>
+    </ul>
+    <br />
+    Example: Process mortality data with custom R calculations<br />
+    Operations:
+    <ul>
+      <li>Clicking <strong>"Edit code content"</strong> to open the R code editor</li>
+      <li>Writing R code to analyze custody_tot, state, date, and year data</li>
+      <li>
+        Defining output attributes like <strong>"custody_tot"</strong> (double), <strong>"state"</strong> (string)
+      </li>
+      <li>Setting appropriate data types for each output column</li>
+      <li>Configuring worker count based on data size and R processing needs</li>
+    </ul>
+    <br />
+    <strong>R Code Editor:</strong> Write any R code to transform, analyze, or create new data columns.<br />
+  </ng-template>
+
+  <ng-template #PythonUDFPopContent>
+    You can create custom Python functions by:
+    <ul>
+      <li>Clicking <strong>"Edit code content"</strong> to write your Python code</li>
+      <li>Setting the <strong>Worker count</strong> for parallel processing</li>
+      <li>Clicking <strong>"+ extra output columns"</strong> to add new columns created by your Python code</li>
+      <li>Defining <strong>Attribute Names</strong> and <strong>Attribute Types</strong> for each new output column</li>
+      <li>Optionally enabling <strong>Use Tuple API</strong> for advanced data access</li>
+      <li>Optionally enabling <strong>Retain input columns</strong> to keep input columns in output</li>
+    </ul>
+    Configuration options:
+    <ul>
+      <li><strong>Edit code content</strong> - Write custom Python code to process your data</li>
+      <li><strong>Worker count</strong> - Number of parallel Python workers for processing</li>
+      <li><strong>+ extra output columns</strong> - Add definitions for new columns your Python code creates</li>
+      <li><strong>Use Tuple API</strong> - Enable row-by-row processing with tuple access</li>
+      <li><strong>Retain input columns</strong> - Keep original input columns in the output</li>
+    </ul>
+    <br />
+    Example: Process mortality data and create new calculated columns<br />
+    Operations:
+    <ul>
+      <li>Clicking <strong>"Edit code content"</strong> to open the Python code editor</li>
+      <li>Writing Python code that creates new columns like mortality_rate, risk_category</li>
+      <li>Clicking <strong>"+ extra output columns"</strong> for each new column</li>
+      <li>Defining <strong>"mortality_rate"</strong> (double), <strong>"risk_category"</strong> (string)</li>
+      <li>Setting appropriate data types for each new column your Python code produces</li>
+    </ul>
+    <br />
+    <strong>Python Code Editor:</strong> Write any Python code to transform, analyze, or create new data columns.<br />
+  </ng-template>
+
+  <ng-template #DumbbellPlotPopContent>
+    You can create dumbbell plots by:
+    <ul>
+      <li>Setting the <strong>Category Column Name</strong> for grouping data points</li>
+      <li>Defining <strong>Dumbbell Start Value</strong> and <strong>Dumbbell End Value</strong> columns</li>
+      <li>Specifying the <strong>Measurement Column Name</strong> for the data being plotted</li>
+      <li>Setting the <strong>Compared Column Name</strong> for comparison categories</li>
+      <li>Configuring the <strong>Dot Column Value</strong> for additional data points</li>
+      <li>Optionally enabling <strong>Show Legend</strong> to display plot legend</li>
+    </ul>
+    Plot configuration:
+    <ul>
+      <li><strong>Category Column Name</strong> - Groups data points (e.g., boundaries, regions)</li>
+      <li><strong>Start/End Values</strong> - Define the range for each dumbbell (lower/upper bounds)</li>
+      <li><strong>Measurement Column</strong> - The metric being visualized (e.g., confidence intervals)</li>
+      <li><strong>Compared Column</strong> - Categories to compare (e.g., states, groups)</li>
+      <li><strong>Dot Column Value</strong> - Additional data points on the plot (e.g., median, IQR)</li>
+    </ul>
+    <br />
+    Example: Compare confidence intervals across state boundaries<br />
+    Operations:
+    <ul>
+      <li>Setting <strong>Category Column Name</strong> to <strong>"Boundary"</strong></li>
+      <li>
+        Setting <strong>Dumbbell Start Value</strong> to <strong>"lower"</strong> and End Value to
+        <strong>"upper"</strong>
+      </li>
+      <li>Setting <strong>Measurement Column Name</strong> to <strong>"CI"</strong> (confidence interval)</li>
+      <li>Setting <strong>Compared Column Name</strong> to <strong>"State"</strong></li>
+      <li>Setting <strong>Dot Column Value</strong> to <strong>"IRR"</strong></li>
+    </ul>
+    <br />
+    <strong>Use Case:</strong> Dumbbell plots are ideal for comparing ranges, confidence intervals, or before/after
+    values.<br />
+    <strong>Legend:</strong> Enable "Show Legend" to help users understand different elements in the plot.
+  </ng-template>
+
+  <ng-template #NestedTablePopContent>
+    You can create nested tables by:
+    <ul>
+      <li>Adding <strong>Attribute groups</strong> to create hierarchical sections</li>
+      <li>Setting the <strong>Original attribute Name</strong> (source column)</li>
+      <li>Setting the <strong>New Attribute Name</strong> (display name for the nested table)</li>
+      <li>Clicking <strong>"Add attribute"</strong> to include more columns in each group</li>
+    </ul>
+    Nested table structure:
+    <ul>
+      <li><strong>Attribute group</strong> - Creates nested sections/categories in the table</li>
+      <li><strong>Original attribute Name</strong> - The actual column name from your data</li>
+      <li><strong>New Attribute Name</strong> - User-friendly name shown in the nested table</li>
+      <li><strong>Multiple groups</strong> - Each group becomes a separate nested section</li>
+    </ul>
+    <br />
+    Example: Create nested table with demographics and statistics sections<br />
+    Operations:
+    <ul>
+      <li>Creating first group: <strong>"Demographics"</strong></li>
+      <li>
+        Adding <strong>"year"</strong> → <strong>"Year"</strong> and <strong>"state"</strong> → <strong>"State"</strong>
+      </li>
+      <li>Creating second group: <strong>"Statistics"</strong></li>
+      <li>Adding <strong>"mortality_tot"</strong> → <strong>"Total Deaths"</strong></li>
+    </ul>
+  </ng-template>
+
+  <ng-template #LineChartPopContent>
+    You can create line charts by:
+    <ul>
+      <li>Setting the <strong>X Label</strong> and <strong>Y Label</strong> for axis titles</li>
+      <li>Choosing the <strong>X Value</strong> and <strong>Y Value</strong> columns for data points</li>
+      <li>Selecting a <strong>Line Mode</strong> (line with dots, solid line, etc.)</li>
+      <li>Configuring <strong>Line Color</strong> for each data series</li>
+      <li>Adding multiple lines by clicking the "<strong>+</strong>" at the bottom</li>
+    </ul>
+    Chart configuration:
+    <ul>
+      <li><strong>X/Y Labels</strong> - Titles displayed on the chart axes</li>
+      <li><strong>X/Y Values</strong> - Data columns to plot (X = horizontal, Y = vertical)</li>
+      <li><strong>Line Mode</strong> - Visual style of the line (with/without dots)</li>
+      <li><strong>Line Color</strong> - Color for each data series line</li>
+      <li><strong>Multiple Lines</strong> - Add multiple Y values to compare data series</li>
+    </ul>
+    <br />
+    Example: Plot death rates over time by age group<br />
+    Operations:
+    <ul>
+      <li>
+        Setting <strong>X Label</strong> to <strong>"Year"</strong> and <strong>Y Label</strong> to
+        <strong>"Death Rate"</strong>
+      </li>
+      <li>
+        Setting <strong>X Value</strong> to <strong>"year"</strong> and <strong>Y Value</strong> to
+        <strong>"mortality_65over_per_10000"</strong>
+      </li>
+      <li>Choosing <strong>Line Mode</strong> as <strong>"line with dots"</strong></li>
+      <li>Adding more lines for other age groups like <strong>"mortality_under_65_per_10000"</strong></li>
+    </ul>
+  </ng-template>
+
+  <ng-template #SortPopContent>
+    You can sort your data by:
+    <ul>
+      <li>Selecting the <strong>Attribute</strong> (column) to sort by</li>
+      <li>Choosing <strong>ASC</strong> (ascending) or <strong>DESC</strong> (descending)</li>
+    </ul>
+    <br />
+    Example: Sort by year (newest first)<br />
+    <ul>
+      <li>Attribute: <strong>year</strong></li>
+      <li>Sort Preference: <strong>DESC</strong></li>
+    </ul>
+  </ng-template>
+
+  <ng-template #BarChartPopContent>
+    You can create bar charts by:
+    <ul>
+      <li>Setting the <strong>Fields</strong> for chart labeling (e.g., xlabel)</li>
+      <li>Choosing the <strong>Category Column</strong> for grouping data</li>
+      <li>Selecting the <strong>Value Column</strong> associated with each category</li>
+      <li>Optionally enabling <strong>Horizontal Orientation</strong> for horizontal bars</li>
+      <li>Adding <strong>Pattern</strong> textures based on data attributes</li>
+    </ul>
+    Chart configuration:
+    <ul>
+      <li><strong>Category Column</strong> - Groups data into separate bars (e.g., regions, states)</li>
+      <li><strong>Value Column</strong> - Choose value column associated with category</li>
+      <li><strong>Horizontal Orientation</strong> - Display bars horizontally instead of vertically</li>
+      <li><strong>Pattern</strong> - Add visual textures to distinguish data categories</li>
+    </ul>
+    <br />
+    Example: Compare regional percentages with a bar chart<br />
+    Operations:
+    <ul>
+      <li>Setting <strong>Category Column</strong> to <strong>"region"</strong></li>
+      <li>Setting <strong>Value Column</strong> to <strong>"perc_exp"</strong> (percentage values)</li>
+      <li>Setting <strong>Fields</strong> to <strong>"xlabel"</strong> for labeling</li>
     </ul>
   </ng-template>
 </div>
