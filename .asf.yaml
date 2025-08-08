@@ -58,13 +58,14 @@ github:
     squash:  true
     squash_commit_message: PR_TITLE_AND_DESC
     merge:   false
-    rebase:  true
+    rebase:  false
     
   protected_branches:
     master:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
+        # contexts are the names of checks that must pass
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
@@ -76,4 +77,4 @@ notifications:
   issues:               dev@texera.apache.org
   pullrequests:         dev@texera.apache.org
   discussions:          dev@texera.apache.org
-  jobs:                 dev@texera.apache.org
+  jobs:                 commits@texera.apache.org
