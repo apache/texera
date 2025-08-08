@@ -55,6 +55,32 @@ Do not include any of the following in your PR:
 - Secrets or credentials (e.g., passwords, tokens)
 - Build artifacts or binary files
 
+### Final Steps Before Review
+#### Your PR should pass scalafix check (lint) and scalafmt check. 
+- To check lint, under `core` run command `sbt "scalafixAll --check"`; to fix lint issues, run `sbt scalafixAll`.
+- To check format, under `core` run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
+- When you need to execute both, scalafmt is supposed to be executed after scalafix.
+#### Testing the backend
+1. The test framework is `scalatest`, for the amber engine, tests are located under `core/amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
+2. To execute it, navigate to `core` directory in the command line and execute `sbt test`.
+3. If using IntelliJ to execute the test cases please make sure to be at the correct working directory.
+* For the amber engine's tests, the working directory should be `core/amber`
+* For the other services' tests, the working directory should be `core`
+#### Testing the frontend 
+Before merging your code to the master branch, you need to pass the existing unit tests first.
+1. Open a command line. Navigate to the `core/gui` directory.
+2. Start the test:
+```
+ng test --watch=false
+```
+3. Wait for some time and the test will get started.
+You should also write some unit tests to cover your code. When others need to change your code, they will have to pass these unit tests so that you can keep your features safe.
+The unit tests should be written inside `.spec.ts` file.
+4. Run the following command to fix the formatting of the frontend code.
+```
+yarn format:fix
+```
+
 ### 4. PR Review
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
