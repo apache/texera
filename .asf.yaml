@@ -65,7 +65,6 @@ github:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
-        contexts: ~
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
