@@ -65,7 +65,7 @@ github:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
-        context: ~
+        contexts: ~
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
@@ -75,7 +75,7 @@ github:
     test-branch:
       required_status_checks:
         strict: true
-        context:
+        contexts:
           - Build
           - Release Auditing
           - Lint PR
