@@ -137,10 +137,14 @@ export class DatasetService {
    * Handles multipart upload for large files using RxJS,
    * with a concurrency limit on how many parts we process in parallel.
    */
-  public multipartUpload(datasetName: string, filePath: string, file: File): Observable<MultipartUploadProgress> {
-    const partSize = this.config.env.multipartUploadChunkSizeByte;
+  public multipartUpload(
+    datasetName: string,
+    filePath: string,
+    file: File,
+    partSize: number,
+    concurrencyLimit: number
+  ): Observable<MultipartUploadProgress> {
     const partCount = Math.ceil(file.size / partSize);
-    const concurrencyLimit = this.config.env.maxNumberOfConcurrentUploadingFileChunks;
 
     // track progress bar
     let totalBytesUploaded = 0;
