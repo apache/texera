@@ -1058,18 +1058,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "link:mouseenter")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
+      .subscribe(linkView => {
+        // Create an array to hold the tools
+        const tools = [new (this.jointUIService.getRemoveButton())()];
+
+        // If breakpoints are enabled, also add the breakpoint button
         if (this.config.env.linkBreakpointEnabled) {
-          this.paper.getModelById(elementView.model.id).attr({
-            ".tool-remove": { display: "block" },
-          });
-          this.paper.getModelById(elementView.model.id).findView(this.paper).showTools();
-        } else {
-          // only display the delete button
-          this.paper.getModelById(elementView.model.id).attr({
-            ".tool-remove": { display: "block" },
-          });
+          tools.push(new (this.jointUIService.getBreakpointButton())());
         }
+
+        const toolsView = new joint.dia.ToolsView({ tools });
+        linkView.addTools(toolsView);
       });
 
     /**
