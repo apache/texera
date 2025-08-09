@@ -174,3 +174,21 @@ nz-select {
 .upload-progress-container {
   margin-left: 20px;
 }
+
+.advanced-setting {
+  margin-left: 20px;
+}
+
+.settings-row {
+  margin-left: 12px;
+  transform: scale(0.95);
+}
+
+.settings-row nz-form-item {
+  margin-bottom: 10px;
+}
+
+.tooltip {
+  margin-left: 6px;
+  color: #1890ff;
+}

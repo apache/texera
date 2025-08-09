@@ -35,7 +35,7 @@ export interface GuiConfig {
   pythonLanguageServerPort: string;
   singleFileUploadMaximumSizeMB: number;
   maxNumberOfConcurrentUploadingFileChunks: number;
-  multipartUploadChunkSizeByte: number;
+  multipartUploadChunkSizeMB: number;
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;

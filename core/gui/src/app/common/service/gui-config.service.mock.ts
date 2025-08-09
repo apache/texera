@@ -44,7 +44,7 @@ export class MockGuiConfigService {
     pythonLanguageServerPort: "3000",
     singleFileUploadMaximumSizeMB: 100,
     maxNumberOfConcurrentUploadingFileChunks: 5,
-    multipartUploadChunkSizeByte: 1048576, // 1MB
+    multipartUploadChunkSizeMB: 1, // 1MB
     defaultDataTransferBatchSize: 100,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,

@@ -39,6 +39,7 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -76,6 +77,8 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
+  uploadChunkSizeMB: number;
+  uploadConcurrentChunks: number;
 
   //  List of upload tasks – each task tracked by its filePath
   public uploadTasks: Array<
@@ -94,7 +97,8 @@ export class DatasetDetailComponent implements OnInit {
     private notificationService: NotificationService,
     private downloadService: DownloadService,
     private userService: UserService,
-    private hubService: HubService
+    private hubService: HubService,
+    private config: GuiConfigService
   ) {
     this.userService
       .userChanged()
@@ -103,6 +107,9 @@ export class DatasetDetailComponent implements OnInit {
         this.currentUid = this.userService.getCurrentUser()?.uid;
         this.isLogin = this.userService.isLogin();
       });
+
+    this.uploadChunkSizeMB = this.config.env.multipartUploadChunkSizeMB;
+    this.uploadConcurrentChunks = this.config.env.maxNumberOfConcurrentUploadingFileChunks;
   }
 
   // item for control the resizeable sider
@@ -323,7 +330,13 @@ export class DatasetDetailComponent implements OnInit {
 
         // Start multipart upload
         this.datasetService
-          .multipartUpload(this.datasetName, file.name, file.file)
+          .multipartUpload(
+            this.datasetName,
+            file.name,
+            file.file,
+            this.uploadChunkSizeMB * 1024 * 1024,
+            this.uploadConcurrentChunks
+          )
           .pipe(untilDestroyed(this))
           .subscribe({
             next: progress => {

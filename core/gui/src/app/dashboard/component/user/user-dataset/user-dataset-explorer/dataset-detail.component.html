@@ -241,6 +241,53 @@
           nzActive="true"
           nzHeader="Create New Version">
           <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
+
+          <nz-collapse
+            nzGhost
+            class="advanced-setting">
+            <nz-collapse-panel nzHeader="Advanced Settings">
+              <div class="settings-row">
+                <nz-form-item>
+                  <nz-form-label>
+                    Part Size (MB)
+                    <i
+                      nz-icon
+                      nzType="question-circle"
+                      nz-tooltip
+                      nzTooltipTitle="Size of each upload chunk, higher values use more memory."
+                      class="tooltip"></i>
+                  </nz-form-label>
+                  <nz-form-control>
+                    <nz-input-number
+                      [(ngModel)]="uploadChunkSizeMB"
+                      [nzMin]="10"
+                      [nzStep]="10">
+                    </nz-input-number>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <nz-form-item>
+                  <nz-form-label>
+                    Concurrent Parts
+                    <i
+                      nz-icon
+                      nzType="question-circle"
+                      nz-tooltip
+                      nzTooltipTitle="Number of parallel uploads, higher values use more memory."
+                      class="tooltip"></i>
+                  </nz-form-label>
+                  <nz-form-control>
+                    <nz-input-number
+                      [(ngModel)]="uploadConcurrentChunks"
+                      [nzMin]="1"
+                      [nzStep]="1">
+                    </nz-input-number>
+                  </nz-form-control>
+                </nz-form-item>
+              </div>
+            </nz-collapse-panel>
+          </nz-collapse>
+
           <div class="upload-progress-wrapper">
             <div
               *ngFor="let task of uploadTasks; trackBy: trackByTask"

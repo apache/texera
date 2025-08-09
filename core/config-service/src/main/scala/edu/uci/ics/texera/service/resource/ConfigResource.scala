@@ -47,7 +47,7 @@ class ConfigResource {
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
       "singleFileUploadMaximumSizeMB" -> GuiConfig.guiDatasetSingleFileUploadMaximumSizeMB,
       "maxNumberOfConcurrentUploadingFileChunks" -> GuiConfig.guiDatasetMaxNumberOfConcurrentUploadingFileChunks,
-      "multipartUploadChunkSizeByte" -> GuiConfig.guiDatasetMultipartUploadChunkSizeByte,
+      "multipartUploadChunkSizeMB" -> GuiConfig.guiDatasetMultipartUploadChunkSizeMB,
       "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,

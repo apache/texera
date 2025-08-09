@@ -71,6 +71,6 @@ object GuiConfig {
     conf.getInt("gui.dataset.single-file-upload-maximum-size-mb")
   val guiDatasetMaxNumberOfConcurrentUploadingFileChunks: Int =
     conf.getInt("gui.dataset.max-number-of-concurrent-uploading-file-chunks")
-  val guiDatasetMultipartUploadChunkSizeByte: Long =
-    conf.getLong("gui.dataset.multipart-upload-chunk-size-byte")
+  val guiDatasetMultipartUploadChunkSizeMB: Long =
+    conf.getLong("gui.dataset.multipart-upload-chunk-size-mb")
 }
