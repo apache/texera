@@ -238,3 +238,52 @@
     </div>
   </div>
 </nz-card>
+
+<nz-card nzTitle="Dataset">
+  <div class="settings-row">
+    <span>File Size:</span>
+    <nz-input-number
+      [(ngModel)]="maxFileSizeMB"
+      [nzMin]="1"
+      [nzStep]="10">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">Maximum size allowed for individual file uploads (MB).</div>
+
+  <div class="settings-row">
+    <span>Concurrent Parts:</span>
+    <nz-input-number
+      [(ngModel)]="maxConcurrentChunks"
+      [nzMin]="1"
+      [nzStep]="1">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Number of file chunks that can be uploaded simultaneously. Higher values use more memory.
+  </div>
+
+  <div class="settings-row">
+    <span>Part Size:</span>
+    <nz-input-number
+      [(ngModel)]="chunkSizeMB"
+      [nzMin]="1"
+      [nzStep]="10">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">Size of each chunk during multipart upload in MB. Larger chunks use more memory.</div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveDatasetSettings()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetDatasetSettings()">
+      Reset
+    </button>
+  </div>
+</nz-card>
