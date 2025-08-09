@@ -28,11 +28,24 @@ import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog.TIME_LOG
 
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+
+case class UserWithLastLogin(
+    uid: Int,
+    name: String,
+    email: String,
+    googleId: String,
+    role: UserRoleEnum,
+    googleAvatar: String,
+    comment: String,
+    lastLogin: java.time.OffsetDateTime // will be null if never logged in
+)
 
 object AdminUserResource {
   final private lazy val context = SqlServer
@@ -55,6 +68,32 @@ class AdminUserResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listUser(): util.List[User] = {
     userDao.fetchRangeOfUid(Integer.MIN_VALUE, Integer.MAX_VALUE)
+  }
+
+  /**
+    * This method returns the list of users with lastLogin time
+    *
+    * @return a list of UserWithLastLogin
+    */
+  @GET
+  @Path("/listWithActivity")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def listUserWithActivity(): util.List[UserWithLastLogin] = {
+    AdminUserResource.context
+      .select(
+        USER.UID,
+        USER.NAME,
+        USER.EMAIL,
+        USER.GOOGLE_ID,
+        USER.ROLE,
+        USER.GOOGLE_AVATAR,
+        USER.COMMENT,
+        TIME_LOG.LAST_LOGIN
+      )
+      .from(USER)
+      .leftJoin(TIME_LOG)
+      .on(USER.UID.eq(TIME_LOG.UID))
+      .fetchInto(classOf[UserWithLastLogin])
   }
 
   @PUT
