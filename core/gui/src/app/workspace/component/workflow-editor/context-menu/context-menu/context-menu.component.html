@@ -21,7 +21,8 @@
   <li
     nz-menu-item
     *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
-  operatorMenuService.highlightedCommentBoxes.value.length > 0)"
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks()"
     (click)="onCopy()">
     <span
       nz-icon
@@ -33,6 +34,7 @@
     nz-menu-item
     *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
   operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks() &&
   isWorkflowModifiable"
     (click)="onCut()">
     <span
@@ -44,7 +46,8 @@
   <li
     nz-menu-item
     *ngIf="(operatorMenuService.highlightedOperators.value.length === 0 &&
-  operatorMenuService.highlightedCommentBoxes.value.length === 0) &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()) &&
   isWorkflowModifiable"
     (click)="onPaste()">
     <span
@@ -55,7 +58,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -65,7 +69,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -75,7 +80,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.viewResultHighlightedOperators()">
     <span
       nz-icon
@@ -85,7 +91,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.viewResultHighlightedOperators()">
     <span
       nz-icon
@@ -96,7 +103,8 @@
   <li
     nz-menu-item
     [nzDisabled]="true"
-    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
       nz-icon
@@ -106,7 +114,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
       nz-icon
@@ -127,8 +136,26 @@
     >delete
   </li>
 
+  <!-- Delete option for links only -->
   <li
     nz-menu-item
+    *ngIf="hasHighlightedLinks() && 
+  operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  isWorkflowModifiable"
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()"
     [nzDisabled]="!canExecuteOperator()"
     (click)="operatorMenuService.executeUpToOperator()">
     <span
@@ -140,7 +167,8 @@
 
   <li
     *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
-           this.config.env.exportExecutionResultEnabled"
+           this.config.env.exportExecutionResultEnabled &&
+           !hasHighlightedLinks()"
     (click)="onClickExportHighlightedExecutionResult()"
     nz-menu-item>
     <span

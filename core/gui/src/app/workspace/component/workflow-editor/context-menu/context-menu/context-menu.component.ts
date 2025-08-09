@@ -73,6 +73,10 @@ export class ContextMenuComponent {
     );
   }
 
+  public hasHighlightedLinks(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length > 0;
+  }
+
   public onCopy(): void {
     this.operatorMenuService.saveHighlightedElements();
   }
@@ -87,14 +91,35 @@ export class ContextMenuComponent {
   }
 
   public onDelete(): void {
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedCommentBoxIDs = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs();
-    this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs);
-    highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
-      this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
+    // Capture all highlighted IDs before starting deletion to avoid modification during iteration
+    const highlightedOperatorIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
     );
+    const highlightedCommentBoxIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs()
+    );
+    const highlightedLinkIDs = Array.from(
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs()
+    );
+
+    // Bundle all deletions together for proper undo/redo support
+    this.workflowActionService.getTexeraGraph().bundleActions(() => {
+      // Delete operators and their connected links
+      this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs);
+
+      // Delete standalone selected links
+      highlightedLinkIDs.forEach(highlightedLinkID => {
+        // Only delete if the link still exists (might have been deleted with operators)
+        if (this.workflowActionService.getTexeraGraph().hasLinkWithID(highlightedLinkID)) {
+          this.workflowActionService.deleteLinkWithID(highlightedLinkID);
+        }
+      });
+
+      // Delete comment boxes
+      highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
+        this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
+      );
+    });
   }
 
   private registerWorkflowModifiableChangedHandler() {
