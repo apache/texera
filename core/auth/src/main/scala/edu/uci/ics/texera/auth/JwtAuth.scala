@@ -32,7 +32,6 @@ import java.nio.charset.StandardCharsets
 // TODO: move this logic to Auth
 object JwtAuth {
 
-  final val TOKEN_EXPIRE_TIME_IN_DAYS = AuthConfig.jwtExpirationDays
   final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey
   final val TOKEN_EXPIRE_TIME_IN_MINUTES: Int = 15
 
@@ -62,9 +61,5 @@ object JwtAuth {
     claims.setClaim("googleAvatar", user.getGoogleAvatar)
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
-  }
-
-  def dayToMin(days: Int): Int = {
-    days * 24 * 60
   }
 }
