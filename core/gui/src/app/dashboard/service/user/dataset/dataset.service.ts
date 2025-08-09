@@ -94,6 +94,29 @@ export class DatasetService {
   }
 
   /**
+   * Retrieves a single file from a dataset version using a pre-signed URL.
+   * @param filePath Relative file path within the dataset.
+   * @param isLogin Determine whether a user is currently logged in
+   * @returns void File is downloaded natively by the browser.
+   */
+  public retrieveDatasetVersionSingleFileViaBrowser(filePath: string, isLogin: boolean = true): void {
+    const endpointSegment = isLogin ? "presign-download-s3" : "public-presign-download-s3";
+    const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
+
+    this.http.get<{ presignedUrl: string }>(endpoint).subscribe({
+      next: response => {
+        const presignedUrl = response.presignedUrl;
+        const downloadUrl = document.createElement("a");
+
+        downloadUrl.href = presignedUrl;
+        document.body.appendChild(downloadUrl);
+        downloadUrl.click();
+        downloadUrl.remove();
+      },
+    });
+  }
+
+  /**
    * Retrieves a zip file of a dataset version.
    * @param did Dataset ID
    * @param dvid (Optional) Dataset version ID. If omitted, the latest version is downloaded.
