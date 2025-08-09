@@ -20,8 +20,7 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_DAYS,
-  dayToMin,
+  TOKEN_EXPIRE_TIME_IN_MINUTES,
   jwtClaims,
   jwtConsumer,
   jwtToken
@@ -103,7 +102,7 @@ class AuthResource {
       throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
-        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
@@ -112,7 +111,7 @@ class AuthResource {
   @Path("/refresh")
   def refresh(request: RefreshTokenRequest): TokenIssueResponse = {
     val claims = jwtConsumer.process(request.accessToken).getJwtClaims
-    claims.setExpirationTimeMinutesInTheFuture(dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS).toFloat)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     TokenIssueResponse(jwtToken(claims))
   }
 
@@ -133,7 +132,7 @@ class AuthResource {
         // hash the plain text password
         user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
-        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
       case _ =>
         // the username exists already
         throw new NotAcceptableException("Username exists already.")
