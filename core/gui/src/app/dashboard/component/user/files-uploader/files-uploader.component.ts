@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { NgxFileDropEntry } from "ngx-file-drop";
 import {
@@ -26,8 +26,10 @@ import {
   getPathsUnderOrEqualDatasetFileNode,
 } from "../../../../common/type/datasetVersionFileTree";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-user-files-uploader",
   templateUrl: "./files-uploader.component.html",
@@ -46,11 +48,17 @@ export class FilesUploaderComponent {
   // four types: "success", "info", "warning" and "error"
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
+  singleFileUploadMaxSizeMB: number = 20;
 
   constructor(
     private notificationService: NotificationService,
-    private config: GuiConfigService
-  ) {}
+    private adminSettingsService: AdminSettingsService
+  ) {
+    this.adminSettingsService
+      .getSetting("single_file_upload_max_size_mb")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.singleFileUploadMaxSizeMB = parseInt(value)));
+  }
 
   hideBanner() {
     this.fileUploadingFinished = false;
@@ -71,10 +79,10 @@ export class FilesUploaderComponent {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
             // Check the file size here
-            if (file.size > this.config.env.singleFileUploadMaximumSizeMB * 1024 * 1024) {
+            if (file.size > this.singleFileUploadMaxSizeMB * 1024 * 1024) {
               // If the file is too large, reject the promise
               this.notificationService.error(
-                `File ${file.name}'s size exceeds the maximum limit of ${this.config.env.singleFileUploadMaximumSizeMB}MB.`
+                `File ${file.name}'s size exceeds the maximum limit of ${this.singleFileUploadMaxSizeMB}MB.`
               );
               reject(null);
             } else {
