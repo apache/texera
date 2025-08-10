@@ -42,6 +42,7 @@ import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import java.net.URI
 import java.util.concurrent.TimeoutException
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
@@ -74,6 +75,8 @@ class CostBasedScheduleGenerator(
       resourceAllocator = resourceAllocator,
       actorId = actorId
     )
+
+  private val regionCostMemo: mutable.Map[Region, (Region, Double)] = new mutable.HashMap()
 
   def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
@@ -606,7 +609,8 @@ class CostBasedScheduleGenerator(
       .map(level =>
         level
           .map(region => {
-            val (newRegion, regionCost) = costEstimator.allocateResourcesAndEstimateCost(region, 1)
+            val (newRegion, regionCost) = regionCostMemo
+              .getOrElseUpdate(region, costEstimator.allocateResourcesAndEstimateCost(region, 1))
             // Update the region in the regionDAG to be the new region with resources allocated.
             replaceVertex(regionDAG, region, newRegion)
             regionCost
