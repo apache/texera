@@ -195,6 +195,7 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val EXPIRATION_MINUTES = 5
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -565,15 +566,36 @@ class DatasetResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
+  }
+
+  @GET
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    val user = new SessionUser(new User())
-    val uid = user.getUid
-    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
+  }
+
+  @GET
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, null)
   }
 
   @DELETE
@@ -1200,34 +1222,83 @@ class DatasetResource {
       commitHash: String,
       uid: Integer
   ): Response = {
+    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
+      case Left(errorResponse) =>
+        errorResponse
+
+      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
+        val url = LakeFSStorageClient.getFilePresignedUrl(
+          resolvedDatasetName,
+          resolvedCommitHash,
+          resolvedFilePath
+        )
+
+        Response.ok(Map("presignedUrl" -> url)).build()
+    }
+  }
+
+  private def generatePresignedResponseWithS3(
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response = {
+    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
+      case Left(errorResponse) =>
+        errorResponse
+
+      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
+        val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
+        val contentType = "application/octet-stream"
+        val url = S3StorageClient.getFilePresignedUrl(
+          resolvedDatasetName,
+          resolvedCommitHash,
+          resolvedFilePath,
+          fileName,
+          contentType,
+          EXPIRATION_MINUTES
+        )
+
+        Response.ok(Map("presignedUrl" -> url)).build()
+    }
+  }
+
+  private def resolveDatasetAndPath(
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Either[Response, (String, String, String)] = {
     val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
     (Option(datasetName), Option(commitHash)) match {
       case (Some(_), None) | (None, Some(_)) =>
         // Case 1: Only one parameter is provided (error case)
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity(
-            "Both datasetName and commitHash must be provided together, or neither should be provided."
-          )
-          .build()
+        Left(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(
+              "Both datasetName and commitHash must be provided together, or neither should be provided."
+            )
+            .build()
+        )
 
       case (Some(dsName), Some(commit)) =>
         // Case 2: datasetName and commitHash are provided, validate access
-        withTransaction(context) { ctx =>
+        val response = withTransaction(context) { ctx =>
           val datasetDao = new DatasetDao(ctx.configuration())
           val datasets = datasetDao.fetchByName(dsName).asScala.toList
 
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-          val url = LakeFSStorageClient.getFilePresignedUrl(dsName, commit, decodedPathStr)
-          Response.ok(Map("presignedUrl" -> url)).build()
+          (dsName, commit, decodedPathStr)
         }
+        Right(response)
 
       case (None, None) =>
         // Case 3: Neither datasetName nor commitHash are provided, resolve normally
-        withTransaction(context) { ctx =>
+        val response = withTransaction(context) { ctx =>
           val fileUri = FileResolver.resolve(decodedPathStr)
           val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
           val datasetDao = new DatasetDao(ctx.configuration())
@@ -1236,18 +1307,13 @@ class DatasetResource {
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-          Response
-            .ok(
-              Map(
-                "presignedUrl" -> LakeFSStorageClient.getFilePresignedUrl(
-                  document.getDatasetName(),
-                  document.getVersionHash(),
-                  document.getFileRelativePath()
-                )
-              )
-            )
-            .build()
+          (
+            document.getDatasetName(),
+            document.getVersionHash(),
+            document.getFileRelativePath()
+          )
         }
+        Right(response)
     }
   }
 }
