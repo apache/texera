@@ -57,7 +57,11 @@ describe("ContextMenuComponent", () => {
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.and.returnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.and.returnValue([]);
 
-    const texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", ["isOperatorDisabled", "hasLinkWithID", "bundleActions"]);
+    const texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", [
+      "isOperatorDisabled",
+      "hasLinkWithID",
+      "bundleActions",
+    ]);
 
     const workflowActionServiceSpy = jasmine.createSpyObj("WorkflowActionService", [
       "getJointGraphWrapper",
