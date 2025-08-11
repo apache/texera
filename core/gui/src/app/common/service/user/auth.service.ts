@@ -31,7 +31,7 @@ import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 
 export const TOKEN_KEY = "access_token";
-export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
+export const TOKEN_REFRESH_INTERVAL_IN_MIN = 16;
 
 /**
  * User Service contains the function of registering and logging the user.

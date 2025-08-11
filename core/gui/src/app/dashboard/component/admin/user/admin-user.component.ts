@@ -184,6 +184,17 @@ export class AdminUserComponent implements OnInit {
     });
   }
 
+  private static readonly ACTIVE_WINDOW = 15 * 60 * 1000;
+
+  isUserActive(user: User): boolean {
+    if (!user.lastLogin) {
+      return false;
+    }
+
+    const lastMs = user.lastLogin * 1000;
+    return Date.now() - lastMs < AdminUserComponent.ACTIVE_WINDOW;
+  }
+
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
 }
