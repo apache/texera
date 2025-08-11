@@ -22,6 +22,7 @@ import { AdminSettingsService } from "../../../service/admin/settings/admin-sett
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
+import { forkJoin } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -47,12 +48,17 @@ export class AdminSettingsComponent implements OnInit {
     about_enabled: false,
   };
 
+  maxFileSizeMB: number = 20;
+  maxConcurrentChunks: number = 10;
+  chunkSizeMB: number = 50;
+
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
   ngOnInit(): void {
     this.loadTabs();
+    this.loadDatasetSetting();
   }
 
   private loadTabs(): void {
@@ -62,6 +68,21 @@ export class AdminSettingsComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
     });
+  }
+
+  private loadDatasetSetting(): void {
+    this.adminSettingsService
+      .getSetting("single_file_upload_max_size_mb")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxFileSizeMB = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("multipart_upload_chunk_size_mb")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.chunkSizeMB = parseInt(value)));
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -179,6 +200,40 @@ export class AdminSettingsComponent implements OnInit {
     });
 
     this.message.info("Resetting tabs...");
+    setTimeout(() => window.location.reload(), 500);
+  }
+
+  saveDatasetSettings(): void {
+    if (this.maxFileSizeMB < 1 || this.maxConcurrentChunks < 1 || this.chunkSizeMB < 1) {
+      this.message.info("Value must be at least 1.");
+      return;
+    }
+
+    const saveRequests = [
+      this.adminSettingsService.updateSetting("single_file_upload_max_size_mb", this.maxFileSizeMB.toString()),
+      this.adminSettingsService.updateSetting(
+        "max_number_of_concurrent_uploading_file_chunks",
+        this.maxConcurrentChunks.toString()
+      ),
+      this.adminSettingsService.updateSetting("multipart_upload_chunk_size_mb", this.chunkSizeMB.toString()),
+    ];
+
+    forkJoin(saveRequests)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.message.success("Dataset upload settings saved successfully."),
+        error: () => this.message.error("Failed to save dataset settings."),
+      });
+  }
+
+  resetDatasetSettings(): void {
+    [
+      "single_file_upload_max_size_mb",
+      "max_number_of_concurrent_uploading_file_chunks",
+      "multipart_upload_chunk_size_mb",
+    ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
+
+    this.message.info("Resetting dataset settings...");
     setTimeout(() => window.location.reload(), 500);
   }
 }

@@ -1,0 +1,80 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# https://cwiki.apache.org/confluence/display/INFRA/Git+-+.asf.yaml+features
+
+github:
+  description: "Collaborative Machine-Learning-Centric Data Analytics Using Workflows"
+  homepage: https://texera.io/
+  labels:
+    - workflow
+    - data-science
+    - data
+    - machine-learning
+    - artificial-intelligence
+    - cloud-native
+    - data-analytics
+    - texera
+
+  protected_tags:
+    - "v*.*.*"
+
+  dependabot_alerts:  true
+  dependabot_updates: false
+
+  features:
+    # Enable wiki for documentation
+    wiki: true
+    # Enable issue management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
+    # Enable github discussions
+    discussions: true
+
+  pull_requests:
+    # allow auto-merge
+    allow_auto_merge: true
+    # enable updating head branches of pull requests
+    allow_update_branch: true
+    # auto-delete head branches after being merged
+    del_branch_on_merge: true
+
+  enabled_merge_buttons:
+    squash:  true
+    squash_commit_message: PR_TITLE_AND_DESC
+    merge:   false
+    rebase:  false
+    
+  protected_branches:
+    master:
+      required_status_checks:
+        # strict means "Require branches to be up to date before merging".
+        strict: true
+        # contexts are the names of checks that must pass
+      required_pull_request_reviews:
+        dismiss_stale_reviews: false
+        require_code_owner_reviews: false
+        required_approving_review_count: 1
+      required_linear_history: true
+
+notifications:
+  commits:              commits@texera.apache.org
+  issues:               dev@texera.apache.org
+  pullrequests:         dev@texera.apache.org
+  discussions:          dev@texera.apache.org
+  jobs:                 commits@texera.apache.org
