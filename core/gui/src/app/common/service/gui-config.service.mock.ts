@@ -42,9 +42,6 @@ export class MockGuiConfigService {
     timetravelEnabled: false,
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
-    singleFileUploadMaximumSizeMB: 100,
-    maxNumberOfConcurrentUploadingFileChunks: 5,
-    multipartUploadChunkSizeByte: 1048576, // 1MB
     defaultDataTransferBatchSize: 100,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,

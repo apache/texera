@@ -24,7 +24,12 @@ import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCrede
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.services.s3.model._
+import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
 
+import java.net.URI
+import java.time.Duration
 import java.security.MessageDigest
 import scala.jdk.CollectionConverters._
 
@@ -36,15 +41,38 @@ import scala.jdk.CollectionConverters._
 object S3StorageClient {
   val MINIMUM_NUM_OF_MULTIPART_S3_PART: Long = 5L * 1024 * 1024 // 5 MiB
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
+  val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
-    val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
     S3Client
       .builder()
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
       .region(Region.of(StorageConfig.s3Region))
       .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // MinIO URL
+      .serviceConfiguration(
+        S3Configuration.builder().pathStyleAccessEnabled(true).build()
+      )
+      .build()
+  }
+
+  // Initialize S3-compatible presigner for LakeFS S3 Gateway
+  private lazy val s3Presigner: S3Presigner = {
+    val fullUri = new URI(StorageConfig.lakefsEndpoint)
+    val baseUri = new URI(
+      fullUri.getScheme,
+      null,
+      fullUri.getHost,
+      fullUri.getPort,
+      null,
+      null,
+      null
+    ) // Extract just the base (scheme + host + port)
+    S3Presigner
+      .builder()
+      .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .region(Region.of(StorageConfig.s3Region))
+      .endpointOverride(baseUri) // LakeFS base URL ("http://localhost:8000" on local)
       .serviceConfiguration(
         S3Configuration.builder().pathStyleAccessEnabled(true).build()
       )
@@ -138,5 +166,42 @@ object S3StorageClient {
       // Perform batch deletion
       s3Client.deleteObjects(deleteObjectsRequest)
     }
+  }
+
+  /**
+    * Retrieves file content from a specific commit and path.
+    *
+    * @param repoName            Repository name.
+    * @param commitHash          Commit hash of the version.
+    * @param filePath            Path to the file in the repository.
+    * @param fileName            Name of the file downloaded via the presigned URL.
+    * @param contentType         Type of the file downloaded via the presigned URL.
+    * @param expirationMinutes   Duration in minutes that the presigned URL is valid.
+    */
+  def getFilePresignedUrl(
+      repoName: String,
+      commitHash: String,
+      filePath: String,
+      fileName: String,
+      contentType: String,
+      expirationMinutes: Long
+  ): String = {
+    val getObjectRequest = GetObjectRequest
+      .builder()
+      .bucket(repoName)
+      .key(s"$commitHash/$filePath")
+      .responseContentDisposition(s"attachment; filename='$fileName'")
+      .responseContentType(contentType)
+      .build()
+
+    val presignRequest = GetObjectPresignRequest
+      .builder()
+      .signatureDuration(Duration.ofMinutes(expirationMinutes))
+      .getObjectRequest(getObjectRequest)
+      .build()
+
+    val presignedUrl = s3Presigner.presignGetObject(presignRequest).url().toString
+    s3Presigner.close()
+    presignedUrl
   }
 }

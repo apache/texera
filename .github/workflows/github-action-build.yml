@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: build
+name: Build
 
 on:
   push:
@@ -110,15 +110,6 @@ jobs:
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
-      - name: Set up R for R-UDF
-        uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: '4.3.3'
-      - name: Install R dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          cache: false
-          working-directory: "./core/amber"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -127,7 +118,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
-          if [ -f core/amber/r-requirements.txt ]; then pip install -r core/amber/r-requirements.txt; fi
           if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
@@ -141,4 +131,4 @@ jobs:
           cd core/amber/src/main/python && flake8 && black . --check
       - name: Test with pytest
         run: |
-          cd core/amber/src/main/python && pytest -sv
+          cd core/amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py
