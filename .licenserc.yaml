@@ -1,0 +1,26 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Apache Software Foundation
+
+  paths-ignore:
+    - 'licenses'
+    - '**/*.md'
+    - '**/*.csv'
+    - '**/*.txt'
+    - '**/*.json'
+    - '**/*.jsonl'
+    - 'DESCRIPTION'
+    - 'DISCLAIMER'
+    - 'LICENSE'
+    - 'NOTICE'
+    - '.dockerignore'
+    - '.gitattributes'
+    - 'yarn.lock'
+    - '.nvmrc'
+    - '.htaccess'
+    - '.gitkeep'
+    - 'site.webmanifest'
+    - '.gitignore'
+    - '.licenserc.yaml'
+
