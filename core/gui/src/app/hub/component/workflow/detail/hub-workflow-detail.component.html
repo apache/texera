@@ -68,15 +68,22 @@
 
         <button
           nz-button
+          class="clone-button"
+          title="Copy">
+          <i
+            nz-icon
+            nzType="user"></i>
+          <span>{{ formatCount(cloneCount) }}</span>
+        </button>
+
+        <button
+          nz-button
           nzType="primary"
           class="clone-button"
           title="Copy"
           [disabled]="!isLogin || !isHub || !isActivatedUser"
           (click)="cloneWorkflow()">
-          <i
-            nz-icon
-            nzType="copy"></i>
-          <span>{{ formatCount(cloneCount) }}</span>
+          <span>Clone</span>
         </button>
       </div>
     </div>
