@@ -39,7 +39,6 @@ import {
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_QUOTA,
   DASHBOARD_USER_WORKFLOW,
-  DASHBOARD_USER_WORKSPACE,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -59,7 +58,6 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
@@ -202,10 +200,9 @@ export class DashboardComponent implements OnInit {
   }
 
   isNavbarEnabled(currentRoute: string) {
-    for (const routeWithoutNavbar of this.routesWithoutNavbar) {
-      if (currentRoute.includes(routeWithoutNavbar)) {
-        return false;
-      }
+    // Hide navbar for workflow workspace pages (with numeric ID)
+    if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+$/)) {
+      return false;
     }
     return true;
   }
@@ -219,11 +216,6 @@ export class DashboardComponent implements OnInit {
         window.dispatchEvent(resizeEvent);
       }, 175);
     }
-  }
-
-  isWorkflowTabActive(): boolean {
-    const currentRoute = this.router.url;
-    return currentRoute.includes(DASHBOARD_USER_WORKFLOW) || currentRoute.includes(DASHBOARD_USER_WORKSPACE);
   }
 
   protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
