@@ -39,6 +39,7 @@ import {
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_QUOTA,
   DASHBOARD_USER_WORKFLOW,
+  DASHBOARD_USER_WORKSPACE,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
 import { SidebarTabs } from "../../common/type/gui-config";
@@ -218,6 +219,11 @@ export class DashboardComponent implements OnInit {
         window.dispatchEvent(resizeEvent);
       }, 175);
     }
+  }
+
+  isWorkflowTabActive(): boolean {
+    const currentRoute = this.router.url;
+    return currentRoute.includes(DASHBOARD_USER_WORKFLOW) || currentRoute.includes(DASHBOARD_USER_WORKSPACE);
   }
 
   protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;

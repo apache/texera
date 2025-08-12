@@ -76,8 +76,8 @@
             *ngIf="sidebarTabs.workflows_enabled"
             nz-menu-item
             nz-tooltip="Open the saved workflows"
-            nzMatchRouter="true"
             nzTooltipPlacement="right"
+            [class.ant-menu-item-selected]="isWorkflowTabActive()"
             [routerLink]="DASHBOARD_USER_WORKFLOW">
             <span
               nz-icon
