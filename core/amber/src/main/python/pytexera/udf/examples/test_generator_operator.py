@@ -29,6 +29,7 @@ class TestEchoOperator:
     def test_generator_operator(self, generator_operator):
         generator_operator.open()
         outputs = generator_operator.produce()
-        output_tuple = Tuple(next(outputs))
-        assert output_tuple == Tuple({"test": [1, 2, 3]})
+        for i in [1, 2, 3]:
+            output_tuple = Tuple(next(outputs))
+            assert output_tuple == Tuple({"test": i})
         generator_operator.close()
