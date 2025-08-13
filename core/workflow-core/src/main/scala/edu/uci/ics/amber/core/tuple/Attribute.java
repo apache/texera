@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import javax.validation.constraints.NotNull;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -46,11 +47,13 @@ public class Attribute implements Serializable {
     }
 
     @JsonProperty(value = "attributeName", required = true)
+    @NotNull(message = "Attribute name is required")
     public String getName() {
         return attributeName;
     }
 
     @JsonProperty(value = "attributeType", required = true)
+    @NotNull(message = "Attribute name is required")
     public AttributeType getType() {
         return attributeType;
     }
