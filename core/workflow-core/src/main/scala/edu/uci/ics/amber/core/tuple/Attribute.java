@@ -53,7 +53,7 @@ public class Attribute implements Serializable {
     }
 
     @JsonProperty(value = "attributeType", required = true)
-    @NotNull(message = "Attribute name is required")
+    @NotNull(message = "Attribute type is required")
     public AttributeType getType() {
         return attributeType;
     }
