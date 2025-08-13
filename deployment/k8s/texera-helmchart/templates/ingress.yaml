@@ -30,7 +30,7 @@ metadata:
     cert-manager.io/issuer: {{ .Values.ingressPaths.issuer }}
     {{- end }}
 spec:
-  ingressClassName: nginx
+  ingressClassName: {{ .Values.ingressPaths.ingressClassName }}
   {{- if or .Values.ingressPaths.tlsSecretName .Values.ingressPaths.issuer }}
   tls:
     - hosts:
