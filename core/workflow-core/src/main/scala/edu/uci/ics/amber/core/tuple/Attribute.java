@@ -45,12 +45,12 @@ public class Attribute implements Serializable {
         this.attributeType = attributeType;
     }
 
-    @JsonProperty(value = "attributeName")
+    @JsonProperty(value = "attributeName", required = true)
     public String getName() {
         return attributeName;
     }
 
-    @JsonProperty(value = "attributeType")
+    @JsonProperty(value = "attributeType", required = true)
     public AttributeType getType() {
         return attributeType;
     }
