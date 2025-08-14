@@ -353,9 +353,31 @@ CREATE TABLE IF NOT EXISTS time_log
 (
     uid            INT          NOT NULL
         PRIMARY KEY
-        REFERENCES "user"(uid),
-    last_login     TIMESTAMPTZ
+        REFERENCES "user"(uid) ON DELETE CASCADE,
+    last_login     TIMESTAMPTZ,
+    acc_creation  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+INSERT INTO time_log (uid, acc_creation)
+SELECT u.uid, now()
+FROM "user" u
+ON CONFLICT (uid) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION time_log_autocreate()
+RETURNS trigger AS $$
+BEGIN
+INSERT INTO time_log (uid, acc_creation)
+VALUES (NEW.uid, now())
+ON CONFLICT (uid) DO NOTHING;
+RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_time_log_autocreate ON "user";
+CREATE TRIGGER trg_time_log_autocreate
+AFTER INSERT ON "user"
+FOR EACH ROW
+EXECUTE FUNCTION time_log_autocreate();
 
 -- computing_unit_user_access table
 CREATE TABLE IF NOT EXISTS computing_unit_user_access
