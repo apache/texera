@@ -169,12 +169,11 @@ export class DatasetService {
   ): Observable<MultipartUploadProgress> {
     const partCount = Math.ceil(file.size / partSize);
 
-    // track progress bar
-    let totalBytesUploaded = 0;
-    let lastReportedProgress = 0;
-
     return new Observable(observer => {
-      this.initiateMultipartUpload(datasetName, filePath, partCount)
+      // Track upload progress for each part independently
+      const partProgress = new Map<number, number>();
+
+      const subscription = this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
             const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
@@ -197,6 +196,7 @@ export class DatasetService {
             return from(presignedUrls).pipe(
               // 2) Use mergeMap with concurrency limit to upload chunk by chunk
               mergeMap((url, index) => {
+                const partNumber = index + 1;
                 const start = index * partSize;
                 const end = Math.min(start + partSize, file.size);
                 const chunk = file.slice(start, end);
@@ -207,20 +207,21 @@ export class DatasetService {
 
                   xhr.upload.addEventListener("progress", event => {
                     if (event.lengthComputable) {
-                      const currentTotalUploaded = totalBytesUploaded + event.loaded;
-                      const currentProgress = (currentTotalUploaded / file.size) * 100;
+                      // Update this specific part's progress
+                      partProgress.set(partNumber, event.loaded);
 
-                      // Prevent backward progress
-                      if (currentProgress > lastReportedProgress) {
-                        lastReportedProgress = currentProgress;
-                        observer.next({
-                          filePath,
-                          percentage: Math.round(currentProgress),
-                          status: "uploading",
-                          uploadId,
-                          physicalAddress,
-                        });
-                      }
+                      // Calculate total progress across all parts
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99), // Cap at 99% until finalized
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                      });
                     }
                   });
 
@@ -228,33 +229,36 @@ export class DatasetService {
                     if (xhr.status === 200 || xhr.status === 201) {
                       const etag = xhr.getResponseHeader("ETag")?.replace(/"/g, "");
                       if (!etag) {
-                        partObserver.error(new Error(`Missing ETag for part ${index + 1}`));
+                        partObserver.error(new Error(`Missing ETag for part ${partNumber}`));
                         return;
                       }
-                      totalBytesUploaded += chunk.size;
-                      uploadedParts.push({ PartNumber: index + 1, ETag: etag });
 
-                      const finalProgress = (totalBytesUploaded / file.size) * 100;
+                      // Mark this part as fully uploaded
+                      partProgress.set(partNumber, chunk.size);
+                      uploadedParts.push({ PartNumber: partNumber, ETag: etag });
 
-                      // Prevent backward progress
-                      if (finalProgress > lastReportedProgress) {
-                        lastReportedProgress = finalProgress;
-                        observer.next({
-                          filePath,
-                          percentage: Math.round(finalProgress),
-                          status: "uploading",
-                          uploadId,
-                          physicalAddress,
-                        });
-                      }
+                      // Recalculate progress
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99),
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                      });
                       partObserver.complete();
                     } else {
-                      partObserver.error(new Error(`Failed to upload part ${index + 1}`));
+                      partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                     }
                   });
 
                   xhr.addEventListener("error", () => {
-                    partObserver.error(new Error(`Failed to upload part ${index + 1}`));
+                    // Remove failed part from progress
+                    partProgress.delete(partNumber);
+                    partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                   });
 
                   xhr.open("PUT", url);
@@ -303,6 +307,7 @@ export class DatasetService {
         .subscribe({
           error: (err: unknown) => observer.error(err),
         });
+      return () => subscription.unsubscribe();
     });
   }
 
