@@ -58,7 +58,6 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
@@ -201,10 +200,9 @@ export class DashboardComponent implements OnInit {
   }
 
   isNavbarEnabled(currentRoute: string) {
-    for (const routeWithoutNavbar of this.routesWithoutNavbar) {
-      if (currentRoute.includes(routeWithoutNavbar)) {
-        return false;
-      }
+    // Hide navbar for workflow workspace pages (with numeric ID)
+    if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+/)) {
+      return false;
     }
     return true;
   }

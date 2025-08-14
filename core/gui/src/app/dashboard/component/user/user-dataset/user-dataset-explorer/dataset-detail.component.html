@@ -272,14 +272,30 @@
             [did]="did"
             [userMakeChangesEvent]="userMakeChanges"
             (stagedObjectsChanged)="onStagedObjectsUpdated($event)"></texera-dataset-staged-objects-list>
-          <button
-            nz-button
-            nzType="primary"
+          <div
             *ngIf="userHasWriteAccess() && userHasPendingChanges"
-            class="create-dataset-version-button"
-            (click)="onClickOpenVersionCreator()">
-            Submit
-          </button>
+            class="version-creator">
+            <div class="version-input-container">
+              <label>Version:</label>
+              <input
+                nz-input
+                [(ngModel)]="versionName"
+                placeholder="Describe the new version (Optional)"
+                [disabled]="isCreatingVersion"
+                (keydown.enter)="onClickOpenVersionCreator()"
+                class="version-input" />
+            </div>
+            <div>
+              <button
+                nz-button
+                nzType="primary"
+                [nzLoading]="isCreatingVersion"
+                (click)="onClickOpenVersionCreator()"
+                class="create-dataset-version-button">
+                Submit
+              </button>
+            </div>
+          </div>
         </nz-collapse-panel>
       </nz-collapse>
     </div>

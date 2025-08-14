@@ -28,7 +28,7 @@ import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentit
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.texera.auth.JwtAuth
-import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
@@ -516,7 +516,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
         connection.setRequestProperty("Content-Type", "application/octet-stream")
         connection.setRequestProperty(
           "Authorization",
-          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))}"
+          s"Bearer ${JwtAuth.jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES))}"
         )
         connection.setChunkedStreamingMode(0)
 

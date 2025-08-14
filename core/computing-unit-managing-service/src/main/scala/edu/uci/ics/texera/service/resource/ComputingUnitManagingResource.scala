@@ -20,7 +20,7 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.config.{EnvironmentalVariable, StorageConfig}
-import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
 import edu.uci.ics.texera.config.{ComputingUnitConfig, KubernetesConfig}
 import edu.uci.ics.texera.dao.SqlServer
@@ -381,7 +381,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
