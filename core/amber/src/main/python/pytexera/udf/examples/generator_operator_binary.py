@@ -18,8 +18,10 @@
 from pytexera import *
 
 
-class GeneratorOperator(UDFSourceOperator):
+class GeneratorOperatorBinary(UDFSourceOperator):
+    """
+    A simple generator operator that produces a single tuple with a binary attribute.
+    """
     @overrides
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-        for i in [1, 2, 3]:
-            yield {"test": i}
+        yield {"test": [1, 2, 3]}
