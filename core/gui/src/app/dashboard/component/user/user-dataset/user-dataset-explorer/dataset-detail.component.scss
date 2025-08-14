@@ -27,7 +27,7 @@
   border-radius: 25px;
   cursor: pointer;
   transition: background-color 0.3s;
-  margin: 50px auto 0 auto; /* Auto margins for horizontal centering */
+  margin: 18px auto 0 auto; /* Auto margins for horizontal centering */
   width: 200px; /* Adjust width as needed */
   font-size: 18px; /* Make text slightly bigger */
   font-weight: bold; /* Optional: Make text bold */
@@ -173,4 +173,23 @@ nz-select {
 
 .upload-progress-container {
   margin-left: 20px;
+}
+
+.version-creator {
+  margin-top: 20px;
+  padding: 40px;
+}
+
+.version-input-container label {
+  font-size: 15px;
+}
+
+.version-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.version-input {
+  padding: 6px;
 }
