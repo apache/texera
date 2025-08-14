@@ -116,12 +116,12 @@ routes.push({
           component: UserProjectSectionComponent,
         },
         {
-          path: "workspace/:id",
-          component: WorkspaceComponent,
-        },
-        {
           path: "workflow",
           component: UserWorkflowComponent,
+        },
+        {
+          path: "workflow/:id",
+          component: WorkspaceComponent,
         },
         {
           path: "dataset",

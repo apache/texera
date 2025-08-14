@@ -33,9 +33,6 @@ export interface GuiConfig {
   timetravelEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
-  singleFileUploadMaximumSizeMB: number;
-  maxNumberOfConcurrentUploadingFileChunks: number;
-  multipartUploadChunkSizeByte: number;
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;

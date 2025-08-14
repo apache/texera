@@ -26,9 +26,6 @@ object AuthConfig {
   // Load configuration
   private val conf: Config = ConfigFactory.parseResources("auth.conf").resolve()
 
-  // Read JWT expiration time
-  val jwtExpirationDays: Int = conf.getInt("auth.jwt.exp-in-days")
-
   // For storing the generated/configured secret
   @volatile private var secretKey: String = _
 
