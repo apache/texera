@@ -40,6 +40,8 @@ import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-o
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
+import { HttpErrorResponse } from "@angular/common/http";
+import { Subscription } from "rxjs";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -80,6 +82,10 @@ export class DatasetDetailComponent implements OnInit {
   // Uploading setting
   chunkSizeMB: number = 50;
   maxConcurrentChunks: number = 10;
+  private uploadSubscriptions = new Map<string, Subscription>();
+
+  versionName: string = "";
+  isCreatingVersion: boolean = false;
 
   //  List of upload tasks – each task tracked by its filePath
   public uploadTasks: Array<
@@ -167,32 +173,28 @@ export class DatasetDetailComponent implements OnInit {
 
     this.loadUploadSettings();
   }
+
   public onClickOpenVersionCreator() {
-    if (this.did) {
-      const modal = this.modalService.create({
-        nzTitle: "Create New Dataset Version",
-        nzContent: UserDatasetVersionCreatorComponent,
-        nzFooter: null,
-        nzData: {
-          isCreatingVersion: true,
-          did: this.did,
-        },
-        nzBodyStyle: {
-          resize: "both",
-          overflow: "auto",
-          minHeight: "200px",
-          minWidth: "550px",
-          maxWidth: "90vw",
-          maxHeight: "80vh",
-        },
-        nzWidth: "fit-content",
-      });
-      modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
-        if (result != null) {
-          this.retrieveDatasetVersionList();
-          this.userMakeChanges.emit();
-        }
-      });
+    if (this.did && !this.isCreatingVersion) {
+      this.isCreatingVersion = true;
+
+      this.datasetService
+        .createDatasetVersion(this.did, this.versionName?.trim() || "")
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: res => {
+            this.notificationService.success("Version Created");
+            this.isCreatingVersion = false;
+            this.versionName = "";
+            this.retrieveDatasetVersionList();
+            this.userMakeChanges.emit();
+          },
+          error: (res: unknown) => {
+            const err = res as HttpErrorResponse;
+            this.notificationService.error(`Version creation failed: ${err.error.message}`);
+            this.isCreatingVersion = false;
+          },
+        });
     }
   }
 
@@ -328,7 +330,12 @@ export class DatasetDetailComponent implements OnInit {
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
       files.forEach((file, idx) => {
-        // Add an initializing task placeholder to uploadTasks.
+        // Cancel any existing upload for the same file to prevent progress confusion
+        this.uploadSubscriptions.get(file.name)?.unsubscribe();
+        this.uploadSubscriptions.delete(file.name);
+        this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== file.name);
+
+        // Add an initializing task placeholder to uploadTasks
         this.uploadTasks.push({
           filePath: file.name,
           percentage: 0,
@@ -337,7 +344,7 @@ export class DatasetDetailComponent implements OnInit {
           physicalAddress: "",
         });
         // Start multipart upload
-        this.datasetService
+        const subscription = this.datasetService
           .multipartUpload(
             this.datasetName,
             file.name,
@@ -388,16 +395,19 @@ export class DatasetDetailComponent implements OnInit {
               }
             },
           });
+        // Store the subscription for later cleanup
+        this.uploadSubscriptions.set(file.name, subscription);
       });
     }
   }
 
-  // Hide a task row after 3s (stores timer to clear on destroy)
+  // Hide a task row after 3s (stores timer to clear on destroy) and clean up its subscription
   private scheduleHide(idx: number) {
     if (idx === -1) {
       return;
     }
     const key = this.uploadTasks[idx].filePath;
+    this.uploadSubscriptions.delete(key);
     const handle = window.setTimeout(() => {
       this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
     }, 3000);
@@ -405,6 +415,11 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
+    const subscription = this.uploadSubscriptions.get(task.filePath);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.uploadSubscriptions.delete(task.filePath);
+    }
     this.datasetService
       .finalizeMultipartUpload(
         this.datasetName,
