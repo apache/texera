@@ -195,6 +195,13 @@ export class AdminUserComponent implements OnInit {
     return Date.now() - lastMs < AdminUserComponent.ACTIVE_WINDOW;
   }
 
+  getAccCreation(user: User): number {
+    if (!user.accCreation) {
+      return 0;
+    }
+    return user.accCreation * 1000;
+  }
+
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
 }
