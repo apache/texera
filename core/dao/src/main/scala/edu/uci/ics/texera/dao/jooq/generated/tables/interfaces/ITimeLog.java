@@ -51,6 +51,16 @@ public interface ITimeLog extends Serializable {
      */
     public OffsetDateTime getLastLogin();
 
+    /**
+     * Setter for <code>texera_db.time_log.acc_creation</code>.
+     */
+    public void setAccCreation(OffsetDateTime value);
+
+    /**
+     * Getter for <code>texera_db.time_log.acc_creation</code>.
+     */
+    public OffsetDateTime getAccCreation();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
