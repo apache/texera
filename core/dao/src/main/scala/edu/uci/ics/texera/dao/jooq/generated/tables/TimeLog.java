@@ -33,7 +33,7 @@ import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row2;
+import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -74,6 +74,11 @@ public class TimeLog extends TableImpl<TimeLogRecord> {
      * The column <code>texera_db.time_log.last_login</code>.
      */
     public final TableField<TimeLogRecord, OffsetDateTime> LAST_LOGIN = createField(DSL.name("last_login"), SQLDataType.TIMESTAMPWITHTIMEZONE(6), this, "");
+
+    /**
+     * The column <code>texera_db.time_log.acc_creation</code>.
+     */
+    public final TableField<TimeLogRecord, OffsetDateTime> ACC_CREATION = createField(DSL.name("acc_creation"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field("now()", SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "");
 
     private TimeLog(Name alias, Table<TimeLogRecord> aliased) {
         this(alias, aliased, null);
@@ -162,11 +167,11 @@ public class TimeLog extends TableImpl<TimeLogRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<Integer, OffsetDateTime> fieldsRow() {
-        return (Row2) super.fieldsRow();
+    public Row3<Integer, OffsetDateTime, OffsetDateTime> fieldsRow() {
+        return (Row3) super.fieldsRow();
     }
 }

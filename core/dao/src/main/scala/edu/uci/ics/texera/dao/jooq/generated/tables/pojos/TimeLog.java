@@ -36,20 +36,24 @@ public class TimeLog implements ITimeLog {
 
     private Integer        uid;
     private OffsetDateTime lastLogin;
+    private OffsetDateTime accCreation;
 
     public TimeLog() {}
 
     public TimeLog(ITimeLog value) {
         this.uid = value.getUid();
         this.lastLogin = value.getLastLogin();
+        this.accCreation = value.getAccCreation();
     }
 
     public TimeLog(
         Integer        uid,
-        OffsetDateTime lastLogin
+        OffsetDateTime lastLogin,
+        OffsetDateTime accCreation
     ) {
         this.uid = uid;
         this.lastLogin = lastLogin;
+        this.accCreation = accCreation;
     }
 
     /**
@@ -84,12 +88,29 @@ public class TimeLog implements ITimeLog {
         this.lastLogin = lastLogin;
     }
 
+    /**
+     * Getter for <code>texera_db.time_log.acc_creation</code>.
+     */
+    @Override
+    public OffsetDateTime getAccCreation() {
+        return this.accCreation;
+    }
+
+    /**
+     * Setter for <code>texera_db.time_log.acc_creation</code>.
+     */
+    @Override
+    public void setAccCreation(OffsetDateTime accCreation) {
+        this.accCreation = accCreation;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("TimeLog (");
 
         sb.append(uid);
         sb.append(", ").append(lastLogin);
+        sb.append(", ").append(accCreation);
 
         sb.append(")");
         return sb.toString();
@@ -103,6 +124,7 @@ public class TimeLog implements ITimeLog {
     public void from(ITimeLog from) {
         setUid(from.getUid());
         setLastLogin(from.getLastLogin());
+        setAccCreation(from.getAccCreation());
     }
 
     @Override

@@ -100,4 +100,19 @@ public class TimeLogDao extends DAOImpl<TimeLogRecord, edu.uci.ics.texera.dao.jo
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.TimeLog> fetchByLastLogin(OffsetDateTime... values) {
         return fetch(TimeLog.TIME_LOG.LAST_LOGIN, values);
     }
+
+    /**
+     * Fetch records that have <code>acc_creation BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.TimeLog> fetchRangeOfAccCreation(OffsetDateTime lowerInclusive, OffsetDateTime upperInclusive) {
+        return fetchRange(TimeLog.TIME_LOG.ACC_CREATION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>acc_creation IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.TimeLog> fetchByAccCreation(OffsetDateTime... values) {
+        return fetch(TimeLog.TIME_LOG.ACC_CREATION, values);
+    }
 }
