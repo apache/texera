@@ -30,7 +30,12 @@ export function areAllPortSchemasEqual(schemas: (PortSchema | undefined)[]): boo
   if (schemas.length <= 1) {
     return true;
   }
-  return schemas.every(schema => schema === schemas[0]);
+  if (schemas[0] === undefined) {
+    return schemas.every(schema => schema === undefined);
+  } else {
+    const firstSchemaString = JSON.stringify(schemas[0]);
+    return schemas.every(schema => schema !== undefined && JSON.stringify(schema) === firstSchemaString);
+  }
 }
 
 /**
