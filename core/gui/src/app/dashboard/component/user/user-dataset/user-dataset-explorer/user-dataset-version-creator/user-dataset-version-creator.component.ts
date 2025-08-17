@@ -203,11 +203,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   onPublicStatusChange(newValue: boolean): void {
     // Handle the change in dataset public status
     this.isDatasetPublic = newValue;
-
-    // If dataset becomes private, disable downloads for security
-    if (!newValue) {
-      this.isDatasetDownloadable = false;
-    }
   }
 
   onDownloadableStatusChange(newValue: boolean): void {

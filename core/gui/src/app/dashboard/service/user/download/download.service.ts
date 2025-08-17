@@ -93,9 +93,9 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string): void {
+  downloadSingleFile(filePath: string, isLogin: boolean = true): void {
     this.notificationService.info(`Starting to download file ${filePath}`);
-    this.datasetService.retrieveDatasetVersionSingleFileViaBrowser(filePath);
+    this.datasetService.retrieveDatasetVersionSingleFileViaBrowser(filePath, isLogin);
   }
 
   downloadWorkflowsAsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {

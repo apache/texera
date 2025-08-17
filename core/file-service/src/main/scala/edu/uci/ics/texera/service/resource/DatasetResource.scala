@@ -247,11 +247,6 @@ class DatasetResource {
       val isDatasetPublic = request.isDatasetPublic
       val isDatasetDownloadable = request.isDatasetDownloadable
 
-      // Validate business rule: downloadable can only be true if dataset is public
-      if (isDatasetDownloadable && !isDatasetPublic) {
-        throw new BadRequestException("Dataset can only be downloadable if it is public")
-      }
-
       // Check if a dataset with the same name already exists
       if (!datasetDao.fetchByName(datasetName).isEmpty) {
         throw new BadRequestException("Dataset with the same name already exists")
@@ -792,11 +787,6 @@ class DatasetResource {
       val newPublicStatus = !existedDataset.getIsPublic
       existedDataset.setIsPublic(newPublicStatus)
 
-      // If dataset becomes private, it must not be downloadable
-      if (!newPublicStatus) {
-        existedDataset.setIsDownloadable(false)
-      }
-
       datasetDao.update(existedDataset)
       Response.ok().build()
     }
@@ -819,11 +809,6 @@ class DatasetResource {
 
       val existedDataset = getDatasetByID(ctx, did)
       val newDownloadableStatus = !existedDataset.getIsDownloadable
-
-      // Validate business rule: can only set downloadable to true if dataset is public
-      if (newDownloadableStatus && !existedDataset.getIsPublic) {
-        throw new BadRequestException("Dataset can only be downloadable if it is public")
-      }
 
       existedDataset.setIsDownloadable(newDownloadableStatus)
 
@@ -1067,8 +1052,8 @@ class DatasetResource {
 
       // Retrieve dataset and check download permission
       val dataset = getDatasetByID(ctx, did)
-      // Non-owners can only download public and downloadable datasets
-      if (!userOwnDataset(ctx, did, uid) && (!dataset.getIsPublic || !dataset.getIsDownloadable)) {
+      // Non-owners can download if dataset is downloadable and they have read access
+      if (!userOwnDataset(ctx, did, uid) && !dataset.getIsDownloadable) {
         throw new ForbiddenException("Dataset download is not allowed")
       }
 
@@ -1311,13 +1296,13 @@ class DatasetResource {
             val datasets = datasetDao.fetchByName(resolvedDatasetName).asScala.toList
             if (datasets.nonEmpty) {
               val dataset = datasets.head
-              // Non-owners can only download public and downloadable datasets
+              // Non-owners can download if dataset is downloadable and they have read access
               if (
                 !userOwnDataset(
                   ctx,
                   dataset.getDid,
                   uid
-                ) && (!dataset.getIsPublic || !dataset.getIsDownloadable)
+                ) && !dataset.getIsDownloadable
               ) {
                 throw new ForbiddenException("Dataset download is not allowed")
               }

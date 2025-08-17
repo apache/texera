@@ -48,7 +48,6 @@
           <nz-switch
             [ngModel]="datasetIsDownloadable"
             (ngModelChange)="onDownloadableStatusChange($event)"
-            [nzDisabled]="!datasetIsPublic"
             nzCheckedChildren="allowed"
             nzUnCheckedChildren="blocked"></nz-switch>
         </div>
