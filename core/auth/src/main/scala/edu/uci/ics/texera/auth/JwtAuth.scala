@@ -62,4 +62,32 @@ object JwtAuth {
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }
+
+  def jwtDownloadClaims(
+    exportType: String,
+    workflowId: Int,
+    workflowName: String,
+    rowIndex: Int,
+    columnIndex: Int,
+    filename: String,
+    computingUnitId: Int,
+    destination: String,
+    expireInSeconds: Int
+  ): JwtClaims = {
+    val claims = new JwtClaims
+    claims.setClaim("exportType", exportType)
+    claims.setClaim("workflowId", workflowId)
+    claims.setClaim("workflowName", workflowName)
+    claims.setClaim("rowIndex", rowIndex)
+    claims.setClaim("columnIndex", columnIndex)
+    claims.setClaim("filename", filename)
+    claims.setClaim("computingUnitId", computingUnitId)
+    claims.setClaim("destination", destination)
+    claims.setExpirationTimeMinutesInTheFuture(secondsToMin(expireInSeconds))
+    claims
+  }
+
+  def secondsToMin(seconds: Int): Float = {
+    seconds / 60.0f
+  }
 }
