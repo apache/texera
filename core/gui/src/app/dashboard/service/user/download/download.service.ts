@@ -179,6 +179,89 @@ export class DownloadService {
     }
   }
 
+  public exportWorkflowResultViaForm(
+    exportType: string,
+    workflowId: number,
+    workflowName: string,
+    operators: {
+      id: string;
+      outputType: string;
+    }[],
+    datasetIds: number[],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string,
+    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
+    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
+  ): void {
+
+    this.notificationService.info("Started exporting workflow result via form.");
+
+    if (destination != 'local') {
+      this.notificationService.error('Export via form only supports local downloads.');
+      return;
+    }
+
+    const requestBody = this.createExportRequestBody(
+      exportType,
+      workflowId,
+      workflowName,
+      rowIndex,
+      columnIndex,
+      filename,
+      destination,
+      unit
+    );
+
+    this.getTempDownloadToken(requestBody).subscribe({
+      next: (res) => {
+        const urlPath =
+          unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
+            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/form?cuid=${unit.computingUnit.cuid}`
+            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/form`;
+
+        this.notificationService.info("Export URL: " + urlPath);
+
+        const iframe = document.createElement('iframe');
+        iframe.name = 'download-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = urlPath;
+        form.target = 'download-iframe';
+        form.enctype = 'application/x-www-form-urlencoded';
+        form.style.display = 'none';
+
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'token';
+        input.value = res.token;
+        form.appendChild(input)
+
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'operators';
+        input.value = JSON.stringify(operators);
+        form.appendChild(input)
+
+        this.notificationService.info("Built file export form.")
+
+        document.body.appendChild(form);
+        form.submit();
+
+        this.notificationService.info("Submitted file export form.")
+
+        setTimeout(() => {
+          document.body.removeChild(form);
+          document.body.removeChild(iframe);
+        }, 5000);
+      }
+    });
+  }
+
+
   /**
    * Utility function to download a file from the server from blob object.
    */
@@ -248,6 +331,34 @@ export class DownloadService {
       copyName = `${name.replace(".json", "")}-${++count}.json`;
     }
     return copyName;
+  }
+
+  private getTempDownloadToken(requestBody: any): Observable<{ token: string }> {
+    const urlPath = `${AppSettings.getApiEndpoint()}/auth/download/token`;
+
+    return this.http.post<{ token: string }>(urlPath, requestBody, {});
+  }
+
+  private createExportRequestBody(
+    exportType: string,
+    workflowId: number,
+    workflowName: string,
+    rowIndex: number,
+    columnIndex: number,
+    filename: string,
+    destination: "local" | "dataset",
+    unit: DashboardWorkflowComputingUnit
+  ): any {
+    return {
+      exportType,
+      workflowId,
+      workflowName,
+      rowIndex,
+      columnIndex,
+      filename,
+      destination,
+      computingUnitId: unit.computingUnit.cuid
+    };
   }
 
   private downloadWithNotification(
