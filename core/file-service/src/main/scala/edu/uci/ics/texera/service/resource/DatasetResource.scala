@@ -39,8 +39,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -172,7 +171,8 @@ object DatasetResource {
   case class CreateDatasetRequest(
       datasetName: String,
       datasetDescription: String,
-      isDatasetPublic: Boolean
+      isDatasetPublic: Boolean,
+      isDatasetDownloadable: Boolean
   )
 
   case class Diff(
@@ -245,6 +245,12 @@ class DatasetResource {
       val datasetName = request.datasetName
       val datasetDescription = request.datasetDescription
       val isDatasetPublic = request.isDatasetPublic
+      val isDatasetDownloadable = request.isDatasetDownloadable
+
+      // Validate business rule: downloadable can only be true if dataset is public
+      if (isDatasetDownloadable && !isDatasetPublic) {
+        throw new BadRequestException("Dataset can only be downloadable if it is public")
+      }
 
       // Check if a dataset with the same name already exists
       if (!datasetDao.fetchByName(datasetName).isEmpty) {
@@ -266,6 +272,7 @@ class DatasetResource {
       dataset.setName(datasetName)
       dataset.setDescription(datasetDescription)
       dataset.setIsPublic(isDatasetPublic)
+      dataset.setIsDownloadable(isDatasetDownloadable)
       dataset.setOwnerUid(uid)
 
       val createdDataset = ctx
@@ -288,7 +295,8 @@ class DatasetResource {
           createdDataset.getName,
           createdDataset.getIsPublic,
           createdDataset.getDescription,
-          createdDataset.getCreationTime
+          createdDataset.getCreationTime,
+          createdDataset.getIsDownloadable
         ),
         user.getEmail,
         PrivilegeEnum.WRITE,
@@ -781,7 +789,43 @@ class DatasetResource {
       }
 
       val existedDataset = getDatasetByID(ctx, did)
-      existedDataset.setIsPublic(!existedDataset.getIsPublic)
+      val newPublicStatus = !existedDataset.getIsPublic
+      existedDataset.setIsPublic(newPublicStatus)
+
+      // If dataset becomes private, it must not be downloadable
+      if (!newPublicStatus) {
+        existedDataset.setIsDownloadable(false)
+      }
+
+      datasetDao.update(existedDataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/update/downloadable")
+  def toggleDatasetDownloadable(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val uid = sessionUser.getUid
+
+      if (!userOwnDataset(ctx, did, uid)) {
+        throw new ForbiddenException("Only dataset owners can modify download permissions")
+      }
+
+      val existedDataset = getDatasetByID(ctx, did)
+      val newDownloadableStatus = !existedDataset.getIsDownloadable
+
+      // Validate business rule: can only set downloadable to true if dataset is public
+      if (newDownloadableStatus && !existedDataset.getIsPublic) {
+        throw new BadRequestException("Dataset can only be downloadable if it is public")
+      }
+
+      existedDataset.setIsDownloadable(newDownloadableStatus)
 
       datasetDao.update(existedDataset)
       Response.ok().build()
@@ -1015,6 +1059,19 @@ class DatasetResource {
         throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
       }
 
+      // Check read access and download permission
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      // Retrieve dataset and check download permission
+      val dataset = getDatasetByID(ctx, did)
+      // Non-owners can only download public and downloadable datasets
+      if (!userOwnDataset(ctx, did, uid) && (!dataset.getIsPublic || !dataset.getIsDownloadable)) {
+        throw new ForbiddenException("Dataset download is not allowed")
+      }
+
       // Determine which version to retrieve
       val datasetVersion = if (dvid != null) {
         getDatasetVersionByID(ctx, dvid)
@@ -1027,7 +1084,6 @@ class DatasetResource {
       }
 
       // Retrieve dataset and version details
-      val dataset = getDatasetByID(ctx, did)
       val datasetName = dataset.getName
       val versionHash = datasetVersion.getVersionHash
       val objects = LakeFSStorageClient.retrieveObjectsOfVersion(datasetName, versionHash)
@@ -1248,6 +1304,27 @@ class DatasetResource {
         errorResponse
 
       case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
+        // Additional download permission check for S3 downloads
+        if (uid != null) {
+          withTransaction(context) { ctx =>
+            val datasetDao = new DatasetDao(ctx.configuration())
+            val datasets = datasetDao.fetchByName(resolvedDatasetName).asScala.toList
+            if (datasets.nonEmpty) {
+              val dataset = datasets.head
+              // Non-owners can only download public and downloadable datasets
+              if (
+                !userOwnDataset(
+                  ctx,
+                  dataset.getDid,
+                  uid
+                ) && (!dataset.getIsPublic || !dataset.getIsDownloadable)
+              ) {
+                throw new ForbiddenException("Dataset download is not allowed")
+              }
+            }
+          }
+        }
+
         val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
         val contentType = "application/octet-stream"
         val url = S3StorageClient.getFilePresignedUrl(
@@ -1292,6 +1369,10 @@ class DatasetResource {
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
+          val dataset = datasets.head
+          // Standard read access check only - download restrictions handled per endpoint
+          // Non-download operations (viewing) should work for all public datasets
+
           (dsName, commit, decodedPathStr)
         }
         Right(response)
@@ -1306,6 +1387,10 @@ class DatasetResource {
 
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+
+          val dataset = datasets.head
+          // Standard read access check only - download restrictions handled per endpoint
+          // Non-download operations (viewing) should work for all public datasets
 
           (
             document.getDatasetName(),

@@ -29,13 +29,30 @@
     <div
       class="workflow-panel"
       style="padding-top: 30px">
-      <nz-switch
-        [ngModel]="datasetIsPublic"
-        (ngModelChange)="onPublicStatusChange($event)"
-        [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+      <div
         *ngIf="!(userDatasetAccessLevel === 'NONE')"
-        nzCheckedChildren="public"
-        nzUnCheckedChildren="private"></nz-switch>
+        class="dataset-controls">
+        <div class="control-row">
+          <label>Visibility:</label>
+          <nz-switch
+            [ngModel]="datasetIsPublic"
+            (ngModelChange)="onPublicStatusChange($event)"
+            [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+            nzCheckedChildren="public"
+            nzUnCheckedChildren="private"></nz-switch>
+        </div>
+        <div
+          class="control-row"
+          *ngIf="isOwner">
+          <label>Downloads:</label>
+          <nz-switch
+            [ngModel]="datasetIsDownloadable"
+            (ngModelChange)="onDownloadableStatusChange($event)"
+            [nzDisabled]="!datasetIsPublic"
+            nzCheckedChildren="allowed"
+            nzUnCheckedChildren="blocked"></nz-switch>
+        </div>
+      </div>
       <button
         nz-button
         nzType="text"
@@ -92,7 +109,7 @@
             nz-button
             *ngIf="selectedVersion"
             nz-tooltip="Download the file"
-            [disabled]="!isLogin"
+            [disabled]="!isLogin || !isDownloadAllowed()"
             (click)="onClickDownloadCurrentFile()">
             <i
               nz-icon
@@ -205,7 +222,7 @@
                 nz-tooltip="Download Dataset"
                 (click)="onClickDownloadVersionAsZip()"
                 *ngIf="selectedVersion"
-                [disabled]="!isLogin"
+                [disabled]="!isLogin || !isDownloadAllowed()"
                 class="spaced-button">
                 <i
                   nz-icon

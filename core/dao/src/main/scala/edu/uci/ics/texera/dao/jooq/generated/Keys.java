@@ -32,6 +32,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.dao.jooq.generated.tables.SiteSettings;
 import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserConfig;
@@ -56,6 +57,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.records.OperatorPortExecutio
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.ProjectUserAccessRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.PublicProjectRecord;
+import edu.uci.ics.texera.dao.jooq.generated.tables.records.SiteSettingsRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.TimeLogRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserConfigRecord;
 import edu.uci.ics.texera.dao.jooq.generated.tables.records.UserRecord;
@@ -100,6 +102,7 @@ public class Keys {
     public static final UniqueKey<ProjectRecord> PROJECT_PKEY = Internal.createUniqueKey(Project.PROJECT, DSL.name("project_pkey"), new TableField[] { Project.PROJECT.PID }, true);
     public static final UniqueKey<ProjectUserAccessRecord> PROJECT_USER_ACCESS_PKEY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, DSL.name("project_user_access_pkey"), new TableField[] { ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID }, true);
     public static final UniqueKey<PublicProjectRecord> PUBLIC_PROJECT_PKEY = Internal.createUniqueKey(PublicProject.PUBLIC_PROJECT, DSL.name("public_project_pkey"), new TableField[] { PublicProject.PUBLIC_PROJECT.PID }, true);
+    public static final UniqueKey<SiteSettingsRecord> SITE_SETTINGS_PKEY = Internal.createUniqueKey(SiteSettings.SITE_SETTINGS, DSL.name("site_settings_pkey"), new TableField[] { SiteSettings.SITE_SETTINGS.KEY }, true);
     public static final UniqueKey<TimeLogRecord> TIME_LOG_PKEY = Internal.createUniqueKey(TimeLog.TIME_LOG, DSL.name("time_log_pkey"), new TableField[] { TimeLog.TIME_LOG.UID }, true);
     public static final UniqueKey<UserRecord> USER_EMAIL_KEY = Internal.createUniqueKey(User.USER, DSL.name("user_email_key"), new TableField[] { User.USER.EMAIL }, true);
     public static final UniqueKey<UserRecord> USER_GOOGLE_ID_KEY = Internal.createUniqueKey(User.USER, DSL.name("user_google_id_key"), new TableField[] { User.USER.GOOGLE_ID }, true);

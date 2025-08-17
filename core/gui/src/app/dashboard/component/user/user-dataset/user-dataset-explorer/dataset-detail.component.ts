@@ -56,7 +56,9 @@ export class DatasetDetailComponent implements OnInit {
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetIsPublic: boolean = false;
+  public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
+  public isOwner: boolean = false;
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -216,6 +218,10 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.datasetIsPublic = checked;
+            // If dataset becomes private, it cannot be downloadable
+            if (!checked) {
+              this.datasetIsDownloadable = false;
+            }
             let state = "public";
             if (!this.datasetIsPublic) {
               state = "private";
@@ -224,6 +230,34 @@ export class DatasetDetailComponent implements OnInit {
           },
           error: (err: unknown) => {
             this.notificationService.error("Fail to change the dataset publicity");
+          },
+        });
+    }
+  }
+
+  onDownloadableStatusChange(checked: boolean): void {
+    // Only allow downloadable change if dataset is public
+    if (checked && !this.datasetIsPublic) {
+      this.notificationService.error("Dataset can only be downloadable if it is public");
+      return;
+    }
+
+    // Handle the change in dataset downloadable status
+    if (this.did) {
+      this.datasetService
+        .updateDatasetDownloadable(this.did)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.datasetIsDownloadable = checked;
+            let state = "allowed";
+            if (!this.datasetIsDownloadable) {
+              state = "not allowed";
+            }
+            this.notificationService.success(`Dataset downloads are now ${state}`);
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to change the dataset download permission");
           },
         });
     }
@@ -240,6 +274,8 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
+          this.datasetIsDownloadable = dataset.isDownloadable;
+          this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }
@@ -309,6 +345,15 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
+  }
+
+  isDownloadAllowed(): boolean {
+    // Owners can always download
+    if (this.isOwner) {
+      return true;
+    }
+    // Non-owners can only download if dataset is public and downloadable
+    return this.datasetIsPublic && this.datasetIsDownloadable;
   }
 
   // Track multiple file by unique key

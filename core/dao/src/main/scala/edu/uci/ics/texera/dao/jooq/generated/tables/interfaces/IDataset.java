@@ -91,6 +91,16 @@ public interface IDataset extends Serializable {
      */
     public Timestamp getCreationTime();
 
+    /**
+     * Setter for <code>texera_db.dataset.is_downloadable</code>.
+     */
+    public void setIsDownloadable(Boolean value);
+
+    /**
+     * Getter for <code>texera_db.dataset.is_downloadable</code>.
+     */
+    public Boolean getIsDownloadable();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
