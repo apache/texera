@@ -29,7 +29,9 @@
     <div
       class="workflow-panel"
       style="padding-top: 30px">
-      <div *ngIf="!(userDatasetAccessLevel === 'NONE')" class="dataset-controls">
+      <div
+        *ngIf="!(userDatasetAccessLevel === 'NONE')"
+        class="dataset-controls">
         <div class="control-row">
           <label>Visibility:</label>
           <nz-switch
@@ -39,7 +41,9 @@
             nzCheckedChildren="public"
             nzUnCheckedChildren="private"></nz-switch>
         </div>
-        <div class="control-row" *ngIf="isOwner">
+        <div
+          class="control-row"
+          *ngIf="isOwner">
           <label>Downloads:</label>
           <nz-switch
             [ngModel]="datasetIsDownloadable"
@@ -47,7 +51,6 @@
             [nzDisabled]="!datasetIsPublic"
             nzCheckedChildren="allowed"
             nzUnCheckedChildren="blocked"></nz-switch>
-          <!-- <span *ngIf="!datasetIsPublic" class="help-text">Only public datasets can be downloadable</span> -->
         </div>
       </div>
       <button

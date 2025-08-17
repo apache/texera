@@ -241,7 +241,7 @@ export class DatasetDetailComponent implements OnInit {
       this.notificationService.error("Dataset can only be downloadable if it is public");
       return;
     }
-    
+
     // Handle the change in dataset downloadable status
     if (this.did) {
       this.datasetService

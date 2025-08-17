@@ -791,7 +791,7 @@ class DatasetResource {
       val existedDataset = getDatasetByID(ctx, did)
       val newPublicStatus = !existedDataset.getIsPublic
       existedDataset.setIsPublic(newPublicStatus)
-      
+
       // If dataset becomes private, it must not be downloadable
       if (!newPublicStatus) {
         existedDataset.setIsDownloadable(false)
@@ -819,12 +819,12 @@ class DatasetResource {
 
       val existedDataset = getDatasetByID(ctx, did)
       val newDownloadableStatus = !existedDataset.getIsDownloadable
-      
+
       // Validate business rule: can only set downloadable to true if dataset is public
       if (newDownloadableStatus && !existedDataset.getIsPublic) {
         throw new BadRequestException("Dataset can only be downloadable if it is public")
       }
-      
+
       existedDataset.setIsDownloadable(newDownloadableStatus)
 
       datasetDao.update(existedDataset)
@@ -1312,13 +1312,19 @@ class DatasetResource {
             if (datasets.nonEmpty) {
               val dataset = datasets.head
               // Non-owners can only download public and downloadable datasets
-              if (!userOwnDataset(ctx, dataset.getDid, uid) && (!dataset.getIsPublic || !dataset.getIsDownloadable)) {
+              if (
+                !userOwnDataset(
+                  ctx,
+                  dataset.getDid,
+                  uid
+                ) && (!dataset.getIsPublic || !dataset.getIsDownloadable)
+              ) {
                 throw new ForbiddenException("Dataset download is not allowed")
               }
             }
           }
         }
-        
+
         val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
         val contentType = "application/octet-stream"
         val url = S3StorageClient.getFilePresignedUrl(

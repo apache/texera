@@ -44,7 +44,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   model: any = {};
   fields: FormlyFieldConfig[] = [];
   isDatasetPublic: boolean = false;
-  isDatasetDownloadable: boolean = true;
+  isDatasetDownloadable: boolean = false;
 
   // used when creating the dataset
   isDatasetNameSanitized: boolean = false;
@@ -203,8 +203,8 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   onPublicStatusChange(newValue: boolean): void {
     // Handle the change in dataset public status
     this.isDatasetPublic = newValue;
-    
-    // If dataset becomes private, it cannot be downloadable
+
+    // If dataset becomes private, disable downloads for security
     if (!newValue) {
       this.isDatasetDownloadable = false;
     }
@@ -212,11 +212,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   onDownloadableStatusChange(newValue: boolean): void {
     // Handle the change in dataset downloadable status
-    // Only allow downloadable if dataset is public
-    if (newValue && !this.isDatasetPublic) {
-      // Prevent the change and show feedback
-      return;
-    }
     this.isDatasetDownloadable = newValue;
   }
 }

@@ -61,28 +61,22 @@
   margin: auto;
 }
 
-.dataset-options {
+.dataset-toggles {
   margin-top: 16px;
-  padding: 16px 0;
-  border-top: 1px solid #e8e8e8;
+  margin-bottom: 16px;
 }
 
-.option-row {
+.toggle-item {
   display: flex;
   align-items: center;
   margin-bottom: 12px;
-  
+
   label {
-    flex: 0 0 120px;
     margin-right: 12px;
+    min-width: 80px;
     font-weight: 500;
-    color: #666;
   }
-  
-  nz-switch {
-    margin-left: auto;
-  }
-  
+
   .help-text {
     margin-left: 8px;
     font-size: 12px;

@@ -205,17 +205,17 @@ nz-select {
   display: flex;
   align-items: center;
   gap: 12px;
-  
+
   label {
     min-width: 80px;
     font-weight: 500;
     color: #666;
   }
-  
+
   nz-switch {
     margin-left: auto;
   }
-  
+
   .help-text {
     margin-left: 8px;
     font-size: 12px;

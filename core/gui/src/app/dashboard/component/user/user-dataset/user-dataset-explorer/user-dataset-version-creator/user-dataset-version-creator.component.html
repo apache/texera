@@ -29,8 +29,10 @@
         [form]="form"
         [fields]="fields"
         [model]="model"></formly-form>
-      <div *ngIf="!isCreatingVersion" class="dataset-options">
-        <div class="option-row">
+      <div
+        *ngIf="!isCreatingVersion"
+        class="dataset-toggles">
+        <div class="toggle-item">
           <label>Visibility:</label>
           <nz-switch
             [ngModel]="isDatasetPublic"
@@ -38,15 +40,14 @@
             nzCheckedChildren="public"
             nzUnCheckedChildren="private"></nz-switch>
         </div>
-        <div class="option-row">
-          <label>Allow downloads:</label>
+        <div class="toggle-item">
+          <label>Downloadable:</label>
           <nz-switch
             [ngModel]="isDatasetDownloadable"
             (ngModelChange)="onDownloadableStatusChange($event)"
             [nzDisabled]="!isDatasetPublic"
-            nzCheckedChildren="yes"
-            nzUnCheckedChildren="no"></nz-switch>
-          <span *ngIf="!isDatasetPublic" class="help-text">Only public datasets can be downloadable</span>
+            nzCheckedChildren="enabled"
+            nzUnCheckedChildren="disabled"></nz-switch>
         </div>
       </div>
     </div>
