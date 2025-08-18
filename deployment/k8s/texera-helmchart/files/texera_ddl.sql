@@ -384,6 +384,15 @@ CREATE TABLE IF NOT EXISTS site_settings
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+-- time_log table
+CREATE TABLE IF NOT EXISTS time_log
+(
+    uid            INT          NOT NULL
+        PRIMARY KEY
+        REFERENCES "user"(uid),
+    last_login     TIMESTAMPTZ
+);
+
 -- computing_unit_user_access table
 CREATE TABLE IF NOT EXISTS computing_unit_user_access
 (
