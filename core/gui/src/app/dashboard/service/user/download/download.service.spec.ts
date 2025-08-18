@@ -66,11 +66,11 @@ describe("DownloadService", () => {
 
     datasetServiceSpy.retrieveDatasetVersionSingleFile.and.returnValue(of(mockBlob));
 
-    downloadService.downloadSingleFile(filePath).subscribe({
+    downloadService.downloadSingleFile(filePath, true).subscribe({
       next: blob => {
         expect(blob).toBe(mockBlob);
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath);
+        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath, true);
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "file.txt");
         expect(notificationServiceSpy.success).toHaveBeenCalledWith("File test/file.txt has been downloaded");
         done();
@@ -87,14 +87,14 @@ describe("DownloadService", () => {
 
     datasetServiceSpy.retrieveDatasetVersionSingleFile.and.returnValue(throwError(() => new Error(errorMessage)));
 
-    downloadService.downloadSingleFile(filePath).subscribe({
+    downloadService.downloadSingleFile(filePath, true).subscribe({
       next: () => {
         fail("Should have thrown an error");
       },
       error: (error: unknown) => {
         expect(error).toBeTruthy();
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
-        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath);
+        expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath, true);
         expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
         expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
         done();
