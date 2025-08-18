@@ -1334,4 +1334,3 @@ class DatasetResource {
     }
   }
 }
-
