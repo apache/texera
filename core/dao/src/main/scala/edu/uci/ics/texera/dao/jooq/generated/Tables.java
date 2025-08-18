@@ -32,6 +32,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorPortExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.dao.jooq.generated.tables.SiteSettings;
 import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog;
 import edu.uci.ics.texera.dao.jooq.generated.tables.User;
 import edu.uci.ics.texera.dao.jooq.generated.tables.UserActivity;
@@ -108,6 +109,11 @@ public class Tables {
      * The table <code>texera_db.public_project</code>.
      */
     public static final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
+
+    /**
+     * The table <code>texera_db.site_settings</code>.
+     */
+    public static final SiteSettings SITE_SETTINGS = SiteSettings.SITE_SETTINGS;
 
     /**
      * The table <code>texera_db.time_log</code>.

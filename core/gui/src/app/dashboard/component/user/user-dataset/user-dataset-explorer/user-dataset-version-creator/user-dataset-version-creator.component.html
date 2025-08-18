@@ -29,12 +29,27 @@
         [form]="form"
         [fields]="fields"
         [model]="model"></formly-form>
-      <nz-switch
+      <div
         *ngIf="!isCreatingVersion"
-        [ngModel]="isDatasetPublic"
-        (ngModelChange)="onPublicStatusChange($event)"
-        nzCheckedChildren="public"
-        nzUnCheckedChildren="private"></nz-switch>
+        class="dataset-toggles">
+        <div class="toggle-item">
+          <label>Visibility:</label>
+          <nz-switch
+            [ngModel]="isDatasetPublic"
+            (ngModelChange)="onPublicStatusChange($event)"
+            nzCheckedChildren="public"
+            nzUnCheckedChildren="private"></nz-switch>
+        </div>
+        <div class="toggle-item">
+          <label>Downloadable:</label>
+          <nz-switch
+            [ngModel]="isDatasetDownloadable"
+            (ngModelChange)="onDownloadableStatusChange($event)"
+            [nzDisabled]="!isDatasetPublic"
+            nzCheckedChildren="enabled"
+            nzUnCheckedChildren="disabled"></nz-switch>
+        </div>
+      </div>
     </div>
 
     <button
