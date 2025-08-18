@@ -29,7 +29,8 @@ class DownloadTokenResource {
       request.filename,
       request.computingUnitId,
       request.destination,
-      JwtAuth.DOWNLOAD_TOKEN_EXPIRE_TIME_IN_SECONDS
+      JwtAuth.DOWNLOAD_TOKEN_EXPIRE_TIME_IN_SECONDS,
+      user
     )
     val token = JwtAuth.jwtToken(claims)
 

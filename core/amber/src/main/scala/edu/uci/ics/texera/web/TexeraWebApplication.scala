@@ -30,15 +30,28 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.resource._
-import edu.uci.ics.texera.web.resource.auth.{AuthResource, DownloadTokenResource, GoogleAuthResource}
+import edu.uci.ics.texera.web.resource.auth.{
+  AuthResource,
+  DownloadTokenResource,
+  GoogleAuthResource
+}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.HubResource
-import edu.uci.ics.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.{
+  ProjectAccessResource,
+  ProjectResource,
+  PublicProjectResource
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowExecutionsResource,
+  WorkflowResource,
+  WorkflowVersionResource
+}
 import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
