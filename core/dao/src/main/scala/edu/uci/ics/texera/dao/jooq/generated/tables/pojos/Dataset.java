@@ -40,6 +40,7 @@ public class Dataset implements IDataset {
     private Boolean   isPublic;
     private String    description;
     private Timestamp creationTime;
+    private Boolean   isDownloadable;
 
     public Dataset() {}
 
@@ -50,6 +51,7 @@ public class Dataset implements IDataset {
         this.isPublic = value.getIsPublic();
         this.description = value.getDescription();
         this.creationTime = value.getCreationTime();
+        this.isDownloadable = value.getIsDownloadable();
     }
 
     public Dataset(
@@ -58,7 +60,8 @@ public class Dataset implements IDataset {
         String    name,
         Boolean   isPublic,
         String    description,
-        Timestamp creationTime
+        Timestamp creationTime,
+        Boolean   isDownloadable
     ) {
         this.did = did;
         this.ownerUid = ownerUid;
@@ -66,6 +69,7 @@ public class Dataset implements IDataset {
         this.isPublic = isPublic;
         this.description = description;
         this.creationTime = creationTime;
+        this.isDownloadable = isDownloadable;
     }
 
     /**
@@ -164,6 +168,22 @@ public class Dataset implements IDataset {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.dataset.is_downloadable</code>.
+     */
+    @Override
+    public Boolean getIsDownloadable() {
+        return this.isDownloadable;
+    }
+
+    /**
+     * Setter for <code>texera_db.dataset.is_downloadable</code>.
+     */
+    @Override
+    public void setIsDownloadable(Boolean isDownloadable) {
+        this.isDownloadable = isDownloadable;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Dataset (");
@@ -174,6 +194,7 @@ public class Dataset implements IDataset {
         sb.append(", ").append(isPublic);
         sb.append(", ").append(description);
         sb.append(", ").append(creationTime);
+        sb.append(", ").append(isDownloadable);
 
         sb.append(")");
         return sb.toString();
@@ -191,6 +212,7 @@ public class Dataset implements IDataset {
         setIsPublic(from.getIsPublic());
         setDescription(from.getDescription());
         setCreationTime(from.getCreationTime());
+        setIsDownloadable(from.getIsDownloadable());
     }
 
     @Override

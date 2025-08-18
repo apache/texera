@@ -82,6 +82,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     public final TableField<WorkflowExecutionsRecord, Integer> UID = createField(DSL.name("uid"), SQLDataType.INTEGER.nullable(false), this, "");
 
     /**
+     * The column <code>texera_db.workflow_executions.cuid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, Integer> CUID = createField(DSL.name("cuid"), SQLDataType.INTEGER, this, "");
+
+    /**
      * The column <code>texera_db.workflow_executions.status</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Short> STATUS = createField(DSL.name("status"), SQLDataType.SMALLINT.nullable(false).defaultValue(DSL.field("1", SQLDataType.SMALLINT)), this, "");
@@ -131,11 +136,6 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.runtime_stats_size</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Integer> RUNTIME_STATS_SIZE = createField(DSL.name("runtime_stats_size"), SQLDataType.INTEGER.defaultValue(DSL.field("0", SQLDataType.INTEGER)), this, "");
-
-    /**
-     * The column <code>texera_db.workflow_executions.cuid</code>.
-     */
-    public final TableField<WorkflowExecutionsRecord, Integer> CUID = createField(DSL.name("cuid"), SQLDataType.INTEGER, this, "");
 
     private WorkflowExecutions(Name alias, Table<WorkflowExecutionsRecord> aliased) {
         this(alias, aliased, null);
@@ -259,7 +259,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row14<Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String, Integer, Integer> fieldsRow() {
+    public Row14<Integer, Integer, Integer, Integer, Short, String, Timestamp, Timestamp, Boolean, String, String, String, String, Integer> fieldsRow() {
         return (Row14) super.fieldsRow();
     }
 }
