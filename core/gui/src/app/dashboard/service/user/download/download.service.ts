@@ -93,9 +93,16 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string, isLogin: boolean = true): void {
-    this.notificationService.info(`Starting to download file ${filePath}`);
-    this.datasetService.retrieveDatasetVersionSingleFileViaBrowser(filePath, isLogin);
+  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    const DEFAULT_FILE_NAME = "download";
+    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
+    return this.downloadWithNotification(
+      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
+      fileName,
+      `Starting to download file ${filePath}`,
+      `File ${filePath} has been downloaded`,
+      `Error downloading file '${filePath}'`
+    );
   }
 
   downloadWorkflowsAsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {

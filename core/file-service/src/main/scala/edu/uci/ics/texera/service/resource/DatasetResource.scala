@@ -578,7 +578,7 @@ class DatasetResource {
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
-    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
   }
 
   @GET
@@ -598,7 +598,7 @@ class DatasetResource {
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, null)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
   }
 
   @DELETE
@@ -1272,53 +1272,6 @@ class DatasetResource {
           resolvedDatasetName,
           resolvedCommitHash,
           resolvedFilePath
-        )
-
-        Response.ok(Map("presignedUrl" -> url)).build()
-    }
-  }
-
-  private def generatePresignedResponseWithS3(
-      encodedUrl: String,
-      datasetName: String,
-      commitHash: String,
-      uid: Integer
-  ): Response = {
-    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
-      case Left(errorResponse) =>
-        errorResponse
-
-      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
-        // Additional download permission check for S3 downloads
-        if (uid != null) {
-          withTransaction(context) { ctx =>
-            val datasetDao = new DatasetDao(ctx.configuration())
-            val datasets = datasetDao.fetchByName(resolvedDatasetName).asScala.toList
-            if (datasets.nonEmpty) {
-              val dataset = datasets.head
-              // Non-owners can download if dataset is downloadable and they have read access
-              if (
-                !userOwnDataset(
-                  ctx,
-                  dataset.getDid,
-                  uid
-                ) && !dataset.getIsDownloadable
-              ) {
-                throw new ForbiddenException("Dataset download is not allowed")
-              }
-            }
-          }
-        }
-
-        val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
-        val contentType = "application/octet-stream"
-        val url = S3StorageClient.getFilePresignedUrl(
-          resolvedDatasetName,
-          resolvedCommitHash,
-          resolvedFilePath,
-          fileName,
-          contentType,
-          EXPIRATION_MINUTES
         )
 
         Response.ok(Map("presignedUrl" -> url)).build()

@@ -299,7 +299,10 @@ export class DatasetDetailComponent implements OnInit {
     if (!this.did || !this.selectedVersion?.dvid) return;
     // For public datasets accessed by non-owners, use public endpoint
     const shouldUsePublicEndpoint = this.datasetIsPublic && !this.isOwner;
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint);
+    this.downloadService
+      .downloadSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint)
+      .pipe(untilDestroyed(this))
+      .subscribe();
   };
 
   onClickScaleTheView() {
