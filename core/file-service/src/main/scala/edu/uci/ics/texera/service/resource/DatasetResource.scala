@@ -39,7 +39,8 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion
+  DatasetVersion,
+  User
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -195,7 +196,6 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
-  private val EXPIRATION_MINUTES = 5
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -574,36 +574,15 @@ class DatasetResource {
   }
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/presign-download-s3")
-  def getPresignedUrlWithS3(
-      @QueryParam("filePath") encodedUrl: String,
-      @QueryParam("datasetName") datasetName: String,
-      @QueryParam("commitHash") commitHash: String,
-      @Auth user: SessionUser
-  ): Response = {
-    val uid = user.getUid
-    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, uid)
-  }
-
-  @GET
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
-  }
-
-  @GET
-  @Path("/public-presign-download-s3")
-  def getPublicPresignedUrlWithS3(
-      @QueryParam("filePath") encodedUrl: String,
-      @QueryParam("datasetName") datasetName: String,
-      @QueryParam("commitHash") commitHash: String
-  ): Response = {
-    generatePresignedResponseWithS3(encodedUrl, datasetName, commitHash, null)
+    val user = new SessionUser(new User())
+    val uid = user.getUid
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
   }
 
   @DELETE
@@ -1287,53 +1266,6 @@ class DatasetResource {
           resolvedDatasetName,
           resolvedCommitHash,
           resolvedFilePath
-        )
-
-        Response.ok(Map("presignedUrl" -> url)).build()
-    }
-  }
-
-  private def generatePresignedResponseWithS3(
-      encodedUrl: String,
-      datasetName: String,
-      commitHash: String,
-      uid: Integer
-  ): Response = {
-    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
-      case Left(errorResponse) =>
-        errorResponse
-
-      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
-        // Additional download permission check for S3 downloads
-        if (uid != null) {
-          withTransaction(context) { ctx =>
-            val datasetDao = new DatasetDao(ctx.configuration())
-            val datasets = datasetDao.fetchByName(resolvedDatasetName).asScala.toList
-            if (datasets.nonEmpty) {
-              val dataset = datasets.head
-              // Non-owners can only download public and downloadable datasets
-              if (
-                !userOwnDataset(
-                  ctx,
-                  dataset.getDid,
-                  uid
-                ) && (!dataset.getIsPublic || !dataset.getIsDownloadable)
-              ) {
-                throw new ForbiddenException("Dataset download is not allowed")
-              }
-            }
-          }
-        }
-
-        val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
-        val contentType = "application/octet-stream"
-        val url = S3StorageClient.getFilePresignedUrl(
-          resolvedDatasetName,
-          resolvedCommitHash,
-          resolvedFilePath,
-          fileName,
-          contentType,
-          EXPIRATION_MINUTES
         )
 
         Response.ok(Map("presignedUrl" -> url)).build()

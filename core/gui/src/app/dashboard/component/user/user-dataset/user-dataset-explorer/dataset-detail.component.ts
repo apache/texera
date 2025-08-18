@@ -307,7 +307,8 @@ export class DatasetDetailComponent implements OnInit {
 
   onClickDownloadCurrentFile = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName);
+
+    this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
   };
 
   onClickScaleTheView() {
