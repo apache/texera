@@ -52,11 +52,9 @@ import java.net.URI
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
-import javax.servlet.http.HttpServletRequest
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
-import jakarta.ws.rs.core.Context
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer
@@ -710,7 +708,8 @@ class WorkflowExecutionsResource {
       }
     } catch {
       case ex: Exception =>
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
           .`type`(MediaType.APPLICATION_JSON)
           .entity(Map("error" -> ex.getMessage).asJava)
           .build()
@@ -718,29 +717,26 @@ class WorkflowExecutionsResource {
   }
 
   @POST
-  @Path("/result/export/form")
+  @Path("/result/export/browser")
   @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
-  def exportResultViaForm(
-    @Context request: HttpServletRequest,
-    @FormParam("token") token: String,
-    @FormParam("operators") operatorsJson: String
+  def exportResultViaBrowser(
+      @FormParam("token") token: String,
+      @FormParam("operators") operatorsJson: String
   ): Response = {
-    println("API Backend exportResultViaForm: entered endpoint.")
 
     try {
-      val claims     = DownloadTokenAuthenticator.parseToken(token)
-      val operators  = WorkflowExportResource.parseOperators(operatorsJson)
-      val request  = WorkflowExportResource.toExportRequest(claims, operators)
-
-      println("API Backend exportResultViaForm: starting export.")
+      val claims = DownloadTokenAuthenticator.parseToken(token)
+      val operators = WorkflowExportResource.parseOperators(operatorsJson)
+      val request = WorkflowExportResource.toExportRequest(claims, operators)
 
       WorkflowExportResource.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
-        case None => WorkflowExportResource.exportToLocal(request)
+        case None                => WorkflowExportResource.exportToLocal(request)
       }
     } catch {
       case ex: Exception =>
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
           .`type`(MediaType.APPLICATION_JSON)
           .entity(Map("error" -> ex.getMessage).asJava)
           .build()
@@ -755,7 +751,10 @@ object WorkflowExportResource {
       .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
   }
 
-  def toExportRequest(claims: DownloadTokenClaims, operators: List[OperatorExportInfo]): ResultExportRequest =
+  def toExportRequest(
+      claims: DownloadTokenClaims,
+      operators: List[OperatorExportInfo]
+  ): ResultExportRequest =
     ResultExportRequest(
       claims.exportType,
       claims.workflowId,
@@ -770,20 +769,20 @@ object WorkflowExportResource {
     )
 
   def validateExportRequest(request: ResultExportRequest): Option[Response] = {
-    println("API Backend validateExportRequest: starting validation.")
-
     if (request.operators.isEmpty) {
-      Some(Response.status(Response.Status.BAD_REQUEST)
-        .`type`(MediaType.APPLICATION_JSON)
-        .entity(Map("error" -> "No operator selected").asJava)
-        .build())
+      Some(
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .`type`(MediaType.APPLICATION_JSON)
+          .entity(Map("error" -> "No operator selected").asJava)
+          .build()
+      )
     } else None
   }
 
   def exportToLocal(request: ResultExportRequest): Response = {
-    println("API Backend exportToLocal: entered helper.")
-
-    val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+    val resultExportService =
+      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
 
     if (request.operators.size > 1) {
       val (zipStream, zipFileNameOpt) = resultExportService.exportOperatorsAsZip(request)
@@ -792,30 +791,30 @@ object WorkflowExportResource {
       }
       val fileName = zipFileNameOpt.getOrElse("operators.zip")
 
-      println("API Backend exportToLocal: building response.")
-
-      Response.ok(zipStream, "application/zip")
+      Response
+        .ok(zipStream, "application/zip")
         .header("Content-Disposition", s"""attachment; filename="$fileName"""")
         .build()
 
     } else {
       val op = request.operators.head
-      val (streamingOutput, fileNameOpt) = resultExportService.exportOperatorResultAsStream(request, op)
+      val (streamingOutput, fileNameOpt) =
+        resultExportService.exportOperatorResultAsStream(request, op)
       if (streamingOutput == null) {
         throw new RuntimeException("Failed to export operator")
       }
       val fileName = fileNameOpt.getOrElse("download.dat")
 
-      println("API Backend exportToLocal: building response.")
-
-      Response.ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
+      Response
+        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
         .header("Content-Disposition", s"""attachment; filename="$fileName"""")
         .build()
     }
   }
 
   def exportToDataset(user: User, request: ResultExportRequest): Response = {
-    val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+    val resultExportService =
+      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
     val exportResponse = resultExportService.exportAllOperatorsResultToDataset(user, request)
     Response.ok(exportResponse).build()
   }

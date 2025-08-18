@@ -179,7 +179,10 @@ export class DownloadService {
     }
   }
 
-  public exportWorkflowResultViaForm(
+  /**
+   * Export the workflow result only if destination = "local". The export is handled by the browser.
+   */
+  public exportWorkflowResultViaBrowser(
     exportType: string,
     workflowId: number,
     workflowName: string,
@@ -194,9 +197,6 @@ export class DownloadService {
     destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
     unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): void {
-
-    this.notificationService.info("Started exporting workflow result via form.");
-
     if (destination != 'local') {
       this.notificationService.error('Export via form only supports local downloads.');
       return;
@@ -217,10 +217,8 @@ export class DownloadService {
       next: (res) => {
         const urlPath =
           unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
-            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/form?cuid=${unit.computingUnit.cuid}`
-            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/form`;
-
-        this.notificationService.info("Export URL: " + urlPath);
+            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/browser?cuid=${unit.computingUnit.cuid}`
+            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/browser`;
 
         const iframe = document.createElement('iframe');
         iframe.name = 'download-iframe';
@@ -246,17 +244,13 @@ export class DownloadService {
         input.value = JSON.stringify(operators);
         form.appendChild(input)
 
-        this.notificationService.info("Built file export form.")
-
         document.body.appendChild(form);
         form.submit();
-
-        this.notificationService.info("Submitted file export form.")
 
         setTimeout(() => {
           document.body.removeChild(form);
           document.body.removeChild(iframe);
-        }, 5000);
+        }, 10000);
       }
     });
   }
