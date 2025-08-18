@@ -144,9 +144,9 @@ export class WorkflowResultExportService {
 
     // Make request
     if (destination === 'local') {
-      // Direct download to local filesystem via form submission (download handled by browser)
+      // Dataset export to local filesystem (download handled by browser)
       this.downloadService
-        .exportWorkflowResultViaForm(
+        .exportWorkflowResultViaBrowser(
           exportType,
           workflowId,
           workflowName,
@@ -159,7 +159,7 @@ export class WorkflowResultExportService {
           unit
         );
     } else {
-      // Dataset export via API call
+      // Dataset export to dataset via API call
       this.downloadService
         .exportWorkflowResult(
           exportType,
