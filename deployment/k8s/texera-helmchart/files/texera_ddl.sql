@@ -383,6 +383,7 @@ CREATE TABLE IF NOT EXISTS site_settings
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+-- site_settings table
 CREATE TABLE IF NOT EXISTS time_log
 (
     uid            INT          NOT NULL
