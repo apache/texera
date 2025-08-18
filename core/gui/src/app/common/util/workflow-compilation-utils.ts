@@ -18,6 +18,7 @@
 
 import { CompilationState, CompilationStateInfo, PortSchema } from "../../workspace/types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../workspace/types/workflow-websocket.interface";
+import { isEqual } from "lodash";
 
 /**
  * Checks if all PortSchemas in an array are equal to each other.
@@ -30,12 +31,7 @@ export function areAllPortSchemasEqual(schemas: (PortSchema | undefined)[]): boo
   if (schemas.length <= 1) {
     return true;
   }
-  if (schemas[0] === undefined) {
-    return schemas.every(schema => schema === undefined);
-  } else {
-    const firstSchemaString = JSON.stringify(schemas[0]);
-    return schemas.every(schema => schema !== undefined && JSON.stringify(schema) === firstSchemaString);
-  }
+  return schemas.every(schema => isEqual(schemas[0], schema));
 }
 
 /**
