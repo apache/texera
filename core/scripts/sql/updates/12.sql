@@ -30,10 +30,10 @@ SELECT u.uid
 FROM "user" u
 ON CONFLICT (uid) DO NOTHING;
 
-WITH ts AS (SELECT now() AS t)
+WITH ts AS (SELECT '2025-01-01 00:00:00-07'::timestamptz AS t)
 UPDATE time_log t
 SET acc_creation = ts.t
-    FROM ts
+FROM ts
 WHERE t.acc_creation IS NULL;
 
 ALTER TABLE time_log

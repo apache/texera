@@ -393,9 +393,10 @@ CREATE TABLE IF NOT EXISTS time_log
     last_login     TIMESTAMPTZ
 );
 
+WITH ts AS (SELECT '2025-01-01 00:00:00-07'::timestamptz AS t)
 INSERT INTO time_log (uid, acc_creation)
-SELECT u.uid, now()
-FROM "user" u
+SELECT u.uid, ts.t
+FROM "user" u, ts
 ON CONFLICT (uid) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION time_log_autocreate()
