@@ -199,6 +199,7 @@ nz-select {
   flex-direction: column;
   gap: 12px;
   margin-right: 20px;
+  margin-bottom: 20px;
 }
 
 .control-row {
@@ -213,7 +214,7 @@ nz-select {
   }
 
   nz-switch {
-    margin-left: auto;
+    margin-left: 8px;
   }
 
   .help-text {

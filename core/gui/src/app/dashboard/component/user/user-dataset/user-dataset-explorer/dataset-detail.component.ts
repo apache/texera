@@ -218,10 +218,6 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.datasetIsPublic = checked;
-            // If dataset becomes private, it cannot be downloadable
-            if (!checked) {
-              this.datasetIsDownloadable = false;
-            }
             let state = "public";
             if (!this.datasetIsPublic) {
               state = "private";
@@ -236,12 +232,6 @@ export class DatasetDetailComponent implements OnInit {
   }
 
   onDownloadableStatusChange(checked: boolean): void {
-    // Only allow downloadable change if dataset is public
-    if (checked && !this.datasetIsPublic) {
-      this.notificationService.error("Dataset can only be downloadable if it is public");
-      return;
-    }
-
     // Handle the change in dataset downloadable status
     if (this.did) {
       this.datasetService
@@ -307,8 +297,12 @@ export class DatasetDetailComponent implements OnInit {
 
   onClickDownloadCurrentFile = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
-
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
+    // For public datasets accessed by non-owners, use public endpoint
+    const shouldUsePublicEndpoint = this.datasetIsPublic && !this.isOwner;
+    this.downloadService
+      .downloadSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint)
+      .pipe(untilDestroyed(this))
+      .subscribe();
   };
 
   onClickScaleTheView() {
@@ -353,8 +347,10 @@ export class DatasetDetailComponent implements OnInit {
     if (this.isOwner) {
       return true;
     }
-    // Non-owners can only download if dataset is public and downloadable
-    return this.datasetIsPublic && this.datasetIsDownloadable;
+    // Non-owners can download if dataset is downloadable and they have access
+    // For public datasets, users have access even if userDatasetAccessLevel is 'NONE'
+    // For private datasets, users need explicit access (userDatasetAccessLevel !== 'NONE')
+    return this.datasetIsDownloadable && (this.datasetIsPublic || this.userDatasetAccessLevel !== "NONE");
   }
 
   // Track multiple file by unique key

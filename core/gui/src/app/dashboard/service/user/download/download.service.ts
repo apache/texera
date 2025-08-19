@@ -93,11 +93,11 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string): Observable<Blob> {
+  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
     const DEFAULT_FILE_NAME = "download";
     const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
+      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
       fileName,
       `Starting to download file ${filePath}`,
       `File ${filePath} has been downloaded`,
