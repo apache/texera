@@ -34,6 +34,7 @@ export const DATASET_UPDATE_BASE_URL = DATASET_BASE_URL + "/update";
 export const DATASET_UPDATE_NAME_URL = DATASET_UPDATE_BASE_URL + "/name";
 export const DATASET_UPDATE_DESCRIPTION_URL = DATASET_UPDATE_BASE_URL + "/description";
 export const DATASET_UPDATE_PUBLICITY_URL = "update/publicity";
+export const DATASET_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const DATASET_LIST_URL = DATASET_BASE_URL + "/list";
 export const DATASET_SEARCH_URL = DATASET_BASE_URL + "/search";
 export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
@@ -68,6 +69,7 @@ export class DatasetService {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
+      isDatasetDownloadable: dataset.isDownloadable,
     });
   }
 
@@ -137,12 +139,20 @@ export class DatasetService {
    * Handles multipart upload for large files using RxJS,
    * with a concurrency limit on how many parts we process in parallel.
    */
-  public multipartUpload(datasetName: string, filePath: string, file: File): Observable<MultipartUploadProgress> {
-    const partCount = Math.ceil(file.size / this.config.env.multipartUploadChunkSizeByte);
-    const concurrencyLimit = this.config.env.maxNumberOfConcurrentUploadingFileChunks;
+  public multipartUpload(
+    datasetName: string,
+    filePath: string,
+    file: File,
+    partSize: number,
+    concurrencyLimit: number
+  ): Observable<MultipartUploadProgress> {
+    const partCount = Math.ceil(file.size / partSize);
 
     return new Observable(observer => {
-      this.initiateMultipartUpload(datasetName, filePath, partCount)
+      // Track upload progress for each part independently
+      const partProgress = new Map<number, number>();
+
+      const subscription = this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
             const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
@@ -160,44 +170,81 @@ export class DatasetService {
 
             // Keep track of all uploaded parts
             const uploadedParts: { PartNumber: number; ETag: string }[] = [];
-            let uploadedCount = 0;
 
             // 1) Convert presignedUrls into a stream of URLs
             return from(presignedUrls).pipe(
               // 2) Use mergeMap with concurrency limit to upload chunk by chunk
               mergeMap((url, index) => {
-                const start = index * this.config.env.multipartUploadChunkSizeByte;
-                const end = Math.min(start + this.config.env.multipartUploadChunkSizeByte, file.size);
+                const partNumber = index + 1;
+                const start = index * partSize;
+                const end = Math.min(start + partSize, file.size);
                 const chunk = file.slice(start, end);
 
                 // Upload the chunk
-                return from(fetch(url, { method: "PUT", body: chunk })).pipe(
-                  switchMap(response => {
-                    if (!response.ok) {
-                      return throwError(() => new Error(`Failed to upload part ${index + 1}`));
+                return new Observable(partObserver => {
+                  const xhr = new XMLHttpRequest();
+
+                  xhr.upload.addEventListener("progress", event => {
+                    if (event.lengthComputable) {
+                      // Update this specific part's progress
+                      partProgress.set(partNumber, event.loaded);
+
+                      // Calculate total progress across all parts
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99), // Cap at 99% until finalized
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                      });
                     }
-                    const etag = response.headers.get("ETag")?.replace(/"/g, "");
-                    if (!etag) {
-                      return throwError(() => new Error(`Missing ETag for part ${index + 1}`));
+                  });
+
+                  xhr.addEventListener("load", () => {
+                    if (xhr.status === 200 || xhr.status === 201) {
+                      const etag = xhr.getResponseHeader("ETag")?.replace(/"/g, "");
+                      if (!etag) {
+                        partObserver.error(new Error(`Missing ETag for part ${partNumber}`));
+                        return;
+                      }
+
+                      // Mark this part as fully uploaded
+                      partProgress.set(partNumber, chunk.size);
+                      uploadedParts.push({ PartNumber: partNumber, ETag: etag });
+
+                      // Recalculate progress
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99),
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                      });
+                      partObserver.complete();
+                    } else {
+                      partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                     }
+                  });
 
-                    // Record the uploaded part
-                    uploadedParts.push({ PartNumber: index + 1, ETag: etag });
-                    uploadedCount++;
+                  xhr.addEventListener("error", () => {
+                    // Remove failed part from progress
+                    partProgress.delete(partNumber);
+                    partObserver.error(new Error(`Failed to upload part ${partNumber}`));
+                  });
 
-                    // Emit progress after each part
-                    observer.next({
-                      filePath,
-                      percentage: Math.round((uploadedCount / partCount) * 100),
-                      status: "uploading",
-                      uploadId: uploadId,
-                      physicalAddress: physicalAddress,
-                    });
-
-                    return of(null); // indicate success
-                  })
-                );
+                  xhr.open("PUT", url);
+                  xhr.send(chunk);
+                });
               }, concurrencyLimit),
+
               // 3) Collect results from all uploads (like forkJoin, but respects concurrency)
               toArray(),
               // 4) Finalize if all parts succeeded
@@ -218,7 +265,7 @@ export class DatasetService {
                 // If an error occurred, abort the upload
                 observer.next({
                   filePath,
-                  percentage: Math.round((uploadedCount / partCount) * 100),
+                  percentage: Math.round((uploadedParts.length / partCount) * 100),
                   status: "aborted",
                   uploadId: uploadId,
                   physicalAddress: physicalAddress,
@@ -239,6 +286,7 @@ export class DatasetService {
         .subscribe({
           error: (err: unknown) => observer.error(err),
         });
+      return () => subscription.unsubscribe();
     });
   }
 
@@ -388,6 +436,13 @@ export class DatasetService {
   public updateDatasetPublicity(did: number): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_PUBLICITY_URL}`,
+      {}
+    );
+  }
+
+  public updateDatasetDownloadable(did: number): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_DOWNLOADABLE_URL}`,
       {}
     );
   }

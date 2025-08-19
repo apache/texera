@@ -160,4 +160,19 @@ public class DatasetDao extends DAOImpl<DatasetRecord, edu.uci.ics.texera.dao.jo
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Dataset> fetchByCreationTime(Timestamp... values) {
         return fetch(Dataset.DATASET.CREATION_TIME, values);
     }
+
+    /**
+     * Fetch records that have <code>is_downloadable BETWEEN lowerInclusive AND
+     * upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Dataset> fetchRangeOfIsDownloadable(Boolean lowerInclusive, Boolean upperInclusive) {
+        return fetchRange(Dataset.DATASET.IS_DOWNLOADABLE, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>is_downloadable IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Dataset> fetchByIsDownloadable(Boolean... values) {
+        return fetch(Dataset.DATASET.IS_DOWNLOADABLE, values);
+    }
 }

@@ -39,8 +39,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -172,7 +171,8 @@ object DatasetResource {
   case class CreateDatasetRequest(
       datasetName: String,
       datasetDescription: String,
-      isDatasetPublic: Boolean
+      isDatasetPublic: Boolean,
+      isDatasetDownloadable: Boolean
   )
 
   case class Diff(
@@ -195,6 +195,7 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val EXPIRATION_MINUTES = 5
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -244,6 +245,7 @@ class DatasetResource {
       val datasetName = request.datasetName
       val datasetDescription = request.datasetDescription
       val isDatasetPublic = request.isDatasetPublic
+      val isDatasetDownloadable = request.isDatasetDownloadable
 
       // Check if a dataset with the same name already exists
       if (!datasetDao.fetchByName(datasetName).isEmpty) {
@@ -265,6 +267,7 @@ class DatasetResource {
       dataset.setName(datasetName)
       dataset.setDescription(datasetDescription)
       dataset.setIsPublic(isDatasetPublic)
+      dataset.setIsDownloadable(isDatasetDownloadable)
       dataset.setOwnerUid(uid)
 
       val createdDataset = ctx
@@ -287,7 +290,8 @@ class DatasetResource {
           createdDataset.getName,
           createdDataset.getIsPublic,
           createdDataset.getDescription,
-          createdDataset.getCreationTime
+          createdDataset.getCreationTime,
+          createdDataset.getIsDownloadable
         ),
         user.getEmail,
         PrivilegeEnum.WRITE,
@@ -565,15 +569,36 @@ class DatasetResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+  }
+
+  @GET
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    val user = new SessionUser(new User())
-    val uid = user.getUid
-    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
+  }
+
+  @GET
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
   }
 
   @DELETE
@@ -759,7 +784,33 @@ class DatasetResource {
       }
 
       val existedDataset = getDatasetByID(ctx, did)
-      existedDataset.setIsPublic(!existedDataset.getIsPublic)
+      val newPublicStatus = !existedDataset.getIsPublic
+      existedDataset.setIsPublic(newPublicStatus)
+
+      datasetDao.update(existedDataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/{did}/update/downloadable")
+  def toggleDatasetDownloadable(
+      @PathParam("did") did: Integer,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    withTransaction(context) { ctx =>
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val uid = sessionUser.getUid
+
+      if (!userOwnDataset(ctx, did, uid)) {
+        throw new ForbiddenException("Only dataset owners can modify download permissions")
+      }
+
+      val existedDataset = getDatasetByID(ctx, did)
+      val newDownloadableStatus = !existedDataset.getIsDownloadable
+
+      existedDataset.setIsDownloadable(newDownloadableStatus)
 
       datasetDao.update(existedDataset)
       Response.ok().build()
@@ -993,6 +1044,19 @@ class DatasetResource {
         throw new BadRequestException("Specify exactly one: dvid=<ID> OR latest=true")
       }
 
+      // Check read access and download permission
+      val uid = user.getUid
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      // Retrieve dataset and check download permission
+      val dataset = getDatasetByID(ctx, did)
+      // Non-owners can download if dataset is downloadable and they have read access
+      if (!userOwnDataset(ctx, did, uid) && !dataset.getIsDownloadable) {
+        throw new ForbiddenException("Dataset download is not allowed")
+      }
+
       // Determine which version to retrieve
       val datasetVersion = if (dvid != null) {
         getDatasetVersionByID(ctx, dvid)
@@ -1005,7 +1069,6 @@ class DatasetResource {
       }
 
       // Retrieve dataset and version details
-      val dataset = getDatasetByID(ctx, did)
       val datasetName = dataset.getName
       val versionHash = datasetVersion.getVersionHash
       val objects = LakeFSStorageClient.retrieveObjectsOfVersion(datasetName, versionHash)
@@ -1200,34 +1263,61 @@ class DatasetResource {
       commitHash: String,
       uid: Integer
   ): Response = {
+    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
+      case Left(errorResponse) =>
+        errorResponse
+
+      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
+        val url = LakeFSStorageClient.getFilePresignedUrl(
+          resolvedDatasetName,
+          resolvedCommitHash,
+          resolvedFilePath
+        )
+
+        Response.ok(Map("presignedUrl" -> url)).build()
+    }
+  }
+
+  private def resolveDatasetAndPath(
+      encodedUrl: String,
+      datasetName: String,
+      commitHash: String,
+      uid: Integer
+  ): Either[Response, (String, String, String)] = {
     val decodedPathStr = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name())
 
     (Option(datasetName), Option(commitHash)) match {
       case (Some(_), None) | (None, Some(_)) =>
         // Case 1: Only one parameter is provided (error case)
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .entity(
-            "Both datasetName and commitHash must be provided together, or neither should be provided."
-          )
-          .build()
+        Left(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(
+              "Both datasetName and commitHash must be provided together, or neither should be provided."
+            )
+            .build()
+        )
 
       case (Some(dsName), Some(commit)) =>
         // Case 2: datasetName and commitHash are provided, validate access
-        withTransaction(context) { ctx =>
+        val response = withTransaction(context) { ctx =>
           val datasetDao = new DatasetDao(ctx.configuration())
           val datasets = datasetDao.fetchByName(dsName).asScala.toList
 
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-          val url = LakeFSStorageClient.getFilePresignedUrl(dsName, commit, decodedPathStr)
-          Response.ok(Map("presignedUrl" -> url)).build()
+          val dataset = datasets.head
+          // Standard read access check only - download restrictions handled per endpoint
+          // Non-download operations (viewing) should work for all public datasets
+
+          (dsName, commit, decodedPathStr)
         }
+        Right(response)
 
       case (None, None) =>
         // Case 3: Neither datasetName nor commitHash are provided, resolve normally
-        withTransaction(context) { ctx =>
+        val response = withTransaction(context) { ctx =>
           val fileUri = FileResolver.resolve(decodedPathStr)
           val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
           val datasetDao = new DatasetDao(ctx.configuration())
@@ -1236,18 +1326,17 @@ class DatasetResource {
           if (datasets.isEmpty || !userHasReadAccess(ctx, datasets.head.getDid, uid))
             throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
 
-          Response
-            .ok(
-              Map(
-                "presignedUrl" -> LakeFSStorageClient.getFilePresignedUrl(
-                  document.getDatasetName(),
-                  document.getVersionHash(),
-                  document.getFileRelativePath()
-                )
-              )
-            )
-            .build()
+          val dataset = datasets.head
+          // Standard read access check only - download restrictions handled per endpoint
+          // Non-download operations (viewing) should work for all public datasets
+
+          (
+            document.getDatasetName(),
+            document.getVersionHash(),
+            document.getFileRelativePath()
+          )
         }
+        Right(response)
     }
   }
 }

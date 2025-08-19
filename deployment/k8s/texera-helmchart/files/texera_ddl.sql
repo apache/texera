@@ -265,6 +265,7 @@ CREATE TABLE IF NOT EXISTS dataset
     owner_uid      INT NOT NULL,
     name           VARCHAR(128) NOT NULL,
     is_public      BOOLEAN NOT NULL DEFAULT TRUE,
+    is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
     description    VARCHAR(512) NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
@@ -382,6 +383,15 @@ CREATE TABLE IF NOT EXISTS site_settings
     updated_by  VARCHAR(50),
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+-- time_log table
+CREATE TABLE IF NOT EXISTS time_log
+(
+    uid            INT          NOT NULL
+        PRIMARY KEY
+        REFERENCES "user"(uid),
+    last_login     TIMESTAMPTZ
+);
 
 -- computing_unit_user_access table
 CREATE TABLE IF NOT EXISTS computing_unit_user_access

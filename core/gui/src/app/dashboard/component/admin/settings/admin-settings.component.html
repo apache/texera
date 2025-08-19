@@ -238,3 +238,61 @@
     </div>
   </div>
 </nz-card>
+
+<nz-card nzTitle="Dataset">
+  <div class="settings-row">
+    <span>File Size:</span>
+    <nz-input-number
+      [(ngModel)]="maxFileSizeMB"
+      [nzMin]="1"
+      [nzMax]="MAX_FILE_SIZE_MB"
+      [nzStep]="10"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Maximum size allowed for individual file uploads (MB). (Range: 1 MB - {{ MAX_FILE_SIZE_MB }} MB (5 TiB))
+  </div>
+
+  <div class="settings-row">
+    <span>Concurrent Parts:</span>
+    <nz-input-number
+      [(ngModel)]="maxConcurrentChunks"
+      [nzMin]="1"
+      [nzMax]="MAX_TOTAL_PARTS"
+      [nzStep]="1"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">Number of file chunks that can be uploaded simultaneously. (Range: 1 - 10000)</div>
+
+  <div class="settings-row">
+    <span>Part Size:</span>
+    <nz-input-number
+      [(ngModel)]="chunkSizeMB"
+      [nzMin]="MIN_PART_SIZE_MB"
+      [nzMax]="MAX_PART_SIZE_MB"
+      [nzStep]="10"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">
+    Size of each chunk during multipart upload in MB. (Range: {{ MIN_PART_SIZE_MB }} MB - {{ MAX_PART_SIZE_MB }} MB (5
+    GiB))
+  </div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveDatasetSettings()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetDatasetSettings()">
+      Reset
+    </button>
+  </div>
+</nz-card>
