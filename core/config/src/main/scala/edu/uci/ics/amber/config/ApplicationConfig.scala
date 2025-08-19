@@ -106,6 +106,12 @@ object ApplicationConfig {
   val maxWorkflowWebsocketRequestPayloadSizeKb: Int =
     getConfSource.getInt("web-server.max-workflow-websocket-request-payload-size-kb")
 
+  // Operator parallelism
+  val allocatorType: String = getConfSource.getString("operator-parallelism.allocator-type")
+  val availableCores: Int = getConfSource.getInt("operator-parallelism.available-cores")
+  val coreToWorkerRatio: Double =
+    getConfSource.getDouble("operator-parallelism.core-to-worker-ratio")
+
   // AI Assistant
   val aiAssistantConfig: Option[Config] =
     if (getConfSource.hasPath("ai-assistant-server"))

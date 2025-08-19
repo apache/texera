@@ -25,7 +25,8 @@ import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
-  ExecutionClusterInfo
+  ExecutionClusterInfo,
+  GreedyResourceAllocator
 }
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -125,13 +126,26 @@ abstract class ScheduleGenerator(
   def allocateResource(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
+    val allocatorType = ApplicationConfig.allocatorType
 
-    val resourceAllocator =
-      new DefaultResourceAllocator(
-        physicalPlan,
-        executionClusterInfo,
-        workflowContext.workflowSettings
-      )
+    val resourceAllocator = allocatorType match {
+      case "default" =>
+        new DefaultResourceAllocator(
+          physicalPlan,
+          executionClusterInfo,
+          workflowContext.workflowSettings
+        )
+      case "greedy" =>
+        new GreedyResourceAllocator(
+          physicalPlan,
+          executionClusterInfo,
+          workflowContext.workflowSettings,
+          workflowContext
+        )
+      case other =>
+        throw new IllegalArgumentException(s"Unknown allocator type: $other")
+    }
+
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {

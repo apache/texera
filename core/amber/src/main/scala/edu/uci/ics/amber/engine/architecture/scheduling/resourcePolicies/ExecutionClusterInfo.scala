@@ -19,4 +19,9 @@
 
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
-class ExecutionClusterInfo() {}
+import edu.uci.ics.amber.config.ApplicationConfig
+
+class ExecutionClusterInfo {
+  val availableNumberOfCores: Int = ApplicationConfig.availableCores
+  val coreToWorkerRatio: Double = ApplicationConfig.coreToWorkerRatio
+}

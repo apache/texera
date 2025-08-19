@@ -20,8 +20,9 @@
 package edu.uci.ics.amber.operator.udf.python
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc, UnknownPartition}
@@ -61,10 +62,11 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
-  @JsonProperty(required = true, defaultValue = "1")
-  @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to launch")
-  var workers: Int = Int.box(1)
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Parallelizable?")
+  @JsonPropertyDescription("Default: True")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["advanced"]}""")
+  val parallelizable: Boolean = Boolean.box(false)
 
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
@@ -78,21 +80,41 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   )
   var outputColumns: List[Attribute] = List()
 
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Advanced Setting")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["workers"]}""")
+  var advanced: Boolean = Boolean.box(false)
+
+  @JsonProperty(required = true, defaultValue = "1")
+  @JsonSchemaTitle("Worker count")
+  @JsonPropertyDescription("Specify how many parallel workers to launch")
+  var workers: Int = Int.box(1)
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
-    val physicalOp = if (workers > 1) {
-      PhysicalOp
-        .oneToOnePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecWithCode(code, "python")
-        )
-        .withParallelizable(true)
-        .withSuggestedWorkerNum(workers)
+    val physicalOp = if (parallelizable) {
+      if (advanced) {
+        PhysicalOp
+          .oneToOnePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecWithCode(code, "python")
+          )
+          .withSuggestedWorkerNum(workers)
+      } else {
+        PhysicalOp
+          .oneToOnePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecWithCode(code, "python")
+          )
+      }
     } else {
       PhysicalOp
         .manyToOnePhysicalOp(
@@ -101,9 +123,9 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           operatorIdentifier,
           OpExecWithCode(code, "python")
         )
-        .withParallelizable(false)
     }
     physicalOp
+      .withParallelizable(parallelizable)
       .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

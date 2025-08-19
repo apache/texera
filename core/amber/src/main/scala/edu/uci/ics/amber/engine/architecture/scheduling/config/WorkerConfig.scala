@@ -25,7 +25,7 @@ import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 case object WorkerConfig {
-  def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {
+  def generateDefaultWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {
     val workerCount = if (physicalOp.parallelizable) {
       physicalOp.suggestedWorkerNum match {
         // Keep suggested number of workers

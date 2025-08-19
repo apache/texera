@@ -20,8 +20,9 @@
 package edu.uci.ics.amber.operator.udf.r
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{
@@ -56,10 +57,11 @@ class RUDFOpDesc extends LogicalOp {
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
-  @JsonProperty(required = true, defaultValue = "1")
-  @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to lunch")
-  var workers: Int = Int.box(1)
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Parallelizable?")
+  @JsonPropertyDescription("Default: True")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["advanced"]}""")
+  val parallelizable: Boolean = Boolean.box(true)
 
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Use Tuple API?")
@@ -77,6 +79,17 @@ class RUDFOpDesc extends LogicalOp {
     "Name of the newly added output columns that the UDF will produce, if any"
   )
   var outputColumns: List[Attribute] = List()
+
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Advanced Setting")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["workers"]}""")
+  var advanced: Boolean = Boolean.box(false)
+
+  @JsonProperty(required = true, defaultValue = "1")
+  @JsonSchemaTitle("Worker count")
+  @JsonPropertyDescription("Specify how many parallel workers to launch")
+  var workers: Int = Int.box(1)
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -112,16 +125,25 @@ class RUDFOpDesc extends LogicalOp {
     }
 
     val r_operator_type = if (useTupleAPI) "r-tuple" else "r-table"
-    if (workers > 1) {
-      PhysicalOp
-        .oneToOnePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecWithCode(code, r_operator_type)
-        )
-        .withParallelizable(true)
-        .withSuggestedWorkerNum(workers)
+    if (parallelizable) {
+      if (advanced) {
+        PhysicalOp
+          .oneToOnePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecWithCode(code, r_operator_type)
+          )
+      } else {
+        PhysicalOp
+          .oneToOnePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecWithCode(code, r_operator_type)
+          )
+          .withSuggestedWorkerNum(workers)
+      }
     } else {
       PhysicalOp
         .manyToOnePhysicalOp(
@@ -130,8 +152,8 @@ class RUDFOpDesc extends LogicalOp {
           operatorIdentifier,
           OpExecWithCode(code, r_operator_type)
         )
-        .withParallelizable(false)
-    }.withDerivePartition(_ => UnknownPartition())
+    }.withParallelizable(parallelizable)
+      .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)

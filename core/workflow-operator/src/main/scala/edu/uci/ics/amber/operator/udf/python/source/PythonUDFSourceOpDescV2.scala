@@ -20,7 +20,8 @@
 package edu.uci.ics.amber.operator.udf.python.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
@@ -45,15 +46,27 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
   @JsonPropertyDescription("Input your code here")
   var code: String = _
 
-  @JsonProperty(required = true, defaultValue = "1")
-  @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to launch")
-  var workers: Int = 1
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Parallelizable?")
+  @JsonPropertyDescription("Default: False")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["advanced"]}""")
+  val parallelizable: Boolean = Boolean.box(false)
 
   @JsonProperty()
   @JsonSchemaTitle("Columns")
   @JsonPropertyDescription("The columns of the source")
   var columns: List[Attribute] = List.empty
+
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Advanced Setting")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["workers"]}""")
+  var advanced: Boolean = Boolean.box(false)
+
+  @JsonProperty(required = true, defaultValue = "1")
+  @JsonSchemaTitle("Worker count")
+  @JsonPropertyDescription("Specify how many parallel workers to launch")
+  var workers: Int = Int.box(1)
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -69,13 +82,13 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(Option.empty)
+      .withParallelizable(parallelizable)
 
-    if (workers > 1) {
+    if (advanced && parallelizable) {
       physicalOp
-        .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
     } else {
-      physicalOp.withParallelizable(false)
+      physicalOp
     }
   }
 
