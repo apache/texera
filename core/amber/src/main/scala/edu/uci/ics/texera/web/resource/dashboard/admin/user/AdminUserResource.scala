@@ -45,7 +45,7 @@ case class UserWithTime(
     googleAvatar: String,
     comment: String,
     lastLogin: java.time.OffsetDateTime, // will be null if never logged in
-    accCreation: java.time.OffsetDateTime  // Must have a value
+    accCreation: java.time.OffsetDateTime // Must have a value
 )
 
 object AdminUserResource {
