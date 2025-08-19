@@ -39,8 +39,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -196,6 +195,7 @@ object DatasetResource {
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val EXPIRATION_MINUTES = 5
 
   /**
     * Helper function to get the dataset from DB with additional information including user access privilege and owner email
@@ -246,11 +246,6 @@ class DatasetResource {
       val datasetDescription = request.datasetDescription
       val isDatasetPublic = request.isDatasetPublic
       val isDatasetDownloadable = request.isDatasetDownloadable
-
-      // Validate business rule: downloadable can only be true if dataset is public
-      if (isDatasetDownloadable && !isDatasetPublic) {
-        throw new BadRequestException("Dataset can only be downloadable if it is public")
-      }
 
       // Check if a dataset with the same name already exists
       if (!datasetDao.fetchByName(datasetName).isEmpty) {
@@ -574,15 +569,36 @@ class DatasetResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/presign-download-s3")
+  def getPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+  }
+
+  @GET
   @Path("/public-presign-download")
   def getPublicPresignedUrl(
       @QueryParam("filePath") encodedUrl: String,
       @QueryParam("datasetName") datasetName: String,
       @QueryParam("commitHash") commitHash: String
   ): Response = {
-    val user = new SessionUser(new User())
-    val uid = user.getUid
-    generatePresignedResponse(encodedUrl, datasetName, commitHash, uid)
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
+  }
+
+  @GET
+  @Path("/public-presign-download-s3")
+  def getPublicPresignedUrlWithS3(
+      @QueryParam("filePath") encodedUrl: String,
+      @QueryParam("datasetName") datasetName: String,
+      @QueryParam("commitHash") commitHash: String
+  ): Response = {
+    generatePresignedResponse(encodedUrl, datasetName, commitHash, null)
   }
 
   @DELETE
@@ -771,11 +787,6 @@ class DatasetResource {
       val newPublicStatus = !existedDataset.getIsPublic
       existedDataset.setIsPublic(newPublicStatus)
 
-      // If dataset becomes private, it must not be downloadable
-      if (!newPublicStatus) {
-        existedDataset.setIsDownloadable(false)
-      }
-
       datasetDao.update(existedDataset)
       Response.ok().build()
     }
@@ -798,11 +809,6 @@ class DatasetResource {
 
       val existedDataset = getDatasetByID(ctx, did)
       val newDownloadableStatus = !existedDataset.getIsDownloadable
-
-      // Validate business rule: can only set downloadable to true if dataset is public
-      if (newDownloadableStatus && !existedDataset.getIsPublic) {
-        throw new BadRequestException("Dataset can only be downloadable if it is public")
-      }
 
       existedDataset.setIsDownloadable(newDownloadableStatus)
 
@@ -1046,8 +1052,8 @@ class DatasetResource {
 
       // Retrieve dataset and check download permission
       val dataset = getDatasetByID(ctx, did)
-      // Non-owners can only download public and downloadable datasets
-      if (!userOwnDataset(ctx, did, uid) && (!dataset.getIsPublic || !dataset.getIsDownloadable)) {
+      // Non-owners can download if dataset is downloadable and they have read access
+      if (!userOwnDataset(ctx, did, uid) && !dataset.getIsDownloadable) {
         throw new ForbiddenException("Dataset download is not allowed")
       }
 
