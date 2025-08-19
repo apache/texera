@@ -296,7 +296,7 @@
       </td>
       <td>
         <ng-container *ngIf="getAccCreation(user) as ac; else noAC">
-          {{ ac | date:'MM, y, h:mm a' }}
+          {{ ac | date:'MM/dd/y, h:mm a' }}
         </ng-container>
         <ng-template #noAC>—</ng-template>
       </td>
