@@ -42,6 +42,7 @@ import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creat
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Subscription } from "rxjs";
+import { formatSpeed, formatTime } from "src/app/common/util/format.util";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -85,6 +86,7 @@ export class DatasetDetailComponent implements OnInit {
   chunkSizeMB: number = 50;
   maxConcurrentChunks: number = 10;
   private uploadSubscriptions = new Map<string, Subscription>();
+  uploadTimeMap = new Map<string, number>();
 
   versionName: string = "";
   isCreatingVersion: boolean = false;
@@ -409,7 +411,9 @@ export class DatasetDetailComponent implements OnInit {
                 };
 
                 // Auto‑hide when upload is truly finished
-                if (progress.status === "finished") {
+                if (progress.status === "finished" && progress.totalTime) {
+                  const filename = file.name.split("/").pop() || file.name;
+                  this.uploadTimeMap.set(filename, progress.totalTime);
                   this.userMakeChanges.emit();
                   this.scheduleHide(taskIndex);
                 }
@@ -443,7 +447,7 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
-  // Hide a task row after 3s (stores timer to clear on destroy) and clean up its subscription
+  // Hide a task row after 5s (stores timer to clear on destroy) and clean up its subscription
   private scheduleHide(idx: number) {
     if (idx === -1) {
       return;
@@ -452,7 +456,7 @@ export class DatasetDetailComponent implements OnInit {
     this.uploadSubscriptions.delete(key);
     const handle = window.setTimeout(() => {
       this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
-    }, 3000);
+    }, 5000);
     this.autoHideTimers.push(handle);
   }
 
@@ -515,6 +519,8 @@ export class DatasetDetailComponent implements OnInit {
     }
     return count.toString();
   }
+  formatTime = formatTime;
+  formatSpeed = formatSpeed;
 
   toggleLike(): void {
     const userId = this.currentUid;
