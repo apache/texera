@@ -94,6 +94,8 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
+      - name: Jooq Code Generator
+        run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
       - name: Compile with sbt
         run: cd core && sbt clean package
       - name: Run backend tests
