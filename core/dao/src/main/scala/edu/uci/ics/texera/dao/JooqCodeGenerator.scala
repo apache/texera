@@ -32,7 +32,6 @@ object JooqCodeGenerator {
       Path.of("dao").resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
     val jooqConfig: Configuration = GenerationTool.load(Files.newInputStream(jooqXmlPath))
 
-
     val ddlScripts: String = Seq("scripts/sql/texera_ddl.sql").mkString(",")
 
     // Load the DDL script
