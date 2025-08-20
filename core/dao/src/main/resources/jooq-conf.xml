@@ -34,18 +34,12 @@
         <name>org.jooq.codegen.JavaGenerator</name>
 
         <database>
-            <!-- The database type. The format here is:
-                 org.jooq.meta.[database].[database]Database -->
-            <name>org.jooq.meta.postgres.PostgresDatabase</name>
-
-            <!-- The database schema (or in the absence of schema support, in your RDBMS this
-                 can be the owner, user, database name) to be generated -->
-            <inputSchema>texera_db</inputSchema>
-
-            <!-- All elements that are generated from your schema
-                 (A Java regular expression. Use the pipe to separate several expressions)
-                 Watch out for case-sensitivity. Depending on your database, this might be important! -->
-            <includes>.*</includes>
+            <schemata>
+                <schema>
+                    <inputSchema>PUBLIC</inputSchema>
+                    <outputSchema>texera_db</outputSchema>
+                </schema>
+            </schemata>
 
             <!-- All elements that are excluded from your schema
                  (A Java regular expression. Use the pipe to separate several expressions).
@@ -66,8 +60,5 @@
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
             <directory>dao/src/main/scala</directory>
         </target>
-        <strategy>
-            <name>edu.uci.ics.texera.dao.ASFGeneratorStrategy</name>
-        </strategy>
     </generator>
 </configuration>

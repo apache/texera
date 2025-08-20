@@ -15,6 +15,7 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
+-- [jooq ignore start]
 -- ============================================
 -- 1. Drop and recreate the database (psql only)
 --    Remove if you already created texera_db
@@ -68,6 +69,7 @@ DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 -- ============================================
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
+-- [jooq ignore stop]
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
@@ -370,6 +372,7 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
+-- [jooq ignore start]
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 
@@ -429,3 +432,4 @@ BEGIN
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)
+-- [jooq ignore stop]
