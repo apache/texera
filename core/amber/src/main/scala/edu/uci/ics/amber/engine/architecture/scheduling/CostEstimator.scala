@@ -24,13 +24,12 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
-import edu.uci.ics.amber.engine.architecture.scheduling.SchedulingUtils.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.ResourceAllocator
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
-import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.net.URI
 import scala.util.{Failure, Success, Try}
@@ -45,9 +44,9 @@ trait CostEstimator {
     *
     * Note currently the ResourceAllocator is not cost-based and thus we use a cost model that does not rely on the
     * allocator, i.e., the cost estimation process is external to the ResourceAllocator.
-    * @return An updated region with allocated resources and an estimated cost of this region.
+    * @return A ResourceConfig for the region and an estimated cost of this region.
     */
-  def allocateResourcesAndEstimateCost(region: Region, resourceUnits: Int): (Region, Double)
+  def allocateResourcesAndEstimateCost(region: Region, resourceUnits: Int): (ResourceConfig, Double)
 }
 
 object DefaultCostEstimator {
@@ -88,9 +87,9 @@ class DefaultCostEstimator(
   override def allocateResourcesAndEstimateCost(
       region: Region,
       resourceUnits: Int
-  ): (Region, Double) = {
+  ): (ResourceConfig, Double) = {
     // Currently the dummy cost from resourceAllocator is discarded.
-    val (newRegion, _) = resourceAllocator.allocate(region)
+    val (resourceConfig, _) = resourceAllocator.allocate(region)
     // We use a cost model that does not rely on the resource allocation.
     // TODO: Once the ResourceAllocator actually calculates a cost, we can use its calculated cost.
     val cost = this.operatorEstimatedTimeOption match {
@@ -99,7 +98,7 @@ class DefaultCostEstimator(
         // operator in each region to represent the region's execution time, and use the sum of all the regions'
         // execution time as the wall-clock runtime of the workflow.
         // This assumes a schedule is a total-order of the regions.
-        val opExecutionTimes = newRegion.getOperators.map(op => {
+        val opExecutionTimes = region.getOperators.map(op => {
           operatorEstimatedTime.getOrElse(op.id.logicalOpId.id, DEFAULT_OPERATOR_COST)
         })
         val longestRunningOpExecutionTime = opExecutionTimes.max
@@ -108,12 +107,9 @@ class DefaultCostEstimator(
         // Without past statistics (e.g., first execution), we use number of ports needing storage as the cost.
         // Each port needing storage has a portConfig.
         // This is independent of the schedule / resource allocator.
-        newRegion.resourceConfig match {
-          case Some(config) => config.portConfigs.size
-          case None         => 0
-        }
+        resourceConfig.portConfigs.size
     }
-    (newRegion, cost)
+    (resourceConfig, cost)
   }
 
   /**

@@ -606,9 +606,11 @@ class CostBasedScheduleGenerator(
       .map(level =>
         level
           .map(region => {
-            val (newRegion, regionCost) = costEstimator.allocateResourcesAndEstimateCost(region, 1)
+            val (resourceConfig, regionCost) =
+              costEstimator.allocateResourcesAndEstimateCost(region, 1)
             // Update the region in the regionDAG to be the new region with resources allocated.
-            replaceVertex(regionDAG, region, newRegion)
+            val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
+            replaceVertex(regionDAG, region, regionWithResourceConfig)
             regionCost
           })
           .sum
