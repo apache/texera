@@ -28,10 +28,10 @@ CREATE DATABASE texera_db;
 -- 2. Connect to the new database (psql only)
 -- ============================================
 \c texera_db
+-- [jooq ignore stop]
 
 CREATE SCHEMA IF NOT EXISTS texera_db;
 SET search_path TO texera_db, public;
-
 -- ============================================
 -- 3. Drop all tables if they exist
 --    (CASCADE handles FK dependencies)
@@ -69,7 +69,6 @@ DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 -- ============================================
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
--- [jooq ignore stop]
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
