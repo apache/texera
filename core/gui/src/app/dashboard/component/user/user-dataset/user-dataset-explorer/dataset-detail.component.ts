@@ -56,7 +56,9 @@ export class DatasetDetailComponent implements OnInit {
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
   public datasetIsPublic: boolean = false;
+  public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
+  public isOwner: boolean = false;
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -229,6 +231,28 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
+  onDownloadableStatusChange(checked: boolean): void {
+    // Handle the change in dataset downloadable status
+    if (this.did) {
+      this.datasetService
+        .updateDatasetDownloadable(this.did)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.datasetIsDownloadable = checked;
+            let state = "allowed";
+            if (!this.datasetIsDownloadable) {
+              state = "not allowed";
+            }
+            this.notificationService.success(`Dataset downloads are now ${state}`);
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to change the dataset download permission");
+          },
+        });
+    }
+  }
+
   retrieveDatasetInfo() {
     if (this.did) {
       this.datasetService
@@ -240,6 +264,8 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
+          this.datasetIsDownloadable = dataset.isDownloadable;
+          this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }
@@ -271,7 +297,12 @@ export class DatasetDetailComponent implements OnInit {
 
   onClickDownloadCurrentFile = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName);
+    // For public datasets accessed by non-owners, use public endpoint
+    const shouldUsePublicEndpoint = this.datasetIsPublic && !this.isOwner;
+    this.downloadService
+      .downloadSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint)
+      .pipe(untilDestroyed(this))
+      .subscribe();
   };
 
   onClickScaleTheView() {
@@ -309,6 +340,17 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
+  }
+
+  isDownloadAllowed(): boolean {
+    // Owners can always download
+    if (this.isOwner) {
+      return true;
+    }
+    // Non-owners can download if dataset is downloadable and they have access
+    // For public datasets, users have access even if userDatasetAccessLevel is 'NONE'
+    // For private datasets, users need explicit access (userDatasetAccessLevel !== 'NONE')
+    return this.datasetIsDownloadable && (this.datasetIsPublic || this.userDatasetAccessLevel !== "NONE");
   }
 
   // Track multiple file by unique key
