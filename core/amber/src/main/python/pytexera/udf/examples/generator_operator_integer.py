@@ -22,6 +22,7 @@ class GeneratorOperatorInteger(UDFSourceOperator):
     """
     A simple generator operator that produces tuples with an integer attribute.
     """
+
     @overrides
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         for i in [1, 2, 3]:

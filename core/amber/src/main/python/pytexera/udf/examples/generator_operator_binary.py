@@ -22,6 +22,7 @@ class GeneratorOperatorBinary(UDFSourceOperator):
     """
     A simple generator operator that produces a single tuple with a binary attribute.
     """
+
     @overrides
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         yield {"test": [1, 2, 3]}
