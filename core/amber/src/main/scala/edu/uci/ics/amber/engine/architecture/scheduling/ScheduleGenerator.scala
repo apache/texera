@@ -22,7 +22,6 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
@@ -69,6 +68,12 @@ abstract class ScheduleGenerator(
     var physicalPlan: PhysicalPlan
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
+  val resourceAllocator =
+    new DefaultResourceAllocator(
+      physicalPlan,
+      executionClusterInfo,
+      workflowContext.workflowSettings
+    )
 
   def generate(): (Schedule, PhysicalPlan)
 
@@ -120,77 +125,5 @@ abstract class ScheduleGenerator(
         lvl -> idSet.iterator.map(regionPlan.getRegion).toSet
     }.toMap
     Schedule(levelSets)
-  }
-
-  def allocateResource(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-
-    val resourceAllocator =
-      new DefaultResourceAllocator(
-        physicalPlan,
-        executionClusterInfo,
-        workflowContext.workflowSettings
-      )
-    // generate the resource configs
-    new TopologicalOrderIterator(regionDAG).asScala
-      .foreach(region => {
-        val (newRegion, _) = resourceAllocator.allocate(region)
-        replaceVertex(regionDAG, region, newRegion)
-      })
-  }
-
-  def getRegions(
-      physicalOpId: PhysicalOpIdentity,
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Set[Region] = {
-    regionDAG
-      .vertexSet()
-      .asScala
-      .filter(region => region.getOperators.map(_.id).contains(physicalOpId))
-      .toSet
-  }
-
-  /**
-    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
-    * so that the dependee link will be completed first.
-    */
-  def populateDependeeLinks(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Unit = {
-
-    val dependeeLinks = physicalPlan
-      .topologicalIterator()
-      .flatMap { physicalOpId =>
-        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-        upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
-          physicalPlan
-            .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link =>
-              physicalPlan
-                .getOperator(physicalOpId)
-                .isInputLinkDependee(link)
-            )
-        }
-      }
-      .toSet
-
-    dependeeLinks
-      .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
-      .groupBy(_._1)
-      .view
-      .mapValues(_.map(_._2))
-      .foreach {
-        case (region, links) =>
-          val newRegion = region.copy(
-            physicalLinks = region.physicalLinks ++ links,
-            physicalOps =
-              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id)),
-            ports = region.getPorts ++ links.map(dependeeLink =>
-              GlobalPortIdentity(dependeeLink.toOpId, dependeeLink.toPortId, input = true)
-            )
-          )
-          replaceVertex(regionDAG, region, newRegion)
-      }
   }
 }
