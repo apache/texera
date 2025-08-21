@@ -224,3 +224,24 @@ nz-select {
     font-style: italic;
   }
 }
+
+.upload-stats {
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+:host ::ng-deep .upload-stats .ant-tag {
+  border: none;
+}
+
+.fixed-width-speed {
+  display: inline-block;
+  min-width: 5ch;
+  text-align: right;
+}
+
+.fixed-width-time {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+}
