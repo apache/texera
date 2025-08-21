@@ -34,6 +34,7 @@ export const DATASET_UPDATE_BASE_URL = DATASET_BASE_URL + "/update";
 export const DATASET_UPDATE_NAME_URL = DATASET_UPDATE_BASE_URL + "/name";
 export const DATASET_UPDATE_DESCRIPTION_URL = DATASET_UPDATE_BASE_URL + "/description";
 export const DATASET_UPDATE_PUBLICITY_URL = "update/publicity";
+export const DATASET_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const DATASET_LIST_URL = DATASET_BASE_URL + "/list";
 export const DATASET_SEARCH_URL = DATASET_BASE_URL + "/search";
 export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
@@ -52,6 +53,9 @@ export interface MultipartUploadProgress {
   status: "initializing" | "uploading" | "finished" | "aborted";
   uploadId: string;
   physicalAddress: string;
+  uploadSpeed?: number; // bytes per second
+  estimatedTimeRemaining?: number; // seconds
+  totalTime?: number; // total seconds taken
 }
 
 @Injectable({
@@ -68,6 +72,7 @@ export class DatasetService {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
+      isDatasetDownloadable: dataset.isDownloadable,
     });
   }
 
@@ -91,29 +96,6 @@ export class DatasetService {
     return this.http
       .get<{ presignedUrl: string }>(endpoint)
       .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
-  }
-
-  /**
-   * Retrieves a single file from a dataset version using a pre-signed URL.
-   * @param filePath Relative file path within the dataset.
-   * @param isLogin Determine whether a user is currently logged in
-   * @returns void File is downloaded natively by the browser.
-   */
-  public retrieveDatasetVersionSingleFileViaBrowser(filePath: string, isLogin: boolean = true): void {
-    const endpointSegment = isLogin ? "presign-download-s3" : "public-presign-download-s3";
-    const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
-
-    this.http.get<{ presignedUrl: string }>(endpoint).subscribe({
-      next: response => {
-        const presignedUrl = response.presignedUrl;
-        const downloadUrl = document.createElement("a");
-
-        downloadUrl.href = presignedUrl;
-        document.body.appendChild(downloadUrl);
-        downloadUrl.click();
-        downloadUrl.remove();
-      },
-    });
   }
 
   /**
@@ -173,6 +155,58 @@ export class DatasetService {
       // Track upload progress for each part independently
       const partProgress = new Map<number, number>();
 
+      // Progress tracking state
+      const startTime = Date.now();
+      const speedSamples: number[] = [];
+      let lastETA = 0;
+      let lastUpdateTime = 0;
+
+      // Calculate stats with smoothing
+      const calculateStats = (totalUploaded: number) => {
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000;
+
+        // Throttle updates to every 1s
+        const shouldUpdate = now - lastUpdateTime >= 1000;
+        if (!shouldUpdate) {
+          return null;
+        }
+        lastUpdateTime = now;
+
+        // Calculate speed with moving average
+        const currentSpeed = elapsed > 0 ? totalUploaded / elapsed : 0;
+        speedSamples.push(currentSpeed);
+        if (speedSamples.length > 5) speedSamples.shift();
+        const avgSpeed = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
+
+        // Calculate smooth ETA
+        const remaining = file.size - totalUploaded;
+        let eta = avgSpeed > 0 ? remaining / avgSpeed : 0;
+        eta = Math.min(eta, 24 * 60 * 60); // cap ETA at 24h, 86400 sec
+
+        // Smooth ETA changes (limit to 30% change)
+        if (lastETA > 0 && eta > 0) {
+          const maxChange = lastETA * 0.3;
+          const diff = Math.abs(eta - lastETA);
+          if (diff > maxChange) {
+            eta = lastETA + (eta > lastETA ? maxChange : -maxChange);
+          }
+        }
+        lastETA = eta;
+
+        // Near completion optimization
+        const percentComplete = (totalUploaded / file.size) * 100;
+        if (percentComplete > 95) {
+          eta = Math.min(eta, 10);
+        }
+
+        return {
+          uploadSpeed: avgSpeed,
+          estimatedTimeRemaining: Math.max(0, Math.round(eta)),
+          totalTime: elapsed,
+        };
+      };
+
       const subscription = this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
@@ -187,6 +221,9 @@ export class DatasetService {
               status: "initializing",
               uploadId: uploadId,
               physicalAddress: physicalAddress,
+              uploadSpeed: 0,
+              estimatedTimeRemaining: 0,
+              totalTime: 0,
             });
 
             // Keep track of all uploaded parts
@@ -214,6 +251,7 @@ export class DatasetService {
                       let totalUploaded = 0;
                       partProgress.forEach(bytes => (totalUploaded += bytes));
                       const percentage = Math.round((totalUploaded / file.size) * 100);
+                      const stats = calculateStats(totalUploaded);
 
                       observer.next({
                         filePath,
@@ -221,6 +259,7 @@ export class DatasetService {
                         status: "uploading",
                         uploadId,
                         physicalAddress,
+                        ...stats,
                       });
                     }
                   });
@@ -241,6 +280,8 @@ export class DatasetService {
                       let totalUploaded = 0;
                       partProgress.forEach(bytes => (totalUploaded += bytes));
                       const percentage = Math.round((totalUploaded / file.size) * 100);
+                      lastUpdateTime = 0;
+                      const stats = calculateStats(totalUploaded);
 
                       observer.next({
                         filePath,
@@ -248,6 +289,7 @@ export class DatasetService {
                         status: "uploading",
                         uploadId,
                         physicalAddress,
+                        ...stats,
                       });
                       partObserver.complete();
                     } else {
@@ -273,23 +315,31 @@ export class DatasetService {
                 this.finalizeMultipartUpload(datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
               ),
               tap(() => {
+                const finalTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: 100,
                   status: "finished",
                   uploadId: uploadId,
                   physicalAddress: physicalAddress,
+                  uploadSpeed: 0,
+                  estimatedTimeRemaining: 0,
+                  totalTime: finalTotalTime,
                 });
                 observer.complete();
               }),
               catchError((error: unknown) => {
                 // If an error occurred, abort the upload
+                const currentTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: Math.round((uploadedParts.length / partCount) * 100),
                   status: "aborted",
                   uploadId: uploadId,
                   physicalAddress: physicalAddress,
+                  uploadSpeed: 0,
+                  estimatedTimeRemaining: 0,
+                  totalTime: currentTotalTime,
                 });
 
                 return this.finalizeMultipartUpload(
@@ -457,6 +507,13 @@ export class DatasetService {
   public updateDatasetPublicity(did: number): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_PUBLICITY_URL}`,
+      {}
+    );
+  }
+
+  public updateDatasetDownloadable(did: number): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_DOWNLOADABLE_URL}`,
       {}
     );
   }

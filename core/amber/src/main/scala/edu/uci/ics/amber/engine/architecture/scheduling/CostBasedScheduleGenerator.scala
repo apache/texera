@@ -76,7 +76,7 @@ class CostBasedScheduleGenerator(
       actorId = actorId
     )
 
-  private val regionCostMemo: mutable.Map[Region, (Region, Double)] = new mutable.HashMap()
+  private val regionCostMemo: mutable.Map[Region, (ResourceConfig, Double)] = new mutable.HashMap()
 
   def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
@@ -609,10 +609,11 @@ class CostBasedScheduleGenerator(
       .map(level =>
         level
           .map(region => {
-            val (newRegion, regionCost) = regionCostMemo
+            val (resourceConfig, regionCost) = regionCostMemo
               .getOrElseUpdate(region, costEstimator.allocateResourcesAndEstimateCost(region, 1))
             // Update the region in the regionDAG to be the new region with resources allocated.
-            replaceVertex(regionDAG, region, newRegion)
+            val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
+            replaceVertex(regionDAG, region, regionWithResourceConfig)
             regionCost
           })
           .sum

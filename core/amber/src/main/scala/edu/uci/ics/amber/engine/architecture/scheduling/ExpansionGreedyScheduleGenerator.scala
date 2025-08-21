@@ -368,8 +368,9 @@ class ExpansionGreedyScheduleGenerator(
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
-        val (newRegion, _) = resourceAllocator.allocate(region)
-        replaceVertex(regionDAG, region, newRegion)
+        val (resourceConfig, _) = resourceAllocator.allocate(region)
+        val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
+        replaceVertex(regionDAG, region, regionWithResourceConfig)
       })
   }
 
