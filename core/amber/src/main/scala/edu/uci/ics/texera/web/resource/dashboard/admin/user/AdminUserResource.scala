@@ -57,6 +57,7 @@ object AdminUserResource {
 @Path("/admin/user")
 @RolesAllowed(Array("ADMIN"))
 class AdminUserResource {
+
   /**
     * This method returns the list of users
     *
