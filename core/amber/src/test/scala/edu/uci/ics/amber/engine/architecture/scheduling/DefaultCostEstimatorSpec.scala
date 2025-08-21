@@ -25,6 +25,10 @@ import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
@@ -128,9 +132,16 @@ class DefaultCostEstimatorSpec
       ),
       new WorkflowContext()
     )
+    val resourceAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
 
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
+      resourceAllocator,
       CONTROLLER
     )
     val ports = workflow.physicalPlan.operators.flatMap(op =>
@@ -148,7 +159,7 @@ class DefaultCostEstimatorSpec
       ports = ports
     )
 
-    val costOfRegion = costEstimator.estimate(region, 1)
+    val (_, costOfRegion) = costEstimator.allocateResourcesAndEstimateCost(region, 1)
 
     assert(costOfRegion == 0)
   }
@@ -215,8 +226,16 @@ class DefaultCostEstimatorSpec
     writer.putOne(keywordOpRuntimeStatistics)
     writer.close()
 
+    val resourceAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
+      resourceAllocator,
       CONTROLLER
     )
 
@@ -235,7 +254,7 @@ class DefaultCostEstimatorSpec
       ports = ports
     )
 
-    val costOfRegion = costEstimator.estimate(region, 1)
+    val (_, costOfRegion) = costEstimator.allocateResourcesAndEstimateCost(region, 1)
 
     assert(costOfRegion != 0)
   }
@@ -337,12 +356,20 @@ class DefaultCostEstimatorSpec
     val keywordRegion =
       searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 1).head
 
+    val resourceAllocator =
+      new DefaultResourceAllocator(
+        workflow.physicalPlan,
+        new ExecutionClusterInfo(),
+        workflow.context.workflowSettings
+      )
+
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
+      resourceAllocator,
       CONTROLLER
     )
 
-    val groupByRegionCost = costEstimator.estimate(groupByRegion, 1)
+    val (_, groupByRegionCost) = costEstimator.allocateResourcesAndEstimateCost(groupByRegion, 1)
 
     val groupByOperatorCost = (groupByOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
       groupByOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
@@ -352,7 +379,7 @@ class DefaultCostEstimatorSpec
     // The GroupBy operator has a longer running time.
     assert(groupByRegionCost == groupByOperatorCost)
 
-    val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
+    val (_, keywordRegionCost) = costEstimator.allocateResourcesAndEstimateCost(keywordRegion, 1)
 
     val keywordOperatorCost = (keywordOpRuntimeStatistics.getField(6).asInstanceOf[Long] +
       keywordOpRuntimeStatistics.getField(7).asInstanceOf[Long]) / 1e9
