@@ -57,26 +57,13 @@ object AdminUserResource {
 @Path("/admin/user")
 @RolesAllowed(Array("ADMIN"))
 class AdminUserResource {
-
-  /**
-    * This method returns the list of users
-    *
-    * @return a list of users
-    */
-  @GET
-  @Path("/list")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUser(): util.List[User] = {
-    userDao.fetchRangeOfUid(Integer.MIN_VALUE, Integer.MAX_VALUE)
-  }
-
   /**
     * This method returns the list of users with lastLogin time
     *
     * @return a list of UserWithLastLogin
     */
   @GET
-  @Path("/listWithActivity")
+  @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listUserWithActivity(): util.List[UserWithLastLogin] = {
     AdminUserResource.context
