@@ -29,6 +29,7 @@ import edu.uci.ics.amber.core.workflow.{
   PhysicalPlan,
   WorkflowContext
 }
+import edu.uci.ics.amber.engine.architecture.scheduling.SchedulingUtils.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   IntermediateInputPortConfig,
   OutputPortConfig,
@@ -68,7 +69,11 @@ class CostBasedScheduleGenerator(
   )
 
   private val costEstimator =
-    new DefaultCostEstimator(workflowContext = workflowContext, actorId = actorId)
+    new DefaultCostEstimator(
+      workflowContext = workflowContext,
+      resourceAllocator = resourceAllocator,
+      actorId = actorId
+    )
 
   def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
@@ -323,7 +328,6 @@ class CostBasedScheduleGenerator(
     )
 
     val regionDAG = searchResult.regionDAG
-    allocateResource(regionDAG)
     regionDAG
   }
 
@@ -397,10 +401,7 @@ class CostBasedScheduleGenerator(
       def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
         if (oEarlyStop) schedulableStates.add(currentState)
         // Calculate the current state's cost and update the bestResult if it's lower
-        val cost =
-          evaluate(
-            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
-          )
+        val cost = allocateResourcesAndEvaluateCost(regionDAG)
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -453,12 +454,7 @@ class CostBasedScheduleGenerator(
                 physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(
-                    RegionPlan(
-                      regionDAG.vertexSet().asScala.toSet,
-                      regionDAG.edgeSet().asScala.toSet
-                    )
-                  )
+                  allocateResourcesAndEvaluateCost(regionDAG)
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -544,10 +540,7 @@ class CostBasedScheduleGenerator(
         */
       def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
         // Calculate the current state's cost and update the bestResult if it's lower
-        val cost =
-          evaluate(
-            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
-          )
+        val cost = allocateResourcesAndEvaluateCost(regionDAG)
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -577,12 +570,7 @@ class CostBasedScheduleGenerator(
                 physicalPlan.getBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(
-                    RegionPlan(
-                      regionDAG.vertexSet().asScala.toSet,
-                      regionDAG.edgeSet().asScala.toSet
-                    )
-                  )
+                  allocateResourcesAndEvaluateCost(regionDAG)
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -601,16 +589,33 @@ class CostBasedScheduleGenerator(
   }
 
   /**
-    * The cost function used by the search. Takes a region plan, generates one or more (to be done in the future)
-    * schedules based on the region plan, and calculates the cost of the schedule(s) using Cost Estimator. Uses the cost
-    * of the best schedule (currently only considers one schedule) as the cost of the region plan.
+    * Takes a region DAG, generates one or more (to be done in the future) schedules based on the region DAG, allocates
+    * resources to each region in the region DAG, and calculates the cost of the schedule(s) using Cost Estimator. Uses
+    * the cost of the best schedule (currently only considers one schedule) as the cost of the region DAG.
     *
     * @return A cost determined by the cost estimator.
     */
-  private def evaluate(regionPlan: RegionPlan): Double = {
+  private def allocateResourcesAndEvaluateCost(
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Double = {
+    val regionPlan =
+      RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
     val schedule = generateScheduleFromRegionPlan(regionPlan)
     // In the future we may allow multiple regions in a level and split the resources.
-    schedule.map(level => level.map(region => costEstimator.estimate(region, 1)).sum).sum
+    schedule
+      .map(level =>
+        level
+          .map(region => {
+            val (resourceConfig, regionCost) =
+              costEstimator.allocateResourcesAndEstimateCost(region, 1)
+            // Update the region in the regionDAG to be the new region with resources allocated.
+            val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
+            replaceVertex(regionDAG, region, regionWithResourceConfig)
+            regionCost
+          })
+          .sum
+      )
+      .sum
   }
 
 }
