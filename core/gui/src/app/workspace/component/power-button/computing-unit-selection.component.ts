@@ -170,7 +170,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(execList => {
         if (execList.length > 0) {
           this.notificationService.info(
-            "There are onging executions on this workflow. Modification of the workflow is currently disabled."
+            "There are ongoing executions on this workflow. Modification of the workflow is currently disabled."
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
