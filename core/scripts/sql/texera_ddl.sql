@@ -15,7 +15,6 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
--- [jooq ignore start]
 -- ============================================
 -- 1. Drop and recreate the database (psql only)
 --    Remove if you already created texera_db
@@ -28,10 +27,10 @@ CREATE DATABASE texera_db;
 -- 2. Connect to the new database (psql only)
 -- ============================================
 \c texera_db
--- [jooq ignore stop]
 
 CREATE SCHEMA IF NOT EXISTS texera_db;
 SET search_path TO texera_db, public;
+
 -- ============================================
 -- 3. Drop all tables if they exist
 --    (CASCADE handles FK dependencies)
@@ -371,7 +370,6 @@ CREATE TABLE IF NOT EXISTS computing_unit_user_access
     FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE CASCADE
 );
 
--- [jooq ignore start]
 -- START Fulltext search index creation (DO NOT EDIT THIS LINE)
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 
@@ -431,4 +429,3 @@ BEGIN
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)
--- [jooq ignore stop]
