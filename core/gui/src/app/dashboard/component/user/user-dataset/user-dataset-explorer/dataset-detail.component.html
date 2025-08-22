@@ -29,13 +29,29 @@
     <div
       class="workflow-panel"
       style="padding-top: 30px">
-      <nz-switch
-        [ngModel]="datasetIsPublic"
-        (ngModelChange)="onPublicStatusChange($event)"
-        [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+      <div
         *ngIf="!(userDatasetAccessLevel === 'NONE')"
-        nzCheckedChildren="public"
-        nzUnCheckedChildren="private"></nz-switch>
+        class="dataset-controls">
+        <div class="control-row">
+          <label>Visibility:</label>
+          <nz-switch
+            [ngModel]="datasetIsPublic"
+            (ngModelChange)="onPublicStatusChange($event)"
+            [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+            nzCheckedChildren="public"
+            nzUnCheckedChildren="private"></nz-switch>
+        </div>
+        <div
+          class="control-row"
+          *ngIf="isOwner">
+          <label>Download:</label>
+          <nz-switch
+            [ngModel]="datasetIsDownloadable"
+            (ngModelChange)="onDownloadableStatusChange($event)"
+            nzCheckedChildren="allowed"
+            nzUnCheckedChildren="blocked"></nz-switch>
+        </div>
+      </div>
       <button
         nz-button
         nzType="text"
@@ -92,7 +108,7 @@
             nz-button
             *ngIf="selectedVersion"
             nz-tooltip="Download the file"
-            [disabled]="!isLogin"
+            [disabled]="!isLogin || !isDownloadAllowed()"
             (click)="onClickDownloadCurrentFile()">
             <i
               nz-icon
@@ -205,7 +221,7 @@
                 nz-tooltip="Download Dataset"
                 (click)="onClickDownloadVersionAsZip()"
                 *ngIf="selectedVersion"
-                [disabled]="!isLogin"
+                [disabled]="!isLogin || !isDownloadAllowed()"
                 class="spaced-button">
                 <i
                   nz-icon
@@ -263,23 +279,56 @@
                     nzTheme="outline"></i>
                 </button>
               </div>
-              <nz-progress
-                [nzPercent]="task.percentage"
-                [nzStatus]="getUploadStatus(task.status)"></nz-progress>
+              <div
+                class="upload-stats"
+                *ngIf="task.status !== 'initializing'">
+                <nz-progress
+                  [nzPercent]="task.percentage"
+                  [nzStatus]="getUploadStatus(task.status)"></nz-progress>
+                <nz-tag
+                  *ngIf="task.status === 'uploading'"
+                  [nzColor]="'blue'">
+                  <span class="fixed-width-speed">{{ formatSpeed(task.uploadSpeed) }}</span> -
+                  <span class="fixed-width-time">{{ formatTime(task.totalTime ?? 0) }}</span> elapsed,
+                  <span class="fixed-width-time">{{ formatTime(task.estimatedTimeRemaining ?? 0) }} left</span>
+                </nz-tag>
+
+                <nz-tag *ngIf="(task.status === 'finished' || task.status === 'aborted')">
+                  Upload time: {{ formatTime(task.totalTime ?? 0) }}
+                </nz-tag>
+              </div>
             </div>
           </div>
+
           <texera-dataset-staged-objects-list
+            [uploadTimeMap]="uploadTimeMap"
             [did]="did"
             [userMakeChangesEvent]="userMakeChanges"
             (stagedObjectsChanged)="onStagedObjectsUpdated($event)"></texera-dataset-staged-objects-list>
-          <button
-            nz-button
-            nzType="primary"
+          <div
             *ngIf="userHasWriteAccess() && userHasPendingChanges"
-            class="create-dataset-version-button"
-            (click)="onClickOpenVersionCreator()">
-            Submit
-          </button>
+            class="version-creator">
+            <div class="version-input-container">
+              <label>Version:</label>
+              <input
+                nz-input
+                [(ngModel)]="versionName"
+                placeholder="Describe the new version (Optional)"
+                [disabled]="isCreatingVersion"
+                (keydown.enter)="onClickOpenVersionCreator()"
+                class="version-input" />
+            </div>
+            <div>
+              <button
+                nz-button
+                nzType="primary"
+                [nzLoading]="isCreatingVersion"
+                (click)="onClickOpenVersionCreator()"
+                class="create-dataset-version-button">
+                Submit
+              </button>
+            </div>
+          </div>
         </nz-collapse-panel>
       </nz-collapse>
     </div>

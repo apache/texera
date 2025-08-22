@@ -34,6 +34,7 @@ export const DATASET_UPDATE_BASE_URL = DATASET_BASE_URL + "/update";
 export const DATASET_UPDATE_NAME_URL = DATASET_UPDATE_BASE_URL + "/name";
 export const DATASET_UPDATE_DESCRIPTION_URL = DATASET_UPDATE_BASE_URL + "/description";
 export const DATASET_UPDATE_PUBLICITY_URL = "update/publicity";
+export const DATASET_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const DATASET_LIST_URL = DATASET_BASE_URL + "/list";
 export const DATASET_SEARCH_URL = DATASET_BASE_URL + "/search";
 export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
@@ -52,6 +53,9 @@ export interface MultipartUploadProgress {
   status: "initializing" | "uploading" | "finished" | "aborted";
   uploadId: string;
   physicalAddress: string;
+  uploadSpeed?: number; // bytes per second
+  estimatedTimeRemaining?: number; // seconds
+  totalTime?: number; // total seconds taken
 }
 
 @Injectable({
@@ -68,6 +72,7 @@ export class DatasetService {
       datasetName: dataset.name,
       datasetDescription: dataset.description,
       isDatasetPublic: dataset.isPublic,
+      isDatasetDownloadable: dataset.isDownloadable,
     });
   }
 
@@ -91,29 +96,6 @@ export class DatasetService {
     return this.http
       .get<{ presignedUrl: string }>(endpoint)
       .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
-  }
-
-  /**
-   * Retrieves a single file from a dataset version using a pre-signed URL.
-   * @param filePath Relative file path within the dataset.
-   * @param isLogin Determine whether a user is currently logged in
-   * @returns void File is downloaded natively by the browser.
-   */
-  public retrieveDatasetVersionSingleFileViaBrowser(filePath: string, isLogin: boolean = true): void {
-    const endpointSegment = isLogin ? "presign-download-s3" : "public-presign-download-s3";
-    const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
-
-    this.http.get<{ presignedUrl: string }>(endpoint).subscribe({
-      next: response => {
-        const presignedUrl = response.presignedUrl;
-        const downloadUrl = document.createElement("a");
-
-        downloadUrl.href = presignedUrl;
-        document.body.appendChild(downloadUrl);
-        downloadUrl.click();
-        downloadUrl.remove();
-      },
-    });
   }
 
   /**
@@ -169,12 +151,63 @@ export class DatasetService {
   ): Observable<MultipartUploadProgress> {
     const partCount = Math.ceil(file.size / partSize);
 
-    // track progress bar
-    let totalBytesUploaded = 0;
-    let lastReportedProgress = 0;
-
     return new Observable(observer => {
-      this.initiateMultipartUpload(datasetName, filePath, partCount)
+      // Track upload progress for each part independently
+      const partProgress = new Map<number, number>();
+
+      // Progress tracking state
+      const startTime = Date.now();
+      const speedSamples: number[] = [];
+      let lastETA = 0;
+      let lastUpdateTime = 0;
+
+      // Calculate stats with smoothing
+      const calculateStats = (totalUploaded: number) => {
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000;
+
+        // Throttle updates to every 1s
+        const shouldUpdate = now - lastUpdateTime >= 1000;
+        if (!shouldUpdate) {
+          return null;
+        }
+        lastUpdateTime = now;
+
+        // Calculate speed with moving average
+        const currentSpeed = elapsed > 0 ? totalUploaded / elapsed : 0;
+        speedSamples.push(currentSpeed);
+        if (speedSamples.length > 5) speedSamples.shift();
+        const avgSpeed = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
+
+        // Calculate smooth ETA
+        const remaining = file.size - totalUploaded;
+        let eta = avgSpeed > 0 ? remaining / avgSpeed : 0;
+        eta = Math.min(eta, 24 * 60 * 60); // cap ETA at 24h, 86400 sec
+
+        // Smooth ETA changes (limit to 30% change)
+        if (lastETA > 0 && eta > 0) {
+          const maxChange = lastETA * 0.3;
+          const diff = Math.abs(eta - lastETA);
+          if (diff > maxChange) {
+            eta = lastETA + (eta > lastETA ? maxChange : -maxChange);
+          }
+        }
+        lastETA = eta;
+
+        // Near completion optimization
+        const percentComplete = (totalUploaded / file.size) * 100;
+        if (percentComplete > 95) {
+          eta = Math.min(eta, 10);
+        }
+
+        return {
+          uploadSpeed: avgSpeed,
+          estimatedTimeRemaining: Math.max(0, Math.round(eta)),
+          totalTime: elapsed,
+        };
+      };
+
+      const subscription = this.initiateMultipartUpload(datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
             const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
@@ -188,6 +221,9 @@ export class DatasetService {
               status: "initializing",
               uploadId: uploadId,
               physicalAddress: physicalAddress,
+              uploadSpeed: 0,
+              estimatedTimeRemaining: 0,
+              totalTime: 0,
             });
 
             // Keep track of all uploaded parts
@@ -197,6 +233,7 @@ export class DatasetService {
             return from(presignedUrls).pipe(
               // 2) Use mergeMap with concurrency limit to upload chunk by chunk
               mergeMap((url, index) => {
+                const partNumber = index + 1;
                 const start = index * partSize;
                 const end = Math.min(start + partSize, file.size);
                 const chunk = file.slice(start, end);
@@ -207,20 +244,23 @@ export class DatasetService {
 
                   xhr.upload.addEventListener("progress", event => {
                     if (event.lengthComputable) {
-                      const currentTotalUploaded = totalBytesUploaded + event.loaded;
-                      const currentProgress = (currentTotalUploaded / file.size) * 100;
+                      // Update this specific part's progress
+                      partProgress.set(partNumber, event.loaded);
 
-                      // Prevent backward progress
-                      if (currentProgress > lastReportedProgress) {
-                        lastReportedProgress = currentProgress;
-                        observer.next({
-                          filePath,
-                          percentage: Math.round(currentProgress),
-                          status: "uploading",
-                          uploadId,
-                          physicalAddress,
-                        });
-                      }
+                      // Calculate total progress across all parts
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+                      const stats = calculateStats(totalUploaded);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99), // Cap at 99% until finalized
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                        ...stats,
+                      });
                     }
                   });
 
@@ -228,33 +268,39 @@ export class DatasetService {
                     if (xhr.status === 200 || xhr.status === 201) {
                       const etag = xhr.getResponseHeader("ETag")?.replace(/"/g, "");
                       if (!etag) {
-                        partObserver.error(new Error(`Missing ETag for part ${index + 1}`));
+                        partObserver.error(new Error(`Missing ETag for part ${partNumber}`));
                         return;
                       }
-                      totalBytesUploaded += chunk.size;
-                      uploadedParts.push({ PartNumber: index + 1, ETag: etag });
 
-                      const finalProgress = (totalBytesUploaded / file.size) * 100;
+                      // Mark this part as fully uploaded
+                      partProgress.set(partNumber, chunk.size);
+                      uploadedParts.push({ PartNumber: partNumber, ETag: etag });
 
-                      // Prevent backward progress
-                      if (finalProgress > lastReportedProgress) {
-                        lastReportedProgress = finalProgress;
-                        observer.next({
-                          filePath,
-                          percentage: Math.round(finalProgress),
-                          status: "uploading",
-                          uploadId,
-                          physicalAddress,
-                        });
-                      }
+                      // Recalculate progress
+                      let totalUploaded = 0;
+                      partProgress.forEach(bytes => (totalUploaded += bytes));
+                      const percentage = Math.round((totalUploaded / file.size) * 100);
+                      lastUpdateTime = 0;
+                      const stats = calculateStats(totalUploaded);
+
+                      observer.next({
+                        filePath,
+                        percentage: Math.min(percentage, 99),
+                        status: "uploading",
+                        uploadId,
+                        physicalAddress,
+                        ...stats,
+                      });
                       partObserver.complete();
                     } else {
-                      partObserver.error(new Error(`Failed to upload part ${index + 1}`));
+                      partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                     }
                   });
 
                   xhr.addEventListener("error", () => {
-                    partObserver.error(new Error(`Failed to upload part ${index + 1}`));
+                    // Remove failed part from progress
+                    partProgress.delete(partNumber);
+                    partObserver.error(new Error(`Failed to upload part ${partNumber}`));
                   });
 
                   xhr.open("PUT", url);
@@ -269,23 +315,31 @@ export class DatasetService {
                 this.finalizeMultipartUpload(datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
               ),
               tap(() => {
+                const finalTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: 100,
                   status: "finished",
                   uploadId: uploadId,
                   physicalAddress: physicalAddress,
+                  uploadSpeed: 0,
+                  estimatedTimeRemaining: 0,
+                  totalTime: finalTotalTime,
                 });
                 observer.complete();
               }),
               catchError((error: unknown) => {
                 // If an error occurred, abort the upload
+                const currentTotalTime = (Date.now() - startTime) / 1000;
                 observer.next({
                   filePath,
                   percentage: Math.round((uploadedParts.length / partCount) * 100),
                   status: "aborted",
                   uploadId: uploadId,
                   physicalAddress: physicalAddress,
+                  uploadSpeed: 0,
+                  estimatedTimeRemaining: 0,
+                  totalTime: currentTotalTime,
                 });
 
                 return this.finalizeMultipartUpload(
@@ -303,6 +357,7 @@ export class DatasetService {
         .subscribe({
           error: (err: unknown) => observer.error(err),
         });
+      return () => subscription.unsubscribe();
     });
   }
 
@@ -452,6 +507,13 @@ export class DatasetService {
   public updateDatasetPublicity(did: number): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_PUBLICITY_URL}`,
+      {}
+    );
+  }
+
+  public updateDatasetDownloadable(did: number): Observable<Response> {
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_DOWNLOADABLE_URL}`,
       {}
     );
   }
