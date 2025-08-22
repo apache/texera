@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets
 object JwtAuth {
 
   final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey
-  final val TOKEN_EXPIRE_TIME_IN_MINUTES: Int = 15
+  final val TOKEN_EXPIRE_TIME_IN_MINUTES: Int = AuthConfig.jwtExpirationMinutes
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
     .setAllowedClockSkewInSeconds(30)
