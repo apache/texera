@@ -34,44 +34,22 @@
         <name>org.jooq.codegen.JavaGenerator</name>
 
         <database>
-            <name>org.jooq.meta.extensions.ddl.DDLDatabase</name>
+            <!-- The database type. The format here is:
+                 org.jooq.meta.[database].[database]Database -->
+            <name>org.jooq.meta.postgres.PostgresDatabase</name>
+
+            <!-- The database schema (or in the absence of schema support, in your RDBMS this
+                 can be the owner, user, database name) to be generated -->
             <inputSchema>texera_db</inputSchema>
 
-            <properties>
-                <property>
-                    <key>scripts</key>
-                    <value>scripts/sql/texera_ddl.sql</value>
-                </property>
-                <property>
-                    <key>defaultNameCase</key>
-                    <value>lower</value>
-                </property>
-                <property>
-                    <key>unqualifiedSchema</key>
-                    <value>public</value>
-                </property>
-                <property>
-                    <key>sort</key>
-                    <value>semantic</value>
-                </property>
-                <property>
-                    <key>parseIgnoreComments</key>
-                    <value>true</value>
-                </property>
-                <property>
-                    <key>parseIgnoreCommentStart</key>
-                    <value>[jooq ignore start]</value>
-                </property>
-                <property>
-                    <key>parseIgnoreCommentStop</key>
-                    <value>[jooq ignore stop]</value>
-                </property>
-            </properties>
+            <!-- All elements that are generated from your schema
+                 (A Java regular expression. Use the pipe to separate several expressions)
+                 Watch out for case-sensitivity. Depending on your database, this might be important! -->
+            <includes>.*</includes>
 
             <!-- All elements that are excluded from your schema
-                (A Java regular expression. Use the pipe to separate several expressions).
-                Excludes match before includes, i.e. excludes have a higher priority -->
-            <includes>.*</includes>
+                 (A Java regular expression. Use the pipe to separate several expressions).
+                 Excludes match before includes, i.e. excludes have a higher priority -->
             <excludes>(pgroonga.*)|(test_.*)|(ignore_.*)</excludes>
             <forcedTypes>
                 <forcedType>
@@ -88,5 +66,8 @@
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
             <directory>dao/src/main/scala</directory>
         </target>
+        <strategy>
+            <name>edu.uci.ics.texera.dao.ASFGeneratorStrategy</name>
+        </strategy>
     </generator>
 </configuration>
