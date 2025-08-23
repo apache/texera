@@ -104,6 +104,8 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
+      - name: Create Database
+        run: sudo -u postgres psql -f core/scripts/sql/texera_ddl.sql
       - name: Jooq Code Generator
         run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
       - name: Compile with sbt
