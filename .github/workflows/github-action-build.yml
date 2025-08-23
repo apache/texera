@@ -82,13 +82,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:latest
+        image: postgres
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: texera_db
-        ports:
-          - 5432:5432
+          POSTGRES_PASSWORD: postgres
         # Add a health check so steps wait until Postgres is ready
         options: >-
           --health-cmd="pg_isready -U test -d texera_db"
@@ -99,7 +95,7 @@ jobs:
       - name: Prepare ENV
         run: sudo apt-get install libncurses5
       - name: Checkout Texera
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Setup Java
         uses: actions/setup-java@v2
         with:
