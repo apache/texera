@@ -88,8 +88,6 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     steps:
-      - name: Prepare ENV
-        run: sudo apt-get install libncurses5
       - name: Checkout Texera
         uses: actions/checkout@v4
       - name: Setup Java
