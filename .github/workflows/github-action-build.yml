@@ -81,6 +81,8 @@ jobs:
         image: postgres
         env:
           POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
         # Add a health check so steps wait until Postgres is ready
         options: >-
           --health-cmd="pg_isready -U test -d texera_db"
