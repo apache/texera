@@ -88,13 +88,15 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     steps:
-      - name: Checkout Texera
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v2
+      - name: Setup JDK
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 11
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
