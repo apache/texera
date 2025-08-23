@@ -71,11 +71,7 @@ jobs:
         run: yarn --cwd core/gui run build:ci
 
   core:
-    strategy:
-      matrix:
-        os: [ ubuntu-22.04 ]
-        java-version: [ 11 ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -100,27 +96,24 @@ jobs:
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
+          java-version: 11
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
-      - name: Compile with sbt
-        run: cd core && sbt clean package
       - name: Jooq Code Generator
         run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
+      - name: Compile with sbt
+        run: cd core && sbt clean package
       - name: Run backend tests
         run: cd core && sbt test
 
   python_udf:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
         python-version: [ '3.9', '3.10', '3.11', '3.12' ]
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
