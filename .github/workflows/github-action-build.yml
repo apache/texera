@@ -78,7 +78,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:16
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -104,6 +104,10 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
+      - name: Create Database
+        run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
       - name: Jooq Code Generator
         run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
       - name: Compile with sbt
