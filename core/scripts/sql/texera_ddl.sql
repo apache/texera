@@ -429,4 +429,3 @@ BEGIN
 END $$;
 
 -- END Fulltext search index creation (DO NOT EDIT THIS LINE)
-
