@@ -37,6 +37,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private Integer   eid;
     private Integer   vid;
     private Integer   uid;
+    private Integer   cuid;
     private Short     status;
     private String    result;
     private Timestamp startingTime;
@@ -47,7 +48,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String    logLocation;
     private String    runtimeStatsUri;
     private Integer   runtimeStatsSize;
-    private Integer   cuid;
 
     public WorkflowExecutions() {}
 
@@ -55,6 +55,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.eid = value.getEid();
         this.vid = value.getVid();
         this.uid = value.getUid();
+        this.cuid = value.getCuid();
         this.status = value.getStatus();
         this.result = value.getResult();
         this.startingTime = value.getStartingTime();
@@ -65,13 +66,13 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.logLocation = value.getLogLocation();
         this.runtimeStatsUri = value.getRuntimeStatsUri();
         this.runtimeStatsSize = value.getRuntimeStatsSize();
-        this.cuid = value.getCuid();
     }
 
     public WorkflowExecutions(
         Integer   eid,
         Integer   vid,
         Integer   uid,
+        Integer   cuid,
         Short     status,
         String    result,
         Timestamp startingTime,
@@ -81,12 +82,12 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         String    environmentVersion,
         String    logLocation,
         String    runtimeStatsUri,
-        Integer   runtimeStatsSize,
-        Integer   cuid
+        Integer   runtimeStatsSize
     ) {
         this.eid = eid;
         this.vid = vid;
         this.uid = uid;
+        this.cuid = cuid;
         this.status = status;
         this.result = result;
         this.startingTime = startingTime;
@@ -97,7 +98,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.logLocation = logLocation;
         this.runtimeStatsUri = runtimeStatsUri;
         this.runtimeStatsSize = runtimeStatsSize;
-        this.cuid = cuid;
     }
 
     /**
@@ -146,6 +146,22 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     @Override
     public void setUid(Integer uid) {
         this.uid = uid;
+    }
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public Integer getCuid() {
+        return this.cuid;
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.cuid</code>.
+     */
+    @Override
+    public void setCuid(Integer cuid) {
+        this.cuid = cuid;
     }
 
     /**
@@ -310,22 +326,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.runtimeStatsSize = runtimeStatsSize;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public Integer getCuid() {
-        return this.cuid;
-    }
-
-    /**
-     * Setter for <code>texera_db.workflow_executions.cuid</code>.
-     */
-    @Override
-    public void setCuid(Integer cuid) {
-        this.cuid = cuid;
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
@@ -333,6 +333,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(eid);
         sb.append(", ").append(vid);
         sb.append(", ").append(uid);
+        sb.append(", ").append(cuid);
         sb.append(", ").append(status);
         sb.append(", ").append(result);
         sb.append(", ").append(startingTime);
@@ -343,7 +344,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(logLocation);
         sb.append(", ").append(runtimeStatsUri);
         sb.append(", ").append(runtimeStatsSize);
-        sb.append(", ").append(cuid);
 
         sb.append(")");
         return sb.toString();
@@ -358,6 +358,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setEid(from.getEid());
         setVid(from.getVid());
         setUid(from.getUid());
+        setCuid(from.getCuid());
         setStatus(from.getStatus());
         setResult(from.getResult());
         setStartingTime(from.getStartingTime());
@@ -368,7 +369,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setLogLocation(from.getLogLocation());
         setRuntimeStatsUri(from.getRuntimeStatsUri());
         setRuntimeStatsSize(from.getRuntimeStatsSize());
-        setCuid(from.getCuid());
     }
 
     @Override
