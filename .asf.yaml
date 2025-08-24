@@ -59,7 +59,7 @@ github:
     squash_commit_message: PR_TITLE_AND_DESC
     merge:   false
     rebase:  false
-
+    
   protected_branches:
     main:
       required_status_checks:
