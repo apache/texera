@@ -36,7 +36,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
-case class UserWithLastLogin(
+case class UserInfo(
     uid: Int,
     name: String,
     email: String,
@@ -61,24 +61,12 @@ class AdminUserResource {
   /**
     * This method returns the list of users
     *
-    * @return a list of users
+    * @return a list of UserInfo
     */
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUser(): util.List[User] = {
-    userDao.fetchRangeOfUid(Integer.MIN_VALUE, Integer.MAX_VALUE)
-  }
-
-  /**
-    * This method returns the list of users with lastLogin time
-    *
-    * @return a list of UserWithLastLogin
-    */
-  @GET
-  @Path("/listWithActivity")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUserWithActivity(): util.List[UserWithLastLogin] = {
+  def listUserWithActivity(): util.List[UserInfo] = {
     AdminUserResource.context
       .select(
         USER.UID,
@@ -93,7 +81,7 @@ class AdminUserResource {
       .from(USER)
       .leftJoin(TIME_LOG)
       .on(USER.UID.eq(TIME_LOG.UID))
-      .fetchInto(classOf[UserWithLastLogin])
+      .fetchInto(classOf[UserInfo])
   }
 
   @PUT
