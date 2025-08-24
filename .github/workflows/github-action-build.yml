@@ -71,14 +71,14 @@ jobs:
         run: yarn --cwd core/gui run build:ci
 
   core:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres
         env:
           POSTGRES_PASSWORD: postgres
         ports:
