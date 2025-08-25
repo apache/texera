@@ -78,6 +78,7 @@ object JwtAuth {
   ): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
+    claims.setClaim("role", user.getUser.getRole)
     claims.setClaim("exportType", exportType)
     claims.setClaim("workflowId", workflowId)
     claims.setClaim("workflowName", workflowName)
