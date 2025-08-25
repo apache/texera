@@ -41,6 +41,7 @@ import edu.uci.ics.texera.web.model.http.request.result.OperatorExportInfo
 import scala.jdk.CollectionConverters._
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.web.auth.{DownloadTokenAuthenticator, DownloadTokenClaims}
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -726,6 +727,14 @@ class WorkflowExecutionsResource {
 
     try {
       val claims = DownloadTokenAuthenticator.parseToken(token)
+
+      val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
+      val userRoleEnum = UserRoleEnum.lookupLiteral(claims.role)
+
+      if (userRoleEnum == null || !RolesAllowed.contains(userRoleEnum)) {
+        throw new RuntimeException("User role is not allowed to perform this download")
+      }
+
       val operators = WorkflowExportResource.parseOperators(operatorsJson)
       val request = WorkflowExportResource.toExportRequest(claims, operators)
 

@@ -8,5 +8,6 @@ case class DownloadTokenClaims(
     columnIndex: Int,
     filename: String,
     computingUnitId: Int,
-    destination: String
+    destination: String,
+    role: String
 )
