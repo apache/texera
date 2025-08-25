@@ -15,11 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from pytexera import *
+import pytest
+
+from pytexera import Tuple
+from .generator_operator_binary import GeneratorOperatorBinary
 
 
-class GeneratorOperator(UDFSourceOperator):
-    @overrides
-    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-        for i in [1, 2, 3]:
-            yield {"test": i}
+class TestEchoOperator:
+    @pytest.fixture
+    def generator_operator_binary(self):
+        return GeneratorOperatorBinary()
+
+    def test_generator_operator_binary(self, generator_operator_binary):
+        generator_operator_binary.open()
+        outputs = generator_operator_binary.produce()
+        output_tuple = Tuple(next(outputs))
+        assert output_tuple == Tuple({"test": [1, 2, 3]})
+        generator_operator_binary.close()

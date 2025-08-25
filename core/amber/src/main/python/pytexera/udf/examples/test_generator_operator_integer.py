@@ -18,18 +18,18 @@
 import pytest
 
 from pytexera import Tuple
-from .generator_operator import GeneratorOperator
+from .generator_operator_integer import GeneratorOperatorInteger
 
 
 class TestEchoOperator:
     @pytest.fixture
-    def generator_operator(self):
-        return GeneratorOperator()
+    def generator_operator_integer(self):
+        return GeneratorOperatorInteger()
 
-    def test_generator_operator(self, generator_operator):
-        generator_operator.open()
-        outputs = generator_operator.produce()
+    def test_generator_operator_integer(self, generator_operator_integer):
+        generator_operator_integer.open()
+        outputs = generator_operator_integer.produce()
         for i in [1, 2, 3]:
             output_tuple = Tuple(next(outputs))
             assert output_tuple == Tuple({"test": i})
-        generator_operator.close()
+        generator_operator_integer.close()
