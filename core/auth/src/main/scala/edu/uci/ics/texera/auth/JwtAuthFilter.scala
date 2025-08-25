@@ -25,7 +25,7 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter, ResourceInfo}
 import jakarta.ws.rs.core.{Context, HttpHeaders, SecurityContext}
 import jakarta.ws.rs.ext.Provider
-import edu.uci.ics.texera.dao.jooq.generated.Tables.TIME_LOG
+import edu.uci.ics.texera.dao.jooq.generated.Tables.USER_TIME_LOG
 import java.time.OffsetDateTime
 import java.security.Principal
 
@@ -47,12 +47,12 @@ class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {
         val user = userOpt.get()
 
         ctx
-          .insertInto(TIME_LOG)
-          .set(TIME_LOG.UID, user.getUid)
-          .set(TIME_LOG.LAST_LOGIN, OffsetDateTime.now())
-          .onConflict(TIME_LOG.UID) // conflict on primary key uid
+          .insertInto(USER_TIME_LOG)
+          .set(USER_TIME_LOG.UID, user.getUid)
+          .set(USER_TIME_LOG.LAST_ACTIVE_TIME, OffsetDateTime.now())
+          .onConflict(USER_TIME_LOG.UID) // conflict on primary key uid
           .doUpdate()
-          .set(TIME_LOG.LAST_LOGIN, OffsetDateTime.now())
+          .set(USER_TIME_LOG.LAST_ACTIVE_TIME, OffsetDateTime.now())
           .execute()
 
         requestContext.setSecurityContext(new SecurityContext {
