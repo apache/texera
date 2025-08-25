@@ -32,6 +32,7 @@ object DownloadTokenAuthenticator {
       val filename = jwtClaims.getClaimValue("filename", classOf[String])
       val computingUnitId = jwtClaims.getClaimValue("computingUnitId").asInstanceOf[Long].toInt
       val destination = jwtClaims.getClaimValue("destination", classOf[String])
+      val role = jwtClaims.getClaimValue("role", classOf[String])
 
       DownloadTokenClaims(
         exportType,
@@ -41,7 +42,8 @@ object DownloadTokenAuthenticator {
         columnIndex,
         filename,
         computingUnitId,
-        destination
+        destination,
+        role
       )
 
     } catch {
