@@ -59,17 +59,17 @@ public class Dataset implements IDataset {
         Integer   ownerUid,
         String    name,
         Boolean   isPublic,
+        Boolean   isDownloadable,
         String    description,
-        Timestamp creationTime,
-        Boolean   isDownloadable
+        Timestamp creationTime
     ) {
         this.did = did;
         this.ownerUid = ownerUid;
         this.name = name;
         this.isPublic = isPublic;
+        this.isDownloadable = isDownloadable;
         this.description = description;
         this.creationTime = creationTime;
-        this.isDownloadable = isDownloadable;
     }
 
     /**
