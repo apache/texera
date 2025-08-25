@@ -29,7 +29,7 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.us
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog.TIME_LOG
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserTimeLog.USER_TIME_LOG
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -76,11 +76,11 @@ class AdminUserResource {
         USER.ROLE,
         USER.GOOGLE_AVATAR,
         USER.COMMENT,
-        TIME_LOG.LAST_LOGIN
+        USER_TIME_LOG.LAST_ACTIVE_TIME
       )
       .from(USER)
-      .leftJoin(TIME_LOG)
-      .on(USER.UID.eq(TIME_LOG.UID))
+      .leftJoin(USER_TIME_LOG)
+      .on(USER.UID.eq(USER_TIME_LOG.UID))
       .fetchInto(classOf[UserInfo])
   }
 
