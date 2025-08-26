@@ -385,12 +385,12 @@ CREATE TABLE IF NOT EXISTS site_settings
     );
 
 -- time_log table
-CREATE TABLE IF NOT EXISTS time_log
+CREATE TABLE IF NOT EXISTS user_ime_log
 (
     uid            INT          NOT NULL
         PRIMARY KEY
         REFERENCES "user"(uid),
-    last_login     TIMESTAMPTZ
+    last_active_time     TIMESTAMPTZ
 );
 
 -- computing_unit_user_access table
