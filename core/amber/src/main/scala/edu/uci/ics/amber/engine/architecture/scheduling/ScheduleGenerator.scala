@@ -20,16 +20,15 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.config.ApplicationConfig
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
 import org.jgrapht.graph.DirectedAcyclicGraph
-import org.jgrapht.traverse.TopologicalOrderIterator
+
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object ScheduleGenerator {
   def replaceVertex(
