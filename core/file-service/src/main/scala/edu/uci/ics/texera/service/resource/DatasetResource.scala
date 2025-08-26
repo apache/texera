@@ -289,9 +289,9 @@ class DatasetResource {
           createdDataset.getOwnerUid,
           createdDataset.getName,
           createdDataset.getIsPublic,
+          createdDataset.getIsDownloadable,
           createdDataset.getDescription,
-          createdDataset.getCreationTime,
-          createdDataset.getIsDownloadable
+          createdDataset.getCreationTime
         ),
         user.getEmail,
         PrivilegeEnum.WRITE,
