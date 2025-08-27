@@ -170,8 +170,8 @@ export class AuthService {
 
   private registerAutoRefreshToken() {
     this.refreshTokenSubscription?.unsubscribe();
-    const TOKEN_REFRESH_INTERVAL_IN_MIN = this.config.env.expirationTimeInMinutes + 1;
-    // Token Refresh Interval set to Token Expiration Time + 1
+    const TOKEN_REFRESH_INTERVAL_IN_MIN = this.config.env.expirationTimeInMinutes - 1;
+    // Token Refresh Interval set to Token Expiration Time - 1
     this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
       .pipe(startWith(0)) // to trigger immediately for the first time.
       .subscribe(() => {
