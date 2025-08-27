@@ -43,6 +43,7 @@ import { AdminSettingsService } from "../../../../service/admin/settings/admin-s
 import { HttpErrorResponse } from "@angular/common/http";
 import { Subscription } from "rxjs";
 import { formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { format } from "date-fns";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -56,6 +57,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
+  public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
@@ -269,7 +271,16 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetIsDownloadable = dataset.isDownloadable;
           this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
-            this.datasetCreationTime = new Date(dataset.creationTime).toString();
+            const date = new Date(dataset.creationTime);
+            this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
+            const timeZoneName =
+              new Intl.DateTimeFormat("en-US", {
+                timeZoneName: "long",
+              })
+                .format(date)
+                .split(", ")
+                .pop() || "";
+            this.datasetCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
           }
         });
     }
