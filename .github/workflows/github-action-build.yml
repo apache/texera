@@ -71,21 +71,25 @@ jobs:
         run: yarn --cwd core/gui run build:ci
 
   core:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04 ]
+        java-version: [ 11 ]
+    runs-on: ${{ matrix.os }}
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres
         env:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         # Add a health check so steps wait until Postgres is ready
         options: >-
-          --health-cmd="pg_isready -U test -d texera_db"
+          --health-cmd="pg_isready -U postgres"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -118,8 +122,9 @@ jobs:
   python_udf:
     strategy:
       matrix:
+        os: [ ubuntu-latest ]
         python-version: [ '3.9', '3.10', '3.11', '3.12' ]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
