@@ -20,7 +20,7 @@
 SET search_path TO texera_db;
 
 BEGIN;
-ALTER TABLE time_log RENAME TO user_time_log;
+ALTER TABLE time_log RENAME TO user_last_active_time;
 
-ALTER TABLE user_time_log RENAME COLUMN last_login TO last_active_time;
+ALTER TABLE user_last_active_time RENAME COLUMN last_login TO last_active_time;
 COMMIT;
