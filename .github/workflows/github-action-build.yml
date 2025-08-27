@@ -79,34 +79,52 @@ jobs:
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Add a health check so steps wait until Postgres is ready
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
-      - name: Prepare ENV
-        run: sudo apt-get install libncurses5
-      - name: Checkout Texera
-        uses: actions/checkout@v2
-      - name: Setup Java
-        uses: actions/setup-java@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
+          java-version: 11
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
+      - name: Create Database
+        run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Jooq Code Generator
+        run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
       - name: Compile with sbt
         run: cd core && sbt clean package
       - name: Run backend tests
         run: cd core && sbt test
 
   python_udf:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
+        os: [ ubuntu-latest ]
         python-version: [ '3.9', '3.10', '3.11', '3.12' ]
-
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
