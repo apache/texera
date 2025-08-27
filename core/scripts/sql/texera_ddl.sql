@@ -350,8 +350,8 @@ CREATE TABLE IF NOT EXISTS site_settings
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
--- user_time_log table
-CREATE TABLE IF NOT EXISTS user_time_log
+-- user_last_active_time table
+CREATE TABLE IF NOT EXISTS user_last_active_time
 (
     uid            INT          NOT NULL
         PRIMARY KEY
