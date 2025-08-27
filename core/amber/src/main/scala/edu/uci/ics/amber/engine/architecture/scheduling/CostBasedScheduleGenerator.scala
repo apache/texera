@@ -42,6 +42,7 @@ import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import java.net.URI
 import java.util.concurrent.TimeoutException
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
@@ -74,6 +75,17 @@ class CostBasedScheduleGenerator(
       resourceAllocator = resourceAllocator,
       actorId = actorId
     )
+
+  private case class CostEstimatorMemoKey(
+      physicalOpIds: Set[PhysicalOpIdentity],
+      physicalLinkIds: Set[PhysicalLink],
+      portIds: Set[GlobalPortIdentity],
+      resourceConfig: Option[ResourceConfig]
+  )
+
+  private val costEstimatorMemoization
+      : mutable.Map[CostEstimatorMemoKey, (ResourceConfig, Double)] =
+    new mutable.HashMap()
 
   def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
@@ -606,8 +618,17 @@ class CostBasedScheduleGenerator(
       .map(level =>
         level
           .map(region => {
-            val (resourceConfig, regionCost) =
-              costEstimator.allocateResourcesAndEstimateCost(region, 1)
+            val costEstimatorMemoKey = CostEstimatorMemoKey(
+              physicalOpIds = region.physicalOps.map(_.id),
+              physicalLinkIds = region.physicalLinks,
+              portIds = region.ports,
+              resourceConfig = region.resourceConfig
+            )
+            val (resourceConfig, regionCost) = costEstimatorMemoization
+              .getOrElseUpdate(
+                costEstimatorMemoKey,
+                costEstimator.allocateResourcesAndEstimateCost(region, 1)
+              )
             // Update the region in the regionDAG to be the new region with resources allocated.
             val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
             replaceVertex(regionDAG, region, regionWithResourceConfig)
