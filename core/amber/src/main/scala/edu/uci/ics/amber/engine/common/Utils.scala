@@ -99,7 +99,7 @@ object Utils extends LazyLogging {
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.COMPLETED     => "Terminated"
+      case WorkflowAggregatedState.TERMINATED    => "Terminated"
       case WorkflowAggregatedState.FAILED        => "Failed"
       case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
