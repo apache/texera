@@ -1228,15 +1228,9 @@ class JsonSchemaGenerator(
                   // with a @JsonProperty that has "required" set to true. Lastly, various javax.validation annotations also
                   // make this required.
                   val requiredProperty: Boolean =
-                    if (
-                      propertyType.getRawClass.isPrimitive || jsonPropertyRequired || validationAnnotationRequired(
-                        prop
-                      )
-                    ) {
-                      true
-                    } else {
-                      false
-                    }
+                    propertyType.getRawClass.isPrimitive ||
+                      jsonPropertyRequired ||
+                      validationAnnotationRequired(prop)
 
                   val thisPropertyNode: PropertyNode = {
                     val thisPropertyNode = JsonNodeFactory.instance.objectNode()
@@ -1430,10 +1424,9 @@ class JsonSchemaGenerator(
                 // Checks to see if a javax.validation field that makes our field required is present.
                 private def validationAnnotationRequired(prop: Option[BeanProperty]): Boolean = {
                   prop.exists(p =>
-                    selectAnnotation(p, classOf[NotNull]).isDefined || selectAnnotation(
-                      p,
-                      classOf[NotBlank]
-                    ).isDefined || selectAnnotation(p, classOf[NotEmpty]).isDefined
+                    selectAnnotation(p, classOf[NotNull]).isDefined ||
+                      selectAnnotation(p, classOf[NotBlank]).isDefined ||
+                      selectAnnotation(p, classOf[NotEmpty]).isDefined
                   )
                 }
               })
