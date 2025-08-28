@@ -46,7 +46,6 @@ import { formatSpeed, formatTime } from "src/app/common/util/format.util";
 import { format } from "date-fns";
 
 export const THROTTLE_TIME_MS = 1000;
-const DOWNLOAD_VIA_BROWSER: boolean = true;
 
 @UntilDestroy()
 @Component({
