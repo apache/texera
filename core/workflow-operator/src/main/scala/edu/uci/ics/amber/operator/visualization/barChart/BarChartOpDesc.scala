@@ -28,6 +28,8 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotBlank
+
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -44,12 +46,14 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("The value associated with each category")
   @AutofillAttributeName
+  @NotBlank(message = "Value column cannot be empty")
   var value: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Fields")
   @JsonPropertyDescription("Visualize categorical data in a Bar Chart")
   @AutofillAttributeName
+  @NotBlank(message = "Fields cannot be empty")
   var fields: String = ""
 
   @JsonProperty(defaultValue = "No Selection", required = false)
@@ -88,8 +92,8 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
     )
 
   def manipulateTable(): String = {
-    assert(value.nonEmpty)
-    assert(fields.nonEmpty)
+    assert(value.nonEmpty, "Value column cannot be empty")
+    assert(fields.nonEmpty, "Fields cannot be empty")
     s"""
        |        table = table.dropna(subset = ['$value', '$fields']) #remove missing values
        |""".stripMargin
