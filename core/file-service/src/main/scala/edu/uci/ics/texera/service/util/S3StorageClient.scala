@@ -24,12 +24,7 @@ import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCrede
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.services.s3.model._
-import software.amazon.awssdk.services.s3.presigner.S3Presigner
-import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
 
-import java.net.URI
-import java.time.Duration
 import java.security.MessageDigest
 import scala.jdk.CollectionConverters._
 
