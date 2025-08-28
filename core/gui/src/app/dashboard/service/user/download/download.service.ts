@@ -33,6 +33,7 @@ import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/work
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
+const IFRAME_TIMEOUT_MS = 10000
 
 interface DownloadableItem {
   blob: Blob;
@@ -116,10 +117,9 @@ export class DownloadService {
   }
 
   /**
-   * Export the workflow result. If destination = "local", the server returns a BLOB (file).
-   * Otherwise, it returns JSON with a status message.
+   * Export the workflow result to dataset. Returns JSON with a status message.
    */
-  public exportWorkflowResult(
+  public exportWorkflowResultToDataset(
     exportType: string,
     workflowId: number,
     workflowName: string,
@@ -132,7 +132,7 @@ export class DownloadService {
     columnIndex: number,
     filename: string,
     destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
-    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit          // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const computingUnitId = unit.computingUnit.cuid;
     const requestBody = {
@@ -147,37 +147,29 @@ export class DownloadService {
       destination,
       computingUnitId,
     };
+    if (destination != 'dataset') {
+      return throwError(() => new Error('Export not via form only supports dataset downloads.'));
+    }
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
         ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
         : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
-    if (destination === "local") {
-      return this.http.post(urlPath, requestBody, {
-        responseType: "blob",
-        observe: "response",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/octet-stream",
-        },
-      });
-    } else {
-      // dataset => return JSON
-      return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
-        responseType: "json",
-        observe: "response",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-    }
+
+    return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
+      responseType: "json",
+      observe: "response",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
   }
 
   /**
-   * Export the workflow result only if destination = "local". The export is handled by the browser.
+   * Export the workflow result to local filesystem. The export is handled by the browser.
    */
-  public exportWorkflowResultViaBrowser(
+  public exportWorkflowResultToLocal(
     exportType: string,
     workflowId: number,
     workflowName: string,
@@ -189,8 +181,8 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
-    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
+    destination: "local" | "dataset" = "local", // "local" or "dataset" => default to "local"
+    unit: DashboardWorkflowComputingUnit        // computing unit for cluster setting
   ): void {
     if (destination != 'local') {
       this.notificationService.error('Export via form only supports local downloads.');
@@ -227,17 +219,17 @@ export class DownloadService {
         form.enctype = 'application/x-www-form-urlencoded';
         form.style.display = 'none';
 
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'token';
-        input.value = res.token;
-        form.appendChild(input)
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = res.token;
+        form.appendChild(tokenInput)
 
-        input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'operators';
-        input.value = JSON.stringify(operators);
-        form.appendChild(input)
+        const operatorsInput = document.createElement('input');
+        operatorsInput.type = 'hidden';
+        operatorsInput.name = 'operators';
+        operatorsInput.value = JSON.stringify(operators);
+        form.appendChild(operatorsInput)
 
         document.body.appendChild(form);
         form.submit();
@@ -245,7 +237,7 @@ export class DownloadService {
         setTimeout(() => {
           document.body.removeChild(form);
           document.body.removeChild(iframe);
-        }, 10000);
+        }, IFRAME_TIMEOUT_MS);
       }
     });
   }
