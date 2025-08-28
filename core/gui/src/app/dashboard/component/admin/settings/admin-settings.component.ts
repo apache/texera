@@ -58,13 +58,33 @@ export class AdminSettingsComponent implements OnInit {
   readonly MAX_FILE_SIZE_MB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
   readonly MAX_TOTAL_PARTS = 10000; // S3 maximum parts per upload
 
+  private readonly RELOAD_DELAY = 1000;
+
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
   ngOnInit(): void {
+    this.loadBranding();
     this.loadTabs();
     this.loadDatasetSetting();
+  }
+
+  private loadBranding(): void {
+    this.adminSettingsService
+      .getSetting("logo")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.logoData = value || null));
+
+    this.adminSettingsService
+      .getSetting("mini_logo")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.miniLogoData = value || null));
+
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.faviconData = value || null));
   }
 
   private loadTabs(): void {
@@ -112,76 +132,37 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveLogos(): void {
+    const saveRequests = [];
     if (this.logoData) {
-      this.adminSettingsService
-        .updateSetting("logo", this.logoData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Logo saved successfully."),
-          error: () => this.message.error("Failed to save logo."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("logo", this.logoData));
     }
-
     if (this.miniLogoData) {
-      this.adminSettingsService
-        .updateSetting("mini_logo", this.miniLogoData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Mini logo saved successfully."),
-          error: () => this.message.error("Failed to save mini logo."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("mini_logo", this.miniLogoData));
     }
-
     if (this.faviconData) {
-      this.adminSettingsService
-        .updateSetting("favicon", this.faviconData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Favicon saved successfully."),
-          error: () => this.message.error("Failed to save favicon."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("favicon", this.faviconData));
     }
 
-    if (this.logoData || this.miniLogoData || this.faviconData) {
-      setTimeout(() => window.location.reload(), 500);
+    if (saveRequests.length > 0) {
+      forkJoin(saveRequests)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => {
+            this.message.success("Branding saved successfully.");
+            setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+          },
+          error: () => this.message.error("Failed to save branding."),
+        });
     }
   }
 
   resetBranding(): void {
-    this.adminSettingsService
-      .resetSetting("logo")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.logoData = null;
-          this.message.success("Logo reset to default.");
-        },
-        error: () => this.message.error("Failed to reset logo."),
-      });
+    ["logo", "mini_logo", "favicon"].forEach(setting =>
+      this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({})
+    );
 
-    this.adminSettingsService
-      .resetSetting("mini_logo")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.miniLogoData = null;
-          this.message.success("Mini logo reset to default.");
-        },
-        error: () => this.message.error("Failed to reset mini logo."),
-      });
-
-    this.adminSettingsService
-      .resetSetting("favicon")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.faviconData = null;
-          this.message.success("Favicon reset to default.");
-        },
-        error: () => this.message.error("Failed to reset favicon."),
-      });
-
-    setTimeout(() => window.location.reload(), 500);
+    this.message.info("Resetting branding...");
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
   saveTabs(tab: keyof SidebarTabs): void {
@@ -206,7 +187,7 @@ export class AdminSettingsComponent implements OnInit {
     });
 
     this.message.info("Resetting tabs...");
-    setTimeout(() => window.location.reload(), 500);
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
   saveDatasetSettings(): void {
@@ -250,6 +231,6 @@ export class AdminSettingsComponent implements OnInit {
     ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
 
     this.message.info("Resetting dataset settings...");
-    setTimeout(() => window.location.reload(), 500);
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 }
