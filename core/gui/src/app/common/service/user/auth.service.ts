@@ -31,7 +31,6 @@ import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 
 export const TOKEN_KEY = "access_token";
-export const TOKEN_REFRESH_INTERVAL_IN_MIN = 16;
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -171,6 +170,8 @@ export class AuthService {
 
   private registerAutoRefreshToken() {
     this.refreshTokenSubscription?.unsubscribe();
+    const TOKEN_REFRESH_INTERVAL_IN_MIN = this.config.env.expirationTimeInMinutes - 1;
+    // Token Refresh Interval set to Token Expiration Time - 1
     this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
       .pipe(startWith(0)) // to trigger immediately for the first time.
       .subscribe(() => {

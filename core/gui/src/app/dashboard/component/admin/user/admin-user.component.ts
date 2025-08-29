@@ -26,6 +26,7 @@ import { AdminUserService } from "../../../service/admin/user/admin-user.service
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -57,7 +58,8 @@ export class AdminUserComponent implements OnInit {
     private adminUserService: AdminUserService,
     private userService: UserService,
     private modalService: NzModalService,
-    private messageService: NzMessageService
+    private messageService: NzMessageService,
+    private config: GuiConfigService
   ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
@@ -184,15 +186,14 @@ export class AdminUserComponent implements OnInit {
     });
   }
 
-  private static readonly ACTIVE_WINDOW = 15 * 60 * 1000;
-
   isUserActive(user: User): boolean {
     if (!user.lastLogin) {
       return false;
     }
-
+    // Active window set to expiration-in-minutes from auth.conf
+    const active_window = this.config.env.expirationTimeInMinutes * 60 * 1000;
     const lastMs = user.lastLogin * 1000;
-    return Date.now() - lastMs < AdminUserComponent.ACTIVE_WINDOW;
+    return Date.now() - lastMs < active_window;
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>

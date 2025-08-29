@@ -22,7 +22,16 @@
     <h2 class="dataset-title">Dataset: {{datasetName}}</h2>
     <nz-card-meta
       style="padding-top: 10px"
-      nzDescription="Created at: {{datasetCreationTime}}"></nz-card-meta>
+      [nzDescription]="descriptionTemplate">
+      <ng-template #descriptionTemplate>
+        Created at:
+        <span
+          nz-tooltip
+          [nzTooltipTitle]="datasetCreationTimeTooltip">
+          {{datasetCreationTime}}
+        </span>
+      </ng-template>
+    </nz-card-meta>
     <nz-card-meta
       style="padding-top: 20px"
       nzDescription="{{datasetDescription}}"></nz-card-meta>
