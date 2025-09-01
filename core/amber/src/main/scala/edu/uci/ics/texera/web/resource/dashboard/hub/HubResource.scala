@@ -55,6 +55,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
+import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import io.dropwizard.auth.Auth
 import org.jooq.Table
@@ -148,6 +149,12 @@ object HubResource {
     buffer.toList.asJava
   }
 
+  def toActionEnum(a: ActionType): ActionEnum = {
+    ActionEnum.values()
+      .find(_.getLiteral.equalsIgnoreCase(a.value))
+      .getOrElse(throw new IllegalArgumentException(s"Unsupported action: ${a.value}"))
+  }
+
   /**
     * Records a user's activity in the system.
     *
@@ -165,16 +172,17 @@ object HubResource {
       action: ActionType
   ): Unit = {
     val userIp = request.getRemoteAddr
+    val actionEnum = toActionEnum(action)
 
     val query = context
-      .insertInto(USER_ACTIVITY)
-      .set(USER_ACTIVITY.UID, userId)
-      .set(USER_ACTIVITY.ID, entityId)
-      .set(USER_ACTIVITY.TYPE, entityType.value)
-      .set(USER_ACTIVITY.ACTIVATE, action.value)
+      .insertInto(USER_ACTION)
+      .set(USER_ACTION.UID, userId)
+      .set(USER_ACTION.RESOURCE_ID, entityId)
+      .set(USER_ACTION.RESOURCE_TYPE, entityType.value)
+      .set(USER_ACTION.ACTION, actionEnum)
 
     if (ipv4Pattern.matcher(userIp).matches()) {
-      query.set(USER_ACTIVITY.IP, userIp)
+      query.set(USER_ACTION.IP, userIp)
     }
 
     query.execute()
