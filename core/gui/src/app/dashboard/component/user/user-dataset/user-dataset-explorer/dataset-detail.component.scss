@@ -120,12 +120,17 @@ nz-select {
 }
 
 .file-size,
-.version-size {
+.version-size,
+.version-date {
   font-size: 12px;
   color: #8c8c8c;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.version-date {
+  display: flex;
 }
 
 .version-size {
