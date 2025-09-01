@@ -17,7 +17,7 @@
  */
 
 \c texera_db
-SET search_path TO texera_db, public;
+SET search_path TO texera_db;
 
 BEGIN;
 
@@ -52,13 +52,13 @@ $do$;
 
 -- Create the new table
 CREATE TABLE user_action (
-                             user_action_id BIGSERIAL PRIMARY KEY,
-                             uid            INTEGER,
-                             ip             VARCHAR(15),
-                             "time"         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                             resource_type  VARCHAR(15) NOT NULL,
-                             resource_id    INTEGER NOT NULL,
-                             action         texera_db.action_enum NOT NULL
+     user_action_id BIGSERIAL PRIMARY KEY,
+     uid            INTEGER,
+     ip             VARCHAR(15),
+     "time"         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     resource_type  VARCHAR(15) NOT NULL,
+     resource_id    INTEGER NOT NULL,
+     action         texera_db.action_enum NOT NULL
 );
 
 -- Copy data
