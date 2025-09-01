@@ -19,4 +19,64 @@
 \c texera_db
 SET search_path TO texera_db;
 
-# user_activity change
+BEGIN;
+
+-- Rename existing table to migrate later
+ALTER TABLE user_activity RENAME TO user_action_old;
+
+-- Validate enum values
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM user_action_old
+        WHERE lower(activate) NOT IN ('like','unlike','clone','view')
+    ) THEN
+        RAISE EXCEPTION 'Error.';
+    END IF;
+END$$;
+
+-- Create enum type for action if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE t.typname = 'action_enum' AND n.nspname = 'texera_db'
+    ) THEN
+        EXECUTE $$CREATE TYPE texera_db.action_enum AS ENUM ('like','unlike','clone','view')$$;
+    END IF;
+END$$;
+
+-- Create new table user_action
+-- Columns: user_action_id, uid, ip, time, resource_type, resource_id, action
+CREATE TABLE user_action (
+    user_action_id     BIGSERIAL PRIMARY KEY,
+    uid           INTEGER,
+    ip            VARCHAR(15),
+    "time"        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resource_type VARCHAR(15) NOT NULL,
+    resource_id   INTEGER NOT NULL,
+    action        texera_db.action_enum NOT NULL
+);
+
+-- Copy and transform data from the old table
+INSERT INTO user_action (uid, ip, "time", resource_type, resource_id, action)
+SELECT
+    CASE WHEN ua.uid = 0 OR u.uid IS NULL THEN NULL ELSE ua.uid END AS uid,
+    ua.ip,
+    ua.activity_time AS "time",
+    ua."type"        AS resource_type,
+    ua.id            AS resource_id,
+    lower(ua.activate)::texera_db.action_enum AS action
+FROM user_action_old ua
+ LEFT JOIN "user" u ON u.uid = ua.uid;
+
+-- Add foreign key
+ALTER TABLE user_action
+    ADD CONSTRAINT fk_user_action_uid
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE SET NULL;
+
+-- Drop the old table
+DROP TABLE user_action_old;
+
+COMMIT;
