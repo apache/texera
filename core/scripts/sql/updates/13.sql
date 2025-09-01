@@ -18,3 +18,5 @@
 
 \c texera_db
 SET search_path TO texera_db;
+
+# user_activity change
