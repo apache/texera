@@ -73,6 +73,7 @@ export class DatasetDetailComponent implements OnInit {
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
+  public selectedVersionCreationTime: string = "";
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -339,6 +340,10 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;
           this.currentDatasetVersionSize = data.size;
+          if (typeof version.creationTime === "number") {
+            const date = new Date(version.creationTime);
+            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy");
+          }
           let currentNode = this.fileTreeNodeList[0];
           while (currentNode.type === "directory" && currentNode.children) {
             currentNode = currentNode.children[0];

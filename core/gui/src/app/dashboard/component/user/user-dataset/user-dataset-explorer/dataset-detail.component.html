@@ -238,16 +238,26 @@
                   nzTheme="outline"></i>
               </button>
             </div>
-            <div
-              *ngIf="selectedVersion"
-              class="version-size">
-              <i
-                nz-icon
-                nzType="database"
-                nzTheme="outline"
-                class="icon-database"></i>
-              Version Size: {{ formatSize(currentDatasetVersionSize) }}
-            </div>
+            <ng-container *ngIf="selectedVersion">
+              <div class="version-size">
+                <i
+                  nz-icon
+                  nzType="database"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Version Size: {{ formatSize(currentDatasetVersionSize) }}
+              </div>
+              <div
+                *ngIf="selectedVersionCreationTime"
+                class="version-date">
+                <i
+                  nz-icon
+                  nzType="calendar"
+                  nzTheme="outline"
+                  class="icon-database"></i>
+                Created at: {{ selectedVersionCreationTime }}
+              </div>
+            </ng-container>
           </div>
           <texera-user-dataset-version-filetree
             [fileTreeNodes]="fileTreeNodeList"

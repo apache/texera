@@ -66,8 +66,5 @@
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
             <directory>dao/src/main/scala</directory>
         </target>
-        <strategy>
-            <name>edu.uci.ics.texera.dao.ASFGeneratorStrategy</name>
-        </strategy>
     </generator>
 </configuration>

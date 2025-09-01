@@ -66,7 +66,7 @@ class AdminUserResource {
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUserWithActivity(): util.List[UserInfo] = {
+  def list(): util.List[UserInfo] = {
     AdminUserResource.context
       .select(
         USER.UID,
