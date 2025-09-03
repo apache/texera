@@ -74,6 +74,26 @@ object LakeFSStorageClient {
   }
 
   /**
+    * Validates the repository name against LakeFS naming conventions.
+    *
+    * @param repoName name of the repository to validate.
+    * @throws IllegalArgumentException if the repository name is invalid.
+    */
+  def validateRepositoryName(repoName: String): Unit = {
+    val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
+
+    // Validate repoName
+    if (!repoNamePattern.matches(repoName)) {
+      throw new IllegalArgumentException(
+        s"Invalid repository name: '$repoName'. " +
+          "Repository names must be 3-63 characters long, " +
+          "contain only lowercase letters, numbers, and hyphens, " +
+          "and cannot start with a hyphen."
+      )
+    }
+  }
+
+  /**
     * Initializes a new repository in LakeFS.
     *
     * @param repoName         Name of the repository.
@@ -82,17 +102,8 @@ object LakeFSStorageClient {
   def initRepo(
       repoName: String
   ): Repository = {
-    val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
+    validateRepositoryName(repoName)
 
-    // Validate repoName
-    if (!repoNamePattern.matches(repoName)) {
-      throw new IllegalArgumentException(
-        s"Invalid dataset name: '$repoName'. " +
-          "Dataset names must be 3-63 characters long, " +
-          "contain only lowercase letters, numbers, and hyphens, " +
-          "and cannot start or end with a hyphen."
-      )
-    }
     val storageNamespace = s"$storageNamespaceURI/$repoName"
     val repo = new RepositoryCreation()
       .name(repoName)
