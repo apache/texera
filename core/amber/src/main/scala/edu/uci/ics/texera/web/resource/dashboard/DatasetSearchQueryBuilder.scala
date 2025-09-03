@@ -42,8 +42,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
     name = DATASET.NAME,
     description = DATASET.DESCRIPTION,
     creationTime = DATASET.CREATION_TIME,
-    did = DATASET.DID,
     ownerId = DATASET.OWNER_UID,
+    did = DATASET.DID,
     isDatasetPublic = DATASET.IS_PUBLIC,
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )

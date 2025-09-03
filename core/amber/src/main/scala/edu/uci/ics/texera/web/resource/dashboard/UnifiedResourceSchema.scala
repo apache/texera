@@ -90,8 +90,8 @@ object UnifiedResourceSchema {
         projectColor -> projectColor.as("color"),
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
+        isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
-        isDatasetPublic -> isDatasetPublic.as("is_dataset_public")
       )
     )
   }
