@@ -93,7 +93,7 @@ object UnifiedResourceSchema {
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
         isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
         isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
-        datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
+        datasetUserAccess -> datasetUserAccess.as("user_dataset_access")
       )
     )
   }
