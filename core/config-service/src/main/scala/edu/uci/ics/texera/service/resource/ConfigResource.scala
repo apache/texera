@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig}
+import edu.uci.ics.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig, AuthConfig}
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -53,7 +53,9 @@ class ConfigResource {
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
-      )
+      ),
+      // flags from the auth.conf if needed
+      "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )
 
   @GET

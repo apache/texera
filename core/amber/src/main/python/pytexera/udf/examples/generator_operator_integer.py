@@ -15,14 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# See PR https://github.com/Texera/texera/pull/3326 for configuration guidelines.
-# Configuration for JWT Authentication. Currently it is used by the FileService to parse the given JWT Token
-auth {
-    jwt {
-        expiration-in-minutes = 15
-        expiration-in-minutes = ${?AUTH_JWT_EXPIRATION_IN_MINUTES}
+from pytexera import *
 
-        256-bit-secret = "8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"
-        256-bit-secret = ${?AUTH_JWT_SECRET}
-    }
-}
+
+class GeneratorOperatorInteger(UDFSourceOperator):
+    """
+    A simple generator operator that produces tuples with an integer attribute.
+    """
+
+    @overrides
+    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+        for i in [1, 2, 3]:
+            yield {"test": i}

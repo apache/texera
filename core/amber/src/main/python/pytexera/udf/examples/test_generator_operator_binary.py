@@ -15,14 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# See PR https://github.com/Texera/texera/pull/3326 for configuration guidelines.
-# Configuration for JWT Authentication. Currently it is used by the FileService to parse the given JWT Token
-auth {
-    jwt {
-        expiration-in-minutes = 15
-        expiration-in-minutes = ${?AUTH_JWT_EXPIRATION_IN_MINUTES}
+import pytest
 
-        256-bit-secret = "8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"
-        256-bit-secret = ${?AUTH_JWT_SECRET}
-    }
-}
+from pytexera import Tuple
+from .generator_operator_binary import GeneratorOperatorBinary
+
+
+class TestEchoOperator:
+    @pytest.fixture
+    def generator_operator_binary(self):
+        return GeneratorOperatorBinary()
+
+    def test_generator_operator_binary(self, generator_operator_binary):
+        generator_operator_binary.open()
+        outputs = generator_operator_binary.produce()
+        output_tuple = Tuple(next(outputs))
+        assert output_tuple == Tuple({"test": [1, 2, 3]})
+        generator_operator_binary.close()

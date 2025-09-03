@@ -29,7 +29,7 @@ import edu.uci.ics.amber.core.workflow.{
   PhysicalPlan,
   WorkflowContext
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
+import SchedulingUtils.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   IntermediateInputPortConfig,
   OutputPortConfig,
@@ -37,11 +37,12 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
 }
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.traverse.TopologicalOrderIterator
 
 import java.net.URI
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 @deprecated(
   "This greedy schedule generator will be removed in the future. Use CostBasedScheduleGenerator instead."
@@ -359,6 +360,72 @@ class ExpansionGreedyScheduleGenerator(
     val newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
     newPhysicalPlan
+  }
+
+  private def allocateResource(
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+    // generate the resource configs
+    new TopologicalOrderIterator(regionDAG).asScala
+      .foreach(region => {
+        val (resourceConfig, _) = resourceAllocator.allocate(region)
+        val regionWithResourceConfig = region.copy(resourceConfig = Some(resourceConfig))
+        replaceVertex(regionDAG, region, regionWithResourceConfig)
+      })
+  }
+
+  private def getRegions(
+      physicalOpId: PhysicalOpIdentity,
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Set[Region] = {
+    regionDAG
+      .vertexSet()
+      .asScala
+      .filter(region => region.getOperators.map(_.id).contains(physicalOpId))
+      .toSet
+  }
+
+  /**
+    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
+    * so that the dependee link will be completed first.
+    */
+  private def populateDependeeLinks(
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+
+    val dependeeLinks = physicalPlan
+      .topologicalIterator()
+      .flatMap { physicalOpId =>
+        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+        upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
+          physicalPlan
+            .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+            .filter(link =>
+              physicalPlan
+                .getOperator(physicalOpId)
+                .isInputLinkDependee(link)
+            )
+        }
+      }
+      .toSet
+
+    dependeeLinks
+      .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
+      .groupBy(_._1)
+      .view
+      .mapValues(_.map(_._2))
+      .foreach {
+        case (region, links) =>
+          val newRegion = region.copy(
+            physicalLinks = region.physicalLinks ++ links,
+            physicalOps =
+              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id)),
+            ports = region.getPorts ++ links.map(dependeeLink =>
+              GlobalPortIdentity(dependeeLink.toOpId, dependeeLink.toPortId, input = true)
+            )
+          )
+          replaceVertex(regionDAG, region, newRegion)
+      }
   }
 
   /**

@@ -29,14 +29,14 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.us
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.dao.jooq.generated.tables.TimeLog.TIME_LOG
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
-case class UserWithLastLogin(
+case class UserInfo(
     uid: Int,
     name: String,
     email: String,
@@ -61,24 +61,12 @@ class AdminUserResource {
   /**
     * This method returns the list of users
     *
-    * @return a list of users
+    * @return a list of UserInfo
     */
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUser(): util.List[User] = {
-    userDao.fetchRangeOfUid(Integer.MIN_VALUE, Integer.MAX_VALUE)
-  }
-
-  /**
-    * This method returns the list of users with lastLogin time
-    *
-    * @return a list of UserWithLastLogin
-    */
-  @GET
-  @Path("/listWithActivity")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUserWithActivity(): util.List[UserWithLastLogin] = {
+  def list(): util.List[UserInfo] = {
     AdminUserResource.context
       .select(
         USER.UID,
@@ -88,12 +76,12 @@ class AdminUserResource {
         USER.ROLE,
         USER.GOOGLE_AVATAR,
         USER.COMMENT,
-        TIME_LOG.LAST_LOGIN
+        USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME
       )
       .from(USER)
-      .leftJoin(TIME_LOG)
-      .on(USER.UID.eq(TIME_LOG.UID))
-      .fetchInto(classOf[UserWithLastLogin])
+      .leftJoin(USER_LAST_ACTIVE_TIME)
+      .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
+      .fetchInto(classOf[UserInfo])
   }
 
   @PUT
