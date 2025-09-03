@@ -106,10 +106,10 @@ object UnifiedResourceSchema {
   * - `description`: A textual description of the resource as a `String`.
   * - `creationTime`: The timestamp when the resource was created, as a `Timestamp`.
   * - `lastModifiedTime`: The timestamp of the last modification to the resource, as a `Timestamp` (applicable to workflows).
-  * - `ownerId`: The identifier of the resource's owner, as a `Integer`.
+  * - `ownerId`: The identifier of the resource's owner, as an `Integer`.
   *
   * Attributes specific to workflows:
-  * - `wid`: Workflow ID, as a `Integer`.
+  * - `wid`: Workflow ID, as an `Integer`.
   * - `workflowUserAccess`: Access privileges associated with the workflow, as a `PrivilegeEnum`.
   * - `projectsOfWorkflow`: IDs of projects associated with the workflow, concatenated as a `String`.
   * - `uid`: User ID associated with the workflow, as a `Integer`.
@@ -117,19 +117,21 @@ object UnifiedResourceSchema {
   * - `userEmail`: Email of the user associated with the workflow, as a `String`.
   *
   * Attributes specific to projects:
-  * - `pid`: Project ID, as a `Integer`.
+  * - `pid`: Project ID, as an `Integer`.
   * - `projectOwnerId`: ID of the project owner, as a `Integer`.
   * - `projectColor`: Color associated with the project, as a `String`.
   *
   * Attributes specific to files:
-  * - `fid`: File ID, as a `Integer`.
+  * - `fid`: File ID, as an `Integer`.
   * - `fileUploadTime`: Timestamp when the file was uploaded, as a `Timestamp`.
   * - `filePath`: Path of the file, as a `String`.
-  * - `fileSize`: Size of the file, as a `Integer`.
+  * - `fileSize`: Size of the file, as an `Integer`.
   * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
   *
   * Attributes specific to datasets:
-  * - `did`: Dataset ID, as a `Integer`.
+  * - `did`: Dataset ID, as an `Integer`.
+  * - `datasetStoragePath`: The storage path of the dataset, as a `String`.
+  * - `isDatasetPublic`: Indicates if the dataset is public, as a `Boolean`.
   * - `datasetUserAccess`: Access privileges for the dataset, as a `PrivilegeEnum`
   */
 class UnifiedResourceSchema private (
