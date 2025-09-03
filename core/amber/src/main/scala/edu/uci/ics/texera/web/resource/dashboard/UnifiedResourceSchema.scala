@@ -69,6 +69,7 @@ object UnifiedResourceSchema {
       did: Field[Integer] = DSL.cast(null, classOf[Integer]),
       datasetStoragePath: Field[String] = DSL.cast(null, classOf[String]),
       isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
+      isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
@@ -91,6 +92,7 @@ object UnifiedResourceSchema {
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
         isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
+        isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
       )
     )
@@ -132,6 +134,7 @@ object UnifiedResourceSchema {
   * - `did`: Dataset ID, as an `Integer`.
   * - `datasetStoragePath`: The storage path of the dataset, as a `String`.
   * - `isDatasetPublic`: Indicates if the dataset is public, as a `Boolean`.
+  * - `isDatasetDownloadable`: Indicates if the dataset is downloadable, as a `Boolean`.
   * - `datasetUserAccess`: Access privileges for the dataset, as a `PrivilegeEnum`
   */
 class UnifiedResourceSchema private (
