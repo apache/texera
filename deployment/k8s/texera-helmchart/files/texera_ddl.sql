@@ -354,7 +354,7 @@ CREATE TABLE IF NOT EXISTS user_action (
     user_action_id BIGSERIAL PRIMARY KEY,
     uid            INTEGER,
     ip             VARCHAR(15),
-    "time"         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    action_time    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resource_type  VARCHAR(15) NOT NULL,
     resource_id    INTEGER NOT NULL,
     action         texera_db.action_enum NOT NULL,

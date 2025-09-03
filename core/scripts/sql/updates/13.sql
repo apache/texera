@@ -55,18 +55,18 @@ CREATE TABLE user_action (
      user_action_id BIGSERIAL PRIMARY KEY,
      uid            INTEGER,
      ip             VARCHAR(15),
-     "time"         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     action_time    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
      resource_type  VARCHAR(15) NOT NULL,
      resource_id    INTEGER NOT NULL,
      action         texera_db.action_enum NOT NULL
 );
 
 -- Copy data
-INSERT INTO user_action (uid, ip, "time", resource_type, resource_id, action)
+INSERT INTO user_action (uid, ip, action_time, resource_type, resource_id, action)
 SELECT
     CASE WHEN ua.uid = 0 OR u.uid IS NULL THEN NULL ELSE ua.uid END AS uid,
     ua.ip,
-    ua.activity_time AS "time",
+    ua.activity_time AS action_time,
     ua."type"        AS resource_type,
     ua.id            AS resource_id,
     lower(ua.activate)::texera_db.action_enum AS action
