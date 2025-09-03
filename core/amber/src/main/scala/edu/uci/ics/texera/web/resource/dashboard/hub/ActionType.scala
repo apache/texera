@@ -20,6 +20,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 
 /**
   * Defines all possible user action types for tracking.
@@ -46,4 +47,10 @@ object ActionType {
       .getOrElse(
         throw new IllegalArgumentException(s"Unsupported actionType '$s'")
       )
+
+  def toActionEnum(a: ActionType): ActionEnum = {
+    ActionEnum.values()
+      .find(_.getLiteral.equalsIgnoreCase(a.value))
+      .getOrElse(throw new IllegalArgumentException(s"Unsupported action: ${a.value}"))
+  }
 }
