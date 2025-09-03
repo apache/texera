@@ -324,7 +324,7 @@ object HubResource {
           dataset = dataset,
           accessPrivilege = datasetAccess.getPrivilege,
           ownerEmail = ownerEmail,
-          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
         )
       }
       .toList
