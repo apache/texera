@@ -290,6 +290,10 @@ class DatasetResource {
         LakeFSStorageClient.initRepo(repositoryName)
       } catch {
         case e: Exception =>
+          ctx
+            .deleteFrom(DATASET)
+            .where(DATASET.DID.eq(createdDataset.getDid))
+            .execute()
           throw new WebApplicationException(
             s"Failed to create the dataset: ${e.getMessage}"
           )
