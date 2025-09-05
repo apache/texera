@@ -55,8 +55,6 @@ DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
 DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
-DROP TABLE IF EXISTS workflow_user_activity CASCADE;
-DROP TABLE IF EXISTS user_activity CASCADE;
 DROP TABLE IF EXISTS user_action CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
@@ -313,7 +311,6 @@ CREATE TABLE IF NOT EXISTS workflow_view_count
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
--- Drop old workflow_user_activity and user_activity (if any), replace with user_action
 -- user_action table
 CREATE TABLE IF NOT EXISTS user_action (
     user_action_id BIGSERIAL PRIMARY KEY,
