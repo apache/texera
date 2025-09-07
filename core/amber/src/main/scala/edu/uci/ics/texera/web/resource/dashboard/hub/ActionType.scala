@@ -47,11 +47,4 @@ object ActionType {
       .getOrElse(
         throw new IllegalArgumentException(s"Unsupported actionType '$s'")
       )
-
-  def toActionEnum(a: ActionType): ActionEnum = {
-    ActionEnum
-      .values()
-      .find(_.getLiteral.equalsIgnoreCase(a.value))
-      .getOrElse(throw new IllegalArgumentException(s"Unsupported action: ${a.value}"))
-  }
 }

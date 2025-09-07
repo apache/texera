@@ -21,23 +21,8 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{
-  AccessResponse,
-  CountResponse,
-  LikedResponse,
-  UserRequest,
-  ViewRequest,
-  fetchDashboardDatasetsByDids,
-  fetchDashboardWorkflowsByWids,
-  isLikedHelper,
-  recordLikeAction,
-  recordUserAction
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
-  DashboardWorkflow,
-  baseWorkflowSelect,
-  mapWorkflowEntries
-}
+import HubResource.{AccessResponse, CountResponse, LikedResponse, UserRequest, ViewRequest, fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, isLikedHelper, recordLikeAction, recordUserAction}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
 import org.jooq.impl.DSL
 
 import java.util.regex.Pattern
@@ -49,18 +34,13 @@ import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{
-  Clone,
-  Like,
-  Unlike,
-  View,
-  toActionEnum
-}
+import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View, toActionEnum}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import io.dropwizard.auth.Auth
 import org.jooq.Table
@@ -171,7 +151,7 @@ object HubResource {
       action: ActionType
   ): Unit = {
     val userIp = request.getRemoteAddr
-    val actionEnum = toActionEnum(action)
+    val actionEnum = ActionEnum.values().find(_.getLiteral.equalsIgnoreCase(action.value)).get
 
     val query = context
       .insertInto(USER_ACTION)
