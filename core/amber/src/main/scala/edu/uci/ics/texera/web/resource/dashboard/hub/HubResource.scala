@@ -21,8 +21,23 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
-import HubResource.{AccessResponse, CountResponse, LikedResponse, UserRequest, ViewRequest, fetchDashboardDatasetsByDids, fetchDashboardWorkflowsByWids, isLikedHelper, recordLikeAction, recordUserAction}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import HubResource.{
+  AccessResponse,
+  CountResponse,
+  LikedResponse,
+  UserRequest,
+  ViewRequest,
+  fetchDashboardDatasetsByDids,
+  fetchDashboardWorkflowsByWids,
+  isLikedHelper,
+  recordLikeAction,
+  recordUserAction
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.impl.DSL
 
 import java.util.regex.Pattern
@@ -39,7 +54,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_US
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View, toActionEnum}
+import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{
+  Clone,
+  Like,
+  Unlike,
+  View,
+  toActionEnum
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import io.dropwizard.auth.Auth
 import org.jooq.Table

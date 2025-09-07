@@ -49,7 +49,8 @@ object ActionType {
       )
 
   def toActionEnum(a: ActionType): ActionEnum = {
-    ActionEnum.values()
+    ActionEnum
+      .values()
       .find(_.getLiteral.equalsIgnoreCase(a.value))
       .getOrElse(throw new IllegalArgumentException(s"Unsupported action: ${a.value}"))
   }
