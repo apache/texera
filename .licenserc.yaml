@@ -23,6 +23,4 @@ header:
     - 'site.webmanifest'
     - '.gitignore'
     - '.licenserc.yaml'
-    - 'core/gui/.yarn/*'
-    -
-
+    - '/core/gui/.yarn/*'
