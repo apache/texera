@@ -120,9 +120,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     // Create the button instances 1 time during initialization.
     this.removeButton = new (this.jointUIService.getRemoveButton())();
     this.breakpointButton = new (this.jointUIService.getBreakpointButton())();
-
-    // Now, call the method that sets up the listeners.
-    this.handleLinkCursorHover();
   }
 
   /**
