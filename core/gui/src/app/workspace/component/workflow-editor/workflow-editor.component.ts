@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
+import { OnInit, AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -82,7 +82,7 @@ export const MAIN_CANVAS = {
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
 })
-export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
+export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
@@ -91,6 +91,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
+  private removeButton!: joint.linkTools.Button;
+  private breakpointButton!: joint.linkTools.Button;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -112,6 +114,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private config: GuiConfigService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
+  }
+
+  ngOnInit(): void {
+    // Create the button instances 1 time during initialization.
+    this.removeButton = new (this.jointUIService.getRemoveButton())();
+    this.breakpointButton = new (this.jointUIService.getBreakpointButton())();
+
+    // Now, call the method that sets up the listeners.
+    this.handleLinkCursorHover();
   }
 
   /**
@@ -1088,11 +1099,11 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(linkView => {
         // Create an array to hold the tools
-        const tools = [new (this.jointUIService.getRemoveButton())()];
+        const tools = [this.removeButton];
 
         // If breakpoints are enabled, also add the breakpoint button
         if (this.config.env.linkBreakpointEnabled) {
-          tools.push(new (this.jointUIService.getBreakpointButton())());
+          tools.push(this.breakpointButton);
         }
 
         const toolsView = new joint.dia.ToolsView({ tools });
