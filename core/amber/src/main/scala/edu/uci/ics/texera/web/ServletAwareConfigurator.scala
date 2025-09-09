@@ -86,7 +86,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
       } else {
         // STANDALONE MODE: Construct the User object from JWT in query parameters.
         // in standalone mode, we always give WRITE access to CU
-        config.getUserProperties.put(HeaderField.UserComputingUnitAccess, PrivilegeEnum.WRITE)
+        config.getUserProperties.put(HeaderField.UserComputingUnitAccess, PrivilegeEnum.WRITE.toString)
 
         val params =
           URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())

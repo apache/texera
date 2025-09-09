@@ -21,9 +21,8 @@
   import edu.uci.ics.texera.auth.JwtParser.parseToken
   import edu.uci.ics.texera.auth.SessionUser
   import edu.uci.ics.texera.auth.util.{ComputingUnitAccess, HeaderField}
-  import edu.uci.ics.texera.dao.SqlServer
   import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
-  import jakarta.ws.rs.{GET, POST, Path, PathParam, Produces}
+  import jakarta.ws.rs.{GET, POST, Path, Produces}
   import jakarta.ws.rs.core.{Context, HttpHeaders, MediaType, Response, UriInfo}
 
   import java.util.Optional
