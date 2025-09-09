@@ -91,7 +91,6 @@ object ComputingUnitManagingResource {
     EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB -> EnvironmentalVariable
       .get(EnvironmentalVariable.ENV_MAX_WORKFLOW_WEBSOCKET_REQUEST_PAYLOAD_SIZE_KB)
       .get,
-    EnvironmentalVariable.ENV_KUBERNETES_COMPUTING_UNIT_ENABLED -> KubernetesConfig.kubernetesComputingUnitEnabled,
   )
 
   case class WorkflowComputingUnitCreationParams(

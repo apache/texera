@@ -23,6 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.auth.util.HeaderField
 import edu.uci.ics.texera.config.KubernetesConfig
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 
@@ -84,6 +85,9 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
 
       } else {
         // STANDALONE MODE: Construct the User object from JWT in query parameters.
+        // in standalone mode, we always give WRITE access to CU
+        config.getUserProperties.put(HeaderField.UserComputingUnitAccess, PrivilegeEnum.WRITE)
+
         val params =
           URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())
         params.asScala
