@@ -20,7 +20,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
-import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 
 /**
   * Defines all possible user action types for tracking.
