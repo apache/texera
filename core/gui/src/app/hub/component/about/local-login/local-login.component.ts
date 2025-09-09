@@ -98,7 +98,7 @@ export class LocalLoginComponent implements OnInit {
       .login(username, password)
       .pipe(
         catchError((e: unknown) => {
-          this.notificationService.error((e as Error).message, { nzDuration: 10 });
+          this.notificationService.error((e as Error).message);
           return throwError(() => e);
         }),
         untilDestroyed(this)
@@ -136,7 +136,7 @@ export class LocalLoginComponent implements OnInit {
       .register(registerUsername, registerPassword)
       .pipe(
         catchError((e: unknown) => {
-          this.notificationService.error((e as Error).message, { nzDuration: 10 });
+          this.notificationService.error((e as Error).message);
           return throwError(() => e);
         }),
         untilDestroyed(this)
