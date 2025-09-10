@@ -1,10 +1,11 @@
 package edu.uci.ics.texera
 
 import edu.uci.ics.texera.auth.JwtAuth
+import edu.uci.ics.texera.auth.util.HeaderField
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum, WorkflowComputingUnitTypeEnum}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ComputingUnitUserAccess, User, WorkflowComputingUnit}
 import edu.uci.ics.texera.service.resource.AccessControlResource
 import jakarta.ws.rs.core.{HttpHeaders, MultivaluedHashMap, Response, UriInfo}
 import org.mockito.Mockito._
@@ -21,7 +22,7 @@ class AccessControlResourceSpec extends AnyFlatSpec
   with BeforeAndAfterEach
   with MockTexeraDB {
 
-  private val testUser: User = {
+  private val testUser1: User = {
     val user = new User()
     user.setUid(1)
     user.setName("testuser")
@@ -31,13 +32,45 @@ class AccessControlResourceSpec extends AnyFlatSpec
     user
   }
 
+  private val testUser2: User = {
+    val user = new User()
+    user.setUid(2)
+    user.setName("testuser2")
+    user.setEmail("test2@example.com")
+    user.setRole(UserRoleEnum.REGULAR)
+    user.setPassword("password")
+    user
+  }
+
+  private val testCU: WorkflowComputingUnit = {
+    val cu = new WorkflowComputingUnit()
+    cu.setUid(2)
+    cu.setType(WorkflowComputingUnitTypeEnum.kubernetes)
+    cu.setCuid(2)
+    cu.setName("test-cu")
+    cu
+  }
+
   private var token: String = _
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
     val userDao = new UserDao(getDSLContext.configuration())
-    userDao.insert(testUser)
-    val claims = JwtAuth.jwtClaims(testUser, 1)
+    val computingUnitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+    val computingUnitOfUserDao = new ComputingUnitUserAccessDao(getDSLContext.configuration())
+
+    // insert user, computing unit, and access privilege into the mock database
+    userDao.insert(testUser1)
+    userDao.insert(testUser2)
+    computingUnitDao.insert(testCU)
+
+    val cuAccess = new ComputingUnitUserAccess()
+    cuAccess.setUid(testUser1.getUid)
+    cuAccess.setCuid(testCU.getCuid)
+    cuAccess.setPrivilege(PrivilegeEnum.WRITE)
+    computingUnitOfUserDao.insert(cuAccess)
+
+    val claims = JwtAuth.jwtClaims(testUser1, 1)
     token = JwtAuth.jwtToken(claims)
   }
 
@@ -125,5 +158,38 @@ class AccessControlResourceSpec extends AnyFlatSpec
 
     // Assert that the response status is FORBIDDEN
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
+  }
+
+  it should "return OK and correct headers when user has access" in {
+    // Mock the request context
+    val mockUriInfo = mock(classOf[UriInfo])
+    val mockHttpHeaders = mock(classOf[HttpHeaders])
+
+    // Prepare query parameters with a computing unit ID the user HAS access to
+    val queryParams = new MultivaluedHashMap[String, String]()
+    queryParams.add("cuid", testCU.getCuid.toString)
+
+    // Prepare request headers with the generated JWT
+    val requestHeaders = new MultivaluedHashMap[String, String]()
+    requestHeaders.add("Authorization", "Bearer " + token)
+
+    // Stub the mock objects to return the prepared data
+    when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
+    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
+    when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer " + token))
+
+    // Instantiate the resource and call the method under test
+    val accessControlResource = new AccessControlResource()
+    val response = accessControlResource.authorizeGet(mockUriInfo, mockHttpHeaders)
+
+    // Assert that the response status is OK and headers are correct
+    response.getStatus shouldBe Response.Status.OK.getStatusCode
+    response.getHeaderString(
+      HeaderField.UserComputingUnitAccess
+    ) shouldBe PrivilegeEnum.WRITE.toString
+    response.getHeaderString(HeaderField.UserId) shouldBe testUser1.getUid.toString
+    response.getHeaderString(HeaderField.UserName) shouldBe testUser1.getName
+    response.getHeaderString(HeaderField.UserEmail) shouldBe testUser1.getEmail
   }
 }
