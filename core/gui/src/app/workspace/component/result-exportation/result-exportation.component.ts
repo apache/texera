@@ -173,7 +173,7 @@ export class ResultExportationComponent implements OnInit {
       nzWidth: 500,
     });
 
-    modal.afterClose.subscribe((result: DashboardDataset | null) => {
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe((result: DashboardDataset | null) => {
       if (result) {
         this.userAccessibleDatasets.unshift(result);
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
