@@ -141,7 +141,6 @@ export class ResultExportationComponent implements OnInit {
         dataset => dataset.dataset.did && dataset.dataset.name.toLowerCase().includes(value.toLowerCase())
       );
     } else {
-      // Reset to show all datasets when input is empty
       this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
     }
   }
