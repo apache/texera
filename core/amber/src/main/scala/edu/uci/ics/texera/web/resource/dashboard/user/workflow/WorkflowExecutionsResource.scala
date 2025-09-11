@@ -695,17 +695,13 @@ class WorkflowExecutionsResource {
   }
 
   @POST
-  @Path("/result/export")
+  @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResult(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
       WorkflowExportResource.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
-        case None =>
-          request.destination match {
-            case "local" => WorkflowExportResource.exportToLocal(request)
-            case _       => WorkflowExportResource.exportToDataset(user.user, request)
-          }
+        case None                => WorkflowExportResource.exportToDataset(user.user, request)
       }
     } catch {
       case ex: Exception =>
@@ -718,7 +714,7 @@ class WorkflowExecutionsResource {
   }
 
   @POST
-  @Path("/result/export/browser")
+  @Path("/result/export/local")
   @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
   def exportResultViaBrowser(
       @FormParam("token") token: String,
