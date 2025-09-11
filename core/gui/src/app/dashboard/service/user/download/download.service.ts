@@ -153,8 +153,8 @@ export class DownloadService {
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
-        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
-        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset`;
 
     return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
       responseType: "json",
@@ -204,8 +204,8 @@ export class DownloadService {
       next: (res) => {
         const urlPath =
           unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
-            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/browser?cuid=${unit.computingUnit.cuid}`
-            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/browser`;
+            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=${unit.computingUnit.cuid}`
+            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`;
 
         const iframe = document.createElement('iframe');
         iframe.name = 'download-iframe';
