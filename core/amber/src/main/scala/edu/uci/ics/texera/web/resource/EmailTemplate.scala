@@ -19,8 +19,8 @@
 
 package edu.uci.ics.texera.web.resource
 
-import com.typesafe.config.ConfigFactory
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.config.UserSystemConfig
 
 /**
   * EmailTemplate provides factory methods to generate email messages
@@ -29,11 +29,7 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 object EmailTemplate {
 
   private val deployment: String = {
-    val config = ConfigFactory.load()
-    val rawDomain =
-      if (config.hasPath("user-sys.domain")) config.getString("user-sys.domain")
-      else ""
-    rawDomain.replaceFirst("^https?://", "")
+    UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
   }
 
   /**
@@ -54,7 +50,7 @@ object EmailTemplate {
     if (toAdmin) {
       val subject =
         if (deployment.nonEmpty)
-          s"New Account Request to $deployment Pending Approval"
+          s"New Account Request Pending Approval for [$deployment]"
         else
           "New Account Request Pending Approval"
 
@@ -73,7 +69,11 @@ object EmailTemplate {
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     } else {
-      val subject = "Account Request Received"
+      val subject =
+        if (deployment.nonEmpty)
+          s"Account Request Received for [$deployment]"
+        else
+          "Account Request Received"
       val content =
         s"""
            |Hello,
@@ -99,7 +99,7 @@ object EmailTemplate {
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
     val subject =
       if (deployment.nonEmpty)
-        s"Your Role Has Been Updated on $deployment"
+        s"Your Role Has Been Updated for [$deployment]"
       else
         "Your Role Has Been Updated"
 
