@@ -515,7 +515,7 @@ export class JointUIService {
   public getRemoveButton(): new () => joint.linkTools.Button {
     // Check if the class has already been created.
     if (!JointUIService.RemoveButton) {
-      // If not, create it ONCE and store it in the static property.
+      // If not, create it once and store it in the static property.
       JointUIService.RemoveButton = joint.linkTools.Button.extend({
         name: "remove-button",
         options: {
