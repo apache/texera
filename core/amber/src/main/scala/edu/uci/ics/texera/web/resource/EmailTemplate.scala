@@ -28,9 +28,8 @@ import edu.uci.ics.texera.config.UserSystemConfig
   */
 object EmailTemplate {
 
-  private val deployment: String = {
+  private val deployment: String =
     UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
-  }
 
   /**
     * Creates an email message for user registration notifications.
