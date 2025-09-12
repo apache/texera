@@ -49,11 +49,8 @@ object EmailTemplate {
   ): EmailMessage = {
     if (toAdmin) {
       val subject =
-        if (deployment.nonEmpty)
-          s"New Account Request Pending Approval for [$deployment]"
-        else
-          "New Account Request Pending Approval"
-
+        s"New Account Request Pending Approval${if (deployment.nonEmpty) s" for [$deployment]"
+        else ""}"
       val content =
         s"""
            |Hello Admin,
@@ -70,10 +67,7 @@ object EmailTemplate {
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     } else {
       val subject =
-        if (deployment.nonEmpty)
-          s"Account Request Received for [$deployment]"
-        else
-          "Account Request Received"
+        s"Account Request Received${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
       val content =
         s"""
            |Hello,
@@ -98,11 +92,7 @@ object EmailTemplate {
     */
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
     val subject =
-      if (deployment.nonEmpty)
-        s"Your Role Has Been Updated for [$deployment]"
-      else
-        "Your Role Has Been Updated"
-
+      s"Your Role Has Been Updated${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
     val content =
       s"""
          |Hello,
