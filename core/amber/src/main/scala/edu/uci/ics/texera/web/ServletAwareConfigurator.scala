@@ -84,7 +84,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
         logger.debug(s"User created from headers: ID=$userId, Name=$userName")
 
       } else {
-        // STANDALONE MODE: Construct the User object from JWT in query parameters.
+        // SINGLE-NODE MODE: Construct the User object from JWT in query parameters.
         // in standalone mode, we always give WRITE access to CU
         config.getUserProperties.put(HeaderField.UserComputingUnitAccess, PrivilegeEnum.WRITE.toString)
 

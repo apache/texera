@@ -28,7 +28,7 @@ import java.util.Optional
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 import scala.util.matching.Regex
 
-class EndpointAccessController extends Authorizer with LazyLogging {
+class AccessChecker extends Authorizer with LazyLogging {
 
   private val computingUnitAccess: ComputingUnitAccess = new ComputingUnitAccess()
 
@@ -42,16 +42,15 @@ class EndpointAccessController extends Authorizer with LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
-      case wsapiWorkflowWebsocket()        => performAuth(uriInfo, headers)
-      case apiExecutionsStats()          => performAuth(uriInfo, headers)
-      case apiExecutionsResultExport()   => performAuth(uriInfo, headers)
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+      checkComputingUnitAccess(uriInfo, headers)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
         Response.status(Response.Status.FORBIDDEN).build()
     }
   }
 
-  private def performAuth(uriInfo: UriInfo, headers: HttpHeaders): Response = {
+  private def checkComputingUnitAccess(uriInfo: UriInfo, headers: HttpHeaders): Response = {
     val queryParams: Map[String, String] = uriInfo
       .getQueryParameters()
       .asScala

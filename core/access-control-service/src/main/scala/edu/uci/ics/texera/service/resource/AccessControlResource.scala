@@ -22,7 +22,7 @@ import edu.uci.ics.texera.auth.JwtParser.parseToken
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.auth.util.{ComputingUnitAccess, HeaderField}
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
-import edu.uci.ics.texera.service.access.{Authorizer, EndpointAccessController}
+import edu.uci.ics.texera.service.access.{Authorizer, AccessChecker}
 import jakarta.ws.rs.{GET, POST, Path, Produces}
 import jakarta.ws.rs.core.{Context, HttpHeaders, MediaType, Response, UriInfo}
 
@@ -33,7 +33,7 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 @Path("/auth")
 class AccessControlResource extends LazyLogging {
 
-  private val authorizer: Authorizer = new EndpointAccessController()
+  private val authorizer: Authorizer = new AccessChecker()
 
   @GET
   @Path("/{path:.*}")

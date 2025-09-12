@@ -19,6 +19,19 @@ package edu.uci.ics.texera.service.access
 
 import jakarta.ws.rs.core.{HttpHeaders, Response, UriInfo}
 
+/**
+ *
+ * An interface for authorizing HTTP requests.
+ * Implementations of this interface should provide the logic to authorize requests based on
+ * the path and specific requirements of the destination service.
+ *
+ * @param uriInfo The UriInfo object containing information about the request URI that is
+ *                forwarded by Envoy service. This URI is the original request URI from the
+ *                client since Envoy forwards the original request URI in the path.
+ * @param headers The HttpHeaders object containing the HTTP headers of the request that is
+ *                forwarded by Envoy service. This includes headers such as Authorization.
+ *
+ */
 trait Authorizer {
   def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response
 }
