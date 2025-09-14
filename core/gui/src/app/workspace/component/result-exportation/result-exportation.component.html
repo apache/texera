@@ -89,34 +89,50 @@
       </nz-row>
     </form>
   </div>
-  <input
-    *ngIf="destination === 'dataset'"
-    [(ngModel)]="inputDatasetName"
-    (input)="onUserInputDatasetName($event)"
-    type="text"
-    nz-input
-    name="datasetName"
-    placeholder="Search for dataset by name..."
-    [nzAutocomplete]="auto" />
-  <nz-autocomplete #auto>
-    <nz-auto-option
-      *ngFor="let dataset of filteredUserAccessibleDatasets"
-      [nzLabel]="dataset.dataset.name">
-      <div class="auto-option-content">
-        <div class="dataset-id-container">{{dataset.dataset.did?.toString()}}</div>
+  <div
+    class="input-wrapper"
+    *ngIf="destination === 'dataset'">
+    <input
+      [(ngModel)]="inputDatasetName"
+      (input)="onUserInputDatasetName($event)"
+      type="text"
+      nz-input
+      name="datasetName"
+      placeholder="Search for dataset by name..."
+      [nzAutocomplete]="auto" />
+    <nz-autocomplete #auto>
+      <nz-auto-option
+        *ngFor="let dataset of filteredUserAccessibleDatasets"
+        [nzLabel]="dataset.dataset.name">
+        <div class="auto-option-content">
+          <div class="dataset-id-container">{{dataset.dataset.did?.toString()}}</div>
 
-        <span class="dataset-name">{{ dataset.dataset.name }}</span>
+          <span class="dataset-name">{{ dataset.dataset.name }}</span>
 
-        <button
-          nz-button
-          nzType="primary"
-          class="dataset-option-link-btn"
-          (click)="onClickExportResult('dataset', dataset)">
-          Save
-        </button>
-      </div>
-    </nz-auto-option>
-  </nz-autocomplete>
+          <button
+            nz-button
+            nzType="primary"
+            class="dataset-option-link-btn"
+            (click)="onClickExportResult('dataset', dataset)">
+            Save
+          </button>
+        </div>
+      </nz-auto-option>
+    </nz-autocomplete>
+    <nz-divider
+      nzText="or"
+      nzOrientation="center"></nz-divider>
+    <button
+      nz-button
+      nzType="dashed"
+      nzBlock
+      (click)="onClickCreateNewDataset()">
+      <span
+        nz-icon
+        nzType="plus-circle"></span>
+      Create New Dataset
+    </button>
+  </div>
   <button
     nz-button
     nzType="default"
