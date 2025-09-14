@@ -79,7 +79,7 @@ object LakeFSStorageClient {
     * @param repoName name of the repository to validate.
     * @throws IllegalArgumentException if the repository name is invalid.
     */
-  def validateRepositoryName(repoName: String): Unit = {
+  private def validateRepositoryName(repoName: String): Unit = {
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
 
     // Validate repoName
@@ -302,7 +302,7 @@ object LakeFSStorageClient {
     repoApi.deleteRepository(repoName).execute()
   }
 
-  def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
+  private def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
     refsApi
       .logCommits(repoName, branchName)
       .execute()
