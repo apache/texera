@@ -97,7 +97,6 @@ object LakeFSStorageClient {
     * Initializes a new repository in LakeFS.
     *
     * @param repoName         Name of the repository.
-    * @param defaultBranch    Default branch name, usually "main".
     */
   def initRepo(
       repoName: String
@@ -119,7 +118,6 @@ object LakeFSStorageClient {
     * Converts the InputStream to a temporary file for upload.
     *
     * @param repoName    Repository name.
-    * @param branch      Branch name.
     * @param filePath    Path in the repository.
     * @param inputStream File content stream.
     */
@@ -172,7 +170,6 @@ object LakeFSStorageClient {
     * Executes operations and creates a commit (similar to a transactional commit).
     *
     * @param repoName      Repository name.
-    * @param branch        Branch name.
     * @param commitMessage Commit message.
     * @param operations    File operations to perform before committing.
     */
