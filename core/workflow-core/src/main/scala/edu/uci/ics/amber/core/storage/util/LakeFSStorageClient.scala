@@ -74,15 +74,16 @@ object LakeFSStorageClient {
   }
 
   /**
-    * Validates the repository name against LakeFS naming conventions.
+    * Initializes a new repository in LakeFS.
     *
-    * @param repoName name of the repository to validate.
-    * @throws IllegalArgumentException if the repository name is invalid.
+    * @param repoName         Name of the repository.
     */
-  private def validateRepositoryName(repoName: String): Unit = {
+  def initRepo(
+      repoName: String
+  ): Repository = {
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
 
-    // Validate repoName
+    // validate repoName
     if (!repoNamePattern.matches(repoName)) {
       throw new IllegalArgumentException(
         s"Invalid repository name: '$repoName'. " +
@@ -91,18 +92,8 @@ object LakeFSStorageClient {
           "and cannot start with a hyphen."
       )
     }
-  }
 
-  /**
-    * Initializes a new repository in LakeFS.
-    *
-    * @param repoName         Name of the repository.
-    */
-  def initRepo(
-      repoName: String
-  ): Repository = {
-    validateRepositoryName(repoName)
-
+    // create repository
     val storageNamespace = s"$storageNamespaceURI/$repoName"
     val repo = new RepositoryCreation()
       .name(repoName)
