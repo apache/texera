@@ -44,7 +44,7 @@ export interface User
     googleAvatar?: string;
     comment: string;
     lastLogin?: number;
-    accountCreation?: number;
+    accountCreation: number;
   }> {}
 
 export interface File
