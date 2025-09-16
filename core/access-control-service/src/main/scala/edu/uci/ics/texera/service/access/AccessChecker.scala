@@ -28,7 +28,7 @@ import java.util.Optional
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 import scala.util.matching.Regex
 
-class AccessChecker extends Authorizer with LazyLogging {
+class AccessChecker extends LazyLogging {
 
   private val computingUnitAccess: ComputingUnitAccess = new ComputingUnitAccess()
 
@@ -37,7 +37,7 @@ class AccessChecker extends Authorizer with LazyLogging {
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
 
-  override def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
+  def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
     val path = uriInfo.getPath
     logger.info(s"Authorizing request for path: $path")
 
