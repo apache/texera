@@ -23,7 +23,7 @@ import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
-import { Role, User } from "../../../../common/type/user";
+import { Role, User, MilliSecond } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -196,7 +196,11 @@ export class AdminUserComponent implements OnInit {
     return Date.now() - lastMs < active_window;
   }
 
-  getAccountCreation(user: User): number {
+  getAccountCreation(user: User): MilliSecond {
+    // Convert Unix timestamp in seconds to milliseconds by * 1000 for JavaScript Date objects
+    if (!user.accountCreation) {
+      return 0;
+    }
     return user.accountCreation * 1000;
   }
 
