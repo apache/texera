@@ -197,7 +197,6 @@ export class AdminUserComponent implements OnInit {
   }
 
   getAccountCreation(user: User): MilliSecond {
-    // Convert Unix timestamp in seconds to milliseconds by * 1000 for JavaScript Date objects
     if (!user.accountCreation) {
       return 0;
     }
