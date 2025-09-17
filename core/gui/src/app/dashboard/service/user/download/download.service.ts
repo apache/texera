@@ -30,6 +30,7 @@ import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
+import {TOKEN_KEY} from "../../../../common/service/user/auth.service";
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
@@ -134,6 +135,10 @@ export class DownloadService {
     destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
     unit: DashboardWorkflowComputingUnit          // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
+    if (destination != 'dataset') {
+      return throwError(() => new Error('Export not via form only supports dataset downloads.'));
+    }
+
     const computingUnitId = unit.computingUnit.cuid;
     const requestBody = {
       exportType,
@@ -147,9 +152,6 @@ export class DownloadService {
       destination,
       computingUnitId,
     };
-    if (destination != 'dataset') {
-      return throwError(() => new Error('Export not via form only supports dataset downloads.'));
-    }
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
@@ -189,57 +191,60 @@ export class DownloadService {
       return;
     }
 
-    const requestBody = this.createExportRequestBody(
+    const computingUnitId = unit.computingUnit.cuid;
+    const token = localStorage.getItem(TOKEN_KEY);
+    const requestBody = {
       exportType,
       workflowId,
       workflowName,
+      operators,
+      datasetIds,
       rowIndex,
       columnIndex,
       filename,
       destination,
-      unit
-    );
+      computingUnitId,
+      token
+    };
 
-    this.getTempDownloadToken(requestBody).subscribe({
-      next: (res) => {
-        const urlPath =
-          unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
-            ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=${unit.computingUnit.cuid}`
-            : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`;
+    const urlPath =
+      unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`;
 
-        const iframe = document.createElement('iframe');
-        iframe.name = 'download-iframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
+    const iframe = document.createElement('iframe');
+    iframe.name = 'download-iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = urlPath;
-        form.target = 'download-iframe';
-        form.enctype = 'application/x-www-form-urlencoded';
-        form.style.display = 'none';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = urlPath;
+    form.target = 'download-iframe';
+    form.enctype = 'application/x-www-form-urlencoded';
+    form.style.display = 'none';
 
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'token';
-        tokenInput.value = res.token;
-        form.appendChild(tokenInput)
+    Object.entries(requestBody).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value =
+        value === null
+          ? ''
+          : typeof value === 'object'
+          ? JSON.stringify(value)
+          : String(value);
 
-        const operatorsInput = document.createElement('input');
-        operatorsInput.type = 'hidden';
-        operatorsInput.name = 'operators';
-        operatorsInput.value = JSON.stringify(operators);
-        form.appendChild(operatorsInput)
-
-        document.body.appendChild(form);
-        form.submit();
-
-        setTimeout(() => {
-          document.body.removeChild(form);
-          document.body.removeChild(iframe);
-        }, IFRAME_TIMEOUT_MS);
-      }
+      form.appendChild(input);
     });
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(() => {
+      document.body.removeChild(form);
+      document.body.removeChild(iframe);
+    }, IFRAME_TIMEOUT_MS);
   }
 
 
@@ -318,28 +323,6 @@ export class DownloadService {
     const urlPath = `${AppSettings.getApiEndpoint()}/auth/download/token`;
 
     return this.http.post<{ token: string }>(urlPath, requestBody, {});
-  }
-
-  private createExportRequestBody(
-    exportType: string,
-    workflowId: number,
-    workflowName: string,
-    rowIndex: number,
-    columnIndex: number,
-    filename: string,
-    destination: "local" | "dataset",
-    unit: DashboardWorkflowComputingUnit
-  ): any {
-    return {
-      exportType,
-      workflowId,
-      workflowName,
-      rowIndex,
-      columnIndex,
-      filename,
-      destination,
-      computingUnitId: unit.computingUnit.cuid
-    };
   }
 
   private downloadWithNotification(

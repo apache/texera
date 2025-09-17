@@ -32,7 +32,7 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions}
-import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.auth.{JwtParser, SessionUser}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -717,22 +717,46 @@ class WorkflowExecutionsResource {
   @Path("/result/export/local")
   @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
   def exportResultViaBrowser(
-      @FormParam("token") token: String,
-      @FormParam("operators") operatorsJson: String
+      @FormParam("exportType") exportType: String,
+      @FormParam("workflowId") workflowId: Int,
+      @FormParam("workflowName") workflowName: String,
+      @FormParam("operators") operatorsJson: String,
+      @FormParam("datasetIds") datasetIdsJson: String,
+      @FormParam("rowIndex") rowIndex: Int,
+      @FormParam("columnIndex") columnIndex: Int,
+      @FormParam("filename") filename: String,
+      @FormParam("destination") destination: String,
+      @FormParam("computingUnitId") computingUnitId: Int,
+      @FormParam("token") token: String
   ): Response = {
 
     try {
-      val claims = DownloadTokenAuthenticator.parseToken(token)
-
-      val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
-      val userRoleEnum = UserRoleEnum.lookupLiteral(claims.role)
-
-      if (userRoleEnum == null || !RolesAllowed.contains(userRoleEnum)) {
-        throw new RuntimeException("User role is not allowed to perform this download")
+      val userOpt = JwtParser.parseToken(token)
+      if (userOpt.isPresent) {
+        val user = userOpt.get()
+        val role = user.getUser.getRole
+        val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
+        if (!RolesAllowed.contains(role)) {
+          throw new RuntimeException("User role is not allowed to perform this download")
+        }
+      } else {
+        throw new RuntimeException("Invalid or expired token")
       }
 
       val operators = WorkflowExportResource.parseOperators(operatorsJson)
-      val request = WorkflowExportResource.toExportRequest(claims, operators)
+      val datasetIds: List[Int] = List()
+      val request = ResultExportRequest(
+        exportType,
+        workflowId,
+        workflowName,
+        operators,
+        datasetIds,
+        rowIndex,
+        columnIndex,
+        filename,
+        destination,
+        computingUnitId
+      )
 
       WorkflowExportResource.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
@@ -755,23 +779,6 @@ object WorkflowExportResource {
       .registerModule(DefaultScalaModule)
       .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
   }
-
-  def toExportRequest(
-      claims: DownloadTokenClaims,
-      operators: List[OperatorExportInfo]
-  ): ResultExportRequest =
-    ResultExportRequest(
-      claims.exportType,
-      claims.workflowId,
-      claims.workflowName,
-      operators,
-      datasetIds = List(),
-      claims.rowIndex,
-      claims.columnIndex,
-      claims.filename,
-      claims.destination,
-      claims.computingUnitId
-    )
 
   def validateExportRequest(request: ResultExportRequest): Option[Response] = {
     if (request.operators.isEmpty) {
