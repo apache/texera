@@ -28,19 +28,16 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workfl
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
-  DashboardWorkflow,
-  WorkflowIDs
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, WorkflowIDs}
 import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.time.{OffsetDateTime, ZoneOffset, Duration}
 import java.util
 import java.util.Collections
 import java.util.concurrent.TimeUnit
@@ -51,6 +48,9 @@ class WorkflowResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
+  private val fixedCreationTime: OffsetDateTime =
+    OffsetDateTime.parse("2025-01-01T00:00:00Z")
+
   private val testUser: User = {
     val user = new User
     user.setUid(Integer.valueOf(1))
@@ -58,6 +58,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment")
+    user.setAccountCreationTime(fixedCreationTime)
     user
   }
 
@@ -68,6 +69,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment2")
+    user.setAccountCreationTime(fixedCreationTime)
     user
   }
 
@@ -199,6 +201,51 @@ class WorkflowResourceSpec
 
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
+  }
+
+  "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val u2 = userDao.fetchOneByUid(Integer.valueOf(2))
+
+    assert(u1.getAccountCreationTime != null)
+    assert(u2.getAccountCreationTime != null)
+
+    assert(u1.getAccountCreationTime.isEqual(fixedCreationTime))
+    assert(u2.getAccountCreationTime.isEqual(fixedCreationTime))
+  }
+
+  it should "remain unchanged when updating unrelated fields" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val originalTime = u1.getAccountCreationTime
+
+    u1.setComment("updated_comment")
+    userDao.update(u1)
+
+    val test_u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    assert(test_u1.getAccountCreationTime.isEqual(originalTime))
+  }
+
+  it should "fallback to DB default when not explicitly set on insert" in {
+    // account_creation_time TIMESTAMPTZ NOT NULL DEFAULT now()
+    val userDao = new UserDao(getDSLContext.configuration())
+
+    val tmp = new User
+    tmp.setUid(Integer.valueOf(9999))
+    tmp.setName("tmp_user")
+    tmp.setRole(UserRoleEnum.REGULAR)
+    tmp.setPassword("pw")
+    tmp.setComment("tmp")
+    // Account creation time not set
+    userDao.insert(tmp)
+
+    val fetched = userDao.fetchOneByUid(Integer.valueOf(9999))
+    assert(fetched.getAccountCreationTime != null)
+
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
+    val diff = Duration.between(fetched.getAccountCreationTime, now).abs()
+    assert(diff.toMinutes <= 2)
   }
 
   "/search API " should "be able to search for workflows in different columns in Workflow table" in {
