@@ -51,6 +51,7 @@ class WorkflowResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
+  // An example creation time to test Account Creation Time attribute
   private val exampleCreationTime: OffsetDateTime =
     OffsetDateTime.parse("2025-01-01T00:00:00Z")
 
@@ -254,6 +255,7 @@ class WorkflowResourceSpec
     // account_creation_time TIMESTAMPTZ NOT NULL DEFAULT now()
     val userDao = new UserDao(getDSLContext.configuration())
 
+    // Test user 3 on top of test user 1 and 2
     val tmp = new User
     tmp.setUid(Integer.valueOf(3))
     tmp.setName("tmp_user")
@@ -271,6 +273,7 @@ class WorkflowResourceSpec
     assert(diff.toMinutes <= 2)
   }
 
+  // Testing with user id 4
   it should "persist and retrieve a non-UTC offset time (ex: +09:00 JST)" in {
     insertAndAssertAccountCreation(
       uid = 4,
@@ -278,6 +281,7 @@ class WorkflowResourceSpec
     )
   }
 
+  // Testing with user id 5
   it should "persist and retrieve a leap day timestamp" in {
     insertAndAssertAccountCreation(
       uid = 5,
@@ -285,6 +289,7 @@ class WorkflowResourceSpec
     )
   }
 
+  // Testing with user id 6
   it should "persist and retrieve a future timestamp" in {
     insertAndAssertAccountCreation(
       uid = 6,
