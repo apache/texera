@@ -30,11 +30,7 @@ import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.resource._
-import edu.uci.ics.texera.web.resource.auth.{
-  AuthResource,
-  DownloadTokenResource,
-  GoogleAuthResource
-}
+import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
@@ -139,7 +135,6 @@ class TexeraWebApplication
 
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
-    environment.jersey.register(classOf[DownloadTokenResource])
     environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[PublicProjectResource])

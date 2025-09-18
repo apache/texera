@@ -319,12 +319,6 @@ export class DownloadService {
     return copyName;
   }
 
-  private getTempDownloadToken(requestBody: any): Observable<{ token: string }> {
-    const urlPath = `${AppSettings.getApiEndpoint()}/auth/download/token`;
-
-    return this.http.post<{ token: string }>(urlPath, requestBody, {});
-  }
-
   private downloadWithNotification(
     retrieveFunction: () => Observable<Blob>,
     fileName: string,
