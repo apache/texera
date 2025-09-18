@@ -278,7 +278,7 @@ class WorkflowResourceSpec
     val userId = 4
     insertAndAssertAccountCreation(
       uid = userId,
-      ts  = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
+      ts = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
     )
   }
 
@@ -287,7 +287,7 @@ class WorkflowResourceSpec
     val userId = 5
     insertAndAssertAccountCreation(
       uid = userId,
-      ts  = OffsetDateTime.parse("2024-02-29T23:59:59Z")
+      ts = OffsetDateTime.parse("2024-02-29T23:59:59Z")
     )
   }
 
@@ -296,7 +296,7 @@ class WorkflowResourceSpec
     val userId = 6
     insertAndAssertAccountCreation(
       uid = userId,
-      ts  = OffsetDateTime.parse("2100-12-31T23:59:59Z")
+      ts = OffsetDateTime.parse("2100-12-31T23:59:59Z")
     )
   }
 
