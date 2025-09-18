@@ -202,6 +202,26 @@ class WorkflowResourceSpec
     keywordsList
   }
 
+  private def insertAndAssertAccountCreation(uid: Int, ts: OffsetDateTime): Unit = {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u = new User
+    u.setUid(Integer.valueOf(uid))
+    u.setName(s"tmp_user_$uid")
+    u.setRole(UserRoleEnum.REGULAR)
+    u.setPassword("pw")
+    u.setComment("tmp")
+    u.setAccountCreationTime(ts)
+    userDao.insert(u)
+
+    try {
+      val fetched = userDao.fetchOneByUid(Integer.valueOf(uid))
+      assert(fetched.getAccountCreationTime != null)
+      assert(fetched.getAccountCreationTime.isEqual(ts))
+    } finally {
+      userDao.deleteById(Integer.valueOf(uid))
+    }
+  }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
   }
@@ -235,7 +255,7 @@ class WorkflowResourceSpec
     val userDao = new UserDao(getDSLContext.configuration())
 
     val tmp = new User
-    tmp.setUid(Integer.valueOf(9999))
+    tmp.setUid(Integer.valueOf(3))
     tmp.setName("tmp_user")
     tmp.setRole(UserRoleEnum.REGULAR)
     tmp.setPassword("pw")
@@ -243,12 +263,33 @@ class WorkflowResourceSpec
     // Account creation time not set
     userDao.insert(tmp)
 
-    val fetched = userDao.fetchOneByUid(Integer.valueOf(9999))
+    val fetched = userDao.fetchOneByUid(Integer.valueOf(3))
     assert(fetched.getAccountCreationTime != null)
 
     val now = OffsetDateTime.now(ZoneOffset.UTC)
     val diff = Duration.between(fetched.getAccountCreationTime, now).abs()
     assert(diff.toMinutes <= 2)
+  }
+
+  it should "persist and retrieve a non-UTC offset time (ex: +09:00 JST)" in {
+    insertAndAssertAccountCreation(
+      uid = 4,
+      ts  = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
+    )
+  }
+
+  it should "persist and retrieve a leap day timestamp" in {
+    insertAndAssertAccountCreation(
+      uid = 5,
+      ts  = OffsetDateTime.parse("2024-02-29T23:59:59Z")
+    )
+  }
+
+  it should "persist and retrieve a future timestamp" in {
+    insertAndAssertAccountCreation(
+      uid = 6,
+      ts  = OffsetDateTime.parse("2100-12-31T23:59:59Z")
+    )
   }
 
   "/search API " should "be able to search for workflows in different columns in Workflow table" in {
