@@ -295,7 +295,9 @@
         </button>
       </td>
       <td>
-        <ng-container *ngIf="getAccountCreation(user) as ac; else noAC"> {{ ac | date:'MM/dd/y, h:mm a' }} </ng-container>
+        <ng-container *ngIf="getAccountCreation(user) as ac; else noAC">
+          {{ ac | date:'MM/dd/y, h:mm a' }}
+        </ng-container>
         <ng-template #noAC>—</ng-template>
       </td>
     </tr>
