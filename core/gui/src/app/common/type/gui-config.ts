@@ -39,6 +39,7 @@ export interface GuiConfig {
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
   expirationTimeInMinutes: number;
+  activeTimeInMinutes: number;
 }
 
 export interface SidebarTabs {
