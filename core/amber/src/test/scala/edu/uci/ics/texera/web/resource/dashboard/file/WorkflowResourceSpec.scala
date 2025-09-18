@@ -48,7 +48,7 @@ class WorkflowResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
-  private val fixedCreationTime: OffsetDateTime =
+  private val exampleCreationTime: OffsetDateTime =
     OffsetDateTime.parse("2025-01-01T00:00:00Z")
 
   private val testUser: User = {
@@ -58,7 +58,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment")
-    user.setAccountCreationTime(fixedCreationTime)
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
@@ -69,7 +69,7 @@ class WorkflowResourceSpec
     user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
     user.setComment("test_comment2")
-    user.setAccountCreationTime(fixedCreationTime)
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
@@ -211,8 +211,8 @@ class WorkflowResourceSpec
     assert(u1.getAccountCreationTime != null)
     assert(u2.getAccountCreationTime != null)
 
-    assert(u1.getAccountCreationTime.isEqual(fixedCreationTime))
-    assert(u2.getAccountCreationTime.isEqual(fixedCreationTime))
+    assert(u1.getAccountCreationTime.isEqual(exampleCreationTime))
+    assert(u2.getAccountCreationTime.isEqual(exampleCreationTime))
   }
 
   it should "remain unchanged when updating unrelated fields" in {
