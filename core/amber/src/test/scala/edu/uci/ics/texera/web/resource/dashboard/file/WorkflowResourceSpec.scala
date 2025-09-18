@@ -254,10 +254,10 @@ class WorkflowResourceSpec
   it should "fallback to DB default when not explicitly set on insert" in {
     // account_creation_time TIMESTAMPTZ NOT NULL DEFAULT now()
     val userDao = new UserDao(getDSLContext.configuration())
-
     // Test user 3 on top of test user 1 and 2
+    val userId = 3
     val tmp = new User
-    tmp.setUid(Integer.valueOf(3))
+    tmp.setUid(Integer.valueOf(userId))
     tmp.setName("tmp_user")
     tmp.setRole(UserRoleEnum.REGULAR)
     tmp.setPassword("pw")
@@ -275,24 +275,27 @@ class WorkflowResourceSpec
 
   // Testing with user id 4
   it should "persist and retrieve a non-UTC offset time (ex: +09:00 JST)" in {
+    val userId = 4
     insertAndAssertAccountCreation(
-      uid = 4,
+      uid = userId,
       ts  = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
     )
   }
 
   // Testing with user id 5
   it should "persist and retrieve a leap day timestamp" in {
+    val userId = 5
     insertAndAssertAccountCreation(
-      uid = 5,
+      uid = userId,
       ts  = OffsetDateTime.parse("2024-02-29T23:59:59Z")
     )
   }
 
   // Testing with user id 6
   it should "persist and retrieve a future timestamp" in {
+    val userId = 6
     insertAndAssertAccountCreation(
-      uid = 6,
+      uid = userId,
       ts  = OffsetDateTime.parse("2100-12-31T23:59:59Z")
     )
   }
