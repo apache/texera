@@ -74,15 +74,15 @@ object LakeFSStorageClient {
   }
 
   /**
-    * Validates the repository name against LakeFS naming conventions.
+    * Initializes a new repository in LakeFS.
     *
-    * @param repoName name of the repository to validate.
-    * @throws IllegalArgumentException if the repository name is invalid.
+    * @param repoName         Name of the repository.
     */
-  def validateRepositoryName(repoName: String): Unit = {
+  def initRepo(
+      repoName: String
+  ): Repository = {
+    // validate repoName
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
-
-    // Validate repoName
     if (!repoNamePattern.matches(repoName)) {
       throw new IllegalArgumentException(
         s"Invalid repository name: '$repoName'. " +
@@ -91,19 +91,8 @@ object LakeFSStorageClient {
           "and cannot start with a hyphen."
       )
     }
-  }
 
-  /**
-    * Initializes a new repository in LakeFS.
-    *
-    * @param repoName         Name of the repository.
-    * @param defaultBranch    Default branch name, usually "main".
-    */
-  def initRepo(
-      repoName: String
-  ): Repository = {
-    validateRepositoryName(repoName)
-
+    // create repository
     val storageNamespace = s"$storageNamespaceURI/$repoName"
     val repo = new RepositoryCreation()
       .name(repoName)
@@ -119,7 +108,6 @@ object LakeFSStorageClient {
     * Converts the InputStream to a temporary file for upload.
     *
     * @param repoName    Repository name.
-    * @param branch      Branch name.
     * @param filePath    Path in the repository.
     * @param inputStream File content stream.
     */
@@ -172,7 +160,6 @@ object LakeFSStorageClient {
     * Executes operations and creates a commit (similar to a transactional commit).
     *
     * @param repoName      Repository name.
-    * @param branch        Branch name.
     * @param commitMessage Commit message.
     * @param operations    File operations to perform before committing.
     */
@@ -302,7 +289,7 @@ object LakeFSStorageClient {
     repoApi.deleteRepository(repoName).execute()
   }
 
-  def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
+  private def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
     refsApi
       .logCommits(repoName, branchName)
       .execute()
