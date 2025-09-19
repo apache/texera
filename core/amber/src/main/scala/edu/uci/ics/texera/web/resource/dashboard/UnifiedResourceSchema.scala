@@ -166,5 +166,4 @@ class UnifiedResourceSchema private (
     }
     ret
   }
-
 }
