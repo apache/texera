@@ -48,14 +48,14 @@ export class AdminSettingsComponent implements OnInit {
     about_enabled: false,
   };
 
-  maxFileSizeMB: number = 20;
+  maxFileSizeMiB: number = 20;
   maxConcurrentChunks: number = 10;
-  chunkSizeMB: number = 50;
+  chunkSizeMiB: number = 50;
 
   // S3 Multipart Upload Constraints
-  readonly MIN_PART_SIZE_MB = 5; // 5 MiB minimum for parts (except last part)
-  readonly MAX_PART_SIZE_MB = 5120; // 5 GiB maximum per part (5 * 1024 MiB)
-  readonly MAX_FILE_SIZE_MB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
+  readonly MIN_PART_SIZE_MiB = 5; // 5 MiB minimum for parts (except last part)
+  readonly MAX_PART_SIZE_MiB = 5120; // 5 GiB maximum per part (5 * 1024 MiB)
+  readonly MAX_FILE_SIZE_MiB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
   readonly MAX_TOTAL_PARTS = 10000; // S3 maximum parts per upload
 
   private readonly RELOAD_DELAY = 1000;
@@ -67,7 +67,7 @@ export class AdminSettingsComponent implements OnInit {
   ngOnInit(): void {
     this.loadBranding();
     this.loadTabs();
-    this.loadDatasetSetting();
+    this.loadDatasetSettings();
   }
 
   private loadBranding(): void {
@@ -96,19 +96,19 @@ export class AdminSettingsComponent implements OnInit {
     });
   }
 
-  private loadDatasetSetting(): void {
+  private loadDatasetSettings(): void {
     this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mb")
+      .getSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.maxFileSizeMB = parseInt(value)));
+      .subscribe(value => (this.maxFileSizeMiB = parseInt(value)));
     this.adminSettingsService
       .getSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mb")
+      .getSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMB = parseInt(value)));
+      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -190,29 +190,39 @@ export class AdminSettingsComponent implements OnInit {
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
+  // Computed properties
+  get partsAtMax(): number {
+    if (!this.maxFileSizeMiB || !this.chunkSizeMiB) return 0;
+    return Math.ceil(this.maxFileSizeMiB / this.chunkSizeMiB);
+  }
+
+  get requiredMinPartSizeMiB(): number {
+    if (!this.maxFileSizeMiB) return this.MIN_PART_SIZE_MiB;
+    const byPartsLimit = Math.ceil(this.maxFileSizeMiB / this.MAX_TOTAL_PARTS);
+    return Math.max(this.MIN_PART_SIZE_MiB, byPartsLimit);
+  }
+
   saveDatasetSettings(): void {
-    if (this.maxFileSizeMB < 1 || this.maxConcurrentChunks < 1 || this.chunkSizeMB < 1) {
+    if (this.maxFileSizeMiB < 1 || this.maxConcurrentChunks < 1 || this.chunkSizeMiB < 1) {
       this.message.error("Please enter valid integer values.");
       return;
     }
 
-    const partsAtMax = Math.ceil(this.maxFileSizeMB / this.chunkSizeMB);
-    if (partsAtMax > this.MAX_TOTAL_PARTS) {
-      const requiredMin = Math.max(this.MIN_PART_SIZE_MB, Math.ceil(this.maxFileSizeMB / this.MAX_TOTAL_PARTS));
+    if (this.partsAtMax > this.MAX_TOTAL_PARTS) {
       this.message.error(
-        `This setting would create ${partsAtMax.toLocaleString()} parts (>10,000). ` +
-          `Increase "Part Size" to at least ${requiredMin} MB or reduce "File Size".`
+        `This setting would create ${this.partsAtMax.toLocaleString()} parts (exceeds 10,000 limit). ` +
+          `Increase "Part Size" to at least ${this.requiredMinPartSizeMiB} MiB or reduce "File Size".`
       );
       return;
     }
 
     const saveRequests = [
-      this.adminSettingsService.updateSetting("single_file_upload_max_size_mb", this.maxFileSizeMB.toString()),
+      this.adminSettingsService.updateSetting("single_file_upload_max_size_mib", this.maxFileSizeMiB.toString()),
       this.adminSettingsService.updateSetting(
         "max_number_of_concurrent_uploading_file_chunks",
         this.maxConcurrentChunks.toString()
       ),
-      this.adminSettingsService.updateSetting("multipart_upload_chunk_size_mb", this.chunkSizeMB.toString()),
+      this.adminSettingsService.updateSetting("multipart_upload_chunk_size_mib", this.chunkSizeMiB.toString()),
     ];
 
     forkJoin(saveRequests)
@@ -225,9 +235,9 @@ export class AdminSettingsComponent implements OnInit {
 
   resetDatasetSettings(): void {
     [
-      "single_file_upload_max_size_mb",
+      "single_file_upload_max_size_mib",
       "max_number_of_concurrent_uploading_file_chunks",
-      "multipart_upload_chunk_size_mb",
+      "multipart_upload_chunk_size_mib",
     ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
 
     this.message.info("Resetting dataset settings...");
