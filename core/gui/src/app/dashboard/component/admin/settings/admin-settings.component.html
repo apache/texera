@@ -239,19 +239,51 @@
   </div>
 </nz-card>
 
-<nz-card nzTitle="Dataset">
+<nz-card [nzTitle]="datasetTitle">
+  <ng-template #datasetTitle>
+    Dataset
+    <span
+      nz-tooltip
+      [nzTooltipTitle]="awsTip"
+      nzTooltipPlacement="right"
+      class="icon-info"
+      role="button">
+      <i
+        nz-icon
+        nzType="info-circle"
+        nzTheme="outline"></i>
+    </span>
+  </ng-template>
+
+  <ng-template #awsTip>
+    <div>
+      <strong>Configuration Guidelines</strong><br />
+      • Concurrent parts &times; part size ≈ in-flight data per file<br />
+      • Keep usage within your client memory/bandwidth limits<br />
+      • Use larger part size for large files to avoid &gt;10,000 parts<br />
+      • Out-of-range inputs will be auto-adjusted to the nearest valid value<br /><br />
+      Learn more:
+      <a
+        href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html"
+        target="_blank"
+        rel="noopener noreferrer">
+        AWS S3 Multipart Upload Limits
+      </a>
+    </div>
+  </ng-template>
+
   <div class="settings-row">
     <span>File Size:</span>
     <nz-input-number
-      [(ngModel)]="maxFileSizeMB"
+      [(ngModel)]="maxFileSizeMiB"
       [nzMin]="1"
-      [nzMax]="MAX_FILE_SIZE_MB"
+      [nzMax]="MAX_FILE_SIZE_MiB"
       [nzStep]="10"
       [nzPrecision]="0">
     </nz-input-number>
   </div>
   <div class="help-text-number">
-    Maximum size allowed for individual file uploads (MB). (Range: 1 MB - {{ MAX_FILE_SIZE_MB }} MB (5 TiB))
+    Maximum size allowed for individual file uploads. Range: 1 MiB - {{ MAX_FILE_SIZE_MiB | number }} MiB (5 TiB).
   </div>
 
   <div class="settings-row">
@@ -264,21 +296,26 @@
       [nzPrecision]="0">
     </nz-input-number>
   </div>
-  <div class="help-text-number">Number of file chunks that can be uploaded simultaneously. (Range: 1 - 10000)</div>
+  <div class="help-text-number">
+    Number of parts uploaded in parallel. Range: 1 - {{ MAX_TOTAL_PARTS | number }}. Current configuration will use
+    approximately {{ partsAtMax | number }} parts for maximum file size.
+  </div>
 
   <div class="settings-row">
     <span>Part Size:</span>
     <nz-input-number
-      [(ngModel)]="chunkSizeMB"
-      [nzMin]="MIN_PART_SIZE_MB"
-      [nzMax]="MAX_PART_SIZE_MB"
+      [(ngModel)]="chunkSizeMiB"
+      [nzMin]="MIN_PART_SIZE_MiB"
+      [nzMax]="MAX_PART_SIZE_MiB"
       [nzStep]="10"
       [nzPrecision]="0">
     </nz-input-number>
   </div>
   <div class="help-text-number">
-    Size of each chunk during multipart upload in MB. (Range: {{ MIN_PART_SIZE_MB }} MB - {{ MAX_PART_SIZE_MB }} MB (5
-    GiB))
+    Size of each chunk during multipart upload. Range: {{ MIN_PART_SIZE_MiB }} MiB - {{ MAX_PART_SIZE_MiB | number }}
+    MiB (5 GiB). Minimum required for current configuration: {{ requiredMinPartSizeMiB | number }} MiB.
+    <br />
+    In-flight data per file: ~{{ maxConcurrentChunks * chunkSizeMiB | number }} MiB
   </div>
 
   <div class="button-row">
