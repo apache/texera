@@ -25,7 +25,6 @@ SET search_path TO texera_db;
 -- ============================================
 -- 2. Update the table schema
 -- ============================================
-
 BEGIN;
 
 -- 1. Add new column repository_name to dataset table.
