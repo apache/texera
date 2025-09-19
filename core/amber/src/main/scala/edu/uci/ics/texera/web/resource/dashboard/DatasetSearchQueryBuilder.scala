@@ -128,7 +128,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
     } catch {
       case e: io.lakefs.clients.sdk.ApiException =>
         // Treat all LakeFS ApiException as mismatch (repository not found, being deleted, or any fatal error)
-        logger.error(s"LakeFS ApiException for dataset '${dataset.getDid}': ${e.getMessage}", e)
+        logger.error(
+          s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+          e
+        )
         return null
     }
 
