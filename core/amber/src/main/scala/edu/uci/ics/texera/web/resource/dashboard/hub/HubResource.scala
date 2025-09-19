@@ -30,8 +30,8 @@ import HubResource.{
   fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   isLikedHelper,
-  recordLikeActivity,
-  recordUserActivity
+  recordLikeAction,
+  recordUserAction
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -49,6 +49,7 @@ import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
@@ -63,7 +64,7 @@ import scala.collection.mutable.ListBuffer
 
 object HubResource {
   // Represents an entity reference for general-purpose batch APIs.
-  // Used by: isLikedHelper, recordLikeActivity, getCounts, userAccess
+  // Used by: isLikedHelper, recordLikeAction, getCounts, userAccess
   case class UserRequest(entityId: Integer, entityType: EntityType)
 
   // Extends UserRequest by adding userId, used for view tracking.
@@ -149,7 +150,7 @@ object HubResource {
   }
 
   /**
-    * Records a user's activity in the system.
+    * Records a user's action in the system.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userId The ID of the user performing the action (default is 0 for anonymous users).
@@ -157,7 +158,7 @@ object HubResource {
     * @param entityType The type of entity being acted upon (validated before processing).
     * @param action The action performed by the user ("like", "unlike", "view", "clone").
     */
-  def recordUserActivity(
+  def recordUserAction(
       request: HttpServletRequest,
       userId: Integer = Integer.valueOf(0),
       entityId: Integer,
@@ -165,30 +166,31 @@ object HubResource {
       action: ActionType
   ): Unit = {
     val userIp = request.getRemoteAddr
+    val actionEnum = ActionEnum.values().find(_.getLiteral.equalsIgnoreCase(action.value)).get
 
     val query = context
-      .insertInto(USER_ACTIVITY)
-      .set(USER_ACTIVITY.UID, userId)
-      .set(USER_ACTIVITY.ID, entityId)
-      .set(USER_ACTIVITY.TYPE, entityType.value)
-      .set(USER_ACTIVITY.ACTIVATE, action.value)
+      .insertInto(USER_ACTION)
+      .set(USER_ACTION.UID, userId)
+      .set(USER_ACTION.RESOURCE_ID, entityId)
+      .set(USER_ACTION.RESOURCE_TYPE, entityType.value)
+      .set(USER_ACTION.ACTION, actionEnum)
 
     if (ipv4Pattern.matcher(userIp).matches()) {
-      query.set(USER_ACTIVITY.IP, userIp)
+      query.set(USER_ACTION.IP, userIp)
     }
 
     query.execute()
   }
 
   /**
-    * Records a user's like or unlike activity for a given entity.
+    * Records a user's like or unlike action for a given entity.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userRequest An object containing entityId, userId, and entityType.
     * @param isLike A boolean flag indicating whether the action is a like (`true`) or unlike (`false`).
     * @return `true` if the like/unlike action was recorded successfully, otherwise `false`.
     */
-  def recordLikeActivity(
+  def recordLikeAction(
       request: HttpServletRequest,
       userId: Integer,
       userRequest: UserRequest,
@@ -214,7 +216,7 @@ object HubResource {
         .set(idColumn, entityId)
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, Like)
+      recordUserAction(request, userId, entityId, entityType, Like)
       true
     } else if (!isLike && alreadyLiked) {
       context
@@ -222,7 +224,7 @@ object HubResource {
         .where(uidColumn.eq(userId).and(idColumn.eq(entityId)))
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, Unlike)
+      recordUserAction(request, userId, entityId, entityType, Unlike)
       true
     } else {
       false
@@ -230,14 +232,14 @@ object HubResource {
   }
 
   /**
-    * Records a user's clone activity for a given entity.
+    * Records a user's clone action for a given entity.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userId The ID of the user performing the clone action.
     * @param entityId The ID of the entity being cloned.
     * @param entityType The type of entity being cloned (must be validated).
     */
-  def recordCloneActivity(
+  def recordCloneAction(
       request: HttpServletRequest,
       userId: Integer,
       entityId: Integer,
@@ -248,7 +250,7 @@ object HubResource {
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    recordUserActivity(request, userId, entityId, entityType, Clone)
+    recordUserAction(request, userId, entityId, entityType, Clone)
 
     val existingCloneRecord = context
       .selectFrom(table)
@@ -371,7 +373,7 @@ class HubResource {
       @Context request: HttpServletRequest,
       likeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, user.getUid, likeRequest, isLike = true)
+    recordLikeAction(request, user.getUid, likeRequest, isLike = true)
   }
 
   @POST
@@ -382,7 +384,7 @@ class HubResource {
       @Context request: HttpServletRequest,
       unlikeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, user.getUid, unlikeRequest, isLike = false)
+    recordLikeAction(request, user.getUid, unlikeRequest, isLike = false)
   }
 
   @POST
@@ -409,7 +411,7 @@ class HubResource {
       .returning(viewCountColumn)
       .fetchOne()
 
-    recordUserActivity(request, userId, entityID, entityType, View)
+    recordUserAction(request, userId, entityID, entityType, View)
 
     record.get(viewCountColumn)
   }

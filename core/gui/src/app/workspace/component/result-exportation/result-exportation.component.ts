@@ -22,11 +22,12 @@ import { Component, inject, Input, OnInit } from "@angular/core";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 
 @UntilDestroy()
 @Component({
@@ -58,6 +59,7 @@ export class ResultExportationComponent implements OnInit {
   constructor(
     public workflowResultExportService: WorkflowResultExportService,
     private modalRef: NzModalRef,
+    private modalService: NzModalService,
     private datasetService: DatasetService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
@@ -136,8 +138,10 @@ export class ResultExportationComponent implements OnInit {
 
     if (value) {
       this.filteredUserAccessibleDatasets = this.userAccessibleDatasets.filter(
-        dataset => dataset.dataset.did && dataset.dataset.name.toLowerCase().includes(value)
+        dataset => dataset.dataset.did && dataset.dataset.name.toLowerCase().includes(value.toLowerCase())
       );
+    } else {
+      this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
     }
   }
 
@@ -156,5 +160,25 @@ export class ResultExportationComponent implements OnInit {
       this.selectedComputingUnit
     );
     this.modalRef.close();
+  }
+
+  onClickCreateNewDataset(): void {
+    const modal = this.modalService.create({
+      nzTitle: "Create New Dataset",
+      nzContent: UserDatasetVersionCreatorComponent,
+      nzData: {
+        isCreatingVersion: false,
+      },
+      nzFooter: null,
+      nzWidth: 500,
+    });
+
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe((result: DashboardDataset | null) => {
+      if (result) {
+        this.userAccessibleDatasets.unshift(result);
+        this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
+        this.inputDatasetName = result.dataset.name;
+      }
+    });
   }
 }

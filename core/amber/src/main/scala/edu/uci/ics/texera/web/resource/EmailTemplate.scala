@@ -19,8 +19,8 @@
 
 package edu.uci.ics.texera.web.resource
 
-import com.typesafe.config.ConfigFactory
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.config.UserSystemConfig
 
 /**
   * EmailTemplate provides factory methods to generate email messages
@@ -28,13 +28,8 @@ import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
   */
 object EmailTemplate {
 
-  private val deployment: String = {
-    val config = ConfigFactory.load()
-    val rawDomain =
-      if (config.hasPath("user-sys.domain")) config.getString("user-sys.domain")
-      else ""
-    rawDomain.replaceFirst("^https?://", "")
-  }
+  private val deployment: String =
+    UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
 
   /**
     * Creates an email message for user registration notifications.
@@ -53,11 +48,8 @@ object EmailTemplate {
   ): EmailMessage = {
     if (toAdmin) {
       val subject =
-        if (deployment.nonEmpty)
-          s"New Account Request to $deployment Pending Approval"
-        else
-          "New Account Request Pending Approval"
-
+        s"New Account Request Pending Approval${if (deployment.nonEmpty) s" for [$deployment]"
+        else ""}"
       val content =
         s"""
            |Hello Admin,
@@ -73,7 +65,8 @@ object EmailTemplate {
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     } else {
-      val subject = "Account Request Received"
+      val subject =
+        s"Account Request Received${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
       val content =
         s"""
            |Hello,
@@ -98,11 +91,7 @@ object EmailTemplate {
     */
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
     val subject =
-      if (deployment.nonEmpty)
-        s"Your Role Has Been Updated on $deployment"
-      else
-        "Your Role Has Been Updated"
-
+      s"Your Role Has Been Updated${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
     val content =
       s"""
          |Hello,

@@ -116,13 +116,13 @@ object UnifiedResourceSchema {
   * - `wid`: Workflow ID, as an `Integer`.
   * - `workflowUserAccess`: Access privileges associated with the workflow, as a `PrivilegeEnum`.
   * - `projectsOfWorkflow`: IDs of projects associated with the workflow, concatenated as a `String`.
-  * - `uid`: User ID associated with the workflow, as a `Integer`.
+  * - `uid`: User ID associated with the workflow, as an `Integer`.
   * - `userName`: Name of the user associated with the workflow, as a `String`.
   * - `userEmail`: Email of the user associated with the workflow, as a `String`.
   *
   * Attributes specific to projects:
   * - `pid`: Project ID, as an `Integer`.
-  * - `projectOwnerId`: ID of the project owner, as a `Integer`.
+  * - `projectOwnerId`: ID of the project owner, as an `Integer`.
   * - `projectColor`: Color associated with the project, as a `String`.
   *
   * Attributes specific to files:
