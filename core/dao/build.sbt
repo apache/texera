@@ -36,6 +36,79 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+/////////////////////////////////////////////////////////////////////////////
+// JOOQ Code Generation
+/////////////////////////////////////////////////////////////////////////////
+
+// Define JOOQ generation task
+lazy val jooqGenerate = taskKey[Seq[File]]("Generate JOOQ sources")
+
+jooqGenerate := {
+  val log = streams.value.log
+  log.info("Generating JOOQ classes...")
+
+  try {
+    import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions}
+    import org.jooq.codegen.GenerationTool
+    import org.jooq.meta.jaxb.{Configuration, Jdbc}
+    import java.nio.file.{Files, Path}
+    import java.io.File
+
+    // Load jOOQ configuration XML (absolute path from DAO project)
+    val jooqXmlPath: Path =
+      baseDirectory.value.toPath.resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
+    val jooqConfig: Configuration = GenerationTool.load(Files.newInputStream(jooqXmlPath))
+
+    // Load storage.conf from the config project
+    val storageConfPath: Path = baseDirectory.value.toPath
+      .getParent
+      .resolve("config")
+      .resolve("src")
+      .resolve("main")
+      .resolve("resources")
+      .resolve("storage.conf")
+
+    val conf: Config = ConfigFactory
+      .parseFile(
+        new File(storageConfPath.toString),
+        ConfigParseOptions.defaults().setAllowMissing(false)
+      )
+      .resolve()
+
+    // Extract JDBC configuration
+    val jdbcConfig = conf.getConfig("storage.jdbc")
+
+    val jooqJdbcConfig = new Jdbc
+    jooqJdbcConfig.setDriver("org.postgresql.Driver")
+    // Skip all the query params, otherwise it will omit the "texera_db." prefix on the field names.
+    jooqJdbcConfig.setUrl(jdbcConfig.getString("url").split('?').head)
+    jooqJdbcConfig.setUsername(jdbcConfig.getString("username"))
+    jooqJdbcConfig.setPassword(jdbcConfig.getString("password"))
+
+    jooqConfig.setJdbc(jooqJdbcConfig)
+
+    // Generate the code
+    GenerationTool.generate(jooqConfig)
+    log.info("JOOQ code generation completed successfully")
+
+    // Return the generated files
+    val generatedDir = baseDirectory.value / "src" / "main" / "scala" / "edu" / "uci" / "ics" / "texera" / "dao" / "jooq" / "generated"
+    if (generatedDir.exists()) {
+      (generatedDir ** "*.java").get ++ (generatedDir ** "*.scala").get
+    } else {
+      Seq.empty
+    }
+  } catch {
+    case e: Exception =>
+      log.warn(s"JOOQ code generation failed: ${e.getMessage}")
+      log.warn("Continuing compilation with existing generated files...")
+      Seq.empty
+  }
+}
+
+// Add JOOQ generation to source generators
+Compile / sourceGenerators += jooqGenerate
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
