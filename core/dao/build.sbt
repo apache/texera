@@ -169,14 +169,4 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq" % "3.16.23",
-  "org.jooq" % "jooq-codegen" % "3.16.23"
-)
-
-/////////////////////////////////////////////////////////////////////////////
-// Additional Dependencies
-/////////////////////////////////////////////////////////////////////////////
-
-libraryDependencies ++= Seq(
-  "org.postgresql" % "postgresql" % "42.7.4",
-  "com.typesafe" % "config" % "1.4.3"    // config reader
 )
