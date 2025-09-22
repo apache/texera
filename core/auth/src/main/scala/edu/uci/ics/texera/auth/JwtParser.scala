@@ -52,7 +52,7 @@ object JwtParser extends LazyLogging {
       val role = UserRoleEnum.valueOf(jwtClaims.getClaimValue("role").asInstanceOf[String])
       val googleId = jwtClaims.getClaimValue("googleId", classOf[String])
 
-      val user = new User(userId, userName, email, null, googleId, null, role, null)
+      val user = new User(userId, userName, email, null, googleId, null, role, null, null)
       Optional.of(new SessionUser(user))
     } catch {
       case _: UnresolvableKeyException =>
