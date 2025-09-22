@@ -86,7 +86,7 @@ export class DatasetDetailComponent implements OnInit {
 
   userHasPendingChanges: boolean = false;
   // Uploading setting
-  chunkSizeMB: number = 50;
+  chunkSizeMiB: number = 50;
   maxConcurrentChunks: number = 10;
   private uploadSubscriptions = new Map<string, Subscription>();
   uploadTimeMap = new Map<string, number>();
@@ -378,9 +378,9 @@ export class DatasetDetailComponent implements OnInit {
 
   private loadUploadSettings(): void {
     this.adminSettingsService
-      .getSetting("multipart_upload_chunk_size_mb")
+      .getSetting("multipart_upload_chunk_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.chunkSizeMB = parseInt(value)));
+      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
     this.adminSettingsService
       .getSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
@@ -409,7 +409,7 @@ export class DatasetDetailComponent implements OnInit {
             this.datasetName,
             file.name,
             file.file,
-            this.chunkSizeMB * 1024 * 1024,
+            this.chunkSizeMiB * 1024 * 1024,
             this.maxConcurrentChunks
           )
           .pipe(untilDestroyed(this))
