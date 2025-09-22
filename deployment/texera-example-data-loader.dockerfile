@@ -7,12 +7,12 @@ RUN apk add --no-cache bash curl jq coreutils
 WORKDIR /example_data
 
 # Copy setup scripts
-COPY examples/setup_example_datasets.sh .
-COPY examples/setup_example_workflows.sh .
+COPY deployment/examples/setup_example_datasets.sh .
+COPY deployment/examples/setup_example_workflows.sh .
 
 # Copy example data directories
-COPY examples/datasets/ ./datasets/
-COPY examples/workflows/ ./workflows/
+COPY deployment/examples/datasets/ ./datasets/
+COPY deployment/examples/workflows/ ./workflows/
 
 # Make the scripts executable
 RUN chmod +x setup_example_datasets.sh setup_example_workflows.sh

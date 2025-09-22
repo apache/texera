@@ -46,28 +46,56 @@ while true; do
     fi
 done
 
-# Step 1: Authenticate
-print_status "Logging in as $USERNAME"
-LOGIN_RESPONSE=$(curl -s -X POST "$TEXERA_WEB_APPLICATION_URL/auth/login" \
-    -H "Content-Type: application/json" \
-    -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
+# Step 1: Authenticate with retry logic
+MAX_LOGIN_ATTEMPTS=5
+LOGIN_ATTEMPT=1
 
-if [[ $LOGIN_RESPONSE == *"accessToken"* ]]; then
-    TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
-    print_status "Login successful"
-else
-    print_status "User doesn't exist, attempting to register..."
-    REGISTER_RESPONSE=$(curl -s -X POST "$TEXERA_WEB_APPLICATION_URL/auth/register" \
+while [ $LOGIN_ATTEMPT -le $MAX_LOGIN_ATTEMPTS ]; do
+    print_status "Attempting to login user: $USERNAME (attempt $LOGIN_ATTEMPT/$MAX_LOGIN_ATTEMPTS)"
+    
+    # Try to login
+    LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$TEXERA_WEB_APPLICATION_URL/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
     
-    if [[ $REGISTER_RESPONSE == *"accessToken"* ]]; then
-        TOKEN=$(echo $REGISTER_RESPONSE | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
-        print_status "Registration successful"
-    else
-        print_error "Registration failed"
-        exit 1
+    HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n 1)
+    RESPONSE_BODY=$(echo "$LOGIN_RESPONSE" | head -n -1)
+    
+    if [ "$HTTP_CODE" == "200" ]; then
+        TOKEN=$(echo "$RESPONSE_BODY" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+        print_status "Login successful"
+        break
+    elif [ "$HTTP_CODE" == "401" ] || [ "$HTTP_CODE" == "404" ]; then
+        # User doesn't exist or wrong credentials, try to register
+        print_status "Login failed (HTTP $HTTP_CODE), attempting to register..."
+        
+        REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$TEXERA_WEB_APPLICATION_URL/auth/register" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
+        
+        REG_HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n 1)
+        REG_RESPONSE_BODY=$(echo "$REGISTER_RESPONSE" | head -n -1)
+        
+        if [ "$REG_HTTP_CODE" == "200" ] || [ "$REG_HTTP_CODE" == "201" ]; then
+            TOKEN=$(echo "$REG_RESPONSE_BODY" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+            print_status "Registration successful"
+            break
+        else
+            print_error "Registration failed (HTTP $REG_HTTP_CODE)"
+        fi
     fi
+    
+    if [ $LOGIN_ATTEMPT -lt $MAX_LOGIN_ATTEMPTS ]; then
+        print_status "Waiting 5 seconds before retry..."
+        sleep 5
+    fi
+    
+    LOGIN_ATTEMPT=$((LOGIN_ATTEMPT + 1))
+done
+
+if [ -z "$TOKEN" ]; then
+    print_error "Failed to authenticate after $MAX_LOGIN_ATTEMPTS attempts"
+    exit 1
 fi
 
 # Step 2: Loop through dataset folders
@@ -89,16 +117,19 @@ for dataset_folder in "$DATASET_DIR_ROOT"/*; do
         print_status "Processing dataset: $DATASET_NAME"
 
         # Check if it already exists
-        LIST_RESPONSE=$(curl -s -X GET "$TEXERA_FILE_SERVICE_URL/dataset/list" \
+        LIST_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$TEXERA_FILE_SERVICE_URL/dataset/list" \
             -H "Authorization: Bearer $TOKEN")
         
-        if [[ $LIST_RESPONSE == *"\"name\":\"$DATASET_NAME\""* ]]; then
+        LIST_HTTP_CODE=$(echo "$LIST_RESPONSE" | tail -n 1)
+        LIST_BODY=$(echo "$LIST_RESPONSE" | head -n -1)
+        
+        if [ "$LIST_HTTP_CODE" == "200" ] && [[ $LIST_BODY == *"\"name\":\"$DATASET_NAME\""* ]]; then
             print_status "Dataset '$DATASET_NAME' already exists, skipping"
             continue
         fi
 
         # Create dataset
-        CREATE_RESPONSE=$(curl -s -X POST "$TEXERA_FILE_SERVICE_URL/dataset/create" \
+        CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$TEXERA_FILE_SERVICE_URL/dataset/create" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN" \
             -d "{
@@ -107,10 +138,18 @@ for dataset_folder in "$DATASET_DIR_ROOT"/*; do
                 \"isDatasetPublic\": true
             }")
 
-        DATASET_ID=$(echo $CREATE_RESPONSE | grep -o '"did":[0-9]*' | cut -d':' -f2)
-
+        CREATE_HTTP_CODE=$(echo "$CREATE_RESPONSE" | tail -n 1)
+        CREATE_BODY=$(echo "$CREATE_RESPONSE" | head -n -1)
+        
+        if [ "$CREATE_HTTP_CODE" != "200" ] && [ "$CREATE_HTTP_CODE" != "201" ]; then
+            print_error "Failed to create dataset '$DATASET_NAME' (HTTP $CREATE_HTTP_CODE)"
+            continue
+        fi
+        
+        DATASET_ID=$(echo "$CREATE_BODY" | grep -o '"did":[0-9]*' | cut -d':' -f2)
+        
         if [ -z "$DATASET_ID" ]; then
-            print_error "Failed to create dataset '$DATASET_NAME'"
+            print_error "Failed to extract dataset ID for '$DATASET_NAME'"
             continue
         fi
 
@@ -138,15 +177,18 @@ for dataset_folder in "$DATASET_DIR_ROOT"/*; do
 
         # Create version
         print_status "Creating version for $DATASET_NAME"
-        VERSION_RESPONSE=$(curl -s -X POST "$TEXERA_FILE_SERVICE_URL/dataset/$DATASET_ID/version/create" \
+        VERSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$TEXERA_FILE_SERVICE_URL/dataset/$DATASET_ID/version/create" \
             -H "Content-Type: text/plain" \
             -H "Authorization: Bearer $TOKEN" \
             -d "")
 
-        if [[ $VERSION_RESPONSE == *"datasetVersion"* ]]; then
-            print_status "Version created successfully"
+        VERSION_HTTP_CODE=$(echo "$VERSION_RESPONSE" | tail -n 1)
+        VERSION_BODY=$(echo "$VERSION_RESPONSE" | head -n -1)
+        
+        if [ "$VERSION_HTTP_CODE" == "200" ] || [ "$VERSION_HTTP_CODE" == "201" ]; then
+            print_status "Version created successfully for $DATASET_NAME"
         else
-            print_error "Failed to create version for $DATASET_NAME"
+            print_error "Failed to create version for $DATASET_NAME (HTTP $VERSION_HTTP_CODE)"
         fi
     fi
 done
