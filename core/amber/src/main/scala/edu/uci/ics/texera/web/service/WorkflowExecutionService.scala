@@ -90,6 +90,21 @@ class WorkflowExecutionService(
     })
   )
 
+  addSubscription(
+    client
+      .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
+        stateStore.statsStore.updateState { statsStore =>
+          statsStore.withOperatorInfo(evt.operatorMetrics)
+        }
+        metricsPersistThread.foreach { thread =>
+          thread.execute(() => {
+            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
+            lastPersistedMetrics = Some(evt.operatorMetrics)
+          })
+        }
+      })
+  )
+
   private def createStateEvent(state: ExecutionMetadataStore): WorkflowStateEvent = {
     if (state.isRecovering && state.state != COMPLETED) {
       WorkflowStateEvent("Recovering")

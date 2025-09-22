@@ -111,6 +111,17 @@ class Controller(
   override def initState(): Unit = {
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
+
+    println("ewrfewf", cp.workflowScheduler.schedule.getRegions)
+
+
+    cp.asyncRPCClient.sendToClient(
+      ExecutionStatsUpdate(
+        cp.workflowExecution.getAllRegionExecutionsStats
+      )
+    )
+
+
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
