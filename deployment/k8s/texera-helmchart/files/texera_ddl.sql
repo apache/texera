@@ -116,14 +116,15 @@ CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
 -- "user" table
 CREATE TABLE IF NOT EXISTS "user"
 (
-    uid           SERIAL PRIMARY KEY,
-    name          VARCHAR(256) NOT NULL,
-    email         VARCHAR(256) UNIQUE,
-    password      VARCHAR(256),
-    google_id     VARCHAR(256) UNIQUE,
-    google_avatar VARCHAR(100),
-    role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
-    comment TEXT,
+    uid                     SERIAL PRIMARY KEY,
+    name                    VARCHAR(256) NOT NULL,
+    email                   VARCHAR(256) UNIQUE,
+    password                VARCHAR(256),
+    google_id               VARCHAR(256) UNIQUE,
+    google_avatar           VARCHAR(100),
+    role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
+    comment                 TEXT,
+    account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
