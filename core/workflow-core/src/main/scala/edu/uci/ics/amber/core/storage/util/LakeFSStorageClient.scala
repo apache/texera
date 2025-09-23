@@ -82,6 +82,7 @@ object LakeFSStorageClient {
       repoName: String
   ): Repository = {
     // validate repoName
+    // https://docs.lakefs.io/latest/understand/model/#repository
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
     if (!repoNamePattern.matches(repoName)) {
       throw new IllegalArgumentException(
