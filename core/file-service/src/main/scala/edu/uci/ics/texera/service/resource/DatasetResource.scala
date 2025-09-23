@@ -247,16 +247,14 @@ class DatasetResource {
       val isDatasetDownloadable = request.isDatasetDownloadable
 
       // validate dataset name
-      try {
-        LakeFSStorageClient.validateRepositoryName(datasetName)
-      } catch {
-        case e: IllegalArgumentException =>
-          throw new BadRequestException(
-            s"Invalid dataset name: '$datasetName'. " +
-              "Dataset names must be 3-63 characters long, " +
-              "contain only lowercase letters, numbers, and hyphens, " +
-              "and cannot start with a hyphen."
-          )
+      val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
+      if (!datasetNamePattern.matches(datasetName)) {
+        throw new BadRequestException(
+          s"Invalid dataset name: '$datasetName'. " +
+            "Repository names must be 3-63 characters long, " +
+            "contain only lowercase letters, numbers, and hyphens, " +
+            "and cannot start with a hyphen."
+        )
       }
 
       // Check if a dataset with the same name already exists
