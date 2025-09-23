@@ -20,13 +20,14 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.config.StorageConfig
+import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.service.MockLakeFS
-import jakarta.ws.rs.BadRequestException
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -66,6 +67,8 @@ class DatasetResourceSpec
     dataset
   }
 
+  lazy val datasetDao = new DatasetDao(getDSLContext.configuration())
+
   lazy val datasetResource = new DatasetResource()
 
   lazy val sessionUser = new SessionUser(testUser)
@@ -83,7 +86,6 @@ class DatasetResourceSpec
     userDao.insert(testUser2)
 
     // insert test dataset
-    val datasetDao = new DatasetDao(getDSLContext.configuration())
     testDataset.setOwnerUid(testUser.getUid)
     datasetDao.insert(testDataset)
   }
@@ -129,6 +131,51 @@ class DatasetResourceSpec
     createdDataset.dataset.getDescription shouldEqual "description for new dataset"
     createdDataset.dataset.getIsPublic shouldBe false
     createdDataset.dataset.getIsDownloadable shouldBe true
+  }
+
+  it should "delete dataset successfully if user owns it" in {
+    // insert a dataset directly into DB
+    val dataset = new Dataset
+    dataset.setName("delete-ds")
+    dataset.setRepositoryName("delete-ds")
+    dataset.setDescription("for delete test")
+    dataset.setOwnerUid(testUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    // create repo in LakeFS to match dataset
+    LakeFSStorageClient.initRepo(dataset.getRepositoryName)
+
+    // delete via DatasetResource
+    val response = datasetResource.deleteDataset(dataset.getDid, sessionUser)
+
+    // assert: response OK and DB no longer contains dataset
+    response.getStatus shouldEqual 200
+    datasetDao.fetchOneByDid(dataset.getDid) shouldBe null
+  }
+
+  it should "refuse to delete dataset if not owned by user" in {
+    // insert a dataset directly into DB
+    val dataset = new Dataset
+    dataset.setName("user1-ds")
+    dataset.setRepositoryName("user1-ds")
+    dataset.setDescription("for forbidden test")
+    dataset.setOwnerUid(testUser.getUid)
+    dataset.setIsPublic(true)
+    dataset.setIsDownloadable(true)
+    datasetDao.insert(dataset)
+
+    // create repo in LakeFS to match dataset
+    LakeFSStorageClient.initRepo(dataset.getRepositoryName)
+
+    // user2 tries to delete, should throw ForbiddenException
+    assertThrows[ForbiddenException] {
+      datasetResource.deleteDataset(dataset.getDid, sessionUser2)
+    }
+
+    // dataset still exists in DB
+    datasetDao.fetchOneByDid(dataset.getDid) should not be null
   }
 
   override protected def afterAll(): Unit = {
