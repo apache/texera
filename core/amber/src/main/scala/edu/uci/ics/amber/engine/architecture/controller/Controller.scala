@@ -112,15 +112,11 @@ class Controller(
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
-    println("ewrfewf", cp.workflowScheduler.schedule.getRegions)
-
-
     cp.asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(
-        cp.workflowExecution.getAllRegionExecutionsStats
+      WorkflowRegions(
+        cp.workflowScheduler.schedule.getRegions.toString()
       )
     )
-
 
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {

@@ -47,4 +47,4 @@ final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean) e
 
 final case class WorkflowRecoveryStatus(isRecovering: Boolean) extends ClientEvent
 
-final case class WorkflowRecoveryStatus(isRecovering: Boolean) extends ClientEvent
+final case class WorkflowRegions(Regions: String) extends ClientEvent
