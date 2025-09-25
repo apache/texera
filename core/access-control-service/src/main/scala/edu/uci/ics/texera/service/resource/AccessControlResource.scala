@@ -38,9 +38,10 @@ object AccessControlResource extends LazyLogging {
 
   /**
     * Authorize the request based on the path and headers.
-   * @param uriInfo
-   * @param headers
-   * @return
+   * @param uriInfo URI sent by Envoy or API Gateway
+   * @param headers HTTP headers sent by Envoy or API Gateway which include
+   *                headers sent by the client (browser)
+   * @return HTTP Response with appropriate status code and headers
    */
   def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
     val path = uriInfo.getPath
