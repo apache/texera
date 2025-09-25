@@ -29,29 +29,6 @@ import java.util.Optional
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 import scala.util.matching.Regex
 
-@Produces(Array(MediaType.APPLICATION_JSON))
-@Path("/auth")
-class AccessControlResource extends LazyLogging {
-
-  @GET
-  @Path("/{path:.*}")
-  def authorizeGet(
-                    @Context uriInfo: UriInfo,
-                    @Context headers: HttpHeaders
-                  ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
-  }
-
-  @POST
-  @Path("/{path:.*}")
-  def authorizePost(
-                     @Context uriInfo: UriInfo,
-                     @Context headers: HttpHeaders
-                   ): Response = {
-    AccessControlResource.authorize(uriInfo, headers)
-  }
-}
-
 object AccessControlResource extends LazyLogging {
 
   // Regex for the paths that require authorization
@@ -59,6 +36,12 @@ object AccessControlResource extends LazyLogging {
   private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
   private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
 
+  /**
+    * Authorize the request based on the path and headers.
+   * @param uriInfo
+   * @param headers
+   * @return
+   */
   def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
     val path = uriInfo.getPath
     logger.info(s"Authorizing request for path: $path")
@@ -122,5 +105,27 @@ object AccessControlResource extends LazyLogging {
       .header(HeaderField.UserName, userSession.get().getName)
       .header(HeaderField.UserEmail, userSession.get().getEmail)
       .build()
+  }
+}
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/auth")
+class AccessControlResource extends LazyLogging {
+
+  @GET
+  @Path("/{path:.*}")
+  def authorizeGet(
+                    @Context uriInfo: UriInfo,
+                    @Context headers: HttpHeaders
+                  ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
+  }
+
+  @POST
+  @Path("/{path:.*}")
+  def authorizePost(
+                     @Context uriInfo: UriInfo,
+                     @Context headers: HttpHeaders
+                   ): Response = {
+    AccessControlResource.authorize(uriInfo, headers)
   }
 }

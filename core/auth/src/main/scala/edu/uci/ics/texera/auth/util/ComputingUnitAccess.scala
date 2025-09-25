@@ -51,7 +51,3 @@ object ComputingUnitAccess {
     }
   }
 }
-
-class ComputingUnitAccess {
-
-}
