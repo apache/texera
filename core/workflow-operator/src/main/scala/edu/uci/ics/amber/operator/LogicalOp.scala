@@ -124,6 +124,7 @@ import edu.uci.ics.amber.operator.visualization.boxViolinPlot.BoxViolinPlotOpDes
 import edu.uci.ics.amber.operator.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.amber.operator.visualization.bulletChart.BulletChartOpDesc
 import edu.uci.ics.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
+import edu.uci.ics.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import edu.uci.ics.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import edu.uci.ics.amber.operator.visualization.contourPlot.ContourPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
@@ -188,6 +189,7 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
+    new Type(value = classOf[ChoroplethMapOpDesc], name = "ChoroplethMap"),
     new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeriesPlot"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
