@@ -313,7 +313,15 @@ export class DatasetService {
               toArray(),
               // 4) Finalize if all parts succeeded
               switchMap(() =>
-                this.finalizeMultipartUpload(ownerEmail, datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
+                this.finalizeMultipartUpload(
+                  ownerEmail,
+                  datasetName,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  physicalAddress,
+                  false
+                )
               ),
               tap(() => {
                 const finalTotalTime = (Date.now() - startTime) / 1000;
