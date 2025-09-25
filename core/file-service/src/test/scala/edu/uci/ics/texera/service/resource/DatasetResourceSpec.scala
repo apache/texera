@@ -19,7 +19,6 @@
 
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.MockTexeraDB
