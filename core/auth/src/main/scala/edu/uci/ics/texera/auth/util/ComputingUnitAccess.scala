@@ -30,11 +30,8 @@ object ComputingUnitAccess {
   private lazy val context: DSLContext = SqlServer
     .getInstance()
     .createDSLContext()
-}
 
-class ComputingUnitAccess {
-
-  def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
+    def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
     val workflowComputingUnitDao = new WorkflowComputingUnitDao(context.configuration())
     val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
 
@@ -43,14 +40,18 @@ class ComputingUnitAccess {
     }
 
     val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-    val accessList = computingUnitUserAccessDao
+    val accessOpt = computingUnitUserAccessDao
       .fetchByUid(uid)
       .asScala
       .find(_.getCuid.equals(cuid))
 
-    accessList match {
+    accessOpt match {
       case Some(access) => access.getPrivilege
       case None => PrivilegeEnum.NONE
     }
   }
+}
+
+class ComputingUnitAccess {
+
 }

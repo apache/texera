@@ -22,18 +22,16 @@ import edu.uci.ics.texera.auth.JwtParser.parseToken
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.auth.util.{ComputingUnitAccess, HeaderField}
 import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
-import edu.uci.ics.texera.service.access.AccessChecker
+import jakarta.ws.rs.core._
 import jakarta.ws.rs.{GET, POST, Path, Produces}
-import jakarta.ws.rs.core.{Context, HttpHeaders, MediaType, Response, UriInfo}
 
 import java.util.Optional
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
+import scala.util.matching.Regex
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/auth")
 class AccessControlResource extends LazyLogging {
-
-  private val authorizer = new AccessChecker()
 
   @GET
   @Path("/{path:.*}")
@@ -41,7 +39,7 @@ class AccessControlResource extends LazyLogging {
                     @Context uriInfo: UriInfo,
                     @Context headers: HttpHeaders
                   ): Response = {
-    authorizer.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers)
   }
 
   @POST
@@ -50,6 +48,79 @@ class AccessControlResource extends LazyLogging {
                      @Context uriInfo: UriInfo,
                      @Context headers: HttpHeaders
                    ): Response = {
-    authorizer.authorize(uriInfo, headers)
+    AccessControlResource.authorize(uriInfo, headers)
+  }
+}
+
+object AccessControlResource extends LazyLogging {
+
+  // Regex for the paths that require authorization
+  private val wsapiWorkflowWebsocket: Regex = """.*/wsapi/workflow-websocket.*""".r
+  private val apiExecutionsStats: Regex = """.*/api/executions/[0-9]+/stats/[0-9]+.*""".r
+  private val apiExecutionsResultExport: Regex = """.*/api/executions/result/export.*""".r
+
+  def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
+    val path = uriInfo.getPath
+    logger.info(s"Authorizing request for path: $path")
+
+    path match {
+      case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() =>
+        checkComputingUnitAccess(uriInfo, headers)
+      case _ =>
+        logger.warn(s"No authorization logic for path: $path. Denying access.")
+        Response.status(Response.Status.FORBIDDEN).build()
+    }
+  }
+
+  private def checkComputingUnitAccess(uriInfo: UriInfo, headers: HttpHeaders): Response = {
+    val queryParams: Map[String, String] = uriInfo
+      .getQueryParameters()
+      .asScala
+      .view
+      .mapValues(values => values.asScala.headOption.getOrElse(""))
+      .toMap
+
+    logger.info(s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams")
+
+    val token = queryParams.getOrElse(
+      "access-token",
+      headers
+        .getRequestHeader("Authorization")
+        .asScala
+        .headOption
+        .getOrElse("")
+        .replace("Bearer ", "")
+    )
+    val cuid = queryParams.getOrElse("cuid", "")
+    val cuidInt = try {
+      cuid.toInt
+    } catch {
+      case _: NumberFormatException =>
+        return Response.status(Response.Status.FORBIDDEN).build()
+    }
+
+    var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
+    var userSession: Optional[SessionUser] = Optional.empty()
+    try {
+      userSession = parseToken(token)
+      if (userSession.isEmpty)
+        return Response.status(Response.Status.FORBIDDEN).build()
+
+      val uid = userSession.get().getUid
+      cuAccess = ComputingUnitAccess.getComputingUnitAccess(cuidInt, uid)
+      if (cuAccess == PrivilegeEnum.NONE)
+        return Response.status(Response.Status.FORBIDDEN).build()
+    } catch {
+      case e: Exception =>
+        return Response.status(Response.Status.FORBIDDEN).build()
+    }
+
+    Response
+      .ok()
+      .header(HeaderField.UserComputingUnitAccess, cuAccess.toString)
+      .header(HeaderField.UserId, userSession.get().getUid.toString)
+      .header(HeaderField.UserName, userSession.get().getName)
+      .header(HeaderField.UserEmail, userSession.get().getEmail)
+      .build()
   }
 }
