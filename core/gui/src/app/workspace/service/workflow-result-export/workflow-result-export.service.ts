@@ -251,16 +251,6 @@ export class WorkflowResultExportService {
     this.hasResultToExportOnAllOperators.next(hasAnyResult);
   }
 
-  private isOperatorEligibleForExport(operatorId: string): boolean {
-    if (this.restrictedOperatorMap.has(operatorId)) {
-      return false;
-    }
-    return (
-      this.workflowResultService.hasAnyResult(operatorId) ||
-      this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
-    );
-  }
-
   public getExportableOperatorIds(operatorIds: readonly string[]): string[] {
     return operatorIds.filter(operatorId => !this.restrictedOperatorMap.has(operatorId));
   }
