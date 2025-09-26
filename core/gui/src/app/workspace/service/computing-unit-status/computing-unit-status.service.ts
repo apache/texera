@@ -51,6 +51,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   private readonly REFRESH_INTERVAL_MS = 2000;
   private refreshSubscription: Subscription | null = null;
   private currentConnectedCuid?: number;
+  private currentConnectedWid?: number;
   private selectedUnitPoll?: Subscription;
 
   constructor(
@@ -116,6 +117,8 @@ export class ComputingUnitStatusService implements OnDestroy {
       // The selected unit is no longer in the list
       this.selectedUnitSubject.next(null);
       this.stopPollingSelectedUnit();
+      this.currentConnectedCuid = undefined;
+      this.currentConnectedWid = undefined;
     }
   }
 
@@ -153,17 +156,25 @@ export class ComputingUnitStatusService implements OnDestroy {
    */
   public selectComputingUnit(wid: number | undefined, cuid: number): void {
     const trySelect = (unit: DashboardWorkflowComputingUnit) => {
-      // open websocket if needed
-      if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
+      if (!isDefined(wid)) {
+        return;
+      }
+
+      const shouldReconnect = this.currentConnectedCuid !== cuid || this.currentConnectedWid !== wid;
+
+      if (shouldReconnect) {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
         }
+
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
         this.currentConnectedCuid = cuid;
-        this.selectedUnitSubject.next(unit);
+        this.currentConnectedWid = wid;
         this.startPollingSelectedUnit(cuid);
       }
+
+      this.selectedUnitSubject.next(unit);
     };
 
     // try immediate lookup in the current cache
@@ -248,9 +259,13 @@ export class ComputingUnitStatusService implements OnDestroy {
   public terminateComputingUnit(cuid: number): Observable<boolean> {
     const isSelected = this.selectedUnitSubject.value?.computingUnit.cuid === cuid;
 
-    if (isSelected && this.workflowWebsocketService.isConnected) {
-      this.workflowWebsocketService.closeWebsocket();
-      this.workflowStatusService.clearStatus();
+    if (isSelected) {
+      if (this.workflowWebsocketService.isConnected) {
+        this.workflowWebsocketService.closeWebsocket();
+        this.workflowStatusService.clearStatus();
+      }
+      this.currentConnectedCuid = undefined;
+      this.currentConnectedWid = undefined;
     }
 
     return this.computingUnitService.terminateComputingUnit(cuid).pipe(
