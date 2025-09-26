@@ -61,7 +61,6 @@ export class SettingsComponent implements OnInit {
       }
     });
 
-
     this.workflowActionService
       .workflowChanged()
       .pipe(untilDestroyed(this))
