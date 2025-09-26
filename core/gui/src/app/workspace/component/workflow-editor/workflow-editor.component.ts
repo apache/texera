@@ -91,8 +91,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
-  private removeButton!: joint.linkTools.Button;
-  private breakpointButton!: joint.linkTools.Button;
+  private removeButton!: new () => joint.linkTools.Button;
+  private breakpointButton!: new () => joint.linkTools.Button;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -117,9 +117,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnInit(): void {
-    // Create the button instances 1 time during initialization.
-    this.removeButton = new (this.jointUIService.getRemoveButton())();
-    this.breakpointButton = new (this.jointUIService.getBreakpointButton())();
+    // Cache the tool constructors
+    this.removeButton = WorkflowEditorComponent.getRemoveButton();
+    this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
   }
 
   /**
@@ -1096,11 +1096,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(linkView => {
         // Create an array to hold the tools
-        const tools = [this.removeButton];
+        const tools: joint.dia.ToolView[] = [new this.removeButton()];
 
         // If breakpoints are enabled, also add the breakpoint button
         if (this.config.env.linkBreakpointEnabled) {
-          tools.push(this.breakpointButton);
+          tools.push(new this.breakpointButton());
         }
 
         const toolsView = new joint.dia.ToolsView({ tools });
@@ -1146,7 +1146,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.paper);
-        const breakpointButtonTool = this.jointUIService.getBreakpointButton();
+        const breakpointButtonTool = this.breakpointButton;
         const breakpointButton = new breakpointButtonTool();
         const toolsView = new joint.dia.ToolsView({
           name: "basic-tools",
@@ -1368,5 +1368,94 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
+  }
+
+  /**
+   * Info button on link between operator shown when user hovers over links
+   */
+  private static getBreakpointButton(): new () => joint.linkTools.Button {
+    return joint.linkTools.Button.extend({
+      name: "info-button",
+      options: {
+        markup: [
+          {
+            tagName: "circle",
+            selector: "info-button",
+            attributes: {
+              r: 10,
+              fill: "#001DFF",
+              cursor: "pointer",
+            },
+          },
+          {
+            tagName: "path",
+            selector: "icon",
+            attributes: {
+              d: "M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4",
+              fill: "none",
+              stroke: "#FFFFFF",
+              "stroke-width": 2,
+              "pointer-events": "none",
+            },
+          },
+        ],
+        distance: -60,
+        offset: 0,
+        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
+          // when this button is clicked, it triggers an joint paper event
+          if (linkView.paper) {
+            linkView.paper.trigger("tool:breakpoint", linkView, event);
+          }
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove button on link between operator shown when user hovers over links
+   */
+  private static RemoveButton: new () => joint.linkTools.Button;
+
+  private static getRemoveButton(): new () => joint.linkTools.Button {
+    // Check if the class has already been created.
+    if (!WorkflowEditorComponent.RemoveButton) {
+      // If not, create it once and store it in the static property.
+      WorkflowEditorComponent.RemoveButton = joint.linkTools.Button.extend({
+        name: "remove-button",
+        options: {
+          markup: [
+            {
+              tagName: "circle",
+              selector: "button",
+              attributes: {
+                r: 11,
+                fill: "#D8656A",
+                cursor: "pointer",
+              },
+            },
+            {
+              tagName: "path",
+              selector: "icon",
+              attributes: {
+                d: "M24.778,21.419 19.276,15.917 24.777,10.415 21.949,7.585 16.447,13.087 10.945,7.585 8.117,10.415 13.618,15.917 8.116,21.419 10.946,24.248 16.447,18.746 21.948,24.248z",
+                transform: "scale(.8) translate(-16, -16)",
+                fill: "#FFFFFF",
+                "pointer-events": "none",
+              },
+            },
+          ],
+          distance: -90,
+          offset: 0,
+          action: function (evt: JQuery.Event, linkView: joint.dia.LinkView) {
+            if (linkView.paper) {
+              linkView.paper.trigger("tool:remove", linkView, evt);
+            }
+          },
+        },
+      });
+    }
+
+    // Return the cached class.
+    return WorkflowEditorComponent.RemoveButton;
   }
 }
