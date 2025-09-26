@@ -26,13 +26,15 @@ import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
-import { filter } from "rxjs/operators";
+import { catchError, filter, map, take, tap } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
 import { HttpResponse } from "@angular/common/http";
 import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
 
 @Injectable({
   providedIn: "root",
@@ -40,6 +42,10 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+  private datasetDownloadableMap = new Map<string, boolean>();
+  private datasetLabelMap = new Map<string, string>();
+  private restrictedOperatorMap = new Map<string, Set<string>>();
+  private datasetListLoaded = false;
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
@@ -47,9 +53,12 @@ export class WorkflowResultExportService {
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
     private downloadService: DownloadService,
+    private datasetService: DatasetService,
     private config: GuiConfigService
   ) {
     this.registerResultToExportUpdateHandler();
+    this.registerRestrictionRecomputeTriggers();
+    this.refreshDatasetMetadata().subscribe();
   }
 
   registerResultToExportUpdateHandler() {
@@ -60,34 +69,217 @@ export class WorkflowResultExportService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {
-      // check if there are any results to export on highlighted operators (either paginated or snapshot)
-      this.hasResultToExportOnHighlightedOperators =
-        isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs()
-          .filter(
-            operatorId =>
-              this.workflowResultService.hasAnyResult(operatorId) ||
-              this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
-          ).length > 0;
-
-      // check if there are any results to export on all operators (either paginated or snapshot)
-      let staticHasResultToExportOnAllOperators =
-        isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
-        this.workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .map(operator => operator.operatorID)
-          .filter(
-            operatorId =>
-              this.workflowResultService.hasAnyResult(operatorId) ||
-              this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
-          ).length > 0;
-
-      // Notify subscribers of changes
-      this.hasResultToExportOnAllOperators.next(staticHasResultToExportOnAllOperators);
+      this.updateExportAvailabilityFlags();
     });
+  }
+
+  private registerRestrictionRecomputeTriggers(): void {
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    merge(
+      texeraGraph.getOperatorAddStream(),
+      texeraGraph.getOperatorDeleteStream(),
+      texeraGraph.getOperatorPropertyChangeStream(),
+      texeraGraph.getLinkAddStream(),
+      texeraGraph.getLinkDeleteStream(),
+      texeraGraph.getDisabledOperatorsChangedStream()
+    ).subscribe(() => {
+      this.runRestrictionAnalysis();
+    });
+  }
+
+  public refreshDatasetMetadata(): Observable<void> {
+    this.datasetListLoaded = false;
+    return this.datasetService.retrieveAccessibleDatasets().pipe(
+      take(1),
+      tap(datasets => {
+        this.datasetDownloadableMap.clear();
+        this.datasetLabelMap.clear();
+        datasets.forEach(dataset => {
+          const key = this.buildDatasetKey(dataset.ownerEmail, dataset.dataset.name);
+          const isDownloadable = dataset.dataset.isDownloadable || dataset.isOwner;
+          this.datasetDownloadableMap.set(key, isDownloadable);
+          this.datasetLabelMap.set(key, `${dataset.dataset.name} (${dataset.ownerEmail})`);
+        });
+        this.datasetListLoaded = true;
+        this.runRestrictionAnalysis();
+      }),
+      map(() => undefined),
+      catchError(() => {
+        this.datasetDownloadableMap.clear();
+        this.datasetLabelMap.clear();
+        this.datasetListLoaded = true;
+        this.runRestrictionAnalysis();
+        return of(undefined);
+      })
+    );
+  }
+
+  private buildDatasetKey(ownerEmail: string, datasetName: string): string {
+    return `${ownerEmail.toLowerCase()}::${datasetName.toLowerCase()}`;
+  }
+
+  private extractDatasetInfo(fileName: unknown): { key: string; label: string } | null {
+    if (typeof fileName !== "string") {
+      return null;
+    }
+    const trimmed = fileName.trim();
+    if (!trimmed.startsWith("/")) {
+      return null;
+    }
+    try {
+      const { ownerEmail, datasetName } = parseFilePathToDatasetFile(trimmed);
+      if (!ownerEmail || !datasetName) {
+        return null;
+      }
+      const key = this.buildDatasetKey(ownerEmail, datasetName);
+      if (!this.datasetDownloadableMap.has(key)) {
+        return null;
+      }
+      const label = this.datasetLabelMap.get(key) ?? `${datasetName} (${ownerEmail})`;
+      return { key, label };
+    } catch {
+      return null;
+    }
+  }
+
+  private runRestrictionAnalysis(): void {
+    if (!this.datasetListLoaded) {
+      this.restrictedOperatorMap.clear();
+      this.updateExportAvailabilityFlags();
+      return;
+    }
+
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    const allOperators = texeraGraph.getAllOperators();
+    const operatorById = new Map(allOperators.map(op => [op.operatorID, op] as const));
+    const enabledOperators = allOperators.filter(operator => !operator.isDisabled);
+    const datasetSources: Array<{ operatorId: string; label: string }> = [];
+
+    enabledOperators.forEach(operator => {
+      const datasetInfo = this.extractDatasetInfo(operator.operatorProperties?.fileName);
+      if (!datasetInfo) {
+        return;
+      }
+      const isDownloadable = this.datasetDownloadableMap.get(datasetInfo.key);
+      if (isDownloadable === false) {
+        datasetSources.push({ operatorId: operator.operatorID, label: datasetInfo.label });
+      }
+    });
+
+    const restrictions = new Map<string, Set<string>>();
+
+    if (datasetSources.length === 0) {
+      this.restrictedOperatorMap = restrictions;
+      this.updateExportAvailabilityFlags();
+      return;
+    }
+
+    const adjacency = new Map<string, string[]>();
+    texeraGraph.getAllLinks().forEach(link => {
+      const sourceId = link.source.operatorID;
+      const targetId = link.target.operatorID;
+      const sourceOperator = operatorById.get(sourceId);
+      const targetOperator = operatorById.get(targetId);
+      if (!sourceOperator || !targetOperator) {
+        return;
+      }
+      if (sourceOperator.isDisabled || targetOperator.isDisabled) {
+        return;
+      }
+      const neighbors = adjacency.get(sourceId);
+      if (neighbors) {
+        neighbors.push(targetId);
+      } else {
+        adjacency.set(sourceId, [targetId]);
+      }
+    });
+
+    const queue: Array<{ operatorId: string; datasets: Set<string> }> = [];
+    datasetSources.forEach(source => {
+      queue.push({ operatorId: source.operatorId, datasets: new Set([source.label]) });
+    });
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const existing = restrictions.get(current.operatorId) ?? new Set<string>();
+      let updated = false;
+      current.datasets.forEach(label => {
+        if (!existing.has(label)) {
+          existing.add(label);
+          updated = true;
+        }
+      });
+      if (updated || !restrictions.has(current.operatorId)) {
+        restrictions.set(current.operatorId, existing);
+        const neighbors = adjacency.get(current.operatorId) ?? [];
+        neighbors.forEach(nextOperatorId => {
+          queue.push({ operatorId: nextOperatorId, datasets: new Set(existing) });
+        });
+      }
+    }
+
+    this.restrictedOperatorMap = restrictions;
+    this.updateExportAvailabilityFlags();
+  }
+
+  private updateExportAvailabilityFlags(): void {
+    const executionIdle = isNotInExecution(this.executeWorkflowService.getExecutionState().state);
+
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    const highlightedHasResult = highlightedOperators.some(
+      operatorId =>
+        this.workflowResultService.hasAnyResult(operatorId) ||
+        this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
+    );
+
+    this.hasResultToExportOnHighlightedOperators = executionIdle && highlightedHasResult;
+
+    const allOperatorIds = this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .map(operator => operator.operatorID);
+
+    const hasAnyResult =
+      executionIdle &&
+      allOperatorIds.some(
+        operatorId =>
+          this.workflowResultService.hasAnyResult(operatorId) ||
+          this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
+      );
+
+    this.hasResultToExportOnAllOperators.next(hasAnyResult);
+  }
+
+  private isOperatorEligibleForExport(operatorId: string): boolean {
+    if (this.restrictedOperatorMap.has(operatorId)) {
+      return false;
+    }
+    return (
+      this.workflowResultService.hasAnyResult(operatorId) ||
+      this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
+    );
+  }
+
+  public getExportableOperatorIds(operatorIds: readonly string[]): string[] {
+    return operatorIds.filter(operatorId => !this.restrictedOperatorMap.has(operatorId));
+  }
+
+  public getBlockedOperatorIds(operatorIds: readonly string[]): string[] {
+    return operatorIds.filter(operatorId => this.restrictedOperatorMap.has(operatorId));
+  }
+
+  public hasBlockedOperators(operatorIds: readonly string[]): boolean {
+    return operatorIds.some(operatorId => this.restrictedOperatorMap.has(operatorId));
+  }
+
+  public getBlockingDatasets(operatorIds: readonly string[]): string[] {
+    const labels = new Set<string>();
+    operatorIds.forEach(operatorId => {
+      const datasets = this.restrictedOperatorMap.get(operatorId);
+      datasets?.forEach(label => labels.add(label));
+    });
+    return Array.from(labels);
   }
 
   /**
@@ -105,6 +297,34 @@ export class WorkflowResultExportService {
     // which means export button is selected from context-menu
     destination: "dataset" | "local" = "dataset", // default to dataset
     unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
+  ): void {
+    this.refreshDatasetMetadata()
+      .pipe(take(1))
+      .subscribe(() =>
+        this.performExport(
+          exportType,
+          workflowName,
+          datasetIds,
+          rowIndex,
+          columnIndex,
+          filename,
+          exportAll,
+          destination,
+          unit
+        )
+      );
+  }
+
+  private performExport(
+    exportType: string,
+    workflowName: string,
+    datasetIds: number[],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string,
+    exportAll: boolean,
+    destination: "dataset" | "local",
+    unit: DashboardWorkflowComputingUnit | null
   ): void {
     if (!this.config.env.exportExecutionResultEnabled) {
       return;
@@ -128,16 +348,33 @@ export class WorkflowResultExportService {
           .map(operator => operator.operatorID)
       : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
-    const operatorArray = operatorIds.map(operatorId => {
-      return {
-        id: operatorId,
-        outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
-      };
-    });
-
     if (operatorIds.length === 0) {
       return;
     }
+
+    const exportableOperatorIds = this.getExportableOperatorIds(operatorIds);
+
+    if (exportableOperatorIds.length === 0) {
+      const datasets = this.getBlockingDatasets(operatorIds);
+      const suffix = datasets.length > 0 ? `: ${datasets.join(", ")}` : "";
+      this.notificationService.error(
+        `Cannot export result: selection depends on dataset(s) that are not downloadable${suffix}`
+      );
+      return;
+    }
+
+    if (exportableOperatorIds.length < operatorIds.length) {
+      const datasets = this.getBlockingDatasets(operatorIds);
+      const suffix = datasets.length > 0 ? ` (${datasets.join(", ")})` : "";
+      this.notificationService.warning(
+        `Some operators were skipped because their results depend on dataset(s) that are not downloadable${suffix}`
+      );
+    }
+
+    const operatorArray = exportableOperatorIds.map(operatorId => ({
+      id: operatorId,
+      outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
+    }));
 
     // show loading
     this.notificationService.loading("Exporting...");

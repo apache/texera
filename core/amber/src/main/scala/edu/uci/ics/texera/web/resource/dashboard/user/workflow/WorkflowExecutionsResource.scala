@@ -28,10 +28,11 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, Repla
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
@@ -100,6 +101,140 @@ object WorkflowExecutionsResource {
     } else {
       Some(executions.max)
     }
+  }
+
+  private case class RestrictedDataset(ownerEmail: String, datasetName: String) {
+    def cacheKey: (String, String) = (ownerEmail.toLowerCase, datasetName.toLowerCase)
+    def label: String = s"$datasetName ($ownerEmail)"
+  }
+
+  private def parseDatasetPath(path: String): Option[RestrictedDataset] = {
+    if (path == null) {
+      return None
+    }
+    val trimmed = path.trim
+    if (!trimmed.startsWith("/")) {
+      return None
+    }
+    val segments = trimmed.split("/").filter(_.nonEmpty)
+    if (segments.length < 4) {
+      return None
+    }
+    val ownerEmail = segments(0)
+    val datasetName = segments(1)
+    Some(RestrictedDataset(ownerEmail, datasetName))
+  }
+
+  private def lookupDatasetDownloadable(
+      dataset: RestrictedDataset,
+      cache: mutable.Map[(String, String), Option[Boolean]]
+  ): Option[Boolean] = {
+    cache.getOrElseUpdate(
+      dataset.cacheKey, {
+        val record = context
+          .select(DATASET.IS_DOWNLOADABLE)
+          .from(DATASET)
+          .join(USER)
+          .on(DATASET.OWNER_UID.eq(USER.UID))
+          .where(
+            USER.EMAIL
+              .equalIgnoreCase(dataset.ownerEmail)
+              .and(DATASET.NAME.equalIgnoreCase(dataset.datasetName))
+          )
+          .fetchOne()
+        if (record == null) {
+          None
+        } else {
+          Option(record.value1())
+        }
+      }
+    )
+  }
+
+  private def computeDatasetRestrictionMap(
+      wid: Int,
+      currentUser: UserPojo
+  ): Map[String, Set[RestrictedDataset]] = {
+    val workflowRecord = context
+      .select(WORKFLOW.CONTENT)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOne()
+
+    if (workflowRecord == null) {
+      return Map.empty
+    }
+
+    val content = workflowRecord.value1()
+    if (content == null || content.isEmpty) {
+      return Map.empty
+    }
+
+    val rootNode =
+      try {
+        objectMapper.readTree(content)
+      } catch {
+        case _: Exception => return Map.empty
+      }
+
+    val operatorsNode = rootNode.path("operators")
+    val linksNode = rootNode.path("links")
+
+    val datasetStatusCache = mutable.Map.empty[(String, String), Option[Boolean]]
+    val restrictedSourceMap = mutable.Map.empty[String, RestrictedDataset]
+    val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
+
+    operatorsNode.elements().asScala.foreach { operatorNode =>
+      val operatorId = operatorNode.path("operatorID").asText("")
+      if (operatorId.nonEmpty) {
+        val fileNameNode = operatorNode.path("operatorProperties").path("fileName")
+        if (fileNameNode.isTextual) {
+          parseDatasetPath(fileNameNode.asText()).foreach { dataset =>
+            val isOwner =
+              Option(currentUser.getEmail)
+                .exists(_.equalsIgnoreCase(dataset.ownerEmail))
+            if (!isOwner) {
+              lookupDatasetDownloadable(dataset, datasetStatusCache) match {
+                case Some(value) if !value =>
+                  restrictedSourceMap.update(operatorId, dataset)
+                case _ =>
+              }
+            }
+          }
+        }
+      }
+    }
+
+    linksNode.elements().asScala.foreach { linkNode =>
+      val sourceId = linkNode.path("source").path("operatorID").asText("")
+      val targetId = linkNode.path("target").path("operatorID").asText("")
+      if (sourceId.nonEmpty && targetId.nonEmpty) {
+        val targets = adjacency.getOrElseUpdate(sourceId, mutable.ListBuffer.empty[String])
+        targets += targetId
+      }
+    }
+
+    val restrictionMap = mutable.Map.empty[String, Set[RestrictedDataset]]
+    val queue = mutable.Queue.empty[(String, Set[RestrictedDataset])]
+
+    restrictedSourceMap.foreach {
+      case (operatorId, dataset) =>
+        queue.enqueue(operatorId -> Set(dataset))
+    }
+
+    while (queue.nonEmpty) {
+      val (currentOperatorId, datasetSet) = queue.dequeue()
+      val existing = restrictionMap.getOrElse(currentOperatorId, Set.empty)
+      val merged = existing ++ datasetSet
+      if (merged != existing) {
+        restrictionMap.update(currentOperatorId, merged)
+        adjacency
+          .get(currentOperatorId)
+          .foreach(_.foreach(nextOperator => queue.enqueue(nextOperator -> merged)))
+      }
+    }
+
+    restrictionMap.toMap
   }
 
   def insertOperatorPortResultUri(
@@ -695,12 +830,29 @@ class WorkflowExecutionsResource {
       @Auth user: SessionUser
   ): Response = {
 
-    if (request.operators.size <= 0)
-      Response
+    if (request.operators.isEmpty) {
+      return Response
         .status(Response.Status.BAD_REQUEST)
         .`type`(MediaType.APPLICATION_JSON)
         .entity(Map("error" -> "No operator selected").asJava)
         .build()
+    }
+    val datasetRestrictions = computeDatasetRestrictionMap(request.workflowId, user.user)
+    val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
+    if (restrictedOperators.nonEmpty) {
+      val errorMessage = restrictedOperators
+        .map { op =>
+          val datasets = datasetRestrictions(op.id).map(_.label).toList.sorted
+          s"Operator ${op.id} cannot be exported because it depends on dataset(s): ${datasets.mkString(", ")}"
+        }
+        .mkString("; ")
+
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .`type`(MediaType.APPLICATION_JSON)
+        .entity(Map("error" -> errorMessage).asJava)
+        .build()
+    }
 
     try {
       request.destination match {

@@ -52,6 +52,11 @@ export class ResultExportationComponent implements OnInit {
   containsBinaryData: boolean = false;
   inputDatasetName = "";
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
+  exportableOperatorIds: string[] = [];
+  blockedOperatorIds: string[] = [];
+  isExportRestricted: boolean = false;
+  hasPartialRestriction: boolean = false;
+  blockingDatasetLabels: string[] = [];
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
@@ -74,7 +79,11 @@ export class ResultExportationComponent implements OnInit {
         this.userAccessibleDatasets = datasets.filter(dataset => dataset.accessPrivilege === "WRITE");
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });
-    this.updateOutputType();
+
+    this.workflowResultExportService
+      .refreshDatasetMetadata()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.updateOutputType());
 
     this.computingUnitStatusService
       .getSelectedComputingUnit()
@@ -98,6 +107,12 @@ export class ResultExportationComponent implements OnInit {
       operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     }
 
+    this.exportableOperatorIds = this.workflowResultExportService.getExportableOperatorIds(operatorIds);
+    this.blockedOperatorIds = this.workflowResultExportService.getBlockedOperatorIds(operatorIds);
+    this.blockingDatasetLabels = this.workflowResultExportService.getBlockingDatasets(operatorIds);
+    this.isExportRestricted = this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
+    this.hasPartialRestriction = this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
+
     if (operatorIds.length === 0) {
       // No operators highlighted
       this.isTableOutput = false;
@@ -106,13 +121,22 @@ export class ResultExportationComponent implements OnInit {
       return;
     }
 
+    if (this.isExportRestricted) {
+      this.isTableOutput = false;
+      this.isVisualizationOutput = false;
+      this.containsBinaryData = false;
+      return;
+    }
+
+    const idsToEvaluate = this.exportableOperatorIds;
+
     // Assume they're all table or visualization
     // until we find an operator that isn't
     let allTable = true;
     let allVisualization = true;
     let anyBinaryData = false;
 
-    for (const operatorId of operatorIds) {
+    for (const operatorId of idsToEvaluate) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
       if (!outputTypes.hasAnyResult) {
         continue;
@@ -146,6 +170,9 @@ export class ResultExportationComponent implements OnInit {
   }
 
   onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
+    if (this.isExportRestricted) {
+      return;
+    }
     const datasetIds =
       destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
     this.workflowResultExportService.exportWorkflowExecutionResult(
@@ -180,5 +207,9 @@ export class ResultExportationComponent implements OnInit {
         this.inputDatasetName = result.dataset.name;
       }
     });
+  }
+
+  get blockingDatasetSummary(): string {
+    return this.blockingDatasetLabels.join(", ");
   }
 }
