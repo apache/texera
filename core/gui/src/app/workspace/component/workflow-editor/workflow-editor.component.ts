@@ -24,7 +24,12 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import {
+  deleteButtonPath,
+  fromJointPaperEvent,
+  JointUIService,
+  linkPathStrokeColor
+} from "../../service/joint-ui/joint-ui.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
@@ -1428,8 +1433,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               tagName: "circle",
               selector: "button",
               attributes: {
-                r: 11,
-                fill: "#D8656A",
+                r: 10,
+                fill: "none",
+                stroke: "#D8656A",
+                "stroke-width": 2,
+                "pointer-events": "visibleStroke",
                 cursor: "pointer",
               },
             },
@@ -1437,9 +1445,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               tagName: "path",
               selector: "icon",
               attributes: {
-                d: "M24.778,21.419 19.276,15.917 24.777,10.415 21.949,7.585 16.447,13.087 10.945,7.585 8.117,10.415 13.618,15.917 8.116,21.419 10.946,24.248 16.447,18.746 21.948,24.248z",
-                transform: "scale(.8) translate(-16, -16)",
-                fill: "#FFFFFF",
+                d: "M -4 -4 L 4 4 M 4 -4 L -4 4",
+                fill: "none",
+                stroke: "#D8656A",
+                "stroke-width": 2,
+                "stroke-linecap": "round",
                 "pointer-events": "none",
               },
             },
