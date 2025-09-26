@@ -157,6 +157,13 @@ export class ComputingUnitStatusService implements OnDestroy {
   public selectComputingUnit(wid: number | undefined, cuid: number): void {
     const trySelect = (unit: DashboardWorkflowComputingUnit) => {
       if (!isDefined(wid)) {
+        if (this.workflowWebsocketService.isConnected) {
+          this.workflowWebsocketService.closeWebsocket();
+          this.workflowStatusService.clearStatus();
+        }
+        this.currentConnectedCuid = undefined;
+        this.currentConnectedWid = undefined;
+        this.selectedUnitSubject.next(unit);
         return;
       }
 
