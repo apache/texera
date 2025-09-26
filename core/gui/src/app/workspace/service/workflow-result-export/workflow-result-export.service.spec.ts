@@ -70,7 +70,7 @@ describe("WorkflowResultExportService", () => {
       "getLinkAddStream",
       "getLinkDeleteStream",
       "getDisabledOperatorsChangedStream",
-      "getAllLinks"
+      "getAllLinks",
     ]);
     texeraGraphSpy.getAllOperators.and.returnValue([]);
     texeraGraphSpy.getOperatorAddStream.and.returnValue(of());
