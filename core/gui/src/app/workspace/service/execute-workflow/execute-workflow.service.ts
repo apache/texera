@@ -100,9 +100,6 @@ export class ExecuteWorkflowService {
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
-        case "RegionUpdateEvent":
-          this.regionStream.next(event.Regions)
-          break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
           break;
