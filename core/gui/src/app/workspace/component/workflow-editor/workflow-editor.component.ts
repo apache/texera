@@ -323,13 +323,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             });
         }
       });
-
-    this.executeWorkflowService
-      .getRegionStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(region => {
-        console.log(region)
-      });
   }
 
   /**
