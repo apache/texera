@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow, WorkflowRegions}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.common.client.AmberClient
