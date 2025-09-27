@@ -105,10 +105,6 @@ class Controller(
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
-    SessionState.getAllSessionStates.foreach { state =>
-      state.send(RegionUpdateEvent(cp.workflowScheduler.schedule.getRegions.toString()))
-    }
-
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
