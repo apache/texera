@@ -32,7 +32,7 @@ class WorkflowScheduler(
     actorId: ActorVirtualIdentity
 ) extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
-  var schedule: Schedule = _
+  private var schedule: Schedule = _
 
   /**
     * Update the schedule to be executed, based on the given physicalPlan.
