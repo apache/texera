@@ -85,7 +85,6 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
-
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
