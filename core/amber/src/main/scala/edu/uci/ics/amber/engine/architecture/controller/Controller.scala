@@ -27,8 +27,8 @@ import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, Workflo
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ControlInvocation,
-  EmbeddedControlMessage
+  EmbeddedControlMessage,
+  ControlInvocation
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
