@@ -138,10 +138,6 @@ export class WorkflowWebsocketService {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }
-
-      if (evt.type === "RegionUpdateEvent") {
-        console.log("egergerg",evt.Regions)
-      }
       this.updateConnectionStatus(true);
     });
   }

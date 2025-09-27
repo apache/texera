@@ -85,6 +85,9 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
+  private regionStream = new Subject<string>();
+
+
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
@@ -99,6 +102,9 @@ export class ExecuteWorkflowService {
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
+        case "RegionUpdateEvent":
+          this.regionStream.next(event.Regions)
+          break;
         case "WorkerAssignmentUpdateEvent":
           this.assignedWorkerIds.set(event.operatorId, event.workerIds);
           break;
@@ -328,6 +334,12 @@ export class ExecuteWorkflowService {
   }> {
     return this.executionStateStream.asObservable();
   }
+
+  public getRegionStream(): Observable<string> {
+    return this.regionStream.asObservable();
+  }
+
+
 
   public resetExecutionState(): void {
     this.currentState = {
