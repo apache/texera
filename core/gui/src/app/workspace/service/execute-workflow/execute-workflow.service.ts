@@ -330,12 +330,6 @@ export class ExecuteWorkflowService {
     return this.executionStateStream.asObservable();
   }
 
-  public getRegionStream(): Observable<string> {
-    return this.regionStream.asObservable();
-  }
-
-
-
   public resetExecutionState(): void {
     this.currentState = {
       state: ExecutionState.Uninitialized,
