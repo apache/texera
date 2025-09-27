@@ -55,6 +55,12 @@ export class SettingsComponent implements OnInit {
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
     });
 
+    this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
+      if (this.settingsForm.valid) {
+        this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
+      }
+    });
+
     this.workflowActionService
       .workflowChanged()
       .pipe(untilDestroyed(this))

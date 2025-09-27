@@ -27,6 +27,16 @@ lazy val ConfigService = (project in file("config-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
+lazy val AccessControlService = (project in file("access-control-service"))
+  .dependsOn(Auth, Config, DAO)
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
+    )
+  )
+  .configs(Test)
+  .dependsOn(DAO % "test->test", Auth % "test->test")
 lazy val WorkflowCore = (project in file("workflow-core"))
   .dependsOn(DAO, Config)
   .configs(Test)
