@@ -26,22 +26,15 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  EmbeddedControlMessage,
-  ControlInvocation
-}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ControlInvocation, EmbeddedControlMessage}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  DirectControlMessagePayload,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{DirectControlMessagePayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
+import edu.uci.ics.texera.web.SessionState
+import edu.uci.ics.texera.web.model.websocket.response.RegionUpdateEvent
 
 import scala.concurrent.duration.DurationInt
 
@@ -112,11 +105,9 @@ class Controller(
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
-    cp.asyncRPCClient.sendToClient(
-      WorkflowRegions(
-        cp.workflowScheduler.schedule.getRegions.toString()
-      )
-    )
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(RegionUpdateEvent(cp.workflowScheduler.schedule.getRegions.toString()))
+    }
 
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {

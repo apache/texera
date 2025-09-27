@@ -23,18 +23,14 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow, WorkflowRegions}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.texera.config.UserSystemConfig
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -88,21 +84,6 @@ class WorkflowExecutionService(
 
       outputEvents
     })
-  )
-
-  addSubscription(
-    client
-      .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
-        stateStore.statsStore.updateState { statsStore =>
-          statsStore.withOperatorInfo(evt.operatorMetrics)
-        }
-        metricsPersistThread.foreach { thread =>
-          thread.execute(() => {
-            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
-            lastPersistedMetrics = Some(evt.operatorMetrics)
-          })
-        }
-      })
   )
 
   private def createStateEvent(state: ExecutionMetadataStore): WorkflowStateEvent = {
