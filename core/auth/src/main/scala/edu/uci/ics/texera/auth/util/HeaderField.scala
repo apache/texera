@@ -17,6 +17,11 @@
  * under the License.
  */
 
-package edu.uci.ics.texera.web.model.http.request.auth
+package edu.uci.ics.texera.auth.util
 
-case class RefreshTokenRequest(accessToken: String)
+object HeaderField {
+  val UserComputingUnitAccess = "x-user-computing-unit-access"
+  val UserId = "x-user-id"
+  val UserName = "x-user-name"
+  val UserEmail = "x-user-email"
+}
