@@ -85,8 +85,6 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
-  private regionStream = new Subject<string>();
-
 
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
