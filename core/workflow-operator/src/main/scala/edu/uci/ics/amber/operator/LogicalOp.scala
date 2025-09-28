@@ -288,7 +288,10 @@ trait StateTransferFunc
     ),
     new Type(value = classOf[SklearnTrainingSVMOpDesc], name = "SklearnTrainingSVM"),
     new Type(value = classOf[SklearnTrainingLinearSVMOpDesc], name = "SklearnTrainingLinearSVM"),
-    new Type(value = classOf[SklearnTrainingDecisionTreeOpDesc], name = "SklearnTrainingDecisionTree"),
+    new Type(
+      value = classOf[SklearnTrainingDecisionTreeOpDesc],
+      name = "SklearnTrainingDecisionTree"
+    ),
     new Type(value = classOf[SklearnTrainingExtraTreeOpDesc], name = "SklearnTrainingExtraTree"),
     new Type(
       value = classOf[SklearnTrainingMultiLayerPerceptronOpDesc],
@@ -298,7 +301,10 @@ trait StateTransferFunc
       value = classOf[SklearnTrainingProbabilityCalibrationOpDesc],
       name = "SklearnTrainingProbabilityCalibration"
     ),
-    new Type(value = classOf[SklearnTrainingRandomForestOpDesc], name = "SklearnTrainingRandomForest"),
+    new Type(
+      value = classOf[SklearnTrainingRandomForestOpDesc],
+      name = "SklearnTrainingRandomForest"
+    ),
     new Type(value = classOf[SklearnTrainingBaggingOpDesc], name = "SklearnTrainingBagging"),
     new Type(
       value = classOf[SklearnTrainingGradientBoostingOpDesc],
