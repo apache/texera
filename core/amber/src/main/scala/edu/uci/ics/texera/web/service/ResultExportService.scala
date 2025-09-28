@@ -563,12 +563,19 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
   }
 
+  /**
+   * Parses a JSON string array of operators into a list of OperatorExportInfo objects.
+   */
   def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
     new ObjectMapper()
       .registerModule(DefaultScalaModule)
       .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
   }
 
+  /**
+   * Validates an export request by checking if any operators are selected.
+   * Returns an error response if none are selected, otherwise None.
+   */
   def validateExportRequest(request: ResultExportRequest): Option[Response] = {
     if (request.operators.isEmpty) {
       Some(
@@ -581,6 +588,11 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     } else None
   }
 
+  /**
+   * Exports operator results as downloadable files in an HTTP response.
+   * If multiple operators are selected, their results are streamed as a ZIP file.
+   * If a single operator is selected, its result is streamed directly.
+   */
   def exportToLocal(request: ResultExportRequest): Response = {
     if (request.operators.size > 1) {
       val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
@@ -609,6 +621,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     }
   }
 
+  /**
+   * Exports operator results to a dataset and returns the result as an HTTP response.
+   */
   def exportToDataset(user: User, request: ResultExportRequest): Response = {
     val exportResponse = exportAllOperatorsResultToDataset(user, request)
     Response.ok(exportResponse).build()
