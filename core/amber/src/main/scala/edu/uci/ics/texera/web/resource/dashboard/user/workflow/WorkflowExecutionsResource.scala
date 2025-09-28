@@ -103,11 +103,25 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+    * Represents a dataset that has access restrictions for export.
+    * Used to track which datasets are non-downloadable and owned by other users.
+    *
+    * @param ownerEmail The email of the dataset owner
+    * @param datasetName The name of the dataset
+    */
   private case class RestrictedDataset(ownerEmail: String, datasetName: String) {
     def cacheKey: (String, String) = (ownerEmail.toLowerCase, datasetName.toLowerCase)
     def label: String = s"$datasetName ($ownerEmail)"
   }
 
+  /**
+    * Parses a file path to extract dataset information.
+    * Expected format: /ownerEmail/datasetName/...
+    *
+    * @param path The file path from operator properties
+    * @return Some(RestrictedDataset) if path is valid, None otherwise
+    */
   private def parseDatasetPath(path: String): Option[RestrictedDataset] = {
     if (path == null) {
       return None
@@ -125,6 +139,14 @@ object WorkflowExecutionsResource {
     Some(RestrictedDataset(ownerEmail, datasetName))
   }
 
+  /**
+    * Checks if a dataset is downloadable by querying the database.
+    * Uses caching to avoid repeated database queries for the same dataset.
+    *
+    * @param dataset The dataset to check
+    * @param cache A cache to store lookup results
+    * @return Some(true) if downloadable, Some(false) if not, None if dataset doesn't exist
+    */
   private def lookupDatasetDownloadable(
       dataset: RestrictedDataset,
       cache: mutable.Map[(String, String), Option[Boolean]]
@@ -151,6 +173,19 @@ object WorkflowExecutionsResource {
     )
   }
 
+  /**
+    * Computes which operators in a workflow are restricted due to dataset access controls.
+    *
+    * This function:
+    * 1. Parses the workflow JSON to find all operators and their dataset dependencies
+    * 2. Identifies operators using non-downloadable datasets that the user doesn't own
+    * 3. Uses BFS to propagate restrictions through the workflow graph
+    * 4. Returns a map of operator IDs to the restricted datasets they depend on
+    *
+    * @param wid The workflow ID
+    * @param currentUser The current user making the export request
+    * @return Map of operator ID -> Set of restricted datasets that block its export
+    */
   private def computeDatasetRestrictionMap(
       wid: Int,
       currentUser: UserPojo

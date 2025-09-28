@@ -209,6 +209,12 @@ export class ResultExportationComponent implements OnInit {
     });
   }
 
+  /**
+   * Getter that returns a comma-separated string of blocking dataset labels.
+   * Used in the template to display which datasets are preventing export.
+   *
+   * @returns String like "Dataset1 (user1@example.com), Dataset2 (user2@example.com)"
+   */
   get blockingDatasetSummary(): string {
     return this.blockingDatasetLabels.join(", ");
   }

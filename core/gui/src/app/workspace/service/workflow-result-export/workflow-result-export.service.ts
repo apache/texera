@@ -73,6 +73,10 @@ export class WorkflowResultExportService {
     });
   }
 
+  /**
+   * Registers triggers to recompute dataset restrictions when the workflow graph changes.
+   * Monitors operator/link additions, deletions, property changes, and operator enable/disable events.
+   */
   private registerRestrictionRecomputeTriggers(): void {
     const texeraGraph = this.workflowActionService.getTexeraGraph();
     merge(
@@ -87,6 +91,19 @@ export class WorkflowResultExportService {
     });
   }
 
+  /**
+   * Refreshes dataset metadata from the server and rebuilds local caches.
+   *
+   * Fetches all accessible datasets and their permissions, then updates:
+   * - datasetDownloadableMap: tracks which datasets are downloadable
+   * - datasetLabelMap: stores human-readable dataset labels
+   *
+   * A dataset is considered downloadable if either:
+   * - The dataset's isDownloadable flag is true, OR
+   * - The current user is the dataset owner
+   *
+   * @returns Observable that completes when metadata is refreshed
+   */
   public refreshDatasetMetadata(): Observable<void> {
     this.datasetListLoaded = false;
     return this.datasetService.retrieveAccessibleDatasets().pipe(
@@ -114,10 +131,27 @@ export class WorkflowResultExportService {
     );
   }
 
+  /**
+   * Builds a normalized key for dataset lookup in caches.
+   * Converts both email and dataset name to lowercase for case-insensitive matching.
+   *
+   * @param ownerEmail The dataset owner's email
+   * @param datasetName The dataset name
+   * @returns Normalized key in format "email::dataset"
+   */
   private buildDatasetKey(ownerEmail: string, datasetName: string): string {
     return `${ownerEmail.toLowerCase()}::${datasetName.toLowerCase()}`;
   }
 
+  /**
+   * Extracts dataset information from an operator's fileName property.
+   *
+   * Parses file paths in the expected format and validates that the dataset
+   * exists in our accessible datasets cache.
+   *
+   * @param fileName The fileName property from operator properties
+   * @returns Object with dataset key and label, or null if invalid/not found
+   */
   private extractDatasetInfo(fileName: unknown): { key: string; label: string } | null {
     if (typeof fileName !== "string") {
       return null;
@@ -142,6 +176,18 @@ export class WorkflowResultExportService {
     }
   }
 
+  /**
+   * Performs client-side restriction analysis to mirror backend validation.
+   *
+   * This function:
+   * 1. Identifies operators using non-downloadable datasets
+   * 2. Builds a workflow dependency graph from operator links
+   * 3. Uses BFS to propagate restrictions through the graph
+   * 4. Updates restrictedOperatorMap with results
+   *
+   * The analysis considers only enabled operators and ignores disabled ones.
+   * Restrictions flow downstream through operator dependencies.
+   */
   private runRestrictionAnalysis(): void {
     if (!this.datasetListLoaded) {
       this.restrictedOperatorMap.clear();
@@ -155,6 +201,7 @@ export class WorkflowResultExportService {
     const enabledOperators = allOperators.filter(operator => !operator.isDisabled);
     const datasetSources: Array<{ operatorId: string; label: string }> = [];
 
+    // Identify source operators that use non-downloadable datasets
     enabledOperators.forEach(operator => {
       const datasetInfo = this.extractDatasetInfo(operator.operatorProperties?.fileName);
       if (!datasetInfo) {
@@ -174,6 +221,7 @@ export class WorkflowResultExportService {
       return;
     }
 
+    // Build Workflow Dependency Graph
     const adjacency = new Map<string, string[]>();
     texeraGraph.getAllLinks().forEach(link => {
       const sourceId = link.source.operatorID;
@@ -194,6 +242,7 @@ export class WorkflowResultExportService {
       }
     });
 
+    // BFS
     const queue: Array<{ operatorId: string; datasets: Set<string> }> = [];
     datasetSources.forEach(source => {
       queue.push({ operatorId: source.operatorId, datasets: new Set([source.label]) });
@@ -218,10 +267,20 @@ export class WorkflowResultExportService {
       }
     }
 
+    // Update State
     this.restrictedOperatorMap = restrictions;
     this.updateExportAvailabilityFlags();
   }
 
+  /**
+   * Updates UI flags that control export button visibility and availability.
+   *
+   * Checks execution state and result availability to determine:
+   * - hasResultToExportOnHighlightedOperators: for context menu export button
+   * - hasResultToExportOnAllOperators: for top menu export button
+   *
+   * Export is only available when execution is idle and operators have results.
+   */
   private updateExportAvailabilityFlags(): void {
     const executionIdle = isNotInExecution(this.executeWorkflowService.getExecutionState().state);
 
@@ -251,18 +310,43 @@ export class WorkflowResultExportService {
     this.hasResultToExportOnAllOperators.next(hasAnyResult);
   }
 
+  /**
+   * Filters operator IDs to return only those that are not restricted by dataset access controls.
+   *
+   * @param operatorIds Array of operator IDs to filter
+   * @returns Array of operator IDs that can be exported
+   */
   public getExportableOperatorIds(operatorIds: readonly string[]): string[] {
     return operatorIds.filter(operatorId => !this.restrictedOperatorMap.has(operatorId));
   }
 
+  /**
+   * Filters operator IDs to return only those that are restricted by dataset access controls.
+   *
+   * @param operatorIds Array of operator IDs to filter
+   * @returns Array of operator IDs that are blocked from export
+   */
   public getBlockedOperatorIds(operatorIds: readonly string[]): string[] {
     return operatorIds.filter(operatorId => this.restrictedOperatorMap.has(operatorId));
   }
 
+  /**
+   * Checks if any of the provided operator IDs are blocked by dataset restrictions.
+   *
+   * @param operatorIds Array of operator IDs to check
+   * @returns True if any operators are blocked, false otherwise
+   */
   public hasBlockedOperators(operatorIds: readonly string[]): boolean {
     return operatorIds.some(operatorId => this.restrictedOperatorMap.has(operatorId));
   }
 
+  /**
+   * Gets the list of dataset labels that are blocking export for the given operators.
+   * Used to display user-friendly error messages about which datasets are causing restrictions.
+   *
+   * @param operatorIds Array of operator IDs to check
+   * @returns Array of dataset labels (e.g., "Dataset1 (user@example.com)")
+   */
   public getBlockingDatasets(operatorIds: readonly string[]): string[] {
     const labels = new Set<string>();
     operatorIds.forEach(operatorId => {
@@ -305,6 +389,18 @@ export class WorkflowResultExportService {
       );
   }
 
+  /**
+   * Performs the actual export operation with restriction validation.
+   *
+   * This method handles the core export logic:
+   * 1. Validates configuration and computing unit availability
+   * 2. Determines operator scope (all vs highlighted)
+   * 3. Applies restriction filtering with user feedback
+   * 4. Makes the export API call
+   * 5. Handles response and shows appropriate notifications
+   *
+   * Shows error messages if all operators are blocked, warning messages if some are blocked.
+   */
   private performExport(
     exportType: string,
     workflowName: string,
@@ -316,6 +412,7 @@ export class WorkflowResultExportService {
     destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null
   ): void {
+    // Validates configuration and computing unit availability
     if (!this.config.env.exportExecutionResultEnabled) {
       return;
     }
@@ -330,7 +427,7 @@ export class WorkflowResultExportService {
       return;
     }
 
-    // gather operator IDs
+    // Determines operator scope
     const operatorIds = exportAll
       ? this.workflowActionService
           .getTexeraGraph()
@@ -342,6 +439,7 @@ export class WorkflowResultExportService {
       return;
     }
 
+    // Applies restriction filtering with user feedback
     const exportableOperatorIds = this.getExportableOperatorIds(operatorIds);
 
     if (exportableOperatorIds.length === 0) {
