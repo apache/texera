@@ -28,7 +28,7 @@ import {
   deleteButtonPath,
   fromJointPaperEvent,
   JointUIService,
-  linkPathStrokeColor
+  linkPathStrokeColor,
 } from "../../service/joint-ui/joint-ui.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
