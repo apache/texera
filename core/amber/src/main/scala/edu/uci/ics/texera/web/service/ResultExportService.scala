@@ -241,10 +241,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   def exportOperatorsAsZip(
       request: ResultExportRequest
   ): (StreamingOutput, Option[String]) = {
-    if (request.operators.isEmpty) {
-      return (null, None)
-    }
-
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
