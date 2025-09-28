@@ -105,8 +105,13 @@ class Controller(
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
+    val regions: List[List[String]] =
+      cp.workflowScheduler.schedule.getRegions.map { region =>
+        region.physicalOps.map(_.id.logicalOpId.id).toList
+      }
+
     SessionState.getAllSessionStates.foreach { state =>
-      state.send(RegionUpdateEvent(cp.workflowScheduler.schedule.getRegions.toString()))
+      state.send(RegionUpdateEvent(regions))
     }
 
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt

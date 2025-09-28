@@ -174,7 +174,7 @@ export type ClusterStatusUpdateEvent = Readonly<{
 }>;
 
 export type RegionUpdateEvent = Readonly<{
-  Regions: string;
+  regions: readonly string[][];
 }>;
 
 export type ModifyLogicResponse = Readonly<{
