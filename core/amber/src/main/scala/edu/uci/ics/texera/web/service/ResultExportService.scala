@@ -19,6 +19,9 @@
 
 package edu.uci.ics.texera.web.service
 
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
 import edu.uci.ics.amber.config.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.DocumentFactory
@@ -32,12 +35,10 @@ import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
-  WorkflowExecutionsResource,
-  WorkflowVersionResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
+import scala.jdk.CollectionConverters._
 import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
@@ -53,10 +54,9 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
 
 import javax.ws.rs.WebApplicationException
-import javax.ws.rs.core.StreamingOutput
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import java.net.{HttpURLConnection, URL, URLEncoder}
 import scala.collection.mutable.ArrayBuffer
-
 import org.apache.commons.io.IOUtils
 
 object Constants {
@@ -561,5 +561,62 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
+  }
+
+  def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
+    new ObjectMapper()
+      .registerModule(DefaultScalaModule)
+      .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
+  }
+
+  def validateExportRequest(request: ResultExportRequest): Option[Response] = {
+    if (request.operators.isEmpty) {
+      Some(
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .`type`(MediaType.APPLICATION_JSON)
+          .entity(Map("error" -> "No operator selected").asJava)
+          .build()
+      )
+    } else None
+  }
+
+  def exportToLocal(request: ResultExportRequest): Response = {
+    val resultExportService =
+      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+
+    if (request.operators.size > 1) {
+      val (zipStream, zipFileNameOpt) = resultExportService.exportOperatorsAsZip(request)
+      if (zipStream == null) {
+        throw new RuntimeException("Zip stream is null")
+      }
+      val fileName = zipFileNameOpt.getOrElse("operators.zip")
+
+      Response
+        .ok(zipStream, "application/zip")
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
+
+    } else {
+      val op = request.operators.head
+      val (streamingOutput, fileNameOpt) =
+        resultExportService.exportOperatorResultAsStream(request, op)
+      if (streamingOutput == null) {
+        throw new RuntimeException("Failed to export operator")
+      }
+      val fileName = fileNameOpt.getOrElse("download.dat")
+
+      Response
+        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
+    }
+  }
+
+  def exportToDataset(user: User, request: ResultExportRequest): Response = {
+    val resultExportService =
+      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+    val exportResponse = resultExportService.exportAllOperatorsResultToDataset(user, request)
+    Response.ok(exportResponse).build()
   }
 }
