@@ -112,8 +112,6 @@ jobs:
         run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Jooq Code Generator
-        run: cd core && sbt "DAO/runMain edu.uci.ics.texera.dao.JooqCodeGenerator"
       - name: Compile with sbt
         run: cd core && sbt clean package
       - name: Run backend tests

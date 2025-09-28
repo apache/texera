@@ -63,6 +63,8 @@ object PathUtils {
 
   lazy val configServicePath: Path = corePath.resolve("config-service")
 
+  lazy val accessControlServicePath: Path = corePath.resolve("access-control-service")
+
   private lazy val datasetsRootPath =
     corePath.resolve("amber").resolve("user-resources").resolve("datasets")
 

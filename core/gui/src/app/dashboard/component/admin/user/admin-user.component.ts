@@ -23,7 +23,7 @@ import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
-import { Role, User } from "../../../../common/type/user";
+import { Role, User, MilliSecond } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UserQuotaComponent } from "../../user/user-quota/user-quota.component";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -190,10 +190,17 @@ export class AdminUserComponent implements OnInit {
     if (!user.lastLogin) {
       return false;
     }
-    // Active window set to expiration-in-minutes from auth.conf
-    const active_window = this.config.env.expirationTimeInMinutes * 60 * 1000;
+    // Active window set to active-time-in-minutes from gui.conf
+    const active_window = this.config.env.activeTimeInMinutes * 60 * 1000;
     const lastMs = user.lastLogin * 1000;
     return Date.now() - lastMs < active_window;
+  }
+
+  getAccountCreation(user: User): MilliSecond {
+    if (!user.accountCreation) {
+      return 0;
+    }
+    return user.accountCreation * 1000;
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
