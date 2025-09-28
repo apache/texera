@@ -31,12 +31,8 @@ import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.auth.{JwtParser, SessionUser}
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.core.`type`.TypeReference
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.texera.web.model.http.request.result.OperatorExportInfo
 
 import scala.jdk.CollectionConverters._
 import edu.uci.ics.texera.config.UserSystemConfig
@@ -698,9 +694,10 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResult(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
-      WorkflowExportResource.validateExportRequest(request) match {
+      val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
-        case None                => WorkflowExportResource.exportToDataset(user.user, request)
+        case None                => resultExportService.exportToDataset(user.user, request)
       }
     } catch {
       case ex: Exception =>
@@ -742,7 +739,8 @@ class WorkflowExecutionsResource {
         throw new RuntimeException("Invalid or expired token")
       }
 
-      val operators = WorkflowExportResource.parseOperators(operatorsJson)
+      val resultExportService = new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
+      val operators = resultExportService.parseOperators(operatorsJson)
       val datasetIds: List[Int] = List()
       val request = ResultExportRequest(
         exportType,
@@ -757,9 +755,9 @@ class WorkflowExecutionsResource {
         computingUnitId
       )
 
-      WorkflowExportResource.validateExportRequest(request) match {
+      resultExportService.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
-        case None                => WorkflowExportResource.exportToLocal(request)
+        case None                => resultExportService.exportToLocal(request)
       }
     } catch {
       case ex: Exception =>
@@ -769,64 +767,5 @@ class WorkflowExecutionsResource {
           .entity(Map("error" -> ex.getMessage).asJava)
           .build()
     }
-  }
-}
-
-object WorkflowExportResource {
-  def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
-    new ObjectMapper()
-      .registerModule(DefaultScalaModule)
-      .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
-  }
-
-  def validateExportRequest(request: ResultExportRequest): Option[Response] = {
-    if (request.operators.isEmpty) {
-      Some(
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .`type`(MediaType.APPLICATION_JSON)
-          .entity(Map("error" -> "No operator selected").asJava)
-          .build()
-      )
-    } else None
-  }
-
-  def exportToLocal(request: ResultExportRequest): Response = {
-    val resultExportService =
-      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-
-    if (request.operators.size > 1) {
-      val (zipStream, zipFileNameOpt) = resultExportService.exportOperatorsAsZip(request)
-      if (zipStream == null) {
-        throw new RuntimeException("Zip stream is null")
-      }
-      val fileName = zipFileNameOpt.getOrElse("operators.zip")
-
-      Response
-        .ok(zipStream, "application/zip")
-        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
-        .build()
-
-    } else {
-      val op = request.operators.head
-      val (streamingOutput, fileNameOpt) =
-        resultExportService.exportOperatorResultAsStream(request, op)
-      if (streamingOutput == null) {
-        throw new RuntimeException("Failed to export operator")
-      }
-      val fileName = fileNameOpt.getOrElse("download.dat")
-
-      Response
-        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
-        .build()
-    }
-  }
-
-  def exportToDataset(user: User, request: ResultExportRequest): Response = {
-    val resultExportService =
-      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-    val exportResponse = resultExportService.exportAllOperatorsResultToDataset(user, request)
-    Response.ok(exportResponse).build()
   }
 }
