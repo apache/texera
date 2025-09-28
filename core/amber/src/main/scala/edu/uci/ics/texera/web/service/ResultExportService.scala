@@ -582,11 +582,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   def exportToLocal(request: ResultExportRequest): Response = {
-    val resultExportService =
-      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-
     if (request.operators.size > 1) {
-      val (zipStream, zipFileNameOpt) = resultExportService.exportOperatorsAsZip(request)
+      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
       if (zipStream == null) {
         throw new RuntimeException("Zip stream is null")
       }
@@ -599,8 +596,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
 
     } else {
       val op = request.operators.head
-      val (streamingOutput, fileNameOpt) =
-        resultExportService.exportOperatorResultAsStream(request, op)
+      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
       if (streamingOutput == null) {
         throw new RuntimeException("Failed to export operator")
       }
@@ -614,9 +610,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   def exportToDataset(user: User, request: ResultExportRequest): Response = {
-    val resultExportService =
-      new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-    val exportResponse = resultExportService.exportAllOperatorsResultToDataset(user, request)
+    val exportResponse = exportAllOperatorsResultToDataset(user, request)
     Response.ok(exportResponse).build()
   }
 }
