@@ -33,7 +33,6 @@ import java.nio.charset.StandardCharsets
 object JwtAuth {
 
   final val TOKEN_SECRET: String = AuthConfig.jwtSecretKey
-  final val DOWNLOAD_TOKEN_EXPIRE_TIME_IN_SECONDS = 500
   final val TOKEN_EXPIRE_TIME_IN_MINUTES: Int = AuthConfig.jwtExpirationMinutes
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
@@ -62,36 +61,5 @@ object JwtAuth {
     claims.setClaim("googleAvatar", user.getGoogleAvatar)
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
-  }
-
-  def jwtDownloadClaims(
-      exportType: String,
-      workflowId: Int,
-      workflowName: String,
-      rowIndex: Int,
-      columnIndex: Int,
-      filename: String,
-      computingUnitId: Int,
-      destination: String,
-      expireInSeconds: Int,
-      user: SessionUser
-  ): JwtClaims = {
-    val claims = new JwtClaims
-    claims.setSubject(user.getName)
-    claims.setClaim("role", user.getUser.getRole)
-    claims.setClaim("exportType", exportType)
-    claims.setClaim("workflowId", workflowId)
-    claims.setClaim("workflowName", workflowName)
-    claims.setClaim("rowIndex", rowIndex)
-    claims.setClaim("columnIndex", columnIndex)
-    claims.setClaim("filename", filename)
-    claims.setClaim("computingUnitId", computingUnitId)
-    claims.setClaim("destination", destination)
-    claims.setExpirationTimeMinutesInTheFuture(secondsToMin(expireInSeconds))
-    claims
-  }
-
-  def secondsToMin(seconds: Int): Float = {
-    seconds / 60.0f
   }
 }
