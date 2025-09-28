@@ -273,61 +273,67 @@ trait StateTransferFunc
       value = classOf[SklearnLogisticRegressionCVOpDesc],
       name = "SklearnLogisticRegressionCV"
     ),
-    new Type(value = classOf[SklearnTrainingRidgeOpDesc], name = "SklearnRidge"),
-    new Type(value = classOf[SklearnTrainingRidgeCVOpDesc], name = "SklearnRidgeCV"),
-    new Type(value = classOf[SklearnTrainingSDGOpDesc], name = "SklearnSDG"),
+    new Type(value = classOf[SklearnTrainingRidgeOpDesc], name = "SklearnTrainingRidge"),
+    new Type(value = classOf[SklearnTrainingRidgeCVOpDesc], name = "SklearnTrainingRidgeCV"),
+    new Type(value = classOf[SklearnTrainingSDGOpDesc], name = "SklearnTrainingSDG"),
     new Type(
       value = classOf[SklearnTrainingPassiveAggressiveOpDesc],
-      name = "SklearnPassiveAggressive"
+      name = "SklearnTrainingPassiveAggressive"
     ),
-    new Type(value = classOf[SklearnTrainingPerceptronOpDesc], name = "SklearnPerceptron"),
-    new Type(value = classOf[SklearnTrainingKNNOpDesc], name = "SklearnKNN"),
+    new Type(value = classOf[SklearnTrainingPerceptronOpDesc], name = "SklearnTrainingPerceptron"),
+    new Type(value = classOf[SklearnTrainingKNNOpDesc], name = "SklearnTrainingKNN"),
     new Type(
       value = classOf[SklearnTrainingNearestCentroidOpDesc],
-      name = "SklearnNearestCentroid"
+      name = "SklearnTrainingNearestCentroid"
     ),
-    new Type(value = classOf[SklearnTrainingSVMOpDesc], name = "SklearnSVM"),
-    new Type(value = classOf[SklearnTrainingLinearSVMOpDesc], name = "SklearnLinearSVM"),
-    new Type(value = classOf[SklearnTrainingDecisionTreeOpDesc], name = "SklearnDecisionTree"),
-    new Type(value = classOf[SklearnTrainingExtraTreeOpDesc], name = "SklearnExtraTree"),
+    new Type(value = classOf[SklearnTrainingSVMOpDesc], name = "SklearnTrainingSVM"),
+    new Type(value = classOf[SklearnTrainingLinearSVMOpDesc], name = "SklearnTrainingLinearSVM"),
+    new Type(
+      value = classOf[SklearnTrainingDecisionTreeOpDesc],
+      name = "SklearnTrainingDecisionTree"
+    ),
+    new Type(value = classOf[SklearnTrainingExtraTreeOpDesc], name = "SklearnTrainingExtraTree"),
     new Type(
       value = classOf[SklearnTrainingMultiLayerPerceptronOpDesc],
-      name = "SklearnMultiLayerPerceptron"
+      name = "SklearnTrainingMultiLayerPerceptron"
     ),
     new Type(
       value = classOf[SklearnTrainingProbabilityCalibrationOpDesc],
-      name = "SklearnProbabilityCalibration"
+      name = "SklearnTrainingProbabilityCalibration"
     ),
-    new Type(value = classOf[SklearnTrainingRandomForestOpDesc], name = "SklearnRandomForest"),
-    new Type(value = classOf[SklearnTrainingBaggingOpDesc], name = "SklearnBagging"),
+    new Type(
+      value = classOf[SklearnTrainingRandomForestOpDesc],
+      name = "SklearnTrainingRandomForest"
+    ),
+    new Type(value = classOf[SklearnTrainingBaggingOpDesc], name = "SklearnTrainingBagging"),
     new Type(
       value = classOf[SklearnTrainingGradientBoostingOpDesc],
-      name = "SklearnGradientBoosting"
+      name = "SklearnTrainingGradientBoosting"
     ),
     new Type(
       value = classOf[SklearnTrainingAdaptiveBoostingOpDesc],
-      name = "SklearnAdaptiveBoosting"
+      name = "SklearnTrainingAdaptiveBoosting"
     ),
-    new Type(value = classOf[SklearnTrainingExtraTreesOpDesc], name = "SklearnExtraTrees"),
+    new Type(value = classOf[SklearnTrainingExtraTreesOpDesc], name = "SklearnTrainingExtraTrees"),
     new Type(
       value = classOf[SklearnTrainingGaussianNaiveBayesOpDesc],
-      name = "SklearnGaussianNaiveBayes"
+      name = "SklearnTrainingGaussianNaiveBayes"
     ),
     new Type(
       value = classOf[SklearnTrainingMultinomialNaiveBayesOpDesc],
-      name = "SklearnMultinomialNaiveBayes"
+      name = "SklearnTrainingMultinomialNaiveBayes"
     ),
     new Type(
       value = classOf[SklearnTrainingComplementNaiveBayesOpDesc],
-      name = "SklearnComplementNaiveBayes"
+      name = "SklearnTrainingComplementNaiveBayes"
     ),
     new Type(
       value = classOf[SklearnTrainingBernoulliNaiveBayesOpDesc],
-      name = "SklearnBernoulliNaiveBayes"
+      name = "SklearnTrainingBernoulliNaiveBayes"
     ),
     new Type(
       value = classOf[SklearnTrainingDummyClassifierOpDesc],
-      name = "SklearnDummyClassifier"
+      name = "SklearnTrainingDummyClassifier"
     ),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
