@@ -76,7 +76,10 @@ import edu.uci.ics.amber.operator.sklearn.training.{
   SklearnTrainingGaussianNaiveBayesOpDesc,
   SklearnTrainingGradientBoostingOpDesc,
   SklearnTrainingKNNOpDesc,
+  SklearnTrainingLinearRegressionOpDesc,
   SklearnTrainingLinearSVMOpDesc,
+  SklearnTrainingLogisticRegressionCVOpDesc,
+  SklearnTrainingLogisticRegressionOpDesc,
   SklearnTrainingMultiLayerPerceptronOpDesc,
   SklearnTrainingMultinomialNaiveBayesOpDesc,
   SklearnTrainingNearestCentroidOpDesc,
@@ -334,6 +337,18 @@ trait StateTransferFunc
     new Type(
       value = classOf[SklearnTrainingDummyClassifierOpDesc],
       name = "SklearnTrainingDummyClassifier"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingLinearRegressionOpDesc],
+      name = "SklearnTrainingLinearRegression"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingLogisticRegressionOpDesc],
+      name = "SklearnTrainingLogisticRegression"
+    ),
+    new Type(
+      value = classOf[SklearnTrainingLogisticRegressionCVOpDesc],
+      name = "SklearnTrainingLogisticRegressionCV"
     ),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
