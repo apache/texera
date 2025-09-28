@@ -44,7 +44,8 @@ case class UserInfo(
     role: UserRoleEnum,
     googleAvatar: String,
     comment: String,
-    lastLogin: java.time.OffsetDateTime // will be null if never logged in
+    lastLogin: java.time.OffsetDateTime, // will be null if never logged in
+    accountCreation: java.time.OffsetDateTime
 )
 
 object AdminUserResource {
@@ -76,7 +77,8 @@ class AdminUserResource {
         USER.ROLE,
         USER.GOOGLE_AVATAR,
         USER.COMMENT,
-        USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME
+        USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
+        USER.ACCOUNT_CREATION_TIME
       )
       .from(USER)
       .leftJoin(USER_LAST_ACTIVE_TIME)

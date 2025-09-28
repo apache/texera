@@ -33,6 +33,9 @@ export enum Role {
   ADMIN = "ADMIN",
 }
 
+export type Second = number;
+export type MilliSecond = number;
+
 export interface User
   extends Readonly<{
     uid: number;
@@ -44,6 +47,7 @@ export interface User
     googleAvatar?: string;
     comment: string;
     lastLogin?: number;
+    accountCreation?: Second;
   }> {}
 
 export interface File
