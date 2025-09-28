@@ -91,12 +91,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   import ResultExportService._
 
   /**
-    * Export results for all specified operators in the request.
-    */
-  def exportAllOperatorsResultToDataset(
+   * Export operator results to a dataset and return the result.
+   */
+  def exportToDataset(
       user: User,
       request: ResultExportRequest
-  ): ResultExportResponse = {
+  ): Response = {
     val successMessages = new mutable.ListBuffer[String]()
     val errorMessages = new mutable.ListBuffer[String]()
 
@@ -111,13 +111,49 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
+    var exportResponse: ResultExportResponse = null
     if (errorMessages.isEmpty) {
-      ResultExportResponse("success", successMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
     } else if (successMessages.isEmpty) {
-      ResultExportResponse("error", errorMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("error", errorMessages.mkString("\n"))
     } else {
       // At least one success, so we consider overall success (with partial possible).
-      ResultExportResponse("success", successMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
+    }
+
+    Response.ok(exportResponse).build()
+  }
+
+  /**
+   * Export operator results as downloadable files.
+   * If multiple operators are selected, their results are streamed as a ZIP file.
+   * If a single operator is selected, its result is streamed directly.
+   */
+  def exportToLocal(request: ResultExportRequest): Response = {
+    if (request.operators.size > 1) {
+      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
+      if (zipStream == null) {
+        throw new RuntimeException("Zip stream is null")
+      }
+      val fileName = zipFileNameOpt.getOrElse("operators.zip")
+
+      Response
+        .ok(zipStream, "application/zip")
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
+
+    } else {
+      val op = request.operators.head
+      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
+      if (streamingOutput == null) {
+        throw new RuntimeException("Failed to export operator")
+      }
+      val fileName = fileNameOpt.getOrElse("download.dat")
+
+      Response
+        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
     }
   }
 
@@ -564,7 +600,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-   * Parses a JSON string array of operators into a list of OperatorExportInfo objects.
+   * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
    */
   def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
     new ObjectMapper()
@@ -573,8 +609,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-   * Validates an export request by checking if any operators are selected.
-   * Returns an error response if none are selected, otherwise None.
+   * Validate an export request by checking if any operators are selected.
+   * Return an error response if none are selected, otherwise None.
    */
   def validateExportRequest(request: ResultExportRequest): Option[Response] = {
     if (request.operators.isEmpty) {
@@ -586,46 +622,5 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
           .build()
       )
     } else None
-  }
-
-  /**
-   * Exports operator results as downloadable files in an HTTP response.
-   * If multiple operators are selected, their results are streamed as a ZIP file.
-   * If a single operator is selected, its result is streamed directly.
-   */
-  def exportToLocal(request: ResultExportRequest): Response = {
-    if (request.operators.size > 1) {
-      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
-      if (zipStream == null) {
-        throw new RuntimeException("Zip stream is null")
-      }
-      val fileName = zipFileNameOpt.getOrElse("operators.zip")
-
-      Response
-        .ok(zipStream, "application/zip")
-        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
-        .build()
-
-    } else {
-      val op = request.operators.head
-      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
-      if (streamingOutput == null) {
-        throw new RuntimeException("Failed to export operator")
-      }
-      val fileName = fileNameOpt.getOrElse("download.dat")
-
-      Response
-        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
-        .build()
-    }
-  }
-
-  /**
-   * Exports operator results to a dataset and returns the result as an HTTP response.
-   */
-  def exportToDataset(user: User, request: ResultExportRequest): Response = {
-    val exportResponse = exportAllOperatorsResultToDataset(user, request)
-    Response.ok(exportResponse).build()
   }
 }
