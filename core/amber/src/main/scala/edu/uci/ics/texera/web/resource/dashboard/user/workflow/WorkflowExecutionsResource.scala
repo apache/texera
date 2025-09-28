@@ -694,7 +694,8 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResult(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
-      val resultExportService = new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
       resultExportService.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
         case None                => resultExportService.exportToDataset(user.user, request)
@@ -739,7 +740,8 @@ class WorkflowExecutionsResource {
         throw new RuntimeException("Invalid or expired token")
       }
 
-      val resultExportService = new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
       val operators = resultExportService.parseOperators(operatorsJson)
       val datasetIds: List[Int] = List()
       val request = ResultExportRequest(

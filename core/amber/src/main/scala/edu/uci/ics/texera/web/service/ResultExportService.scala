@@ -35,7 +35,10 @@ import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import edu.uci.ics.texera.web.model.http.response.result.ResultExportResponse
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import scala.jdk.CollectionConverters._
@@ -91,8 +94,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   import ResultExportService._
 
   /**
-   * Export operator results to a dataset and return the result.
-   */
+    * Export operator results to a dataset and return the result.
+    */
   def exportToDataset(
       user: User,
       request: ResultExportRequest
@@ -125,10 +128,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-   * Export operator results as downloadable files.
-   * If multiple operators are selected, their results are streamed as a ZIP file.
-   * If a single operator is selected, its result is streamed directly.
-   */
+    * Export operator results as downloadable files.
+    * If multiple operators are selected, their results are streamed as a ZIP file.
+    * If a single operator is selected, its result is streamed directly.
+    */
   def exportToLocal(request: ResultExportRequest): Response = {
     if (request.operators.size > 1) {
       val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
@@ -596,8 +599,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-   * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
-   */
+    * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
+    */
   def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
     new ObjectMapper()
       .registerModule(DefaultScalaModule)
@@ -605,9 +608,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   }
 
   /**
-   * Validate an export request by checking if any operators are selected.
-   * Return an error response if none are selected, otherwise None.
-   */
+    * Validate an export request by checking if any operators are selected.
+    * Return an error response if none are selected, otherwise None.
+    */
   def validateExportRequest(request: ResultExportRequest): Option[Response] = {
     if (request.operators.isEmpty) {
       Some(
