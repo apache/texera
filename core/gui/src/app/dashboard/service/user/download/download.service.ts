@@ -58,8 +58,8 @@ export class DownloadService {
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ wid, creationTime, lastModifiedTime, ...workflowCopy }) => {
-        const workflowJson = JSON.stringify({ ...workflowCopy, readonly: false });
+      map(({ content }) => {
+        const workflowJson = JSON.stringify(content, null, 2);
         const fileName = `${name}.json`;
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };
