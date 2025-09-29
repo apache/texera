@@ -276,54 +276,90 @@
           nzActive="true"
           nzHeader="Create New Version">
           <texera-user-files-uploader (uploadedFiles)="onNewUploadFilesChanged($event)"> </texera-user-files-uploader>
-          <div class="upload-progress-wrapper">
-            <div
-              *ngFor="let task of uploadTasks; trackBy: trackByTask"
-              class="upload-progress-container">
-              <div class="progress-header">
-                <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
-                <button
-                  nz-button
-                  nzType="text"
-                  nzShape="circle"
-                  [nz-tooltip]="
+
+          <nz-collapse
+            nzGhost
+            class="upload-status-panels">
+            <nz-collapse-panel
+              [nzHeader]="queuedCount > 0
+                  ? ('Pending: ' + queuedCount + ' file(s)')
+                  : 'Pending'">
+              <div
+                *ngIf="queuedCount > 0"
+                class="upload-progress-wrapper-pending">
+                <div
+                  *ngFor="let fileName of queuedFileNames"
+                  class="upload-progress-container">
+                  <span>{{ fileName }}</span>
+                </div>
+              </div>
+            </nz-collapse-panel>
+            <nz-divider class="section-divider"></nz-divider>
+
+            <nz-collapse-panel
+              [nzHeader]="activeCount > 0
+                  ? ('Uploading: ' + activeCount + ' file(s)')
+                  : 'Uploading'">
+              <div
+                *ngIf="activeCount > 0"
+                class="upload-progress-wrapper">
+                <div
+                  *ngFor="let task of uploadTasks; trackBy: trackByTask"
+                  class="upload-progress-container">
+                  <div class="progress-header">
+                    <span><b>{{ task.status }}</b>: {{ task.filePath }}</span>
+                    <button
+                      nz-button
+                      nzType="text"
+                      nzShape="circle"
+                      [nz-tooltip]="
                 (task.status === 'aborted' || task.status === 'finished')
                 ? 'Close'
                 : 'Cancel the upload'
                 "
-                  (click)="onClickAbortUploadProgress(task)">
-                  <i
-                    nz-icon
-                    nzType="close"
-                    nzTheme="outline"></i>
-                </button>
-              </div>
-              <div
-                class="upload-stats"
-                *ngIf="task.status !== 'initializing'">
-                <nz-progress
-                  [nzPercent]="task.percentage"
-                  [nzStatus]="getUploadStatus(task.status)"></nz-progress>
-                <nz-tag
-                  *ngIf="task.status === 'uploading'"
-                  [nzColor]="'blue'">
-                  <span class="fixed-width-speed">{{ formatSpeed(task.uploadSpeed) }}</span> -
-                  <span class="fixed-width-time">{{ formatTime(task.totalTime ?? 0) }}</span> elapsed,
-                  <span class="fixed-width-time">{{ formatTime(task.estimatedTimeRemaining ?? 0) }} left</span>
-                </nz-tag>
+                      (click)="onClickAbortUploadProgress(task)">
+                      <i
+                        nz-icon
+                        nzType="close"
+                        nzTheme="outline"></i>
+                    </button>
+                  </div>
 
-                <nz-tag *ngIf="(task.status === 'finished' || task.status === 'aborted')">
-                  Upload time: {{ formatTime(task.totalTime ?? 0) }}
-                </nz-tag>
-              </div>
-            </div>
-          </div>
+                  <div
+                    class="upload-stats"
+                    *ngIf="task.status !== 'initializing'">
+                    <nz-progress
+                      [nzPercent]="task.percentage"
+                      [nzStatus]="getUploadStatus(task.status)"></nz-progress>
+                    <nz-tag
+                      *ngIf="task.status === 'uploading'"
+                      [nzColor]="'blue'">
+                      <span class="fixed-width-speed">{{ formatSpeed(task.uploadSpeed) }}</span> -
+                      <span class="fixed-width-time">{{ formatTime(task.totalTime ?? 0) }}</span> elapsed,
+                      <span class="fixed-width-time">{{ formatTime(task.estimatedTimeRemaining ?? 0) }} left</span>
+                    </nz-tag>
 
-          <texera-dataset-staged-objects-list
-            [uploadTimeMap]="uploadTimeMap"
-            [did]="did"
-            [userMakeChangesEvent]="userMakeChanges"
-            (stagedObjectsChanged)="onStagedObjectsUpdated($event)"></texera-dataset-staged-objects-list>
+                    <nz-tag *ngIf="(task.status === 'finished' || task.status === 'aborted')">
+                      Upload time: {{ formatTime(task.totalTime ?? 0) }}
+                    </nz-tag>
+                  </div>
+                </div>
+              </div>
+            </nz-collapse-panel>
+            <nz-divider class="section-divider"></nz-divider>
+
+            <nz-collapse-panel
+              [nzHeader]="pendingChangesCount > 0
+              ? ('Finished: ' + pendingChangesCount + ' file(s)')
+              : 'Finished'"
+              [nzActive]="false">
+              <texera-dataset-staged-objects-list
+                [uploadTimeMap]="uploadTimeMap"
+                [did]="did"
+                [userMakeChangesEvent]="userMakeChanges"
+                (stagedObjectsChanged)="onStagedObjectsUpdated($event)"></texera-dataset-staged-objects-list>
+            </nz-collapse-panel>
+          </nz-collapse>
           <div
             *ngIf="userHasWriteAccess() && userHasPendingChanges"
             class="version-creator">
