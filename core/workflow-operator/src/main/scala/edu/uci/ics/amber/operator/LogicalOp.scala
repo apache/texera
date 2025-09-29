@@ -107,6 +107,7 @@ import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import edu.uci.ics.amber.operator.split.SplitOpDesc
+import edu.uci.ics.amber.operator.substringSearch.SubstringSearchOpDesc
 import edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.amber.operator.typecasting.TypeCastingOpDesc
 import edu.uci.ics.amber.operator.udf.java.JavaUDFOpDesc
@@ -199,6 +200,7 @@ trait StateTransferFunc
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
+    new Type(value = classOf[SubstringSearchOpDesc], name = "SubstringSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
