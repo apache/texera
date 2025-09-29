@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package edu.uci.ics.texera
 
 import edu.uci.ics.texera.auth.JwtAuth
@@ -21,6 +38,9 @@ class AccessControlResourceSpec extends AnyFlatSpec
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with MockTexeraDB {
+
+  private val testURI: String = "http://localhost:8080/"
+  private val testPath: String = "/api/executions/1/stats/1"
 
   private val testUser1: User = {
     val user = new User()
@@ -86,7 +106,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     val requestHeaders = new MultivaluedHashMap[String, String]()
 
     when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
-    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(new util.ArrayList[String]())
 
@@ -105,7 +126,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     requestHeaders.add("Authorization", "Bearer dummy-token")
 
     when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
-    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer dummy-token"))
 
@@ -123,7 +145,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     val requestHeaders = new MultivaluedHashMap[String, String]()
 
     when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
-    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(new util.ArrayList[String]())
 
@@ -148,7 +171,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
 
     // Stub the mock objects to return the prepared data
     when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
-    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer " + token))
 
@@ -175,7 +199,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
 
     // Stub the mock objects to return the prepared data
     when(mockUriInfo.getQueryParameters).thenReturn(queryParams)
-    when(mockUriInfo.getRequestUri).thenReturn(new URI("http://localhost:8080/auth/some/path"))
+    when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
+    when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer " + token))
 
