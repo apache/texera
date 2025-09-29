@@ -327,9 +327,48 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.executeWorkflowService
       .getRegionStream()
       .pipe(untilDestroyed(this))
-      .subscribe(region => {
-        console.log(region)
+      .subscribe(regions => {
+        regions.forEach((region, i) => {
+          this.updateRegionBounds(
+            this.createRegion(i),
+            region.map(op => this.paper.getModelById(op))
+          );
+        });
       });
+  }
+
+  private createRegion(id: number) {
+    const Region =
+      joint.shapes.standard.Rectangle.define("custom.Region", {
+      attrs: {
+        body: {
+          "stroke-dasharray": "4,2",
+          "fill": "none",
+          pointerEvents: "none"
+        },
+        label: {
+          pointerEvents: "none",
+          ref: "body",
+          refY: -20,
+          text: `Region ${id + 1}`
+        },
+      }
+    });
+    const region = new Region({ z: -1 });
+    this.paper.model.addCell(region);
+    return region;
+  }
+
+  private updateRegionBounds(region:any, operators:any) {
+    console.log("operators", operators)
+    let bbox = operators[0].getBBox();
+    operators.forEach((node: joint.dia.Element) => {
+      bbox = bbox.union(node.getBBox());
+    });
+
+    const padding = 60;
+    region.resize(bbox.width + padding, bbox.height + padding);
+    region.position(bbox.x - padding / 2, bbox.y - padding / 2);
   }
 
   /**
