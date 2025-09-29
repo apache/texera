@@ -117,8 +117,6 @@ export class ComputingUnitStatusService implements OnDestroy {
       // The selected unit is no longer in the list
       this.selectedUnitSubject.next(null);
       this.stopPollingSelectedUnit();
-      this.currentConnectedCuid = undefined;
-      this.currentConnectedWid = undefined;
     }
   }
 
@@ -151,25 +149,15 @@ export class ComputingUnitStatusService implements OnDestroy {
       });
   }
 
+  //
   /**
    * Select a computing unit **by its CUID** and emit the updated selection.
    */
   public selectComputingUnit(wid: number | undefined, cuid: number): void {
     const trySelect = (unit: DashboardWorkflowComputingUnit) => {
-      if (!isDefined(wid)) {
-        if (this.workflowWebsocketService.isConnected) {
-          this.workflowWebsocketService.closeWebsocket();
-          this.workflowStatusService.clearStatus();
-        }
-        this.currentConnectedCuid = undefined;
-        this.currentConnectedWid = undefined;
-        this.selectedUnitSubject.next(unit);
-        return;
-      }
-
+      // open websocket if needed
       const shouldReconnect = this.currentConnectedCuid !== cuid || this.currentConnectedWid !== wid;
-
-      if (shouldReconnect) {
+      if (isDefined(wid) && shouldReconnect) {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
@@ -178,10 +166,9 @@ export class ComputingUnitStatusService implements OnDestroy {
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
         this.currentConnectedCuid = cuid;
         this.currentConnectedWid = wid;
+        this.selectedUnitSubject.next(unit);
         this.startPollingSelectedUnit(cuid);
       }
-
-      this.selectedUnitSubject.next(unit);
     };
 
     // try immediate lookup in the current cache
@@ -266,13 +253,9 @@ export class ComputingUnitStatusService implements OnDestroy {
   public terminateComputingUnit(cuid: number): Observable<boolean> {
     const isSelected = this.selectedUnitSubject.value?.computingUnit.cuid === cuid;
 
-    if (isSelected) {
-      if (this.workflowWebsocketService.isConnected) {
-        this.workflowWebsocketService.closeWebsocket();
-        this.workflowStatusService.clearStatus();
-      }
-      this.currentConnectedCuid = undefined;
-      this.currentConnectedWid = undefined;
+    if (isSelected && this.workflowWebsocketService.isConnected) {
+      this.workflowWebsocketService.closeWebsocket();
+      this.workflowStatusService.clearStatus();
     }
 
     return this.computingUnitService.terminateComputingUnit(cuid).pipe(
