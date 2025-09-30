@@ -52,7 +52,7 @@ class DataProcessingSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
 
-  implicit val timeout: Timeout = Timeout(1.seconds)
+  implicit val timeout: Timeout = Timeout(5.seconds)
 
   var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
@@ -122,7 +122,7 @@ class DataProcessingSpec
         }
       })
     Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-    Await.result(completion, Duration.fromMinutes(5))
+    Await.result(completion, Duration.fromMinutes(1))
     results
   }
 
