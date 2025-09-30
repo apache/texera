@@ -273,6 +273,18 @@
   </ng-template>
 
   <div class="settings-row">
+    <span>Concurrent Files:</span>
+    <nz-input-number
+      [(ngModel)]="maxConcurrentFiles"
+      [nzMin]="1"
+      [nzMax]="1000"
+      [nzStep]="1"
+      [nzPrecision]="0">
+    </nz-input-number>
+  </div>
+  <div class="help-text-number">Number of files that can be uploaded simultaneously. (Range: 1 - 1000)</div>
+
+  <div class="settings-row">
     <span>File Size:</span>
     <nz-input-number
       [(ngModel)]="maxFileSizeMiB"
