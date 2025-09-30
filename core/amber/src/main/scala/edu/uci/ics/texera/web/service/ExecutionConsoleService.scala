@@ -211,7 +211,7 @@ class ExecutionConsoleService(
     */
   def processConsoleMessage(consoleMessage: ConsoleMessage): ConsoleMessage = {
     // Do not truncate debugger messages
-    if (consoleMessage.msgType== ConsoleMessageType.DEBUGGER){
+    if (consoleMessage.msgType == ConsoleMessageType.DEBUGGER) {
       return consoleMessage
     }
     ConsoleMessageProcessor.processConsoleMessage(consoleMessage, consoleMessageDisplayLength)
