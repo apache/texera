@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create Database
+        run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Compile with sbt
+        run: cd core && sbt clean package
+
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
@@ -18,3 +25,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build & push
         run: deployment/build-all.sh
+        
