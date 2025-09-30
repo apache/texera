@@ -1,22 +1,44 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.Props
 import com.twitter.util.Promise
-import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.config.{StorageConfig, UdfConfig}
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
 }
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  EmbeddedControlMessageElement,
+  DataElement
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
-import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
@@ -43,9 +65,8 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val config: Config = ConfigFactory.load("udf")
-  val pythonENVPath: String = config.getString("python.path").trim
-  val RENVPath: String = config.getString("r.path").trim
+  val pythonENVPath: String = UdfConfig.pythonPath.trim
+  val RENVPath: String = UdfConfig.rPath.trim
 
   // Python process
   private var pythonServerProcess: Process = _
@@ -65,10 +86,12 @@ class PythonWorkflowWorker(
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
-        case payload: ControlPayload =>
+        case payload: DirectControlMessagePayload =>
           pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
           pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))
+        case ecm: EmbeddedControlMessage =>
+          pythonProxyClient.enqueueData(EmbeddedControlMessageElement(ecm, workflowMsg.channelId))
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
@@ -153,8 +176,14 @@ class PythonWorkflowWorker(
         udfEntryScriptPath,
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
-        config.getString("python.log.streamHandler.level"),
-        RENVPath
+        UdfConfig.pythonLogStreamHandlerLevel,
+        RENVPath,
+        StorageConfig.icebergPostgresCatalogUriWithoutScheme,
+        StorageConfig.icebergPostgresCatalogUsername,
+        StorageConfig.icebergPostgresCatalogPassword,
+        StorageConfig.icebergTableResultNamespace,
+        StorageConfig.fileStorageDirectoryPath.toString,
+        StorageConfig.icebergTableCommitBatchSize.toString
       )
     ).run(BasicIO.standard(false))
   }

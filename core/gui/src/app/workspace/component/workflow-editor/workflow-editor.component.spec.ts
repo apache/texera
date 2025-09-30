@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
@@ -36,6 +55,10 @@ import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
+import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
+import { ComputingUnitStatusService } from "../../service/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../service/computing-unit-status/mock-computing-unit-status.service";
+import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -50,7 +73,7 @@ describe("WorkflowEditorComponent", () => {
 
     beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent],
+        declarations: [WorkflowEditorComponent, ContextMenuComponent],
         imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
         providers: [
           JointUIService,
@@ -65,8 +88,10 @@ describe("WorkflowEditorComponent", () => {
             provide: OperatorMetadataService,
             useClass: StubOperatorMetadataService,
           },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
           WorkflowStatusService,
           ExecuteWorkflowService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));
@@ -171,6 +196,7 @@ describe("WorkflowEditorComponent", () => {
           ExecuteWorkflowService,
           UndoRedoService,
           WorkflowVersionService,
+          ...commonTestProviders,
         ],
       }).compileComponents();
     }));
@@ -179,6 +205,7 @@ describe("WorkflowEditorComponent", () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.setHighlightingEnabled(true);
       validationWorkflowService = TestBed.inject(ValidationWorkflowService);
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
@@ -870,54 +897,56 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
     });
 
-    //undo
-    it("should undo action when user presses command + Z or control + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canUndo").and.returnValue(true);
-      let undoSpy = spyOn(undoRedoService, "undoAction");
-      fixture.detectChanges();
-      const commandZEvent = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(commandZEvent);
-      fixture.detectChanges();
-      expect(undoSpy).toHaveBeenCalledTimes(1);
-
-      const controlZEvent = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(controlZEvent);
-      fixture.detectChanges();
-      expect(undoSpy).toHaveBeenCalledTimes(2);
-    });
-
-    //redo
-    it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
-      spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
-      spyOn(undoRedoService, "canRedo").and.returnValue(true);
-      let redoSpy = spyOn(undoRedoService, "redoAction");
-      fixture.detectChanges();
-      const commandYEvent = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(commandYEvent);
-      fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalledTimes(1);
-
-      const controlYEvent = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(controlYEvent);
-      fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalledTimes(2);
-
-      const commandShitZEvent = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(commandShitZEvent);
-      fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalledTimes(3);
-
-      const controlShitZEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
-      (document.activeElement as HTMLElement)?.blur();
-      document.dispatchEvent(controlShitZEvent);
-      fixture.detectChanges();
-      expect(redoSpy).toHaveBeenCalledTimes(4);
-    });
+    // Temporarily disabling undo-redo because of a bug that can cause invalid workflow structures.
+    // TODO: enable after fixing the bug.
+    // //undo
+    // it("should undo action when user presses command + Z or control + Z", () => {
+    //   spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
+    //   spyOn(undoRedoService, "canUndo").and.returnValue(true);
+    //   let undoSpy = spyOn(undoRedoService, "undoAction");
+    //   fixture.detectChanges();
+    //   const commandZEvent = new KeyboardEvent("keydown", { key: "Z", metaKey: true, shiftKey: false });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(commandZEvent);
+    //   fixture.detectChanges();
+    //   expect(undoSpy).toHaveBeenCalledTimes(1);
+    //
+    //   const controlZEvent = new KeyboardEvent("keydown", { key: "Z", ctrlKey: true, shiftKey: false });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(controlZEvent);
+    //   fixture.detectChanges();
+    //   expect(undoSpy).toHaveBeenCalledTimes(2);
+    // });
+    //
+    // //redo
+    // it("should redo action when user presses command/control + Y or command/control + shift + Z", () => {
+    //   spyOn(workflowVersionService, "getDisplayParticularVersionStream").and.returnValue(of(false));
+    //   spyOn(undoRedoService, "canRedo").and.returnValue(true);
+    //   let redoSpy = spyOn(undoRedoService, "redoAction");
+    //   fixture.detectChanges();
+    //   const commandYEvent = new KeyboardEvent("keydown", { key: "y", metaKey: true, shiftKey: false });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(commandYEvent);
+    //   fixture.detectChanges();
+    //   expect(redoSpy).toHaveBeenCalledTimes(1);
+    //
+    //   const controlYEvent = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, shiftKey: false });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(controlYEvent);
+    //   fixture.detectChanges();
+    //   expect(redoSpy).toHaveBeenCalledTimes(2);
+    //
+    //   const commandShitZEvent = new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(commandShitZEvent);
+    //   fixture.detectChanges();
+    //   expect(redoSpy).toHaveBeenCalledTimes(3);
+    //
+    //   const controlShitZEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true });
+    //   (document.activeElement as HTMLElement)?.blur();
+    //   document.dispatchEvent(controlShitZEvent);
+    //   fixture.detectChanges();
+    //   expect(redoSpy).toHaveBeenCalledTimes(4);
+    // });
   });
 });

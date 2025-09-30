@@ -1,19 +1,37 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{DatasetQuota}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
-import org.jooq.types.UInteger
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
+
 import scala.jdk.CollectionConverters._
 
-import java.nio.file.{Files, Path}
-import java.nio.file.attribute.BasicFileAttributes
-
 object DatasetStatisticsUtils {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance()
+    .createDSLContext()
+
   // this function retrieves the total counts of dataset that belongs to the user
-  def getUserCreatedDatasetCount(uid: UInteger): Int = {
+  def getUserCreatedDatasetCount(uid: Integer): Int = {
     val count = context
       .selectCount()
       .from(DATASET)
@@ -24,7 +42,7 @@ object DatasetStatisticsUtils {
   }
 
   // this function would return a list of dataset ids that belongs to the user
-  private def getUserCreatedDatasetList(uid: UInteger): List[DatasetQuota] = {
+  private def getUserCreatedDatasetList(uid: Integer): List[DatasetQuota] = {
     val result = context
       .select(
         DATASET.DID,
@@ -40,29 +58,17 @@ object DatasetStatisticsUtils {
         DatasetQuota(
           did = record.getValue(DATASET.DID),
           name = record.getValue(DATASET.NAME),
-          creationTime = record.getValue(DATASET.CREATION_TIME).getTime(),
+          creationTime = record.getValue(DATASET.CREATION_TIME).getTime,
           size = 0
         )
       )
       .toList
   }
-  private def getFolderSize(folderPath: Path): Long = {
-    val walk = Files.walk(folderPath)
-    try {
-      walk
-        .filter(Files.isRegularFile(_))
-        .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
-        .sum()
-    } finally {
-      walk.close()
-    }
-  }
 
-  def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
+  def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)
-      val size = getFolderSize(datasetPath)
+      val size = 0 // we disabled the size calculation due to the switch of dataset implementation
       dataset.copy(size = size)
     }
   }

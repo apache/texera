@@ -1,21 +1,40 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
+
 import org.jooq.{Field, OrderField}
 
+import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import org.jooq.types.UInteger
-
-import java.util
 import scala.jdk.CollectionConverters._
+
 object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
@@ -24,9 +43,13 @@ object DashboardResource {
       dataset: Option[DashboardDataset] = None
   )
 
-  case class UserInfo(userId: UInteger, userName: String, googleAvatar: Option[String])
+  case class UserInfo(userId: Integer, userName: String, googleAvatar: Option[String])
 
-  case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
+  case class DashboardSearchResult(
+      results: List[DashboardClickableFileEntry],
+      more: Boolean,
+      hasMismatch: Boolean = false
+  )
 
   /*
    The following class describe the available params from the frontend for full text search.
@@ -53,10 +76,10 @@ object DashboardResource {
       @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
       @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
       @QueryParam("owner") owners: java.util.List[String] = new util.ArrayList(),
-      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("id") workflowIDs: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
-      @QueryParam("projectId") projectIds: java.util.List[UInteger] = new util.ArrayList(),
-      @QueryParam("datasetId") datasetIds: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("projectId") projectIds: java.util.List[Integer] = new util.ArrayList(),
+      @QueryParam("datasetId") datasetIds: java.util.List[Integer] = new util.ArrayList(),
       @QueryParam("start") @DefaultValue("0") offset: Int = 0,
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
@@ -89,7 +112,7 @@ object DashboardResource {
       query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
     val queryResult = finalQuery.fetch()
 
-    val entries = queryResult.asScala.toList
+    val allEntries = queryResult.asScala.toList
       .take(params.count)
       .map(record => {
         val resourceType = record.get("resourceType", classOf[String])
@@ -103,7 +126,20 @@ object DashboardResource {
         }
       })
 
-    DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
+    val entries = allEntries.filter(_ != null)
+    val hasMismatch =
+      params.resourceType match {
+        case SearchQueryBuilder.DATASET_RESOURCE_TYPE | SearchQueryBuilder.ALL_RESOURCE_TYPE =>
+          allEntries.exists(_ == null)
+        case _ =>
+          false
+      }
+
+    DashboardSearchResult(
+      results = entries,
+      more = queryResult.size() > params.count,
+      hasMismatch = hasMismatch
+    )
   }
 
   def getOrderFields(
@@ -180,9 +216,9 @@ class DashboardResource {
   @GET
   @Path("/resultsOwnersInfo")
   def resultsOwnersInfo(
-      @QueryParam("userIds") userIds: util.List[UInteger]
-  ): util.Map[UInteger, UserInfo] = {
-    val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
+      @QueryParam("userIds") userIds: util.List[Integer]
+  ): util.Map[Integer, UserInfo] = {
+    val scalaUserIds: Set[Integer] = userIds.asScala.toSet
 
     val records = context
       .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
@@ -201,19 +237,5 @@ class DashboardResource {
       .asJava
 
     userIdToInfoMap
-  }
-
-  @GET
-  @Path("/workflowUserAccess")
-  def workflowUserAccess(
-      @QueryParam("wid") wid: UInteger
-  ): util.List[UInteger] = {
-    val records = context
-      .select(WORKFLOW_USER_ACCESS.UID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
-      .fetch()
-
-    records.getValues(WORKFLOW_USER_ACCESS.UID)
   }
 }

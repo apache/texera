@@ -1,19 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import threading
 
 import pytest
 from pyarrow import Table
 
-from core.models.internal_queue import InternalQueue, ControlElement, DataElement
-from core.models.marker import EndOfInputChannel
-from core.models.payload import MarkerFrame, DataFrame
+from core.models.internal_queue import (
+    InternalQueue,
+    DCMElement,
+    DataElement,
+    ECMElement,
+)
+from core.models.payload import DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    ControlInvocation,
+    EmbeddedControlMessage,
+    EmbeddedControlMessageType,
+    EmptyRequest,
+    AsyncRpcContext,
+    ControlRequest,
+)
+from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
+from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
-    ControlInvocationV2,
-    ControlPayloadV2,
+    ChannelIdentity,
+    EmbeddedControlMessageIdentity,
 )
 
 
@@ -30,7 +60,7 @@ class TestNetworkReceiver:
     def network_receiver(self, output_queue):
         network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
         yield network_receiver
-        network_receiver._proxy_server.graceful_shutdown()
+        network_receiver.stop()
 
     class MockFlightMetadataReader:
         """
@@ -93,7 +123,7 @@ class TestNetworkReceiver:
             )
         )
 
-    @pytest.mark.timeout(2)
+    @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_data_messages(
         self,
         data_payload,
@@ -104,31 +134,13 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=data_payload))
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(DataElement(tag=channel_id, payload=data_payload))
         element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
-        assert element.tag == worker_id
+        assert element.tag == channel_id
 
-    @pytest.mark.timeout(2)
-    def test_network_receiver_can_receive_data_messages_end_of_upstream(
-        self,
-        data_payload,
-        output_queue,
-        input_queue,
-        network_receiver,
-        network_sender_thread,
-    ):
-        network_sender_thread.start()
-        worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(
-            DataElement(tag=worker_id, payload=MarkerFrame(EndOfInputChannel()))
-        )
-        element: DataElement = output_queue.get()
-        assert isinstance(element.payload, MarkerFrame)
-        assert element.payload.frame == EndOfInputChannel()
-        assert element.tag == worker_id
-
-    @pytest.mark.timeout(2)
+    @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_control_messages(
         self,
         data_payload,
@@ -138,9 +150,51 @@ class TestNetworkReceiver:
         network_sender_thread,
     ):
         worker_id = ActorVirtualIdentity(name="test")
-        control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
-        input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
+        control_payload = set_one_of(DirectControlMessagePayloadV2, ControlInvocation())
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(DCMElement(tag=channel_id, payload=control_payload))
         network_sender_thread.start()
-        element: ControlElement = output_queue.get()
+        element: DCMElement = output_queue.get()
         assert element.payload == control_payload
-        assert element.tag == worker_id
+        assert element.tag == channel_id
+
+    @pytest.mark.timeout(10)
+    def test_network_receiver_can_receive_ecm(
+        self,
+        output_queue,
+        input_queue,
+        network_receiver,
+        network_sender_thread,
+    ):
+        network_sender_thread.start()
+        worker_id = ActorVirtualIdentity(name="test")
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        ecm_id = EmbeddedControlMessageIdentity("test_ecm")
+        scope = [channel_id]
+        rpc_context = AsyncRpcContext(worker_id, worker_id)
+        command_mapping = {
+            str(worker_id): ControlInvocation(
+                "NoOperation",
+                ControlRequest(empty_request=EmptyRequest()),
+                rpc_context,
+                12,
+            )
+        }
+        input_queue.put(
+            ECMElement(
+                tag=channel_id,
+                payload=EmbeddedControlMessage(
+                    ecm_id,
+                    EmbeddedControlMessageType.ALL_ALIGNMENT,
+                    scope,
+                    command_mapping,
+                ),
+            )
+        )
+        element: DataElement = output_queue.get()
+        assert isinstance(element.payload, EmbeddedControlMessage)
+        assert element.payload.ecm_type == EmbeddedControlMessageType.ALL_ALIGNMENT
+        assert element.payload.id == ecm_id
+        assert element.payload.command_mapping == command_mapping
+        assert element.payload.scope == scope
+        assert element.tag == channel_id

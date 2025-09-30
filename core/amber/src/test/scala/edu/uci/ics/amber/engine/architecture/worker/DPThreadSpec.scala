@@ -1,23 +1,44 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_PAUSE_WORKER,
+  METHOD_RESUME_WORKER
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   FIFOMessageElement,
   TimerBasedControlElement
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -33,7 +54,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val executor = mock[OperatorExecutor]
   private val mockInputPortId = PortIdentity()
 
-  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
+  private val schema: Schema = Schema().add("field1", AttributeType.INTEGER)
   private val tuples: Array[Tuple] = (0 until 5000)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
@@ -42,10 +63,10 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     ReplayLogManager.createLogManager(logStorage, "none", x => {})
 
   "DP Thread" should "handle pause/resume during processing" in {
-    val dp = new DataProcessor(workerId, x => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputManager.addPort(mockInputPortId, schema)
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -63,11 +84,17 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
     inputQueue.put(FIFOMessageElement(message))
     inputQueue.put(
-      TimerBasedControlElement(ControlInvocation(0, PauseWorker()))
+      TimerBasedControlElement(
+        ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
+      )
     )
     Thread.sleep(1000)
     assert(dp.pauseManager.isPaused)
-    inputQueue.put(TimerBasedControlElement(ControlInvocation(1, ResumeWorker())))
+    inputQueue.put(
+      TimerBasedControlElement(
+        ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
+      )
+    )
     Thread.sleep(1000)
     while (dp.inputManager.hasUnfinishedInput) {
       Thread.sleep(100)
@@ -75,9 +102,9 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
-    val dp = new DataProcessor(workerId, x => {})
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputManager.addPort(mockInputPortId, schema)
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -94,9 +121,17 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
         .expects(x, 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
-    val pauseControl = WorkflowFIFOMessage(controlChannelId, 0, ControlInvocation(0, PauseWorker()))
+    val pauseControl = WorkflowFIFOMessage(
+      controlChannelId,
+      0,
+      ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
+    )
     val resumeControl =
-      WorkflowFIFOMessage(controlChannelId, 1, ControlInvocation(1, ResumeWorker()))
+      WorkflowFIFOMessage(
+        controlChannelId,
+        1,
+        ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
+      )
     inputQueue.put(FIFOMessageElement(message))
     inputQueue.put(
       FIFOMessageElement(pauseControl)
@@ -111,11 +146,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
-    val dp = new DataProcessor(workerId, x => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputManager.addPort(mockInputPortId, schema)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
@@ -151,11 +186,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
-    val dp = new DataProcessor(workerId, x => {})
-    dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputManager.addPort(mockInputPortId, schema)
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
@@ -167,7 +202,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     )
     logStorage.deleteStorage()
     val logManager: ReplayLogManager =
-      ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
+      ReplayLogManager.createLogManager(logStorage, "tmpLog", _ => {})
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>

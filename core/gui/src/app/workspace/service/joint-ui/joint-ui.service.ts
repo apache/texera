@@ -1,25 +1,31 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-import { abbreviateNumber } from "js-abbreviation-number";
-import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
-import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
-import { Coeditor, User } from "../../../common/type/user";
+import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
-
-/**
- * Defines the SVG element for the breakpoint button
- */
-export const breakpointButtonSVG = `
-  <svg class="breakpoint-button" height = "24" width = "24">
-    <path d="M0 0h24v24H0z" fill="none" /> +
-    <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
-    <title>add breakpoint</title>
-  </svg>
-  `;
 /**
  * Defines the SVG path for the delete button
  */
@@ -84,38 +90,6 @@ export const removeOutputPortButtonSVG = `
 `;
 
 /**
- * Defines the SVG path for the collapse button
- */
-export const collapseButtonPath =
-  "M4 7 H12 v2 H4 z" +
-  " M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z" +
-  " M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z";
-
-/**
- * Defines the HTML SVG element for the collapse button and customizes the look
- */
-export const collapseButtonSVG = `<svg class="collapse-button" height="16" width="16">
-    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
-    <path d="${collapseButtonPath}" />
-  </svg>`;
-
-/**
- * Defines the SVG path for the expand button
- */
-export const expandButtonPath =
-  "M4 7 h3 V4 h2 V7 h3 v2 h-3 V12 h-2 V9 h-3 z" +
-  " M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z" +
-  " M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z";
-
-/**
- * Defines the HTML SVG element for the expand button and customizes the look
- */
-export const expandButtonSVG = `<svg class="expand-button" height="16" width="16">
-    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
-    <path d="${expandButtonPath}" />
-  </svg>`;
-
-/**
  * Defines the handle (the square at the end) of the source operator for a link
  */
 export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
@@ -129,15 +103,13 @@ export const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
 export const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
 export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
-export const operatorProcessedCountClass = "texera-operator-processed-count";
-export const operatorOutputCountClass = "texera-operator-output-count";
-export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
 export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
 export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
+export const operatorPortMetricsClass = "texera-operator-port-metrics";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -154,9 +126,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <image class="${operatorIconClass}"></image>
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
-      <text class="${operatorProcessedCountClass}"></text>
-      <text class="${operatorOutputCountClass}"></text>
-      <text class="${operatorAbbreviatedCountClass}"></text>
+      <text class="${operatorPortMetricsClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -177,18 +147,6 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     </g>
     `;
   }
-}
-
-/**
- * Extends a basic Joint shape element and adds our own HTML markup.
- */
-class TexeraCustomGroupElement extends joint.shapes.devs.Model {
-  markup = `<g class="element-node">
-      <rect class="body"></rect>
-      <text>New Group</text>
-      ${collapseButtonSVG}
-      ${expandButtonSVG}
-    </g>`;
 }
 
 class TexeraCustomCommentElement extends joint.shapes.devs.Model {
@@ -219,16 +177,12 @@ class TexeraCustomCommentElement extends joint.shapes.devs.Model {
 export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
-
-  public static readonly DEFAULT_TOOLTIP_WIDTH = 140;
-  public static readonly DEFAULT_TOOLTIP_HEIGHT = 60;
-
   public static readonly DEFAULT_GROUP_MARGIN = 50;
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
-
-  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
+
+  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
@@ -288,6 +242,7 @@ export class JointUIService {
 
     // set operator element ID to be operator ID
     operatorElement.set("id", operator.operatorID);
+    operatorElement.set("z", 1);
 
     // set the input ports and output ports based on operator predicate
     operator.inputPorts.forEach(port =>
@@ -298,6 +253,12 @@ export class JointUIService {
           ".port-label": {
             text: port.displayName ?? "",
             event: "input-port-label:pointerdown",
+          },
+        },
+        label: {
+          position: {
+            name: "left",
+            args: { x: -5, y: 10 },
           },
         },
       })
@@ -312,6 +273,12 @@ export class JointUIService {
             event: "output-port-label:pointerdown",
           },
         },
+        label: {
+          position: {
+            name: "right",
+            args: { x: 5, y: -10 },
+          },
+        },
       })
     );
 
@@ -321,49 +288,71 @@ export class JointUIService {
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
-    statistics: OperatorStatistics,
+    statistics: OperatorStatistics | undefined,
     isSource: boolean,
     isSink: boolean
   ): void {
+    if (!statistics) {
+      this.changeOperatorState(jointPaper, operatorID, OperatorState.Uninitialized);
+      return;
+    }
+
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
-    const processedText = isSource ? "" : "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
-    const outputText = isSink ? "" : "Output: " + statistics.aggregatedOutputRowCount.toLocaleString();
-    const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
-    const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
-    const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
-    jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
-      [`.${operatorOutputCountClass}`]: { text: outputText },
-      [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    const allPorts = element.getPorts();
+    const inPorts = allPorts.filter(p => p.group === "in");
+    const outPorts = allPorts.filter(p => p.group === "out");
+
+    const inputMetrics = statistics.inputPortMetrics;
+    const outputMetrics = statistics.outputPortMetrics;
+
+    inPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
+
+        const count: number = inputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = `${count}`;
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
     });
-  }
 
-  public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
-    if (users) {
-      const statusText = users[0].name + " is editing properties...";
-      const color = users[0].color;
-      jointPaper.getModelById(operatorID).attr({
-        [`.${operatorCoeditorEditingClass}`]: {
-          text: statusText,
-          fillColor: color,
-        },
-      });
-    } else {
-      jointPaper.getModelById(operatorID).attr({
-        [`.${operatorCoeditorEditingClass}`]: {
-          text: "",
-        },
-      });
-    }
-  }
+    outPorts.forEach(portDef => {
+      const portId = portDef.id;
+      if (portId != null) {
+        const parts = portId.split("-");
+        const numericSuffix = parts.length > 1 ? parts[1] : portId;
 
+        const count: number = outputMetrics[numericSuffix] ?? 0;
+        const rawAttrs = (portDef.attrs as any) || {};
+        const oldText: string = (rawAttrs[".port-label"] && rawAttrs[".port-label"].text) || "";
+        let originalName = oldText.includes(":") ? oldText.split(":", 1)[0].trim() : oldText;
+
+        if (!originalName) {
+          originalName = portId;
+        }
+
+        const labelText = `${count}`;
+
+        element.portProp(portId, "attrs/.port-label/text", labelText);
+      }
+    });
+    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
+  }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
-      [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
-      [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
+      [`.${operatorPortMetricsClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
       ".add-input-port-button": { visibility: "hidden" },
       ".add-output-port-button": { visibility: "hidden" },
@@ -374,53 +363,19 @@ export class JointUIService {
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
-      [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
-      [`.${operatorOutputCountClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
+      [`.${operatorPortMetricsClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
       ".add-input-port-button": { visibility: "visible" },
       ".add-output-port-button": { visibility: "visible" },
       ".remove-input-port-button": { visibility: "visible" },
       ".remove-output-port-button": { visibility: "visible" },
     });
-  }
 
-  /**
-   * Gets the JointJS UI Element object based on the group.
-   * A JointJS Element could be added to the JointJS graph to let JointJS display the group accordingly.
-   *
-   * The function returns an element that has our custom style,
-   *  which is specified in getCustomGroupStyleAttrs().
-   *
-   * @param group
-   * @param topLeft the position of the operator (if there was one) that's in the top left corner of the group
-   * @param bottomRight the position of the operator (if there was one) that's in the bottom right corner of the group
-   */
-  public getJointGroupElement(group: Group, boundingBox: GroupBoundingBox): joint.dia.Element {
-    const { topLeft, bottomRight } = boundingBox;
-
-    const groupElementPosition = {
-      x: topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN,
-      y: topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN,
-    };
-    const widthMargin = JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
-    const heightMargin =
-      JointUIService.DEFAULT_OPERATOR_HEIGHT +
-      JointUIService.DEFAULT_GROUP_MARGIN +
-      JointUIService.DEFAULT_GROUP_MARGIN_BOTTOM;
-
-    const groupElement = new TexeraCustomGroupElement({
-      position: groupElementPosition,
-      size: {
-        width: bottomRight.x - topLeft.x + widthMargin,
-        height: bottomRight.y - topLeft.y + heightMargin,
-      },
-      attrs: JointUIService.getCustomGroupStyleAttrs(bottomRight.x - topLeft.x + widthMargin),
-    });
-
-    groupElement.set("id", group.groupID);
-    return groupElement;
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    if (!element) {
+      return;
+    }
   }
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
@@ -447,46 +402,23 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { text: operatorState.toString() },
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
-      [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
-      [`.${operatorProcessedCountClass}`]: { fill: fillColor },
-      [`.${operatorOutputCountClass}`]: { fill: fillColor },
+      [`.${operatorPortMetricsClass}`]: { fill: fillColor },
     });
-  }
+    const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
+    const allPorts = element.getPorts();
+    const inPorts = allPorts.filter(p => p.group === "in");
+    inPorts.forEach(p => {
+      if (p.id != null) {
+        element.portProp(p.id, "attrs/.port-label/fill", fillColor);
+      }
+    });
 
-  /**
-   * Hides the expand button and shows the collapse button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupExpandButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".expand-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".collapse-button/display");
-  }
-
-  /**
-   * Hides the collapse button and shows the expand button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".expand-button/display");
-  }
-
-  /**
-   * Repositions the collapse button of the given group according
-   * to the group's (new) width.
-   *
-   * @param jointPaper
-   * @param groupID
-   * @param width
-   */
-  public repositionGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string, width: number): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/x", `${width - 23}`);
+    const outPorts = allPorts.filter(p => p.group === "out");
+    outPorts.forEach(p => {
+      if (p.id != null) {
+        element.portProp(p.id, "attrs/.port-label/fill", fillColor);
+      }
+    });
   }
 
   /**
@@ -496,7 +428,7 @@ export class JointUIService {
    *
    * @param jointPaper
    * @param operatorID
-   * @param status
+   * @param isOperatorValid
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
     if (isOperatorValid) {
@@ -524,10 +456,9 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
+    JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheStatus);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorReuseCacheIconClass}/xlink:href`, cacheIcon);
     const icon = JointUIService.getOperatorViewResultIcon(operator);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
@@ -539,44 +470,6 @@ export class JointUIService {
     displayName: string
   ): void {
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
-  }
-
-  public getBreakpointButton(): new () => joint.linkTools.Button {
-    return joint.linkTools.Button.extend({
-      name: "info-button",
-      options: {
-        markup: [
-          {
-            tagName: "circle",
-            selector: "info-button",
-            attributes: {
-              r: 10,
-              fill: "#001DFF",
-              cursor: "pointer",
-            },
-          },
-          {
-            tagName: "path",
-            selector: "icon",
-            attributes: {
-              d: "M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4",
-              fill: "none",
-              stroke: "#FFFFFF",
-              "stroke-width": 2,
-              "pointer-events": "none",
-            },
-          },
-        ],
-        distance: 60,
-        offset: 0,
-        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
-          // when this button is clicked, it triggers an joint paper event
-          if (linkView.paper) {
-            linkView.paper.trigger("tool:breakpoint", linkView, event);
-          }
-        },
-      },
-    });
   }
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
@@ -599,8 +492,7 @@ export class JointUIService {
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
    *
-   * @param source the OperatorPort of the source of a link
-   * @param target the OperatorPort of the target of a link
+   * @param link
    * @returns JointJS Link Cell
    */
   public static getJointLinkCell(link: OperatorLink): joint.dia.Link {
@@ -614,6 +506,7 @@ export class JointUIService {
       port: link.target.portID,
     });
     jointLinkCell.set("id", link.linkID);
+    jointLinkCell.set("z", 0);
     return jointLinkCell;
   }
 
@@ -636,7 +529,7 @@ export class JointUIService {
    * @returns JointJS Link
    */
   public static getDefaultLinkCell(): joint.dia.Link {
-    const link = new joint.dia.Link({
+    return new joint.dia.Link({
       router: {
         name: "manhattan",
       },
@@ -688,7 +581,6 @@ export class JointUIService {
         ".tool-remove circle": {},
       },
     });
-    return link;
   }
 
   /**
@@ -698,19 +590,22 @@ export class JointUIService {
    * @returns the custom attributes of the ports
    */
   public static getCustomPortStyleAttrs(): joint.attributes.SVGAttributes {
-    const portStyleAttrs = {
+    return {
       ".port-body": {
         fill: "#A0A0A0",
         r: 5,
         stroke: "none",
       },
       ".port-label": {
+        visibility: "visible",
         event: "input-label:evt",
         dblclick: "input-label:dbclick",
         pointerdblclick: "input-label:pointerdblclick",
+        ref: ".port-body",
+        "ref-y": 0.5,
+        "y-alignment": "middle",
       },
     };
-    return portStyleAttrs;
   }
 
   /**
@@ -718,7 +613,7 @@ export class JointUIService {
    * @returns the custom attributes of the tooltip.
    */
   public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    const tooltipStyleAttrs = {
+    return {
       "element-node": {
         style: { "pointer-events": "none" },
       },
@@ -745,7 +640,6 @@ export class JointUIService {
         style: { "pointer-events": "none" },
       },
     };
-    return tooltipStyleAttrs;
   }
 
   /**
@@ -753,7 +647,10 @@ export class JointUIService {
    * This function also makes the delete button defined above to emit the delete event that will
    *   be captured by JointJS paper using event name *element:delete*
    *
+   * @param operator
    * @param operatorDisplayName the name of the operator that will display on the UI
+   * @param operatorType
+   * @param operatorFriendlyName
    * @returns the custom attributes of the operator
    */
   public static getCustomOperatorStyleAttrs(
@@ -762,7 +659,7 @@ export class JointUIService {
     operatorType: string,
     operatorFriendlyName: string
   ): joint.shapes.devs.ModelSelectors {
-    const operatorStyleAttrs = {
+    return {
       ".texera-operator-coeditor-editing": {
         text: "",
         "font-size": "14px",
@@ -802,6 +699,17 @@ export class JointUIService {
         visibility: "visible",
         "ref-x": 0.5,
         "ref-y": -30,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-port-metrics": {
+        text: "",
+        fill: "green",
+        "font-size": "14px",
+        visibility: "hidden",
+        "ref-x": 0.5,
+        "ref-y": -70,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -957,14 +865,13 @@ export class JointUIService {
         "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
         width: 20,
         height: 20,
-        "ref-x": 75,
-        "ref-y": 20,
+        "ref-x": 49,
+        "ref-y": 9,
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
     };
-    return operatorStyleAttrs;
   }
 
   public static getOperatorFillColor(operator: OperatorPredicate): string {
@@ -1001,53 +908,8 @@ export class JointUIService {
     }
   }
 
-  /**
-   * This function creates a custom svg style for the group.
-   * This function also makes collapse button and expand button defined above to emit
-   *   the collapse event and expand event that will be captured by JointJS paper
-   *   using event names *element:collapse* and *element:expand*
-   *
-   * @param width width of the group (used to position the collapse button)
-   * @returns the custom attributes of the group
-   */
-  public static getCustomGroupStyleAttrs(width: number): joint.shapes.devs.ModelSelectors {
-    const groupStyleAttrs = {
-      rect: {
-        fill: "#F2F4F5",
-        "follow-scale": true,
-        stroke: "#CED4D9",
-        "stroke-width": "2",
-        rx: "5px",
-        ry: "5px",
-      },
-      text: {
-        fill: "#595959",
-        "font-size": "16px",
-        "ref-x": 15,
-        "ref-y": 20,
-        ref: "rect",
-      },
-      ".collapse-button": {
-        x: width - 23,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:collapse",
-      },
-      ".expand-button": {
-        x: 147,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:expand",
-        display: "none",
-      },
-    };
-    return groupStyleAttrs;
-  }
-
   public static getCustomCommentStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    const commentStyleAttrs = {
+    return {
       rect: {
         fill: "#F2F4F5",
         "follow-scale": true,
@@ -1074,7 +936,6 @@ export class JointUIService {
         event: "element:delete",
       },
     };
-    return commentStyleAttrs;
   }
 
   public static getJointUserPointerCell(coeditor: Coeditor, position: Point, color: string): joint.dia.Element {

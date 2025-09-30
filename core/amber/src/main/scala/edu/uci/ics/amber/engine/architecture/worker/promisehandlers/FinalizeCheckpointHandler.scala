@@ -1,32 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  FinalizeCheckpointRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
-import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable.ArrayBuffer
 
-object FinalizeCheckpointHandler {
-  final case class FinalizeCheckpoint(checkpointId: ChannelMarkerIdentity, writeTo: URI)
-      extends ControlCommand[Long]
-}
-
 trait FinalizeCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: FinalizeCheckpoint, sender) =>
-    if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
+  override def finalizeCheckpoint(
+      msg: FinalizeCheckpointRequest,
+      ctx: AsyncRPCContext
+  ): Future[FinalizeCheckpointResponse] = {
+    val checkpointSize = if (dp.ecmManager.checkpoints.contains(msg.checkpointId)) {
       val waitFuture = new CompletableFuture[Unit]()
-      val chkpt = dp.channelMarkerManager.checkpoints(msg.checkpointId)
+      val chkpt = dp.ecmManager.checkpoints(msg.checkpointId)
       val closure = (worker: WorkflowWorker) => {
         logger.info(s"Main thread: start to serialize recorded messages.")
         chkpt.save(
@@ -44,7 +64,7 @@ trait FinalizeCheckpointHandler {
       ) //this will create duplicate log records!
       waitFuture.get()
       logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
-      val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.writeTo))
+      val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(new URI(msg.writeTo)))
       val writer = storage.getWriter(actorId.name.replace("Worker:", ""))
       writer.writeRecord(chkpt)
       writer.flush()
@@ -59,5 +79,6 @@ trait FinalizeCheckpointHandler {
         case _ => 0L
       } // for estimation
     }
+    FinalizeCheckpointResponse(checkpointSize)
   }
 }

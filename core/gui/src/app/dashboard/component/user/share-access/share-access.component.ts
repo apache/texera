@@ -1,4 +1,23 @@
-import { Component, inject, Input, OnInit } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { Component, EventEmitter, inject, OnDestroy, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, FormControl } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { ShareAccess } from "../../../type/share-access.interface";
@@ -19,13 +38,12 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
   templateUrl: "share-access.component.html",
   styleUrls: ["./share-access.component.scss"],
 })
-export class ShareAccessComponent implements OnInit {
+export class ShareAccessComponent implements OnInit, OnDestroy {
   readonly nzModalData = inject(NZ_MODAL_DATA);
   readonly writeAccess: boolean = this.nzModalData.writeAccess;
   readonly type: string = this.nzModalData.type;
   readonly id: number = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
-
   readonly inWorkspace: boolean = this.nzModalData.inWorkspace;
   public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
@@ -35,6 +53,8 @@ export class ShareAccessComponent implements OnInit {
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
   isPublic: boolean | null = null;
+  private shouldRefresh = false;
+  @Output() refresh = new EventEmitter<void>();
 
   constructor(
     private accessService: ShareAccessService,
@@ -46,11 +66,12 @@ export class ShareAccessComponent implements OnInit {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private modalRef: NzModalRef
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
-      accessLevel: ["READ"],
+      accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
   }
@@ -78,8 +99,14 @@ export class ShareAccessComponent implements OnInit {
         .getDataset(this.id)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
-          this.isPublic = dashboardDataset.dataset.isPublic === 1;
+          this.isPublic = dashboardDataset.dataset.isPublic;
         });
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.shouldRefresh) {
+      this.refresh.emit();
     }
   }
 
@@ -116,6 +143,9 @@ export class ShareAccessComponent implements OnInit {
     this.handleInputConfirm();
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
+        let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
+        if (this.type !== "computing-unit")
+          message += `, access the ${this.type} at ${location.origin}/workflow/${this.id}`;
         this.accessService
           .grantAccess(this.type, this.id, email, this.validateForm.value.accessLevel)
           .pipe(untilDestroyed(this))
@@ -123,16 +153,11 @@ export class ShareAccessComponent implements OnInit {
             next: () => {
               this.notificationService.success(this.type + " shared with " + email + " successfully.");
               this.gmailService.sendEmail(
-                "Texera: " + this.owner + " shared a " + this.type + " with you",
-                this.owner +
-                  " shared a " +
-                  this.type +
-                  " with you, access the workflow at " +
-                  location.origin +
-                  "/workflow/" +
-                  this.id,
+                "Texera: " + this.userService.getCurrentUser()?.email + " shared a " + this.type + " with you",
+                message,
                 email
               );
+              this.ngOnInit();
             },
             error: (error: unknown) => {
               if (error instanceof HttpErrorResponse) {
@@ -142,7 +167,6 @@ export class ShareAccessComponent implements OnInit {
           });
       });
       this.emailTags = [];
-      this.ngOnInit();
     }
   }
 
@@ -170,9 +194,23 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe({
+        next: () => {
+          if (userToRemove == this.userService.getCurrentUser()?.email) {
+            this.shouldRefresh = true;
+            this.modalRef.close();
+          }
+          this.ngOnInit();
+        },
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            this.notificationService.error(error.error.message);
+          }
+        },
+      });
   }
-  verifyPublish(): void {
+
+  public verifyPublish(): void {
     if (!this.isPublic) {
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
@@ -203,7 +241,7 @@ export class ShareAccessComponent implements OnInit {
     }
   }
 
-  verifyUnpublish(): void {
+  public verifyUnpublish(): void {
     if (this.isPublic) {
       const modal: NzModalRef = this.modalService.create({
         nzTitle: "Notice",
@@ -235,25 +273,39 @@ export class ShareAccessComponent implements OnInit {
 
   public publishWorkflow(): void {
     if (!this.isPublic) {
-      console.log("Workflow " + this.id + " is published");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, true)
         .pipe(untilDestroyed(this))
-        .subscribe(() => (this.isPublic = true));
-    } else {
-      console.log("Workflow " + this.id + " is already published");
+        .subscribe({
+          next: () => {
+            this.isPublic = true;
+            this.notificationService.success("Workflow published successfully");
+          },
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
+          },
+        });
     }
   }
 
   public unpublishWorkflow(): void {
     if (this.isPublic) {
-      console.log("Workflow " + this.id + " is unpublished");
       this.workflowPersistService
         .updateWorkflowIsPublished(this.id, false)
         .pipe(untilDestroyed(this))
-        .subscribe(() => (this.isPublic = false));
-    } else {
-      console.log("Workflow " + this.id + " is already private");
+        .subscribe({
+          next: () => {
+            this.isPublic = false;
+            this.notificationService.success("Workflow unpublished successfully");
+          },
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
+          },
+        });
     }
   }
 
@@ -265,13 +317,14 @@ export class ShareAccessComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.isPublic = true;
+            this.notificationService.success("Dataset published successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to publish the dataset");
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
           },
         });
-    } else {
-      console.log("Dataset " + this.id + " is already private");
     }
   }
 
@@ -283,13 +336,14 @@ export class ShareAccessComponent implements OnInit {
         .subscribe({
           next: (res: Response) => {
             this.isPublic = false;
+            this.notificationService.success("Dataset unpublished successfully");
           },
-          error: (err: unknown) => {
-            this.notificationService.error("Failed to unpublish the dataset");
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
           },
         });
-    } else {
-      console.log("Dataset " + this.id + " is already private");
     }
   }
 }

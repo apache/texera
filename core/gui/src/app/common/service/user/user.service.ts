@@ -1,9 +1,28 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
-import { Observable, ReplaySubject } from "rxjs";
+import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
-import { environment } from "../../../../environments/environment";
-import { map } from "rxjs/operators";
+import { GuiConfigService } from "../gui-config.service";
+import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -15,9 +34,14 @@ import { map } from "rxjs/operators";
 export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
+  private cache = new Map<string, { url: string; expiry: number }>();
+  private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
 
-  constructor(private authService: AuthService) {
-    if (environment.userSystemEnabled) {
+  constructor(
+    private authService: AuthService,
+    private config: GuiConfigService
+  ) {
+    if (this.config.env.userSystemEnabled) {
       const user = this.authService.loginWithExistingToken();
       this.changeUser(user);
     }
@@ -91,5 +115,47 @@ export class UserService {
       return { result: false, message: "Username should not be empty." };
     }
     return { result: true, message: "Username frontend validation success." };
+  }
+
+  getAvatar(googleAvatar: string): Observable<string | undefined> {
+    if (!googleAvatar) return of(undefined);
+
+    const cached = this.cache.get(googleAvatar);
+    if (cached) {
+      if (Date.now() <= cached.expiry) {
+        return of(cached.url);
+      } else {
+        URL.revokeObjectURL(cached.url);
+        this.cache.delete(googleAvatar);
+      }
+    }
+
+    const url = `https://lh3.googleusercontent.com/a/${googleAvatar}`;
+    return this.fetchBlob(url).pipe(
+      map(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.cache.set(googleAvatar, {
+          url: blobUrl,
+          expiry: Date.now() + this.cacheDuration,
+        });
+        return blobUrl;
+      }),
+      catchError(() => of(undefined)),
+      shareReplay(1)
+    );
+  }
+
+  private fetchBlob(url: string): Observable<Blob> {
+    return new Observable(observer => {
+      fetch(url, { referrerPolicy: "no-referrer" })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.blob();
+        })
+        .then(blob => observer.next(blob))
+        .catch(error => observer.error(error));
+    });
   }
 }

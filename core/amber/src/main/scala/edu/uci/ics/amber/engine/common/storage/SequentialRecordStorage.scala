@@ -1,39 +1,37 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.common.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
-import com.twitter.chill.{KryoBase, KryoPool, KryoSerializer, ScalaKryoInstantiator}
-import edu.uci.ics.amber.engine.architecture.logreplay.{
-  MessageContent,
-  ProcessingStep,
-  ReplayLogRecord
+import edu.uci.ics.amber.engine.common.AmberRuntime
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
 }
-import SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.{ClassTag, classTag}
 
 object SequentialRecordStorage {
-  private val kryoPool = {
-    val r = KryoSerializer.registerAll
-    val ki = new ScalaKryoInstantiator {
-      override def newKryo(): KryoBase = {
-        val kryo = super.newKryo()
-        kryo.register(classOf[ReplayLogRecord])
-        kryo.register(classOf[MessageContent])
-        kryo.register(classOf[ProcessingStep])
-        kryo.register(classOf[ControlInvocation])
-        kryo.register(classOf[WorkerState])
-        kryo.register(classOf[ReturnInvocation])
-        kryo.register(classOf[QueryStatistics])
-        kryo
-      }
-    }.withRegistrar(r)
-    KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
-  }
 
   // For debugging purpose only
   def fetchAllRecords[T >: Null <: AnyRef](
@@ -52,7 +50,7 @@ object SequentialRecordStorage {
   class SequentialRecordWriter[T >: Null <: AnyRef](outputStream: DataOutputStream) {
     lazy val output = new Output(outputStream)
     def writeRecord(obj: T): Unit = {
-      val bytes = kryoPool.toBytesWithClass(obj)
+      val bytes = AmberRuntime.serde.serialize(obj).get
       output.writeInt(bytes.length)
       output.write(bytes)
     }
@@ -64,7 +62,11 @@ object SequentialRecordStorage {
     }
   }
 
-  class SequentialRecordReader[T >: Null <: AnyRef](inputStreamGen: () => DataInputStream) {
+  class SequentialRecordReader[T >: Null <: AnyRef: ClassTag](
+      inputStreamGen: () => DataInputStream
+  ) {
+    val clazz = classTag[T].runtimeClass.asInstanceOf[Class[T]]
+
     def mkRecordIterator(): Iterator[T] = {
       lazy val input = new Input(inputStreamGen())
       new Iterator[T] {
@@ -73,7 +75,7 @@ object SequentialRecordStorage {
           try {
             val len = input.readInt()
             val bytes = input.readBytes(len)
-            kryoPool.fromBytes(bytes).asInstanceOf[T]
+            AmberRuntime.serde.deserialize(bytes, clazz).get
           } catch {
             case e: Throwable =>
               input.close()
@@ -90,7 +92,9 @@ object SequentialRecordStorage {
     }
   }
 
-  def getStorage[T >: Null <: AnyRef](storageLocation: Option[URI]): SequentialRecordStorage[T] = {
+  def getStorage[T >: Null <: AnyRef: ClassTag](
+      storageLocation: Option[URI]
+  ): SequentialRecordStorage[T] = {
     storageLocation match {
       case Some(location) =>
         if (location.getScheme.toLowerCase == "hdfs") {

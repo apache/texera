@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <div id="search-box">
   <input
     placeholder="search operator"
@@ -21,11 +40,12 @@
 
 <div id="spacer"></div>
 
-<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
+<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames, depth: 0 }"></ng-container>
 
 <ng-template
   #menuTemplate
-  let-groupNames>
+  let-groupNames
+  let-depth="depth">
   <nz-collapse
     nzBordered="false"
     nzExpandIconPosition="right"
@@ -33,9 +53,11 @@
     <nz-collapse-panel
       *ngFor="let groupname of groupNames"
       [nzHeader]="groupname.groupName"
-      class="operator-group">
+      class="operator-group"
+      [attr.data-depth]="depth">
       <div class="indent">
-        <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
+        <ng-container
+          *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children, depth: depth + 1 }"></ng-container>
         <div
           *ngFor="let operatorSchema of opList.get(groupname.groupName)"
           class="operator-label">

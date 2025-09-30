@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import {
   AfterViewChecked,
   ChangeDetectorRef,
@@ -28,11 +47,7 @@ import {
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
-import {
-  AttributeType,
-  PortInputSchema,
-  SchemaPropagationService,
-} from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -44,13 +59,14 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
+import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -106,6 +122,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
+  operatorDescription: string | undefined;
 
   // The field name and its css style to be overridden, e.g., for showing the diff between two workflows.
   // example: new Map([
@@ -133,11 +150,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private schemaPropagationService: SchemaPropagationService,
+    private workflowCompilingService: WorkflowCompilingService,
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private workflowStatusSerivce: WorkflowStatusService
+    private workflowStatusSerivce: WorkflowStatusService,
+    private config: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -210,7 +228,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.operatorVersion = operator.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
-
+    this.operatorDescription = this.currentOperatorSchema.additionalMetadata.operatorDescription;
     /**
      * Important: make a deep copy of the initial property data object.
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
@@ -322,7 +340,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId?.includes("PythonLambdaFunction")) {
       return;
     }
-    const opInputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+    const opInputSchema = this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
     if (!opInputSchema) {
       return;
     }
@@ -443,8 +461,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
-        environment.userSystemEnabled &&
-        environment.userPresetEnabled &&
+        this.config.env.userSystemEnabled &&
+        this.config.env.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
       ) {
@@ -471,6 +489,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
+      if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
+        mappedField.type = "repeat-section-dnd";
+        mappedField.props = {
+          ...mappedField.props,
+          reorder: () => this.onFormChanges(cloneDeep(this.formData)),
+        };
+      }
+
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
         // set show to true, or else the error will only show after the user changes the field
@@ -481,7 +507,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (isDefined(mapSource.enum)) {
         mappedField.validators.inEnum = {
-          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value),
+          expression: (c: AbstractControl) => mapSource.enum?.includes(c.value ?? ""),
           message: (error: any, field: FormlyFieldConfig) =>
             `"${field.formControl?.value}" is no longer a valid option`,
         };
@@ -514,7 +540,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 return undefined;
               }
               const attributeName: string = control.value[propertyName];
-              return this.schemaPropagationService.getOperatorInputAttributeType(
+              return this.workflowCompilingService.getOperatorInputAttributeType(
                 this.currentOperatorId,
                 portIndex,
                 attributeName
@@ -610,7 +636,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 // should consider reusing the part in findAttributeType()
                 const attributeName = control.value[prop];
                 const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
-                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
+                const inputAttributeType = this.workflowCompilingService.getOperatorInputAttributeType(
                   this.currentOperatorId,
                   port,
                   attributeName
@@ -662,8 +688,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
-            const attributes: ReadonlyArray<PortInputSchema | undefined> | undefined =
-              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+            const attributes: Readonly<Record<string, PortSchema | undefined>> | undefined =
+              this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
         }

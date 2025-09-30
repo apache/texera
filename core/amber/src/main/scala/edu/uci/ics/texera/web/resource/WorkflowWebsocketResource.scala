@@ -1,27 +1,38 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{
-  CacheStatusUpdateEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
-import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 import java.time.Instant
 import javax.websocket._
@@ -39,10 +50,11 @@ class WorkflowWebsocketResource extends LazyLogging {
     val sessionState = new SessionState(session)
     SessionState.setState(session.getId, sessionState)
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
-      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+      WorkflowService.getOrCreate(WorkflowIdentity(wid), cuid)
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
     logger.info("connection open")
@@ -56,15 +68,10 @@ class WorkflowWebsocketResource extends LazyLogging {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    val uidOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getUid)
-    val userEmailOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getEmail)
-    val user = session.getUserProperties.asScala
+    val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
+    val uidOpt = userOpt.map(_.getUid)
 
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
@@ -77,10 +84,6 @@ class WorkflowWebsocketResource extends LazyLogging {
           workflowStateOpt.foreach(state =>
             sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
-        case resultExportRequest: ResultExportRequest =>
-          workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(user.get, resultExportRequest))
-          )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
             val executionService = workflowStateOpt.get.executionService.getValue
@@ -90,46 +93,18 @@ class WorkflowWebsocketResource extends LazyLogging {
               )
             sessionState.send(modifyLogicResponse)
           }
-        case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
-          // TODO: remove this after separating the workflow compiler as a standalone service
-          val stateStore = if (executionStateOpt.isDefined) {
-            val currentState =
-              executionStateOpt.get.executionStateStore.metadataStore.getState.state
-            if (currentState == RUNNING || currentState == PAUSED) {
-              // disable check if the workflow execution is active.
-              return
-            }
-            executionStateOpt.get.executionStateStore
-          } else {
-            new ExecutionStateStore()
-          }
-          val workflowContext = new WorkflowContext(
-            sessionState.getCurrentWorkflowState.get.workflowId
-          )
-          try {
-            val workflowCompiler =
-              new WorkflowCompiler(workflowContext)
-            val newPlan = workflowCompiler.compileLogicalPlan(
-              editingTimeCompilationRequest.toLogicalPlanPojo,
-              stateStore
-            )
-            val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
-              workflowStateOpt.get.lastCompletedLogicalPlan,
-              newPlan,
-              editingTimeCompilationRequest
-            )
-            sessionState.send(CacheStatusUpdateEvent(validateResult))
-          } catch {
-            case t: Throwable => // skip, rethrow this exception will overwrite the compilation errors reported below.
-          } finally {
-            if (stateStore.metadataStore.getState.fatalErrors.nonEmpty) {
-              sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
-            }
-          }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
-            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
-            case None           => throw new IllegalStateException("workflow is not initialized")
+            case Some(workflow) =>
+              sessionState.send(WorkflowStateEvent("Initializing"))
+              synchronized {
+                workflow.initExecutionService(
+                  workflowExecuteRequest,
+                  userOpt,
+                  session.getRequestURI
+                )
+              }
+            case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
           workflowStateOpt.map(_.executionService.getValue) match {
@@ -164,5 +139,4 @@ class WorkflowWebsocketResource extends LazyLogging {
     }
 
   }
-
 }

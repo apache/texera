@@ -1,23 +1,43 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
-import io.dropwizard.auth.Auth
-import javax.annotation.security.RolesAllowed
-import javax.ws.rs._
-import javax.ws.rs.core.Response
-import javax.ws.rs.Consumes
-import javax.ws.rs.core.MediaType
-import play.api.libs.json.Json
-import kong.unirest.Unirest
-import java.util.Base64
-import scala.sys.process._
-import play.api.libs.json._
-import java.nio.file.Paths
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
+import io.dropwizard.auth.Auth
+import kong.unirest.Unirest
+import play.api.libs.json._
+
+import java.nio.file.Paths
+import java.util.Base64
+import javax.annotation.security.RolesAllowed
+import javax.ws.rs._
+import javax.ws.rs.core.{MediaType, Response}
+import scala.sys.process._
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
+
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
+
 case class UnannotatedArgument(
     name: String,
     startLine: Int,
@@ -25,6 +45,7 @@ case class UnannotatedArgument(
     endLine: Int,
     endColumn: Int
 )
+
 object UnannotatedArgument {
   implicit val format: Format[UnannotatedArgument] = Json.format[UnannotatedArgument]
 }
@@ -34,10 +55,58 @@ class AIAssistantResource {
   val objectMapper = new ObjectMapper()
   objectMapper.registerModule(DefaultScalaModule)
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
   def isAIAssistantEnable: String = isEnabled
+
+  /**
+    * A way to send prompts to open ai
+    *
+    * @param prompt The input prompt for the OpenAI model.
+    * @param user   The authenticated session user.
+    * @return A response containing the generated comment from OpenAI or an error message.
+    */
+  @POST
+  @Path("/openai")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def sendPromptToOpenAIApi(prompt: String, @Auth user: SessionUser): Response = {
+    // Prepare the final prompt by escaping necessary characters
+    // Escape backslashes and double quotes in the prompt to prevent breaking the JSON format
+    val finalPrompt = prompt.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    // Create the JSON request body
+    val requestBody =
+      s"""
+         |{
+         |  "model": "gpt-4o",
+         |  "messages": [{"role": "user", "content": "$finalPrompt"}],
+         |  "max_tokens": 1000
+         |}
+     """.stripMargin
+
+    try {
+      // Send the request to the OpenAI API using Unirest
+      val response = Unirest
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
+        .header("Content-Type", "application/json")
+        .body(requestBody)
+        .asJson()
+
+      // Return the response from the API
+      Response.status(response.getStatus).entity(response.getBody.toString).build()
+    } catch {
+      // Handle exceptions and return an error response
+      case e: Exception =>
+        e.printStackTrace()
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity("Error occur when requesting the OpenAI API")
+          .build()
+    }
+  }
 
   /**
     * To get the type annotation suggestion from OpenAI

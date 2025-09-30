@@ -1,30 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
-
-case class Schedule(private val regionPlan: RegionPlan) extends Iterator[Set[Region]] {
-  private val levels = mutable.Map.empty[RegionIdentity, Int]
-  private val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
-  private var currentLevel = 0
-
-  regionPlan.topologicalIterator().foreach { currentVertex =>
-    val level = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
-      (maxLevel, incomingEdge) =>
-        val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
-        math.max(maxLevel, levels.getOrElse(sourceVertex, 0) + 1)
-    }
-
-    levels(currentVertex) = level
-    levelSets.getOrElseUpdate(level, mutable.Set.empty).add(currentVertex)
-  }
-
-  currentLevel = levelSets.keys.minOption.getOrElse(0)
+case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterator[Set[Region]] {
+  private var currentLevel = levelSets.keys.minOption.getOrElse(0)
 
   override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
 
   override def next(): Set[Region] = {
-    val regions = levelSets(currentLevel).map(regionId => regionPlan.getRegion(regionId)).toSet
+    val regions = levelSets(currentLevel)
     currentLevel += 1
     regions
   }

@@ -1,32 +1,38 @@
-import {
-  AfterViewInit,
-  Component,
-  OnInit,
-  HostListener,
-  OnDestroy,
-  ViewChild,
-  ViewContainerRef,
-  Input,
-} from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { AfterViewInit, Component, HostListener, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
-import { environment } from "../../../../../environments/environment";
 import { UserService } from "../../../../common/service/user/user.service";
-import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
-import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
-import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
-import { NzMessageService } from "ng-zorro-antd/message";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { CodeEditorService } from "../../../../workspace/service/code-editor/code-editor.service";
-import { distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
-import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
-import { User } from "src/app/common/type/user";
-import { Location } from "@angular/common";
+import { ActionType, EntityType, HubService, LikedStatus } from "../../../service/hub.service";
+import { Role, User } from "src/app/common/type/user";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { DASHBOARD_HUB_WORKFLOW_RESULT, DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+
+export const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -35,194 +41,216 @@ import { Location } from "@angular/common";
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {
-  isHub: boolean = true;
+  isHub: boolean = false;
   workflowName: string = "";
   ownerName: string = "";
   workflowDescription: string = "";
-  workflow = {
-    steps: [
-      {
-        name: "Step 1: Data Collection",
-        description: "Collect necessary data from various sources.",
-        status: "Completed",
-      },
-      {
-        name: "Step 2: Data Analysis",
-        description: "Analyze the collected data for insights.",
-        status: "In Progress",
-      },
-      {
-        name: "Step 3: Report Generation",
-        description: "Generate reports based on the analysis.",
-        status: "Not Started",
-      },
-      {
-        name: "Step 4: Presentation",
-        description: "Present the findings to stakeholders.",
-        status: "Not Started",
-      },
-    ],
-  };
-  @Input() wid!: number;
+  isLogin = this.userService.isLogin();
+  isActivatedUser: boolean = false;
+  isLiked: boolean = false;
+  likeCount: number = 0;
+  cloneCount: number = 0;
+  displayPreciseViewCount = false;
+  viewCount: number = 0;
+  wid: number | undefined;
+  protected readonly currentUser?: User;
 
-  public pid?: number = undefined;
-  userSystemEnabled = environment.userSystemEnabled;
-  private currentUser?: User;
-  @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
-    // list additional services in constructor so they are initialized even if no one use them directly
-    private undoRedoService: UndoRedoService,
-    private workflowPersistService: WorkflowPersistService,
-    private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private route: ActivatedRoute,
-    private operatorMetadataService: OperatorMetadataService,
-    private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
-    private codeEditorService: CodeEditorService,
-    private hubWorkflowService: HubWorkflowService,
-    private location: Location
+    private hubService: HubService,
+    private workflowPersistService: WorkflowPersistService,
+    @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
-    if (!this.wid) {
+    this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
+    if (!isDefined(this.wid)) {
+      // otherwise getting wid from the route
       this.wid = this.route.snapshot.params.id;
+      this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
+    if (this.currentUser?.role === Role.ADMIN || this.currentUser?.role === Role.REGULAR) {
+      this.isActivatedUser = true;
+    }
+    this.workflowActionService.disableWorkflowModification();
   }
 
   ngOnInit() {
-    this.isHub =
-      this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
-      this.route.snapshot.url.some(segment => segment.path === "detail");
-    this.hubWorkflowService
+    if (!isDefined(this.wid)) {
+      return;
+    }
+
+    this.hubService
+      .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like, ActionType.Clone])
+      .pipe(untilDestroyed(this))
+      .subscribe(counts => {
+        this.likeCount = counts[0].counts.like ?? 0;
+        this.cloneCount = counts[0].counts.clone ?? 0;
+      });
+    this.hubService
+      .postView(this.wid, this.currentUser?.uid ?? 0, EntityType.Workflow)
+      .pipe(throttleTime(THROTTLE_TIME_MS))
+      .pipe(untilDestroyed(this))
+      .subscribe(count => {
+        this.viewCount = count;
+      });
+    this.workflowPersistService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(owner => {
         this.ownerName = owner.name;
       });
-    this.hubWorkflowService
+    this.workflowPersistService
       .getWorkflowName(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
       });
-    this.hubWorkflowService
+    this.workflowPersistService
       .getWorkflowDescription(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowDescription => {
         this.workflowDescription = workflowDescription || "No description available";
       });
+
+    // if there is a user, check if the user liked the workflow
+    if (!isDefined(this.currentUser)) {
+      return;
+    }
+    this.hubService
+      .isLiked([this.wid], [EntityType.Workflow])
+      .pipe(untilDestroyed(this))
+      .subscribe((isLiked: LikedStatus[]) => {
+        this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
+      });
   }
 
   ngAfterViewInit(): void {
-    // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
-    this.workflowActionService.resetAsNewWorkflow();
-
-    if (this.userSystemEnabled) {
-      this.registerReEstablishWebsocketUponWIdChange();
+    if (!this.wid) {
+      return;
     }
-
-    this.registerLoadOperatorMetadata();
-
-    this.codeEditorService.vc = this.codeEditorViewRef;
+    this.loadWorkflowWithId(this.wid);
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy() {
-    if (this.workflowPersistService.isWorkflowPersistEnabled()) {
-      const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
-    }
-
-    this.codeEditorViewRef.clear();
-    this.workflowWebsocketService.closeWebsocket();
     this.workflowActionService.clearWorkflow();
   }
 
+  /**
+   * Load the workflow with the given id.
+   * If accessing through the hub, load the public workflow.
+   * If accessing through the workspace, load the private workflow.
+   * @param wid
+   */
   loadWorkflowWithId(wid: number): void {
-    // disable the workspace until the workflow is fetched from the backend
-    this.workflowActionService.disableWorkflowModification();
-    let workflowObservable = this.currentUser
-      ? this.workflowPersistService.retrieveWorkflow(wid)
-      : this.hubWorkflowService.retrievePublicWorkflow(wid);
-    workflowObservable.pipe(untilDestroyed(this)).subscribe(
-      (workflow: Workflow) => {
-        this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-        // remember URL fragment
-        const fragment = this.route.snapshot.fragment;
-        // load the fetched workflow
-        this.workflowActionService.reloadWorkflow(workflow);
-        this.workflowActionService.enableWorkflowModification();
-        // set the URL fragment to previous value
-        // because reloadWorkflow will highlight/unhighlight all elements
-        // which will change the URL fragment
-        this.router.navigate([], {
-          relativeTo: this.route,
-          fragment: fragment !== null ? fragment : undefined,
-          preserveFragment: false,
+    if (!this.isHub) {
+      this.workflowPersistService
+        .retrieveWorkflow(wid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (workflow: Workflow) => {
+            // load the fetched workflow
+            this.workflowActionService.reloadWorkflow(workflow);
+            this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+          },
+          error: () => {
+            throw new Error(`Failed to load workflow with id ${wid}`);
+          },
         });
-        // highlight the operator, comment box, or link in the URL fragment
-        if (fragment) {
-          if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-            this.workflowActionService.highlightElements(false, fragment);
-          } else {
-            this.notificationService.error(`Element ${fragment} doesn't exist`);
-            // remove the fragment from the URL
-            this.router.navigate([], { relativeTo: this.route });
-          }
-        }
-        // clear stack
-        this.undoRedoService.clearUndoStack();
-        this.undoRedoService.clearRedoStack();
-      },
-      () => {
-        this.workflowActionService.resetAsNewWorkflow();
-        // enable workspace for modification
-        this.workflowActionService.enableWorkflowModification();
-        // clear stack
-        this.undoRedoService.clearUndoStack();
-        this.undoRedoService.clearRedoStack();
-        this.message.error("You don't have access to this workflow, please log in with an appropriate account");
-      }
-    );
-  }
-
-  registerLoadOperatorMetadata() {
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        // load workflow with wid if presented in the URL
-        if (this.wid) {
-          // if wid is present in the url, load it from the backend
-          this.userService
-            .userChanged()
-            .pipe(untilDestroyed(this))
-            .subscribe(() => {
-              this.loadWorkflowWithId(this.wid);
-            });
-        } else {
-          // no workflow to load, pending to create a new workflow
-        }
-      });
-  }
-
-  registerReEstablishWebsocketUponWIdChange() {
-    this.workflowActionService
-      .workflowMetaDataChanged()
-      .pipe(
-        switchMap(() => of(this.workflowActionService.getWorkflowMetadata().wid)),
-        filter(isDefined),
-        distinctUntilChanged()
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(wid => {
-        this.workflowWebsocketService.reopenWebsocket(wid);
-      });
+    } else {
+      this.workflowPersistService
+        .retrievePublicWorkflow(wid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (workflow: Workflow) => {
+            // load the fetched workflow
+            this.workflowActionService.reloadWorkflow(workflow);
+            this.workflowActionService.getTexeraGraph().triggerCenterEvent();
+          },
+          error: () => {
+            throw new Error(`Failed to load workflow with id ${wid}`);
+          },
+        });
+    }
   }
 
   goBack(): void {
-    this.location.back();
+    this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
+      this.notificationService.error("Go back failed. Please try again.");
+    });
+  }
+
+  cloneWorkflow(): void {
+    if (!isDefined(this.wid)) {
+      return;
+    }
+    this.hubService
+      .cloneWorkflow(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(newWid => {
+        this.router.navigate([`${DASHBOARD_USER_WORKSPACE}/${newWid}`]).then(() => {
+          this.notificationService.success("Clone Successful");
+        });
+      });
+  }
+
+  toggleLike(): void {
+    const userId = this.currentUser?.uid;
+    if (!isDefined(userId) || !isDefined(this.wid)) {
+      return;
+    }
+
+    if (this.isLiked) {
+      this.hubService
+        .postUnlike(this.wid, EntityType.Workflow)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            if (!isDefined(this.wid)) {
+              return;
+            }
+            this.hubService
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
+              .pipe(untilDestroyed(this))
+              .subscribe(counts => {
+                this.likeCount = counts[0].counts.like ?? 0;
+              });
+          }
+        });
+    } else {
+      this.hubService
+        .postLike(this.wid, EntityType.Workflow)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            if (!isDefined(this.wid)) {
+              return;
+            }
+            this.hubService
+              .getCounts([EntityType.Workflow], [this.wid], [ActionType.Like])
+              .pipe(untilDestroyed(this))
+              .subscribe(counts => {
+                this.likeCount = counts[0].counts.like ?? 0;
+              });
+          }
+        });
+    }
+  }
+
+  formatCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  changeViewDisplayStyle() {
+    this.displayPreciseViewCount = !this.displayPreciseViewCount;
   }
 }

@@ -1,8 +1,28 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
+from typing import Optional
 from .console_message_manager import ConsoleMessageManager
+from .embedded_control_message_manager import EmbeddedControlMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
-from .marker_processing_manager import MarkerProcessingManager
+from .state_processing_manager import StateProcessingManager
 from .tuple_processing_manager import TupleProcessingManager
 from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
@@ -26,8 +46,9 @@ class Context:
         self.worker_id = worker_id
         self.input_queue: InternalQueue = input_queue
         self.executor_manager = ExecutorManager()
+        self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.tuple_processing_manager = TupleProcessingManager()
-        self.marker_processing_manager = MarkerProcessingManager()
+        self.state_processing_manager = StateProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
             {
@@ -45,7 +66,10 @@ class Context:
             self.input_queue, state_manager=self.state_manager
         )
         self.output_manager = OutputManager(worker_id)
-        self.input_manager = InputManager()
+        self.input_manager = InputManager(worker_id, self.input_queue)
+        self.ecm_manager = EmbeddedControlMessageManager(
+            ActorVirtualIdentity(worker_id), self.input_manager
+        )
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition

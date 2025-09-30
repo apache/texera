@@ -1,28 +1,49 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
+import com.twitter.util.Promise
+import edu.uci.ics.amber.core.state.State
+import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV1,
-  returnInvocationToV1
+import edu.uci.ics.amber.engine.common.ambermessage.DirectControlMessagePayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
+import org.apache.arrow.vector.VarBinaryVector
 
-import java.nio.{ByteBuffer, ByteOrder}
 import java.io.IOException
 import java.net.ServerSocket
+import java.nio.charset.Charset
+import java.nio.{ByteBuffer, ByteOrder}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import com.twitter.util.Promise
-import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
-
-import java.nio.charset.Charset
 
 private class AmberProducer(
     actorId: ActorVirtualIdentity,
@@ -32,6 +53,7 @@ private class AmberProducer(
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
+
   override def doAction(
       context: FlightProducer.CallContext,
       action: Action,
@@ -40,17 +62,17 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        pythonControlMessage.payload match {
-          case returnInvocation: ReturnInvocationV2 =>
+        pythonControlMessage.payload.value match {
+          case r: ReturnInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
-              payload = returnInvocationToV1(actorId, returnInvocation)
+              to = pythonControlMessage.tag.toWorkerId,
+              payload = r.value
             )
 
-          case controlInvocation: ControlInvocationV2 =>
+          case c: ControlInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
-              payload = controlInvocationToV1(controlInvocation)
+              to = pythonControlMessage.tag.toWorkerId,
+              payload = c.value
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
@@ -83,7 +105,7 @@ private class AmberProducer(
   ): Runnable = { () =>
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
-    val to: ActorVirtualIdentity = dataHeader.tag
+    val to: ChannelIdentity = dataHeader.tag
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream
@@ -104,15 +126,17 @@ private class AmberProducer(
     flightStream.takeDictionaryOwnership
 
     dataHeader.payloadType match {
-      case "StartOfInputChannel" =>
-        assert(root.getRowCount == 0)
-        outputPort.sendTo(to, MarkerFrame(StartOfInputChannel()))
-      case "EndOfInputChannel" =>
-        assert(root.getRowCount == 0)
-        outputPort.sendTo(to, MarkerFrame(EndOfInputChannel()))
       case "State" =>
         assert(root.getRowCount == 1)
-        outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+        outputPort.sendTo(to, StateFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case "ECM" =>
+        assert(root.getRowCount == 1)
+        outputPort.sendTo(
+          to,
+          EmbeddedControlMessage.parseFrom(
+            root.getVector("payload").asInstanceOf[VarBinaryVector].get(0)
+          )
+        )
       case _ => // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)
@@ -130,6 +154,7 @@ class PythonProxyServer(
     with AutoCloseable
     with AmberLogging {
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
+
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
@@ -156,7 +181,7 @@ class PythonProxyServer(
     * Get a random free port.
     *
     * @return The port number.
-    * @throws IOException  , might happen when getting a free port.
+    * @throws IOException , might happen when getting a free port.
     */
   @throws[IOException]
   private def getFreeLocalPort: Int = {

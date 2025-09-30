@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import ctypes
 import struct
 import typing
@@ -11,6 +28,7 @@ import pickle
 import pyarrow
 from loguru import logger
 from pandas._libs.missing import checknull
+from pympler import asizeof
 
 from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
@@ -49,6 +67,9 @@ class ArrowTableTupleProvider:
         Provide the field accessor of the next tuple.
         If current chunk is exhausted, move to the first tuple of the next chunk.
         """
+        if self._table.num_columns == 0:
+            # empty table
+            raise StopIteration
         if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
             self._current_idx = 0
             self._current_chunk += 1
@@ -246,7 +267,6 @@ class Tuple:
         """
         Safely cast each field value to match the target schema.
         If failed, the value will stay not changed.
-
         This current conducts two kinds of casts:
             1. cast NaN to None;
             2. cast any object to bytes (using pickle).
@@ -385,3 +405,10 @@ class Tuple:
             result = result * salt + hash_value
 
         return int_32(result)
+
+    def in_mem_size(self) -> int:
+        """
+        Calculate the in-memory size of the Tuple instance.
+        :return: The size in bytes.
+        """
+        return asizeof.asizeof(self)

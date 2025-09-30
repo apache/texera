@@ -1,0 +1,79 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div
+  class="about-page-container"
+  nz-row
+  nzJustify="space-around"
+  nzAlign="middle">
+  <div
+    nz-col
+    nzFlex="auto"
+    class="content">
+    <h1 class="about-title">About Texera</h1>
+
+    <p>
+      Texera is a system for users with various backgrounds to learn and practice data science, AI, and machine
+      learning. It also allows users to share their datasets and analyze workflows.
+    </p>
+
+    <h2 class="content-title">Key Features</h2>
+    <ul class="text-content">
+      <li>Supporting low-code/no-code data science using workflows</li>
+      <li>Parallel data-processing engine running on computing clusters</li>
+      <li>Using the Apache Pekko actor-model system</li>
+      <li>Supporting UDFs in Python, R, Java, and Scala</li>
+      <li>Supporting ML training and inference</li>
+      <li>Including a rich collection of ML operators</li>
+      <li>Interactive workflow execution model that supports pausing and resuming</li>
+      <li>Supporting collaborations with shared editing, shared execution, and version control</li>
+      <li>Supporting debugging, including line-by-line debugging in Python UDFs</li>
+      <li>Supporting reproducibility of data analysis</li>
+      <li>Region-by-region execution with full pipelining in each region</li>
+      <li>Storing execution results using Apache Iceberg</li>
+      <li>Supporting version-controlled file collections on S3-compatible storage managed by LakeFS</li>
+      <li>Adopting a microservice-based architecture using Kubernetes and Docker</li>
+      <li>Supporting computing isolation and storage isolation of multiple tenants</li>
+    </ul>
+    <img
+      class="workflow-gui-screenshot"
+      src="../../../../../assets/workflow_gui.png"
+      alt="workflow gui screenshot" />
+    <h2 class="learn-more-title">Learn More</h2>
+    <div class="learn-more-section">
+      <p>
+        To learn more, please visit <a href="http://texera.io">texera.io</a>. The
+        <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub. If you have
+        comments and questions, please send email to
+        <img
+          src="../../../../../assets/texera_email_screenshot.png"
+          alt="texera email screenshot" />
+        .
+      </p>
+    </div>
+    <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
+      <texera-local-login
+        *ngIf="this.config.env.localLogin"
+        class="login-container"
+        nz-col
+        nzFlex="300px">
+      </texera-local-login>
+    </ng-container>
+  </div>
+</div>

@@ -1,7 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
@@ -10,12 +28,13 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { style } from "@angular/animations";
-import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-
-export const TABLE_COLUMN_TEXT_LIMIT = 100;
-export const PRETTY_JSON_TEXT_LIMIT = 50000;
+import { ChangeDetectorRef } from "@angular/core";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { ExecutionState } from "../../../types/execute-workflow.interface";
+import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
 
 /**
  * The Component will display the result in an excel table format,
@@ -33,6 +52,7 @@ export const PRETTY_JSON_TEXT_LIMIT = 50000;
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+
   // display result table
   currentColumns?: TableColumn[];
   currentResult: IndexableObject[] = [];
@@ -55,14 +75,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
+  private schema: ReadonlyArray<SchemaAttribute> = [];
+  isOperatorFinished: boolean = false;
 
   constructor(
-    private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
-    private sanitizer: DomSanitizer
+    private changeDetectorRef: ChangeDetectorRef,
+    private sanitizer: DomSanitizer,
+    private workflowStatusService: WorkflowStatusService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -77,11 +100,24 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
+        this.schema = paginatedResultService.getSchema();
       }
     }
   }
 
   ngOnInit(): void {
+    this.workflowStatusService
+      .getStatusUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(statusMap => {
+        if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
+          this.isOperatorFinished = true;
+          this.changeDetectorRef.detectChanges();
+        } else {
+          this.isOperatorFinished = false;
+        }
+      });
+
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
@@ -100,6 +136,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
+        this.changeDetectorRef.detectChanges();
       });
 
     this.workflowResultService
@@ -125,7 +162,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(sinkStorageMode => {
         this.sinkStorageMode = sinkStorageMode;
-        this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
       });
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
@@ -136,6 +172,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.currentPageIndex -= 1;
       }
     });
+
+    if (this.operatorId) {
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      if (paginatedResultService) {
+        this.schema = paginatedResultService.getSchema();
+      }
+    }
   }
 
   checkKeys(
@@ -173,12 +216,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     let styledValue = "";
 
+    if (this.isOperatorFinished) {
+      for (let i = 0; i < currentStr.length; i++) {
+        styledValue += `<span style="color: black">${currentStr[i]}</span>`;
+      }
+      return this.sanitizer.bypassSecurityTrustHtml(styledValue);
+    }
+
     for (let i = 0; i < currentStr.length; i++) {
       const char = currentStr[i];
       const prevChar = previousStr[i];
 
       if (char !== prevChar) {
-        styledValue += `<span style="color: red">${char}</span>`;
+        styledValue += `<span style="color: blue">${char}</span>`;
       } else {
         styledValue += `<span style="color: black">${char}</span>`;
       }
@@ -188,20 +238,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 36;
-    let extra: number;
+    const newPageSize = Math.max(1, Math.floor((panelHeight - 38.62 - 64.27 - 56.6 - 32.63) / 38.62));
 
-    if (this.sinkStorageMode == "mongodb") {
-      extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
-    } else {
-      extra = Math.floor((panelHeight - 170) / rowHeight);
-    }
+    const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
-    if (extra < 0) {
-      extra = 0;
-    }
-    this.pageSize = 1 + extra;
-    this.resizeService.pageSize = this.pageSize;
+    this.pageSize = newPageSize;
+    this.resizeService.pageSize = newPageSize;
+
+    this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
   }
 
   /**
@@ -294,6 +338,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.schema = pageData.schema;
+          this.changeDetectorRef.detectChanges();
         }
       });
   }
@@ -314,6 +360,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
 
     this.isLoadingResult = false;
+    this.changeDetectorRef.detectChanges();
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -339,23 +386,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param columns
    */
   generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
-    return columns.map(col => ({
+    return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] === null) {
-          return "NULL"; // Explicitly show NULL for null values
-        } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey]);
-        } else {
-          return ""; // Keep empty string for undefined values
-        }
-      },
+      getCell: (row: IndexableObject) => row[col.columnKey].toString(),
     }));
-  }
-
-  trimTableCell(cellContent: any): string {
-    return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {

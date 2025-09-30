@@ -1,7 +1,26 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -12,19 +31,21 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
-import { FileSaverService } from "../../../service/user/file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, tap } from "rxjs/operators";
-import { environment } from "../../../../../environments/environment";
+import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
+import { DownloadService } from "../../../service/user/download/download.service";
+import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -58,7 +79,6 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
-  public ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
   private includePublic = false;
@@ -98,8 +118,9 @@ export class UserWorkflowComponent implements AfterViewInit {
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
-    private fileSaverService: FileSaverService,
-    private searchService: SearchService
+    private downloadService: DownloadService,
+    private searchService: SearchService,
+    private config: GuiConfigService
   ) {
     this.userService
       .userChanged()
@@ -116,6 +137,14 @@ export class UserWorkflowComponent implements AfterViewInit {
     } else {
       return false;
     }
+  }
+
+  public selectionTooltip: string = "Select all";
+
+  public updateTooltip(): void {
+    const entries = this.searchResultsComponent.entries;
+    const allSelected = entries.every(entry => entry.checked);
+    this.selectionTooltip = allSelected ? "Unselect all" : "Select all";
   }
 
   ngAfterViewInit() {
@@ -173,50 +202,21 @@ export class UserWorkflowComponent implements AfterViewInit {
       // force the project id in the search query to be the current pid.
       filterParams.projectIds = [this.pid];
     }
-    this.searchResultsComponent.reset(async (start, count) => {
-      const results = await firstValueFrom(
-        this.searchService.search(
-          this.filters.getSearchKeywords(),
-          filterParams,
-          start,
-          count,
-          "workflow",
-          this.sortMethod,
-          this.isLogin,
-          this.includePublic
-        )
+    this.searchResultsComponent.reset((start, count) => {
+      return firstValueFrom(
+        this.searchService
+          .executeSearch(
+            this.filters.getSearchKeywords(),
+            filterParams,
+            start,
+            count,
+            "workflow",
+            this.sortMethod,
+            this.isLogin,
+            this.includePublic
+          )
+          .pipe(map(({ entries, more }) => ({ entries, more })))
       );
-
-      const userIds = new Set<number>();
-      results.results.forEach(i => {
-        if (i.workflow && i.workflow.ownerId) {
-          userIds.add(i.workflow.ownerId);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      return {
-        entries: results.results.map(i => {
-          if (i.workflow) {
-            const entry = new DashboardEntry(i.workflow);
-
-            const userInfo = userIdToInfoMap[i.workflow.ownerId];
-            if (userInfo) {
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-
-            return entry;
-          } else {
-            throw new Error("Unexpected type in SearchResult.");
-          }
-        }),
-        more: results.more,
-      };
     });
     await this.searchResultsComponent.loadMore();
   }
@@ -228,10 +228,9 @@ export class UserWorkflowComponent implements AfterViewInit {
     const emptyWorkflowContent: WorkflowContent = {
       operators: [],
       commentBoxes: [],
-      groups: [],
       links: [],
       operatorPositions: {},
-      settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
+      settings: { dataTransferBatchSize: this.config.env.defaultDataTransferBatchSize },
     };
     let localPid = this.pid;
     this.workflowPersistService
@@ -259,7 +258,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([this.ROUTER_WORKFLOW_BASE_URL, wid]).then(null);
+          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });
@@ -342,113 +341,112 @@ export class UserWorkflowComponent implements AfterViewInit {
   /**
    * Verify Uploaded file name and upload the file
    */
-  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
+  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): Observable<boolean> => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
+
+    let upload$: Observable<void>;
     if (file.name.substring(fileExtensionIndex) === ".zip") {
-      this.handleZipUploads(file as unknown as Blob);
+      upload$ = this.handleZipUploads(file as unknown as Blob);
     } else {
-      this.handleFileUploads(file as unknown as Blob, file.name);
+      upload$ = this.handleFileUploads(file as unknown as Blob, file.name);
     }
-    return false;
+
+    return upload$.pipe(
+      switchMap(() => from(this.search(true))),
+      tap(() => this.notificationService.success("Upload Successful")),
+      switchMap(() => of(false))
+    );
   };
 
   /**
    * process .zip file uploads
    */
-  private handleZipUploads(zipFile: Blob) {
+  private handleZipUploads(zipFile: Blob): Observable<void> {
     let zip = new JSZip();
-    zip.loadAsync(zipFile).then(zip => {
-      zip.forEach((relativePath, file) => {
-        file.async("blob").then(content => {
-          this.handleFileUploads(content, relativePath);
-        });
-      });
-    });
+    return from(zip.loadAsync(zipFile)).pipe(
+      switchMap(zip =>
+        from(
+          Promise.all(
+            Object.keys(zip.files).map(relativePath =>
+              zip.files[relativePath]
+                .async("blob")
+                .then(content => lastValueFrom(this.handleFileUploads(content, relativePath)))
+            )
+          )
+        )
+      ),
+      map(() => undefined)
+    );
   }
 
   /**
    * Process .json file uploads
    */
-  private handleFileUploads(file: Blob, name: string) {
-    let reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("Incorrect format: file is not a string");
+  private handleFileUploads(file: Blob, name: string): Observable<void> {
+    return new Observable<void>(observer => {
+      let reader = new FileReader();
+      reader.readAsText(file);
+      reader.onload = () => {
+        try {
+          const result = reader.result;
+          if (typeof result !== "string") {
+            throw new Error("Incorrect format: file is not a string");
+          }
+          const workflowContent = JSON.parse(result) as WorkflowContent;
+          const fileExtensionIndex = name.lastIndexOf(".");
+          let workflowName = fileExtensionIndex === -1 ? name : name.substring(0, fileExtensionIndex);
+          if (workflowName.trim() === "") {
+            workflowName = DEFAULT_WORKFLOW_NAME;
+          }
+          this.workflowPersistService
+            .createWorkflow(workflowContent, workflowName)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: uploadedWorkflow => {
+                this.searchResultsComponent.entries = [
+                  ...this.searchResultsComponent.entries,
+                  new DashboardEntry(uploadedWorkflow),
+                ];
+                observer.next();
+                observer.complete();
+              },
+              error: (err: unknown) => {
+                observer.error(err);
+              },
+            });
+        } catch (error) {
+          this.notificationService.error(
+            "An error occurred when importing the workflow. Please import a workflow json file."
+          );
+          observer.error(error);
         }
-        const workflowContent = JSON.parse(result) as WorkflowContent;
-        const fileExtensionIndex = name.lastIndexOf(".");
-        let workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = name;
-        } else {
-          workflowName = name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
-                new DashboardEntry(uploadedWorkflow),
-              ];
-            },
-            error: (err: unknown) => alert(err),
-          });
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-      }
-    };
+      };
+    });
   }
 
   /**
    * Download selected workflow as zip file
    */
-  public async onClickOpenDownloadZip() {
+  public onClickOpenDownloadZip(): void {
     const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
-    if (checkedEntries.length > 0) {
-      const zip = new JSZip();
-      try {
-        for (const entry of checkedEntries) {
-          if (!entry.workflow) {
-            throw new Error(
-              "Incorrect type of DashboardEntry provided to onClickOpenDownloadZip. Entry must be workflow."
-            );
-          }
-          const fileName = this.nameWorkflow(entry.workflow.workflow.name, zip) + ".json";
-          if (entry.workflow.workflow.wid) {
-            const workflowCopy: Workflow = {
-              ...(await firstValueFrom(
-                this.workflowPersistService.retrieveWorkflow(entry.workflow.workflow.wid).pipe(untilDestroyed(this))
-              )),
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-              readonly: false,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            zip.file(fileName, workflowJson);
-          }
-        }
-      } catch (e) {
-        this.notificationService.error(`Workflow download failed. ${(e as Error).message}`);
-      }
-      let dateTime = new Date();
-      let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-      const content = await zip.generateAsync({ type: "blob" });
-      this.fileSaverService.saveAs(content, filename);
-      for (const entry of checkedEntries) {
-        entry.checked = false;
-      }
+    if (checkedEntries.length === 0) {
+      return;
     }
+
+    const workflowEntries = checkedEntries.map(entry => ({
+      id: entry.workflow.workflow.wid!,
+      name: entry.workflow.workflow.name,
+    }));
+
+    this.downloadService
+      .downloadWorkflowsAsZip(workflowEntries)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          // this.searchResultsComponent.clearAllSelections();
+        },
+        error: (err: unknown) => console.error("Error downloading workflows:", err),
+      });
   }
 
   public onClickDuplicateSelectedWorkflows(): void {
@@ -475,6 +473,8 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -489,6 +489,8 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -540,5 +542,20 @@ export class UserWorkflowComponent implements AfterViewInit {
         copyName = name + "-" + ++count;
       }
     }
+  }
+
+  public toggleSelection(): void {
+    const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
+    if (allSelected) {
+      this.searchResultsComponent.clearAllSelections();
+      this.updateTooltip();
+    } else {
+      this.searchResultsComponent.selectAll();
+      this.updateTooltip();
+    }
+  }
+
+  public refreshSearchResult() {
+    void this.search(true);
   }
 }

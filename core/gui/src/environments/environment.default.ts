@@ -1,105 +1,40 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 // The file contains the default environment template
 // it's used to store app settings and flags to turn on or off different features
 
-export const defaultEnvironment = {
+import { GuiConfig } from "../app/common/type/gui-config";
+
+// AppEnv extends GuiConfig with the build-time production flag
+export type AppEnv = {
   /**
-   * whether we are in production mode, default is false
+   * whether we are in production mode, this is a build-time flag
    */
-  production: false,
+  production: boolean;
 
   /**
    * root API URL of the backend
    */
-  apiUrl: "api",
-
-  /**
-   * whether fetching available source tables is enabled
-   * see SourceTablesService for details
-   */
-  sourceTableEnabled: false,
-
-  /**
-   * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropagationService for details
-   */
-  schemaPropagationEnabled: true,
-
-  /**
-   * whether the backend supports checking execution status
-   */
-  executionStatusEnabled: true,
-
-  /**
-   * whether export execution result is supported
-   */
-  exportExecutionResultEnabled: false,
-
-  /**
-   * Whether automatically correcting attribute name on change is enabled
-   * See AutoAttributeCorrectionService for more details
-   */
-  autoAttributeCorrectionEnabled: true,
-
-  /**
-   * whether user system is enabled
-   */
-  userSystemEnabled: false,
-
-  /**
-   * whether local login is enabled
-   */
-  localLogin: true,
-
-  /**
-   * whether invite only is enabled
-   */
-  inviteOnly: false,
-
-  /**
-   * whether user preset feature is enabled, requires user system to be enabled
-   */
-  userPresetEnabled: false,
-
-  /**
-   * whether workflow executions tracking feature is enabled
-   */
-  workflowExecutionsTrackingEnabled: false,
-
-  /**
-   * whether linkBreakpoint is supported
-   */
-  linkBreakpointEnabled: true,
-
-  /**
-   * whether operator caching is enabled
-   */
-  operatorCacheEnabled: false,
-
-  /**
-   * whether debugger is enabled
-   */
-  debuggerEnabled: false,
-
-  asyncRenderingEnabled: false,
-
-  /**
-   * whether time-travel is enabled
-   */
-  timetravelEnabled: false,
-  /**
-   * Whether to connect to local or production shared editing server. Set to true if you have
-   * reverse proxy set up for y-websocket.
-   */
-  productionSharedEditingServer: false,
-
-  /**
-   */
-  singleFileUploadMaximumSizeMB: 20,
-
-  /**
-   * default data transfer batch size for workflows
-   */
-  defaultDataTransferBatchSize: 400,
+  apiUrl: string;
 };
 
-export type AppEnv = typeof defaultEnvironment;
+export const defaultEnvironment: AppEnv = {
+  production: false,
+
+  apiUrl: "api",
+};

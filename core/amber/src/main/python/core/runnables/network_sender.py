@@ -1,19 +1,42 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from typing import Optional
 
 from loguru import logger
 from overrides import overrides
+import pyarrow as pa
+from core.models import DataPayload, InternalQueue, DataFrame, StateFrame, State
 
-from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame, State
-
-from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
+from core.models.internal_queue import (
+    InternalQueueElement,
+    DataElement,
+    DCMElement,
+    ECMElement,
+)
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
-    ControlPayloadV2,
+    DirectControlMessagePayloadV2,
     PythonControlMessage,
     PythonDataHeader,
 )
+from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):
@@ -37,27 +60,45 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     def receive(self, next_entry: InternalQueueElement):
         if isinstance(next_entry, DataElement):
             self._send_data(next_entry.tag, next_entry.payload)
-        elif isinstance(next_entry, ControlElement):
+        elif isinstance(next_entry, DCMElement):
             self._send_control(next_entry.tag, next_entry.payload)
+        elif isinstance(next_entry, ECMElement):
+            self._send_ecm(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")
 
     @logger.catch(reraise=True)
-    def _send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
+    def _send_ecm(self, to: ChannelIdentity, ecm: EmbeddedControlMessage) -> None:
+        """
+        Sends an ECM to the specified channel.
+
+        Args:
+            to (ChannelIdentity): The target channel to which the ECM should be sent.
+            ecm (EmbeddedControlMessage): The ECM to send.
+
+        This function constructs a `PythonDataHeader` with the appropriate metadata,
+        serializes the payload into an Arrow table, and sends it using the proxy client.
+        """
+        data_header = PythonDataHeader(tag=to, payload_type="ECM")
+        schema = pa.schema([("payload", pa.binary())])
+        data = [pa.array([bytes(ecm)])]
+        table = pa.Table.from_arrays(data, schema=schema)
+        self._proxy_client.send_data(bytes(data_header), table)
+
+    @logger.catch(reraise=True)
+    def _send_data(self, to: ChannelIdentity, data_payload: DataPayload) -> None:
         """
         Send data payload to the given target actor. This method is to be used
         internally only.
 
-        :param to: The target actor's ActorVirtualIdentity
-        :param data_payload: The data payload to be sent, can be either DataFrame or
-            EndOfInputChannel
+        :param to: The target ChannelIdentity
+        :param data_payload: The data payload to be sent in DataFrame
         """
 
         if isinstance(data_payload, DataFrame):
             data_header = PythonDataHeader(tag=to, payload_type="Data")
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
-
-        elif isinstance(data_payload, MarkerFrame):
+        elif isinstance(data_payload, StateFrame):
             data_header = PythonDataHeader(
                 tag=to, payload_type=data_payload.frame.__class__.__name__
             )
@@ -72,13 +113,13 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+        self, to: ChannelIdentity, control_payload: DirectControlMessagePayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used
         internally only.
 
-        :param to: The target actor's ActorVirtualIdentity
+        :param to: The target ChannelIdentity
         :param control_payload: The control payload to be sent, can be either
             ControlInvocation or ReturnInvocation.
         """

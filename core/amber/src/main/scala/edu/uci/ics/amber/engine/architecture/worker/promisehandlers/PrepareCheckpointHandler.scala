@@ -1,28 +1,49 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  PrepareCheckpointRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 
-object PrepareCheckpointHandler {
-  final case class PrepareCheckpoint(checkpointId: ChannelMarkerIdentity, estimationOnly: Boolean)
-      extends ControlCommand[Unit]
-}
-
 trait PrepareCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: PrepareCheckpoint, sender) =>
+  override def prepareCheckpoint(
+      msg: PrepareCheckpointRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
       dp.serializationManager.registerSerialization(() => {
@@ -31,14 +52,15 @@ trait PrepareCheckpointHandler {
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
+    EmptyReturn()
   }
 
-  private def serializeWorkerState(checkpointId: ChannelMarkerIdentity): Unit = {
+  private def serializeWorkerState(checkpointId: EmbeddedControlMessageIdentity): Unit = {
     val chkpt = new CheckpointState()
     // 1. serialize DP state
     chkpt.save(SerializedState.DP_STATE_KEY, this.dp)
     // checkpoint itself should not be serialized, thus we register it after serialization
-    dp.channelMarkerManager.checkpoints(checkpointId) = chkpt
+    dp.ecmManager.checkpoints(checkpointId) = chkpt
     logger.info("Serialized DP state")
     // 2. serialize operator state
     dp.executor match {

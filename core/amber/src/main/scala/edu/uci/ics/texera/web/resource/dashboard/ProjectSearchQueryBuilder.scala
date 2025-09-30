@@ -1,18 +1,38 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
+
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getFullTextSearchFilter,
-  getSubstringSearchFilter,
   getContainsFilter,
-  getDateFilter
+  getDateFilter,
+  getFullTextSearchFilter
 }
-import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
+
+import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 object ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
@@ -27,7 +47,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   )
 
   override protected def constructFromClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
@@ -38,7 +58,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-      uid: UInteger,
+      uid: Integer,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -54,19 +74,13 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.projectIds, PROJECT.PID))
       .and(
         getFullTextSearchFilter(splitKeywords, List(PROJECT.NAME, PROJECT.DESCRIPTION))
-          .or(
-            getSubstringSearchFilter(
-              splitKeywords,
-              List(PROJECT.NAME, PROJECT.DESCRIPTION)
-            )
-          )
       )
   }
 
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
   override def toEntryImpl(
-      uid: UInteger,
+      uid: Integer,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dp = record.into(PROJECT).into(classOf[Project])

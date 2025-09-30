@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -25,7 +44,6 @@ import { NzUploadModule } from "ng-zorro-antd/upload";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
-import { FileSaverService } from "../../../service/user/file/file-saver.service";
 import {
   testWorkflowEntries,
   testWorkflowFileNameConflictEntries,
@@ -41,15 +59,19 @@ import { SearchResultsComponent } from "../search-results/search-results.compone
 import { delay } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { DownloadService } from "../../../service/user/download/download.service";
+import { of } from "rxjs";
+import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
   let fixture: ComponentFixture<UserWorkflowComponent>;
 
-  const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
+  let downloadServiceSpy: jasmine.SpyObj<DownloadService>;
 
-  // must use waitForAsync for configureTestingModule in components with virtual scroll
   beforeEach(waitForAsync(() => {
+    downloadServiceSpy = jasmine.createSpyObj<DownloadService>(["downloadWorkflowsAsZip"]);
+
     TestBed.configureTestingModule({
       declarations: [
         UserWorkflowComponent,
@@ -67,11 +89,12 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: NZ_I18N, useValue: en_US },
         { provide: UserService, useClass: StubUserService },
-        { provide: FileSaverService, useValue: fileSaverServiceSpy },
         {
           provide: SearchService,
           useValue: new StubSearchService(testWorkflowEntries, mockUserInfo),
         },
+        { provide: DownloadService, useValue: downloadServiceSpy },
+        ...commonTestProviders,
       ],
       imports: [
         FormsModule,
@@ -299,7 +322,25 @@ describe("SavedWorkflowSectionComponent", () => {
     );
     testWorkflowFileNameConflictEntries[0].checked = true;
     testWorkflowFileNameConflictEntries[2].checked = true;
+
+    downloadServiceSpy.downloadWorkflowsAsZip.and.returnValue(of(new Blob()));
+
     await component.onClickOpenDownloadZip();
-    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledTimes(1);
+
+    expect(downloadServiceSpy.downloadWorkflowsAsZip).toHaveBeenCalledTimes(1);
+    expect(downloadServiceSpy.downloadWorkflowsAsZip).toHaveBeenCalledWith([
+      {
+        id: testWorkflowFileNameConflictEntries[0].workflow.workflow.wid!,
+        name: testWorkflowFileNameConflictEntries[0].workflow.workflow.name,
+      },
+      {
+        id: testWorkflowFileNameConflictEntries[2].workflow.workflow.wid!,
+        name: testWorkflowFileNameConflictEntries[2].workflow.workflow.name,
+      },
+    ]);
+
+    // Check that the checked entries are unchecked after download
+    expect(testWorkflowFileNameConflictEntries[0].checked).toBeTrue();
+    expect(testWorkflowFileNameConflictEntries[2].checked).toBeTrue();
   });
 });

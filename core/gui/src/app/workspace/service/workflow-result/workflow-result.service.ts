@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 import {
   isWebDataUpdate,
@@ -14,6 +33,7 @@ import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, Behav
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
+import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -172,6 +192,47 @@ export class WorkflowResultService {
     }
     return service;
   }
+
+  public determineOutputTypes(operatorId: string): {
+    hasAnyResult: boolean;
+    isTableOutput: boolean;
+    isVisualizationOutput: boolean;
+    containsBinaryData: boolean;
+  } {
+    const resultService = this.getResultService(operatorId);
+    const paginatedResultService = this.getPaginatedResultService(operatorId);
+
+    return {
+      hasAnyResult: this.hasAnyResult(operatorId),
+      isTableOutput: this.hasTableOutput(paginatedResultService),
+      containsBinaryData: this.hasBinaryData(paginatedResultService),
+      isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
+    };
+  }
+
+  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
+    if (defaultExtension === "data") return defaultExtension;
+    var outputType = this.determineOutputTypes(operatorId);
+
+    if (outputType.isVisualizationOutput) return "html";
+    if (outputType.isTableOutput && defaultExtension === "csv") return "csv";
+    return defaultExtension;
+  }
+
+  private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService !== undefined;
+  }
+
+  private hasBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
+  }
+
+  private hasVisualizationOutput(
+    resultService?: OperatorResultService,
+    paginatedResultService?: OperatorPaginationResultService
+  ): boolean {
+    return resultService !== undefined && paginatedResultService === undefined;
+  }
 }
 
 export class OperatorResultService {
@@ -204,14 +265,16 @@ export class OperatorPaginationResultService {
   private statsCache: Record<string, Record<string, number>> = {};
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
+  private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
     public operatorID: string,
     private workflowWebsocketService: WorkflowWebsocketService
   ) {
-    this.workflowWebsocketService
-      .subscribeToEvent("PaginatedResultEvent")
-      .subscribe(event => this.handlePaginationResult(event));
+    this.workflowWebsocketService.subscribeToEvent("PaginatedResultEvent").subscribe(event => {
+      this.schema = event.schema;
+      this.handlePaginationResult(event);
+    });
   }
 
   public getStats(): Record<string, Record<string, number>> {
@@ -230,11 +293,23 @@ export class OperatorPaginationResultService {
     return this.currentTotalNumTuples;
   }
 
-  public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
+  public getSchema(): ReadonlyArray<SchemaAttribute> {
+    return this.schema;
+  }
+
+  public selectTuple(
+    tupleIndex: number,
+    pageSize: number
+  ): Observable<{ tuple: IndexableObject; schema: ReadonlyArray<SchemaAttribute> }> {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]));
+    return this.selectPage(pageIndex, pageSize).pipe(
+      map(p => ({
+        tuple: p.table[tupleIndex % pageSize],
+        schema: this.schema,
+      }))
+    );
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
@@ -248,6 +323,7 @@ export class OperatorPaginationResultService {
         operatorID: this.operatorID,
         pageIndex: pageIndex,
         table: pageCache,
+        schema: this.schema,
       });
     } else {
       // fetch result data from server

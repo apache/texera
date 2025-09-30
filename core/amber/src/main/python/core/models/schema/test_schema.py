@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import pytest
 import pyarrow as pa
 
@@ -9,13 +26,13 @@ class TestSchema:
     @pytest.fixture
     def raw_schema(self):
         return {
-            "field-1": "string",
-            "field-2": "integer",
-            "field-3": "long",
-            "field-4": "double",
-            "field-5": "boolean",
-            "field-6": "timestamp",
-            "field-7": "binary",
+            "field-1": "STRING",
+            "field-2": "INTEGER",
+            "field-3": "LONG",
+            "field-4": "DOUBLE",
+            "field-5": "BOOLEAN",
+            "field-6": "TIMESTAMP",
+            "field-7": "BINARY",
         }
 
     @pytest.fixture
@@ -27,7 +44,7 @@ class TestSchema:
                 pa.field("field-3", pa.int64()),
                 pa.field("field-4", pa.float64()),
                 pa.field("field-5", pa.bool_()),
-                pa.field("field-6", pa.timestamp("ms", tz="UTC")),
+                pa.field("field-6", pa.timestamp("us")),
                 pa.field("field-7", pa.binary()),
             ]
         )

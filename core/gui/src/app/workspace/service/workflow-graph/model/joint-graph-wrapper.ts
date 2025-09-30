@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
 import { filter, map } from "rxjs/operators";
 import { LogicalPort, Point } from "../../../types/workflow-common.interface";
@@ -34,8 +53,6 @@ type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boo
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
 
-type JointLayerChangeEvent = [joint.dia.Element | joint.dia.Link, number];
-
 type PositionInfo = {
   currPos: Point;
   lastPos: Point | undefined;
@@ -43,7 +60,6 @@ type PositionInfo = {
 
 export type JointHighlights = Readonly<{
   operators: readonly string[];
-  groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
   ports: readonly LogicalPort[];
@@ -97,8 +113,6 @@ export class JointGraphWrapper {
 
   // the currently highlighted operators' IDs
   private currentHighlightedOperators: string[] = [];
-  // the currently highlighted groups' IDs
-  private currentHighlightedGroups: string[] = [];
   // event stream of highlighting an operator
   private jointOperatorHighlightStream = new Subject<readonly string[]>();
   // event stream of un-highlighting an operator
@@ -205,13 +219,6 @@ export class JointGraphWrapper {
     this.multiSelect = multiSelect;
   }
 
-  /**
-   * This method is used to get the current status of the multiselect mode.
-   */
-  public getMultiSelectMode(): boolean {
-    return this.multiSelect;
-  }
-
   public setReloadingWorkflow(reloadingWorkflow: boolean): void {
     this.reloadingWorkflow = reloadingWorkflow;
   }
@@ -232,17 +239,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * Gets the group ID of the current highlighted groups.
-   * Returns an empty list if there is no highlighted group.
-   *
-   * The returned array is not the original one so that other
-   * services/components can't modify it directly.
-   */
-  public getCurrentHighlightedGroupIDs(): readonly string[] {
-    return this.currentHighlightedGroups;
-  }
-
-  /**
    * get the ids of all the links that are currently highlighted
    */
   public getCurrentHighlightedLinkIDs(): readonly string[] {
@@ -260,7 +256,6 @@ export class JointGraphWrapper {
   public getCurrentHighlights(): JointHighlights {
     return {
       operators: this.currentHighlightedOperators,
-      groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
       commentBoxes: this.currentHighlightedCommentBoxes,
       ports: this.currentHighlightedPorts,
@@ -270,7 +265,6 @@ export class JointGraphWrapper {
   public getCurrentHighlightedIDs(): readonly string[] {
     return [
       ...this.currentHighlightedOperators,
-      ...this.currentHighlightedGroups,
       ...this.currentHighlightedLinks,
       ...this.currentHighlightedCommentBoxes,
     ];
@@ -317,38 +311,8 @@ export class JointGraphWrapper {
     );
   }
 
-  /**
-   * Returns an Observable stream capturing the cell layer change event in JointJS graph.
-   * A cell can be an operator, a link, or a group element.
-   *
-   * - cellID: the moved cell's ID
-   * - newPosition: the cell's new layer
-   */
-  public getCellLayerChangeEvent(): Observable<{
-    cellID: string;
-    newLayer: number;
-  }> {
-    return fromEvent<JointLayerChangeEvent>(this.jointGraph, "change:z").pipe(
-      map(e => {
-        return {
-          cellID: e[0].id.toString(),
-          newLayer: e[1],
-        };
-      })
-    );
-  }
-
-  public highlightElements(elements: JointHighlights): void {
-    this.highlightOperators(...elements.operators);
-    this.highlightGroups(...elements.groups);
-    this.highlightLinks(...elements.links);
-    this.highlightCommentBoxes(...elements.commentBoxes);
-    this.highlightPorts(...elements.ports);
-  }
-
   public unhighlightElements(elements: JointHighlights): void {
     this.unhighlightOperators(...elements.operators);
-    this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
     this.unhighlightCommentBoxes(...elements.commentBoxes);
     this.unhighlightPorts(...elements.ports);
@@ -389,38 +353,6 @@ export class JointGraphWrapper {
 
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
-    }
-  }
-
-  /**
-   * Highlights groups in the given list.
-   *
-   * Emits an event to the group highlight stream with a list of groupIDs
-   * that are highlighted.
-   *
-   * @param groupIDs
-   */
-  public highlightGroups(...groupIDs: string[]): void {
-    const highlightedGroupIDs: string[] = [];
-    groupIDs.forEach(groupID => this.highlightElement(groupID, this.currentHighlightedGroups, highlightedGroupIDs));
-    if (highlightedGroupIDs.length > 0) {
-      this.jointGroupHighlightStream.next(highlightedGroupIDs);
-    }
-  }
-
-  /**
-   * Unhighlights groups in the given list.
-   *
-   * Emits an event to the group unhighlight stream with a list of groupIDs
-   * that are unhighlighted.
-   *
-   * @param groupIDs
-   */
-  public unhighlightGroups(...groupIDs: string[]): void {
-    const unhighlightedGroupIDs: string[] = [];
-    groupIDs.forEach(groupID => this.unhighlightElement(groupID, this.currentHighlightedGroups, unhighlightedGroupIDs));
-    if (unhighlightedGroupIDs.length > 0) {
-      this.jointGroupUnhighlightStream.next(unhighlightedGroupIDs);
     }
   }
 
@@ -788,48 +720,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * Show the breakpoint button of a given link
-   * emits an event to the link breakpoint show stream.
-   * @param linkID
-   */
-  public showLinkBreakpoint(linkID: string): void {
-    if (!this.linksWithBreakpoints.includes(linkID)) {
-      this.linksWithBreakpoints.push(linkID);
-    }
-    this.jointLinkBreakpointShowStream.next({ linkID });
-  }
-
-  /**
-   * Hide the breakpoint button of a given link
-   * emits an event to the link breakpoint hide stream.
-   * @param linkID
-   */
-  public hideLinkBreakpoint(linkID: string): void {
-    if (!this.linksWithBreakpoints.includes(linkID)) {
-      return;
-    }
-    const LinkIndex = this.linksWithBreakpoints.indexOf(linkID);
-    this.linksWithBreakpoints.splice(LinkIndex, 1);
-    this.jointLinkBreakpointHideStream.next({ linkID });
-  }
-
-  /**
-   * This method resizes the element according to given width and height.
-   * An element can be an operator or a group.
-   */
-  public setElementSize(elementID: string, width: number, height: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
-    if (!cell) {
-      throw new Error(`element with ID ${elementID} doesn't exist`);
-    }
-    if (!cell.isElement()) {
-      throw new Error(`${elementID} is not an element`);
-    }
-    const element = <joint.dia.Element>cell;
-    element.resize(width, height);
-  }
-
-  /**
    * This method gets the cell's layer (z attribute) on the JointJS paper.
    * A cell can be an operator, a link, or a group element.
    */
@@ -839,18 +729,6 @@ export class JointGraphWrapper {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     return cell.attributes.z || 0;
-  }
-
-  /**
-   * This method sets the cell's layer (z attribute) to the given layer.
-   * A cell can be an operator, a link, or a group element.
-   */
-  public setCellLayer(cellID: string, layer: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
-    if (!cell) {
-      throw new Error(`cell with ID ${cellID} doesn't exist`);
-    }
-    cell.set("z", layer);
   }
 
   /**
@@ -894,7 +772,6 @@ export class JointGraphWrapper {
     // if the multiselect mode is off, unhighlight other highlighted elements first
     if (!this.multiSelect) {
       this.unhighlightOperators(...this.getCurrentHighlightedOperatorIDs());
-      this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
       this.unhighlightPorts(...this.getCurrentHighlightedPortIDs());
@@ -930,8 +807,6 @@ export class JointGraphWrapper {
       const deletedCellID = deletedCell.id.toString();
       if (this.currentHighlightedOperators.includes(deletedCellID)) {
         this.unhighlightOperators(deletedCellID);
-      } else if (this.currentHighlightedGroups.includes(deletedCellID)) {
-        this.unhighlightGroups(deletedCellID);
       } else if (this.currentHighlightedLinks.includes(deletedCellID)) {
         this.unhighlightLinks(deletedCellID);
       }

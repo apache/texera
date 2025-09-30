@@ -1,13 +1,31 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { Component, EventEmitter, inject, Input, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { FileUploadItem } from "../../../../../type/dashboard-file.interface";
-import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
+import { Dataset } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
-import sanitize from "sanitize-filename";
 import { HttpErrorResponse } from "@angular/common/http";
+import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -16,34 +34,26 @@ import { HttpErrorResponse } from "@angular/common/http";
   styleUrls: ["./user-dataset-version-creator.component.scss"],
 })
 export class UserDatasetVersionCreatorComponent implements OnInit {
-  @Input()
-  isCreatingVersion: boolean = false;
+  readonly isCreatingVersion: boolean = inject(NZ_MODAL_DATA).isCreatingVersion;
 
-  @Input()
-  baseVersion: DatasetVersion | undefined;
-
-  // this emits the ID of the newly created version/dataset, will emit 0 if creation is failed.
-  @Output()
-  datasetOrVersionCreationID: EventEmitter<number> = new EventEmitter<number>();
+  readonly did: number = inject(NZ_MODAL_DATA)?.did ?? undefined;
 
   isCreateButtonDisabled: boolean = false;
-
-  newUploadFiles: FileUploadItem[] = [];
-
-  removedFilePaths: string[] = [];
 
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];
   isDatasetPublic: boolean = false;
+  isDatasetDownloadable: boolean = false;
 
   // used when creating the dataset
   isDatasetNameSanitized: boolean = false;
 
   // boolean to control if is uploading
-  isUploading: boolean = false;
+  isCreating: boolean = false;
 
   constructor(
+    private modalRef: NzModalRef,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
     private formBuilder: FormBuilder
@@ -86,15 +96,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
               label: "Description",
             },
           },
-          {
-            key: "versionDescription",
-            type: "input",
-            defaultValue: "",
-            templateOptions: {
-              label: "Version Description",
-              required: false,
-            },
-          },
         ];
   }
   get formControlNames(): string[] {
@@ -102,10 +103,20 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
 
   datasetNameSanitization(datasetName: string): string {
-    const sanitizedDatasetName = sanitize(datasetName);
-    if (sanitizedDatasetName != datasetName) {
+    // Remove leading spaces
+    let sanitizedDatasetName = datasetName.trimStart();
+
+    // Replace all characters that are not letters (a-z, A-Z), numbers (0-9) with a short dash "-"
+    sanitizedDatasetName = sanitizedDatasetName.replace(/[^a-zA-Z0-9]+/g, "-");
+
+    // Lower-case everything
+    sanitizedDatasetName = sanitizedDatasetName.toLowerCase();
+
+    // Track whether user’s input be changed
+    if (sanitizedDatasetName !== datasetName) {
       this.isDatasetNameSanitized = true;
     }
+
     return sanitizedDatasetName;
   }
 
@@ -117,7 +128,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
 
   onClickCancel() {
-    this.datasetOrVersionCreationID.emit(0);
+    this.modalRef.close(null);
   }
 
   onClickCreate() {
@@ -128,61 +139,62 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       return; // Stop further execution if the form is not valid
     }
 
-    if (this.newUploadFiles.length == 0 && this.removedFilePaths.length == 0) {
-      this.notificationService.error(
-        `Please either upload new file(s) or remove old file(s) when creating a new ${this.isCreatingVersion ? "Version" : "Dataset"}`
-      );
-      return;
-    }
-
-    this.isUploading = true;
-    if (this.isCreatingVersion && this.baseVersion) {
+    this.isCreating = true;
+    if (this.isCreatingVersion && this.did) {
       const versionName = this.form.get("versionDescription")?.value;
       this.datasetService
-        .createDatasetVersion(this.baseVersion?.did, versionName, this.removedFilePaths, this.newUploadFiles)
+        .createDatasetVersion(this.did, versionName)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
             this.notificationService.success("Version Created");
-            this.datasetOrVersionCreationID.emit(res.dvid);
-            this.isUploading = false;
+            this.isCreating = false;
+            // creation succeed, emit created version
+            this.modalRef.close(res);
           },
           error: (res: unknown) => {
             const err = res as HttpErrorResponse;
             this.notificationService.error(`Version creation failed: ${err.error.message}`);
-            this.isUploading = false;
+            this.isCreating = false;
+            // creation failed, emit null value
+            this.modalRef.close(null);
           },
         });
     } else {
+      // capture original and sanitized names
+      const originalName = this.form.get("name")?.value as string;
+      const sanitizedName = this.datasetNameSanitization(originalName);
+
       const ds: Dataset = {
-        name: this.datasetNameSanitization(this.form.get("name")?.value),
+        name: sanitizedName,
         description: this.form.get("description")?.value,
-        isPublic: this.isDatasetPublic ? 1 : 0,
+        isPublic: this.isDatasetPublic,
+        isDownloadable: this.isDatasetDownloadable,
         did: undefined,
         ownerUid: undefined,
         storagePath: undefined,
         creationTime: undefined,
-        versionHierarchy: undefined,
       };
-      const initialVersionName = this.form.get("versionDescription")?.value;
-
-      // do the name sanitization
-
       this.datasetService
-        .createDataset(ds, initialVersionName, this.newUploadFiles)
+        .createDataset(ds)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
-            this.notificationService.success(
-              `Dataset '${ds.name}' Created. ${this.isDatasetNameSanitized ? "We have sanitized your provided dataset name for the compatibility reason" : ""}`
-            );
-            this.datasetOrVersionCreationID.emit(res.dataset.did);
-            this.isUploading = false;
+            const msg = this.isDatasetNameSanitized
+              ? `Dataset '${originalName}' was sanitized to '${sanitizedName}' and created successfully.`
+              : `Dataset '${sanitizedName}' created successfully.`;
+
+            this.notificationService.success(msg);
+            this.isCreating = false;
+            // if creation succeed, emit the created dashboard dataset
+            this.modalRef.close(res);
           },
           error: (res: unknown) => {
             const err = res as HttpErrorResponse;
             this.notificationService.error(`Dataset ${ds.name} creation failed: ${err.error.message}`);
-            this.isUploading = false;
+            this.isCreating = false;
+            // if creation failed, emit null value
+            this.modalRef.close(null);
           },
         });
     }
@@ -193,11 +205,8 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     this.isDatasetPublic = newValue;
   }
 
-  onNewUploadFilesChanged(files: FileUploadItem[]) {
-    this.newUploadFiles = files;
-  }
-
-  onRemovingFilePathsChanged(paths: string[]) {
-    this.removedFilePaths = this.removedFilePaths.concat(paths);
+  onDownloadableStatusChange(newValue: boolean): void {
+    // Handle the change in dataset downloadable status
+    this.isDatasetDownloadable = newValue;
   }
 }

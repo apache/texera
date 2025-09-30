@@ -1,8 +1,28 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <ul nz-menu>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks()"
     (click)="onCopy()">
     <span
       nz-icon
@@ -12,8 +32,9 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  !hasHighlightedLinks() &&
   isWorkflowModifiable"
     (click)="onCut()">
     <span
@@ -24,8 +45,9 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length === 0 &&
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length === 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()) &&
   isWorkflowModifiable"
     (click)="onPaste()">
     <span
@@ -36,7 +58,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -46,7 +69,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.disableHighlightedOperators()">
     <span
       nz-icon
@@ -56,7 +80,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.viewResultHighlightedOperators()">
     <span
       nz-icon
@@ -66,7 +91,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.viewResultHighlightedOperators()">
     <span
       nz-icon
@@ -76,7 +102,9 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    [nzDisabled]="true"
+    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
       nz-icon
@@ -86,7 +114,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
+  !hasHighlightedLinks()"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
       nz-icon
@@ -96,8 +125,23 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
+  isWorkflowModifiable"
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
+  </li>
+
+  <!-- Delete option for links only -->
+  <li
+    nz-menu-item
+    *ngIf="hasHighlightedLinks() && 
+  operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
   isWorkflowModifiable"
     (click)="onDelete()">
     <span
@@ -109,7 +153,10 @@
 
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1 && isWorkflowModifiable"
+    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0 &&
+  !hasHighlightedLinks()"
+    [nzDisabled]="!canExecuteOperator()"
     (click)="operatorMenuService.executeUpToOperator()">
     <span
       nz-icon
@@ -119,13 +166,15 @@
   </li>
 
   <li
-    nz-menu-item
-    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
-    (click)="workflowResultExportService.exportOperatorsResultAsFile()">
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
+           this.config.env.exportExecutionResultEnabled &&
+           !hasHighlightedLinks()"
+    (click)="onClickExportHighlightedExecutionResult()"
+    nz-menu-item>
     <span
       nz-icon
-      nzType="download"
+      nzType="cloud"
       nzTheme="outline"></span>
-    {{writeDownloadLabel()}}
+    Export result
   </li>
 </ul>

@@ -1,15 +1,33 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.util.JSONUtils
 import edu.uci.ics.texera.web.ServletAwareConfigurator
 import edu.uci.ics.texera.web.model.collab.event._
 import edu.uci.ics.texera.web.model.collab.request._
 import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.CollaborationResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
-import org.jooq.types.UInteger
 
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
@@ -25,7 +43,7 @@ object CollaborationResource {
   final val DUMMY_WID = -1
 
   private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
-    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
+    !WorkflowAccessResource.hasWriteAccess(Integer.valueOf(wId), Integer.valueOf(uId))
   }
 }
 
@@ -35,7 +53,7 @@ object CollaborationResource {
 )
 class CollaborationResource extends LazyLogging {
 
-  final val objectMapper = Utils.objectMapper
+  final val objectMapper = JSONUtils.objectMapper
 
   @OnMessage
   def myOnMsg(senderSession: Session, message: String): Unit = {

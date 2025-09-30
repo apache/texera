@@ -1,3 +1,22 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
 <nz-card
   class="section-title"
   style="background-color: lightcoral">
@@ -46,8 +65,22 @@
             nzType="search"></span>
         </nz-filter-trigger>
       </th>
-      <th>Action</th>
       <th
+        [nzSortFn]="sortByComment"
+        [nzSortDirections]="['ascend', 'descend']"
+        nzCustomFilter>
+        Comment
+        <nz-filter-trigger
+          [(nzVisible)]="commentSearchVisible"
+          [nzActive]="commentSearchValue.length > 0"
+          [nzDropdownMenu]="commentMenu">
+          <span
+            nz-icon
+            nzType="search"></span>
+        </nz-filter-trigger>
+      </th>
+      <th
+        nzWidth="200px"
         [nzFilterFn]="filterByRole"
         [nzSortDirections]="['ascend', 'descend']"
         [nzFilters]="[
@@ -56,9 +89,10 @@
       { text: 'ADMIN', value: 'ADMIN'},
       { text: 'RESTRICTED', value: 'RESTRICTED'}]"
         [nzSortFn]="sortByRole">
-        Role
+        User Role
       </th>
       <th>Quota</th>
+      <th>Account Creation Time</th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">
@@ -111,47 +145,100 @@
       </div>
     </div>
   </nz-dropdown-menu>
+  <nz-dropdown-menu #commentMenu="nzDropdownMenu">
+    <div class="ant-table-filter-dropdown">
+      <div class="search-box">
+        <input
+          [(ngModel)]="commentSearchValue"
+          nz-input
+          placeholder="Search comment"
+          type="text" />
+        <button
+          (click)="searchByComment()"
+          class="search-button"
+          nz-button
+          nzSize="small"
+          nzType="primary">
+          Search
+        </button>
+        <button
+          (click)="reset()"
+          nz-button
+          nzSize="small">
+          Reset
+        </button>
+      </div>
+    </div>
+  </nz-dropdown-menu>
   <tbody>
     <tr *ngFor="let user of basicTable.data">
       <td>
         <texera-user-avatar
-          [googleAvatar]="'https://lh3.googleusercontent.com/a/' + user.googleAvatar"
+          [googleAvatar]="user.googleAvatar"
           [userName]="user.name"
-          class="user-avatar"></texera-user-avatar>
+          class="user-avatar"
+          [ngClass]="{ active: isUserActive(user) }">
+        </texera-user-avatar>
       </td>
       <td>{{user.uid}}</td>
       <td>
-        <ng-container *ngIf="editUid !== user.uid; else editNameTemplate"> {{user.name}} </ng-container>
-        <ng-template #editNameTemplate>
-          <input
-            [(ngModel)]="editName"
-            nz-input
-            type="text" />
-        </ng-template>
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'name'; else editNameTemplate">
+            <div
+              class="container"
+              (click)="startEdit(user, 'name')">
+              {{user.name}}
+            </div>
+          </ng-container>
+          <ng-template #editNameTemplate>
+            <input
+              #nameInput
+              [(ngModel)]="editName"
+              (keydown.enter)="saveEdit()"
+              nz-input
+              (click)="$event.stopPropagation()"
+              type="text" />
+          </ng-template>
+        </div>
       </td>
       <td>
-        <ng-container *ngIf="editUid !== user.uid; else editEmailTemplate"> {{user.email}} </ng-container>
-        <ng-template #editEmailTemplate>
-          <input
-            [(ngModel)]="editEmail"
-            [email]="true"
-            nz-input
-            type="email" />
-        </ng-template>
-      </td>
-      <td style="color: #1890ff">
-        <div>
-          <ng-container *ngIf="editUid !== user.uid; else editActionTemplate">
-            <a (click)="startEdit(user)">Edit</a>
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'email'; else editEmailTemplate">
+            <div
+              class="container"
+              (click)="startEdit(user, 'email')">
+              {{user.email}}
+            </div>
           </ng-container>
-          <ng-template #editActionTemplate>
-            <a
-              (nzOnConfirm)="saveEdit()"
-              nz-popconfirm=""
-              nzPopconfirmTitle="Sure to save?"
-              >Save</a
-            >&nbsp;
-            <a (click)="stopEdit()">Cancel</a>
+          <ng-template #editEmailTemplate>
+            <input
+              #emailInput
+              [(ngModel)]="editEmail"
+              (keydown.enter)="saveEdit()"
+              [email]="true"
+              nz-input
+              (click)="$event.stopPropagation()"
+              type="email" />
+          </ng-template>
+        </div>
+      </td>
+      <td>
+        <div (focusout)="saveEdit()">
+          <ng-container *ngIf="editUid !== user.uid || editAttribute !== 'comment'; else editCommentTemplate">
+            <div
+              class="limited-comment container"
+              (click)="startEdit(user, 'comment')">
+              {{ user.comment }}
+            </div>
+          </ng-container>
+          <ng-template #editCommentTemplate>
+            <textarea
+              #commentTextarea
+              [(ngModel)]="editComment"
+              (keydown.enter)="saveEdit()"
+              nz-input
+              (click)="$event.stopPropagation()"
+              type="text"></textarea>
           </ng-template>
         </div>
       </td>
@@ -206,6 +293,12 @@
             nzTheme="outline"
             nzType="dashboard"></i>
         </button>
+      </td>
+      <td>
+        <ng-container *ngIf="getAccountCreation(user) as ac; else noAC">
+          {{ ac | date:'MM/dd/y, h:mm a' }}
+        </ng-container>
+        <ng-template #noAC>—</ng-template>
       </td>
     </tr>
   </tbody>

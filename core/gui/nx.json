@@ -1,24 +1,13 @@
 {
   "tasksRunnerOptions": {
     "default": {
-      "runner": "@nrwl/nx-cloud",
       "options": {
-        "cacheableOperations": [
-          "build",
-          "lint"
-        ],
-        "runtimeCacheInputs": [
-          "node -v",
-          "yarn run nodecat ./src/environments/environment.prod.ts"
-        ],
-        "accessToken": "Njk2ODE5NjMtMmRjNy00NjNmLWEwMDAtZGVkZTMwMmMwM2M2fHJlYWQtd3JpdGU=",
-        "parallel": 1
+        "runtimeCacheInputs": ["node -v", "yarn run nodecat ./src/environments/environment.prod.ts"]
       }
     }
   },
   "cli": {
-    "analytics": false,
-    "defaultCollection": "@nrwl/angular"
+    "analytics": false
   },
   "generators": {
     "@schematics/angular:component": {
@@ -28,5 +17,22 @@
     "@schematics/angular:directive": {
       "prefix": "texera"
     }
-  }
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "sharedGlobals": [],
+    "production": ["default"]
+  },
+  "targetDefaults": {
+    "build": {
+      "inputs": ["production", "^production"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    }
+  },
+  "nxCloudAccessToken": "Njk2ODE5NjMtMmRjNy00NjNmLWEwMDAtZGVkZTMwMmMwM2M2fHJlYWQtd3JpdGU=",
+  "parallel": 1,
+  "useLegacyCache": true
 }

@@ -1,4 +1,33 @@
-import { ChangeDetectorRef, Component, OnInit, Type, HostListener, OnDestroy } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  Type,
+  HostListener,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  AfterViewInit,
+} from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -16,7 +45,15 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { isDefined } from "../../../common/util/predicate";
+import { CdkDragEnd, CdkDragStart } from "@angular/cdk/drag-drop";
+import { PanelService } from "../../service/panel/panel.service";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
+import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
+export const DEFAULT_WIDTH = 800;
+export const DEFAULT_HEIGHT = 300;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -28,15 +65,13 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
+  @ViewChild("dynamicComponent")
+  componentOutlets!: ElementRef;
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
-  width = 800;
-  height = 300;
-  prevWidth = 800;
-  prevHeight = 300;
-  maxWidth = window.innerWidth;
-  maxHeight = window.innerHeight;
+  width = DEFAULT_WIDTH;
+  height = DEFAULT_HEIGHT;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -49,14 +84,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
+    private workflowCompilingService: WorkflowCompilingService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService,
+    private panelService: PanelService
   ) {
-    const width = localStorage.getItem("result-panel-width");
-    if (width) this.width = Number(width);
+    this.width = 0;
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
     this.resizeService.changePanelSize(this.width, this.height);
   }
@@ -67,16 +103,33 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const translates = document.getElementById("result-container")!.style.transform;
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
+    this.workflowActionService.resultPanelOpen$.pipe(untilDestroyed(this)).subscribe(open => {
+      if (open) {
+        this.openPanel();
+      } else {
+        this.closePanel();
+      }
+    });
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("result-panel-width", String(this.width));
     localStorage.setItem("result-panel-height", String(this.height));
-    localStorage.setItem("result-panel-style", document.getElementById("result-container")!.style.cssText);
+
+    const resultContainer = document.getElementById("result-container");
+    if (resultContainer) {
+      localStorage.setItem("result-panel-style", resultContainer.style.cssText);
+    }
   }
 
   handleResultPanelForVersionPreview() {
@@ -140,6 +193,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.executeWorkflowService
         .getExecutionStateStream()
         .pipe(filter(event => ResultPanelComponent.needRerenderOnStateChange(event))),
+      this.workflowCompilingService.getCompilationStateInfoChangedStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowResultService.getResultInitiateStream()
@@ -161,18 +215,26 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+
     if (this.currentOperatorId !== currentHighlightedOperator) {
       // clear everything, prepare for state change
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
+
+      if (!this.currentOperatorId) {
+        this.operatorTitle = "";
+      }
     }
 
-    if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed) {
+    if (
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed ||
+      this.workflowCompilingService.getWorkflowCompilationState() === CompilationState.Failed
+    ) {
       if (this.currentOperatorId == null) {
         this.displayError(this.currentOperatorId);
       } else {
-        const errorMessages = this.executeWorkflowService.getErrorMessages();
-        if (errorMessages.filter(msg => msg.operatorId === this.currentOperatorId).length > 0) {
+        const errorMessages = this.getWorkflowFatalErrors(this.currentOperatorId);
+        if (errorMessages.length > 0) {
           this.displayError(this.currentOperatorId);
         } else {
           this.frameComponentConfigs.delete("Static Error");
@@ -227,6 +289,18 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     }
   }
 
+  private getWorkflowFatalErrors(operatorId?: string): readonly WorkflowFatalError[] {
+    // first fetch the error messages from the execution state store
+    let errorMessages = this.executeWorkflowService.getErrorMessages();
+    // then fetch error from the compilation state store
+    errorMessages = errorMessages.concat(Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()));
+    // finally, if any operatorId is given, filter out those with matched Id
+    if (operatorId) {
+      errorMessages = errorMessages.filter(err => err.operatorId === operatorId);
+    }
+    return errorMessages;
+  }
+
   private registerOperatorDisplayNameChangeHandler(): void {
     if (this.currentOperatorId) {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
@@ -236,8 +310,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         .getOperatorDisplayNameChangedStream()
         .pipe(untilDestroyed(this))
         .subscribe(({ operatorID, newDisplayName }) => {
-          console.log(operatorID);
-          console.log(this.currentOperatorId);
           if (operatorID === this.currentOperatorId) {
             this.operatorTitle = newDisplayName;
           }
@@ -264,13 +336,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = this.prevHeight;
-    this.width = this.prevWidth;
+    this.height = DEFAULT_HEIGHT;
+    this.width = DEFAULT_WIDTH;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 
   closePanel() {
-    this.prevHeight = this.height;
-    this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
   }
@@ -279,12 +350,44 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
+  isPanelDocked() {
+    return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
+  }
+
+  handleStartDrag() {
+    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
+    if (visualizationResult !== null) {
+      visualizationResult.style.zIndex = -1;
+    }
+  }
+
+  handleEndDrag({ source }: CdkDragEnd) {
+    /**
+     * records the most recent panel location, updating dragPosition when dragging is over
+     */
+    const { x, y } = source.getFreeDragPosition();
+    this.dragPosition = { x: x, y: y };
+    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
+    if (visualizationResult !== null) {
+      visualizationResult.style.zIndex = 0;
+    }
+  }
+
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
+    this.updateReturnPosition(this.height, height);
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
+    /**
+     * Updating returnPosition ensures that even if the panel gets resized,it can be docked correctly to the left-bottom corner of the canvas.
+     */
+    if (!isDefined(newHeight)) return;
+    this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
   }
 }

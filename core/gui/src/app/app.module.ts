@@ -1,7 +1,26 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { DatePipe, registerLocaleData } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
-import { NgModule } from "@angular/core";
+import { NgModule, APP_INITIALIZER } from "@angular/core";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -33,6 +52,7 @@ import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserService } from "./common/service/user/user.service";
+import { GuiConfigService } from "./common/service/gui-config.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
@@ -83,10 +103,10 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
-import { HomeComponent } from "./hub/component/home/home.component";
+import { AboutComponent } from "./hub/component/about/about.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./hub/component/home/local-login/local-login.component";
+import { LocalLoginComponent } from "./hub/component/about/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
@@ -116,7 +136,7 @@ import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
-import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -132,17 +152,32 @@ import { ReportGenerationService } from "./workspace/service/report-generation/r
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
-import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-workflow-result.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
-import { HubWorkflowSearchBarComponent } from "./hub/component/workflow/search-bar/hub-workflow-search-bar.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
+import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
+import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { GoogleAuthService } from "./common/service/user/google-auth.service";
+import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
+import { lastValueFrom, firstValueFrom } from "rxjs";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
+import { UserDatasetStagedObjectsListComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-staged-objects-list/user-dataset-staged-objects-list.component";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
+import { NzDividerModule } from "ng-zorro-antd/divider";
+import { NzProgressModule } from "ng-zorro-antd/progress";
+import { ComputingUnitSelectionComponent } from "./workspace/component/power-button/computing-unit-selection.component";
+import { NzSliderModule } from "ng-zorro-antd/slider";
+import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
+import { catchError, of } from "rxjs";
+import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
+import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    FormlyRepeatDndComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     AppComponent,
@@ -193,10 +228,11 @@ registerLocaleData(en);
     FilesUploaderComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
-    UserDatasetExplorerComponent,
+    DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
+    UserDatasetStagedObjectsListComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     LocalLoginComponent,
@@ -205,7 +241,7 @@ registerLocaleData(en);
     InputAutoCompleteComponent,
     FileSelectionComponent,
     CollabWrapperComponent,
-    HomeComponent,
+    AboutComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
     SortButtonComponent,
@@ -220,12 +256,14 @@ registerLocaleData(en);
     SearchBarComponent,
     ListItemComponent,
     HubComponent,
-    HubWorkflowComponent,
-    HubWorkflowSearchComponent,
-    HubWorkflowSearchBarComponent,
     HubWorkflowDetailComponent,
-    HubWorkflowResultComponent,
-    GoogleLoginComponent,
+    LandingPageComponent,
+    BrowseSectionComponent,
+    BreakpointConditionInputComponent,
+    CodeDebuggerComponent,
+    HubSearchResultComponent,
+    ComputingUnitSelectionComponent,
+    AdminSettingsComponent,
   ],
   imports: [
     BrowserModule,
@@ -236,10 +274,11 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
+        disallowedRoutes: ["forum/api/users"],
       },
     }),
     BrowserAnimationsModule,
-    RouterModule.forRoot([]),
+    RouterModule,
     FormsModule,
     ReactiveFormsModule,
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
@@ -274,6 +313,7 @@ registerLocaleData(en);
     ColorPickerModule,
     NzSwitchModule,
     NzLayoutModule,
+    NzSliderModule,
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,
@@ -284,6 +324,12 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
+    SocialLoginModule,
+    GoogleSigninButtonModule,
+    NzEmptyModule,
+    NzDividerModule,
+    NzProgressModule,
+    NzInputNumberModule,
   ],
   providers: [
     provideNzI18n(en_US),
@@ -291,11 +337,41 @@ registerLocaleData(en);
     AdminGuardService,
     DatePipe,
     UserService,
+    GuiConfigService,
     FileSaverService,
     ReportGenerationService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
+      multi: true,
+    },
+    {
+      provide: "SocialAuthServiceConfig",
+      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
+        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+          providers: [
+            {
+              id: GoogleLoginProvider.PROVIDER_ID,
+              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
+            },
+          ],
+        })) as Promise<SocialAuthServiceConfig>;
+      },
+      deps: [GoogleAuthService, UserService],
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (configService: GuiConfigService) => () =>
+        firstValueFrom(
+          configService.load().pipe(
+            catchError((err: unknown) => {
+              console.error("Failed to load GUI config during app init:", err);
+              // swallow error so the app can still bootstrap; app.component.ts will show the error message as HTML.
+              return of(null);
+            })
+          )
+        ),
+      deps: [GuiConfigService],
       multi: true,
     },
   ],

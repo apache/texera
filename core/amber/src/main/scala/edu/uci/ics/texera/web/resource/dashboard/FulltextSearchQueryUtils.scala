@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
 
-import org.jooq.{Condition, Field}
 import org.jooq.impl.DSL.{condition, noCondition}
+import org.jooq.{Condition, Field}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
@@ -10,36 +29,42 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
+  var usePgroonga: Boolean = true // only override by tests
+
   def getFullTextSearchFilter(
       keywords: Seq[String],
       fields: List[Field[String]]
   ): Condition = {
-    if (fields.isEmpty) return noCondition()
-    val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-    val fullFieldNames = fields.map(_.toString.replace("\"", ""))
-    val indexedCompoundFields = fullFieldNames.mkString(",")
-    trimmedKeywords.foldLeft(noCondition()) { (acc, key) =>
-      val words = key.split("\\s+")
-      acc.and(
-        condition(
-          s"MATCH($indexedCompoundFields) AGAINST('${words.mkString("+", " +", "")}' IN BOOLEAN MODE)",
-          key
-        )
-      )
+    // If no target columns, skip fulltext search
+    if (fields.isEmpty) {
+      return noCondition()
     }
-  }
-
-  def getSubstringSearchFilter(
-      keywords: Seq[String],
-      fields: List[Field[String]]
-  ): Condition = {
-    if (fields.isEmpty) return noCondition()
+    // Filter out empty keywords and trim
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
-    val fullFieldNames = fields.map(_.toString.replace("\"", ""))
-    fullFieldNames.foldLeft(noCondition()) { (acc, fieldName) =>
-      acc.or(trimmedKeywords.foldLeft(noCondition()) { (accInner, key) =>
-        accInner.and(s"$fieldName LIKE '%$key%'")
-      })
+    // If no keywords, skip fulltext search
+    if (trimmedKeywords.isEmpty) {
+      return noCondition()
+    }
+    // Concatenate the fields into a single expression.
+    val combinedFields = fields
+      .map(f => s"COALESCE($f, '')") // convert null values to empty string
+      .mkString(" || ' ' || ")
+    if (usePgroonga) {
+      // Combine all keywords (AND) into a single PGroonga
+      // fuzzy search condition with a fixed threshold
+      val fuzzySearchCondition =
+        s"($combinedFields) &@~ pgroonga_condition('${trimmedKeywords.mkString(" ")}', fuzzy_max_distance_ratio => 0.34)"
+      // Return the condition
+      condition(fuzzySearchCondition, trimmedKeywords.mkString(" "))
+    } else {
+      // Only invoked by tests that uses embedded DB
+      trimmedKeywords.foldLeft(noCondition()) { (acc, keyword) =>
+        val words = keyword.split("\\s+").filter(_.nonEmpty)
+        val tsQuery = words.mkString(" & ")
+        val conditionExpr =
+          s"to_tsvector('english', $combinedFields) @@ to_tsquery('english', '$tsQuery')"
+        acc.and(condition(conditionExpr, keyword))
+      }
     }
   }
 
@@ -113,14 +138,23 @@ object FulltextSearchQueryUtils {
       operators: java.util.List[String],
       field: Field[String]
   ): Condition = {
+    // Convert to a Set to avoid duplicates
     val operatorSet = operators.asScala.toSet
+    // Start with a "no condition" (logical TRUE) so we can accumulate
     var fieldFilter = noCondition()
-    for (operator <- operatorSet) {
-      val quotes = "\""
-      val searchKey =
-        "%" + quotes + "operatorType" + quotes + ":" + quotes + operator + quotes + "%"
-      fieldFilter = fieldFilter.or(field.likeIgnoreCase(searchKey))
+
+    // For each operator, build the substring pattern
+    operatorSet.foreach { operator =>
+      // e.g. => % "operatorType":"someOperator" %
+      val searchKey = s"""%"operatorType":"$operator"%"""
+
+      // Use jOOQ's likeIgnoreCase for case-insensitive matching
+      val cond = field.likeIgnoreCase(searchKey)
+
+      // Accumulate with OR
+      fieldFilter = fieldFilter.or(cond)
     }
+
     fieldFilter
   }
 

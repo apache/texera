@@ -1,5 +1,24 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 :host ::ng-deep .ant-table-pagination.ant-pagination {
-  margin: 10px;
+  margin: 16px 0;
 }
 
 // make the pagination button to the left
@@ -21,7 +40,8 @@ th.header-size {
   border-bottom: 1px solid #ccc;
   border-top: 1px solid #ccc;
   border-left: 1px solid #ccc;
-  height: 88px;
+  height: auto;
+  padding: 2px 4px;
 }
 
 .custom-stats-row th:first-child {
@@ -29,9 +49,8 @@ th.header-size {
 }
 
 .statsHeader {
-  max-height: 70px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  max-height: none;
+  padding: 2px 0;
 }
 
 .statsLine {
@@ -39,6 +58,13 @@ th.header-size {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 16px;
+}
+
+.statsLine h5 {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 12px;
 }
 
 .leftAlign {
@@ -99,4 +125,20 @@ th.header-size {
       opacity: 1;
     }
   }
+}
+
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.table-container {
+  position: relative;
+}
+
+.download-all-button {
+  position: absolute;
+  bottom: 16px;
+  right: 0;
 }

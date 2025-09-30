@@ -1,40 +1,34 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
-import { Subject } from "rxjs";
+import { Observable } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import { AppSettings } from "../../app-setting";
-declare var window: any;
-export interface CredentialResponse {
-  client_id: string;
-  credential: string;
-  select_by: string;
-}
+
 @Injectable({
   providedIn: "root",
 })
 export class GoogleAuthService {
-  private _googleCredentialResponse = new Subject<CredentialResponse>();
   constructor(private http: HttpClient) {}
-  public googleAuthInit(parent: HTMLElement | null) {
-    this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" }).subscribe({
-      next: response => {
-        window.onGoogleLibraryLoad = () => {
-          window.google.accounts.id.initialize({
-            client_id: response,
-            callback: (auth: CredentialResponse) => {
-              this._googleCredentialResponse.next(auth);
-            },
-          });
-          window.google.accounts.id.renderButton(parent, { width: 270 });
-          window.google.accounts.id.prompt();
-        };
-      },
-      error: (err: unknown) => {
-        console.error(err);
-      },
-    });
-  }
 
-  get googleCredentialResponse() {
-    return this._googleCredentialResponse.asObservable();
+  getClientId(): Observable<string> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" });
   }
 }

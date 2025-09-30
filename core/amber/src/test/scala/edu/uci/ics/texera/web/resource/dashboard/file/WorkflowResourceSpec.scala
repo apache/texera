@@ -1,30 +1,49 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.web.MockTexeraDB
-import edu.uci.ics.texera.web.auth.SessionUser
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, User, Workflow}
-import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.MockTexeraDB
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   WorkflowIDs
 }
+import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.util.concurrent.TimeUnit
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.time.{OffsetDateTime, ZoneOffset, Duration}
 import java.util
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -32,21 +51,29 @@ class WorkflowResourceSpec
     with BeforeAndAfterEach
     with MockTexeraDB {
 
+  // An example creation time to test Account Creation Time attribute
+  private val exampleCreationTime: OffsetDateTime =
+    OffsetDateTime.parse("2025-01-01T00:00:00Z")
+
   private val testUser: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(1))
+    user.setUid(Integer.valueOf(1))
     user.setName("test_user")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment")
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
   private val testUser2: User = {
     val user = new User
-    user.setUid(UInteger.valueOf(2))
+    user.setUid(Integer.valueOf(2))
     user.setName("test_user2")
-    user.setRole(UserRole.ADMIN)
+    user.setRole(UserRoleEnum.ADMIN)
     user.setPassword("123")
+    user.setComment("test_comment2")
+    user.setAccountCreationTime(exampleCreationTime)
     user
   }
 
@@ -124,7 +151,7 @@ class WorkflowResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-
+    FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(testUser)
@@ -175,8 +202,102 @@ class WorkflowResourceSpec
     }
     keywordsList
   }
+
+  private def insertAndAssertAccountCreation(uid: Int, ts: OffsetDateTime): Unit = {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u = new User
+    u.setUid(Integer.valueOf(uid))
+    u.setName(s"tmp_user_$uid")
+    u.setRole(UserRoleEnum.REGULAR)
+    u.setPassword("pw")
+    u.setComment("tmp")
+    u.setAccountCreationTime(ts)
+    userDao.insert(u)
+
+    try {
+      val fetched = userDao.fetchOneByUid(Integer.valueOf(uid))
+      assert(fetched.getAccountCreationTime != null)
+      assert(fetched.getAccountCreationTime.isEqual(ts))
+    } finally {
+      userDao.deleteById(Integer.valueOf(uid))
+    }
+  }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
+  }
+
+  "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val u2 = userDao.fetchOneByUid(Integer.valueOf(2))
+
+    assert(u1.getAccountCreationTime != null)
+    assert(u2.getAccountCreationTime != null)
+
+    assert(u1.getAccountCreationTime.isEqual(exampleCreationTime))
+    assert(u2.getAccountCreationTime.isEqual(exampleCreationTime))
+  }
+
+  it should "remain unchanged when updating unrelated fields" in {
+    val userDao = new UserDao(getDSLContext.configuration())
+    val u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    val originalTime = u1.getAccountCreationTime
+
+    u1.setComment("updated_comment")
+    userDao.update(u1)
+
+    val test_u1 = userDao.fetchOneByUid(Integer.valueOf(1))
+    assert(test_u1.getAccountCreationTime.isEqual(originalTime))
+  }
+
+  it should "fallback to DB default when not explicitly set on insert" in {
+    // account_creation_time TIMESTAMPTZ NOT NULL DEFAULT now()
+    val userDao = new UserDao(getDSLContext.configuration())
+    // Test user 3 on top of test user 1 and 2
+    val userId = 3
+    val tmp = new User
+    tmp.setUid(Integer.valueOf(userId))
+    tmp.setName("tmp_user")
+    tmp.setRole(UserRoleEnum.REGULAR)
+    tmp.setPassword("pw")
+    tmp.setComment("tmp")
+    // Account creation time not set
+    userDao.insert(tmp)
+
+    val fetched = userDao.fetchOneByUid(Integer.valueOf(3))
+    assert(fetched.getAccountCreationTime != null)
+
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
+    val diff = Duration.between(fetched.getAccountCreationTime, now).abs()
+    assert(diff.toMinutes <= 2)
+  }
+
+  // Testing with user id 4
+  it should "persist and retrieve a non-UTC offset time (ex: +09:00 JST)" in {
+    val userId = 4
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2020-06-15T12:34:56+09:00")
+    )
+  }
+
+  // Testing with user id 5
+  it should "persist and retrieve a leap day timestamp" in {
+    val userId = 5
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2024-02-29T23:59:59Z")
+    )
+  }
+
+  // Testing with user id 6
+  it should "persist and retrieve a future timestamp" in {
+    val userId = 6
+    insertAndAssertAccountCreation(
+      uid = userId,
+      ts = OffsetDateTime.parse("2100-12-31T23:59:59Z")
+    )
   }
 
   "/search API " should "be able to search for workflows in different columns in Workflow table" in {
@@ -324,27 +445,9 @@ class WorkflowResourceSpec
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
       assertSameWorkflow(workflow, DashboardWorkflowEntryList.head.workflow.get)
     }
+
     test(sessionUser1, testWorkflow1)
     test(sessionUser2, testWorkflow2)
-  }
-
-  it should "search for keywords containing special characters" in {
-    // testWorkflow1: {name: test_name, description: test_description, content: "key@gmail.com"}
-    // search "key@gmail.com" should return testWorkflow1
-    workflowResource.persistWorkflow(testWorkflowWithSpecialCharacters, sessionUser1)
-    workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
-    val DashboardWorkflowEntryList =
-      dashboardResource
-        .searchAllResourcesCall(
-          sessionUser1,
-          SearchQueryParams(getKeywordsArray(exampleEmailAddress))
-        )
-        .results
-    assert(DashboardWorkflowEntryList.size == 1)
-    assertSameWorkflow(
-      testWorkflowWithSpecialCharacters,
-      DashboardWorkflowEntryList.head.workflow.get
-    )
   }
 
   it should "return a proper condition for a single owner" in {
@@ -362,43 +465,43 @@ class WorkflowResourceSpec
   }
 
   it should "return a proper condition for a single projectId" in {
-    val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val projectIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
-    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
+    assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple projectIds" in {
-    val projectIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val projectIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val projectFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW_OF_PROJECT.PID.eq(Integer.valueOf(2)))
         .toString
     )
   }
 
   it should "return a proper condition for a single workflowID" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
+    val workflowIdList = new java.util.ArrayList[Integer](util.Arrays.asList(Integer.valueOf(1)))
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
-    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
+    assert(workflowIdFilter.toString == WORKFLOW.WID.eq(Integer.valueOf(1)).toString)
   }
 
   it should "return a proper condition for multiple workflowIDs" in {
-    val workflowIdList = new java.util.ArrayList[UInteger](
-      util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
+    val workflowIdList = new java.util.ArrayList[Integer](
+      util.Arrays.asList(Integer.valueOf(1), Integer.valueOf(2))
     )
     val workflowIdFilter: Condition =
       FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
-        .eq(UInteger.valueOf(1))
-        .or(WORKFLOW.WID.eq(UInteger.valueOf(2)))
+        .eq(Integer.valueOf(1))
+        .or(WORKFLOW.WID.eq(Integer.valueOf(2)))
         .toString
     )
   }

@@ -1,17 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  DatasetUserAccessPrivilege,
-  WorkflowUserAccessPrivilege
-}
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
-import org.jooq.types.UInteger
 import org.jooq.{Field, Record}
 
 import java.sql.Timestamp
-import java.lang.Byte
 import scala.collection.mutable
 
 object UnifiedResourceSchema {
@@ -32,29 +46,31 @@ object UnifiedResourceSchema {
   val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
 
-  final lazy val context = SqlServer.createDSLContext()
+  final lazy val context = SqlServer
+    .getInstance()
+    .createDSLContext()
+
   def apply(
       resourceType: Field[String] = DSL.inline(""),
       name: Field[String] = DSL.inline(""),
       description: Field[String] = DSL.inline(""),
-      creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      lastModifiedTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      ownerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      wid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
-        DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
+      creationTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
+      lastModifiedTime: Field[Timestamp] = DSL.cast(null, classOf[Timestamp]),
+      ownerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      wid: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      workflowUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum]),
       projectsOfWorkflow: Field[String] = DSL.inline(""),
-      uid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+      uid: Field[Integer] = DSL.cast(null, classOf[Integer]),
       userName: Field[String] = DSL.inline(""),
       userEmail: Field[String] = DSL.inline(""),
-      pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+      pid: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      projectOwnerId: Field[Integer] = DSL.cast(null, classOf[Integer]),
       projectColor: Field[String] = DSL.inline(""),
-      did: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
-      isDatasetPublic: Field[Byte] = DSL.inline(null, classOf[Byte]),
-      datasetUserAccess: Field[DatasetUserAccessPrivilege] =
-        DSL.inline(null, classOf[DatasetUserAccessPrivilege])
+      did: Field[Integer] = DSL.cast(null, classOf[Integer]),
+      datasetStoragePath: Field[String] = DSL.cast(null, classOf[String]),
+      isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
+      isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
+      datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -75,8 +91,9 @@ object UnifiedResourceSchema {
         projectColor -> projectColor.as("color"),
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
-        datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
-        isDatasetPublic -> isDatasetPublic.as("is_dataset_public")
+        isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
+        isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
+        datasetUserAccess -> datasetUserAccess.as("user_dataset_access")
       )
     )
   }
@@ -91,31 +108,34 @@ object UnifiedResourceSchema {
   * - `description`: A textual description of the resource as a `String`.
   * - `creationTime`: The timestamp when the resource was created, as a `Timestamp`.
   * - `lastModifiedTime`: The timestamp of the last modification to the resource, as a `Timestamp` (applicable to workflows).
-  * - `ownerId`: The identifier of the resource's owner, as a `UInteger`.
+  * - `ownerId`: The identifier of the resource's owner, as an `Integer`.
   *
   * Attributes specific to workflows:
-  * - `wid`: Workflow ID, as a `UInteger`.
-  * - `workflowUserAccess`: Access privileges associated with the workflow, as a `WorkflowUserAccessPrivilege`.
+  * - `wid`: Workflow ID, as an `Integer`.
+  * - `workflowUserAccess`: Access privileges associated with the workflow, as a `PrivilegeEnum`.
   * - `projectsOfWorkflow`: IDs of projects associated with the workflow, concatenated as a `String`.
-  * - `uid`: User ID associated with the workflow, as a `UInteger`.
+  * - `uid`: User ID associated with the workflow, as an `Integer`.
   * - `userName`: Name of the user associated with the workflow, as a `String`.
   * - `userEmail`: Email of the user associated with the workflow, as a `String`.
   *
   * Attributes specific to projects:
-  * - `pid`: Project ID, as a `UInteger`.
-  * - `projectOwnerId`: ID of the project owner, as a `UInteger`.
+  * - `pid`: Project ID, as an `Integer`.
+  * - `projectOwnerId`: ID of the project owner, as an `Integer`.
   * - `projectColor`: Color associated with the project, as a `String`.
   *
   * Attributes specific to files:
-  * - `fid`: File ID, as a `UInteger`.
+  * - `fid`: File ID, as an `Integer`.
   * - `fileUploadTime`: Timestamp when the file was uploaded, as a `Timestamp`.
   * - `filePath`: Path of the file, as a `String`.
-  * - `fileSize`: Size of the file, as a `UInteger`.
+  * - `fileSize`: Size of the file, as an `Integer`.
   * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
   *
   * Attributes specific to datasets:
-  * - `did`: Dataset ID, as a `UInteger`.
-  * - `datasetUserAccess`: Access privileges for the dataset, as a `DatasetUserAccessPrivilege`
+  * - `did`: Dataset ID, as an `Integer`.
+  * - `datasetStoragePath`: The storage path of the dataset, as a `String`.
+  * - `isDatasetPublic`: Indicates if the dataset is public, as a `Boolean`.
+  * - `isDatasetDownloadable`: Indicates if the dataset is downloadable, as a `Boolean`.
+  * - `datasetUserAccess`: Access privileges for the dataset, as a `PrivilegeEnum`
   */
 class UnifiedResourceSchema private (
     fieldMappingSeq: Seq[(Field[_], Field[_])]

@@ -1,6 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { AfterViewInit, Component, Inject, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
+import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../../service/user/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -42,6 +61,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "",
     "Avatar",
     "Name (ID)",
+    "Computing Unit ID",
     "Execution Start Time",
     "Execution Completion Time",
     "Status",
@@ -51,6 +71,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
     "Name (ID)": "Execution Name",
+    "Computing Unit ID": "ID of the Computing Unit that ran the Workflow",
     Username: "The User Who Ran This Execution",
     "Execution Start Time": "Start Time of Workflow Execution",
     "Execution Completion Time": "Latest Status Updated Time of Workflow Execution",
@@ -64,6 +85,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public customColumnWidth: Record<string, string> = {
     "": "0%",
     "Name (ID)": "7%",
+    "Computing Unit ID": "7%",
     "Workflow Version Sample": "10%",
     Avatar: "5.5%",
     "Execution Start Time": "9%",
@@ -106,7 +128,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     ["failed", 4],
     ["killed", 5],
   ]);
-  public showORhide: boolean[] = [false, false, false, true];
+  public showORhide: boolean[] = [false, false, false, false, true];
   public avatarColors: { [key: string]: string } = {};
   public checked: boolean = false;
   public setOfEid = new Set<number>();
@@ -136,14 +158,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .subscribe(workflowExecutions => {
         // generate charts data
         let userNameData: { [key: string]: [string, number] } = {};
-        const statusMap: { [key: number]: string } = {
-          0: "initializing",
-          1: "running",
-          2: "paused",
-          3: "completed",
-          4: "failed",
-          5: "killed",
-        };
         let statusData: { [key: string]: [string, number] } = {};
 
         workflowExecutions.forEach(execution => {
@@ -151,10 +165,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
             userNameData[execution.userName] = [execution.userName, 0];
           }
           userNameData[execution.userName][1] += 1;
-          if (statusData[statusMap[execution.status]] === undefined) {
-            statusData[statusMap[execution.status]] = [statusMap[execution.status], 0];
+          if (statusData[EXECUTION_STATUS_CODE[execution.status]] === undefined) {
+            statusData[EXECUTION_STATUS_CODE[execution.status]] = [EXECUTION_STATUS_CODE[execution.status], 0];
           }
-          statusData[statusMap[execution.status]][1] += 1;
+          statusData[EXECUTION_STATUS_CODE[execution.status]][1] += 1;
         });
 
         this.generatePieChart(
@@ -245,7 +259,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        console.log(this.allExecutionEntries);
         this.dscSort("Execution Start Time");
         this.updatePaginatedExecutions();
       });
@@ -394,6 +407,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
         .sort((exe1, exe2) =>
           exe1.completionTime > exe2.completionTime ? 1 : exe2.completionTime > exe1.completionTime ? -1 : 0
         );
+    } else if (type === "Computing Unit ID") {
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
+        ?.slice()
+        .sort((a, b) => a.cuId - b.cuId);
     }
   }
 
@@ -421,6 +438,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
         .sort((exe1, exe2) =>
           exe1.completionTime < exe2.completionTime ? 1 : exe2.completionTime < exe1.completionTime ? -1 : 0
         );
+    } else if (type === "Computing Unit ID") {
+      this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
+        ?.slice()
+        .sort((a, b) => b.cuId - a.cuId);
     }
   }
 
@@ -684,9 +705,9 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     return processTimeData;
   }
 
-  showRuntimeStatistics(eId: number): void {
+  showRuntimeStatistics(eId: number, cuid: number): void {
     this.workflowExecutionsService
-      .retrieveWorkflowRuntimeStatistics(this.wid, eId)
+      .retrieveWorkflowRuntimeStatistics(this.wid, eId, cuid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
         this.modalRef = this.runtimeStatisticsModal.create({

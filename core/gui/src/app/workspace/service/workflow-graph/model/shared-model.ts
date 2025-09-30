@@ -1,12 +1,36 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
-import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
-import { User, CoeditorState } from "../../../../common/type/user";
+import {
+  CommentBox,
+  OperatorLink,
+  OperatorPredicate,
+  Point,
+  BreakpointInfo,
+} from "../../../types/workflow-common.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
-import { environment } from "../../../../../environments/environment";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -20,6 +44,7 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
+  public debugState: Y.Map<Y.Map<BreakpointInfo>>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -30,12 +55,15 @@ export class SharedModel {
    * users don't interfere with each other.
    * @param wid workflow ID number, used as part of the address for the shared-editing room.
    * @param user current (local) user info, used for initializing local awareness (user presence).
+   * @param productionSharedEditingServer whether to use production shared editing server
    */
   constructor(
     public wid?: number,
-    public user?: User
+    public user?: User,
+    private productionSharedEditingServer?: boolean
   ) {
     // Initialize Y-structures.
+    this.debugState = this.yDoc.getMap("debugActions");
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
@@ -50,7 +78,7 @@ export class SharedModel {
     );
 
     // Generate editing room number.
-    const websocketUrl = SharedModel.getYWebSocketBaseUrl();
+    const websocketUrl = this.getYWebSocketBaseUrl();
     const suffix = wid ? `${wid}` : uuid();
     this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
 
@@ -73,8 +101,8 @@ export class SharedModel {
    * as the server.
    * @private
    */
-  private static getYWebSocketBaseUrl() {
-    return environment.productionSharedEditingServer ? getWebsocketUrl("rtc", "") : "ws://localhost:1234";
+  private getYWebSocketBaseUrl() {
+    return getWebsocketUrl("rtc", "");
   }
 
   /**

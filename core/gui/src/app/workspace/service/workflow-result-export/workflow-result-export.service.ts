@@ -1,49 +1,55 @@
-import * as JSZip from "jszip";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { EMPTY, expand, finalize, forkJoin, merge, Observable } from "rxjs";
+import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
 import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
-import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
+import { DownloadService } from "../../../dashboard/service/user/download/download.service";
+import { HttpResponse } from "@angular/common/http";
+import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
-  hasResultToExportOnAllOperators: boolean = false;
-  exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
-
+  hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private fileSaverService: FileSaverService
+    private downloadService: DownloadService,
+    private config: GuiConfigService
   ) {
-    this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();
-  }
-
-  registerResultExportResponseHandler() {
-    this.workflowWebsocketService
-      .subscribeToEvent("ResultExportResponse")
-      .subscribe((response: ResultExportResponse) => {
-        if (response.status === "success") {
-          this.notificationService.success(response.message);
-        } else {
-          this.notificationService.error(response.message);
-        }
-      });
   }
 
   registerResultToExportUpdateHandler() {
@@ -67,7 +73,7 @@ export class WorkflowResultExportService {
           ).length > 0;
 
       // check if there are any results to export on all operators (either paginated or snapshot)
-      this.hasResultToExportOnAllOperators =
+      let staticHasResultToExportOnAllOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getTexeraGraph()
@@ -78,60 +84,9 @@ export class WorkflowResultExportService {
               this.workflowResultService.hasAnyResult(operatorId) ||
               this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
           ).length > 0;
-    });
-  }
 
-  /**
-   * Export the operator results as files.
-   * If multiple operatorIds are provided, results are zipped into a single file.
-   */
-  exportOperatorsResultAsFile(download_all: boolean = false): void {
-    let operatorIds: string[];
-    if (!download_all)
-      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
-    else
-      operatorIds = this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(operator => operator.operatorID);
-
-    const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];
-
-    operatorIds.forEach(operatorId => {
-      const resultService = this.workflowResultService.getResultService(operatorId);
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
-
-      if (paginatedResultService) {
-        const observable = this.fetchAllPaginatedResultsAsCSV(paginatedResultService, operatorId);
-        resultObservables.push(observable);
-      } else if (resultService) {
-        const observable = this.fetchVisualizationResultsAsHTML(resultService, operatorId);
-        resultObservables.push(observable);
-      }
-    });
-
-    if (resultObservables.length === 0) {
-      return;
-    }
-
-    forkJoin(resultObservables).subscribe(filesArray => {
-      const files = filesArray.flat();
-
-      if (files.length === 1) {
-        // Only one file, save it directly
-        this.fileSaverService.saveAs(files[0].blob, files[0].filename);
-      } else if (files.length > 1) {
-        // Multiple files, zip them
-        const zip = new JSZip();
-        files.forEach(file => {
-          zip.file(file.filename, file.blob);
-        });
-        zip.generateAsync({ type: "blob" }).then((zipBlob: string | Blob) => {
-          const currentWorkflow = this.workflowActionService.getWorkflow();
-          const zipFilename = `results_${currentWorkflow.wid}_${currentWorkflow.name}.zip`;
-          this.fileSaverService.saveAs(zipBlob, zipFilename);
-        });
-      }
+      // Notify subscribers of changes
+      this.hasResultToExportOnAllOperators.next(staticHasResultToExportOnAllOperators);
     });
   }
 
@@ -141,108 +96,101 @@ export class WorkflowResultExportService {
   exportWorkflowExecutionResult(
     exportType: string,
     workflowName: string,
-    datasetIds: ReadonlyArray<number> = [],
+    datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
-    filename: string
+    filename: string,
+    exportAll: boolean = false, // if the user click export button on the top bar (a.k.a menu),
+    // we should export all operators, otherwise, only highlighted ones
+    // which means export button is selected from context-menu
+    destination: "dataset" | "local" = "dataset", // default to dataset
+    unit: DashboardWorkflowComputingUnit | null // computing unit for cluster setting
   ): void {
-    if (!environment.exportExecutionResultEnabled || !this.hasResultToExportOnHighlightedOperators) {
+    if (!this.config.env.exportExecutionResultEnabled) {
+      return;
+    }
+    if (unit === null) {
+      this.notificationService.error("Cannot export result: computing unit is not available");
       return;
     }
 
     const workflowId = this.workflowActionService.getWorkflow().wid;
     if (!workflowId) {
+      this.notificationService.error("Cannot export result: workflow ID is not available");
       return;
     }
 
-    this.notificationService.loading("exporting...");
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()
-      .forEach(operatorId => {
-        if (!this.workflowResultService.hasAnyResult(operatorId)) {
-          return;
-        }
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-        const operatorName = operator.customDisplayName ?? operator.operatorType;
-        this.workflowWebsocketService.send("ResultExportRequest", {
-          exportType,
-          workflowId,
-          workflowName,
-          operatorId,
-          operatorName,
-          datasetIds,
-          rowIndex,
-          columnIndex,
-          filename,
-        });
-      });
-  }
+    // gather operator IDs
+    const operatorIds = exportAll
+      ? this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .map(operator => operator.operatorID)
+      : [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
 
-  /**
-   * Helper method to fetch all paginated results and convert them to a CSV Blob.
-   */
-  private fetchAllPaginatedResultsAsCSV(
-    paginatedResultService: OperatorPaginationResultService,
-    operatorId: string
-  ): Observable<{ filename: string; blob: Blob }[]> {
-    return new Observable(observer => {
-      const results: any[] = [];
-      let currentPage = 1;
-      const pageSize = 10;
+    const operatorArray = operatorIds.map(operatorId => {
+      return {
+        id: operatorId,
+        outputType: this.workflowResultService.determineOutputExtension(operatorId, exportType),
+      };
+    });
 
-      paginatedResultService
-        .selectPage(currentPage, pageSize)
-        .pipe(
-          expand((pageData: PaginatedResultEvent) => {
-            results.push(...pageData.table);
-            if (pageData.table.length === pageSize) {
-              currentPage++;
-              return paginatedResultService.selectPage(currentPage, pageSize);
+    if (operatorIds.length === 0) {
+      return;
+    }
+
+    // show loading
+    this.notificationService.loading("Exporting...");
+
+    // Make request
+    this.downloadService
+      .exportWorkflowResult(
+        exportType,
+        workflowId,
+        workflowName,
+        operatorArray,
+        [...datasetIds],
+        rowIndex,
+        columnIndex,
+        filename,
+        destination,
+        unit
+      )
+      .subscribe({
+        next: response => {
+          if (destination === "local") {
+            // "local" => response is a blob
+            // We can parse the file name from header or use fallback
+            this.downloadService.saveBlobFile(response, filename);
+            this.notificationService.info("Files downloaded successfully");
+          } else {
+            // "dataset" => response is JSON
+            // The server should return a JSON with {status, message}
+            const jsonResponse = response as HttpResponse<ExportWorkflowJsonResponse>;
+            const responseBody = jsonResponse.body;
+            if (responseBody && responseBody.status === "success") {
+              this.notificationService.success("Result exported successfully");
             } else {
-              return EMPTY;
+              this.notificationService.error(responseBody?.message || "An error occurred during export");
             }
-          }),
-          finalize(() => {
-            const { filename, blob } = this.createCSVBlob(results, operatorId);
-            observer.next([{ filename, blob }]);
-            observer.complete();
-          })
-        )
-        .subscribe();
-    });
-  }
-
-  /**
-   * Helper method to fetch visualization results and convert them to HTML Blobs.
-   */
-  private fetchVisualizationResultsAsHTML(
-    resultService: OperatorResultService,
-    operatorId: string
-  ): Observable<{ filename: string; blob: Blob }[]> {
-    return new Observable(observer => {
-      const snapshot = resultService.getCurrentResultSnapshot();
-      const files: { filename: string; blob: Blob }[] = [];
-
-      snapshot?.forEach((s: any, index: number) => {
-        const fileContent = Object(s)["html-content"];
-        const blob = new Blob([fileContent], { type: "text/html;charset=utf-8" });
-        const filename = `result_${operatorId}_${index + 1}.html`;
-        files.push({ filename, blob });
+          }
+        },
+        error: (err: unknown) => {
+          const errorMessage = (err as any)?.error?.message || (err as any)?.error || err;
+          this.notificationService.error(`An error happened in exporting operator results: ${errorMessage}`);
+        },
       });
-
-      observer.next(files);
-      observer.complete();
-    });
   }
 
   /**
-   * Convert the results array into CSV format and create a Blob.
+   * Reset flags if the user leave workspace
    */
-  private createCSVBlob(results: any[], operatorId: string): { filename: string; blob: Blob } {
-    const csv = Papa.unparse(results); // Convert array of objects to CSV
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const filename = `result_${operatorId}.csv`;
-    return { filename, blob };
+  public resetFlags(): void {
+    this.hasResultToExportOnHighlightedOperators = false;
+    this.hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+  }
+
+  getExportOnAllOperatorsStatusStream(): Observable<boolean> {
+    return this.hasResultToExportOnAllOperators.asObservable();
   }
 }

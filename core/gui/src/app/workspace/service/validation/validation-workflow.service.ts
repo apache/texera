@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -6,6 +25,9 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import Ajv from "ajv";
 import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
+import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 
 export type ValidationError = {
   isValid: false;
@@ -32,6 +54,7 @@ export type ValidationOutput = {
  *
  * @author Angela Wang
  */
+@UntilDestroy()
 @Injectable({
   providedIn: "root",
 })
@@ -119,12 +142,18 @@ export class ValidationWorkflowService {
       delete this.workflowErrors[operatorID];
       this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
-    this.checkIfWorkflowEmpty();
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   private checkIfWorkflowEmpty() {
-    this.workflowEmpty = this.workflowActionService.getTexeraGraph().getAllOperators().length === 0;
+    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+    this.workflowEmpty = operators.length === 0;
+
+    // If there are operators, check if they're all disabled
+    if (!this.workflowEmpty) {
+      this.workflowEmpty = operators.every(operator =>
+        this.workflowActionService.getTexeraGraph().isOperatorDisabled(operator.operatorID)
+      );
+    }
   }
 
   private updateValidationStateOnDelete(operatorID: string) {
@@ -219,6 +248,18 @@ export class ValidationWorkflowService {
         });
 
         operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
+      });
+
+    // Add subscription to workflow changes
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.checkIfWorkflowEmpty();
+        this.workflowValidationErrorStream.next({
+          errors: this.workflowErrors,
+          workflowEmpty: this.workflowEmpty,
+        });
       });
   }
 
@@ -321,5 +362,31 @@ export class ValidationWorkflowService {
     } else {
       return { isValid, messages };
     }
+  }
+
+  /**
+   * Gets a filtered version of the TexeraGraph containing only valid operators and their corresponding links.
+   * This method will create a copy of the TexeraGraph and do the validation on top of it.
+   *
+   * @returns A json-schema-wise valid TexeraGraph
+   */
+  public getValidTexeraGraph(): WorkflowGraphReadonly {
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    const allOperators = texeraGraph.getAllOperators();
+    const allLinks = texeraGraph.getAllLinks();
+
+    // Filter valid operators using validation service
+    const validOperators = allOperators.filter(operator => {
+      const validation = this.validateOperator(operator.operatorID);
+      return validation.isValid;
+    });
+
+    // Filter links to only include those connecting valid operators
+    const validOperatorIds = new Set(validOperators.map(op => op.operatorID));
+    const validLinks = allLinks.filter(
+      link => validOperatorIds.has(link.source.operatorID) && validOperatorIds.has(link.target.operatorID)
+    );
+
+    return new WorkflowGraph(validOperators, validLinks, texeraGraph.getAllCommentBoxes());
   }
 }

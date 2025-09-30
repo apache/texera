@@ -1,4 +1,32 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener, Type } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  OnDestroy,
+  HostListener,
+  Type,
+  ElementRef,
+  ViewChild,
+} from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -7,6 +35,7 @@ import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  * Depending on the highlighted operator or link, it displays OperatorPropertyEditFrameComponent
@@ -20,6 +49,7 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
   styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
+  @ViewChild("contentWrapper") contentWrapperRef!: ElementRef;
   protected readonly window = window;
   id = -1;
   width = 260;
@@ -30,7 +60,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   returnPosition = { x: 0, y: 0 };
   constructor(
     public workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private panelService: PanelService
   ) {
     const width = localStorage.getItem("right-panel-width");
     if (width) this.width = Number(width);
@@ -44,13 +75,34 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerHighlightEventsHandler();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
+  }
+
+  private updateHeightBasedOnContent(): void {
+    setTimeout(() => {
+      const contentEl = this.contentWrapperRef?.nativeElement;
+      if (contentEl) {
+        const contentHeight = contentEl.scrollHeight;
+        const maxHeight = this.window.innerHeight * 0.6;
+        this.height = Math.min(contentHeight + 40, maxHeight);
+        this.changeDetectorRef.detectChanges();
+      }
+    });
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("right-panel-width", String(this.width));
     localStorage.setItem("right-panel-height", String(this.height));
-    localStorage.setItem("right-panel-style", document.getElementById("right-container")!.style.cssText);
+
+    const rightContainer = document.getElementById("right-container");
+    if (rightContainer) {
+      localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+    }
   }
 
   /**
@@ -81,20 +133,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
 
-        if (
-          highlightedOperators.length === 1 &&
-          highlightedGroups.length === 0 &&
-          highlightLinks.length === 0 &&
-          highlightedPorts.length === 0
-        ) {
+        if (highlightedOperators.length === 1 && highlightLinks.length === 0 && highlightedPorts.length === 0) {
           this.currentComponent = OperatorPropertyEditFrameComponent;
           this.componentInputs = { currentOperatorId: highlightedOperators[0] };
-        } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {
           this.currentComponent = PortPropertyEditFrameComponent;
           this.componentInputs = { currentPortID: highlightedPorts[0] };
         } else {
@@ -103,6 +149,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();
+        this.updateHeightBasedOnContent();
       });
   }
   onResize({ width, height }: NzResizeEvent) {
@@ -111,6 +158,12 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.width = width!;
       this.height = height!;
     });
+  }
+
+  openPanel() {
+    this.width = 280;
+    this.height = 300;
+    this.updateHeightBasedOnContent();
   }
 
   closePanel() {

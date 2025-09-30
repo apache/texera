@@ -1,27 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.clustering
 
 import akka.actor.{Actor, Address}
-import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
+import akka.cluster.ClusterEvent._
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.config.ApplicationConfig
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
+
   var numWorkerNodesInCluster = 0
 }
 
@@ -46,16 +70,13 @@ class ClusterListener extends Actor with AmberLogging {
       logger.info(s"received member event = $evt")
       updateClusterStatus(evt)
     case ClusterListener.GetAvailableNodeAddresses() =>
-      sender() ! getAllAddressExcludingMaster.toArray
+      sender() ! getAllAddress.toArray
     case other =>
       println(other)
   }
 
-  private def getAllAddressExcludingMaster: Iterable[Address] = {
+  private def getAllAddress: Iterable[Address] = {
     cluster.state.members
-      .filter { member =>
-        member.address != AmberConfig.masterNodeAddr
-      }
       .map(_.address)
   }
 
@@ -88,7 +109,7 @@ class ClusterListener extends Actor with AmberLogging {
           if (
             executionService != null && executionService.executionStateStore.metadataStore.getState.state != COMPLETED
           ) {
-            if (AmberConfig.isFaultToleranceEnabled) {
+            if (ApplicationConfig.isFaultToleranceEnabled) {
               logger.info(
                 s"Trigger recovery process for execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )
@@ -116,8 +137,7 @@ class ClusterListener extends Actor with AmberLogging {
       case other => //skip
     }
 
-    val addr = getAllAddressExcludingMaster
-    numWorkerNodesInCluster = addr.size
+    numWorkerNodesInCluster = getAllAddress.size
     SessionState.getAllSessionStates.foreach { state =>
       state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
     }

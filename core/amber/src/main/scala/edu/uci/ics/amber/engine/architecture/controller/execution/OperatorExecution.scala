@@ -1,15 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  WorkerState
 }
+import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -53,6 +72,7 @@ case class OperatorExecution() {
     aggregateStates(
       workerStates,
       WorkerState.COMPLETED,
+      WorkerState.TERMINATED,
       WorkerState.RUNNING,
       WorkerState.UNINITIALIZED,
       WorkerState.PAUSED,
@@ -61,29 +81,20 @@ case class OperatorExecution() {
   }
 
   private[this] def computeOperatorPortStats(
-      workerPortStats: Iterable[PortTupleCountMapping]
-  ): Seq[PortTupleCountMapping] = {
-    workerPortStats
-      .map(_.portId)
-      .toSet
-      .map { portId =>
-        PortTupleCountMapping(
-          portId,
-          workerPortStats.filter(_.portId == portId).map(_.tupleCount).sum
-        )
-      }
-      .toSeq
+      workerPortStats: Iterable[PortTupleMetricsMapping]
+  ): Seq[PortTupleMetricsMapping] = {
+    ExecutionUtils.aggregatePortMetrics(workerPortStats)
   }
 
   def getStats: OperatorMetrics = {
     val workerRawStats = workerExecutions.values.asScala.map(_.getStats)
-    val inputPortStats = workerRawStats.flatMap(_.inputTupleCount)
-    val outputPortStats = workerRawStats.flatMap(_.outputTupleCount)
+    val inputMetrics = workerRawStats.flatMap(_.inputTupleMetrics)
+    val outputMetrics = workerRawStats.flatMap(_.outputTupleMetrics)
     OperatorMetrics(
       getState,
       OperatorStatistics(
-        inputCount = computeOperatorPortStats(inputPortStats),
-        outputCount = computeOperatorPortStats(outputPortStats),
+        inputMetrics = computeOperatorPortStats(inputMetrics),
+        outputMetrics = computeOperatorPortStats(outputMetrics),
         getWorkerIds.size,
         dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
         controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,

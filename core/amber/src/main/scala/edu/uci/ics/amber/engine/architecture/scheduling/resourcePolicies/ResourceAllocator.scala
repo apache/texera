@@ -1,27 +1,45 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
-  ResourceConfig
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
+import edu.uci.ics.amber.engine.architecture.scheduling.config._
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
 
+import java.net.URI
 import scala.collection.mutable
 
 trait ResourceAllocator {
-  def allocate(region: Region): (Region, Double)
+  def allocate(region: Region): (ResourceConfig, Double)
 }
+
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo,
-    dataTransferBatchSize: Int
+    workflowSettings: WorkflowSettings
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -40,14 +58,14 @@ class DefaultResourceAllocator(
     *
     * @param region The region for which to allocate resources.
     * @return A tuple containing:
-    *         1) A new Region instance with new resource configuration.
-    *         2) An estimated cost of the workflow with the new resource configuration,
+    *         1) A resource configuration.
+    *         2) An estimated cost of the workflow with the resource configuration,
     *         represented as a Double value (currently set to 0, but will be
     *         updated in the future).
     */
   def allocate(
       region: Region
-  ): (Region, Double) = {
+  ): (ResourceConfig, Double) = {
 
     val opToOperatorConfigMapping = region.getOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
@@ -69,16 +87,57 @@ class DefaultResourceAllocator(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink),
-          this.dataTransferBatchSize
+          workflowSettings.dataTransferBatchSize
         )
       )
     }.toMap
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val resourceConfig = ResourceConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
+    val portConfigs: Map[GlobalPortIdentity, PortConfig] = region.resourceConfig match {
+      case Some(existing) =>
+        val upgradedInputPortConfigs: Map[GlobalPortIdentity, InputPortConfig] =
+          existing.portConfigs.collect {
+            case (globalPortId, rawInConfig: IntermediateInputPortConfig) if globalPortId.input =>
+              val uris: List[URI] = rawInConfig.storageURIs
+              // derive partitionings for each upstream materialization
+              val portPartitionings: List[Partitioning] = uris.map { inputMatUri =>
+                val toWorkerActorIds =
+                  operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId)
+                val fromVirtualThreadActorIds = toWorkerActorIds.map(toWorkerActorId =>
+                  getFromActorIdForInputPortStorage(inputMatUri.toString, toWorkerActorId)
+                )
+                // Extract the input port partitionInfo defined in the physicalOp, defaulting to UnknownPartition.
+                val inputPortPartitionInfo = region
+                  .getOperator(globalPortId.opId)
+                  .partitionRequirement
+                  .applyOrElse(globalPortId.portId.id, (_: Int) => None)
+                  .getOrElse(UnknownPartition())
 
-    (region.copy(resourceConfig = Some(resourceConfig)), 0)
+                toPartitioning(
+                  fromVirtualThreadActorIds,
+                  toWorkerActorIds,
+                  inputPortPartitionInfo,
+                  workflowSettings.dataTransferBatchSize
+                )
+              }
+              // new InputPortConfig that carries both URIs and per-URI partitionings
+              globalPortId -> InputPortConfig(uris.zip(portPartitionings))
+          }
+
+        existing.portConfigs ++ upgradedInputPortConfigs
+
+      case None =>
+        Map.empty[GlobalPortIdentity, PortConfig]
+    }
+
+    val resourceConfig = ResourceConfig(
+      opToOperatorConfigMapping,
+      linkToLinkConfigMapping,
+      portConfigs
+    )
+
+    (resourceConfig, 0)
   }
 
   /**
@@ -87,9 +146,9 @@ class DefaultResourceAllocator(
     * This method is invoked once for each region, and only propagate partitioning requirements within
     * the region. For example, suppose we have the following physical Plan:
     *
-    *     A ->
-    *           HJ
-    *     B ->
+    * A ->
+    * HJ
+    * B ->
     * The link A->HJ will be propagated in the first region. The link B->HJ will be propagated in the second region.
     * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
     */

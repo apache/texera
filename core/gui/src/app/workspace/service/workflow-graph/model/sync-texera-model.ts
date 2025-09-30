@@ -1,8 +1,25 @@
-import { OperatorLink } from "../../../types/workflow-common.interface";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
+import { OperatorLink } from "../../../types/workflow-common.interface";
 import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { OperatorGroup } from "./operator-group";
 import { filter, map, tap } from "rxjs/operators";
 
 /**
@@ -18,8 +35,7 @@ import { filter, map, tap } from "rxjs/operators";
 export class SyncTexeraModel {
   constructor(
     private texeraGraph: WorkflowGraph,
-    private jointGraphWrapper: JointGraphWrapper,
-    private operatorGroup: OperatorGroup
+    private jointGraphWrapper: JointGraphWrapper
   ) {
     this.handleJointLinkEvents();
   }
@@ -52,12 +68,8 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellAddStream()
       .pipe(
-        filter(
-          link =>
-            this.isValidJointLink(link) &&
-            this.operatorGroup.getSyncTexeraGraph() &&
-            this.texeraGraph.getSyncTexeraGraph()
-        ),
+        filter(link => this.isValidJointLink(link)),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.addLink(link));
@@ -70,12 +82,8 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellDeleteStream()
       .pipe(
-        filter(
-          link =>
-            this.isValidJointLink(link) &&
-            this.operatorGroup.getSyncTexeraGraph() &&
-            this.texeraGraph.getSyncTexeraGraph()
-        ),
+        filter(link => this.isValidJointLink(link)),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.deleteLinkWithID(link.linkID));
@@ -88,7 +96,7 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellChangeStream()
       .pipe(
-        filter(() => this.operatorGroup.getSyncTexeraGraph() && this.texeraGraph.getSyncTexeraGraph()),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         // we intentionally want the side effect (delete the link) to happen **before** other operations in the chain
         tap(link => {
           const linkID = link.id.toString();
@@ -120,13 +128,11 @@ export class SyncTexeraModel {
       jointLink.attributes.source &&
       jointLink.attributes.target &&
       jointLink.attributes.source.id &&
-      (jointLink.attributes.source.port || this.operatorGroup.hasGroup(jointLink.attributes.source.id.toString())) &&
+      jointLink.attributes.source.port &&
       jointLink.attributes.target.id &&
-      (jointLink.attributes.target.port || this.operatorGroup.hasGroup(jointLink.attributes.target.id.toString())) &&
+      jointLink.attributes.target.port &&
       (this.texeraGraph.hasOperator(jointLink.attributes.source.id.toString()) ||
-        this.texeraGraph.hasOperator(jointLink.attributes.target.id.toString()) ||
-        (this.operatorGroup.hasGroup(jointLink.attributes.source.id.toString()) &&
-          this.operatorGroup.hasGroup(jointLink.attributes.source.id.toString())))
+        this.texeraGraph.hasOperator(jointLink.attributes.target.id.toString()))
     );
     // the above two lines are causing unit test fail in sync-texera-model.spec.ts
     // since if operator is deleted first the link will become invalid and thus undeletable.

@@ -1,30 +1,43 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
 }
-import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  ControlPayload,
+  DirectControlMessagePayload,
   DataPayload,
   WorkflowFIFOMessage
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
-import java.util.concurrent.{
-  CompletableFuture,
-  ExecutorService,
-  Executors,
-  Future,
-  LinkedBlockingQueue
-}
+import java.util.concurrent._
 
 class DPThread(
     val actorId: ActorVirtualIdentity,
@@ -174,19 +187,19 @@ class DPThread(
       //
       if (channelId != null) {
         // for logging, skip large data frames.
-        val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
+        val msgToLog = msgOpt.filter(_.payload.isInstanceOf[DirectControlMessagePayload])
         logManager.withFaultTolerant(channelId, msgToLog) {
           msgOpt match {
             case None =>
               dp.continueDataProcessing()
             case Some(msg) =>
               msg.payload match {
-                case payload: ControlPayload =>
-                  dp.processControlPayload(msg.channelId, payload)
+                case payload: DirectControlMessagePayload =>
+                  dp.processDCM(msg.channelId, payload)
                 case payload: DataPayload =>
                   dp.processDataPayload(msg.channelId, payload)
-                case payload: ChannelMarkerPayload =>
-                  dp.processChannelMarker(msg.channelId, payload, logManager)
+                case ecm: EmbeddedControlMessage =>
+                  dp.processECM(msg.channelId, ecm, logManager)
               }
           }
         }

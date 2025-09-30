@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable } from "rxjs";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
@@ -33,10 +52,13 @@ const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
   providedIn: "root",
 })
 export class WorkflowVersionService {
-  public modificationEnabledBeforeTempWorkflow = true;
+  private modificationEnabledBeforeTempWorkflow: boolean | undefined;
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
+  public selectedVersionId = new BehaviorSubject<number | null>(null);
+  public selectedDisplayedVersionId = new BehaviorSubject<number | null>(null);
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
@@ -45,11 +67,23 @@ export class WorkflowVersionService {
   ) {}
 
   public displayWorkflowVersions(): void {
-    // unhighlight all the current highlighted operators/groups/links
+    // unhighlight all the current highlighted operators and links
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
   }
-  public setDisplayParticularVersion(flag: boolean): void {
+  public setDisplayParticularVersion(flag: boolean, versionId?: number, displayedVersionId?: number): void {
+    if (flag) {
+      if (versionId != undefined) {
+        this.selectedVersionId.next(versionId);
+      }
+      if (displayedVersionId !== undefined) {
+        this.selectedDisplayedVersionId.next(displayedVersionId);
+      }
+    } else {
+      this.selectedVersionId.next(null);
+      this.selectedDisplayedVersionId.next(null);
+    }
+
     this.displayParticularWorkflowVersion.next(flag);
   }
 
@@ -57,8 +91,12 @@ export class WorkflowVersionService {
     return this.displayParticularWorkflowVersion.asObservable();
   }
 
+  public get canRestoreVersion(): boolean {
+    return this.modificationEnabledBeforeTempWorkflow !== undefined && this.modificationEnabledBeforeTempWorkflow;
+  }
+
   public displayReadonlyWorkflow(workflow: Workflow) {
-    this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
+    this.saveModificationState();
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // disable persist to DB because it is read only
@@ -71,14 +109,14 @@ export class WorkflowVersionService {
     this.workflowActionService.disableWorkflowModification();
   }
 
-  public displayParticularVersion(workflow: Workflow) {
+  public displayParticularVersion(workflow: Workflow, vid: number, displayedVId: number) {
     // get the list of IDs of different elements when comparing displaying to the editing version
     this.differentOpIDsList = this.getWorkflowsDifference(
       this.workflowActionService.getWorkflowContent(),
       workflow.content
     );
     this.displayReadonlyWorkflow(workflow);
-    this.setDisplayParticularVersion(true);
+    this.setDisplayParticularVersion(true, vid, displayedVId);
     // highlight the different elements by changing the color of boundary of the operator
     // needs a list of ids of elements to be highlighted
     this.highlightOpVersionDiff(this.differentOpIDsList);
@@ -203,7 +241,7 @@ export class WorkflowVersionService {
     this.workflowActionService.resetTempWorkflow();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
-    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
+    this.restoreModificationState();
   }
 
   public closeReadonlyWorkflowDisplay() {
@@ -219,7 +257,7 @@ export class WorkflowVersionService {
     // after reloading the workflow, we can enable the undoredo service
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
-    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
+    this.restoreModificationState();
   }
 
   public closeParticularVersionDisplay() {
@@ -255,5 +293,29 @@ export class WorkflowVersionService {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+  }
+
+  private saveModificationState(): void {
+    if (this.modificationEnabledBeforeTempWorkflow === undefined) {
+      this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
+    }
+  }
+
+  private restoreModificationState(): void {
+    if (this.modificationEnabledBeforeTempWorkflow !== undefined) {
+      if (!this.modificationEnabledBeforeTempWorkflow) {
+        this.workflowActionService.disableWorkflowModification();
+      }
+      this.modificationEnabledBeforeTempWorkflow = undefined;
+    }
+  }
+
+  public cloneWorkflowVersion(): Observable<number> {
+    const vid = this.selectedVersionId.getValue();
+    const displayedVersionId = this.selectedDisplayedVersionId.getValue();
+
+    return this.http.post<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`, {
+      displayedVersionId,
+    });
   }
 }

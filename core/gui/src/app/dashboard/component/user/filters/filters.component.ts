@@ -1,4 +1,23 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
@@ -71,37 +90,41 @@ export class FiltersComponent implements OnInit {
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
-    private workflowPersistService: WorkflowPersistService
-  ) {
+    private workflowPersistService: WorkflowPersistService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  ngOnInit(): void {
+    this.setupUserProject();
+    this.searchParameterBackendSetup();
+  }
+
+  private setupUserProject(): void {
     this.userService
       .userChanged()
       .pipe(
-        // eslint-disable-next-line rxjs/no-unsafe-takeuntil
-        untilDestroyed(this),
         switchMap(() => {
           this.isLogin = this.userService.isLogin();
+          this.cdr.detectChanges();
           if (this.isLogin) {
             return this.userProjectService.getProjectList() as Observable<DashboardProject[]>;
           } else {
             return of([] as DashboardProject[]);
           }
-        })
+        }),
+        untilDestroyed(this)
       )
       .subscribe((userProjectsList: DashboardProject[]) => {
-        if (userProjectsList != null && userProjectsList.length > 0) {
-          // map project ID to project object
+        if (userProjectsList && userProjectsList.length > 0) {
           this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-          // store the projects containing these workflows
-          this.userProjectsDropdown = userProjectsList.map(proj => {
-            return { pid: proj.pid, name: proj.name, checked: false };
-          });
+          this.userProjectsDropdown = userProjectsList.map(proj => ({
+            pid: proj.pid,
+            name: proj.name,
+            checked: false,
+          }));
           this.userProjectsLoaded = true;
         }
       });
-  }
-
-  ngOnInit(): void {
-    this.searchParameterBackendSetup();
   }
 
   /**

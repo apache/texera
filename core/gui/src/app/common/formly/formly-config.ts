@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { NullTypeComponent } from "./null.type";
 import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
@@ -7,6 +26,7 @@ import { CodeareaCustomTemplateComponent } from "../../workspace/component/codea
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { InputAutoCompleteComponent } from "../../workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { FormlyRepeatDndComponent } from "./repeat-dnd/repeat-dnd.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -57,6 +77,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] },
+    { name: "repeat-section-dnd", component: FormlyRepeatDndComponent },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },

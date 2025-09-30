@@ -13,3 +13,15 @@ src/environments/version.ts
 /node_modules
 
 .angular
+
+# yarn v4 related
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# nx migration
+/migrations.json

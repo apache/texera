@@ -1,5 +1,23 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { environment } from "../../../../../../environments/environment";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../ngbd-modal-workflow-executions/workflow-execution-history.component";
 import {
@@ -9,11 +27,13 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "../../../../../common/type/workflow";
-import { FileSaverService } from "../../../../service/user/file/file-saver.service";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
+import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -22,8 +42,8 @@ import { firstValueFrom } from "rxjs";
   styleUrls: ["./user-workflow-list-item.component.scss"],
 })
 export class UserWorkflowListItemComponent {
-  ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
-  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+  protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;
+  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   private _entry?: DashboardEntry;
   @Input() public keywords: string[] = [];
 
@@ -56,14 +76,13 @@ export class UserWorkflowListItemComponent {
 
   editingName = false;
   editingDescription = false;
-  /** Whether tracking metadata information about executions is enabled. */
-  workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   constructor(
-    private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService,
-    private userProjectService: UserProjectService
+    private modalService: NzModalService,
+    protected config: GuiConfigService,
+    private userProjectService: UserProjectService,
+    private downloadService: DownloadService
   ) {
     this.userProjectService
       .getProjectList()
@@ -92,6 +111,10 @@ export class UserWorkflowListItemComponent {
   }
 
   public confirmUpdateWorkflowCustomName(name: string): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+
     this.workflowPersistService
       .updateWorkflowName(this.workflow.wid, name || DEFAULT_WORKFLOW_NAME)
       .pipe(untilDestroyed(this))
@@ -104,6 +127,10 @@ export class UserWorkflowListItemComponent {
   }
 
   public confirmUpdateWorkflowCustomDescription(description: string): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+
     this.workflowPersistService
       .updateWorkflowDescription(this.workflow.wid, description)
       .pipe(untilDestroyed(this))
@@ -138,21 +165,10 @@ export class UserWorkflowListItemComponent {
    */
   public onClickDownloadWorkfllow(): void {
     if (this.workflow.wid) {
-      this.workflowPersistService
-        .retrieveWorkflow(this.workflow.wid)
+      this.downloadService
+        .downloadWorkflow(this.workflow.wid, this.workflow.name)
         .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          const workflowCopy: Workflow = {
-            ...data,
-            wid: undefined,
-            creationTime: undefined,
-            lastModifiedTime: undefined,
-            readonly: false,
-          };
-          const workflowJson = JSON.stringify(workflowCopy.content);
-          const fileName = workflowCopy.name + ".json";
-          this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-        });
+        .subscribe();
     }
   }
 

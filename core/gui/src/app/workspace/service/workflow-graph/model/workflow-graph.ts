@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Observable, Subject } from "rxjs";
 import {
   Comment,
@@ -8,6 +27,7 @@ import {
   PartitionInfo,
   PortDescription,
   PortProperty,
+  BreakpointInfo,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
@@ -15,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isDefined } from "../../../../common/util/predicate";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -74,8 +95,9 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-  public sharedModel: SharedModel = new SharedModel();
+  public sharedModel!: SharedModel;
   public newYDocLoadedSubject = new Subject();
+  private readonly centerEventSubject = new Subject<void>();
 
   public readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
@@ -141,6 +163,9 @@ export class WorkflowGraph {
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
+    // Initialize sharedModel in constructor to ensure config is loaded
+    this.sharedModel = new SharedModel();
+
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox =>
@@ -223,10 +248,11 @@ export class WorkflowGraph {
    * Replaces current <code>{@link sharedModel}</code>  with a new one and destroy the old model if any.
    * @param workflowId optional, but needed if you want to join shared editing.
    * @param user optional, but needed if you want to have user presence.
+   * @param productionSharedEditingServer whether to use production shared editing server
    */
-  public loadNewYModel(workflowId?: number, user?: User) {
+  public loadNewYModel(workflowId?: number, user?: User, productionSharedEditingServer?: boolean) {
     this.destroyYModel();
-    this.sharedModel = new SharedModel(workflowId, user);
+    this.sharedModel = new SharedModel(workflowId, user, productionSharedEditingServer);
     this.newYDocLoadedSubject.next(undefined);
   }
 
@@ -586,6 +612,20 @@ export class WorkflowGraph {
     return commentBox.toJSON();
   }
 
+  public createOperatorDebugState(operatorId: string) {
+    if (this.sharedModel.debugState.has(operatorId)) {
+      return;
+    }
+    this.sharedModel.debugState.set(operatorId, new Y.Map<BreakpointInfo>());
+  }
+
+  public getOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
+    if (!this.sharedModel.debugState.has(operatorId)) {
+      throw new Error(`operator ${operatorId} does not have a debug state`);
+    }
+    return this.sharedModel.debugState.get(operatorId)!;
+  }
+
   /**
    * Returns an array of all operators in the graph.
    */
@@ -808,11 +848,9 @@ export class WorkflowGraph {
    * @param newProperty new property to set, the new y-object created from this will replace the old structure.
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    console.log("setting ", operatorID, newProperty);
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    console.log("setting ", operatorID, newProperty);
 
     const previousProperty = this.getSharedOperatorType(operatorID).get(
       "operatorProperties"
@@ -967,6 +1005,14 @@ export class WorkflowGraph {
     newProperty: PortProperty;
   }> {
     return this.portPropertyChangedSubject.asObservable();
+  }
+
+  public getCenterEventStream(): Observable<void> {
+    return this.centerEventSubject.asObservable();
+  }
+
+  public triggerCenterEvent(): void {
+    this.centerEventSubject.next();
   }
 
   /**

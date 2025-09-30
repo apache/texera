@@ -1,32 +1,63 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  EmbeddedControlMessage,
+  EmbeddedControlMessageType,
+  EmptyRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_END_CHANNEL,
+  METHOD_FLUSH_NETWORK_BUFFER,
+  METHOD_OPEN_EXECUTOR
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.util.VirtualIdentityUtils
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
+  EmbeddedControlMessageIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.EndOfInputChannel
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_WORKFLOW_ID
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.util.concurrent.LinkedBlockingQueue
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
@@ -47,21 +78,37 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val outputPortId = PortIdentity()
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
-  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
+  private val schema: Schema = Schema().add("field1", AttributeType.INTEGER)
   private val tuples: Array[Tuple] = (0 until 400)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
+  private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
+  private val logManager: ReplayLogManager =
+    ReplayLogManager.createLogManager(logStorage, "none", x => {})
+  private val endChannelPayload = EmbeddedControlMessage(
+    EmbeddedControlMessageIdentity("EndChannel"),
+    EmbeddedControlMessageType.PORT_ALIGNMENT,
+    Seq(),
+    Map(
+      testWorkerId.name ->
+        ControlInvocation(
+          METHOD_END_CHANNEL.getBareMethodName,
+          EmptyRequest(),
+          AsyncRPCContext(ActorVirtualIdentity(""), ActorVirtualIdentity("")),
+          -1
+        )
+    )
+  )
 
   def mkDataProcessor: DataProcessor = {
-    val dp: DataProcessor =
-      new DataProcessor(testWorkerId, outputHandler) {
-        override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
-      }
+    val dp: DataProcessor = new DataProcessor(
+      testWorkerId,
+      outputHandler,
+      inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    )
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }
-
-  case class DummyControl() extends ControlCommand[Unit]
 
   "data processor" should "process data messages" in {
     val dp = mkDataProcessor
@@ -94,17 +141,22 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         0
       )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
-    (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
-    dp.inputManager.addPort(inputPortId, schema)
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
-    dp.outputManager.addPort(outputPortId, schema)
-    dp.processControlPayload(
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.processDCM(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(0, OpenExecutor())
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(CONTROLLER, testWorkerId),
+        0
+      )
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
@@ -113,10 +165,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
-    dp.processDataPayload(
+    dp.processECM(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfInputChannel())
+      endChannelPayload,
+      logManager
     )
+
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
@@ -151,32 +205,42 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     )
       .expects(0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
-    (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-    dp.inputManager.addPort(inputPortId, schema)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
-    dp.outputManager.addPort(outputPortId, schema)
-    dp.processControlPayload(
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.processDCM(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(0, OpenExecutor())
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(CONTROLLER, testWorkerId),
+        0
+      )
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       DataFrame(tuples)
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
-      dp.processControlPayload(
+      dp.processDCM(
         ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-        ControlInvocation(0, FlushNetworkBuffer())
+        ControlInvocation(
+          METHOD_FLUSH_NETWORK_BUFFER,
+          EmptyRequest(),
+          AsyncRPCContext(CONTROLLER, testWorkerId),
+          1
+        )
       )
       dp.continueDataProcessing()
     }
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
-    dp.processDataPayload(
+    dp.processECM(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfInputChannel())
+      endChannelPayload,
+      logManager
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()

@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import os
 import sys
 import traceback
@@ -6,15 +23,14 @@ from threading import Event
 from loguru import logger
 from typing import Iterator, Optional
 from core.architecture.managers import Context
-from core.models import ExceptionInfo, State, TupleLike
-from core.models.internal_marker import StartOfInputPort, EndOfInputPort
-from core.models.marker import Marker
+from core.models import ExceptionInfo, State, TupleLike, InternalMarker
+from core.models.internal_marker import StartChannel, EndChannel
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )
@@ -35,17 +51,44 @@ class DataProcessor(Runnable, Stoppable):
         self._running.set()
         self._switch_context()
         while self._running.is_set():
-            marker = self._context.marker_processing_manager.get_input_marker()
+            marker = self._context.tuple_processing_manager.get_internal_marker()
+            state = self._context.state_processing_manager.get_input_state()
             tuple_ = self._context.tuple_processing_manager.current_input_tuple
             if marker is not None:
-                self.process_marker(marker)
+                self.process_internal_marker(marker)
+            elif state is not None:
+                self.process_state(state)
             elif tuple_ is not None:
                 self.process_tuple()
             else:
                 raise RuntimeError("No marker or tuple to process.")
             self._switch_context()
 
-    def process_marker(self, marker: Marker) -> None:
+    def process_internal_marker(self, internal_marker: InternalMarker) -> None:
+        try:
+            executor = self._context.executor_manager.executor
+            port_id = self._context.tuple_processing_manager.get_input_port_id()
+            with replace_print(
+                self._context.worker_id,
+                self._context.console_message_manager.print_buf,
+            ):
+                if isinstance(internal_marker, StartChannel):
+                    self._set_output_state(executor.produce_state_on_start(port_id))
+                elif isinstance(internal_marker, EndChannel):
+                    self._set_output_state(executor.produce_state_on_finish(port_id))
+                    self._switch_context()
+                    self._set_output_tuple(executor.on_finish(port_id))
+
+        except Exception as err:
+            logger.exception(err)
+            exc_info = sys.exc_info()
+            self._context.exception_manager.set_exception_info(exc_info)
+            self._report_exception(exc_info)
+
+        finally:
+            self._switch_context()
+
+    def process_state(self, state: State) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
@@ -57,14 +100,7 @@ class DataProcessor(Runnable, Stoppable):
                 self._context.worker_id,
                 self._context.console_message_manager.print_buf,
             ):
-                if isinstance(marker, StartOfInputPort):
-                    self._set_output_state(executor.produce_state_on_start(port_id))
-                elif isinstance(marker, State):
-                    self._set_output_state(executor.process_state(marker, port_id))
-                elif isinstance(marker, EndOfInputPort):
-                    self._set_output_state(executor.produce_state_on_finish(port_id))
-                    self._switch_context()
-                    self._set_output_tuple(executor.on_finish(port_id))
+                self._set_output_state(executor.process_state(state, port_id))
 
         except Exception as err:
             logger.exception(err)
@@ -122,7 +158,7 @@ class DataProcessor(Runnable, Stoppable):
         """
         Set the output state after processing by the executor.
         """
-        self._context.marker_processing_manager.current_output_state = output_state
+        self._context.state_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
         """

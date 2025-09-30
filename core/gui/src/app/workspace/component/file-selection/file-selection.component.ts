@@ -1,3 +1,22 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 import { Component, inject, OnInit } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -14,8 +33,11 @@ import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
   styleUrls: ["file-selection.component.scss"],
 })
 export class FileSelectionComponent implements OnInit {
-  readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets;
   readonly selectedFilePath: string = inject(NZ_MODAL_DATA).selectedFilePath;
+  private _datasets: ReadonlyArray<DashboardDataset> = [];
+
+  // indicate whether the accessible datasets have been loaded from the backend
+  isAccessibleDatasetsLoading = true;
 
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
@@ -29,29 +51,35 @@ export class FileSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // if users already select some file, then show that selected dataset & related version
-    if (this.selectedFilePath && this.selectedFilePath !== "") {
-      this.datasetService
-        .retrieveAccessibleDatasets(false, false, this.selectedFilePath)
-        .pipe(untilDestroyed(this))
-        .subscribe(response => {
-          const prevDataset = response.datasets[0];
-          this.selectedDataset = this.datasets.find(d => d.dataset.did === prevDataset.dataset.did);
-          this.isDatasetSelected = !!this.selectedDataset;
+    this.isAccessibleDatasetsLoading = true;
 
-          if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-            this.datasetService
-              .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
-              .pipe(untilDestroyed(this))
-              .subscribe(versions => {
-                this.datasetVersions = versions;
-                const versionDvid = prevDataset.versions[0].datasetVersion.dvid;
-                this.selectedVersion = this.datasetVersions.find(v => v.dvid === versionDvid);
-                this.onVersionChange();
-              });
-          }
-        });
-    }
+    // retrieve all the accessible datasets from the backend
+    this.datasetService
+      .retrieveAccessibleDatasets()
+      .pipe(untilDestroyed(this))
+      .subscribe(datasets => {
+        this._datasets = datasets;
+        this.isAccessibleDatasetsLoading = false;
+        if (!this.selectedFilePath || this.selectedFilePath == "") {
+          return;
+        }
+        // if users already select some file, then ONLY show that selected dataset & related version
+        const selectedDatasetFile = parseFilePathToDatasetFile(this.selectedFilePath);
+        this.selectedDataset = this.datasets.find(
+          d => d.ownerEmail === selectedDatasetFile.ownerEmail && d.dataset.name === selectedDatasetFile.datasetName
+        );
+        this.isDatasetSelected = !!this.selectedDataset;
+        if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
+          this.datasetService
+            .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+            .pipe(untilDestroyed(this))
+            .subscribe(versions => {
+              this.datasetVersions = versions;
+              this.selectedVersion = this.datasetVersions.find(v => v.name === selectedDatasetFile.versionName);
+              this.onVersionChange();
+            });
+        }
+      });
   }
 
   onDatasetChange() {
@@ -83,13 +111,17 @@ export class FileSelectionComponent implements OnInit {
       this.datasetService
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .pipe(untilDestroyed(this))
-        .subscribe(fileNodes => {
-          this.suggestedFileTreeNodes = fileNodes;
+        .subscribe(data => {
+          this.suggestedFileTreeNodes = data.fileNodes;
         });
     }
   }
 
   onFileTreeNodeSelected(node: DatasetFileNode) {
     this.modalRef.close(node);
+  }
+
+  get datasets(): ReadonlyArray<DashboardDataset> {
+    return this._datasets;
   }
 }

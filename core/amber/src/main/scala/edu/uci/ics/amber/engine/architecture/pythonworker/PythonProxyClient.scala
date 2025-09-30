@@ -1,32 +1,54 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
+  EmbeddedControlMessageElement,
   ControlElement,
-  ControlElementV2,
   DataElement
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  EmbeddedControlMessage,
+  ControlInvocation
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
-import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.State
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
+import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
+import scala.jdk.CollectionConverters._
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
     extends Runnable
@@ -72,7 +94,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           logger.warn(
             s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
-          flightClient.close()
+          if (flightClient != null) flightClient.close()
           Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
@@ -84,44 +106,80 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def mainLoop(): Unit = {
+  private def mainLoop(): Unit = {
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
-          sendData(dataPayload, channel.fromWorkerId)
+          sendData(dataPayload, channel)
         case ControlElement(cmd, channel) =>
-          sendControlV1(channel.fromWorkerId, cmd)
-        case ControlElementV2(cmd, channel) =>
-          sendControlV2(channel.fromWorkerId, cmd)
+          sendControl(channel, cmd)
+        case EmbeddedControlMessageElement(cmd, channel) =>
+          sendECM(cmd, channel)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
-
       }
     }
   }
 
-  def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+  private def sendData(dataPayload: DataPayload, from: ChannelIdentity): Unit = {
     dataPayload match {
-      case DataFrame(frame) => writeArrowStream(mutable.Queue(frame: _*), from, "Data")
-      case MarkerFrame(marker) =>
-        marker match {
-          case state: State =>
-            writeArrowStream(mutable.Queue(state.toTuple), from, marker.getClass.getSimpleName)
-          case _ => writeArrowStream(mutable.Queue.empty, from, marker.getClass.getSimpleName)
-        }
+      case DataFrame(frame) =>
+        writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
+      case StateFrame(state) =>
+        writeArrowStream(mutable.Queue(state.toTuple), from, "State")
     }
   }
 
-  def sendControlV2(
-      from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
+  private def sendECM(
+      ecm: EmbeddedControlMessage,
+      from: ChannelIdentity
+  ): Unit = {
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, "ECM").toByteArray)
+    val flightListener = new SyncPutListener
+
+    val field = new Field("payload", FieldType.nullable(new ArrowType.Binary), null)
+    val schema = new ArrowSchema(List(field).asJava)
+    val schemaRoot = VectorSchemaRoot.create(schema, allocator)
+
+    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
+    schemaRoot.allocateNew()
+
+    val vector = schemaRoot.getVector("payload").asInstanceOf[VarBinaryVector]
+    vector.setSafe(0, ecm.toByteArray)
+    vector.setValueCount(1)
+    schemaRoot.setRowCount(1)
+
+    writer.putNext()
+    schemaRoot.clear()
+    writer.completed()
+
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
+    ackMsgBuf.close()
+
+    flightListener.close()
+  }
+
+  private def sendControl(
+      from: ChannelIdentity,
+      payload: DirectControlMessagePayload
   ): Result = {
-    val controlMessage = PythonControlMessage(from, payload)
+    var payloadV2 = DirectControlMessagePayloadV2.defaultInstance
+    payloadV2 = payload match {
+      case c: ControlInvocation =>
+        payloadV2.withControlInvocation(c)
+      case r: ReturnInvocation =>
+        payloadV2.withReturnInvocation(r)
+      case _ => ???
+    }
+    val controlMessage = PythonControlMessage(from, payloadV2)
     val action: Action = new Action("control", controlMessage.toByteArray)
     sendCreditedAction(action)
   }
 
-  def sendActorCommand(
+  private def sendActorCommand(
       command: ActorCommand
   ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
@@ -147,20 +205,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     result
   }
 
-  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
-    payload match {
-      case controlInvocation: ControlInvocation =>
-        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
-        sendControlV2(from, controlInvocationV2)
-      case returnInvocation: ReturnInvocation =>
-        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
-        sendControlV2(from, returnInvocationV2)
-    }
-  }
-
   private def writeArrowStream(
       tuples: mutable.Queue[Tuple],
-      from: ActorVirtualIdentity,
+      from: ChannelIdentity,
       payloadType: String
   ): Unit = {
 

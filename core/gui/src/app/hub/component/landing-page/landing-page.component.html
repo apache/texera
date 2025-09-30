@@ -1,0 +1,65 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="landing-page-container">
+  <div class="section-intro">
+    <div class="section-intro-text">
+      <h1>Texera Hub</h1>
+      <p>
+        Join our community to explore public workflows, collaborate with others, and enhance your data analytics
+        capabilities. Access
+        <a
+          href="javascript:void(0)"
+          (click)="navigateToSearch('workflow')">
+          {{workflowCount}} workflows
+        </a>
+        and
+        <a
+          href="javascript:void(0)"
+          (click)="navigateToSearch('dataset')">
+          {{datasetCount}} datasets
+        </a>
+        provided by Texera and our community.
+      </p>
+    </div>
+
+    <img
+      class="section-intro-img"
+      src="../../../../../assets/svg/hub_icon.svg"
+      alt="hub icon" />
+  </div>
+
+  <div>
+    <texera-browse-section
+      [entities]="topLovedWorkflows"
+      sectionTitle="Top Loved Workflows"
+      [currentUid]="currentUid">
+    </texera-browse-section>
+    <texera-browse-section
+      [entities]="topClonedWorkflows"
+      sectionTitle="Top Cloned Workflows"
+      [currentUid]="currentUid">
+    </texera-browse-section>
+    <texera-browse-section
+      [entities]="topLovedDatasets"
+      sectionTitle="Top Loved Datasets"
+      [currentUid]="currentUid">
+    </texera-browse-section>
+  </div>
+</div>

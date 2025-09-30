@@ -1,23 +1,37 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
-import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
-import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
-import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
-object MultiCallHandler {
-  case class MultiCall(seq: Seq[ActorVirtualIdentity]) extends ControlCommand[String]
-}
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 trait MultiCallHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { (m: MultiCall, sender) =>
-    send(Chain(m.seq), myID)
-      .flatMap(x => send(Recursion(1), x))
-      .flatMap(ret => send(Collect(m.seq.take(3)), myID))
+  override def sendMultiCall(request: MultiCall, ctx: AsyncRPCContext): Future[StringResponse] = {
+    getProxy
+      .sendChain(Chain(request.seq), myID)
+      .flatMap(x => getProxy.sendRecursion(Recursion(1), mkContext(ActorVirtualIdentity(x.value))))
+      .flatMap(ret => getProxy.sendCollect(Collect(request.seq.take(3)), myID))
   }
 
 }
