@@ -59,6 +59,7 @@ class DataProcessingSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    Class.forName("org.postgresql.Driver")
   }
 
   override def afterAll(): Unit = {
