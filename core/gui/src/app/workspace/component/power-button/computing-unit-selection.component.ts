@@ -170,7 +170,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(execList => {
         if (execList.length > 0) {
           this.notificationService.info(
-            "There are onging executions on this workflow. Modification of the workflow is currently disabled."
+            "There are ongoing executions on this workflow. Modification of the workflow is currently disabled."
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
@@ -188,7 +188,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   /**
    * Registers a subscription to listen for workflow metadata changes;
-   * Calls `onComputingUnitChange` when the `wid` changes;
+   * Calls `selectComputingUnit` when the `wid` changes;
    * The wid can change by time because of the workspace rendering;
    */
   private registerWorkflowMetadataSubscription(): void {

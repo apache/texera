@@ -15,8 +15,8 @@ src/environments/version.ts
 .angular
 
 # yarn v4 related
-.pnp.*
 .yarn/*
+!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases

@@ -77,7 +77,7 @@ DROP TABLE IF EXISTS workflow_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_of_user CASCADE;
 DROP TABLE IF EXISTS user_config CASCADE;
 DROP TABLE IF EXISTS "user" CASCADE;
-DROP TABLE IF EXISTS time_log CASCADE;
+DROP TABLE IF EXISTS user_last_active_time CASCADE;
 DROP TABLE IF EXISTS workflow CASCADE;
 DROP TABLE IF EXISTS workflow_version CASCADE;
 DROP TABLE IF EXISTS project CASCADE;
@@ -92,8 +92,7 @@ DROP TABLE IF EXISTS project_user_access CASCADE;
 DROP TABLE IF EXISTS workflow_user_likes CASCADE;
 DROP TABLE IF EXISTS workflow_user_clones CASCADE;
 DROP TABLE IF EXISTS workflow_view_count CASCADE;
-DROP TABLE IF EXISTS workflow_user_activity CASCADE;
-DROP TABLE IF EXISTS user_activity CASCADE;
+DROP TABLE IF EXISTS user_action CASCADE;
 DROP TABLE IF EXISTS dataset_user_likes CASCADE;
 DROP TABLE IF EXISTS dataset_view_count CASCADE;
 DROP TABLE IF EXISTS site_settings CASCADE;
@@ -106,8 +105,10 @@ DROP TABLE IF EXISTS computing_unit_user_access CASCADE;
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS privilege_enum CASCADE;
 DROP TYPE IF EXISTS contributor_role_enum CASCADE;
+DROP TYPE IF EXISTS action_enum CASCADE;
 
 CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN');
+CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
 CREATE TYPE contributor_role_enum AS ENUM ('RESEARCHER', 'PRINCIPAL INVESTIGATOR', 'PROJECT MEMBER', 'OTHER');
@@ -119,14 +120,15 @@ CREATE TYPE contributor_role_enum AS ENUM ('RESEARCHER', 'PRINCIPAL INVESTIGATOR
 -- "user" table
 CREATE TABLE IF NOT EXISTS "user"
 (
-    uid           SERIAL PRIMARY KEY,
-    name          VARCHAR(256) NOT NULL,
-    email         VARCHAR(256) UNIQUE,
-    password      VARCHAR(256),
-    google_id     VARCHAR(256) UNIQUE,
-    google_avatar VARCHAR(100),
-    role          user_role_enum NOT NULL DEFAULT 'INACTIVE',
-    comment TEXT,
+    uid                     SERIAL PRIMARY KEY,
+    name                    VARCHAR(256) NOT NULL,
+    email                   VARCHAR(256) UNIQUE,
+    password                VARCHAR(256),
+    google_id               VARCHAR(256) UNIQUE,
+    google_avatar           VARCHAR(100),
+    role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
+    comment                 TEXT,
+    account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
     );
@@ -361,17 +363,18 @@ CREATE TABLE IF NOT EXISTS workflow_view_count
     FOREIGN KEY (wid) REFERENCES workflow(wid) ON DELETE CASCADE
     );
 
--- Drop old workflow_user_activity (if any), replace with user_activity
--- user_activity table
-CREATE TABLE IF NOT EXISTS user_activity
-(
-    uid           INTEGER NOT NULL DEFAULT 0,
-    id            INTEGER NOT NULL,
-    type          VARCHAR(15) NOT NULL,
-    ip            VARCHAR(15) DEFAULT NULL,
-    activate      VARCHAR(10) NOT NULL,
-    activity_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+-- user_action table
+CREATE TABLE IF NOT EXISTS user_action (
+    user_action_id BIGSERIAL PRIMARY KEY,
+    uid            INTEGER,
+    ip             VARCHAR(15),
+    action_time    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resource_type  VARCHAR(15) NOT NULL,
+    resource_id    INTEGER NOT NULL,
+    action         texera_db.action_enum NOT NULL,
+    FOREIGN KEY (uid) REFERENCES "user"(uid) ON DELETE SET NULL
+);
+
 
 -- dataset_user_likes table
 CREATE TABLE IF NOT EXISTS dataset_user_likes
@@ -401,13 +404,13 @@ CREATE TABLE IF NOT EXISTS site_settings
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
--- time_log table
-CREATE TABLE IF NOT EXISTS time_log
+-- user_last_active_time table
+CREATE TABLE IF NOT EXISTS user_last_active_time
 (
     uid            INT          NOT NULL
         PRIMARY KEY
         REFERENCES "user"(uid),
-    last_login     TIMESTAMPTZ
+    last_active_time     TIMESTAMPTZ
 );
 
 -- computing_unit_user_access table
