@@ -103,6 +103,7 @@ object WorkflowExecutionsResource {
     }
   }
 
+//
   /**
     * Represents a dataset that has access restrictions for export.
     * Used to track which datasets are non-downloadable and owned by other users.
@@ -190,6 +191,7 @@ object WorkflowExecutionsResource {
       wid: Int,
       currentUser: UserPojo
   ): Map[String, Set[RestrictedDataset]] = {
+    // Load workflow
     val workflowRecord = context
       .select(WORKFLOW.CONTENT)
       .from(WORKFLOW)
@@ -215,6 +217,7 @@ object WorkflowExecutionsResource {
     val operatorsNode = rootNode.path("operators")
     val linksNode = rootNode.path("links")
 
+    // Find source operators
     val datasetStatusCache = mutable.Map.empty[(String, String), Option[Boolean]]
     val restrictedSourceMap = mutable.Map.empty[String, RestrictedDataset]
     val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
@@ -240,6 +243,7 @@ object WorkflowExecutionsResource {
       }
     }
 
+    // Build dependency graph
     linksNode.elements().asScala.foreach { linkNode =>
       val sourceId = linkNode.path("source").path("operatorID").asText("")
       val targetId = linkNode.path("target").path("operatorID").asText("")
@@ -249,6 +253,7 @@ object WorkflowExecutionsResource {
       }
     }
 
+    // BFS to propagate restrictions
     val restrictionMap = mutable.Map.empty[String, Set[RestrictedDataset]]
     val queue = mutable.Queue.empty[(String, Set[RestrictedDataset])]
 
@@ -271,6 +276,7 @@ object WorkflowExecutionsResource {
 
     restrictionMap.toMap
   }
+  //
 
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
@@ -872,8 +878,12 @@ class WorkflowExecutionsResource {
         .entity(Map("error" -> "No operator selected").asJava)
         .build()
     }
+
+    // Get ALL restrictions in workflow
     val datasetRestrictions = computeDatasetRestrictionMap(request.workflowId, user.user)
+    // Filter to only user's selection
     val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
+    // Check if any selected operator is restricted
     if (restrictedOperators.nonEmpty) {
       val errorMessage = restrictedOperators
         .map { op =>

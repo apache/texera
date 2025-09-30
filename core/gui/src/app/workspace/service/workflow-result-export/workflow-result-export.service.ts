@@ -331,16 +331,6 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * Checks if any of the provided operator IDs are blocked by dataset restrictions.
-   *
-   * @param operatorIds Array of operator IDs to check
-   * @returns True if any operators are blocked, false otherwise
-   */
-  public hasBlockedOperators(operatorIds: readonly string[]): boolean {
-    return operatorIds.some(operatorId => this.restrictedOperatorMap.has(operatorId));
-  }
-
-  /**
    * Gets the list of dataset labels that are blocking export for the given operators.
    * Used to display user-friendly error messages about which datasets are causing restrictions.
    *
