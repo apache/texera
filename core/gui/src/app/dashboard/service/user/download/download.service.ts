@@ -185,18 +185,21 @@ export class DownloadService {
     unit: DashboardWorkflowComputingUnit        // computing unit for cluster setting
   ): void {
     const computingUnitId = unit.computingUnit.cuid;
-    const token = localStorage.getItem(TOKEN_KEY);
+    const datasetIds: number[] = [];
+    const destination = "local";
     const requestBody = {
       exportType,
       workflowId,
       workflowName,
       operators,
+      datasetIds,
       rowIndex,
       columnIndex,
       filename,
+      destination,
       computingUnitId,
-      token
     };
+    const token = localStorage.getItem(TOKEN_KEY) ?? '';
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
@@ -215,19 +218,17 @@ export class DownloadService {
     form.enctype = 'application/x-www-form-urlencoded';
     form.style.display = 'none';
 
-    Object.entries(requestBody).forEach(([key, value]) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value =
-        value === null
-          ? ''
-          : typeof value === 'object'
-          ? JSON.stringify(value)
-          : String(value);
+    const requestInput = document.createElement('input');
+    requestInput.type = 'hidden';
+    requestInput.name = 'request';
+    requestInput.value = JSON.stringify(requestBody);
+    form.appendChild(requestInput);
 
-      form.appendChild(input);
-    });
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden';
+    tokenInput.name = 'token';
+    tokenInput.value = token;
+    form.appendChild(tokenInput);
 
     document.body.appendChild(form);
     form.submit();

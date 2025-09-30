@@ -43,3 +43,7 @@ case class ResultExportRequest(
     // TODO: remove it once the lifecycle of result and compute are unbundled
     computingUnitId: Int // the id of the computing unit
 )
+
+object ResultExportRequest {
+  implicit val fmt: OFormat[ResultExportRequest] = Json.format[ResultExportRequest]
+}
