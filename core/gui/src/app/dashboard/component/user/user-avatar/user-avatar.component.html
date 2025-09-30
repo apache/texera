@@ -16,13 +16,16 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
+<i
+  *ngIf="isOwner"
+  nz-icon
+  nzType="star"
+  class="owner-badge">
+</i>
+
 <nz-avatar
   [nzSrc]="(avatarUrl$ | async) || ''"
   [nzText]="abbreviate(userName || '')"
   [style.background-color]="userColor">
 </nz-avatar>
-<span
-  *ngIf="isOwner"
-  class="owner-badge"
-  >★</span
->
