@@ -103,7 +103,6 @@ object WorkflowExecutionsResource {
     }
   }
 
-//
   /**
     * Represents a dataset that has access restrictions for export.
     * Used to track which datasets are non-downloadable and owned by other users.
@@ -276,7 +275,6 @@ object WorkflowExecutionsResource {
 
     restrictionMap.toMap
   }
-  //
 
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
