@@ -78,3 +78,6 @@ notifications:
   pullrequests:         dev@texera.apache.org
   discussions:          dev@texera.apache.org
   jobs:                 commits@texera.apache.org
+
+publish:
+  whoami: asf-site
