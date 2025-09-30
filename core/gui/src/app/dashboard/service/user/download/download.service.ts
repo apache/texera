@@ -179,18 +179,11 @@ export class DownloadService {
       id: string;
       outputType: string;
     }[],
-    datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "local", // "local" or "dataset" => default to "local"
     unit: DashboardWorkflowComputingUnit        // computing unit for cluster setting
   ): void {
-    if (destination != 'local') {
-      this.notificationService.error('Export via form only supports local downloads.');
-      return;
-    }
-
     const computingUnitId = unit.computingUnit.cuid;
     const token = localStorage.getItem(TOKEN_KEY);
     const requestBody = {
@@ -198,11 +191,9 @@ export class DownloadService {
       workflowId,
       workflowName,
       operators,
-      datasetIds,
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
       token
     };

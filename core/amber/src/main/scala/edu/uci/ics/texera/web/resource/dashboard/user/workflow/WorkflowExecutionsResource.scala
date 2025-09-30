@@ -719,11 +719,9 @@ class WorkflowExecutionsResource {
       @FormParam("workflowId") workflowId: Int,
       @FormParam("workflowName") workflowName: String,
       @FormParam("operators") operatorsJson: String,
-      @FormParam("datasetIds") datasetIdsJson: String,
       @FormParam("rowIndex") rowIndex: Int,
       @FormParam("columnIndex") columnIndex: Int,
       @FormParam("filename") filename: String,
-      @FormParam("destination") destination: String,
       @FormParam("computingUnitId") computingUnitId: Int,
       @FormParam("token") token: String
   ): Response = {
@@ -741,10 +739,9 @@ class WorkflowExecutionsResource {
         throw new RuntimeException("Invalid or expired token")
       }
 
-      val resultExportService =
-        new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
       val operators = Json.parse(operatorsJson).as[List[OperatorExportInfo]]
-      val datasetIds: List[Int] = List()
+      val datasetIds = List()
+      val destination = "local"
       val request = ResultExportRequest(
         exportType,
         workflowId,
@@ -758,6 +755,8 @@ class WorkflowExecutionsResource {
         computingUnitId
       )
 
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
       resultExportService.validateExportRequest(request) match {
         case Some(errorResponse) => errorResponse
         case None                => resultExportService.exportToLocal(request)

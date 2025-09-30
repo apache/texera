@@ -151,11 +151,9 @@ export class WorkflowResultExportService {
           workflowId,
           workflowName,
           operatorArray,
-          [...datasetIds],
           rowIndex,
           columnIndex,
           filename,
-          destination,
           unit
         );
     } else {
