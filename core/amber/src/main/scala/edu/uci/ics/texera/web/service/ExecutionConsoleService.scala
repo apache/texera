@@ -24,15 +24,27 @@ import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ConsoleMessage, ConsoleMessageType, EvaluatePythonExpressionRequest, DebugCommandRequest => AmberDebugCommandRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType,
+  EvaluatePythonExpressionRequest,
+  DebugCommandRequest => AmberDebugCommandRequest
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.executionruntimestate.{EvaluatedValueList, ExecutionConsoleStore, OperatorConsole}
+import edu.uci.ics.amber.engine.common.executionruntimestate.{
+  EvaluatedValueList,
+  ExecutionConsoleStore,
+  OperatorConsole
+}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
-import edu.uci.ics.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
+import edu.uci.ics.texera.web.model.websocket.request.python.{
+  DebugCommandRequest,
+  PythonExpressionEvaluateRequest
+}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
@@ -43,7 +55,11 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED
+}
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
