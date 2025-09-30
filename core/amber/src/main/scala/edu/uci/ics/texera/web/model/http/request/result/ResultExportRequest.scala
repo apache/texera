@@ -19,10 +19,16 @@
 
 package edu.uci.ics.texera.web.model.http.request.result
 
+import play.api.libs.json._
+
 case class OperatorExportInfo(
     id: String,
     outputType: String
 )
+
+object OperatorExportInfo {
+  implicit val fmt: OFormat[OperatorExportInfo] = Json.format[OperatorExportInfo]
+}
 
 case class ResultExportRequest(
     exportType: String, // e.g. "csv", "google_sheet", "arrow", "data"

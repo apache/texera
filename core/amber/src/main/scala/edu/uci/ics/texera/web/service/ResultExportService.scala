@@ -19,9 +19,6 @@
 
 package edu.uci.ics.texera.web.service
 
-import com.fasterxml.jackson.core.`type`.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
 import edu.uci.ics.amber.config.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.DocumentFactory
@@ -596,15 +593,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
-  }
-
-  /**
-    * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
-    */
-  def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
-    new ObjectMapper()
-      .registerModule(DefaultScalaModule)
-      .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
   }
 
   /**
