@@ -41,8 +41,18 @@ import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
 import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowExecutionsDao, WorkflowVersionDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion, Workflow => WorkflowPojo}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  WorkflowExecutions,
+  WorkflowVersion,
+  Workflow => WorkflowPojo
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
