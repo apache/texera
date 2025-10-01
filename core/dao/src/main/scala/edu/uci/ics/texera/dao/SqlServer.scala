@@ -53,8 +53,11 @@ object SqlServer {
 
   def initConnection(url: String, user: String, password: String): Unit = {
     if (instance.isEmpty) {
+      println(s"Initiating connection: $url")
       val server = new SqlServer(url, user, password)
       instance = Some(server)
+    } else {
+      println(s"Reusing connection: ${instance.get.dataSource.getURL}")
     }
   }
 
