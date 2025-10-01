@@ -25,6 +25,7 @@ import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
@@ -32,20 +33,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
-import edu.uci.ics.texera.dao.MockTexeraDB
+import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  WorkflowExecutions,
-  WorkflowVersion,
-  Workflow => WorkflowPojo
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowExecutionsDao, WorkflowVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion, Workflow => WorkflowPojo}
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -102,10 +93,11 @@ class PauseSpec
   }
 
   override protected def beforeEach(): Unit = {
-    val userDao = new UserDao(getDSLContext.configuration())
-    val workflowDao = new WorkflowDao(getDSLContext.configuration())
-    val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
-    val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    val dslConfig = SqlServer.getInstance().context.configuration()
+    val userDao = new UserDao(dslConfig)
+    val workflowDao = new WorkflowDao(dslConfig)
+    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
+    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
     userDao.insert(testUser)
     workflowDao.insert(testWorkflowEntry)
     workflowVersionDao.insert(testWorkflowVersionEntry)
@@ -113,10 +105,11 @@ class PauseSpec
   }
 
   override protected def afterEach(): Unit = {
-    val userDao = new UserDao(getDSLContext.configuration())
-    val workflowDao = new WorkflowDao(getDSLContext.configuration())
-    val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
-    val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    val dslConfig = SqlServer.getInstance().context.configuration()
+    val userDao = new UserDao(dslConfig)
+    val workflowDao = new WorkflowDao(dslConfig)
+    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
+    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
     workflowExecutionsDao.deleteById(1)
     workflowVersionDao.deleteById(1)
     workflowDao.deleteById(1)
@@ -128,11 +121,14 @@ class PauseSpec
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
-    initializeDBAndReplaceDSLContext()
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
   }
 
   override def afterAll(): Unit = {
-    shutdownDB()
     TestKit.shutdownActorSystem(system)
   }
 
