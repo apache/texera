@@ -25,11 +25,11 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
@@ -52,6 +52,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion,
   Workflow => WorkflowPojo
 }
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -120,15 +121,14 @@ class DataProcessingSpec
   }
 
   override protected def afterEach(): Unit = {
-    val dsl = getDSLContext
-    dsl.execute(
-      """
-      TRUNCATE TABLE workflow_executions RESTART IDENTITY CASCADE;
-      TRUNCATE TABLE workflow_version     RESTART IDENTITY CASCADE;
-      TRUNCATE TABLE workflow             RESTART IDENTITY CASCADE;
-      TRUNCATE TABLE "user"               RESTART IDENTITY CASCADE;
-      """.stripMargin
-    )
+    val userDao = new UserDao(getDSLContext.configuration())
+    val workflowDao = new WorkflowDao(getDSLContext.configuration())
+    val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+    val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    workflowExecutionsDao.deleteById(1)
+    workflowVersionDao.deleteById(1)
+    workflowDao.deleteById(1)
+    userDao.deleteById(1)
   }
 
   override def beforeAll(): Unit = {
@@ -140,8 +140,8 @@ class DataProcessingSpec
   }
 
   override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
     shutdownDB()
+    TestKit.shutdownActorSystem(system)
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
@@ -164,27 +164,21 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
-              val uri = VFSURIFactory.createResultURI(
-                workflowContext.workflowId,
+              val uri = getResultUriByLogicalPortId(
                 workflowContext.executionId,
-                GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
-                  PortIdentity()
-                )
+                terminalOpId,
+                PortIdentity()
               )
-              true
+              uri.nonEmpty
             })
             .map(terminalOpId => {
               //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
               Thread.sleep(1000)
-              val uri = VFSURIFactory.createResultURI(
-                workflowContext.workflowId,
+              val uri = getResultUriByLogicalPortId(
                 workflowContext.executionId,
-                GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
-                  PortIdentity()
-                )
-              )
+                terminalOpId,
+                PortIdentity()
+              ).get
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
                 ._1
