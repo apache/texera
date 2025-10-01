@@ -146,6 +146,12 @@ class DataProcessingSpec
     dataSource.setUrl(StorageConfig.jdbcUrl)
     dataSource.setUser(StorageConfig.jdbcUsername)
     dataSource.setPassword(StorageConfig.jdbcPassword)
+    SqlServer.initConnection(
+      url = StorageConfig.jdbcUrl,
+      user = StorageConfig.jdbcUsername,
+      password = StorageConfig.jdbcPassword
+    )
+
   }
 
   override def afterAll(): Unit = {
