@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM bitnami/postgresql:17.4.0-debian-12-r11
+FROM bitnamilegacy/postgresql:17.4.0-debian-12-r11
 
 USER root
 
