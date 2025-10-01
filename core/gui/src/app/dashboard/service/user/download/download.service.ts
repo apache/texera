@@ -132,14 +132,10 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
     unit: DashboardWorkflowComputingUnit          // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
-    if (destination != 'dataset') {
-      return throwError(() => new Error('Export not via form only supports dataset downloads.'));
-    }
-
     const computingUnitId = unit.computingUnit.cuid;
+    const destination = "dataset";
     const requestBody = {
       exportType,
       workflowId,

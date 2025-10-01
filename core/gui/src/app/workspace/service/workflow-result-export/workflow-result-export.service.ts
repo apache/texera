@@ -168,7 +168,6 @@ export class WorkflowResultExportService {
           rowIndex,
           columnIndex,
           filename,
-          destination,
           unit
         )
         .subscribe({
