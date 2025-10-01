@@ -104,25 +104,13 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Represents a dataset that has access restrictions for export.
-    * Used to track which datasets are non-downloadable and owned by other users.
-    *
-    * @param ownerEmail The email of the dataset owner
-    * @param datasetName The name of the dataset
-    */
-  private case class RestrictedDataset(ownerEmail: String, datasetName: String) {
-    def cacheKey: (String, String) = (ownerEmail.toLowerCase, datasetName.toLowerCase)
-    def label: String = s"$datasetName ($ownerEmail)"
-  }
-
-  /**
     * Parses a file path to extract dataset information.
     * Expected format: /ownerEmail/datasetName/...
     *
     * @param path The file path from operator properties
-    * @return Some(RestrictedDataset) if path is valid, None otherwise
+    * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise
     */
-  private def parseDatasetPath(path: String): Option[RestrictedDataset] = {
+  private def parseDatasetPath(path: String): Option[(String, String)] = {
     if (path == null) {
       return None
     }
@@ -136,23 +124,26 @@ object WorkflowExecutionsResource {
     }
     val ownerEmail = segments(0)
     val datasetName = segments(1)
-    Some(RestrictedDataset(ownerEmail, datasetName))
+    Some((ownerEmail, datasetName))
   }
 
   /**
     * Checks if a dataset is downloadable by querying the database.
     * Uses caching to avoid repeated database queries for the same dataset.
     *
-    * @param dataset The dataset to check
+    * @param ownerEmail The email of the dataset owner
+    * @param datasetName The name of the dataset
     * @param cache A cache to store lookup results
     * @return Some(true) if downloadable, Some(false) if not, None if dataset doesn't exist
     */
   private def isDownloadableDataset(
-      dataset: RestrictedDataset,
+      ownerEmail: String,
+      datasetName: String,
       cache: mutable.Map[(String, String), Option[Boolean]]
   ): Option[Boolean] = {
+    val cacheKey = (ownerEmail.toLowerCase, datasetName.toLowerCase)
     cache.getOrElseUpdate(
-      dataset.cacheKey, {
+      cacheKey, {
         val record = context
           .select(DATASET.IS_DOWNLOADABLE)
           .from(DATASET)
@@ -160,8 +151,8 @@ object WorkflowExecutionsResource {
           .on(DATASET.OWNER_UID.eq(USER.UID))
           .where(
             USER.EMAIL
-              .equalIgnoreCase(dataset.ownerEmail)
-              .and(DATASET.NAME.equalIgnoreCase(dataset.datasetName))
+              .equalIgnoreCase(ownerEmail)
+              .and(DATASET.NAME.equalIgnoreCase(datasetName))
           )
           .fetchOne()
         if (record == null) {
@@ -184,12 +175,12 @@ object WorkflowExecutionsResource {
     *
     * @param wid The workflow ID
     * @param currentUser The current user making the export request
-    * @return Map of operator ID -> Set of restricted datasets that block its export
+    * @return Map of operator ID -> Set of (ownerEmail, datasetName) tuples that block its export
     */
   private def getNonDownloadableOperatorMap(
       wid: Int,
       currentUser: UserPojo
-  ): Map[String, Set[RestrictedDataset]] = {
+  ): Map[String, Set[(String, String)]] = {
     // Load workflow
     val workflowRecord = context
       .select(WORKFLOW.CONTENT)
@@ -215,7 +206,7 @@ object WorkflowExecutionsResource {
 
     // Find source operators
     val datasetStatusCache = mutable.Map.empty[(String, String), Option[Boolean]]
-    val restrictedSourceMap = mutable.Map.empty[String, RestrictedDataset]
+    val restrictedSourceMap = mutable.Map.empty[String, (String, String)]
     val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
 
     operatorsNode.elements().asScala.foreach { operatorNode =>
@@ -223,17 +214,18 @@ object WorkflowExecutionsResource {
       if (operatorId.nonEmpty) {
         val fileNameNode = operatorNode.path("operatorProperties").path("fileName")
         if (fileNameNode.isTextual) {
-          parseDatasetPath(fileNameNode.asText()).foreach { dataset =>
-            val isOwner =
-              Option(currentUser.getEmail)
-                .exists(_.equalsIgnoreCase(dataset.ownerEmail))
-            if (!isOwner) {
-              isDownloadableDataset(dataset, datasetStatusCache) match {
-                case Some(value) if !value =>
-                  restrictedSourceMap.update(operatorId, dataset)
-                case _ =>
+          parseDatasetPath(fileNameNode.asText()).foreach {
+            case (ownerEmail, datasetName) =>
+              val isOwner =
+                Option(currentUser.getEmail)
+                  .exists(_.equalsIgnoreCase(ownerEmail))
+              if (!isOwner) {
+                isDownloadableDataset(ownerEmail, datasetName, datasetStatusCache) match {
+                  case Some(value) if !value =>
+                    restrictedSourceMap.update(operatorId, (ownerEmail, datasetName))
+                  case _ =>
+                }
               }
-            }
           }
         }
       }
@@ -250,8 +242,8 @@ object WorkflowExecutionsResource {
     }
 
     // BFS to propagate restrictions
-    val restrictionMap = mutable.Map.empty[String, Set[RestrictedDataset]]
-    val queue = mutable.Queue.empty[(String, Set[RestrictedDataset])]
+    val restrictionMap = mutable.Map.empty[String, Set[(String, String)]]
+    val queue = mutable.Queue.empty[(String, Set[(String, String)])]
 
     restrictedSourceMap.foreach {
       case (operatorId, dataset) =>
@@ -879,17 +871,17 @@ class WorkflowExecutionsResource {
     val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
     // Check if any selected operator is restricted
     if (restrictedOperators.nonEmpty) {
-      val errorMessage = restrictedOperators
-        .map { op =>
-          val datasets = datasetRestrictions(op.id).map(_.label).toList.sorted
-          s"Operator ${op.id} cannot be exported because it depends on dataset(s): ${datasets.mkString(", ")}"
+      val restrictedDatasets = restrictedOperators.flatMap { op =>
+        datasetRestrictions(op.id).map {
+          case (ownerEmail, datasetName) =>
+            Map("operatorId" -> op.id, "ownerEmail" -> ownerEmail, "datasetName" -> datasetName).asJava
         }
-        .mkString("; ")
+      }
 
       return Response
         .status(Response.Status.FORBIDDEN)
         .`type`(MediaType.APPLICATION_JSON)
-        .entity(Map("error" -> errorMessage).asJava)
+        .entity(Map("error" -> "Export blocked due to dataset restrictions", "restrictedDatasets" -> restrictedDatasets.asJava).asJava)
         .build()
     }
 
