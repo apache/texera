@@ -29,6 +29,10 @@ jobs:
         run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
         env:
           PGPASSWORD: postgres
+
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+        
       - name: Compile with sbt
         run: cd core && sbt clean package
 
