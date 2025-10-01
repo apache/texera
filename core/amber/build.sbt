@@ -41,8 +41,6 @@ conflictManager := ConflictManager.latestRevision
 
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
-Test / parallelExecution := false
-Test / fork := true
 
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"

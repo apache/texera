@@ -22,14 +22,15 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.config.StorageConfig
-import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
@@ -38,29 +39,10 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  WorkflowExecutions,
-  WorkflowVersion,
-  Workflow => WorkflowPojo
-}
-import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
-import org.jooq.SQLDialect
-import org.jooq.impl.DSL
-import org.postgresql.ds.PGSimpleDataSource
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
@@ -68,95 +50,22 @@ class DataProcessingSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
-  val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
+  var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
-
-  private val testUser: User = {
-    val user = new User
-    user.setUid(Integer.valueOf(1))
-    user.setName("test_user")
-    user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
-    user.setEmail("test_user@test.com")
-    user
-  }
-
-  private val testWorkflowEntry: WorkflowPojo = {
-    val workflow = new WorkflowPojo
-    workflow.setName("test workflow")
-    workflow.setWid(Integer.valueOf(1))
-    workflow.setContent("test workflow content")
-    workflow.setDescription("test description")
-    workflow
-  }
-
-  private val testWorkflowVersionEntry: WorkflowVersion = {
-    val workflowVersion = new WorkflowVersion
-    workflowVersion.setWid(Integer.valueOf(1))
-    workflowVersion.setVid(Integer.valueOf(1))
-    workflowVersion.setContent("test version content")
-    workflowVersion
-  }
-
-  private val testWorkflowExecutionEntry: WorkflowExecutions = {
-    val workflowExecution = new WorkflowExecutions
-    workflowExecution.setEid(Integer.valueOf(1))
-    workflowExecution.setVid(Integer.valueOf(1))
-    workflowExecution.setUid(Integer.valueOf(1))
-    workflowExecution.setStatus(3.toByte)
-    workflowExecution.setEnvironmentVersion("test engine")
-    workflowExecution
-  }
-
-  override protected def beforeEach(): Unit = {
-    val dslConfig = DSL.using(dataSource, SQL_DIALECT).configuration()
-    val userDao = new UserDao(dslConfig)
-    val workflowDao = new WorkflowDao(dslConfig)
-    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
-    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
-    userDao.insert(testUser)
-    workflowDao.insert(testWorkflowEntry)
-    workflowVersionDao.insert(testWorkflowVersionEntry)
-    workflowExecutionsDao.insert(testWorkflowExecutionEntry)
-  }
-
-  override protected def afterEach(): Unit = {
-    val dslConfig = DSL.using(dataSource, SQL_DIALECT).configuration()
-    val userDao = new UserDao(dslConfig)
-    val workflowDao = new WorkflowDao(dslConfig)
-    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
-    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
-    workflowExecutionsDao.deleteById(1)
-    workflowVersionDao.deleteById(1)
-    workflowDao.deleteById(1)
-    userDao.deleteById(1)
-  }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
-    dataSource.setUrl(StorageConfig.jdbcUrl)
-    dataSource.setUser(StorageConfig.jdbcUsername)
-    dataSource.setPassword(StorageConfig.jdbcPassword)
-    SqlServer.initConnection(
-      url = StorageConfig.jdbcUrl,
-      user = StorageConfig.jdbcUsername,
-      password = StorageConfig.jdbcPassword
-    )
-
   }
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    Await.ready(system.whenTerminated, 1.seconds)
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
@@ -179,21 +88,30 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
-              val uri = getResultUriByLogicalPortId(
+              val uri = VFSURIFactory.createResultURI(
+                workflowContext.workflowId,
                 workflowContext.executionId,
-                terminalOpId,
-                PortIdentity()
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
               )
-              uri.nonEmpty
+              // expecting the first output port only.
+              ExecutionResourcesMapping
+                .getResourceURIs(workflowContext.executionId)
+                .contains(uri)
             })
             .map(terminalOpId => {
               //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
               Thread.sleep(1000)
-              val uri = getResultUriByLogicalPortId(
+              val uri = VFSURIFactory.createResultURI(
+                workflowContext.workflowId,
                 workflowContext.executionId,
-                terminalOpId,
-                PortIdentity()
-              ).get
+                GlobalPortIdentity(
+                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
+                  PortIdentity()
+                )
+              )
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
                 ._1
