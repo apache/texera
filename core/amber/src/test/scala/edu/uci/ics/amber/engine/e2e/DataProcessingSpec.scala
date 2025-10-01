@@ -145,7 +145,7 @@ class DataProcessingSpec
     Class.forName("org.postgresql.Driver")
     dataSource.setUrl(StorageConfig.jdbcUrl)
     dataSource.setUser(StorageConfig.jdbcUsername)
-    dataSource.setUser(StorageConfig.jdbcPassword)
+    dataSource.setPassword(StorageConfig.jdbcPassword)
   }
 
   override def afterAll(): Unit = {
