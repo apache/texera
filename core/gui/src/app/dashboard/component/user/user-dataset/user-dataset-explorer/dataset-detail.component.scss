@@ -170,7 +170,9 @@ nz-select {
   margin-top: 15%;
 }
 
-.upload-progress-wrapper {
+.upload-progress-wrapper,
+.upload-progress-wrapper-pending {
+  margin-top: 5px;
   max-height: 25vh;
   overflow-y: auto;
   padding-right: 4px;
@@ -178,6 +180,13 @@ nz-select {
 
 .upload-progress-container {
   margin-left: 20px;
+}
+
+.upload-progress-wrapper-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 15vh;
 }
 
 .version-creator {
@@ -233,6 +242,10 @@ nz-select {
 .upload-stats {
   font-size: 13px;
   margin-bottom: 20px;
+  nz-progress {
+    width: 97%;
+    display: inline-block;
+  }
 }
 
 :host ::ng-deep .upload-stats .ant-tag {
@@ -249,4 +262,8 @@ nz-select {
   display: inline-block;
   min-width: 2ch;
   text-align: right;
+}
+
+.section-divider {
+  margin: 8px 0;
 }

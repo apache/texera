@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,9 @@
  * under the License.
  */
 
-.owner-badge {
-  vertical-align: top;
+package edu.uci.ics.amber.operator.sklearn.training
+
+class SklearnTrainingLinearRegressionOpDesc extends SklearnTrainingOpDesc {
+  override def getImportStatements = "from sklearn.linear_model import LinearRegression"
+  override def getUserFriendlyModelName = "Training: Linear Regression"
 }
