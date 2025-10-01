@@ -38,7 +38,7 @@ import scala.jdk.CollectionConverters._
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.web.model.http.request.result.{ResultExportRequest, OperatorExportInfo}
+import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import io.dropwizard.auth.Auth
