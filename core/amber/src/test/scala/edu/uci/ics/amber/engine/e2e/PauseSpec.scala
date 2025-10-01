@@ -35,19 +35,12 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
 import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  WorkflowExecutions,
-  WorkflowVersion,
-  Workflow => WorkflowPojo
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowExecutionsDao, WorkflowVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion, Workflow => WorkflowPojo}
 import edu.uci.ics.texera.workflow.LogicalLink
+import org.jooq.SQLDialect
+import org.jooq.impl.DSL
+import org.postgresql.ds.PGSimpleDataSource
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -64,6 +57,10 @@ class PauseSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("PauseSpecLogger")
+
+  val dataSource: PGSimpleDataSource = new PGSimpleDataSource()
+  val SQL_DIALECT: SQLDialect = SQLDialect.POSTGRES
+  val workflowContext: WorkflowContext = new WorkflowContext()
 
   private val testUser: User = {
     val user = new User
@@ -103,7 +100,7 @@ class PauseSpec
   }
 
   override protected def beforeEach(): Unit = {
-    val dslConfig = SqlServer.getInstance().context.configuration()
+    val dslConfig = DSL.using(dataSource, SQL_DIALECT).configuration()
     val userDao = new UserDao(dslConfig)
     val workflowDao = new WorkflowDao(dslConfig)
     val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
@@ -115,7 +112,7 @@ class PauseSpec
   }
 
   override protected def afterEach(): Unit = {
-    val dslConfig = SqlServer.getInstance().context.configuration()
+    val dslConfig = DSL.using(dataSource, SQL_DIALECT).configuration()
     val userDao = new UserDao(dslConfig)
     val workflowDao = new WorkflowDao(dslConfig)
     val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
@@ -131,11 +128,9 @@ class PauseSpec
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    dataSource.setUrl(StorageConfig.jdbcUrl)
+    dataSource.setUser(StorageConfig.jdbcUsername)
+    dataSource.setUser(StorageConfig.jdbcPassword)
   }
 
   override def afterAll(): Unit = {
