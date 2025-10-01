@@ -22,7 +22,6 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.config.StorageConfig
@@ -39,7 +38,6 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
@@ -53,6 +51,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   WorkflowVersion,
   Workflow => WorkflowPojo
 }
+import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.jooq.SQLDialect
@@ -61,6 +60,7 @@ import org.postgresql.ds.PGSimpleDataSource
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
@@ -156,6 +156,7 @@ class DataProcessingSpec
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
+    Await.ready(system.whenTerminated, 1.seconds)
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {

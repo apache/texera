@@ -55,6 +55,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
+import scala.concurrent.Await
 
 class PauseSpec
     extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
@@ -151,6 +152,7 @@ class PauseSpec
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
+    Await.ready(system.whenTerminated, 1.seconds)
   }
 
   def shouldPause(
