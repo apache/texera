@@ -49,8 +49,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 11
-      - name: Setup sbt launcher
-        uses: sbt/setup-sbt@v1
+     
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
