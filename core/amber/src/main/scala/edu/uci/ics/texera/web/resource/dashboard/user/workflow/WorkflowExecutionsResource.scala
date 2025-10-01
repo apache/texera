@@ -156,7 +156,7 @@ object WorkflowExecutionsResource {
       if (operatorId.nonEmpty) {
         val fileNameNode = operatorNode.path("operatorProperties").path("fileName")
         if (fileNameNode.isTextual) {
-          FileResolver.parseDatasetPath(fileNameNode.asText()).foreach {
+          FileResolver.parseDatasetOwnerAndName(fileNameNode.asText()).foreach {
             case (ownerEmail, datasetName) =>
               val isOwner =
                 Option(currentUser.getEmail)
@@ -827,7 +827,7 @@ class WorkflowExecutionsResource {
   ): Response = {
 
     if (request.operators.size <= 0)
-      return Response
+      Response
         .status(Response.Status.BAD_REQUEST)
         .`type`(MediaType.APPLICATION_JSON)
         .entity(Map("error" -> "No operator selected").asJava)
