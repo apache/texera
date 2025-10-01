@@ -55,8 +55,6 @@ object SqlServer {
     if (instance.isEmpty) {
       val server = new SqlServer(url, user, password)
       instance = Some(server)
-    } else {
-      println(s"Reusing existing SqlServer: ${instance.get.context}")
     }
   }
 
