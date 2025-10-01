@@ -20,7 +20,12 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, VFSResourceType, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  VFSResourceType,
+  VFSURIFactory
+}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
@@ -104,43 +109,6 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Checks if a dataset is downloadable by querying the database.
-    * Uses caching to avoid repeated database queries for the same dataset.
-    *
-    * @param ownerEmail The email of the dataset owner
-    * @param datasetName The name of the dataset
-    * @param cache A cache to store lookup results
-    * @return Some(true) if downloadable, Some(false) if not, None if dataset doesn't exist
-    */
-  private def isDownloadableDataset(
-      ownerEmail: String,
-      datasetName: String,
-      cache: mutable.Map[(String, String), Option[Boolean]]
-  ): Option[Boolean] = {
-    val cacheKey = (ownerEmail.toLowerCase, datasetName.toLowerCase)
-    cache.getOrElseUpdate(
-      cacheKey, {
-        val record = context
-          .select(DATASET.IS_DOWNLOADABLE)
-          .from(DATASET)
-          .join(USER)
-          .on(DATASET.OWNER_UID.eq(USER.UID))
-          .where(
-            USER.EMAIL
-              .equalIgnoreCase(ownerEmail)
-              .and(DATASET.NAME.equalIgnoreCase(datasetName))
-          )
-          .fetchOne()
-        if (record == null) {
-          None
-        } else {
-          Option(record.value1())
-        }
-      }
-    )
-  }
-
-  /**
     * Computes which operators in a workflow are restricted due to dataset access controls.
     *
     * This function:
@@ -180,10 +148,8 @@ object WorkflowExecutionsResource {
     val operatorsNode = rootNode.path("operators")
     val linksNode = rootNode.path("links")
 
-    // Find source operators
-    val datasetStatusCache = mutable.Map.empty[(String, String), Option[Boolean]]
-    val restrictedSourceMap = mutable.Map.empty[String, (String, String)]
-    val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
+    // Collect all datasets used by operators (that user doesn't own)
+    val operatorDatasets = mutable.Map.empty[String, (String, String)]
 
     operatorsNode.elements().asScala.foreach { operatorNode =>
       val operatorId = operatorNode.path("operatorID").asText("")
@@ -196,24 +162,50 @@ object WorkflowExecutionsResource {
                 Option(currentUser.getEmail)
                   .exists(_.equalsIgnoreCase(ownerEmail))
               if (!isOwner) {
-                isDownloadableDataset(ownerEmail, datasetName, datasetStatusCache) match {
-                  case Some(value) if !value =>
-                    restrictedSourceMap.update(operatorId, (ownerEmail, datasetName))
-                  case _ =>
-                }
+                operatorDatasets.update(operatorId, (ownerEmail, datasetName))
               }
           }
         }
       }
     }
 
+    if (operatorDatasets.isEmpty) {
+      return Map.empty
+    }
+
+    // Query all datasets
+    val uniqueDatasets = operatorDatasets.values.toSet
+    val conditions = uniqueDatasets.map {
+      case (ownerEmail, datasetName) =>
+        USER.EMAIL.equalIgnoreCase(ownerEmail).and(DATASET.NAME.equalIgnoreCase(datasetName))
+    }
+
+    val nonDownloadableDatasets = context
+      .select(USER.EMAIL, DATASET.NAME)
+      .from(DATASET)
+      .join(USER)
+      .on(DATASET.OWNER_UID.eq(USER.UID))
+      .where(conditions.reduce((a, b) => a.or(b)))
+      .and(DATASET.IS_DOWNLOADABLE.eq(false))
+      .fetch()
+      .asScala
+      .map(record => (record.value1().toLowerCase, record.value2().toLowerCase))
+      .toSet
+
+    // Filter to only operators with non-downloadable datasets
+    val restrictedSourceMap = operatorDatasets.filter {
+      case (_, (ownerEmail, datasetName)) =>
+        nonDownloadableDatasets.contains((ownerEmail.toLowerCase, datasetName.toLowerCase))
+    }
+
     // Build dependency graph
+    val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
+
     linksNode.elements().asScala.foreach { linkNode =>
       val sourceId = linkNode.path("source").path("operatorID").asText("")
       val targetId = linkNode.path("target").path("operatorID").asText("")
       if (sourceId.nonEmpty && targetId.nonEmpty) {
-        val targets = adjacency.getOrElseUpdate(sourceId, mutable.ListBuffer.empty[String])
-        targets += targetId
+        adjacency.getOrElseUpdate(sourceId, mutable.ListBuffer.empty[String]) += targetId
       }
     }
 
@@ -834,7 +826,7 @@ class WorkflowExecutionsResource {
       @Auth user: SessionUser
   ): Response = {
 
-    if (request.operators.size <= 0) 
+    if (request.operators.size <= 0)
       return Response
         .status(Response.Status.BAD_REQUEST)
         .`type`(MediaType.APPLICATION_JSON)
@@ -850,14 +842,23 @@ class WorkflowExecutionsResource {
       val restrictedDatasets = restrictedOperators.flatMap { op =>
         datasetRestrictions(op.id).map {
           case (ownerEmail, datasetName) =>
-            Map("operatorId" -> op.id, "ownerEmail" -> ownerEmail, "datasetName" -> datasetName).asJava
+            Map(
+              "operatorId" -> op.id,
+              "ownerEmail" -> ownerEmail,
+              "datasetName" -> datasetName
+            ).asJava
         }
       }
 
       return Response
         .status(Response.Status.FORBIDDEN)
         .`type`(MediaType.APPLICATION_JSON)
-        .entity(Map("error" -> "Export blocked due to dataset restrictions", "restrictedDatasets" -> restrictedDatasets.asJava).asJava)
+        .entity(
+          Map(
+            "error" -> "Export blocked due to dataset restrictions",
+            "restrictedDatasets" -> restrictedDatasets.asJava
+          ).asJava
+        )
         .build()
     }
 
