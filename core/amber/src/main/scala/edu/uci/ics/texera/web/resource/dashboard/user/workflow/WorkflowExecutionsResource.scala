@@ -189,13 +189,13 @@ object WorkflowExecutionsResource {
       .and(DATASET.IS_DOWNLOADABLE.eq(false))
       .fetch()
       .asScala
-      .map(record => (record.value1().toLowerCase, record.value2().toLowerCase))
+      .map(record => (record.value1(), record.value2()))
       .toSet
 
     // Filter to only operators with non-downloadable datasets
     val restrictedSourceMap = operatorDatasets.filter {
-      case (_, (ownerEmail, datasetName)) =>
-        nonDownloadableDatasets.contains((ownerEmail.toLowerCase, datasetName.toLowerCase))
+      case (_, dataset) =>
+        nonDownloadableDatasets.contains(dataset)
     }
 
     // Build dependency graph
