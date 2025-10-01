@@ -194,7 +194,7 @@ object WorkflowExecutionsResource {
     val workflowRecord = context
       .select(WORKFLOW.CONTENT)
       .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
+      .where(WORKFLOW.WID.eq(wid).and(WORKFLOW.CONTENT.isNotNull).and(WORKFLOW.CONTENT.ne("")))
       .fetchOne()
 
     if (workflowRecord == null) {
@@ -202,9 +202,6 @@ object WorkflowExecutionsResource {
     }
 
     val content = workflowRecord.value1()
-    if (content == null || content.isEmpty) {
-      return Map.empty
-    }
 
     val rootNode =
       try {
