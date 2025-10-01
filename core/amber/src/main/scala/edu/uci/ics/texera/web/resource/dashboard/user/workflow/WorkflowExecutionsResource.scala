@@ -147,7 +147,7 @@ object WorkflowExecutionsResource {
     * @param cache A cache to store lookup results
     * @return Some(true) if downloadable, Some(false) if not, None if dataset doesn't exist
     */
-  private def lookupDatasetDownloadable(
+  private def isDownloadableDataset(
       dataset: RestrictedDataset,
       cache: mutable.Map[(String, String), Option[Boolean]]
   ): Option[Boolean] = {
@@ -231,7 +231,7 @@ object WorkflowExecutionsResource {
               Option(currentUser.getEmail)
                 .exists(_.equalsIgnoreCase(dataset.ownerEmail))
             if (!isOwner) {
-              lookupDatasetDownloadable(dataset, datasetStatusCache) match {
+              isDownloadableDataset(dataset, datasetStatusCache) match {
                 case Some(value) if !value =>
                   restrictedSourceMap.update(operatorId, dataset)
                 case _ =>

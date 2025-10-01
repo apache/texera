@@ -20,7 +20,7 @@
 <div class="centered-container">
   <div
     class="input-wrapper"
-    *ngIf="hasPartialRestriction && blockingDatasetLabels.length > 0">
+    *ngIf="hasPartialNonDownloadable && blockingDatasetLabels.length > 0">
     <nz-alert
       nzType="warning"
       nzMessage="Some operators will be skipped"

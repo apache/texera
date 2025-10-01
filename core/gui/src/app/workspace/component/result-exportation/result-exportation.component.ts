@@ -55,7 +55,7 @@ export class ResultExportationComponent implements OnInit {
   exportableOperatorIds: string[] = [];
   blockedOperatorIds: string[] = [];
   isExportRestricted: boolean = false;
-  hasPartialRestriction: boolean = false;
+  hasPartialNonDownloadable: boolean = false;
   blockingDatasetLabels: string[] = [];
 
   userAccessibleDatasets: DashboardDataset[] = [];
@@ -111,7 +111,7 @@ export class ResultExportationComponent implements OnInit {
     this.blockedOperatorIds = this.workflowResultExportService.getBlockedOperatorIds(operatorIds);
     this.blockingDatasetLabels = this.workflowResultExportService.getBlockingDatasets(operatorIds);
     this.isExportRestricted = this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
-    this.hasPartialRestriction = this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
+    this.hasPartialNonDownloadable = this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
 
     if (operatorIds.length === 0) {
       // No operators highlighted
