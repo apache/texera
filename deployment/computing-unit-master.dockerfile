@@ -84,9 +84,16 @@ RUN curl -O https://cran.r-project.org/src/base/R-4/R-${R_VERSION}.tar.gz && \
     pip3 install -r /tmp/requirements.txt && \
     pip3 install -r /tmp/operator-requirements.txt && \
     pip3 install -r /tmp/r-requirements.txt
+# Install R packages, pinning arrow to 14.0.2.1 explicitly
 RUN Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
-                install.packages(c('coro', 'arrow', 'dplyr'), \
-                                 Ncpus = parallel::detectCores())"
+                install.packages(c('coro', 'dplyr'), \
+                                 Ncpus = parallel::detectCores())" && \
+    Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
+                if (!requireNamespace('remotes', quietly=TRUE)) \
+                  install.packages('remotes'); \
+                remotes::install_version('arrow', version='14.0.2.1', \
+                  repos='https://cran.r-project.org', upgrade='never'); \
+                cat('R arrow version: ', as.character(packageVersion('arrow')), '\n')"
 ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:$LD_LIBRARY_PATH
 
 # Copy the built texera binary from the build phase
