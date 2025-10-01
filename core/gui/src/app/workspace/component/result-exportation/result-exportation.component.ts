@@ -128,15 +128,13 @@ export class ResultExportationComponent implements OnInit {
       return;
     }
 
-    const idsToEvaluate = this.exportableOperatorIds;
-
     // Assume they're all table or visualization
     // until we find an operator that isn't
     let allTable = true;
     let allVisualization = true;
     let anyBinaryData = false;
 
-    for (const operatorId of idsToEvaluate) {
+    for (const operatorId of this.exportableOperatorIds) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
       if (!outputTypes.hasAnyResult) {
         continue;

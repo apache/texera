@@ -869,13 +869,12 @@ class WorkflowExecutionsResource {
       @Auth user: SessionUser
   ): Response = {
 
-    if (request.operators.isEmpty) {
+    if (request.operators.size <= 0) 
       return Response
         .status(Response.Status.BAD_REQUEST)
         .`type`(MediaType.APPLICATION_JSON)
         .entity(Map("error" -> "No operator selected").asJava)
         .build()
-    }
 
     // Get ALL non-downloadable in workflow
     val datasetRestrictions = getNonDownloadableOperatorMap(request.workflowId, user.user)
