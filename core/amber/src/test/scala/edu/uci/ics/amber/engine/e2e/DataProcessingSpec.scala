@@ -112,6 +112,7 @@ class DataProcessingSpec
 
   override protected def beforeEach(): Unit = {
     val dslConfig = SqlServer.getInstance().context.configuration()
+    println(s"Using dslConfig $dslConfig")
     val userDao = new UserDao(dslConfig)
     val workflowDao = new WorkflowDao(dslConfig)
     val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
