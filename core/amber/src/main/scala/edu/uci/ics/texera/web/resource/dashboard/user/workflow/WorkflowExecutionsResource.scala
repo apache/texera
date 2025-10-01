@@ -186,7 +186,7 @@ object WorkflowExecutionsResource {
     * @param currentUser The current user making the export request
     * @return Map of operator ID -> Set of restricted datasets that block its export
     */
-  private def computeDatasetRestrictionMap(
+  private def getNonDownloadableOperatorMap(
       wid: Int,
       currentUser: UserPojo
   ): Map[String, Set[RestrictedDataset]] = {
@@ -877,8 +877,8 @@ class WorkflowExecutionsResource {
         .build()
     }
 
-    // Get ALL restrictions in workflow
-    val datasetRestrictions = computeDatasetRestrictionMap(request.workflowId, user.user)
+    // Get ALL non-downloadable in workflow
+    val datasetRestrictions = getNonDownloadableOperatorMap(request.workflowId, user.user)
     // Filter to only user's selection
     val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
     // Check if any selected operator is restricted

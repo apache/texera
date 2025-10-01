@@ -170,9 +170,6 @@ export class ResultExportationComponent implements OnInit {
   }
 
   onClickExportResult(destination: "dataset" | "local", dataset: DashboardDataset = {} as DashboardDataset) {
-    if (this.isExportRestricted) {
-      return;
-    }
     const datasetIds =
       destination === "dataset" ? [dataset.dataset.did].filter((id): id is number => id !== undefined) : [];
     this.workflowResultExportService.exportWorkflowExecutionResult(
