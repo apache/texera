@@ -20,7 +20,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSResourceType, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, VFSResourceType, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
@@ -101,30 +101,6 @@ object WorkflowExecutionsResource {
     } else {
       Some(executions.max)
     }
-  }
-
-  /**
-    * Parses a file path to extract dataset information.
-    * Expected format: /ownerEmail/datasetName/...
-    *
-    * @param path The file path from operator properties
-    * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise
-    */
-  private def parseDatasetPath(path: String): Option[(String, String)] = {
-    if (path == null) {
-      return None
-    }
-    val trimmed = path.trim
-    if (!trimmed.startsWith("/")) {
-      return None
-    }
-    val segments = trimmed.split("/").filter(_.nonEmpty)
-    if (segments.length < 4) {
-      return None
-    }
-    val ownerEmail = segments(0)
-    val datasetName = segments(1)
-    Some((ownerEmail, datasetName))
   }
 
   /**
@@ -214,7 +190,7 @@ object WorkflowExecutionsResource {
       if (operatorId.nonEmpty) {
         val fileNameNode = operatorNode.path("operatorProperties").path("fileName")
         if (fileNameNode.isTextual) {
-          parseDatasetPath(fileNameNode.asText()).foreach {
+          FileResolver.parseDatasetPath(fileNameNode.asText()).foreach {
             case (ownerEmail, datasetName) =>
               val isOwner =
                 Option(currentUser.getEmail)

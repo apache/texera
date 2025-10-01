@@ -168,4 +168,28 @@ object FileResolver {
       case _: Exception => false // Invalid URI format
     }
   }
+
+  /**
+    * Parses a dataset file path to extract owner email and dataset name.
+    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    *
+    * @param path The file path from operator properties
+    * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise
+    */
+  def parseDatasetPath(path: String): Option[(String, String)] = {
+    if (path == null) {
+      return None
+    }
+    val trimmed = path.trim
+    if (!trimmed.startsWith("/")) {
+      return None
+    }
+    val segments = trimmed.split("/").filter(_.nonEmpty)
+    if (segments.length < 4) {
+      return None
+    }
+    val ownerEmail = segments(0)
+    val datasetName = segments(1)
+    Some((ownerEmail, datasetName))
+  }
 }
