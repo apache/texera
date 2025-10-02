@@ -578,7 +578,7 @@ class ComputingUnitManagingResource {
 
     val unit = getComputingUnitByCuid(context, cuid)
     val userDao = new UserDao(context.configuration())
-    val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
+    val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
     val ownerGoogleAvatar: String =
       ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
     val ownerUsername: String =
