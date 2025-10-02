@@ -142,8 +142,6 @@ class DataProcessingSpec
   override def afterAll(): Unit = {
     shutdownDB()
     TestKit.shutdownActorSystem(system)
-    import scala.concurrent.Await
-    Await.ready(system.whenTerminated, 1.seconds)
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
