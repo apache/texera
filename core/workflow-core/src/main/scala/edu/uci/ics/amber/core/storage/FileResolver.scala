@@ -81,7 +81,7 @@ object FileResolver {
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{repositoryName}/{versionHash}/fileRelativePath
-    *   e.g. {DATASET_FILE_URI_SCHEME}:///15/adeq233td/some/dir/file.txt
+    *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
