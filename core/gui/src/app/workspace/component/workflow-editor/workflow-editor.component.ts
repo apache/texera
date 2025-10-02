@@ -1374,7 +1374,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }
-
   /**
    * Info button on link between operator shown when user hovers over links
    */
@@ -1422,13 +1421,23 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private static RemoveButton: new () => joint.linkTools.Button;
 
   private static getRemoveButton(): new () => joint.linkTools.Button {
-    // Check if the class has already been created.
     if (!WorkflowEditorComponent.RemoveButton) {
-      // If not, create it once and store it in the static property.
       WorkflowEditorComponent.RemoveButton = joint.linkTools.Button.extend({
         name: "remove-button",
         options: {
           markup: [
+            {
+              tagName: "circle",
+              selector: "hit-area",
+              attributes: {
+                r: 10,
+                fill: "#000",
+                "fill-opacity": 0.001,
+                stroke: "none",
+                "pointer-events": "visibleFill",
+                cursor: "pointer",
+              },
+            },
             {
               tagName: "circle",
               selector: "button",
@@ -1437,8 +1446,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
                 fill: "none",
                 stroke: "#D8656A",
                 "stroke-width": 2,
-                "pointer-events": "visibleStroke",
-                cursor: "pointer",
+                "pointer-events": "none",
               },
             },
             {
@@ -1465,7 +1473,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
     }
 
-    // Return the cached class.
     return WorkflowEditorComponent.RemoveButton;
   }
 }
