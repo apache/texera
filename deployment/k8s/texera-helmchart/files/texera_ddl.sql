@@ -264,11 +264,11 @@ CREATE TABLE IF NOT EXISTS public_project
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
 (
-    did             SERIAL PRIMARY KEY,
-    owner_uid       INT NOT NULL,
-    name            VARCHAR(128) NOT NULL,
+    did            SERIAL PRIMARY KEY,
+    owner_uid      INT NOT NULL,
+    name           VARCHAR(128) NOT NULL,
     repository_name VARCHAR(128),
-    is_public       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_public      BOOLEAN NOT NULL DEFAULT TRUE,
     is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
     description    VARCHAR(512) NOT NULL,
     creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
