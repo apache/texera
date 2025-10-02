@@ -270,8 +270,8 @@ CREATE TABLE IF NOT EXISTS dataset
     repository_name VARCHAR(128),
     is_public       BOOLEAN NOT NULL DEFAULT TRUE,
     is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
-    description     VARCHAR(512) NOT NULL,
-    creation_time   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    description    VARCHAR(512) NOT NULL,
+    creation_time  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_uid) REFERENCES "user"(uid) ON DELETE CASCADE
     );
 
