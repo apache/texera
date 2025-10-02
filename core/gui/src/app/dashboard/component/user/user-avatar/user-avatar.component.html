@@ -17,19 +17,15 @@
  under the License.
 -->
 
-<div
-  class="d-inline-block avatar-wrapper"
-  style="position: relative">
-  <nz-avatar
-    [nzAlt]=""
-    [nzSrc]="(avatarUrl$ | async) || ''"
-    [nzText]="abbreviate(userName || '')"
-    [style.background-color]="userColor"
-    class="texera-user-avatar">
-  </nz-avatar>
-  <span
-    *ngIf="isOwner"
-    class="owner-badge"
-    >★</span
-  >
-</div>
+<i
+  *ngIf="isOwner"
+  nz-icon
+  nzType="star"
+  class="owner-badge">
+</i>
+
+<nz-avatar
+  [nzSrc]="(avatarUrl$ | async) || ''"
+  [nzText]="abbreviate(userName || '')"
+  [style.background-color]="userColor">
+</nz-avatar>

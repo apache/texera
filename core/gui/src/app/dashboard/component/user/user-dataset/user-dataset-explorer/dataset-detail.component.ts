@@ -349,7 +349,7 @@ export class DatasetDetailComponent implements OnInit {
           this.currentDatasetVersionSize = data.size;
           if (typeof version.creationTime === "number") {
             const date = new Date(version.creationTime);
-            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy");
+            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
           let currentNode = this.fileTreeNodeList[0];
           while (currentNode.type === "directory" && currentNode.children) {
