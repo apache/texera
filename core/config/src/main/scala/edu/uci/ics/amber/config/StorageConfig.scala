@@ -65,6 +65,7 @@ object StorageConfig {
     conf.getInt("storage.iceberg.table.commit.retry.max-wait-ms")
 
   // LakeFS specifics
+  // lakefsEndpoint is a var because in test we need to override it to point to the test container
   var lakefsEndpoint: String = conf.getString("storage.lakefs.endpoint")
   val lakefsApiSecret: String = conf.getString("storage.lakefs.auth.api-secret")
   val lakefsUsername: String = conf.getString("storage.lakefs.auth.username")
@@ -73,6 +74,7 @@ object StorageConfig {
   val lakefsBucketName: String = conf.getString("storage.lakefs.block-storage.bucket-name")
 
   // S3 specifics
+  // s3Endpoint is a var because in test we need to override it to point to the test container
   var s3Endpoint: String = conf.getString("storage.s3.endpoint")
   val s3Region: String = conf.getString("storage.s3.region")
   val s3Username: String = conf.getString("storage.s3.auth.username")
