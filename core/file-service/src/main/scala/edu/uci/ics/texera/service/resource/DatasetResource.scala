@@ -247,14 +247,11 @@ class DatasetResource {
       val isDatasetDownloadable = request.isDatasetDownloadable
 
       // validate dataset name
-      val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
-      if (!datasetNamePattern.matches(datasetName)) {
-        throw new BadRequestException(
-          s"Invalid dataset name: '$datasetName'. " +
-            "Repository names must be 3-63 characters long, " +
-            "contain only lowercase letters, numbers, and hyphens, " +
-            "and cannot start with a hyphen."
-        )
+      try {
+        validateDatasetName(datasetName)
+      } catch {
+        case e: IllegalArgumentException =>
+          throw new BadRequestException(e.getMessage)
       }
 
       // Check if a dataset with the same name already exists
@@ -1251,6 +1248,29 @@ class DatasetResource {
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
       .where(DATASET_USER_ACCESS.UID.eq(user.getUid))
       .fetchInto(classOf[String])
+  }
+
+  /**
+    * Validates the dataset name.
+    *
+    * Rules:
+    * - Must be at least 1 character long.
+    * - Only lowercase letters, numbers, underscores, and hyphens are allowed.
+    * - Cannot start with a hyphen.
+    *
+    * @param name The dataset name to validate.
+    * @throws IllegalArgumentException if the name is invalid.
+    */
+  private def validateDatasetName(name: String): Unit = {
+    val datasetNamePattern = "^[A-Za-z0-9_-]+$".r
+    if (!datasetNamePattern.matches(name)) {
+      throw new IllegalArgumentException(
+        s"Invalid dataset name: '$name'. " +
+          "Dataset names must be at least 1 character long and " +
+          "contain only lowercase letters, numbers, underscores, and hyphens, " +
+          "and cannot start with a hyphen."
+      )
+    }
   }
 
   private def fetchDatasetVersions(ctx: DSLContext, did: Integer): List[DatasetVersion] = {
