@@ -88,7 +88,10 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
         // SINGLE NODE MODE: Construct the User object from JWT in query parameters.
         val params =
           URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())
-        config.getUserProperties.put(HeaderField.UserComputingUnitAccess, PrivilegeEnum.WRITE.name())
+        config.getUserProperties.put(
+          HeaderField.UserComputingUnitAccess,
+          PrivilegeEnum.WRITE.name()
+        )
         params.asScala
           .map(pair => pair.getName -> pair.getValue)
           .toMap

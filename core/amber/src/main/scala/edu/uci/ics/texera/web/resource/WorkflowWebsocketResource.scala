@@ -53,11 +53,16 @@ class WorkflowWebsocketResource extends LazyLogging {
     SessionState.setState(session.getId, sessionState)
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
     val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
-    val cuAccessEnum: PrivilegeEnum = PrivilegeEnum.valueOf(session.getUserProperties
-      .get(HeaderField.UserComputingUnitAccess).asInstanceOf[String])
+    val cuAccessEnum: PrivilegeEnum = PrivilegeEnum.valueOf(
+      session.getUserProperties
+        .get(HeaderField.UserComputingUnitAccess)
+        .asInstanceOf[String]
+    )
 
     sessionState.setUserComputingUnitAccess(cuAccessEnum)
-    logger.info(s"Websocket connection opened for workflow $wid with computing unit $cuid and access $cuAccessEnum")
+    logger.info(
+      s"Websocket connection opened for workflow $wid with computing unit $cuid and access $cuAccessEnum"
+    )
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
