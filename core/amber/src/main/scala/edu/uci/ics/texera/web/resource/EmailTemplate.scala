@@ -20,12 +20,16 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.config.UserSystemConfig
 
 /**
   * EmailTemplate provides factory methods to generate email messages
   * for different user notification scenarios.
   */
 object EmailTemplate {
+
+  private val deployment: String =
+    UserSystemConfig.appDomain.map(_.replaceFirst("^https?://", "")).getOrElse("")
 
   /**
     * Creates an email message for user registration notifications.
@@ -43,7 +47,9 @@ object EmailTemplate {
       toAdmin: Boolean
   ): EmailMessage = {
     if (toAdmin) {
-      val subject = "New Account Request Pending Approval"
+      val subject =
+        s"New Account Request Pending Approval${if (deployment.nonEmpty) s" for [$deployment]"
+        else ""}"
       val content =
         s"""
            |Hello Admin,
@@ -53,20 +59,23 @@ object EmailTemplate {
            |
            |${userEmail.getOrElse("Unknown")}
            |
+           |Visit the admin panel at: $deployment
+           |
            |Thanks!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     } else {
-      val subject = "Account Request Received"
+      val subject =
+        s"Account Request Received${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
       val content =
         s"""
            |Hello,
            |
            |Thank you for submitting your account request.
            |We have received your request and it is currently under review.
-           |Please be patient during this process. You will be notified once your account has been approved.
+           |You will be notified once your account has been approved.
            |
-           |Thank you for your interest!
+           |Thank you for your interest in Texera!
            |""".stripMargin
       EmailMessage(subject = subject, content = content, receiver = receiverEmail)
     }
@@ -81,7 +90,8 @@ object EmailTemplate {
     * @return an EmailMessage ready to be sent to the user
     */
   def createRoleChangeTemplate(receiverEmail: String, newRole: UserRoleEnum): EmailMessage = {
-    val subject = "Your Role Has Been Updated"
+    val subject =
+      s"Your Role Has Been Updated${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
     val content =
       s"""
          |Hello,
@@ -90,7 +100,7 @@ object EmailTemplate {
          |
          |If you have any questions, please contact the administrator.
          |
-         |Thank you!
+         |Thank you for using Texera!
          |""".stripMargin
 
     EmailMessage(subject = subject, content = content, receiver = receiverEmail)

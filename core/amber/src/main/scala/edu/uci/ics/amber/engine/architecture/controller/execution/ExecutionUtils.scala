@@ -43,6 +43,7 @@ object ExecutionUtils {
     val aggregatedState = aggregateStates(
       metrics.map(_.operatorState),
       WorkflowAggregatedState.COMPLETED,
+      WorkflowAggregatedState.TERMINATED,
       WorkflowAggregatedState.RUNNING,
       WorkflowAggregatedState.UNINITIALIZED,
       WorkflowAggregatedState.PAUSED,
@@ -80,15 +81,17 @@ object ExecutionUtils {
   def aggregateStates[T](
       states: Iterable[T],
       completedState: T,
+      terminatedState: T,
       runningState: T,
       uninitializedState: T,
       pausedState: T,
       readyState: T
   ): WorkflowAggregatedState = {
     states match {
-      case _ if states.isEmpty                     => WorkflowAggregatedState.UNINITIALIZED
-      case _ if states.forall(_ == completedState) => WorkflowAggregatedState.COMPLETED
-      case _ if states.exists(_ == runningState)   => WorkflowAggregatedState.RUNNING
+      case _ if states.isEmpty                      => WorkflowAggregatedState.UNINITIALIZED
+      case _ if states.forall(_ == completedState)  => WorkflowAggregatedState.COMPLETED
+      case _ if states.forall(_ == terminatedState) => WorkflowAggregatedState.COMPLETED
+      case _ if states.exists(_ == runningState)    => WorkflowAggregatedState.RUNNING
       case _ =>
         val unCompletedStates = states.filter(_ != completedState)
         if (unCompletedStates.forall(_ == uninitializedState)) {

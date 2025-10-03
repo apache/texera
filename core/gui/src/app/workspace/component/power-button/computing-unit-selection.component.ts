@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
@@ -32,6 +32,9 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
+import { combineLatest } from "rxjs";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 @UntilDestroy()
 @Component({
@@ -45,7 +48,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
-  computingUnits: DashboardWorkflowComputingUnit[] = [];
+  allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
@@ -60,6 +63,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
   shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
   localComputingUnitUri: string = ""; // URI for local computing unit
+
+  // variables for renaming a computing unit
+  editingNameOfUnit: number | null = null;
+  editingUnitName: string = "";
 
   // JVM memory slider configuration
   jvmMemorySliderValue: number = 1; // Initial value in GB
@@ -76,11 +83,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
     private notificationService: NotificationService,
-    private workflowWebsocketService: WorkflowWebsocketService,
+    protected config: GuiConfigService,
     private workflowActionService: WorkflowActionService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -142,12 +150,11 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.selectedComputingUnit = unit;
       });
 
-    // Subscribe to all available units from the status service
     this.computingUnitStatusService
       .getAllComputingUnits()
       .pipe(untilDestroyed(this))
       .subscribe(units => {
-        this.computingUnits = units;
+        this.allComputingUnits = units;
       });
 
     this.registerWorkflowMetadataSubscription();
@@ -163,7 +170,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .subscribe(execList => {
         if (execList.length > 0) {
           this.notificationService.info(
-            "There are onging executions on this workflow. Modification of the workflow is currently disabled."
+            "There are ongoing executions on this workflow. Modification of the workflow is currently disabled."
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
@@ -181,7 +188,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   /**
    * Registers a subscription to listen for workflow metadata changes;
-   * Calls `onComputingUnitChange` when the `wid` changes;
+   * Calls `selectComputingUnit` when the `wid` changes;
    * The wid can change by time because of the workspace rendering;
    */
   private registerWorkflowMetadataSubscription(): void {
@@ -201,8 +208,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
                   this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
                 },
                 error: (err: unknown) => {
-                  // fallback: select the first available Running unit if any
-                  const runningUnit = this.computingUnits.find(unit => unit.status === "Running");
+                  const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
                   if (runningUnit) {
                     this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
                   }
@@ -345,12 +351,37 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  openComputingUnitMetadataModal(unit: DashboardWorkflowComputingUnit) {
+    this.modalService.create({
+      nzTitle: "Computing Unit Information",
+      nzContent: `
+        <table class="ant-table">
+          <tbody>
+            <tr><th style="width: 150px;">Name</th><td>${unit.computingUnit.name}</td></tr>
+            <tr><th>Status</th><td>${unit.status}</td></tr>
+            <tr><th>Type</th><td>${unit.computingUnit.type}</td></tr>
+            <tr><th>CPU Limit</th><td>${unit.computingUnit.resource.cpuLimit}</td></tr>
+            <tr><th>Memory Limit</th><td>${unit.computingUnit.resource.memoryLimit}</td></tr>
+            <tr><th>GPU Limit</th><td>${unit.computingUnit.resource.gpuLimit || "None"}</td></tr>
+            <tr><th>JVM Memory</th><td>${unit.computingUnit.resource.jvmMemorySize}</td></tr>
+            <tr><th>Shared Memory</th><td>${unit.computingUnit.resource.shmSize}</td></tr>
+            <tr><th>Created</th><td>${new Date(unit.computingUnit.creationTime).toLocaleString()}</td></tr>
+            <tr><th>Access</th><td>${unit.isOwner ? "Owner" : unit.accessPrivilege}</td></tr>
+          </tbody>
+        </table>
+      `,
+      nzFooter: null,
+      nzMaskClosable: true,
+      nzWidth: "600px",
+    });
+  }
+
   /**
    * Terminate a computing unit.
    * @param cuid The CUID of the unit to terminate.
    */
   terminateComputingUnit(cuid: number): void {
-    const unit = this.computingUnits.find(unit => unit.computingUnit.cuid === cuid);
+    const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
 
     if (!unit || !unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");
@@ -395,6 +426,83 @@ export class ComputingUnitSelectionComponent implements OnInit {
       },
       nzCancelText: "Cancel",
     });
+  }
+
+  /**
+   * Start editing the name of a computing unit.
+   */
+  startEditingUnitName(unit: DashboardWorkflowComputingUnit): void {
+    if (!unit.isOwner) {
+      this.notificationService.error("Only owners can rename computing units");
+      return;
+    }
+
+    this.editingNameOfUnit = unit.computingUnit.cuid;
+    this.editingUnitName = unit.computingUnit.name;
+
+    // Force change detection and focus the input
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      const input = document.querySelector(".unit-name-edit-input") as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  /**
+   * Confirm the new name and update the computing unit.
+   */
+  confirmUpdateUnitName(cuid: number, newName: string): void {
+    const trimmedName = newName.trim();
+
+    if (!trimmedName) {
+      this.notificationService.error("Computing unit name cannot be empty");
+      this.editingNameOfUnit = null;
+      return;
+    }
+
+    if (trimmedName.length > 128) {
+      this.notificationService.error("Computing unit name cannot exceed 128 characters");
+      this.editingNameOfUnit = null;
+      return;
+    }
+
+    this.computingUnitService
+      .renameComputingUnit(cuid, trimmedName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          this.notificationService.success("Successfully renamed computing unit");
+          // Update the local unit name immediately for better UX
+          const unit = this.allComputingUnits.find(u => u.computingUnit.cuid === cuid);
+          if (unit) {
+            unit.computingUnit.name = trimmedName;
+          }
+          // Also update the selected unit if it's the one being renamed
+          if (this.selectedComputingUnit?.computingUnit.cuid === cuid) {
+            this.selectedComputingUnit.computingUnit.name = trimmedName;
+          }
+          // Refresh the computing units list
+          this.computingUnitStatusService.refreshComputingUnitList();
+        },
+        error: (err: unknown) => {
+          this.notificationService.error(`Failed to rename computing unit: ${extractErrorMessage(err)}`);
+        },
+      })
+      .add(() => {
+        this.editingNameOfUnit = null;
+        this.editingUnitName = "";
+      });
+  }
+
+  /**
+   * Cancel editing the computing unit name.
+   */
+  cancelEditingUnitName(): void {
+    this.editingNameOfUnit = null;
+    this.editingUnitName = "";
   }
 
   parseResourceUnit(resource: string): string {
@@ -770,6 +878,28 @@ export class ComputingUnitSelectionComponent implements OnInit {
   getCreateModalTitle(): string {
     if (!this.selectedComputingUnitType) return "Create Computing Unit";
     return this.unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
+  }
+
+  public async onClickOpenShareAccess(cuid: number): Promise<void> {
+    this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: true,
+        type: "computing-unit",
+        id: cuid,
+        inWorkspace: true,
+      },
+      nzFooter: null,
+      nzTitle: "Share this computing unit with others",
+      nzCentered: true,
+      nzWidth: "800px",
+    });
+  }
+
+  onDropdownVisibilityChange(visible: boolean): void {
+    if (visible) {
+      this.computingUnitStatusService.refreshComputingUnitList();
+    }
   }
 
   unitTypeMessageTemplate = {

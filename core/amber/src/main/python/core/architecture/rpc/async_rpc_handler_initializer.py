@@ -27,6 +27,7 @@ from core.architecture.handlers.control.debug_command_handler import (
 )
 from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
+from core.architecture.handlers.control.end_worker_handler import EndWorkerHandler
 from core.architecture.handlers.control.evaluate_expression_handler import (
     EvaluateExpressionHandler,
 )
@@ -59,6 +60,7 @@ class AsyncRPCHandlerInitializer(
     RetryCurrentTupleHandler,
     ResumeWorkerHandler,
     StartWorkerHandler,
+    EndWorkerHandler,
     StartChannelHandler,
     EndChannelHandler,
     NoOperationHandler,

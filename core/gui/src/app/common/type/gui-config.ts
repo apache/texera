@@ -33,14 +33,25 @@ export interface GuiConfig {
   timetravelEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
-  singleFileUploadMaximumSizeMB: number;
-  maxNumberOfConcurrentUploadingFileChunks: number;
-  multipartUploadChunkSizeByte: number;
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
-  hubEnabled: boolean;
-  forumEnabled: boolean;
-  projectEnabled: boolean;
+  sharingComputingUnitEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
+  expirationTimeInMinutes: number;
+  activeTimeInMinutes: number;
+}
+
+export interface SidebarTabs {
+  hub_enabled: boolean;
+  home_enabled: boolean;
+  workflow_enabled: boolean;
+  dataset_enabled: boolean;
+  your_work_enabled: boolean;
+  projects_enabled: boolean;
+  workflows_enabled: boolean;
+  datasets_enabled: boolean;
+  quota_enabled: boolean;
+  forum_enabled: boolean;
+  about_enabled: boolean;
 }

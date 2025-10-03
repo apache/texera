@@ -34,11 +34,16 @@ import { DownloadService } from "../../../../service/user/download/download.serv
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { isDefined } from "../../../../../common/util/predicate";
-import { ActionType, EntityType, HubService } from "../../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../hub/service/hub.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
+import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
+import { HttpErrorResponse } from "@angular/common/http";
+import { Subscription } from "rxjs";
+import { formatSpeed, formatTime } from "src/app/common/util/format.util";
+import { format } from "date-fns";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -52,8 +57,12 @@ export class DatasetDetailComponent implements OnInit {
   public datasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
+  public datasetCreationTimeTooltip: string = "";
   public datasetIsPublic: boolean = false;
+  public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
+  public ownerEmail: string = "";
+  public isOwner: boolean = false;
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
@@ -65,6 +74,7 @@ export class DatasetDetailComponent implements OnInit {
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
   public fileTreeNodeList: DatasetFileNode[] = [];
+  public selectedVersionCreationTime: string = "";
 
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
@@ -76,6 +86,21 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
+  pendingChangesCount: number = 0;
+
+  // Uploading setting
+  chunkSizeMiB: number = 50;
+  maxConcurrentChunks: number = 10;
+  private uploadSubscriptions = new Map<string, Subscription>();
+  uploadTimeMap = new Map<string, number>();
+
+  // Cap number of concurrent files uploads
+  maxConcurrentFiles: number = 3;
+  private activeUploads: number = 0;
+  private pendingQueue: Array<{ fileName: string; startUpload: () => void }> = [];
+
+  versionName: string = "";
+  isCreatingVersion: boolean = false;
 
   //  List of upload tasks – each task tracked by its filePath
   public uploadTasks: Array<
@@ -83,7 +108,6 @@ export class DatasetDetailComponent implements OnInit {
       filePath: string;
     }
   > = [];
-  private autoHideTimers: number[] = [];
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -94,7 +118,8 @@ export class DatasetDetailComponent implements OnInit {
     private notificationService: NotificationService,
     private downloadService: DownloadService,
     private userService: UserService,
-    private hubService: HubService
+    private hubService: HubService,
+    private adminSettingsService: AdminSettingsService
   ) {
     this.userService
       .userChanged()
@@ -154,39 +179,36 @@ export class DatasetDetailComponent implements OnInit {
     }
 
     this.hubService
-      .isLiked(this.did, this.currentUid, EntityType.Dataset)
+      .isLiked([this.did], [EntityType.Dataset])
       .pipe(untilDestroyed(this))
-      .subscribe((isLiked: boolean) => {
-        this.isLiked = isLiked;
+      .subscribe((isLiked: LikedStatus[]) => {
+        this.isLiked = isLiked.length > 0 ? isLiked[0].isLiked : false;
       });
+
+    this.loadUploadSettings();
   }
 
   public onClickOpenVersionCreator() {
-    if (this.did) {
-      const modal = this.modalService.create({
-        nzTitle: "Create New Dataset Version",
-        nzContent: UserDatasetVersionCreatorComponent,
-        nzFooter: null,
-        nzData: {
-          isCreatingVersion: true,
-          did: this.did,
-        },
-        nzBodyStyle: {
-          resize: "both",
-          overflow: "auto",
-          minHeight: "200px",
-          minWidth: "550px",
-          maxWidth: "90vw",
-          maxHeight: "80vh",
-        },
-        nzWidth: "fit-content",
-      });
-      modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
-        if (result != null) {
-          this.retrieveDatasetVersionList();
-          this.userMakeChanges.emit();
-        }
-      });
+    if (this.did && !this.isCreatingVersion) {
+      this.isCreatingVersion = true;
+
+      this.datasetService
+        .createDatasetVersion(this.did, this.versionName?.trim() || "")
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: res => {
+            this.notificationService.success("Version Created");
+            this.isCreatingVersion = false;
+            this.versionName = "";
+            this.retrieveDatasetVersionList();
+            this.userMakeChanges.emit();
+          },
+          error: (res: unknown) => {
+            const err = res as HttpErrorResponse;
+            this.notificationService.error(`Version creation failed: ${err.error.message}`);
+            this.isCreatingVersion = false;
+          },
+        });
     }
   }
 
@@ -221,6 +243,28 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
+  onDownloadableStatusChange(checked: boolean): void {
+    // Handle the change in dataset downloadable status
+    if (this.did) {
+      this.datasetService
+        .updateDatasetDownloadable(this.did)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.datasetIsDownloadable = checked;
+            let state = "allowed";
+            if (!this.datasetIsDownloadable) {
+              state = "not allowed";
+            }
+            this.notificationService.success(`Dataset downloads are now ${state}`);
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to change the dataset download permission");
+          },
+        });
+    }
+  }
+
   retrieveDatasetInfo() {
     if (this.did) {
       this.datasetService
@@ -232,8 +276,20 @@ export class DatasetDetailComponent implements OnInit {
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
+          this.datasetIsDownloadable = dataset.isDownloadable;
+          this.ownerEmail = dashboardDataset.ownerEmail;
+          this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
-            this.datasetCreationTime = new Date(dataset.creationTime).toString();
+            const date = new Date(dataset.creationTime);
+            this.datasetCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
+            const timeZoneName =
+              new Intl.DateTimeFormat("en-US", {
+                timeZoneName: "long",
+              })
+                .format(date)
+                .split(", ")
+                .pop() || "";
+            this.datasetCreationTimeTooltip = `${format(date, "zzzz")} (${timeZoneName})`;
           }
         });
     }
@@ -263,8 +319,12 @@ export class DatasetDetailComponent implements OnInit {
 
   onClickDownloadCurrentFile = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
-
-    this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
+    // For public datasets accessed by non-owners, use public endpoint
+    const shouldUsePublicEndpoint = this.datasetIsPublic && !this.isOwner;
+    this.downloadService
+      .downloadSingleFile(this.currentDisplayedFileName, !shouldUsePublicEndpoint)
+      .pipe(untilDestroyed(this))
+      .subscribe();
   };
 
   onClickScaleTheView() {
@@ -277,6 +337,7 @@ export class DatasetDetailComponent implements OnInit {
 
   onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
     this.userHasPendingChanges = stagedObjects.length > 0;
+    this.pendingChangesCount = stagedObjects.length;
   }
 
   onVersionSelected(version: DatasetVersion): void {
@@ -288,6 +349,10 @@ export class DatasetDetailComponent implements OnInit {
         .subscribe(data => {
           this.fileTreeNodeList = data.fileNodes;
           this.currentDatasetVersionSize = data.size;
+          if (typeof version.creationTime === "number") {
+            const date = new Date(version.creationTime);
+            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
+          }
           let currentNode = this.fileTreeNodeList[0];
           while (currentNode.type === "directory" && currentNode.children) {
             currentNode = currentNode.children[0];
@@ -304,88 +369,199 @@ export class DatasetDetailComponent implements OnInit {
     return this.userDatasetAccessLevel == "WRITE";
   }
 
+  isDownloadAllowed(): boolean {
+    // Owners can always download
+    if (this.isOwner) {
+      return true;
+    }
+    // Non-owners can download if dataset is downloadable and they have access
+    // For public datasets, users have access even if userDatasetAccessLevel is 'NONE'
+    // For private datasets, users need explicit access (userDatasetAccessLevel !== 'NONE')
+    return this.datasetIsDownloadable && (this.datasetIsPublic || this.userDatasetAccessLevel !== "NONE");
+  }
+
   // Track multiple file by unique key
   trackByTask(_: number, task: MultipartUploadProgress & { filePath: string }): string {
     return task.filePath;
   }
 
+  private loadUploadSettings(): void {
+    this.adminSettingsService
+      .getSetting("multipart_upload_chunk_size_mib")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => {
+        this.maxConcurrentFiles = parseInt(value);
+      });
+  }
+
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
-      files.forEach((file, idx) => {
-        // Add an initializing task placeholder to uploadTasks.
-        this.uploadTasks.push({
-          filePath: file.name,
-          percentage: 0,
-          status: "initializing",
-          uploadId: "",
-          physicalAddress: "",
-        });
+      files.forEach(file => {
+        // Check if currently uploading
+        this.cancelExistingUpload(file.name);
 
-        // Start multipart upload
-        this.datasetService
-          .multipartUpload(this.datasetName, file.name, file.file)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: progress => {
-              // Find the task
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+        // Create upload function
+        const startUpload = () => {
+          this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== file.name);
 
-              if (taskIndex !== -1) {
-                // Update the task with new progress info
-                this.uploadTasks[taskIndex] = {
-                  ...this.uploadTasks[taskIndex],
-                  ...progress,
-                  percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                };
+          // Add an initializing task placeholder to uploadTasks
+          this.uploadTasks.unshift({
+            filePath: file.name,
+            percentage: 0,
+            status: "initializing",
+            uploadId: "",
+            physicalAddress: "",
+          });
+          // Start multipart upload
+          const subscription = this.datasetService
+            .multipartUpload(
+              this.ownerEmail,
+              this.datasetName,
+              file.name,
+              file.file,
+              this.chunkSizeMiB * 1024 * 1024,
+              this.maxConcurrentChunks
+            )
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: progress => {
+                // Find the task
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
-                // Auto‑hide when upload is truly finished
-                if (progress.status === "finished") {
-                  this.userMakeChanges.emit();
+                if (taskIndex !== -1) {
+                  // Update the task with new progress info
+                  this.uploadTasks[taskIndex] = {
+                    ...this.uploadTasks[taskIndex],
+                    ...progress,
+                    percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
+                  };
+
+                  // Auto-hide when upload is truly finished
+                  if (progress.status === "finished" && progress.totalTime) {
+                    const filename = file.name.split("/").pop() || file.name;
+                    this.uploadTimeMap.set(filename, progress.totalTime);
+                    this.userMakeChanges.emit();
+                    this.scheduleHide(taskIndex);
+                    this.onUploadComplete();
+                  }
+                }
+              },
+              error: () => {
+                // Handle upload error
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+
+                if (taskIndex !== -1) {
+                  this.uploadTasks[taskIndex] = {
+                    ...this.uploadTasks[taskIndex],
+                    percentage: 100,
+                    status: "aborted",
+                  };
                   this.scheduleHide(taskIndex);
                 }
-              }
-            },
-            error: () => {
-              // Handle upload error
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                this.onUploadComplete();
+              },
+              complete: () => {
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
+                  this.uploadTasks[taskIndex].status = "finished";
+                  this.userMakeChanges.emit();
+                  this.scheduleHide(taskIndex);
+                  this.onUploadComplete();
+                }
+              },
+            });
+          // Store the subscription for later cleanup
+          this.uploadSubscriptions.set(file.name, subscription);
+        };
 
-              if (taskIndex !== -1) {
-                this.uploadTasks[taskIndex] = {
-                  ...this.uploadTasks[taskIndex],
-                  percentage: 100,
-                  status: "aborted",
-                };
-                this.scheduleHide(taskIndex);
-              }
-            },
-            complete: () => {
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
-                this.uploadTasks[taskIndex].status = "finished";
-                this.userMakeChanges.emit();
-                this.scheduleHide(taskIndex);
-              }
-            },
-          });
+        // Queue management
+        if (this.activeUploads < this.maxConcurrentFiles) {
+          this.activeUploads++;
+          startUpload();
+        } else {
+          this.pendingQueue.push({ fileName: file.name, startUpload });
+        }
       });
     }
   }
 
-  // Hide a task row after 3s (stores timer to clear on destroy)
+  private cancelExistingUpload(fileName: string): void {
+    const isUploading = this.uploadTasks.some(
+      t => t.filePath === fileName && (t.status === "uploading" || t.status === "initializing")
+    );
+    this.uploadSubscriptions.get(fileName)?.unsubscribe();
+    this.uploadSubscriptions.delete(fileName);
+    this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== fileName);
+
+    // Process next in queue if this was active
+    if (isUploading) {
+      this.onUploadComplete();
+    }
+    // Remove from pending queue if present
+    this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== fileName);
+  }
+
+  private processNextQueuedUpload(): void {
+    if (this.pendingQueue.length > 0 && this.activeUploads < this.maxConcurrentFiles) {
+      const next = this.pendingQueue.shift();
+      if (next) {
+        this.activeUploads++;
+        next.startUpload();
+      }
+    }
+  }
+
+  private onUploadComplete(): void {
+    this.activeUploads--;
+    this.processNextQueuedUpload();
+  }
+
+  get queuedFileNames(): string[] {
+    return this.pendingQueue.map(item => item.fileName);
+  }
+
+  get queuedCount(): number {
+    return this.pendingQueue.length;
+  }
+
+  get activeCount(): number {
+    return this.activeUploads;
+  }
+
+  // Hide a task row after 5s
   private scheduleHide(idx: number) {
     if (idx === -1) {
       return;
     }
     const key = this.uploadTasks[idx].filePath;
-    const handle = window.setTimeout(() => {
+    this.uploadSubscriptions.delete(key);
+    setTimeout(() => {
       this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
-    }, 3000);
-    this.autoHideTimers.push(handle);
+    }, 5000);
   }
 
   onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
+    const subscription = this.uploadSubscriptions.get(task.filePath);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.uploadSubscriptions.delete(task.filePath);
+    }
+
+    if (task.status === "uploading" || task.status === "initializing") {
+      this.onUploadComplete();
+    }
+
     this.datasetService
       .finalizeMultipartUpload(
+        this.ownerEmail,
         this.datasetName,
         task.filePath,
         task.uploadId,
@@ -437,6 +613,8 @@ export class DatasetDetailComponent implements OnInit {
     }
     return count.toString();
   }
+  formatTime = formatTime;
+  formatSpeed = formatSpeed;
 
   toggleLike(): void {
     const userId = this.currentUid;
@@ -446,7 +624,7 @@ export class DatasetDetailComponent implements OnInit {
 
     if (this.isLiked) {
       this.hubService
-        .postUnlike(this.did, userId, EntityType.Dataset)
+        .postUnlike(this.did, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
@@ -461,7 +639,7 @@ export class DatasetDetailComponent implements OnInit {
         });
     } else {
       this.hubService
-        .postLike(this.did, userId, EntityType.Dataset)
+        .postLike(this.did, EntityType.Dataset)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {

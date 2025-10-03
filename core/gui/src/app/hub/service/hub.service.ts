@@ -39,10 +39,22 @@ export enum ActionType {
   Unlike = "unlike",
 }
 
+export type LikedStatus = {
+  entityId: number;
+  entityType: EntityType;
+  isLiked: boolean;
+};
+
 export interface CountResponse {
   entityId: number;
   entityType: EntityType;
   counts: Partial<Record<ActionType, number>>;
+}
+
+export interface AccessResponse {
+  entityType: EntityType;
+  entityId: number;
+  userIds: number[];
 }
 
 @Injectable({
@@ -63,21 +75,27 @@ export class HubService {
     return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
   }
 
-  public isLiked(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
-      params: { workflowId: entityId.toString(), userId: userId.toString(), entityType },
+  public isLiked(entityIds: number[], entityTypes: EntityType[]): Observable<LikedStatus[]> {
+    let params = new HttpParams();
+    entityIds.forEach(id => {
+      params = params.append("entityId", id.toString());
     });
+    entityTypes.forEach(type => {
+      params = params.append("entityType", type);
+    });
+
+    return this.http.get<LikedStatus[]>(`${this.BASE_URL}/isLiked`, { params });
   }
 
-  public postLike(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    const body = { entityId, userId, entityType };
+  public postLike(entityId: number, entityType: EntityType): Observable<boolean> {
+    const body = { entityId, entityType };
     return this.http.post<boolean>(`${this.BASE_URL}/like`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
   }
 
-  public postUnlike(entityId: number, userId: number, entityType: EntityType): Observable<boolean> {
-    const body = { entityId, userId, entityType };
+  public postUnlike(entityId: number, entityType: EntityType): Observable<boolean> {
+    const body = { entityId, entityType };
     return this.http.post<boolean>(`${this.BASE_URL}/unlike`, body, {
       headers: new HttpHeaders({ "Content-Type": "application/json" }),
     });
@@ -96,17 +114,23 @@ export class HubService {
    * @param entityType   The type of entity to query (e.g. EntityType.Workflow or EntityType.Dataset).
    * @param actionTypes  An array of action types to retrieve (only ActionType.Like and ActionType.Clone).
    * @param currentUid   Optional user ID context (will be sent as -1 if undefined).
+   * @param limit        Optional maximum number of top items per action; must be >0 (default: 8).
    * @returns            An Observable resolving to a map where each key is one of ActionType.Like | ActionType.Clone
    *                     and the value is the corresponding list of SearchResultItem.
    */
   public getTops(
     entityType: EntityType,
     actionTypes: ActionType[],
-    currentUid?: number
+    currentUid?: number,
+    limit?: number
   ): Observable<Record<ActionType, SearchResultItem[]>> {
     let params = new HttpParams()
       .set("entityType", entityType)
       .set("uid", (currentUid !== undefined ? currentUid : -1).toString());
+
+    if (limit != null && limit > 0) {
+      params = params.set("limit", limit.toString());
+    }
 
     actionTypes.forEach(act => {
       params = params.append("actionTypes", act);
@@ -145,5 +169,13 @@ export class HubService {
     });
 
     return this.http.get<CountResponse[]>(`${this.BASE_URL}/counts`, { params });
+  }
+
+  public getUserAccess(entityTypes: EntityType[], entityIds: number[]): Observable<AccessResponse[]> {
+    let params = new HttpParams();
+    entityTypes.forEach(t => (params = params.append("entityType", t)));
+    entityIds.forEach(i => (params = params.append("entityId", i.toString())));
+
+    return this.http.get<AccessResponse[]>(`${this.BASE_URL}/user-access`, { params });
   }
 }

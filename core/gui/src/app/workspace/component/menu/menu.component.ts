@@ -314,6 +314,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     switch (this.executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
+      case ExecutionState.Terminated:
       case ExecutionState.Killed:
       case ExecutionState.Failed:
         return {

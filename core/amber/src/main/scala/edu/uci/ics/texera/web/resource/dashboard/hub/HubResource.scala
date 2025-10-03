@@ -22,14 +22,16 @@ package edu.uci.ics.texera.web.resource.dashboard.hub
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import HubResource.{
-  CountRequest,
+  AccessResponse,
   CountResponse,
+  LikedResponse,
+  UserRequest,
+  ViewRequest,
   fetchDashboardDatasetsByDids,
   fetchDashboardWorkflowsByWids,
   isLikedHelper,
-  recordLikeActivity,
-  recordUserActivity,
-  userRequest
+  recordLikeAction,
+  recordUserAction
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -46,6 +48,8 @@ import scala.language.existentials
 import scala.jdk.CollectionConverters._
 import EntityTables._
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.jooq.generated.enums.ActionEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
@@ -53,12 +57,38 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserA
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import io.dropwizard.auth.Auth
+import org.jooq.Table
 
 import scala.collection.mutable.ListBuffer
 
 object HubResource {
-  case class userRequest(entityId: Integer, userId: Integer, entityType: EntityType)
-  case class CountRequest(entityId: Integer, entityType: EntityType)
+  // Represents an entity reference for general-purpose batch APIs.
+  // Used by: isLikedHelper, recordLikeAction, getCounts, userAccess
+  case class UserRequest(entityId: Integer, entityType: EntityType)
+
+  // Extends UserRequest by adding userId, used for view tracking.
+  // Used by: postView
+  case class ViewRequest(entityId: Integer, userId: Integer, entityType: EntityType)
+
+  // Response format indicating whether a given entity is liked by the user.
+  // Returned by: isLiked (which calls isLikedHelper), and by isLikedHelper directly.
+  case class LikedResponse(
+      entityId: Integer,
+      entityType: EntityType,
+      isLiked: Boolean
+  )
+
+  // Response containing all user IDs with access to a specific entity.
+  // Returned by: userAccess endpoint
+  case class AccessResponse(
+      entityType: EntityType,
+      entityId: Integer,
+      userIds: java.util.List[Integer]
+  )
+
+  // Contains aggregated counts (view/like/clone) for a given entity.
+  // Returned by: getCounts endpoint
   case class CountResponse(
       entityId: Integer,
       entityType: EntityType,
@@ -81,23 +111,46 @@ object HubResource {
     * @param entityType The type of entity being checked (must be validated).
     * @return `true` if the user has liked the entity, otherwise `false`.
     */
-  def isLikedHelper(userId: Integer, entityId: Integer, entityType: EntityType): Boolean = {
-    val entityTables = LikeTable(entityType)
-    val (table, uidColumn, idColumn) =
-      (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
+  def isLikedHelper(
+      userId: Integer,
+      entityIds: java.util.List[Integer],
+      entityTypes: java.util.List[EntityType]
+  ): java.util.List[LikedResponse] = {
+    val reqs: List[UserRequest] =
+      entityTypes.asScala
+        .zip(entityIds.asScala)
+        .map { case (etype, id) => UserRequest(id, etype) }
+        .toList
 
-    context
-      .selectFrom(table)
-      .where(
-        uidColumn
-          .eq(userId)
-          .and(idColumn.eq(entityId))
-      )
-      .fetchOne() != null
+    val buffer = ListBuffer[LikedResponse]()
+    reqs
+      .groupBy(_.entityType)
+      .foreach {
+        case (etype, groupReqs) =>
+          val tbl = LikeTable(etype)
+          val ids = groupReqs.map(_.entityId)
+
+          val likedSet: Set[Int] = context
+            .select(tbl.idColumn)
+            .from(tbl.table)
+            .where(tbl.uidColumn.eq(userId))
+            .and(tbl.idColumn.in(ids: _*))
+            .fetch()
+            .asScala
+            .map(r => r.get(tbl.idColumn).intValue())
+            .toSet
+
+          groupReqs.foreach { req =>
+            val flag = likedSet.contains(req.entityId.intValue())
+            buffer += LikedResponse(req.entityId, etype, flag)
+          }
+      }
+
+    buffer.toList.asJava
   }
 
   /**
-    * Records a user's activity in the system.
+    * Records a user's action in the system.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userId The ID of the user performing the action (default is 0 for anonymous users).
@@ -105,7 +158,7 @@ object HubResource {
     * @param entityType The type of entity being acted upon (validated before processing).
     * @param action The action performed by the user ("like", "unlike", "view", "clone").
     */
-  def recordUserActivity(
+  def recordUserAction(
       request: HttpServletRequest,
       userId: Integer = Integer.valueOf(0),
       entityId: Integer,
@@ -113,41 +166,48 @@ object HubResource {
       action: ActionType
   ): Unit = {
     val userIp = request.getRemoteAddr
+    val actionEnum = ActionEnum.values().find(_.getLiteral.equalsIgnoreCase(action.value)).get
 
     val query = context
-      .insertInto(USER_ACTIVITY)
-      .set(USER_ACTIVITY.UID, userId)
-      .set(USER_ACTIVITY.ID, entityId)
-      .set(USER_ACTIVITY.TYPE, entityType.value)
-      .set(USER_ACTIVITY.ACTIVATE, action.value)
+      .insertInto(USER_ACTION)
+      .set(USER_ACTION.UID, userId)
+      .set(USER_ACTION.RESOURCE_ID, entityId)
+      .set(USER_ACTION.RESOURCE_TYPE, entityType.value)
+      .set(USER_ACTION.ACTION, actionEnum)
 
     if (ipv4Pattern.matcher(userIp).matches()) {
-      query.set(USER_ACTIVITY.IP, userIp)
+      query.set(USER_ACTION.IP, userIp)
     }
 
     query.execute()
   }
 
   /**
-    * Records a user's like or unlike activity for a given entity.
+    * Records a user's like or unlike action for a given entity.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userRequest An object containing entityId, userId, and entityType.
     * @param isLike A boolean flag indicating whether the action is a like (`true`) or unlike (`false`).
     * @return `true` if the like/unlike action was recorded successfully, otherwise `false`.
     */
-  def recordLikeActivity(
+  def recordLikeAction(
       request: HttpServletRequest,
-      userRequest: userRequest,
+      userId: Integer,
+      userRequest: UserRequest,
       isLike: Boolean
   ): Boolean = {
-    val (entityId, userId, entityType) =
-      (userRequest.entityId, userRequest.userId, userRequest.entityType)
+    val (entityId, entityType) =
+      (userRequest.entityId, userRequest.entityType)
     val entityTables = LikeTable(entityType)
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    val alreadyLiked = isLikedHelper(userId, entityId, entityType)
+    val likedResponses = isLikedHelper(
+      userId,
+      List(entityId).asJava,
+      List(entityType).asJava
+    ).asScala
+    val alreadyLiked = likedResponses.headOption.exists(_.isLiked)
 
     if (isLike && !alreadyLiked) {
       context
@@ -156,7 +216,7 @@ object HubResource {
         .set(idColumn, entityId)
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, Like)
+      recordUserAction(request, userId, entityId, entityType, Like)
       true
     } else if (!isLike && alreadyLiked) {
       context
@@ -164,7 +224,7 @@ object HubResource {
         .where(uidColumn.eq(userId).and(idColumn.eq(entityId)))
         .execute()
 
-      recordUserActivity(request, userId, entityId, entityType, Unlike)
+      recordUserAction(request, userId, entityId, entityType, Unlike)
       true
     } else {
       false
@@ -172,14 +232,14 @@ object HubResource {
   }
 
   /**
-    * Records a user's clone activity for a given entity.
+    * Records a user's clone action for a given entity.
     *
     * @param request The HTTP request object to extract the user's IP address.
     * @param userId The ID of the user performing the clone action.
     * @param entityId The ID of the entity being cloned.
     * @param entityType The type of entity being cloned (must be validated).
     */
-  def recordCloneActivity(
+  def recordCloneAction(
       request: HttpServletRequest,
       userId: Integer,
       entityId: Integer,
@@ -190,7 +250,7 @@ object HubResource {
     val (table, uidColumn, idColumn) =
       (entityTables.table, entityTables.uidColumn, entityTables.idColumn)
 
-    recordUserActivity(request, userId, entityId, entityType, Clone)
+    recordUserAction(request, userId, entityId, entityType, Clone)
 
     val existingCloneRecord = context
       .selectFrom(table)
@@ -266,7 +326,7 @@ object HubResource {
           dataset = dataset,
           accessPrivilege = datasetAccess.getPrivilege,
           ownerEmail = ownerEmail,
-          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+          size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
         )
       }
       .toList
@@ -283,7 +343,7 @@ class HubResource {
 
   @GET
   @Path("/count")
-  def getPublishedWorkflowCount(@QueryParam("entityType") entityType: EntityType): Integer = {
+  def getCount(@QueryParam("entityType") entityType: EntityType): Integer = {
     val entityTables = BaseEntityTable(entityType)
     val (table, isPublicColumn) = (entityTables.table, entityTables.isPublicColumn)
 
@@ -298,39 +358,41 @@ class HubResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-      @QueryParam("workflowId") entityId: Integer,
-      @QueryParam("userId") userId: Integer,
-      @QueryParam("entityType") entityType: EntityType
-  ): Boolean = {
-    isLikedHelper(userId, entityId, entityType)
+      @Auth user: SessionUser,
+      @QueryParam("entityId") entityIds: java.util.List[Integer],
+      @QueryParam("entityType") entityTypes: java.util.List[EntityType]
+  ): java.util.List[LikedResponse] = {
+    isLikedHelper(user.getUid, entityIds, entityTypes)
   }
 
   @POST
   @Path("/like")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def likeWorkflow(
+  def postLike(
+      @Auth user: SessionUser,
       @Context request: HttpServletRequest,
-      likeRequest: userRequest
+      likeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, likeRequest, isLike = true)
+    recordLikeAction(request, user.getUid, likeRequest, isLike = true)
   }
 
   @POST
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def unlikeWorkflow(
+  def postUnlike(
+      @Auth user: SessionUser,
       @Context request: HttpServletRequest,
-      unlikeRequest: userRequest
+      unlikeRequest: UserRequest
   ): Boolean = {
-    recordLikeActivity(request, unlikeRequest, isLike = false)
+    recordLikeAction(request, user.getUid, unlikeRequest, isLike = false)
   }
 
   @POST
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def viewWorkflow(
+  def postView(
       @Context request: HttpServletRequest,
-      viewRequest: userRequest
+      viewRequest: ViewRequest
   ): Int = {
 
     val (entityID, userId, entityType) =
@@ -349,7 +411,7 @@ class HubResource {
       .returning(viewCountColumn)
       .fetchOne()
 
-    recordUserActivity(request, userId, entityID, entityType, View)
+    recordUserAction(request, userId, entityID, entityType, View)
 
     record.get(viewCountColumn)
   }
@@ -363,6 +425,8 @@ class HubResource {
     *                     If omitted or empty, defaults to [Like, Clone].
     * @param uid          Optional user ID (Integer) for user-specific context.
     *                     If null or -1, no per-user flags are applied.
+    * @param limit        Optional maximum number of items to return per action type.
+    *                     Must be > 0; defaults to 8 if not provided or invalid.
     * @return             A Map from each actionType.value (e.g. "like", "clone")
     *                     to a List of DashboardClickableFileEntry containing the top 8
     *                     public entities of that type.
@@ -373,11 +437,13 @@ class HubResource {
   def getTops(
       @QueryParam("entityType") entityType: EntityType,
       @QueryParam("actionTypes") actionTypes: java.util.List[ActionType],
-      @QueryParam("uid") uid: Integer
+      @QueryParam("uid") uid: Integer,
+      @QueryParam("limit") limit: Integer
   ): java.util.Map[String, java.util.List[DashboardClickableFileEntry]] = {
     val baseTable = BaseEntityTable(entityType)
     val isPublicColumn = baseTable.isPublicColumn
     val baseIdColumn = baseTable.idColumn
+    val topN: Int = Option(limit).filter(_ > 0).map(_.intValue).getOrElse(8)
 
     val currentUid: Integer =
       if (uid == null || uid == -1) null
@@ -412,7 +478,7 @@ class HubResource {
           .where(isPublicColumn.eq(true))
           .groupBy(idColumn)
           .orderBy(DSL.count(idColumn).desc())
-          .limit(8)
+          .limit(topN)
           .fetchInto(classOf[Integer])
           .asScala
           .toSeq
@@ -486,10 +552,10 @@ class HubResource {
         "Both 'entityType' and 'entityId' query parameters must be provided, and lists must have equal length."
       )
 
-    val reqs: List[CountRequest] = entityTypes.asScala
+    val reqs: List[UserRequest] = entityTypes.asScala
       .zip(entityIds.asScala)
       .map {
-        case (etype, id) => CountRequest(id, etype)
+        case (etype, id) => UserRequest(id, etype)
       }
       .toList
 
@@ -581,5 +647,63 @@ class HubResource {
     }
 
     buffer.toList.asJava
+  }
+
+  /**
+    * Batch-fetches the list of user IDs who have access rights for one or more entities.
+    * Supports multiple entityType/entityId pairs in a single request.
+    *
+    * @param entityTypes List of entity types (e.g. Workflow, Dataset) matching the entityIds.
+    * @param entityIds   List of entity IDs matching the entityTypes.
+    * @return A list of AccessResponse objects, each containing:
+    *                     - entityType: the resource type
+    *                     - entityId: the resource ID
+    *                     - userIds:  the list of user IDs with access to that resource
+    */
+  @GET
+  @Path("/user-access")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def userAccess(
+      @QueryParam("entityType") entityTypes: java.util.List[EntityType],
+      @QueryParam("entityId") entityIds: java.util.List[Integer]
+  ): java.util.List[AccessResponse] = {
+    val reqs =
+      entityIds.asScala
+        .zip(entityTypes.asScala)
+        .map { case (et, id) => UserRequest(et, id) }
+        .toList
+
+    val responses = ListBuffer[AccessResponse]()
+    reqs.groupBy(_.entityType).foreach {
+      case (etype, groupReqs) =>
+        val (tbl, idCol, uidCol) = etype match {
+          case EntityType.Workflow =>
+            (WORKFLOW_USER_ACCESS: Table[_], WORKFLOW_USER_ACCESS.WID, WORKFLOW_USER_ACCESS.UID)
+          case EntityType.Dataset =>
+            (DATASET_USER_ACCESS: Table[_], DATASET_USER_ACCESS.DID, DATASET_USER_ACCESS.UID)
+        }
+
+        val records = context
+          .select(idCol, uidCol)
+          .from(tbl)
+          .where(idCol.in(groupReqs.map(_.entityId).asJava))
+          .fetch()
+          .asScala
+
+        val accessMap =
+          records
+            .groupBy(r => r.get(idCol))
+            .map {
+              case (id, rs) =>
+                id -> rs.map(r => r.get(uidCol)).toList
+            }
+
+        groupReqs.map(_.entityId).distinct.foreach { eid =>
+          val uids = accessMap.getOrElse(eid, Nil).asJava
+          responses += AccessResponse(etype, eid, uids)
+        }
+    }
+
+    responses.toList.asJava
   }
 }

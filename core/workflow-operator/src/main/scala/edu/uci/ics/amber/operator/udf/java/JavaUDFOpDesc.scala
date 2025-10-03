@@ -40,9 +40,9 @@ class JavaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
-        "import edu.uci.ics.amber.engine.common.model.tuple.Tuple;\n" +
-        "import edu.uci.ics.amber.engine.common.model.tuple.TupleLike;\n" +
+      "import edu.uci.ics.amber.operator.map.MapOpExec;\n" +
+        "import edu.uci.ics.amber.core.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.core.tuple.TupleLike;\n" +
         "import scala.Function1;\n" +
         "import java.io.Serializable;\n" +
         "\n" +

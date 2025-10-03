@@ -125,6 +125,7 @@ enum WorkflowAggregatedState {
   FAILED = 7;
   UNKNOWN = 8;
   KILLED = 9;
+  TERMINATED = 10;
 }
 
 message StartWorkflowResponse {

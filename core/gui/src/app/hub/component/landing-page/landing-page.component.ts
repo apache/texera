@@ -97,7 +97,6 @@ export class LandingPageComponent implements OnInit {
       });
   }
 
-  // todo: same as the function in search. refactor together
   public async getTopLovedEntries(
     entityType: EntityType,
     actionTypes: ActionType[]
@@ -105,55 +104,12 @@ export class LandingPageComponent implements OnInit {
     const topsMap = await firstValueFrom(this.hubService.getTops(entityType, actionTypes, this.currentUid));
 
     const result: { [key: string]: DashboardEntry[] } = {};
-
     for (const act of actionTypes) {
-      const items: SearchResultItem[] = topsMap[act] ?? [];
-
-      const userIds = new Set<number>();
-      items.forEach(i => {
-        if (i.workflow) {
-          userIds.add(i.workflow.ownerId);
-        } else if (i.project) {
-          userIds.add(i.project.ownerId);
-        } else if (i.dataset) {
-          const ownerUid = i.dataset.dataset?.ownerUid;
-          if (ownerUid != null) userIds.add(ownerUid);
-        }
-      });
-
-      let userIdToInfoMap: { [key: number]: UserInfo } = {};
-      if (userIds.size > 0) {
-        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
-      }
-
-      const entries = items.map(i => {
-        let entry: DashboardEntry;
-
-        if (i.workflow) {
-          entry = new DashboardEntry(i.workflow);
-          const userInfo = userIdToInfoMap[i.workflow.ownerId];
-          if (userInfo) {
-            entry.setOwnerName(userInfo.userName);
-            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-          }
-        } else if (i.dataset) {
-          entry = new DashboardEntry(i.dataset);
-          const uid = i.dataset.dataset?.ownerUid!;
-          const ui = userIdToInfoMap[uid];
-          if (ui) {
-            entry.setOwnerName(ui.userName);
-            entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
-          }
-        } else {
-          throw new Error("Unexpected type in SearchResultItem.");
-        }
-
-        return entry;
-      });
-
-      result[act] = entries;
+      const items = topsMap[act] || [];
+      result[act] = await firstValueFrom(
+        this.searchService.extendSearchResultsWithHubActivityInfo(items, true, ["access"])
+      );
     }
-
     return result;
   }
 

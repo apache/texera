@@ -66,20 +66,6 @@
             <p class="info-content">{{ formatSize(this.totalQuotaSize) }}</p>
           </div>
         </div>
-        <nz-card
-          class="section-title"
-          [style.backgroundColor]="backgroundColor">
-          <h2
-            class="page-title"
-            [style.color]="textColor">
-            Diagram
-          </h2>
-        </nz-card>
-        <div class="charts-grid">
-          <div id="sizePieChart"></div>
-          <div id="datasetLineChart"></div>
-          <div id="workflowLineChart"></div>
-        </div>
       </nz-tab>
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>
@@ -123,6 +109,15 @@
             </nz-table>
           </nz-collapse-panel>
         </nz-collapse>
+      </nz-tab>
+      <nz-tab
+        nzTitle="Diagrams"
+        nzForceRender="true">
+        <div class="charts-grid">
+          <div id="sizePieChart"></div>
+          <div id="datasetLineChart"></div>
+          <div id="workflowLineChart"></div>
+        </div>
       </nz-tab>
     </nz-tabset>
   </div>

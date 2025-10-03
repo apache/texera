@@ -64,6 +64,7 @@
     nzTrigger="click"
     [nzDropdownMenu]="menu"
     [nzPlacement]="'bottomRight'"
+    (nzVisibleChange)="onDropdownVisibilityChange($event)"
     class="computing-units-dropdown-button">
     <div class="button-content">
       <nz-badge
@@ -94,7 +95,7 @@
       class="computing-units-dropdown">
       <li
         nz-menu-item
-        *ngFor="let unit of computingUnits; trackBy: trackByCuid"
+        *ngFor="let unit of allComputingUnits; trackBy: trackByCuid"
         id="computing-unit-option"
         class="computing-unit-option"
         [nzDisabled]="cannotSelectUnit(unit)"
@@ -110,6 +111,7 @@
               [nzColor]="getBadgeColor(unit.status)"
               [nz-tooltip]="getUnitStatusTooltip(unit)"></nz-badge>
             <span
+              *ngIf="editingNameOfUnit !== unit.computingUnit.cuid; else editableUnitName"
               nz-tooltip
               [nzTooltipTitle]="unit.computingUnit.uri">
               {{ unit.computingUnit.name }}
@@ -119,12 +121,54 @@
                 >(Connecting)</span
               >
             </span>
+            <ng-template #editableUnitName>
+              <input
+                #unitNameInput
+                (focusout)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.enter)="confirmUpdateUnitName(unit.computingUnit.cuid, unitNameInput.value)"
+                (keyup.escape)="cancelEditingUnitName()"
+                [value]="editingUnitName"
+                nz-input
+                class="unit-name-edit-input"
+                maxlength="128"
+                (click)="$event.stopPropagation()"
+                autofocus />
+            </ng-template>
           </div>
+          <i
+            nz-icon
+            nzType="edit"
+            nz-tooltip
+            *ngIf="unit.isOwner"
+            [nzTooltipTitle]="'Rename computing unit'"
+            (click)="startEditingUnitName(unit); $event.stopPropagation()"
+            role="button">
+          </i>
+          <i
+            nz-icon
+            nzType="share-alt"
+            nz-tooltip
+            *ngIf="this.config.env.sharingComputingUnitEnabled"
+            [nzTooltipTitle]="'Share computing unit'"
+            (click)="onClickOpenShareAccess(unit.computingUnit.cuid); $event.stopPropagation()"
+            role="button"
+            aria-label="Share computing unit">
+          </i>
+          <i
+            nz-icon
+            nzType="eye"
+            nz-tooltip
+            [nzTooltipTitle]="'Check details'"
+            (click)="openComputingUnitMetadataModal(unit); $event.stopPropagation()"
+            role="button"
+            aria-label="View logs">
+          </i>
           <i
             nz-icon
             nzType="delete"
             class="computing-unit-terminate-icon"
             nz-tooltip
+            *ngIf="unit.isOwner"
             [nzTooltipTitle]="unitTypeMessageTemplate[unit.computingUnit.type].terminateTooltip"
             (click)="terminateComputingUnit(unit.computingUnit.cuid); $event.stopPropagation()"
             role="button"
@@ -132,8 +176,9 @@
           </i>
         </div>
       </li>
+
       <li
-        *ngIf="computingUnits.length > 0"
+        *ngIf="allComputingUnits.length > 0"
         nz-menu-divider></li>
       <li
         nz-menu-item

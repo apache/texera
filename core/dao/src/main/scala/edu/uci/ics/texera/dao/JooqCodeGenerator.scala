@@ -36,7 +36,7 @@ object JooqCodeGenerator {
 
     // Load storage.conf from the specified path
     val storageConfPath: Path = Path
-      .of("workflow-core")
+      .of("config")
       .resolve("src")
       .resolve("main")
       .resolve("resources")

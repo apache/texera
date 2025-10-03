@@ -166,7 +166,7 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * List all active computing units.
-   * @returns An Observable of a list of WorkflowComputingUnit.
+   * @returns An Observable of a list of DashboardWorkflowComputingUnit.
    */
   public listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
     return this.http
@@ -178,5 +178,18 @@ export class WorkflowComputingUnitManagingService {
     return this.http
       .get<DashboardWorkflowComputingUnit>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}`)
       .pipe(map(raw => this.parseDashboardUnit(raw)));
+  }
+
+  /**
+   * Rename a computing unit.
+   * @param cuid The ID of the computing unit to rename.
+   * @param name The new name for the computing unit.
+   * @returns An Observable of the server response.
+   */
+  public renameComputingUnit(cuid: number, name: string): Observable<Response> {
+    return this.http.put<Response>(
+      `${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/rename/${encodeURIComponent(name)}`,
+      {}
+    );
   }
 }

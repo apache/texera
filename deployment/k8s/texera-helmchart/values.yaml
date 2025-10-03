@@ -230,6 +230,8 @@ texeraEnvVars:
     value: "true"
   - name: GUI_WORKFLOW_WORKSPACE_ASYNC_RENDERING_ENABLED
     value: "true"
+  - name: COMPUTING_UNIT_SHARING_ENABLED
+    value: "true"
   - name: USER_SYS_INVITE_ONLY
     value: "true"
   - name: USER_SYS_GOOGLE_CLIENT_ID
@@ -300,6 +302,7 @@ metrics-server:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
+  ingressClassName: nginx  # Set to "alb" when deploying on AWS
   hostname: ""
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"
@@ -318,6 +321,9 @@ ingressPaths:
     - path: /api/access/dataset
       serviceName: file-service-svc
       servicePort: 9092
+    - path: /api/access/computing-unit
+      serviceName: workflow-computing-unit-manager-svc
+      servicePort: 8888
     - path: /api/config
       serviceName: config-service-svc
       servicePort: 9094

@@ -72,6 +72,7 @@ case class OperatorExecution() {
     aggregateStates(
       workerStates,
       WorkerState.COMPLETED,
+      WorkerState.TERMINATED,
       WorkerState.RUNNING,
       WorkerState.UNINITIALIZED,
       WorkerState.PAUSED,

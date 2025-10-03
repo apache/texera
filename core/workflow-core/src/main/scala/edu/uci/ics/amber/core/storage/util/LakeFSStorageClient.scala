@@ -77,22 +77,22 @@ object LakeFSStorageClient {
     * Initializes a new repository in LakeFS.
     *
     * @param repoName         Name of the repository.
-    * @param defaultBranch    Default branch name, usually "main".
     */
   def initRepo(
       repoName: String
   ): Repository = {
+    // validate repoName, see https://docs.lakefs.io/latest/understand/model/#repository
     val repoNamePattern = "^[a-z0-9][a-z0-9-]{2,62}$".r
-
-    // Validate repoName
     if (!repoNamePattern.matches(repoName)) {
       throw new IllegalArgumentException(
-        s"Invalid dataset name: '$repoName'. " +
-          "Dataset names must be 3-63 characters long, " +
+        s"Invalid repository name: '$repoName'. " +
+          "Repository names must be 3-63 characters long, " +
           "contain only lowercase letters, numbers, and hyphens, " +
-          "and cannot start or end with a hyphen."
+          "and cannot start with a hyphen."
       )
     }
+
+    // create repository
     val storageNamespace = s"$storageNamespaceURI/$repoName"
     val repo = new RepositoryCreation()
       .name(repoName)
@@ -108,7 +108,6 @@ object LakeFSStorageClient {
     * Converts the InputStream to a temporary file for upload.
     *
     * @param repoName    Repository name.
-    * @param branch      Branch name.
     * @param filePath    Path in the repository.
     * @param inputStream File content stream.
     */
@@ -161,7 +160,6 @@ object LakeFSStorageClient {
     * Executes operations and creates a commit (similar to a transactional commit).
     *
     * @param repoName      Repository name.
-    * @param branch        Branch name.
     * @param commitMessage Commit message.
     * @param operations    File operations to perform before committing.
     */
@@ -291,7 +289,7 @@ object LakeFSStorageClient {
     repoApi.deleteRepository(repoName).execute()
   }
 
-  def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
+  private def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
     refsApi
       .logCommits(repoName, branchName)
       .execute()

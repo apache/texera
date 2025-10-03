@@ -20,14 +20,17 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.config.{EnvironmentalVariable, StorageConfig}
-import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
 import edu.uci.ics.texera.config.{ComputingUnitConfig, KubernetesConfig}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  WorkflowComputingUnitDao
+}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
@@ -36,6 +39,7 @@ import KubernetesConfig.{
 }
 import edu.uci.ics.texera.service.resource.ComputingUnitManagingResource._
 import edu.uci.ics.texera.service.resource.ComputingUnitState._
+import edu.uci.ics.texera.service.resource.ComputingUnitAccessResource
 import edu.uci.ics.texera.service.util.{
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
@@ -47,7 +51,8 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
-import org.jooq.DSLContext
+import org.apache.commons.lang3.StringUtils
+import org.jooq.{DSLContext, EnumType}
 
 import java.sql.Timestamp
 import play.api.libs.json._
@@ -119,7 +124,9 @@ object ComputingUnitManagingResource {
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       status: String,
-      metrics: WorkflowComputingUnitMetrics
+      metrics: WorkflowComputingUnitMetrics,
+      isOwner: Boolean,
+      accessPrivilege: EnumType
   )
 
   case class ComputingUnitLimitOptionsResponse(
@@ -374,7 +381,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -433,7 +440,9 @@ class ComputingUnitManagingResource {
       DashboardWorkflowComputingUnit(
         insertedUnit,
         getComputingUnitStatus(insertedUnit).toString,
-        getComputingUnitMetrics(insertedUnit)
+        getComputingUnitMetrics(insertedUnit),
+        isOwner = true,
+        accessPrivilege = PrivilegeEnum.WRITE
       )
     }
   }
@@ -453,19 +462,41 @@ class ComputingUnitManagingResource {
   ): List[DashboardWorkflowComputingUnit] = {
     withTransaction(context) { ctx =>
       val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
+      val uid = user.getUid
 
-      // Fetch computing units that are still marked as running in DB (terminateTime == null)
-      val units = computingUnitDao
-        .fetchByUid(user.getUid)
-        .asScala
-        .filter(_.getTerminateTime == null)
+      // Always fetch units owned by the user
+      val ownedUnits = computingUnitDao.fetchByUid(uid).asScala.toList
+
+      // Conditionally fetch shared units based on the config flag
+      val (sharedUnits, sharedUnitInfo) =
+        if (ComputingUnitConfig.sharingComputingUnitEnabled) {
+          val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
+          val info = computingUnitUserAccessDao
+            .fetchByUid(uid)
+            .asScala
+            .map(access => access.getCuid -> access.getPrivilege)
+            .toMap
+          val sharedCuids = info.keys.toList.map(Integer.valueOf(_))
+
+          val units = if (sharedCuids.isEmpty) {
+            List()
+          } else {
+            computingUnitDao.fetchByCuid(sharedCuids: _*).asScala.toList
+          }
+          (units, info)
+        } else {
+          // If sharing is disabled, return empty collections
+          (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
+        }
+
+      val allUnits = ownedUnits ++ sharedUnits
 
       // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
       // GC-ed by the cluster), we treat the corresponding computing unit as
-      // terminated from the system's point of view.  Here we eagerly update its
+      // terminated from the system's point of view. Here we eagerly update its
       // terminateTime in the database **before** we build the response list so
       // that subsequent API calls will no longer return this unit.
-      units.foreach { unit =>
+      allUnits.foreach { unit =>
         if (
           unit.getType == WorkflowComputingUnitTypeEnum.kubernetes &&
           !KubernetesClient.podExists(unit.getCuid)
@@ -475,16 +506,32 @@ class ComputingUnitManagingResource {
         }
       }
 
-      // After DB update above, keep only those units that are still active
-      val activeUnits = units.filter(_.getTerminateTime == null)
-
-      activeUnits.map { unit =>
-        DashboardWorkflowComputingUnit(
-          computingUnit = unit,
-          status = getComputingUnitStatus(unit).toString,
-          metrics = getComputingUnitMetrics(unit)
-        )
-      }.toList
+      // For shared units, we need to check the access privilege which are saved in different table
+      // to streamline the process, we combine owned units with default WRITE privilege and use sharedUnitInfo
+      // to get the privilege for shared units.
+      (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++ sharedUnits.map(u =>
+        (u, sharedUnitInfo(u.getCuid))
+      ))
+        .distinctBy { case (unit, _) => unit.getCuid }
+        .filter { case (unit, _) => unit.getTerminateTime == null }
+        .filter {
+          case (unit, _) =>
+            unit.getType match {
+              case WorkflowComputingUnitTypeEnum.kubernetes =>
+                KubernetesClient.podExists(unit.getCuid)
+              case _ => true
+            }
+        }
+        .map {
+          case (unit, privilege) =>
+            DashboardWorkflowComputingUnit(
+              computingUnit = unit,
+              isOwner = unit.getUid.equals(uid),
+              accessPrivilege = privilege,
+              status = getComputingUnitStatus(unit).toString,
+              metrics = getComputingUnitMetrics(unit)
+            )
+        }
     }
   }
 
@@ -503,15 +550,29 @@ class ComputingUnitManagingResource {
       @Auth user: SessionUser
   ): DashboardWorkflowComputingUnit = {
 
-    if (!userOwnComputingUnit(context, cuid, user.getUid)) {
-      throw new BadRequestException("User has no access to the computing unit")
-    }
     val unit = getComputingUnitByCuid(context, cuid)
 
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
       status = getComputingUnitStatus(unit).toString,
-      metrics = getComputingUnitMetrics(unit)
+      metrics = getComputingUnitMetrics(unit),
+      isOwner = unit.getUid.equals(user.getUid),
+      accessPrivilege = {
+        val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
+        val access = cuAccessDao
+          .fetchByUid(user.getUid)
+          .asScala
+          .find(access => access.getCuid.equals(cuid))
+
+        if (access.isDefined) {
+          access.get.getPrivilege
+        } else if (unit.getUid.equals(user.getUid)) {
+          PrivilegeEnum.WRITE
+        } else {
+          // Default privilege for non-owners without explicit access
+          PrivilegeEnum.NONE
+        }
+      }
     )
   }
 
@@ -553,6 +614,62 @@ class ComputingUnitManagingResource {
   }
 
   /**
+    * Rename a computing unit.
+    *
+    * @param cuid The computing unit ID.
+    * @param name The new name for the computing unit.
+    * @param user The authenticated user.
+    * @return A response indicating success or failure.
+    */
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{cuid}/rename/{name}")
+  def renameComputingUnit(
+      @PathParam("cuid") cuid: Integer,
+      @PathParam("name") name: String,
+      @Auth user: SessionUser
+  ): Response = {
+    // Verify ownership or write access
+    if (
+      !userOwnComputingUnit(context, cuid, user.getUid) &&
+      !ComputingUnitAccessResource.hasWriteAccess(cuid, user.getUid)
+    ) {
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .entity("User does not have permission to rename this computing unit")
+        .build()
+    }
+
+    // Validate name
+    if (StringUtils.isBlank(name)) {
+      return Response
+        .status(Response.Status.BAD_REQUEST)
+        .entity("Computing unit name cannot be empty or blank")
+        .build()
+    }
+
+    withTransaction(context) { ctx =>
+      val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
+      val unit = getComputingUnitByCuid(ctx, cuid)
+
+      try {
+        unit.setName(name)
+        cuDao.update(unit)
+      } catch {
+        case e: Exception =>
+          return Response
+            .status(Response.Status.INTERNAL_SERVER_ERROR)
+            .entity(e.getMessage)
+            .build()
+      }
+    }
+
+    Response.ok().build()
+  }
+
+  /**
     * Retrieves the CPU and memory metrics for a computing unit identified by its `cuid`.
     *
     * @param cuid The computing unit ID.
@@ -562,7 +679,7 @@ class ComputingUnitManagingResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{cuid}/metrics")
-  def getComputingUnitMetrics(
+  def getComputingUnitMetricsEndpoint(
       @PathParam("cuid") cuid: String,
       @Auth user: SessionUser
   ): WorkflowComputingUnitMetrics = {

@@ -50,12 +50,18 @@ describe("ContextMenuComponent", () => {
     jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", [
       "getCurrentHighlightedOperatorIDs",
       "getCurrentHighlightedCommentBoxIDs",
+      "getCurrentHighlightedLinkIDs",
     ]);
 
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.and.returnValue([]);
+    jointGraphWrapperSpy.getCurrentHighlightedLinkIDs.and.returnValue([]);
 
-    const texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", ["isOperatorDisabled"]);
+    const texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", [
+      "isOperatorDisabled",
+      "hasLinkWithID",
+      "bundleActions",
+    ]);
 
     const workflowActionServiceSpy = jasmine.createSpyObj("WorkflowActionService", [
       "getJointGraphWrapper",
@@ -64,13 +70,19 @@ describe("ContextMenuComponent", () => {
       "deleteCommentBox",
       "getWorkflowMetadata", // Add this if used in the component
       "getTexeraGraph",
+      "deleteLinkWithID",
     ]);
     workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.and.returnValue(of(true));
     workflowActionServiceSpy.getTexeraGraph.and.returnValue(texeraGraphSpy);
     workflowActionServiceSpy.deleteOperatorsAndLinks.and.returnValue();
     workflowActionServiceSpy.deleteCommentBox.and.returnValue();
+    workflowActionServiceSpy.deleteLinkWithID.and.returnValue();
     workflowActionServiceSpy.getWorkflowMetadata.and.returnValue({ name: "Test Workflow" }); // Mock return value
+
+    // Set up TexeraGraph spy return values
+    texeraGraphSpy.hasLinkWithID.and.returnValue(false);
+    texeraGraphSpy.bundleActions.and.callFake((callback: Function) => callback());
 
     const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", [
       "getResultService",

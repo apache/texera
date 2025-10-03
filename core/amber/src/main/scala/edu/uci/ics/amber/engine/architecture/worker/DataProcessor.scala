@@ -178,7 +178,9 @@ class DataProcessor(
           asyncRPCClient.mkContext(CONTROLLER)
         )
       case FinalizePort(portId, input) =>
-        outputManager.closeOutputStorageWriterIfNeeded(portId)
+        if (!input) {
+          outputManager.closeOutputStorageWriterIfNeeded(portId)
+        }
         asyncRPCClient.controllerInterface.portCompleted(
           PortCompletedRequest(portId, input),
           asyncRPCClient.mkContext(CONTROLLER)

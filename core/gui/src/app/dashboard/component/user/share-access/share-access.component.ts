@@ -71,7 +71,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
-      accessLevel: ["READ"],
+      accessLevel: ["WRITE"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
   }
@@ -143,6 +143,9 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
     this.handleInputConfirm();
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
+        let message = `${this.userService.getCurrentUser()?.email} shared a ${this.type} with you`;
+        if (this.type !== "computing-unit")
+          message += `, access the ${this.type} at ${location.origin}/workflow/${this.id}`;
         this.accessService
           .grantAccess(this.type, this.id, email, this.validateForm.value.accessLevel)
           .pipe(untilDestroyed(this))
@@ -151,13 +154,7 @@ export class ShareAccessComponent implements OnInit, OnDestroy {
               this.notificationService.success(this.type + " shared with " + email + " successfully.");
               this.gmailService.sendEmail(
                 "Texera: " + this.userService.getCurrentUser()?.email + " shared a " + this.type + " with you",
-                this.userService.getCurrentUser()?.email +
-                  " shared a " +
-                  this.type +
-                  " with you, access the workflow at " +
-                  location.origin +
-                  "/workflow/" +
-                  this.id,
+                message,
                 email
               );
               this.ngOnInit();
