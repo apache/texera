@@ -24,11 +24,7 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import {
-  fromJointPaperEvent,
-  JointUIService,
-  linkPathStrokeColor,
-} from "../../service/joint-ui/joint-ui.service";
+import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
