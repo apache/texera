@@ -25,7 +25,6 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import {
-  deleteButtonPath,
   fromJointPaperEvent,
   JointUIService,
   linkPathStrokeColor,
@@ -1428,25 +1427,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           markup: [
             {
               tagName: "circle",
-              selector: "hit-area",
-              attributes: {
-                r: 10,
-                fill: "#000",
-                "fill-opacity": 0.001,
-                stroke: "none",
-                "pointer-events": "visibleFill",
-                cursor: "pointer",
-              },
-            },
-            {
-              tagName: "circle",
               selector: "button",
               attributes: {
-                r: 10,
+                r: 9,
                 fill: "none",
                 stroke: "#D8656A",
                 "stroke-width": 2,
-                "pointer-events": "none",
+                "pointer-events": "visibleFill",
+                cursor: "pointer",
               },
             },
             {
