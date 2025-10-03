@@ -50,4 +50,6 @@ export interface DashboardWorkflowComputingUnit {
   metrics: WorkflowComputingUnitMetrics;
   isOwner: boolean;
   accessPrivilege: "READ" | "WRITE" | "NONE";
+  ownerGoogleAvatar: string;
+  ownerName: string;
 }
