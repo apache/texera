@@ -132,7 +132,7 @@ class PauseSpec
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
     SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcTestUrl,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )

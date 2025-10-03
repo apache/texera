@@ -34,6 +34,7 @@ object StorageConfig {
 
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
+  val jdbcTestUrl: String = conf.getString("storage.jdbc.test-url")
   val jdbcUsername: String = conf.getString("storage.jdbc.username")
   val jdbcPassword: String = conf.getString("storage.jdbc.password")
 

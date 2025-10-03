@@ -15,18 +15,24 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
+-- Defaults; can be overridden with: psql -v DB_NAME=...
+\if :{?DB_NAME}
+\else
+    \set DB_NAME 'texera_db'
+\endif
+
 -- ============================================
 -- 1. Drop and recreate the database (psql only)
 --    Remove if you already created texera_db
 -- ============================================
 \c postgres
-DROP DATABASE IF EXISTS texera_db;
-CREATE DATABASE texera_db;
+DROP DATABASE IF EXISTS :"DB_NAME";
+CREATE DATABASE :"DB_NAME";
 
 -- ============================================
 -- 2. Connect to the new database (psql only)
 -- ============================================
-\c texera_db
+\c :"DB_NAME"
 
 CREATE SCHEMA IF NOT EXISTS texera_db;
 SET search_path TO texera_db, public;
