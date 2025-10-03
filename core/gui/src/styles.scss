@@ -95,3 +95,9 @@ hr {
 .annotation-highlight {
   background-color: #6a5acd;
 }
+
+// makes avatar text centered in dropdown menu
+.ant-avatar-string {
+  position: relative;
+  left: 0;
+}
