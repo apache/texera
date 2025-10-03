@@ -15,7 +15,12 @@
 -- specific language governing permissions and limitations
 -- under the License.
 
--- Defaults; can be overridden with: psql -v DB_NAME=...
+-- ============================================
+-- 0. Specify the database name
+--    (defaults to texera_db)
+--    Override the name with:
+--    psql -v DB_NAME=<alternative_name> ...
+-- ============================================
 \if :{?DB_NAME}
 \else
     \set DB_NAME 'texera_db'

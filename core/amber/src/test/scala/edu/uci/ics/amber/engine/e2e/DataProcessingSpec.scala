@@ -22,7 +22,6 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.storage.DocumentFactory
@@ -43,7 +42,6 @@ import edu.uci.ics.amber.engine.e2e.TestUtils.{
 }
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -56,12 +54,10 @@ class DataProcessingSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
 
   override protected def beforeEach(): Unit = {

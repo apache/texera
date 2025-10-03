@@ -37,7 +37,6 @@ import edu.uci.ics.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
-import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -49,8 +48,7 @@ class PauseSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
