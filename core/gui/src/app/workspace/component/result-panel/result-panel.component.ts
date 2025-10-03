@@ -92,8 +92,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private resizeService: PanelResizeService,
     private panelService: PanelService
   ) {
-    const width = localStorage.getItem("result-panel-width");
-    if (width) this.width = Number(width);
+    this.width = 0;
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
     this.resizeService.changePanelSize(this.width, this.height);
   }
@@ -339,6 +338,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   openPanel() {
     this.height = DEFAULT_HEIGHT;
     this.width = DEFAULT_WIDTH;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 
   closePanel() {

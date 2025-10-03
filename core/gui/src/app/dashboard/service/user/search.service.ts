@@ -20,17 +20,26 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { forkJoin, Observable, of } from "rxjs";
-import { SearchResult, SearchResultBatch } from "../../type/search-result";
+import { SearchResult, SearchResultBatch, SearchResultItem } from "../../type/search-result";
 import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";
-import { CountResponse, EntityType, HubService } from "../../../hub/service/hub.service";
+import {
+  AccessResponse,
+  ActionType,
+  CountResponse,
+  EntityType,
+  HubService,
+  LikedStatus,
+} from "../../../hub/service/hub.service";
 import { map, switchMap } from "rxjs/operators";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 const DASHBOARD_PUBLIC_SEARCH_URL = "dashboard/publicSearch";
 const DASHBOARD_USER_INFO_URL = "dashboard/resultsOwnersInfo";
+export type EnrichActivity = "counts" | "liked" | "access" | "size";
 
 @Injectable({
   providedIn: "root",
@@ -38,7 +47,8 @@ const DASHBOARD_USER_INFO_URL = "dashboard/resultsOwnersInfo";
 export class SearchService {
   constructor(
     private http: HttpClient,
-    private hubService: HubService
+    private hubService: HubService,
+    private workflowPersistService: WorkflowPersistService
   ) {}
 
   /**
@@ -126,79 +136,125 @@ export class SearchService {
         const filteredResults =
           type === "dataset" ? results.results.filter(i => i !== null && i.dataset != null) : results.results;
 
-        const userIds = new Set<number>();
-        filteredResults.forEach(i => {
-          if (i.project) userIds.add(i.project.ownerId);
-          else if (i.workflow) userIds.add(i.workflow.ownerId);
-          else if (i.dataset?.dataset?.ownerUid !== undefined) userIds.add(i.dataset.dataset.ownerUid);
-        });
-
-        const userInfo$ =
-          userIds.size > 0 ? this.getUserInfo(Array.from(userIds)) : of({} as { [key: number]: UserInfo });
-
-        const entityTypes: EntityType[] = [];
-        const entityIds: number[] = [];
-        filteredResults.forEach(i => {
-          if (i.workflow?.workflow?.wid != null) {
-            entityTypes.push(EntityType.Workflow);
-            entityIds.push(i.workflow.workflow.wid);
-          } else if (i.project) {
-            entityTypes.push(EntityType.Project);
-            entityIds.push(i.project.pid);
-          } else if (i.dataset?.dataset?.did != null) {
-            entityTypes.push(EntityType.Dataset);
-            entityIds.push(i.dataset.dataset.did);
-          }
-        });
-
-        const counts$ =
-          entityTypes.length > 0 ? this.hubService.getCounts(entityTypes, entityIds) : of([] as CountResponse[]);
-
-        return forkJoin([userInfo$, counts$]).pipe(
-          map(([userIdToInfoMap, responses]) => {
-            const countsMap: { [key: string]: { [action: string]: number } } = {};
-            responses.forEach(r => {
-              countsMap[`${r.entityType}:${r.entityId}`] = r.counts;
-            });
-
-            const entries: DashboardEntry[] = filteredResults.map(i => {
-              let entry: DashboardEntry;
-              if (i.workflow) {
-                entry = new DashboardEntry(i.workflow);
-                const ui = userIdToInfoMap[i.workflow.ownerId];
-                if (ui) {
-                  entry.setOwnerName(ui.userName);
-                  entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
-                }
-              } else if (i.project) {
-                entry = new DashboardEntry(i.project);
-                const ui = userIdToInfoMap[i.project.ownerId];
-                if (ui) {
-                  entry.setOwnerName(ui.userName);
-                  entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
-                }
-              } else {
-                entry = new DashboardEntry(i.dataset!);
-                const ownerUid = i.dataset!.dataset!.ownerUid!;
-                const ui = userIdToInfoMap[ownerUid];
-                if (ui) {
-                  entry.setOwnerName(ui.userName);
-                  entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
-                }
-              }
-              return entry;
-            });
-
-            entries.forEach(entry => {
-              if (entry.id == null || entry.type == null) return;
-              const key = `${entry.type}:${entry.id}`;
-              const c = countsMap[key] || {};
-              entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
-            });
-
-            return { entries, more: results.more, hasMismatch };
-          })
+        return this.extendSearchResultsWithHubActivityInfo(filteredResults, isLogin).pipe(
+          map(entries => ({
+            entries,
+            more: results.more,
+            hasMismatch,
+          }))
         );
+      })
+    );
+  }
+
+  /**
+   * Enriches an array of SearchResultItem into DashboardEntry instances.
+   *
+   * @param items        The SearchResultItem[] to enrich.
+   * @param isLogin      Whether the current user is authenticated.
+   * @param activities   Which activities to perform: 'counts', 'liked', 'access'.
+   *                     Defaults to all three if omitted or empty.
+   * @returns            Observable that emits the fully populated DashboardEntry[].
+   */
+  public extendSearchResultsWithHubActivityInfo(
+    items: SearchResultItem[],
+    isLogin: boolean,
+    activities: EnrichActivity[] = []
+  ): Observable<DashboardEntry[]> {
+    const acts = activities.length > 0 ? activities : (["counts", "liked", "access", "size"] as EnrichActivity[]);
+
+    const doCounts = acts.includes("counts");
+    const doLiked = acts.includes("liked") && isLogin;
+    const doAccess = acts.includes("access");
+    const doSize = acts.includes("size");
+
+    const userIds = new Set<number>();
+    items.forEach(i => {
+      if (i.project) userIds.add(i.project.ownerId);
+      else if (i.workflow) userIds.add(i.workflow.ownerId);
+      else if (i.dataset?.dataset?.ownerUid != null) userIds.add(i.dataset.dataset.ownerUid);
+    });
+    const userInfo$ = userIds.size ? this.getUserInfo(Array.from(userIds)) : of({} as Record<number, UserInfo>);
+
+    const entityTypes: EntityType[] = [];
+    const entityIds: number[] = [];
+    items.forEach(i => {
+      if (i.workflow?.workflow?.wid != null) {
+        entityTypes.push(EntityType.Workflow);
+        entityIds.push(i.workflow.workflow.wid);
+      } else if (i.project) {
+        entityTypes.push(EntityType.Project);
+        entityIds.push(i.project.pid);
+      } else if (i.dataset?.dataset?.did != null) {
+        entityTypes.push(EntityType.Dataset);
+        entityIds.push(i.dataset.dataset.did);
+      }
+    });
+
+    const counts$ =
+      doCounts && entityTypes.length > 0
+        ? this.hubService.getCounts(entityTypes, entityIds)
+        : of([] as CountResponse[]);
+    const liked$ =
+      doLiked && entityTypes.length > 0 ? this.hubService.isLiked(entityIds, entityTypes) : of([] as LikedStatus[]);
+    const access$ =
+      doAccess && entityTypes.length > 0
+        ? this.hubService.getUserAccess(entityTypes, entityIds)
+        : of([] as AccessResponse[]);
+
+    const workflowIds = items.map(i => i.workflow?.workflow?.wid).filter((wid): wid is number => wid != null);
+    const sizes$ =
+      doSize && workflowIds.length > 0
+        ? this.workflowPersistService.getSizes(workflowIds)
+        : of({} as Record<number, number>);
+
+    return forkJoin([userInfo$, counts$, liked$, access$, sizes$]).pipe(
+      map(([userMap, counts, liked, access, sizesMap]) => {
+        const countsMap: Record<string, Partial<Record<ActionType, number>>> = {};
+        counts.forEach(r => (countsMap[`${r.entityType}:${r.entityId}`] = r.counts));
+
+        const likedMap: Record<string, boolean> = {};
+        liked.forEach(r => (likedMap[`${r.entityType}:${r.entityId}`] = r.isLiked));
+
+        const accessMap: Record<string, number[]> = {};
+        access.forEach(r => (accessMap[`${r.entityType}:${r.entityId}`] = r.userIds));
+
+        return items.map(i => {
+          const entry = i.workflow
+            ? new DashboardEntry(i.workflow)
+            : i.project
+              ? new DashboardEntry(i.project)
+              : new DashboardEntry(i.dataset!);
+
+          const key = `${entry.type}:${entry.id}`;
+          const ownerId = i.workflow
+            ? i.workflow.ownerId
+            : i.project
+              ? i.project.ownerId
+              : i.dataset!.dataset!.ownerUid!;
+          const ui = (userMap as any)[ownerId];
+          if (ui) {
+            entry.setOwnerName(ui.userName);
+            entry.setOwnerGoogleAvatar(ui.googleAvatar ?? "");
+          }
+
+          if (doCounts) {
+            const c = countsMap[key] ?? {};
+            entry.setCount(c.view ?? 0, c.clone ?? 0, c.like ?? 0);
+          }
+          if (doLiked) {
+            entry.setIsLiked(likedMap[key] ?? false);
+          }
+          if (doAccess) {
+            entry.setAccessUsers(accessMap[key] ?? []);
+          }
+
+          if (doSize && entry.type === EntityType.Workflow && entry.id != null) {
+            entry.setSize(sizesMap[entry.id] ?? 0);
+          }
+
+          return entry;
+        });
       })
     );
   }

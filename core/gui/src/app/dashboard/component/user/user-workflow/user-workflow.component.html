@@ -21,23 +21,22 @@
   <nz-card class="section-title">
     <h2 class="page-title">Workflows</h2>
     <div class="button-group">
+      <button
+        nz-button
+        class="create-btn"
+        (click)="onClickCreateNewWorkflowFromDashboard()"
+        [disabled]="accessLevel === 'READ'"
+        title="Create a new workflow">
+        <i
+          nz-icon
+          nzType="file-add"
+          nzTheme="outline"></i>
+        <span>Create Workflow</span>
+      </button>
       <nz-button-group
         class="utility-button-group"
         ngbDropdown>
         <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
-        <button
-          (click)="onClickCreateNewWorkflowFromDashboard()"
-          [disabled]="accessLevel === 'READ'"
-          nz-button
-          title="Create a new workflow"
-          nz-tooltip="Create a new workflow"
-          nzTooltipPlacement="bottom"
-          type="button">
-          <i
-            nz-icon
-            nzTheme="outline"
-            nzType="file-add"></i>
-        </button>
         <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
           <button
             [disabled]="accessLevel === 'READ'"

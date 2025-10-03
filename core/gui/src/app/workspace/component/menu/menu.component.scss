@@ -153,20 +153,13 @@ i {
 
 #expanded-utilities {
   display: inline-block;
-  @media screen and (max-width: 1024px) {
-    display: none;
-  }
-}
-
-#expanded-utilities {
-  display: inline-block;
-  @media screen and (max-width: 960px) {
+  @media screen and (max-width: 1250px) {
     display: none;
   }
 }
 
 #utilities-dropdown-button {
-  @media screen and (min-width: 961px) {
+  @media screen and (min-width: 1251px) {
     display: none;
   }
 }

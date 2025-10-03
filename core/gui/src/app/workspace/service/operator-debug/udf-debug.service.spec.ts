@@ -200,6 +200,8 @@ describe("UdfDebugServiceSpec", () => {
         operatorState: OperatorState.Uninitialized,
         aggregatedInputRowCount: 0,
         aggregatedOutputRowCount: 0,
+        inputPortMetrics: {},
+        outputPortMetrics: {},
       },
     });
 
