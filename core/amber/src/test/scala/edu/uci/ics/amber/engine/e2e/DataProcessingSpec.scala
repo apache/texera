@@ -140,7 +140,7 @@ class DataProcessingSpec
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
     SqlServer.initConnection(
-      StorageConfig.jdbcTestUrl,
+      StorageConfig.jdbcUrlForTestCases,
       StorageConfig.jdbcUsername,
       StorageConfig.jdbcPassword
     )

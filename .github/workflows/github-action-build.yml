@@ -112,8 +112,8 @@ jobs:
         run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
         env:
           PGPASSWORD: postgres
-      - name: Create test_texera_db
-        run: psql -h localhost -U postgres -v DB_NAME=test_texera_db -f core/scripts/sql/texera_ddl.sql
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f core/scripts/sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt

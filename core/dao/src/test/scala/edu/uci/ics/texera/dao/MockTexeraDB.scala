@@ -67,6 +67,7 @@ trait MockTexeraDB {
         value.close()
         dbInstance = None
         dslContext = None
+        SqlServer.clearInstance()
       case None =>
       // do nothing
     }
