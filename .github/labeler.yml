@@ -23,7 +23,7 @@ backend:
   - changed-files:
       - any-glob-to-any-file:
           - 'core/**'
-      - all-globs-to-all-files:
+      - all-glob-to-any-files:
           - '!core/gui/**'
           - '!core/log/**'
           - '!core/scripts/**'
