@@ -25,7 +25,6 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.config.StorageConfig
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
@@ -36,23 +35,15 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.engine.e2e.TestUtils.{
+  buildWorkflow,
+  cleanupWorkflowExecutionData,
+  initiateTexeraDBForTestCases,
+  setUpWorkflowExecutionData
+}
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.texera.dao.{MockTexeraDB, SqlServer}
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  WorkflowExecutions,
-  WorkflowVersion,
-  Workflow => WorkflowPojo
-}
+import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -73,65 +64,12 @@ class DataProcessingSpec
   var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
 
-  private val testUser: User = {
-    val user = new User
-    user.setUid(Integer.valueOf(1))
-    user.setName("test_user")
-    user.setRole(UserRoleEnum.ADMIN)
-    user.setPassword("123")
-    user.setEmail("test_user@test.com")
-    user
-  }
-
-  private val testWorkflowEntry: WorkflowPojo = {
-    val workflow = new WorkflowPojo
-    workflow.setName("test workflow")
-    workflow.setWid(Integer.valueOf(1))
-    workflow.setContent("test workflow content")
-    workflow.setDescription("test description")
-    workflow
-  }
-
-  private val testWorkflowVersionEntry: WorkflowVersion = {
-    val workflowVersion = new WorkflowVersion
-    workflowVersion.setWid(Integer.valueOf(1))
-    workflowVersion.setVid(Integer.valueOf(1))
-    workflowVersion.setContent("test version content")
-    workflowVersion
-  }
-
-  private val testWorkflowExecutionEntry: WorkflowExecutions = {
-    val workflowExecution = new WorkflowExecutions
-    workflowExecution.setEid(Integer.valueOf(1))
-    workflowExecution.setVid(Integer.valueOf(1))
-    workflowExecution.setUid(Integer.valueOf(1))
-    workflowExecution.setStatus(3.toByte)
-    workflowExecution.setEnvironmentVersion("test engine")
-    workflowExecution
-  }
-
   override protected def beforeEach(): Unit = {
-    val dslConfig = SqlServer.getInstance().context.configuration()
-    val userDao = new UserDao(dslConfig)
-    val workflowDao = new WorkflowDao(dslConfig)
-    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
-    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
-    userDao.insert(testUser)
-    workflowDao.insert(testWorkflowEntry)
-    workflowVersionDao.insert(testWorkflowVersionEntry)
-    workflowExecutionsDao.insert(testWorkflowExecutionEntry)
+    setUpWorkflowExecutionData()
   }
 
   override protected def afterEach(): Unit = {
-    val dslConfig = SqlServer.getInstance().context.configuration()
-    val userDao = new UserDao(dslConfig)
-    val workflowDao = new WorkflowDao(dslConfig)
-    val workflowExecutionsDao = new WorkflowExecutionsDao(dslConfig)
-    val workflowVersionDao = new WorkflowVersionDao(dslConfig)
-    workflowExecutionsDao.deleteById(1)
-    workflowVersionDao.deleteById(1)
-    workflowDao.deleteById(1)
-    userDao.deleteById(1)
+    cleanupWorkflowExecutionData()
   }
 
   override def beforeAll(): Unit = {
@@ -139,11 +77,7 @@ class DataProcessingSpec
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrlForTestCases,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
+    initiateTexeraDBForTestCases()
   }
 
   override def afterAll(): Unit = {
