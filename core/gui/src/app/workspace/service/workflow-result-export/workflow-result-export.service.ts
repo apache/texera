@@ -143,19 +143,18 @@ export class WorkflowResultExportService {
     this.notificationService.loading("Exporting...");
 
     // Make request
-    if (destination === 'local') {
+    if (destination === "local") {
       // Dataset export to local filesystem (download handled by browser)
-      this.downloadService
-        .exportWorkflowResultToLocal(
-          exportType,
-          workflowId,
-          workflowName,
-          operatorArray,
-          rowIndex,
-          columnIndex,
-          filename,
-          unit
-        );
+      this.downloadService.exportWorkflowResultToLocal(
+        exportType,
+        workflowId,
+        workflowName,
+        operatorArray,
+        rowIndex,
+        columnIndex,
+        filename,
+        unit
+      );
     } else {
       // Dataset export to dataset via API call
       this.downloadService
