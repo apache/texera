@@ -128,7 +128,7 @@ data:
                 name: dynamic_dns_cache
                 dns_lookup_family: V4_ONLY
                 dns_refresh_rate: 1s
-        - name: access_control_service_cluster
+        - name: access_control_service_cluster # The Access Control Service authorize requests and add user info headers
           connect_timeout: 0.25s
           type: LOGICAL_DNS
           lb_policy: round_robin
