@@ -20,14 +20,14 @@ gui:
           - 'core/gui/**'
 
 backend:
-  - all
-    - changed-files:
-        - any-glob-to-any-file:
-            - 'core/**'
-        - all-globs-to-all-files:
-            - '!core/gui/**'
-            - '!core/log/**'
-            - '!core/scripts/**'
+  - all:
+      - changed-files:
+          - any-glob-to-any-file:
+              - 'core/**'
+          - all-globs-to-all-files:
+              - '!core/gui/**'
+              - '!core/log/**'
+              - '!core/scripts/**'
 
 engine:
   - changed-files:
