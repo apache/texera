@@ -536,6 +536,10 @@ export class DatasetDetailComponent implements OnInit {
     return this.activeUploads;
   }
 
+  get hasAnyActivity(): boolean {
+    return this.pendingChangesCount > 0 || this.activeCount > 0 || this.queuedCount > 0;
+  }
+
   // Hide a task row after 5s
   private scheduleHide(idx: number) {
     if (idx === -1) {
