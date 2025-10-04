@@ -92,6 +92,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(desc.hasHeader)
+    csvSetting.setMaxColumns(10000)
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
