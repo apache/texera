@@ -61,6 +61,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetIsPublic: boolean = false;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
+  public ownerEmail: string = "";
   public isOwner: boolean = false;
 
   public currentDisplayedFileName: string = "";
@@ -276,6 +277,7 @@ export class DatasetDetailComponent implements OnInit {
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
           this.datasetIsDownloadable = dataset.isDownloadable;
+          this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
@@ -421,6 +423,7 @@ export class DatasetDetailComponent implements OnInit {
           // Start multipart upload
           const subscription = this.datasetService
             .multipartUpload(
+              this.ownerEmail,
               this.datasetName,
               file.name,
               file.file,
@@ -533,6 +536,10 @@ export class DatasetDetailComponent implements OnInit {
     return this.activeUploads;
   }
 
+  get hasAnyActivity(): boolean {
+    return this.pendingChangesCount > 0 || this.activeCount > 0 || this.queuedCount > 0;
+  }
+
   // Hide a task row after 5s
   private scheduleHide(idx: number) {
     if (idx === -1) {
@@ -558,6 +565,7 @@ export class DatasetDetailComponent implements OnInit {
 
     this.datasetService
       .finalizeMultipartUpload(
+        this.ownerEmail,
         this.datasetName,
         task.filePath,
         task.uploadId,
