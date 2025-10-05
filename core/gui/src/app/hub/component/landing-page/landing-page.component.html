@@ -19,26 +19,164 @@
 
 <div class="landing-page-container">
   <div class="section-intro">
-    <div class="section-intro-text">
-      <h1>ADMAP</h1>
-      <p>
-        UC Irvine Alzheimer's Disease Multimodal Atlasing Project
-        <br />
-        View
-        <a
-          href="javascript:void(0)"
-          (click)="navigateToSearch('dataset')">
-          {{datasetCount}} public datasets
-        </a>
-        provided by ADMAP's community.
-      </p>
+    <div>
+      <h1 class="hero-title">ADMAP</h1>
+      <p class="hero-subtitle">A comprehensive web portal for uploading, browsing, downloading, and sharing datasets</p>
     </div>
-
     <img
-      class="section-intro-img"
+      class="hero-image"
       src="../../../../../assets/svg/hub_icon.svg"
       alt="hub icon" />
   </div>
+
+  <div class="features-section">
+    <h2 class="section-title">Platform Features</h2>
+
+    <nz-row [nzGutter]="[24, 24]">
+      <nz-col
+        [nzXs]="24"
+        [nzMd]="8">
+        <nz-card class="feature-card">
+          <div class="feature-icon">
+            <span
+              nz-icon
+              nzType="database"
+              nzTheme="outline"></span>
+          </div>
+          <h3>Dataset Management</h3>
+          <ul class="feature-list">
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Create and edit metadata
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Browse and search datasets
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Version control and history
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Public/private visibility
+            </li>
+          </ul>
+        </nz-card>
+      </nz-col>
+
+      <nz-col
+        [nzXs]="24"
+        [nzMd]="8">
+        <nz-card class="feature-card">
+          <div class="feature-icon">
+            <span
+              nz-icon
+              nzType="folder-open"
+              nzTheme="outline"></span>
+          </div>
+          <h3>File Management</h3>
+          <ul class="feature-list">
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Upload files
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Browse and preview
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Bulk download as ZIP
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Version-specific retrieval
+            </li>
+          </ul>
+        </nz-card>
+      </nz-col>
+
+      <nz-col
+        [nzXs]="24"
+        [nzMd]="8">
+        <nz-card class="feature-card">
+          <div class="feature-icon">
+            <span
+              nz-icon
+              nzType="team"
+              nzTheme="outline"></span>
+          </div>
+          <h3>Collaboration & Access</h3>
+          <ul class="feature-list">
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Community datasets
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Dataset sharing
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              Role-based access control
+            </li>
+            <li>
+              <span
+                nz-icon
+                nzType="check-circle"
+                nzTheme="fill"></span>
+              User management
+            </li>
+          </ul>
+        </nz-card>
+      </nz-col>
+    </nz-row>
+  </div>
+
+  <h2 class="section-title">Explore Datasets</h2>
+  <p class="stats">
+    View
+    <a
+      href="javascript:void(0)"
+      (click)="navigateToSearch('dataset')"
+      >{{datasetCount}} public datasets</a
+    >
+    provided by ADMAP's community.
+  </p>
 
   <div>
     <texera-browse-section
