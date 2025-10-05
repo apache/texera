@@ -19,7 +19,10 @@
 
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, inject, Input, OnInit } from "@angular/core";
-import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
+import {
+  WorkflowResultExportService,
+  RestrictionAnalysisResult,
+} from "../../service/workflow-result-export/workflow-result-export.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -57,6 +60,7 @@ export class ResultExportationComponent implements OnInit {
   isExportRestricted: boolean = false;
   hasPartialNonDownloadable: boolean = false;
   blockingDatasetLabels: string[] = [];
+  restrictedOperatorMap = new Map<string, Set<string>>();
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
@@ -81,9 +85,12 @@ export class ResultExportationComponent implements OnInit {
       });
 
     this.workflowResultExportService
-      .refreshDatasetMetadata()
+      .computeRestrictionAnalysis()
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.updateOutputType());
+      .subscribe(restrictionResult => {
+        this.restrictedOperatorMap = restrictionResult.restrictedOperatorMap;
+        this.updateOutputType();
+      });
 
     this.computingUnitStatusService
       .getSelectedComputingUnit()
@@ -107,9 +114,18 @@ export class ResultExportationComponent implements OnInit {
       operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     }
 
-    this.exportableOperatorIds = this.workflowResultExportService.getExportableOperatorIds(operatorIds);
-    this.blockedOperatorIds = this.workflowResultExportService.getBlockedOperatorIds(operatorIds);
-    this.blockingDatasetLabels = this.workflowResultExportService.getBlockingDatasets(operatorIds);
+    this.exportableOperatorIds = this.workflowResultExportService.getExportableOperatorIds(
+      operatorIds,
+      this.restrictedOperatorMap
+    );
+    this.blockedOperatorIds = this.workflowResultExportService.getBlockedOperatorIds(
+      operatorIds,
+      this.restrictedOperatorMap
+    );
+    this.blockingDatasetLabels = this.workflowResultExportService.getBlockingDatasets(
+      operatorIds,
+      this.restrictedOperatorMap
+    );
     this.isExportRestricted = this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
     this.hasPartialNonDownloadable = this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
 
