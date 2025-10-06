@@ -281,12 +281,9 @@
             nzGhost
             class="upload-status-panels">
             <nz-collapse-panel
-              [nzHeader]="queuedCount > 0
-                  ? ('Pending: ' + queuedCount + ' file(s)')
-                  : 'Pending'">
-              <div
-                *ngIf="queuedCount > 0"
-                class="upload-progress-wrapper-pending">
+              *ngIf="queuedCount > 0"
+              [nzHeader]="'Pending: ' + queuedCount + ' file(s)'">
+              <div class="upload-progress-wrapper-pending">
                 <div
                   *ngFor="let fileName of queuedFileNames"
                   class="upload-progress-container">
@@ -294,15 +291,15 @@
                 </div>
               </div>
             </nz-collapse-panel>
-            <nz-divider class="section-divider"></nz-divider>
+
+            <nz-divider
+              class="section-divider"
+              *ngIf="queuedCount > 0"></nz-divider>
 
             <nz-collapse-panel
-              [nzHeader]="activeCount > 0
-                  ? ('Uploading: ' + activeCount + ' file(s)')
-                  : 'Uploading'">
-              <div
-                *ngIf="activeCount > 0"
-                class="upload-progress-wrapper">
+              *ngIf="activeCount > 0"
+              [nzHeader]="'Uploading: ' + activeCount + ' file(s)'">
+              <div class="upload-progress-wrapper">
                 <div
                   *ngFor="let task of uploadTasks; trackBy: trackByTask"
                   class="upload-progress-container">
@@ -346,20 +343,31 @@
                 </div>
               </div>
             </nz-collapse-panel>
-            <nz-divider class="section-divider"></nz-divider>
+
+            <nz-divider
+              class="section-divider"
+              *ngIf="activeCount > 0"></nz-divider>
 
             <nz-collapse-panel
-              [nzHeader]="pendingChangesCount > 0
-              ? ('Finished: ' + pendingChangesCount + ' file(s)')
-              : 'Finished'"
-              [nzActive]="false">
+              *ngIf="hasAnyActivity"
+              [nzHeader]="'Finished: ' + pendingChangesCount + ' file(s)'">
               <texera-dataset-staged-objects-list
                 [uploadTimeMap]="uploadTimeMap"
                 [did]="did"
                 [userMakeChangesEvent]="userMakeChanges"
-                (stagedObjectsChanged)="onStagedObjectsUpdated($event)"></texera-dataset-staged-objects-list>
+                (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
+              </texera-dataset-staged-objects-list>
             </nz-collapse-panel>
           </nz-collapse>
+
+          <texera-dataset-staged-objects-list
+            *ngIf="!hasAnyActivity"
+            [uploadTimeMap]="uploadTimeMap"
+            [did]="did"
+            [userMakeChangesEvent]="userMakeChanges"
+            (stagedObjectsChanged)="onStagedObjectsUpdated($event)">
+          </texera-dataset-staged-objects-list>
+
           <div
             *ngIf="userHasWriteAccess() && userHasPendingChanges"
             class="version-creator">

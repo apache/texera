@@ -20,7 +20,7 @@
 package edu.uci.ics.amber.core.storage.model
 
 trait OnDataset {
-  def getDatasetName(): String
+  def getRepositoryName(): String
 
   def getVersionHash(): String
 

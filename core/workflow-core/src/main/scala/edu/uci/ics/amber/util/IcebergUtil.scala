@@ -117,6 +117,9 @@ object IcebergUtil {
       catalogName: String,
       warehouse: Path
   ): JdbcCatalog = {
+    // Occasionally the jdbc driver cannot be found during CI run.
+    // Explicitly load the JDBC driver to avoid flaky CI failures.
+    Class.forName("org.postgresql.Driver")
     val catalog = new JdbcCatalog()
     catalog.initialize(
       catalogName,
