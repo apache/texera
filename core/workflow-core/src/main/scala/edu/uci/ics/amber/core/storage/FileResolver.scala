@@ -80,8 +80,8 @@ object FileResolver {
     *
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-    * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{did}/{versionHash}/file-path
-    *   e.g. {DATASET_FILE_URI_SCHEME}:///15/adeq233td/some/dir/file.txt
+    * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{repositoryName}/{versionHash}/fileRelativePath
+    *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
@@ -138,11 +138,11 @@ object FileResolver {
 
     // Prepend dataset name and versionHash to the encoded path segments
     val allPathSegments = Array(
-      datasetName,
+      dataset.getRepositoryName,
       datasetVersion.getVersionHash
     ) ++ encodedFileRelativePath
 
-    // Build the format /{datasetName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    // Build the format /{repositoryName}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
     val uriSplitter = "/"
     val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
 
