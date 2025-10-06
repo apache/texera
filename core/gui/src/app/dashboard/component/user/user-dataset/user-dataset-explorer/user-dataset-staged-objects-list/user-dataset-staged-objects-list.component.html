@@ -20,7 +20,8 @@
 <div class="staged-object-list-container">
   <nz-list
     nzSize="small"
-    *ngIf="datasetStagedObjects.length > 0">
+    *ngIf="datasetStagedObjects.length > 0"
+    class="custom-border-list">
     <nz-list-item *ngFor="let obj of datasetStagedObjects">
       <span>
         <nz-tag [nzColor]="obj.diffType === 'added' ? 'green' : 'red'"> {{ obj.diffType }} </nz-tag>
