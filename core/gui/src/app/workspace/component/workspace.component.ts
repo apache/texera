@@ -132,19 +132,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      */
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
-
-    if (this.config.env.userSystemEnabled) {
-      // if a workflow id is present in the route, display loading spinner immediately while loading
-      const widInRoute = this.route.snapshot.params.id;
-      if (widInRoute) {
-        this.isLoading = true;
-        this.workflowActionService.disableWorkflowModification();
-      }
-
-      this.onWIDChange();
-      this.updateViewCount();
+    // if a workflow id is present in the route, display loading spinner immediately while loading
+    const widInRoute = this.route.snapshot.params.id;
+    if (widInRoute) {
+      this.isLoading = true;
+      this.workflowActionService.disableWorkflowModification();
     }
-
+    this.onWIDChange();
+    this.updateViewCount();
     this.registerLoadOperatorMetadata();
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
@@ -262,58 +257,25 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
-        if (this.config.env.userSystemEnabled) {
-          // load workflow with wid if presented in the URL
-          if (wid) {
-            // show loading spinner right away while waiting for workflow to load
-            this.isLoading = true;
-            // temporarily disable modification to prevent editing an empty workflow before real data is loaded
-            this.workflowActionService.disableWorkflowModification();
-            // if wid is present in the url, load it from the backend once the user info is ready
-            this.userService
-              .userChanged()
-              .pipe(untilDestroyed(this))
-              .subscribe(() => {
-                this.loadWorkflowWithId(wid);
-              });
-          } else {
-            // no workflow to load; directly register auto persist for brand-new workflow
-            this.registerAutoPersistWorkflow();
-          }
+        // load workflow with wid if presented in the URL
+        if (wid) {
+          // show loading spinner right away while waiting for workflow to load
+          this.isLoading = true;
+          // temporarily disable modification to prevent editing an empty workflow before real data is loaded
+          this.workflowActionService.disableWorkflowModification();
+          // if wid is present in the url, load it from the backend once the user info is ready
+          this.userService
+            .userChanged()
+            .pipe(untilDestroyed(this))
+            .subscribe(() => {
+              this.loadWorkflowWithId(wid);
+            });
         } else {
-          // remember URL fragment
-          const fragment = this.route.snapshot.fragment;
-          // fetch the cached workflow first
-          const cachedWorkflow = this.workflowCacheService.getCachedWorkflow();
-          // responsible for saving the existing workflow in cache
-          this.registerAutoCacheWorkFlow();
-          // load the cached workflow
-          this.workflowActionService.reloadWorkflow(cachedWorkflow);
-          // set the URL fragment to previous value
-          // because reloadWorkflow will highlight/unhighlight all elements
-          // which will change the URL fragment
-          this.router.navigate([], {
-            relativeTo: this.route,
-            fragment: fragment !== null ? fragment : undefined,
-            preserveFragment: false,
-          });
-          // highlight the operator, comment box, or link in the URL fragment
-          if (fragment) {
-            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-              this.workflowActionService.highlightElements(false, fragment);
-            } else {
-              this.notificationService.error(`Element ${fragment} doesn't exist`);
-              // remove the fragment from the URL
-              this.router.navigate([], { relativeTo: this.route });
-            }
-          }
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
+          // no workflow to load; directly register auto persist for brand-new workflow
+          this.registerAutoPersistWorkflow();
         }
       });
   }
-
   onWIDChange() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -327,7 +289,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
       });
   }
-
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
     let uid = this.userService.getCurrentUser()?.uid;
@@ -337,7 +298,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe();
   }
-
   public triggerCenter(): void {
     this.workflowActionService.getTexeraGraph().triggerCenterEvent();
   }
