@@ -25,7 +25,6 @@ import { WorkflowPersistService } from "../../common/service/workflow-persist/wo
 import { Workflow } from "../../common/type/workflow";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
-import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
@@ -78,7 +77,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorReuseCacheStatusService: OperatorReuseCacheStatusService,
     // end of additional services
     private undoRedoService: UndoRedoService,
-    private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowActionService: WorkflowActionService,
     private location: Location,
@@ -111,9 +109,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   ngAfterViewInit(): void {
     /**
-     * On initialization of the workspace, there could be three cases:
+     * On initialization of the workspace, there could be two cases:
      *
-     * - with userSystem enabled, usually during prod mode:
      * 1. Accessed by URL `/`, no workflow is in the URL (Cold Start):
      -    - A new `WorkflowActionService.DEFAULT_WORKFLOW` is created, which is an empty workflow with undefined id.
      *    - After an Auto-persist being triggered by a WorkflowAction event, it will create a new workflow in the database
@@ -122,13 +119,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - It will retrieve the workflow from database with the given ID. Because it has an ID, it will be linked to the database
      *    - Auto-persist will be triggered upon all workspace events.
      *
-     * - with userSystem disabled, during dev mode:
-     * 1. Accessed by URL `/`, with a workflow cached (refresh manually):
-     *    - This will trigger the WorkflowCacheService to load the workflow from cache.
-     *    - Auto-cache will be triggered upon all workspace events.
-     *
-     * WorkflowActionService is the single source of the workflow representation. Both WorkflowCacheService and WorkflowPersistService are
-     * reflecting changes from WorkflowActionService.
+     * WorkflowActionService is the single source of the workflow representation. WorkflowPersistService reflects
+     * changes from WorkflowActionService.
      */
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
@@ -153,16 +145,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.codeEditorViewRef.clear();
     this.workflowActionService.clearWorkflow();
-  }
-
-  registerAutoCacheWorkFlow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-      });
   }
 
   registerAutoPersistWorkflow(): void {
