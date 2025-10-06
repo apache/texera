@@ -693,7 +693,7 @@ class WorkflowExecutionsResource {
   @POST
   @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def exportResult(request: ResultExportRequest, @Auth user: SessionUser): Response = {
+  def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
       val resultExportService =
         new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
@@ -714,7 +714,7 @@ class WorkflowExecutionsResource {
   @POST
   @Path("/result/export/local")
   @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
-  def exportResultViaBrowser(
+  def exportResultToLocal(
       @FormParam("request") requestJson: String,
       @FormParam("token") token: String
   ): Response = {
