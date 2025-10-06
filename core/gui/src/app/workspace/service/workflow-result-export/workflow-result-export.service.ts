@@ -33,13 +33,23 @@ import { HttpResponse } from "@angular/common/http";
 import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
-import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
 
-export interface RestrictionAnalysisResult {
+/**
+ * Result of workflow result downloadability analysis.
+ * Contains information about which operators are restricted from exporting
+ * due to non-downloadable dataset dependencies.
+ */
+export interface WorkflowResultDownloadability {
+  /**
+   * Map of operator IDs to sets of blocking dataset labels.
+   * Key: Operator ID
+   * Value: Set of human-readable dataset labels (e.g., "dataset_name (owner@email.com)")
+   *        that are blocking this operator from being exported
+   *
+   * An operator appears in this map if it directly uses or depends on (through data flow)
+   * one or more datasets that the current user is not allowed to download.
+   */
   restrictedOperatorMap: Map<string, Set<string>>;
-  datasetDownloadableMap: Map<string, boolean>;
-  datasetLabelMap: Map<string, string>;
 }
 
 @Injectable({
@@ -55,7 +65,6 @@ export class WorkflowResultExportService {
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
     private downloadService: DownloadService,
-    private datasetService: DatasetService,
     private config: GuiConfigService
   ) {
     this.registerResultToExportUpdateHandler();
@@ -74,193 +83,35 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * Computes restriction analysis on-demand by fetching dataset metadata and analyzing workflow graph.
+   * Computes restriction analysis by calling the backend API.
    *
-   * Fetches all accessible datasets and their permissions, then:
-   * - Builds datasetDownloadableMap: tracks which datasets are downloadable
-   * - Builds datasetLabelMap: stores human-readable dataset labels
-   * - Performs restriction analysis to identify operators blocked by dataset access controls
-   *
-   * A dataset is considered downloadable if either:
-   * - The dataset's isDownloadable flag is true, OR
-   * - The current user is the dataset owner
+   * The backend analyzes the workflow to identify operators that are restricted from export
+   * due to non-downloadable dataset dependencies. The restriction propagates through the
+   * workflow graph via data flow.
    *
    * @returns Observable that emits the restriction analysis result
    */
-  public computeRestrictionAnalysis(): Observable<RestrictionAnalysisResult> {
-    return this.datasetService.retrieveAccessibleDatasets().pipe(
-      take(1),
-      map(datasets => {
-        const datasetDownloadableMap = new Map<string, boolean>();
-        const datasetLabelMap = new Map<string, string>();
+  public computeRestrictionAnalysis(): Observable<WorkflowResultDownloadability> {
+    const workflowId = this.workflowActionService.getWorkflow().wid;
+    if (!workflowId) {
+      return of({ restrictedOperatorMap: new Map<string, Set<string>>() });
+    }
 
-        datasets.forEach(dataset => {
-          const key = this.buildDatasetKey(dataset.ownerEmail, dataset.dataset.name);
-          const isDownloadable = dataset.dataset.isDownloadable || dataset.isOwner;
-          datasetDownloadableMap.set(key, isDownloadable);
-          datasetLabelMap.set(key, `${dataset.dataset.name} (${dataset.ownerEmail})`);
+    return this.downloadService.getWorkflowResultDownloadability(workflowId).pipe(
+      map(backendResponse => {
+        // Convert backend format to Map<operatorId, Set<datasetLabel>>
+        const restrictedOperatorMap = new Map<string, Set<string>>();
+        Object.entries(backendResponse).forEach(([operatorId, datasetLabels]) => {
+          restrictedOperatorMap.set(operatorId, new Set(datasetLabels));
         });
-
-        const restrictedOperatorMap = this.runRestrictionAnalysis(datasetDownloadableMap, datasetLabelMap);
-
-        return { restrictedOperatorMap, datasetDownloadableMap, datasetLabelMap };
+        return { restrictedOperatorMap };
       }),
       catchError(() => {
         return of({
           restrictedOperatorMap: new Map<string, Set<string>>(),
-          datasetDownloadableMap: new Map<string, boolean>(),
-          datasetLabelMap: new Map<string, string>(),
         });
       })
     );
-  }
-
-  /**
-   * Builds a normalized key for dataset lookup in caches.
-   * Converts both email and dataset name to lowercase for case-insensitive matching.
-   *
-   * @param ownerEmail The dataset owner's email
-   * @param datasetName The dataset name
-   * @returns Normalized key in format "email::dataset"
-   */
-  private buildDatasetKey(ownerEmail: string, datasetName: string): string {
-    return `${ownerEmail.toLowerCase()}::${datasetName.toLowerCase()}`;
-  }
-
-  /**
-   * Extracts dataset information from an operator's fileName property.
-   *
-   * Parses file paths in the expected format and validates that the dataset
-   * exists in the provided dataset maps.
-   *
-   * @param fileName The fileName property from operator properties
-   * @param datasetDownloadableMap Map tracking which datasets are downloadable
-   * @param datasetLabelMap Map storing human-readable dataset labels
-   * @returns Object with dataset key and label, or null if invalid/not found
-   */
-  private extractDatasetInfo(
-    fileName: unknown,
-    datasetDownloadableMap: Map<string, boolean>,
-    datasetLabelMap: Map<string, string>
-  ): { key: string; label: string } | null {
-    if (typeof fileName !== "string") {
-      return null;
-    }
-    const trimmed = fileName.trim();
-    if (!trimmed.startsWith("/")) {
-      return null;
-    }
-    try {
-      const { ownerEmail, datasetName } = parseFilePathToDatasetFile(trimmed);
-      if (!ownerEmail || !datasetName) {
-        return null;
-      }
-      const key = this.buildDatasetKey(ownerEmail, datasetName);
-      if (!datasetDownloadableMap.has(key)) {
-        return null;
-      }
-      const label = datasetLabelMap.get(key) ?? `${datasetName} (${ownerEmail})`;
-      return { key, label };
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Performs client-side restriction analysis to mirror backend validation.
-   *
-   * This function:
-   * 1. Identifies operators using non-downloadable datasets
-   * 2. Builds a workflow dependency graph from operator links
-   * 3. Uses BFS to propagate restrictions through the graph
-   * 4. Returns a map of restricted operators
-   *
-   * The analysis considers only enabled operators and ignores disabled ones.
-   * Restrictions flow downstream through operator dependencies.
-   *
-   * @param datasetDownloadableMap Map tracking which datasets are downloadable
-   * @param datasetLabelMap Map storing human-readable dataset labels
-   * @returns Map of operator IDs to sets of blocking dataset labels
-   */
-  private runRestrictionAnalysis(
-    datasetDownloadableMap: Map<string, boolean>,
-    datasetLabelMap: Map<string, string>
-  ): Map<string, Set<string>> {
-    const texeraGraph = this.workflowActionService.getTexeraGraph();
-    const allOperators = texeraGraph.getAllOperators();
-    const operatorById = new Map(allOperators.map(op => [op.operatorID, op] as const));
-    const enabledOperators = allOperators.filter(operator => !operator.isDisabled);
-    const datasetSources: Array<{ operatorId: string; label: string }> = [];
-
-    // Identify source operators that use non-downloadable datasets
-    enabledOperators.forEach(operator => {
-      const datasetInfo = this.extractDatasetInfo(
-        operator.operatorProperties?.fileName,
-        datasetDownloadableMap,
-        datasetLabelMap
-      );
-      if (!datasetInfo) {
-        return;
-      }
-      const isDownloadable = datasetDownloadableMap.get(datasetInfo.key);
-      if (isDownloadable === false) {
-        datasetSources.push({ operatorId: operator.operatorID, label: datasetInfo.label });
-      }
-    });
-
-    const restrictions = new Map<string, Set<string>>();
-
-    if (datasetSources.length === 0) {
-      return restrictions;
-    }
-
-    // Build Workflow Dependency Graph
-    const adjacency = new Map<string, string[]>();
-    texeraGraph.getAllLinks().forEach(link => {
-      const sourceId = link.source.operatorID;
-      const targetId = link.target.operatorID;
-      const sourceOperator = operatorById.get(sourceId);
-      const targetOperator = operatorById.get(targetId);
-      if (!sourceOperator || !targetOperator) {
-        return;
-      }
-      if (sourceOperator.isDisabled || targetOperator.isDisabled) {
-        return;
-      }
-      const neighbors = adjacency.get(sourceId);
-      if (neighbors) {
-        neighbors.push(targetId);
-      } else {
-        adjacency.set(sourceId, [targetId]);
-      }
-    });
-
-    // BFS
-    const queue: Array<{ operatorId: string; datasets: Set<string> }> = [];
-    datasetSources.forEach(source => {
-      queue.push({ operatorId: source.operatorId, datasets: new Set([source.label]) });
-    });
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const existing = restrictions.get(current.operatorId) ?? new Set<string>();
-      let updated = false;
-      current.datasets.forEach(label => {
-        if (!existing.has(label)) {
-          existing.add(label);
-          updated = true;
-        }
-      });
-      if (updated || !restrictions.has(current.operatorId)) {
-        restrictions.set(current.operatorId, existing);
-        const neighbors = adjacency.get(current.operatorId) ?? [];
-        neighbors.forEach(nextOperatorId => {
-          queue.push({ operatorId: nextOperatorId, datasets: new Set(existing) });
-        });
-      }
-    }
-
-    return restrictions;
   }
 
   /**

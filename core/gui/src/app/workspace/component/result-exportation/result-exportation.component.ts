@@ -21,7 +21,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, inject, Input, OnInit } from "@angular/core";
 import {
   WorkflowResultExportService,
-  RestrictionAnalysisResult,
+  WorkflowResultDownloadability,
 } from "../../service/workflow-result-export/workflow-result-export.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";

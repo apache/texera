@@ -818,6 +818,37 @@ class WorkflowExecutionsResource {
     executionsDao.update(execution)
   }
 
+  /**
+    * Returns which operators are restricted from export due to dataset access controls.
+    * This endpoint allows the frontend to check restrictions before attempting export.
+    *
+    * @param wid The workflow ID to check
+    * @param user The authenticated user
+    * @return JSON map of operator ID -> array of {ownerEmail, datasetName} that block its export
+    */
+  @GET
+  @Path("/{wid}/result/downloadability")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def getWorkflowResultDownloadability(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): Response = {
+    validateUserCanAccessWorkflow(user.getUser.getUid, wid)
+
+    val datasetRestrictions = getNonDownloadableOperatorMap(wid, user.user)
+
+    // Convert to frontend-friendly format: Map[operatorId -> Array[datasetLabel]]
+    val restrictionMap = datasetRestrictions.map {
+      case (operatorId, datasets) =>
+        operatorId -> datasets.map {
+          case (ownerEmail, datasetName) => s"$datasetName ($ownerEmail)"
+        }.toArray
+    }.asJava
+
+    Response.ok(restrictionMap).build()
+  }
+
   @POST
   @Path("/result/export")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
