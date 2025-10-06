@@ -41,6 +41,8 @@ import * as _ from "lodash";
 import * as joint from "jointjs";
 import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { line, curveCatmullRomClosed } from "d3-shape";
+import concaveman from "concaveman";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -325,17 +327,15 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
 
 
-    const joinShape = joint.dia.Element.define("custom.Hull", {
+    const regionShape = joint.dia.Element.define("region", {
       attrs: {
         body: {
-          d: "M 0 0",
-          fill: "rgba(255,213,79,0.2)",
+          fill: "rgba(255,213,79,0.2)",   // translucent highlighter fill
           stroke: "#FFD54F",
-          "stroke-dasharray": "4,2",
           "stroke-width": 3,
-          "stroke-opacity": 0.9,
-          pointerEvents: "none",
-        },
+          "stroke-dasharray": "6,4",
+          pointerEvents: "none"
+        }
       },
     }, {
       markup: [{
@@ -344,116 +344,42 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       }],
     });
 
-    const hullPath = new joinShape;
-    this.paper.model.addCell(hullPath);
-
-    hullPath.attr("body/d", "M 100 100 L 200 100 L 200 200 L 100 200 Z");
-
-
     this.executeWorkflowService
       .getRegionStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
-        regions.forEach((region, i) => {
-          const hullPath = new joint.shapes.standard.Path();
-          hullPath.set("z", 2);
-          this.paper.model.addCell(hullPath);
-          const members = region
-            .map(op => this.paper.getModelById(op))
-
-          console.log("Members in region:", members);
-          this.updateHullBlob(
-            hullPath,
-            members
+        this.paper.model.getCells().forEach(cell => {
+          if (cell instanceof regionShape) {
+            cell.remove();
+          }
+        });
+        regions.forEach(region => {
+          const shape = new regionShape;
+          this.paper.model.addCell(shape);
+          this.updateRegionShape(
+            shape,
+            region.map(op => this.paper.getModelById(op))
           );
         });
       });
   }
 
-  private buildSmoothPath(points: { x: number; y: number }[], radius = 20): string {
-    if (points.length < 2) return "";
+  private updateRegionShape(highlight: any, nodes: joint.dia.Cell[]) {
 
-    let d = `M ${points[0].x},${points[0].y}`;
-    for (let i = 0; i < points.length; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % points.length];
-      const midX = (p1.x + p2.x) / 2;
-      const midY = (p1.y + p2.y) / 2;
-      d += ` Q ${p1.x},${p1.y} ${midX},${midY}`;
-    }
-    d += " Z";
-    return d;
-  }
+    // collect all bounding box corners
+    const padding = 20;
+    const points: [number, number][] = [];
 
-  private computeHullPoints(nodes: joint.dia.Element[]) {
-    // Collect all node bounding box corners
-    const points: { x: number; y: number }[] = [];
     nodes.forEach(node => {
       const bbox = node.getBBox();
-      points.push({ x: bbox.x, y: bbox.y });
-      points.push({ x: bbox.x + bbox.width, y: bbox.y });
-      points.push({ x: bbox.x, y: bbox.y + bbox.height });
-      points.push({ x: bbox.x + bbox.width, y: bbox.y + bbox.height });
+      points.push([bbox.x - padding, bbox.y - padding]);
+      points.push([bbox.x + bbox.width + padding, bbox.y - padding]);
+      points.push([bbox.x - padding, bbox.y + bbox.height + padding + 10]);
+      points.push([bbox.x + bbox.width + padding, bbox.y + bbox.height + padding + 10]);
     });
 
-    // Sort and compute convex hull (Graham scan or Monotone chain)
-    points.sort((a, b) => a.x === b.x ? a.y - b.y : a.x - b.x);
-
-    const cross = (o: any, a: any, b: any) =>
-      (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-
-    const lower: any[] = [];
-    for (const p of points) {
-      while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) {
-        lower.pop();
-      }
-      lower.push(p);
-    }
-
-    const upper: any[] = [];
-    for (let i = points.length - 1; i >= 0; i--) {
-      const p = points[i];
-      while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) {
-        upper.pop();
-      }
-      upper.push(p);
-    }
-
-    upper.pop();
-    lower.pop();
-    return lower.concat(upper); // hull points in order
-  }
-
-  private updateHullBlob(highlight: joint.shapes.standard.Path, nodes: any) {
-    if (!nodes || nodes.length === 0) return;
-
-    const hull = this.computeHullPoints(nodes);
-    if (hull.length < 3) {
-      console.warn("Not enough points to draw hull:", hull);
-      return;
-    }
-
-    const d = this.buildSmoothPath(hull, 20);
-    if (!d) return;
-
-    console.log("Hull path d:", d);
-
-    highlight.attr({
-      body: {
-        d,
-        fill: "rgba(255, 213, 79, 0.2)",   // translucent yellow fill
-        stroke: "#FFD54F",                 // yellow stroke
-        "stroke-dasharray": "4,2",
-        "stroke-width": 3,
-        "stroke-opacity": 0.9,
-        pointerEvents: "none"              // users can’t click it
-      }
-    });
-    highlight.attr("body/d", "M 100 100 L 200 100 L 200 200 L 100 200 Z");
-    highlight.attr("body/d", d);
-    highlight.attr("body/fill", "rgba(255,213,79,0.2)");
-    highlight.attr("body/stroke", "#FFD54F");
-
+    const hull = concaveman(points, 2, 0) as [number, number][];
+    highlight.attr("body/d", line().curve(curveCatmullRomClosed)(hull));
   }
 
   /**
