@@ -38,7 +38,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 }
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
-import scala.jdk.CollectionConverters._
 import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
