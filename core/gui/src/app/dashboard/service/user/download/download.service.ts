@@ -231,23 +231,6 @@ export class DownloadService {
     }, IFRAME_TIMEOUT_MS);
   }
 
-  /**
-   * Utility function to download a file from the server from blob object.
-   */
-  public saveBlobFile(response: any, defaultFileName: string): void {
-    // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
-    // we can parse that out. Otherwise just use defaultFileName.
-    const dispositionHeader = response.headers.get("Content-Disposition");
-    let fileName = defaultFileName;
-    if (dispositionHeader) {
-      const parsed = contentDisposition.parse(dispositionHeader);
-      fileName = parsed.parameters.filename || defaultFileName;
-    }
-
-    const blob = response.body; // the actual file data
-    this.fileSaverService.saveAs(blob, fileName);
-  }
-
   downloadOperatorsResult(
     resultObservables: Observable<{ filename: string; blob: Blob }[]>[],
     workflow: Workflow
