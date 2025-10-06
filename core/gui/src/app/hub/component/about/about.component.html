@@ -17,53 +17,128 @@
  under the License.
 -->
 
-<div
-  class="about-page-container"
-  nz-row
-  nzJustify="space-around"
-  nzAlign="middle">
-  <div
-    nz-col
-    nzFlex="auto"
-    class="content">
-    <h1 class="about-title">About ADMAP</h1>
-
-    <p>
-      The Alzheimer's Disease Multimodal Atlasing Project (ADMAP) is a collaborative initiative at the UCI Center for
-      Neural Circuit Mapping. It aims to advance research on Alzheimer's disease by providing a platform for researchers
-      to upload, explore, and download datasets.
-    </p>
-
-    <h2 class="content-title">Key Features</h2>
-    <ul class="text-content">
-      <li>
-        Comprehensively characterize brain circuits susceptible to Alzheimer's disease type pathology and/or
-        neurodegeneration in mouse models of Alzheimer's disease (AD).
-      </li>
-      <li>
-        Share data on the cellular connectome in the aging and AD brain in a common reference brain cell atlas that
-        integrates both molecular and anatomical annotations.
-      </li>
-      <li>
-        Complement and extend research on vulnerable cell types to include the mapping of connectivity changes between
-        cells in aging and AD and provide a greater understanding of the mechanisms underlying resilience and
-        vulnerability in AD.
-      </li>
-    </ul>
-    <h2 class="learn-more-title">Learn More</h2>
-    <div class="learn-more-section">
-      <p>
-        To learn more, please visit <a href="http://texera.io">texera.io</a>. The
-        <a href="https://github.com/chenlica/ADMAP">source code</a> of the platform is available on GitHub.
-      </p>
-    </div>
-    <ng-container *ngIf="(isLogin$ | async) === false as isLogin">
-      <texera-local-login
-        *ngIf="this.config.env.localLogin"
-        class="login-container"
-        nz-col
-        nzFlex="300px">
-      </texera-local-login>
-    </ng-container>
+<div class="about-page-container">
+  <div class="about-hero">
+    <nz-card class="hero-card">
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1 class="about-title">About ADMAP</h1>
+          <p class="about-subtitle">
+            The Alzheimer's Disease Multimodal Atlasing Project (ADMAP) is a collaborative initiative at the UCI Center
+            for Neural Circuit Mapping. We advance Alzheimer's disease research by providing a comprehensive platform
+            for researchers to upload, download, and explore multimodal datasets.
+          </p>
+        </div>
+        <div class="hero-image">
+          <img
+            src="../../../../../assets/svg/brain-puzzle.png"
+            alt="Brain Puzzle" />
+        </div>
+      </div>
+    </nz-card>
   </div>
+
+  <div class="objectives-section">
+    <h2 class="section-title">Key Objectives</h2>
+    <nz-row [nzGutter]="16">
+      <nz-col
+        [nzXs]="24"
+        [nzSm]="12"
+        [nzLg]="6">
+        <nz-card class="objective-card">
+          <div class="card-content">
+            <span
+              nz-icon
+              nzType="experiment"
+              class="objective-icon"></span>
+            <h3>Brain Circuit Characterization</h3>
+            <p>
+              Comprehensively characterize brain circuits susceptible to Alzheimer's disease type pathology and
+              neurodegeneration in mouse models of AD
+            </p>
+          </div>
+        </nz-card>
+      </nz-col>
+      <nz-col
+        [nzXs]="24"
+        [nzSm]="12"
+        [nzLg]="6">
+        <nz-card class="objective-card">
+          <div class="card-content">
+            <span
+              nz-icon
+              nzType="share-alt"
+              class="objective-icon"></span>
+            <h3>Data Integration</h3>
+            <p>
+              Share data on the cellular connectome in aging and AD brains within a common reference atlas integrating
+              molecular and anatomical annotations
+            </p>
+          </div>
+        </nz-card>
+      </nz-col>
+      <nz-col
+        [nzXs]="24"
+        [nzSm]="12"
+        [nzLg]="6">
+        <nz-card class="objective-card">
+          <div class="card-content">
+            <span
+              nz-icon
+              nzType="apartment"
+              class="objective-icon"></span>
+            <h3>Connectivity Mapping</h3>
+            <p>
+              Map connectivity changes between cells in aging and AD to understand mechanisms underlying resilience and
+              vulnerability
+            </p>
+          </div>
+        </nz-card>
+      </nz-col>
+      <nz-col
+        [nzXs]="24"
+        [nzSm]="12"
+        [nzLg]="6">
+        <nz-card class="objective-card">
+          <div class="card-content">
+            <span
+              nz-icon
+              nzType="safety"
+              class="objective-icon"></span>
+            <h3>Vulnerable Cell Types</h3>
+            <p>
+              Extend research on vulnerable cell types to provide greater understanding of AD progression and potential
+              therapeutic targets
+            </p>
+          </div>
+        </nz-card>
+      </nz-col>
+    </nz-row>
+  </div>
+
+  <div class="learn-more-section">
+    <h2 class="section-title">Learn More</h2>
+    <nz-card>
+      <p class="learn-more-text">
+        To learn more about the platform, visit
+        <a
+          href="http://texera.io"
+          target="_blank"
+          >texera.io</a
+        >. The
+        <a
+          href="https://github.com/chenlica/ADMAP"
+          target="_blank"
+          >source code</a
+        >
+        of the platform is available on GitHub.
+      </p>
+    </nz-card>
+  </div>
+
+  <ng-container *ngIf="(isLogin$ | async) === false">
+    <div class="login-section">
+      <texera-local-login *ngIf="this.config.env.localLogin"> </texera-local-login>
+    </div>
+  </ng-container>
 </div>
