@@ -22,6 +22,7 @@ import { AdminSettingsService } from "../../../service/admin/settings/admin-sett
 import { NzMessageService } from "ng-zorro-antd/message";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SidebarTabs } from "../../../../common/type/gui-config";
+import { forkJoin } from "rxjs";
 
 @UntilDestroy()
 @Component({
@@ -47,12 +48,44 @@ export class AdminSettingsComponent implements OnInit {
     about_enabled: false,
   };
 
+  maxConcurrentFiles: number = 3;
+  maxFileSizeMiB: number = 20;
+  maxConcurrentChunks: number = 10;
+  chunkSizeMiB: number = 50;
+
+  // S3 Multipart Upload Constraints
+  readonly MIN_PART_SIZE_MiB = 5; // 5 MiB minimum for parts (except last part)
+  readonly MAX_PART_SIZE_MiB = 5120; // 5 GiB maximum per part (5 * 1024 MiB)
+  readonly MAX_FILE_SIZE_MiB = 5242880; // 5 TiB maximum object size (5 * 1024 * 1024 MiB)
+  readonly MAX_TOTAL_PARTS = 10000; // S3 maximum parts per upload
+
+  private readonly RELOAD_DELAY = 1000;
+
   constructor(
     private adminSettingsService: AdminSettingsService,
     private message: NzMessageService
   ) {}
   ngOnInit(): void {
+    this.loadBranding();
     this.loadTabs();
+    this.loadDatasetSettings();
+  }
+
+  private loadBranding(): void {
+    this.adminSettingsService
+      .getSetting("logo")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.logoData = value || null));
+
+    this.adminSettingsService
+      .getSetting("mini_logo")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.miniLogoData = value || null));
+
+    this.adminSettingsService
+      .getSetting("favicon")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.faviconData = value || null));
   }
 
   private loadTabs(): void {
@@ -62,6 +95,25 @@ export class AdminSettingsComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
     });
+  }
+
+  private loadDatasetSettings(): void {
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxConcurrentFiles = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("single_file_upload_max_size_mib")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxFileSizeMiB = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file_chunks")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("multipart_upload_chunk_size_mib")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.chunkSizeMiB = parseInt(value)));
   }
 
   onFileChange(type: "logo" | "mini_logo" | "favicon", event: Event): void {
@@ -85,91 +137,52 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   saveLogos(): void {
+    const saveRequests = [];
     if (this.logoData) {
-      this.adminSettingsService
-        .updateSetting("logo", this.logoData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Logo saved successfully."),
-          error: () => this.message.error("Failed to save logo."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("logo", this.logoData));
     }
-
     if (this.miniLogoData) {
-      this.adminSettingsService
-        .updateSetting("mini_logo", this.miniLogoData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Mini logo saved successfully."),
-          error: () => this.message.error("Failed to save mini logo."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("mini_logo", this.miniLogoData));
     }
-
     if (this.faviconData) {
-      this.adminSettingsService
-        .updateSetting("favicon", this.faviconData)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: () => this.message.success("Favicon saved successfully."),
-          error: () => this.message.error("Failed to save favicon."),
-        });
+      saveRequests.push(this.adminSettingsService.updateSetting("favicon", this.faviconData));
     }
 
-    if (this.logoData || this.miniLogoData || this.faviconData) {
-      setTimeout(() => window.location.reload(), 500);
+    if (saveRequests.length > 0) {
+      forkJoin(saveRequests)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: () => {
+            this.message.success("Branding saved successfully.");
+            setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+          },
+          error: () => this.message.error("Failed to save branding."),
+        });
     }
   }
 
   resetBranding(): void {
-    this.adminSettingsService
-      .resetSetting("logo")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.logoData = null;
-          this.message.success("Logo reset to default.");
-        },
-        error: () => this.message.error("Failed to reset logo."),
-      });
+    ["logo", "mini_logo", "favicon"].forEach(setting =>
+      this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({})
+    );
 
-    this.adminSettingsService
-      .resetSetting("mini_logo")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.miniLogoData = null;
-          this.message.success("Mini logo reset to default.");
-        },
-        error: () => this.message.error("Failed to reset mini logo."),
-      });
-
-    this.adminSettingsService
-      .resetSetting("favicon")
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.faviconData = null;
-          this.message.success("Favicon reset to default.");
-        },
-        error: () => this.message.error("Failed to reset favicon."),
-      });
-
-    setTimeout(() => window.location.reload(), 500);
+    this.message.info("Resetting branding...");
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
-  saveTabs(tab: keyof SidebarTabs): void {
-    const displayTab = tab
-      .replace("_enabled", "")
-      .split("_")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+  saveTabs(): void {
+    const saveRequests = (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).map(tab =>
+      this.adminSettingsService.updateSetting(tab, this.sidebarTabs[tab].toString())
+    );
 
-    this.adminSettingsService
-      .updateSetting(tab, this.sidebarTabs[tab].toString())
+    forkJoin(saveRequests)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.message.success(`${displayTab} tab saved successfully.`),
-        error: () => this.message.error(`Failed to save ${displayTab} tab.`),
+        next: () => {
+          this.message.success("Tabs saved successfully.");
+          setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+        },
+        error: () => this.message.error("Failed to save tabs."),
       });
   }
 
@@ -179,6 +192,70 @@ export class AdminSettingsComponent implements OnInit {
     });
 
     this.message.info("Resetting tabs...");
-    setTimeout(() => window.location.reload(), 500);
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+  }
+
+  // Computed properties
+  get partsAtMax(): number {
+    if (!this.maxFileSizeMiB || !this.chunkSizeMiB) return 0;
+    return Math.ceil(this.maxFileSizeMiB / this.chunkSizeMiB);
+  }
+
+  get requiredMinPartSizeMiB(): number {
+    if (!this.maxFileSizeMiB) return this.MIN_PART_SIZE_MiB;
+    const byPartsLimit = Math.ceil(this.maxFileSizeMiB / this.MAX_TOTAL_PARTS);
+    return Math.max(this.MIN_PART_SIZE_MiB, byPartsLimit);
+  }
+
+  saveDatasetSettings(): void {
+    if (
+      this.maxFileSizeMiB < 1 ||
+      this.maxConcurrentFiles < 1 ||
+      this.maxConcurrentChunks < 1 ||
+      this.chunkSizeMiB < 1
+    ) {
+      this.message.error("Please enter valid integer values.");
+      return;
+    }
+
+    if (this.partsAtMax > this.MAX_TOTAL_PARTS) {
+      this.message.error(
+        `This setting would create ${this.partsAtMax.toLocaleString()} parts (exceeds 10,000 limit). ` +
+          `Increase "Part Size" to at least ${this.requiredMinPartSizeMiB} MiB or reduce "File Size".`
+      );
+      return;
+    }
+
+    const saveRequests = [
+      this.adminSettingsService.updateSetting(
+        "max_number_of_concurrent_uploading_file",
+        this.maxConcurrentFiles.toString()
+      ),
+      this.adminSettingsService.updateSetting("single_file_upload_max_size_mib", this.maxFileSizeMiB.toString()),
+      this.adminSettingsService.updateSetting(
+        "max_number_of_concurrent_uploading_file_chunks",
+        this.maxConcurrentChunks.toString()
+      ),
+      this.adminSettingsService.updateSetting("multipart_upload_chunk_size_mib", this.chunkSizeMiB.toString()),
+    ];
+
+    forkJoin(saveRequests)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.message.success("Dataset upload settings saved successfully."),
+        error: () => this.message.error("Failed to save dataset settings."),
+      });
+  }
+
+  resetDatasetSettings(): void {
+    [
+      "max_number_of_concurrent_uploading_file",
+      "single_file_upload_max_size_mib",
+      "max_number_of_concurrent_uploading_file_chunks",
+      "multipart_upload_chunk_size_mib",
+    ].forEach(setting => this.adminSettingsService.resetSetting(setting).pipe(untilDestroyed(this)).subscribe({}));
+
+    this.message.info("Resetting dataset settings...");
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 }

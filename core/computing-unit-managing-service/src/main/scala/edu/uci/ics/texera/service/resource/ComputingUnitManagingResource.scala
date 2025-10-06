@@ -20,13 +20,14 @@
 package edu.uci.ics.texera.service.resource
 
 import edu.uci.ics.amber.config.{EnvironmentalVariable, StorageConfig}
-import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import edu.uci.ics.texera.auth.{JwtAuth, SessionUser}
 import edu.uci.ics.texera.config.{ComputingUnitConfig, KubernetesConfig}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   ComputingUnitUserAccessDao,
+  UserDao,
   WorkflowComputingUnitDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
@@ -126,7 +127,9 @@ object ComputingUnitManagingResource {
       status: String,
       metrics: WorkflowComputingUnitMetrics,
       isOwner: Boolean,
-      accessPrivilege: EnumType
+      accessPrivilege: EnumType,
+      ownerGoogleAvatar: String,
+      ownerName: String
   )
 
   case class ComputingUnitLimitOptionsResponse(
@@ -381,7 +384,7 @@ class ComputingUnitManagingResource {
       }
 
       val computingUnit = new WorkflowComputingUnit()
-      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS)))
+      val userToken = JwtAuth.jwtToken(jwtClaims(user.user, TOKEN_EXPIRE_TIME_IN_MINUTES))
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
@@ -396,6 +399,13 @@ class ComputingUnitManagingResource {
       }
 
       wcDao.insert(computingUnit)
+
+      val userDao = new UserDao(ctx.configuration())
+      val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
+      val ownerGoogleAvatar: String =
+        ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+      val ownerUsername: String =
+        ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
       // Retrieve generated cuid
       val cuid = ctx.lastID().intValue()
@@ -442,7 +452,9 @@ class ComputingUnitManagingResource {
         getComputingUnitStatus(insertedUnit).toString,
         getComputingUnitMetrics(insertedUnit),
         isOwner = true,
-        accessPrivilege = PrivilegeEnum.WRITE
+        accessPrivilege = PrivilegeEnum.WRITE,
+        ownerGoogleAvatar,
+        ownerUsername
       )
     }
   }
@@ -490,6 +502,18 @@ class ComputingUnitManagingResource {
         }
 
       val allUnits = ownedUnits ++ sharedUnits
+      val ownerUids: List[Integer] = allUnits.map(_.getUid).distinct
+      val userDao = new UserDao(ctx.configuration())
+      val ownerInfoMap: Map[Integer, (String, String)] =
+        userDao
+          .fetchByUid(ownerUids: _*)
+          .asScala
+          .map { u =>
+            val avatar = Option(u.getGoogleAvatar).filter(_.nonEmpty).orNull
+            val name = Option(u.getName).filter(_.nonEmpty).orNull
+            u.getUid -> (avatar, name)
+          }
+          .toMap
 
       // If a Kubernetes pod has already disappeared (e.g., manually deleted or TTL
       // GC-ed by the cluster), we treat the corresponding computing unit as
@@ -529,7 +553,9 @@ class ComputingUnitManagingResource {
               isOwner = unit.getUid.equals(uid),
               accessPrivilege = privilege,
               status = getComputingUnitStatus(unit).toString,
-              metrics = getComputingUnitMetrics(unit)
+              metrics = getComputingUnitMetrics(unit),
+              ownerGoogleAvatar = ownerInfoMap.getOrElse(unit.getUid, (null, null))._1,
+              ownerName = ownerInfoMap.getOrElse(unit.getUid, (null, null))._2
             )
         }
     }
@@ -551,6 +577,12 @@ class ComputingUnitManagingResource {
   ): DashboardWorkflowComputingUnit = {
 
     val unit = getComputingUnitByCuid(context, cuid)
+    val userDao = new UserDao(context.configuration())
+    val ownerUser = Option(userDao.fetchOneByUid(unit.getUid))
+    val ownerGoogleAvatar: String =
+      ownerUser.flatMap(u => Option(u.getGoogleAvatar).filter(_.nonEmpty)).orNull
+    val ownerUsername: String =
+      ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
     DashboardWorkflowComputingUnit(
       computingUnit = unit,
@@ -572,7 +604,9 @@ class ComputingUnitManagingResource {
           // Default privilege for non-owners without explicit access
           PrivilegeEnum.NONE
         }
-      }
+      },
+      ownerGoogleAvatar,
+      ownerUsername
     )
   }
 

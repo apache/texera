@@ -28,11 +28,25 @@ import edu.uci.ics.texera.web.resource.GmailResource.sendEmail
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+
+case class UserInfo(
+    uid: Int,
+    name: String,
+    email: String,
+    googleId: String,
+    role: UserRoleEnum,
+    googleAvatar: String,
+    comment: String,
+    lastLogin: java.time.OffsetDateTime, // will be null if never logged in
+    accountCreation: java.time.OffsetDateTime
+)
 
 object AdminUserResource {
   final private lazy val context = SqlServer
@@ -48,13 +62,28 @@ class AdminUserResource {
   /**
     * This method returns the list of users
     *
-    * @return a list of users
+    * @return a list of UserInfo
     */
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listUser(): util.List[User] = {
-    userDao.fetchRangeOfUid(Integer.MIN_VALUE, Integer.MAX_VALUE)
+  def list(): util.List[UserInfo] = {
+    AdminUserResource.context
+      .select(
+        USER.UID,
+        USER.NAME,
+        USER.EMAIL,
+        USER.GOOGLE_ID,
+        USER.ROLE,
+        USER.GOOGLE_AVATAR,
+        USER.COMMENT,
+        USER_LAST_ACTIVE_TIME.LAST_ACTIVE_TIME,
+        USER.ACCOUNT_CREATION_TIME
+      )
+      .from(USER)
+      .leftJoin(USER_LAST_ACTIVE_TIME)
+      .on(USER.UID.eq(USER_LAST_ACTIVE_TIME.UID))
+      .fetchInto(classOf[UserInfo])
   }
 
   @PUT

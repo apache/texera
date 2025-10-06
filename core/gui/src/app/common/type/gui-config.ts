@@ -33,14 +33,13 @@ export interface GuiConfig {
   timetravelEnabled: boolean;
   productionSharedEditingServer: boolean;
   pythonLanguageServerPort: string;
-  singleFileUploadMaximumSizeMB: number;
-  maxNumberOfConcurrentUploadingFileChunks: number;
-  multipartUploadChunkSizeByte: number;
   defaultDataTransferBatchSize: number;
   workflowEmailNotificationEnabled: boolean;
   sharingComputingUnitEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
+  expirationTimeInMinutes: number;
+  activeTimeInMinutes: number;
 }
 
 export interface SidebarTabs {

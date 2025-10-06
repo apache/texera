@@ -58,8 +58,8 @@ export class DownloadService {
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ wid, creationTime, lastModifiedTime, ...workflowCopy }) => {
-        const workflowJson = JSON.stringify({ ...workflowCopy, readonly: false });
+      map(({ content }) => {
+        const workflowJson = JSON.stringify(content, null, 2);
         const fileName = `${name}.json`;
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };
@@ -93,11 +93,11 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string): Observable<Blob> {
+  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
     const DEFAULT_FILE_NAME = "download";
     const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
+      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
       fileName,
       `Starting to download file ${filePath}`,
       `File ${filePath} has been downloaded`,

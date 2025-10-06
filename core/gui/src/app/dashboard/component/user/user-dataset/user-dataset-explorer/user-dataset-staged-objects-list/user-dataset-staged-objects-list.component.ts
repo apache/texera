@@ -22,6 +22,7 @@ import { DatasetStagedObject } from "../../../../../../common/type/dataset-stage
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { formatTime } from "src/app/common/util/format.util";
 
 @UntilDestroy()
 @Component({
@@ -38,10 +39,12 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
       });
     }
   }
+  @Input() uploadTimeMap?: Map<string, number>;
 
   @Output() stagedObjectsChanged = new EventEmitter<DatasetStagedObject[]>(); // Emits staged objects list
 
   datasetStagedObjects: DatasetStagedObject[] = [];
+  formatTime = formatTime;
 
   constructor(
     private datasetService: DatasetService,
@@ -80,5 +83,12 @@ export class UserDatasetStagedObjectsListComponent implements OnInit {
           },
         });
     }
+  }
+
+  getFileUploadTime(filePath: string): number | null {
+    if (!this.uploadTimeMap) return null;
+
+    const filename = filePath.split("/").pop() || filePath;
+    return this.uploadTimeMap.get(filename) || null;
   }
 }

@@ -64,6 +64,12 @@
   margin-left: auto;
 }
 
+.arrow {
+  width: 12px;
+  height: 12px;
+  transform-origin: center center;
+}
+
 details[open] .arrow {
   transform: rotate(90deg);
 }
@@ -76,4 +82,22 @@ details[open] .arrow {
   display: flex;
   margin-left: 2rem;
   margin-bottom: 8px;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 130px 320px;
+  column-gap: 6px;
+  margin-bottom: 4px;
+}
+
+.help-text-number {
+  margin-left: 140px;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 20px;
+}
+
+.icon-info {
+  margin-left: 6px;
 }

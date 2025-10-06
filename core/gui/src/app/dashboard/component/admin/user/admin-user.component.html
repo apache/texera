@@ -79,8 +79,8 @@
             nzType="search"></span>
         </nz-filter-trigger>
       </th>
-      <th>Action</th>
       <th
+        nzWidth="200px"
         [nzFilterFn]="filterByRole"
         [nzSortDirections]="['ascend', 'descend']"
         [nzFilters]="[
@@ -89,9 +89,10 @@
       { text: 'ADMIN', value: 'ADMIN'},
       { text: 'RESTRICTED', value: 'RESTRICTED'}]"
         [nzSortFn]="sortByRole">
-        Role
+        User Role
       </th>
       <th>Quota</th>
+      <th>Account Creation Time</th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">
@@ -175,7 +176,9 @@
         <texera-user-avatar
           [googleAvatar]="user.googleAvatar"
           [userName]="user.name"
-          class="user-avatar"></texera-user-avatar>
+          class="user-avatar"
+          [ngClass]="{ active: isUserActive(user) }">
+        </texera-user-avatar>
       </td>
       <td>{{user.uid}}</td>
       <td>
@@ -290,6 +293,12 @@
             nzTheme="outline"
             nzType="dashboard"></i>
         </button>
+      </td>
+      <td>
+        <ng-container *ngIf="getAccountCreation(user) as ac; else noAC">
+          {{ ac | date:'MM/dd/y, h:mm a' }}
+        </ng-container>
+        <ng-template #noAC>—</ng-template>
       </td>
     </tr>
   </tbody>

@@ -19,7 +19,7 @@
 
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig}
+import edu.uci.ics.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig, AuthConfig}
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -45,9 +45,6 @@ class ConfigResource {
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
-      "singleFileUploadMaximumSizeMB" -> GuiConfig.guiDatasetSingleFileUploadMaximumSizeMB,
-      "maxNumberOfConcurrentUploadingFileChunks" -> GuiConfig.guiDatasetMaxNumberOfConcurrentUploadingFileChunks,
-      "multipartUploadChunkSizeByte" -> GuiConfig.guiDatasetMultipartUploadChunkSizeByte,
       "defaultDataTransferBatchSize" -> GuiConfig.guiWorkflowWorkspaceDefaultDataTransferBatchSize,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
@@ -56,7 +53,10 @@ class ConfigResource {
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
-      )
+      ),
+      "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
+      // flags from the auth.conf if needed
+      "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )
 
   @GET
