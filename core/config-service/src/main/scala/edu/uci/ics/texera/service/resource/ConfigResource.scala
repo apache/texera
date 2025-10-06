@@ -65,7 +65,6 @@ class ConfigResource {
   def getUserSystemConfig: Map[String, Any] =
     Map(
       // flags from the user-system.conf
-      "inviteOnly" -> UserSystemConfig.inviteOnly,
-      "userSystemEnabled" -> UserSystemConfig.isUserSystemEnabled
+      "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 }
