@@ -695,12 +695,14 @@ class WorkflowExecutionsResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
+      if (request.operators.isEmpty) {
+        throw new RuntimeException("No operator(s) selected")
+      }
+
       val resultExportService =
         new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-      resultExportService.validateExportRequest(request) match {
-        case Some(errorResponse) => errorResponse
-        case None                => resultExportService.exportToDataset(user.user, request)
-      }
+      resultExportService.exportToDataset(user.user, request)
+
     } catch {
       case ex: Exception =>
         Response
@@ -733,12 +735,14 @@ class WorkflowExecutionsResource {
       }
 
       val request = Json.parse(requestJson).as[ResultExportRequest]
+      if (request.operators.isEmpty) {
+        throw new RuntimeException("No operator(s) selected")
+      }
+
       val resultExportService =
         new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-      resultExportService.validateExportRequest(request) match {
-        case Some(errorResponse) => errorResponse
-        case None                => resultExportService.exportToLocal(request)
-      }
+      resultExportService.exportToLocal(request)
+
     } catch {
       case ex: Exception =>
         Response

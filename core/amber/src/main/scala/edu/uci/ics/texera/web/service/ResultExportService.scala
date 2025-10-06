@@ -594,20 +594,4 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
   }
-
-  /**
-    * Validate an export request by checking if any operators are selected.
-    * Return an error response if none are selected, otherwise None.
-    */
-  def validateExportRequest(request: ResultExportRequest): Option[Response] = {
-    if (request.operators.isEmpty) {
-      Some(
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .`type`(MediaType.APPLICATION_JSON)
-          .entity(Map("error" -> "No operator selected").asJava)
-          .build()
-      )
-    } else None
-  }
 }
