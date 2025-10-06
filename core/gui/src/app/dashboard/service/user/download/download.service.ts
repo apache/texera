@@ -135,7 +135,6 @@ export class DownloadService {
     unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const computingUnitId = unit.computingUnit.cuid;
-    const destination = "dataset";
     const requestBody = {
       exportType,
       workflowId,
@@ -145,7 +144,6 @@ export class DownloadService {
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
     };
 
@@ -182,7 +180,6 @@ export class DownloadService {
   ): void {
     const computingUnitId = unit.computingUnit.cuid;
     const datasetIds: number[] = [];
-    const destination = "local";
     const requestBody = {
       exportType,
       workflowId,
@@ -192,7 +189,6 @@ export class DownloadService {
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
     };
     const token = localStorage.getItem(TOKEN_KEY) ?? "";
