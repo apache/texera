@@ -109,7 +109,10 @@ jobs:
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
       - name: Create Database
-        run: psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
+        run: |
+          psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
+          psql -h localhost -U postgres -f core/scripts/sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f core/scripts/sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
