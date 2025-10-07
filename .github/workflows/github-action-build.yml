@@ -115,6 +115,10 @@ jobs:
           psql -h localhost -U postgres -f core/scripts/sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f core/scripts/sql/texera_ddl.sql
+        env:
+          PGPASSWORD: postgres
       - name: Compile with sbt
         run: cd core && sbt clean package
       - name: Run backend tests
