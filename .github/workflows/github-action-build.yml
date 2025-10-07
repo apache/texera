@@ -108,8 +108,11 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
-      - name: Create Database
-        run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
+          psql -h localhost -U postgres -f core/scripts/sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f core/scripts/sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
