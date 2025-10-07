@@ -108,7 +108,7 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
-      - name: Create Database
+      - name: Create Databases
         run: |
           psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
           psql -h localhost -U postgres -f core/scripts/sql/iceberg_postgres_catalog.sql
