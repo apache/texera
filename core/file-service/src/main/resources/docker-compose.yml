@@ -27,9 +27,9 @@ services:
       - MINIO_ROOT_USER=texera_minio
       - MINIO_ROOT_PASSWORD=password
     command: server --console-address ":9001" /data
-#   Below lines are recommended to uncomment in order to persist your data even if the container dies
-#    volumes:
-#      - /path/to/your/local/directory:/data
+    # The lines below are recommended to mount a host path in order to persist your data even if the container is removed.
+    volumes:
+      - minio_data:/data
 
   postgres:
     image: postgres:15
@@ -44,9 +44,9 @@ services:
       interval: 10s
       retries: 5
       start_period: 5s
-#   Ditto
-#    volumes:
-#      - /path/to/your/local/directory:/var/lib/postgresql/data
+    # Ditto
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   lakefs:
     image: treeverse/lakefs:1.51
@@ -89,3 +89,8 @@ services:
 networks:
   default:
     name: texera-lakefs
+
+# Named Docker volumes — uncomment the following lines if you mounted host paths above.
+volumes:
+  minio_data:
+  postgres_data:
