@@ -153,9 +153,17 @@ export class SharedModelChangeHandler {
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
           const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
-          const jointLinkCell = JointUIService.getJointLinkCell(newLink);
-          jointElementsToAdd.push(jointLinkCell);
-          linksToAdd.push(newLink);
+          // Validate the link first
+          try {
+            this.texeraGraph.assertLinkIsValid(newLink);
+            const jointLinkCell = JointUIService.getJointLinkCell(newLink);
+            jointElementsToAdd.push(jointLinkCell);
+            linksToAdd.push(newLink);
+          } catch (error) {
+            // Invalid link
+            console.log("cannot add invalid link. cause: ", error);
+            this.texeraGraph.sharedModel.operatorLinkMap.delete(key);
+          }
         }
         if (change.action === "delete") {
           keysToDelete.push(key);
