@@ -155,6 +155,7 @@ export class SharedModelChangeHandler {
           const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
           // Validate the link first
           try {
+            this.texeraGraph.assertLinkNotDuplicated(newLink);
             this.texeraGraph.assertLinkIsValid(newLink);
             const jointLinkCell = JointUIService.getJointLinkCell(newLink);
             jointElementsToAdd.push(jointLinkCell);
