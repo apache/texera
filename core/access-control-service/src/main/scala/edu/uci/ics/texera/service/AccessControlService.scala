@@ -30,7 +30,6 @@ import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 import org.jooq.impl.DSL
 
-
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
     // Register Scala module to Dropwizard default object mapper
@@ -43,7 +42,10 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     )
   }
 
-  override def run(configuration: AccessControlServiceConfiguration, environment: Environment): Unit = {
+  override def run(
+      configuration: AccessControlServiceConfiguration,
+      environment: Environment
+  ): Unit = {
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
