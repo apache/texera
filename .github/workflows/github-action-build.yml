@@ -46,13 +46,13 @@ jobs:
           - 18
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.arch }}
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             core/gui/node_modules
@@ -95,9 +95,9 @@ jobs:
           --health-retries=5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: 11
@@ -108,8 +108,15 @@ jobs:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core && sbt scalafmtCheckAll
-      - name: Create Database
-        run: psql -h localhost -U postgres -f deployment/k8s/texera-helmchart/files/texera_ddl.sql
+      - name: Create Databases
+        run: |
+          psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
+          psql -h localhost -U postgres -f core/scripts/sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f core/scripts/sql/texera_lakefs.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Create texera_db_for_test_cases
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f core/scripts/sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
@@ -125,9 +132,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
