@@ -1,0 +1,1 @@
+../../../../core/scripts/sql/texera_lakefs.sql
