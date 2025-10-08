@@ -68,6 +68,7 @@ object UnifiedResourceSchema {
       projectColor: Field[String] = DSL.inline(""),
       did: Field[Integer] = DSL.cast(null, classOf[Integer]),
       datasetStoragePath: Field[String] = DSL.cast(null, classOf[String]),
+      repositoryName: Field[String] = DSL.inline(""),
       isDatasetPublic: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       isDatasetDownloadable: Field[java.lang.Boolean] = DSL.cast(null, classOf[java.lang.Boolean]),
       datasetUserAccess: Field[PrivilegeEnum] = DSL.castNull(classOf[PrivilegeEnum])
@@ -91,6 +92,7 @@ object UnifiedResourceSchema {
         projectColor -> projectColor.as("color"),
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
+        repositoryName -> repositoryName.as("repository_name"),
         isDatasetPublic -> isDatasetPublic.as("is_dataset_public"),
         isDatasetDownloadable -> isDatasetDownloadable.as("is_dataset_downloadable"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access")
@@ -133,6 +135,7 @@ object UnifiedResourceSchema {
   * Attributes specific to datasets:
   * - `did`: Dataset ID, as an `Integer`.
   * - `datasetStoragePath`: The storage path of the dataset, as a `String`.
+  * - `repositoryName`: The name of the repository where the dataset is stored, as a `String`.
   * - `isDatasetPublic`: Indicates if the dataset is public, as a `Boolean`.
   * - `isDatasetDownloadable`: Indicates if the dataset is downloadable, as a `Boolean`.
   * - `datasetUserAccess`: Access privileges for the dataset, as a `PrivilegeEnum`
@@ -163,5 +166,4 @@ class UnifiedResourceSchema private (
     }
     ret
   }
-
 }
