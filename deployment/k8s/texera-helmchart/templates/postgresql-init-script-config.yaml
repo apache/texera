@@ -27,8 +27,24 @@ data:
     #!/bin/bash
     echo "Running Texera schema initialization..."
     export PGPASSWORD=$POSTGRES_PASSWORD
-    cat <<'EOF' > /tmp/init.sql
+
+    # Execute SQL files in order
+    echo "Initializing LakeFS database..."
+    cat <<'EOF' > /tmp/texera_lakefs.sql
+{{ .Files.Get "files/texera_lakefs.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/texera_lakefs.sql
+
+    echo "Initializing Iceberg catalog database..."
+    cat <<'EOF' > /tmp/iceberg_postgres_catalog.sql
+{{ .Files.Get "files/iceberg_postgres_catalog.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/iceberg_postgres_catalog.sql
+
+    echo "Initializing Texera database..."
+    cat <<'EOF' > /tmp/texera_ddl.sql
 {{ .Files.Get "files/texera_ddl.sql" | indent 6 }}
     EOF
-    psql -U postgres -f /tmp/init.sql
+    psql -U postgres -f /tmp/texera_ddl.sql
+
     echo "Schema initialization complete."
