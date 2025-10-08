@@ -14,21 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Pull Request Automation"
+name: "Pull Request Labeler"
 
 on:
   - pull_request_target
 
 jobs:
-  pull_request_automation:
+  labeler:
     permissions:
       contents: read
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - name: Assign author to PR
-        uses: technote-space/assign-author@v1
-      - name: Assign labels
-        uses: actions/labeler@v6
+      - uses: actions/labeler@v6
         with:
-          sync-labels: true          
+          sync-labels: true
