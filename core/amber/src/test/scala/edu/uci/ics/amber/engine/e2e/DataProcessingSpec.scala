@@ -22,23 +22,27 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.engine.e2e.TestUtils.{
+  buildWorkflow,
+  cleanupWorkflowExecutionData,
+  initiateTexeraDBForTestCases,
+  setUpWorkflowExecutionData
+}
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -54,14 +58,22 @@ class DataProcessingSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
+
+  override protected def beforeEach(): Unit = {
+    setUpWorkflowExecutionData()
+  }
+
+  override protected def afterEach(): Unit = {
+    cleanupWorkflowExecutionData()
+  }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
+    initiateTexeraDBForTestCases()
   }
 
   override def afterAll(): Unit = {
@@ -88,30 +100,21 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
-              val uri = VFSURIFactory.createResultURI(
-                workflowContext.workflowId,
+              val uri = getResultUriByLogicalPortId(
                 workflowContext.executionId,
-                GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
-                  PortIdentity()
-                )
+                terminalOpId,
+                PortIdentity()
               )
-              // expecting the first output port only.
-              ExecutionResourcesMapping
-                .getResourceURIs(workflowContext.executionId)
-                .contains(uri)
+              uri.nonEmpty
             })
             .map(terminalOpId => {
               //TODO: remove the delay after fixing the issue of reporting "completed" status too early.
               Thread.sleep(1000)
-              val uri = VFSURIFactory.createResultURI(
-                workflowContext.workflowId,
+              val uri = getResultUriByLogicalPortId(
                 workflowContext.executionId,
-                GlobalPortIdentity(
-                  PhysicalOpIdentity(logicalOpId = terminalOpId, layerName = "main"),
-                  PortIdentity()
-                )
-              )
+                terminalOpId,
+                PortIdentity()
+              ).get
               terminalOpId -> DocumentFactory
                 .openDocument(uri)
                 ._1

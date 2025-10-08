@@ -31,10 +31,15 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.e2e.TestUtils.{
+  cleanupWorkflowExecutionData,
+  initiateTexeraDBForTestCases,
+  setUpWorkflowExecutionData
+}
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
 import edu.uci.ics.texera.workflow.LogicalLink
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.concurrent.duration._
 
@@ -42,17 +47,27 @@ class PauseSpec
     extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("PauseSpecLogger")
+
+  override protected def beforeEach(): Unit = {
+    setUpWorkflowExecutionData()
+  }
+
+  override protected def afterEach(): Unit = {
+    cleanupWorkflowExecutionData()
+  }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
     // Explicitly load the JDBC driver to avoid flaky CI failures.
     Class.forName("org.postgresql.Driver")
+    initiateTexeraDBForTestCases()
   }
 
   override def afterAll(): Unit = {
