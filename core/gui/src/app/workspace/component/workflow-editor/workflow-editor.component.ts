@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
+import { OnInit, AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -82,7 +82,7 @@ export const MAIN_CANVAS = {
   templateUrl: "workflow-editor.component.html",
   styleUrls: ["workflow-editor.component.scss"],
 })
-export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
+export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
@@ -91,6 +91,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
+  private removeButton!: new () => joint.linkTools.Button;
+  private breakpointButton!: new () => joint.linkTools.Button;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -112,6 +114,12 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private config: GuiConfigService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
+  }
+
+  ngOnInit(): void {
+    // Cache the tool constructors
+    this.removeButton = WorkflowEditorComponent.getRemoveButton();
+    this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
   }
 
   /**
@@ -1086,18 +1094,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     fromJointPaperEvent(this.paper, "link:mouseenter")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
+      .subscribe(linkView => {
+        // Create an array to hold the tools
+        const tools: joint.dia.ToolView[] = [new this.removeButton()];
+
+        // If breakpoints are enabled, also add the breakpoint button
         if (this.config.env.linkBreakpointEnabled) {
-          this.paper.getModelById(elementView.model.id).attr({
-            ".tool-remove": { display: "block" },
-          });
-          this.paper.getModelById(elementView.model.id).findView(this.paper).showTools();
-        } else {
-          // only display the delete button
-          this.paper.getModelById(elementView.model.id).attr({
-            ".tool-remove": { display: "block" },
-          });
+          tools.push(new this.breakpointButton());
         }
+
+        const toolsView = new joint.dia.ToolsView({ tools });
+        linkView.addTools(toolsView);
       });
 
     /**
@@ -1139,7 +1146,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.paper);
-        const breakpointButtonTool = this.jointUIService.getBreakpointButton();
+        const breakpointButtonTool = this.breakpointButton;
         const breakpointButton = new breakpointButtonTool();
         const toolsView = new joint.dia.ToolsView({
           name: "basic-tools",
@@ -1361,5 +1368,95 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
+  }
+  /**
+   * Info button on link between operator shown when user hovers over links
+   */
+  private static getBreakpointButton(): new () => joint.linkTools.Button {
+    return joint.linkTools.Button.extend({
+      name: "info-button",
+      options: {
+        markup: [
+          {
+            tagName: "circle",
+            selector: "info-button",
+            attributes: {
+              r: 10,
+              fill: "#001DFF",
+              cursor: "pointer",
+            },
+          },
+          {
+            tagName: "path",
+            selector: "icon",
+            attributes: {
+              d: "M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4",
+              fill: "none",
+              stroke: "#FFFFFF",
+              "stroke-width": 2,
+              "pointer-events": "none",
+            },
+          },
+        ],
+        distance: -60,
+        offset: 0,
+        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
+          // when this button is clicked, it triggers an joint paper event
+          if (linkView.paper) {
+            linkView.paper.trigger("tool:breakpoint", linkView, event);
+          }
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove button on link between operator shown when user hovers over links
+   */
+  private static RemoveButton: new () => joint.linkTools.Button;
+
+  private static getRemoveButton(): new () => joint.linkTools.Button {
+    if (!WorkflowEditorComponent.RemoveButton) {
+      WorkflowEditorComponent.RemoveButton = joint.linkTools.Button.extend({
+        name: "remove-button",
+        options: {
+          markup: [
+            {
+              tagName: "circle",
+              selector: "button",
+              attributes: {
+                r: 9,
+                fill: "none",
+                stroke: "#D8656A",
+                "stroke-width": 2,
+                "pointer-events": "visibleFill",
+                cursor: "pointer",
+              },
+            },
+            {
+              tagName: "path",
+              selector: "icon",
+              attributes: {
+                d: "M -4 -4 L 4 4 M 4 -4 L -4 4",
+                fill: "none",
+                stroke: "#D8656A",
+                "stroke-width": 2,
+                "stroke-linecap": "round",
+                "pointer-events": "none",
+              },
+            },
+          ],
+          distance: -90,
+          offset: 0,
+          action: function (evt: JQuery.Event, linkView: joint.dia.LinkView) {
+            if (linkView.paper) {
+              linkView.paper.trigger("tool:remove", linkView, evt);
+            }
+          },
+        },
+      });
+    }
+
+    return WorkflowEditorComponent.RemoveButton;
   }
 }

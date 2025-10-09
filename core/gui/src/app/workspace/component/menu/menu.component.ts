@@ -54,6 +54,8 @@ import { ComputingUnitStatusService } from "../../service/computing-unit-status/
 import { ComputingUnitState } from "../../types/computing-unit-connection.interface";
 import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-selection.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
+import { Privilege } from "../../../dashboard/type/share-access.interface";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -110,6 +112,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   // Computing unit status variables
   private computingUnitStatusSubscription: Subscription = new Subscription();
+  public selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
@@ -162,7 +165,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.registerWorkflowModifiableChangedHandler();
     this.registerWorkflowIdUpdateHandler();
 
-    // Subscribe to computing unit status changes
+    // Subscribe to computing unit
+    this.subscribeToComputingUnitSelection();
     this.subscribeToComputingUnitStatus();
   }
 
@@ -200,6 +204,15 @@ export class MenuComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.workflowResultExportService.resetFlags();
     this.computingUnitStatusSubscription.unsubscribe();
+  }
+
+  private subscribeToComputingUnitSelection(): void {
+    this.computingUnitStatusService
+      .getSelectedComputingUnit()
+      .pipe(untilDestroyed(this))
+      .subscribe(unit => {
+        this.selectedComputingUnit = unit;
+      });
   }
 
   /**
@@ -720,4 +733,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.config.env.workflowEmailNotificationEnabled && this.config.env.userSystemEnabled
     );
   }
+
+  protected readonly Privilege = Privilege;
 }

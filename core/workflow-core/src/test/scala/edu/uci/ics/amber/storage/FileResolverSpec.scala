@@ -50,6 +50,7 @@ class FileResolverSpec
     val dataset = new Dataset
     dataset.setDid(Integer.valueOf(1))
     dataset.setName("test_dataset")
+    dataset.setRepositoryName("test_dataset")
     dataset.setDescription("dataset for test")
     dataset.setIsPublic(true)
     dataset.setOwnerUid(Integer.valueOf(1))
@@ -110,10 +111,10 @@ class FileResolverSpec
     val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
 
     assert(
-      datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getName}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
+      datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
     )
     assert(
-      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getName}/${testDatasetVersion1.getVersionHash}/1.txt"
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
     )
   }
 

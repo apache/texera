@@ -30,11 +30,11 @@ import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
-import {TOKEN_KEY} from "../../../../common/service/user/auth.service";
+import { TOKEN_KEY } from "../../../../common/service/user/auth.service";
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
-const IFRAME_TIMEOUT_MS = 10000
+const IFRAME_TIMEOUT_MS = 10000;
 
 interface DownloadableItem {
   blob: Blob;
@@ -60,8 +60,8 @@ export class DownloadService {
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ wid, creationTime, lastModifiedTime, ...workflowCopy }) => {
-        const workflowJson = JSON.stringify({ ...workflowCopy, readonly: false });
+      map(({ content }) => {
+        const workflowJson = JSON.stringify(content, null, 2);
         const fileName = `${name}.json`;
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };
@@ -132,13 +132,8 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
-    unit: DashboardWorkflowComputingUnit          // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
-    if (destination != 'dataset') {
-      return throwError(() => new Error('Export not via form only supports dataset downloads.'));
-    }
-
     const computingUnitId = unit.computingUnit.cuid;
     const requestBody = {
       exportType,
@@ -149,7 +144,6 @@ export class DownloadService {
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
     };
 
@@ -179,20 +173,13 @@ export class DownloadService {
       id: string;
       outputType: string;
     }[],
-    datasetIds: number[],
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "local", // "local" or "dataset" => default to "local"
-    unit: DashboardWorkflowComputingUnit        // computing unit for cluster setting
+    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): void {
-    if (destination != 'local') {
-      this.notificationService.error('Export via form only supports local downloads.');
-      return;
-    }
-
     const computingUnitId = unit.computingUnit.cuid;
-    const token = localStorage.getItem(TOKEN_KEY);
+    const datasetIds: number[] = [];
     const requestBody = {
       exportType,
       workflowId,
@@ -202,41 +189,38 @@ export class DownloadService {
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
-      token
     };
+    const token = localStorage.getItem(TOKEN_KEY) ?? "";
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
         ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=${unit.computingUnit.cuid}`
         : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`;
 
-    const iframe = document.createElement('iframe');
-    iframe.name = 'download-iframe';
-    iframe.style.display = 'none';
+    const iframe = document.createElement("iframe");
+    iframe.name = "download-iframe";
+    iframe.style.display = "none";
     document.body.appendChild(iframe);
 
-    const form = document.createElement('form');
-    form.method = 'POST';
+    const form = document.createElement("form");
+    form.method = "POST";
     form.action = urlPath;
-    form.target = 'download-iframe';
-    form.enctype = 'application/x-www-form-urlencoded';
-    form.style.display = 'none';
+    form.target = "download-iframe";
+    form.enctype = "application/x-www-form-urlencoded";
+    form.style.display = "none";
 
-    Object.entries(requestBody).forEach(([key, value]) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value =
-        value === null
-          ? ''
-          : typeof value === 'object'
-          ? JSON.stringify(value)
-          : String(value);
+    const requestInput = document.createElement("input");
+    requestInput.type = "hidden";
+    requestInput.name = "request";
+    requestInput.value = JSON.stringify(requestBody);
+    form.appendChild(requestInput);
 
-      form.appendChild(input);
-    });
+    const tokenInput = document.createElement("input");
+    tokenInput.type = "hidden";
+    tokenInput.name = "token";
+    tokenInput.value = token;
+    form.appendChild(tokenInput);
 
     document.body.appendChild(form);
     form.submit();
@@ -245,24 +229,6 @@ export class DownloadService {
       document.body.removeChild(form);
       document.body.removeChild(iframe);
     }, IFRAME_TIMEOUT_MS);
-  }
-
-
-  /**
-   * Utility function to download a file from the server from blob object.
-   */
-  public saveBlobFile(response: any, defaultFileName: string): void {
-    // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
-    // we can parse that out. Otherwise just use defaultFileName.
-    const dispositionHeader = response.headers.get("Content-Disposition");
-    let fileName = defaultFileName;
-    if (dispositionHeader) {
-      const parsed = contentDisposition.parse(dispositionHeader);
-      fileName = parsed.parameters.filename || defaultFileName;
-    }
-
-    const blob = response.body; // the actual file data
-    this.fileSaverService.saveAs(blob, fileName);
   }
 
   downloadOperatorsResult(

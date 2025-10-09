@@ -44,6 +44,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
     creationTime = DATASET.CREATION_TIME,
     ownerId = DATASET.OWNER_UID,
     did = DATASET.DID,
+    repositoryName = DATASET.REPOSITORY_NAME,
     isDatasetPublic = DATASET.IS_PUBLIC,
     isDatasetDownloadable = DATASET.IS_DOWNLOADABLE,
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
@@ -123,11 +124,14 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {
     var size = 0L
 
     try {
-      size = LakeFSStorageClient.retrieveRepositorySize(dataset.getName)
+      size = LakeFSStorageClient.retrieveRepositorySize(dataset.getRepositoryName)
     } catch {
       case e: io.lakefs.clients.sdk.ApiException =>
         // Treat all LakeFS ApiException as mismatch (repository not found, being deleted, or any fatal error)
-        logger.error(s"LakeFS ApiException for dataset '${dataset.getName}': ${e.getMessage}", e)
+        logger.error(
+          s"LakeFS ApiException for dataset repository '${dataset.getRepositoryName}': ${e.getMessage}",
+          e
+        )
         return null
     }
 

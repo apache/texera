@@ -51,6 +51,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
+import play.api.libs.json.Json
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer
@@ -692,14 +693,12 @@ class WorkflowExecutionsResource {
   @POST
   @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def exportResult(request: ResultExportRequest, @Auth user: SessionUser): Response = {
+  def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
     try {
       val resultExportService =
         new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-      resultExportService.validateExportRequest(request) match {
-        case Some(errorResponse) => errorResponse
-        case None                => resultExportService.exportToDataset(user.user, request)
-      }
+      resultExportService.exportToDataset(user.user, request)
+
     } catch {
       case ex: Exception =>
         Response
@@ -713,17 +712,8 @@ class WorkflowExecutionsResource {
   @POST
   @Path("/result/export/local")
   @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
-  def exportResultViaBrowser(
-      @FormParam("exportType") exportType: String,
-      @FormParam("workflowId") workflowId: Int,
-      @FormParam("workflowName") workflowName: String,
-      @FormParam("operators") operatorsJson: String,
-      @FormParam("datasetIds") datasetIdsJson: String,
-      @FormParam("rowIndex") rowIndex: Int,
-      @FormParam("columnIndex") columnIndex: Int,
-      @FormParam("filename") filename: String,
-      @FormParam("destination") destination: String,
-      @FormParam("computingUnitId") computingUnitId: Int,
+  def exportResultToLocal(
+      @FormParam("request") requestJson: String,
       @FormParam("token") token: String
   ): Response = {
 
@@ -740,27 +730,11 @@ class WorkflowExecutionsResource {
         throw new RuntimeException("Invalid or expired token")
       }
 
+      val request = Json.parse(requestJson).as[ResultExportRequest]
       val resultExportService =
-        new ResultExportService(WorkflowIdentity(workflowId), computingUnitId)
-      val operators = resultExportService.parseOperators(operatorsJson)
-      val datasetIds: List[Int] = List()
-      val request = ResultExportRequest(
-        exportType,
-        workflowId,
-        workflowName,
-        operators,
-        datasetIds,
-        rowIndex,
-        columnIndex,
-        filename,
-        destination,
-        computingUnitId
-      )
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.exportToLocal(request)
 
-      resultExportService.validateExportRequest(request) match {
-        case Some(errorResponse) => errorResponse
-        case None                => resultExportService.exportToLocal(request)
-      }
     } catch {
       case ex: Exception =>
         Response

@@ -67,6 +67,7 @@ trait MockTexeraDB {
         value.close()
         dbInstance = None
         dslContext = None
+        SqlServer.clearInstance()
       case None =>
       // do nothing
     }
@@ -92,12 +93,15 @@ trait MockTexeraDB {
       } finally {
         source.close()
       }
-    val parts: Array[String] = content.split("(?m)^\\\\c texera_db")
+    val parts: Array[String] = content.split("(?m)^CREATE DATABASE :\"DB_NAME\";")
     def removeCCommands(sql: String): String =
       sql.linesIterator
         .filterNot(_.trim.startsWith("\\c"))
         .mkString("\n")
-    executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, removeCCommands(parts(0)))
+    val createDBStatement =
+      """DROP DATABASE IF EXISTS texera_db;
+        |CREATE DATABASE texera_db;""".stripMargin
+    executeScriptInJDBC(embedded.getPostgresDatabase.getConnection, createDBStatement)
     val texeraDB = embedded.getDatabase(username, database)
     var tablesAndIndexCreation = removeCCommands(parts(1))
 
