@@ -25,6 +25,7 @@ WORKDIR /usr/src/app
 RUN pip install python-lsp-server[all]==1.5.0 python-lsp-server[websockets] pylint==2.15.10
 RUN apt update
 RUN apt install -y htop
+RUN apt update && apt install -y --no-install-recommends bash htop
 
 # Copy the bash script into the container
 COPY run_pylsp.sh /usr/src/app/run_pylsp.sh
@@ -33,7 +34,7 @@ COPY run_pylsp.sh /usr/src/app/run_pylsp.sh
 RUN chmod +x /usr/src/app/run_pylsp.sh
 
 # Set the entrypoint to the script
-ENTRYPOINT ["/usr/src/app/run_pylsp.sh"]
+ENTRYPOINT ["/usr/bin/env", "bash", "/usr/src/app/run_pylsp.sh"]
 
 # Run pylsp on container startup
 # ENTRYPOINT ["pylsp", "--ws", "--port", "3000", "--verbose", "--check-parent-process"]

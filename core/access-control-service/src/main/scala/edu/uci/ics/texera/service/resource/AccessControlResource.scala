@@ -38,11 +38,11 @@ object AccessControlResource extends LazyLogging {
 
   /**
     * Authorize the request based on the path and headers.
-   * @param uriInfo URI sent by Envoy or API Gateway
-   * @param headers HTTP headers sent by Envoy or API Gateway which include
-   *                headers sent by the client (browser)
-   * @return HTTP Response with appropriate status code and headers
-   */
+    * @param uriInfo URI sent by Envoy or API Gateway
+    * @param headers HTTP headers sent by Envoy or API Gateway which include
+    *                headers sent by the client (browser)
+    * @return HTTP Response with appropriate status code and headers
+    */
   def authorize(uriInfo: UriInfo, headers: HttpHeaders): Response = {
     val path = uriInfo.getPath
     logger.info(s"Authorizing request for path: $path")
@@ -64,7 +64,9 @@ object AccessControlResource extends LazyLogging {
       .mapValues(values => values.asScala.headOption.getOrElse(""))
       .toMap
 
-    logger.info(s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams")
+    logger.info(
+      s"Request URI: ${uriInfo.getRequestUri} and headers: ${headers.getRequestHeaders.asScala} and queryParams: $queryParams"
+    )
 
     val token = queryParams.getOrElse(
       "access-token",
@@ -76,12 +78,13 @@ object AccessControlResource extends LazyLogging {
         .replace("Bearer ", "")
     )
     val cuid = queryParams.getOrElse("cuid", "")
-    val cuidInt = try {
-      cuid.toInt
-    } catch {
-      case _: NumberFormatException =>
-        return Response.status(Response.Status.FORBIDDEN).build()
-    }
+    val cuidInt =
+      try {
+        cuid.toInt
+      } catch {
+        case _: NumberFormatException =>
+          return Response.status(Response.Status.FORBIDDEN).build()
+      }
 
     var cuAccess: PrivilegeEnum = PrivilegeEnum.NONE
     var userSession: Optional[SessionUser] = Optional.empty()
@@ -115,18 +118,18 @@ class AccessControlResource extends LazyLogging {
   @GET
   @Path("/{path:.*}")
   def authorizeGet(
-                    @Context uriInfo: UriInfo,
-                    @Context headers: HttpHeaders
-                  ): Response = {
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
     AccessControlResource.authorize(uriInfo, headers)
   }
 
   @POST
   @Path("/{path:.*}")
   def authorizePost(
-                     @Context uriInfo: UriInfo,
-                     @Context headers: HttpHeaders
-                   ): Response = {
+      @Context uriInfo: UriInfo,
+      @Context headers: HttpHeaders
+  ): Response = {
     AccessControlResource.authorize(uriInfo, headers)
   }
 }
