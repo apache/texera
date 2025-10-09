@@ -156,6 +156,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleRegionUpdate();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -325,61 +326,64 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             });
         }
       });
+  }
 
-
-    const regionShape = joint.dia.Element.define("region", {
+  private handleRegionUpdate(): void {
+    const Region = joint.dia.Element.define("region", {
       attrs: {
         body: {
-          fill: "rgba(255,213,79,0.2)",   // translucent highlighter fill
+          fill: "rgba(255,213,79,0.2)",
           stroke: "#FFD54F",
           "stroke-width": 3,
           "stroke-dasharray": "6,4",
           pointerEvents: "none"
         }
-      },
+      }
     }, {
-      markup: [{
-        tagName: "path",
-        selector: "body",
-      }],
+      markup: [{ tagName: "path", selector: "body" }]
     });
 
-    this.executeWorkflowService
-      .getRegionStream()
+    let regionMap: { regionShape: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
+    // update region shapes on execution
+    this.executeWorkflowService.getRegionStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
-        this.paper.model.getCells().forEach(cell => {
-          if (cell instanceof regionShape) {
-            cell.remove();
-          }
-        });
-        regions.forEach(region => {
-          const shape = new regionShape;
+        // clear existing region shapes
+        this.paper.model.getCells()
+          .filter(shape => shape instanceof Region)
+          .forEach(shape => shape.remove());
+
+        regionMap = regions.map(region => {
+          const shape = new Region();
+          const ops = region.map(id => this.paper.getModelById(id));
           this.paper.model.addCell(shape);
-          this.updateRegionShape(
-            shape,
-            region.map(op => this.paper.getModelById(op))
-          );
+          this.updateRegionShape(shape, ops);
+          return { regionShape: shape, operators: ops };
         });
       });
+
+    // update region shape when any operator in the region moves
+    this.paper.model.on("change:position", op => {
+      regionMap
+        .filter(region => region.operators.includes(op))
+        .forEach(region => this.updateRegionShape(region.regionShape, region.operators));
+    });
   }
 
-  private updateRegionShape(highlight: any, nodes: joint.dia.Cell[]) {
-
-    // collect all bounding box corners
-    const padding = 20;
-    const points: [number, number][] = [];
-
-    nodes.forEach(node => {
-      const bbox = node.getBBox();
-      points.push([bbox.x - padding, bbox.y - padding]);
-      points.push([bbox.x + bbox.width + padding, bbox.y - padding]);
-      points.push([bbox.x - padding, bbox.y + bbox.height + padding + 10]);
-      points.push([bbox.x + bbox.width + padding, bbox.y + bbox.height + padding + 10]);
+  private updateRegionShape(regionShape: joint.dia.Element, operators: joint.dia.Cell[]) {
+    const points = operators.flatMap(op => {
+      const { x, y, width, height } = op.getBBox(), padding = 20;
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding + 10],
+        [x + width + padding, y + height + padding + 10],
+      ];
     });
-
-    const hull = concaveman(points, 2, 0) as [number, number][];
-    highlight.attr("body/d", line().curve(curveCatmullRomClosed)(hull));
+    regionShape.attr(
+      "body/d",
+      line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][])
+    );
   }
 
   /**
