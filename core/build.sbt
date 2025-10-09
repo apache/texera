@@ -99,6 +99,7 @@ lazy val CoreProject = (project in file("."))
     DAO,
     Config,
     ConfigService,
+    AccessControlService,
     Auth,
     WorkflowCore,
     ComputingUnitManagingService,
