@@ -26,6 +26,7 @@ import edu.uci.ics.amber.config.ApplicationConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
+  ConsoleMessageType,
   EvaluatePythonExpressionRequest,
   DebugCommandRequest => AmberDebugCommandRequest
 }
@@ -225,6 +226,10 @@ class ExecutionConsoleService(
     * @return The truncated console message
     */
   def processConsoleMessage(consoleMessage: ConsoleMessage): ConsoleMessage = {
+    // Do not truncate debugger messages
+    if (consoleMessage.msgType == ConsoleMessageType.DEBUGGER) {
+      return consoleMessage
+    }
     ConsoleMessageProcessor.processConsoleMessage(consoleMessage, consoleMessageDisplayLength)
   }
 

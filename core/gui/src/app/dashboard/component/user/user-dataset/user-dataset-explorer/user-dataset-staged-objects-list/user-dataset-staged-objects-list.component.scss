@@ -24,6 +24,10 @@
   overflow-x: auto; /* Prevents horizontal scrolling */
 }
 
+.custom-border-list {
+  border-bottom: 1px solid #f0f0f0;
+}
+
 .truncate-file-path {
   display: inline-block;
   max-width: 250px; /* Adjust width as needed */

@@ -20,9 +20,21 @@ package edu.uci.ics.texera
 import edu.uci.ics.texera.auth.JwtAuth
 import edu.uci.ics.texera.auth.util.HeaderField
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum, WorkflowComputingUnitTypeEnum}
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ComputingUnitUserAccess, User, WorkflowComputingUnit}
+import edu.uci.ics.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  ComputingUnitUserAccess,
+  User,
+  WorkflowComputingUnit
+}
 import edu.uci.ics.texera.service.resource.AccessControlResource
 import jakarta.ws.rs.core.{HttpHeaders, MultivaluedHashMap, Response, UriInfo}
 import org.mockito.Mockito._
@@ -33,11 +45,12 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import java.net.URI
 import java.util
 
-class AccessControlResourceSpec extends AnyFlatSpec
-  with Matchers
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with MockTexeraDB {
+class AccessControlResourceSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with MockTexeraDB {
 
   private val testURI: String = "http://localhost:8080/"
   private val testPath: String = "/api/executions/1/stats/1"
@@ -129,7 +142,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
     when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
-    when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer dummy-token"))
+    when(mockHttpHeaders.getRequestHeader("Authorization"))
+      .thenReturn(util.Arrays.asList("Bearer dummy-token"))
 
     val accessControlResource = new AccessControlResource()
     val response = accessControlResource.authorizeGet(mockUriInfo, mockHttpHeaders)
@@ -174,7 +188,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
     when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
-    when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer " + token))
+    when(mockHttpHeaders.getRequestHeader("Authorization"))
+      .thenReturn(util.Arrays.asList("Bearer " + token))
 
     // Instantiate the resource and call the method under test
     val accessControlResource = new AccessControlResource()
@@ -202,7 +217,8 @@ class AccessControlResourceSpec extends AnyFlatSpec
     when(mockUriInfo.getRequestUri).thenReturn(new URI(testURI))
     when(mockUriInfo.getPath).thenReturn(testPath)
     when(mockHttpHeaders.getRequestHeaders).thenReturn(requestHeaders)
-    when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(util.Arrays.asList("Bearer " + token))
+    when(mockHttpHeaders.getRequestHeader("Authorization"))
+      .thenReturn(util.Arrays.asList("Bearer " + token))
 
     // Instantiate the resource and call the method under test
     val accessControlResource = new AccessControlResource()
