@@ -68,7 +68,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   get enableDatasetSource(): boolean {
-    return this.config.env.userSystemEnabled && this.config.env.selectingFilesFromDatasetsEnabled;
+    return this.config.env.selectingFilesFromDatasetsEnabled;
   }
 
   get isFileSelectionEnabled(): boolean {

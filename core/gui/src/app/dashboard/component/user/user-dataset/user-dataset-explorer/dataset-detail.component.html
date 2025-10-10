@@ -288,6 +288,18 @@
                   *ngFor="let fileName of queuedFileNames"
                   class="upload-progress-container">
                   <span>{{ fileName }}</span>
+                  <button
+                    nz-button
+                    nzType="text"
+                    nzShape="circle"
+                    nz-tooltip
+                    [nzTooltipTitle]="'Remove from queue'"
+                    (click)="cancelExistingUpload(fileName)">
+                    <span
+                      nz-icon
+                      nzType="close"
+                      nzTheme="outline"></span>
+                  </button>
                 </div>
               </div>
             </nz-collapse-panel>
