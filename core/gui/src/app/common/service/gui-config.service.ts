@@ -31,10 +31,8 @@ export class GuiConfigService {
 
   load(): Observable<GuiConfig> {
     // Fetch both GUI config and user system config in parallel
-    const guiConfig$ = this.http.get<Omit<GuiConfig, "userSystemEnabled" | "inviteOnly">>(
-      `${AppSettings.getApiEndpoint()}/config/gui`
-    );
-    const userSystemConfig$ = this.http.get<{ userSystemEnabled: boolean; inviteOnly: boolean }>(
+    const guiConfig$ = this.http.get<Omit<GuiConfig, "inviteOnly">>(`${AppSettings.getApiEndpoint()}/config/gui`);
+    const userSystemConfig$ = this.http.get<{ inviteOnly: boolean }>(
       `${AppSettings.getApiEndpoint()}/config/user-system`
     );
 
