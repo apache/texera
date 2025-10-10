@@ -115,7 +115,6 @@
     "@types/backbone": "1.4.15",
     "@types/concaveman": "1.1.6",
     "@types/content-disposition": "0",
-    "@types/d3-polygon": "3.0.2",
     "@types/d3-shape": "2.1.2",
     "@types/dagre": "0.7.47",
     "@types/file-saver": "2.0.5",

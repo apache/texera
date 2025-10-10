@@ -5132,13 +5132,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/d3-polygon@npm:3.0.2":
-  version: 3.0.2
-  resolution: "@types/d3-polygon@npm:3.0.2"
-  checksum: 10c0/f46307bb32b6c2aef8c7624500e0f9b518de8f227ccc10170b869dc43e4c542560f6c8d62e9f087fac45e198d6e4b623e579c0422e34c85baf56717456d3f439
-  languageName: node
-  linkType: hard
-
 "@types/d3-shape@npm:2.1.2":
   version: 2.1.2
   resolution: "@types/d3-shape@npm:2.1.2"
@@ -11656,7 +11649,6 @@ __metadata:
     "@types/backbone": "npm:1.4.15"
     "@types/concaveman": "npm:1.1.6"
     "@types/content-disposition": "npm:0"
-    "@types/d3-polygon": "npm:3.0.2"
     "@types/d3-shape": "npm:2.1.2"
     "@types/dagre": "npm:0.7.47"
     "@types/file-saver": "npm:2.0.5"
