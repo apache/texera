@@ -493,17 +493,13 @@ export class DatasetDetailComponent implements OnInit {
     }
   }
 
-  private cancelExistingUpload(fileName: string): void {
-    const isUploading = this.uploadTasks.some(
-      t => t.filePath === fileName && (t.status === "uploading" || t.status === "initializing")
-    );
-    this.uploadSubscriptions.get(fileName)?.unsubscribe();
-    this.uploadSubscriptions.delete(fileName);
-    this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== fileName);
-
-    // Process next in queue if this was active
-    if (isUploading) {
-      this.onUploadComplete();
+  cancelExistingUpload(fileName: string): void {
+    const task = this.uploadTasks.find(t => t.filePath === fileName);
+    if (task) {
+      if (task.status === "uploading" || task.status === "initializing") {
+        this.onClickAbortUploadProgress(task);
+        return;
+      }
     }
     // Remove from pending queue if present
     this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== fileName);
