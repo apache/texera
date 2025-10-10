@@ -50,9 +50,6 @@ object WorkflowExecutionService {
       workflowId: WorkflowIdentity,
       computingUnitId: Int
   ): Option[ExecutionIdentity] = {
-    if (!UserSystemConfig.isUserSystemEnabled) {
-      return Some(DEFAULT_EXECUTION_ID)
-    }
     WorkflowExecutionsResource
       .getLatestExecutionID(workflowId.id.toInt, computingUnitId)
       .map(eid => new ExecutionIdentity(eid.longValue()))

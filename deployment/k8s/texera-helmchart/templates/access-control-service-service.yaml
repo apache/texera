@@ -15,33 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# See PR https://github.com/Texera/texera/pull/3326 for configuration guidelines.
-user-sys {
-  admin-username = "texera"
-  admin-username = ${?USER_SYS_ADMIN_USERNAME}
-
-  admin-password = "texera"
-  admin-password = ${?USER_SYS_ADMIN_PASSWORD}
-
-  google {
-    clientId = ""
-    clientId = ${?USER_SYS_GOOGLE_CLIENT_ID}
-
-    smtp {
-      gmail = ""
-      gmail = ${?USER_SYS_GOOGLE_SMTP_GMAIL}
-
-      password = ""
-      password = ${?USER_SYS_GOOGLE_SMTP_PASSWORD}
-    }
-  }
-
-  domain = ""
-  domain = ${?USER_SYS_DOMAIN}
-
-  invite-only = false
-  invite-only = ${?USER_SYS_INVITE_ONLY}
-
-  version-time-limit-in-minutes = 60
-  version-time-limit-in-minutes = ${?USER_SYS_VERSION_TIME_LIMIT_IN_MINUTES}
-}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.accessControlService.service.type }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.accessControlService.name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.accessControlService.service.port }}
+      targetPort: {{ .Values.accessControlService.service.port }}
