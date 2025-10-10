@@ -51,6 +51,8 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .dependsOn(WorkflowCore, Auth, Config)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -97,6 +99,7 @@ lazy val CoreProject = (project in file("."))
     DAO,
     Config,
     ConfigService,
+    AccessControlService,
     Auth,
     WorkflowCore,
     ComputingUnitManagingService,

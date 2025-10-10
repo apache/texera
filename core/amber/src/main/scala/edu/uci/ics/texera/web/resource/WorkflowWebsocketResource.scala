@@ -27,6 +27,8 @@ import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.auth.util.HeaderField
+import edu.uci.ics.texera.dao.jooq.generated.enums.PrivilegeEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
@@ -51,13 +53,22 @@ class WorkflowWebsocketResource extends LazyLogging {
     SessionState.setState(session.getId, sessionState)
     val wid = session.getRequestParameterMap.get("wid").get(0).toLong
     val cuid = session.getRequestParameterMap.get("cuid").get(0).toInt
+    val cuAccessEnum: PrivilegeEnum = PrivilegeEnum.valueOf(
+      session.getUserProperties
+        .get(HeaderField.UserComputingUnitAccess)
+        .asInstanceOf[String]
+    )
+
+    sessionState.setUserComputingUnitAccess(cuAccessEnum)
+    logger.info(
+      s"Websocket connection opened for workflow $wid with computing unit $cuid and access $cuAccessEnum"
+    )
     // hack to refresh frontend run button state
     sessionState.send(WorkflowStateEvent("Uninitialized"))
     val workflowState =
       WorkflowService.getOrCreate(WorkflowIdentity(wid), cuid)
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-    logger.info("connection open")
   }
 
   @OnClose
@@ -94,6 +105,9 @@ class WorkflowWebsocketResource extends LazyLogging {
             sessionState.send(modifyLogicResponse)
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
+          if (sessionState.getUserComputingUnitAccess != PrivilegeEnum.WRITE) {
+            throw new IllegalStateException("User does not have write access to the computing unit")
+          }
           workflowStateOpt match {
             case Some(workflow) =>
               sessionState.send(WorkflowStateEvent("Initializing"))
