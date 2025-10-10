@@ -89,8 +89,6 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
-    if (!UserSystemConfig.isUserSystemEnabled)
-      throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
@@ -101,8 +99,6 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    if (!UserSystemConfig.isUserSystemEnabled)
-      throw new NotAcceptableException("User System is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")
     if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")

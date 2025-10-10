@@ -108,9 +108,7 @@ export class WorkflowWebsocketService {
       "&uid=" +
       uId +
       (isDefined(cuId) ? `&cuid=${cuId}` : "") +
-      (this.config.env.userSystemEnabled && AuthService.getAccessToken() !== null
-        ? "&access-token=" + AuthService.getAccessToken()
-        : "");
+      (AuthService.getAccessToken() !== null ? "&access-token=" + AuthService.getAccessToken() : "");
     console.log("websocketUrl", websocketUrl);
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic

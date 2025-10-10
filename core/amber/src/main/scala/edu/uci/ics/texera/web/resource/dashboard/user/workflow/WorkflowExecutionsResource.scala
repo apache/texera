@@ -34,13 +34,16 @@ import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregate
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
@@ -238,19 +241,15 @@ object WorkflowExecutionsResource {
       globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .columns(
-          OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-          OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-          OPERATOR_PORT_EXECUTIONS.RESULT_URI
-        )
-        .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
-        .execute()
-    } else {
-      ExecutionResourcesMapping.addResourceUri(eid, uri)
-    }
+    context
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .columns(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
+      .execute()
   }
 
   def insertOperatorExecutions(
@@ -289,45 +288,37 @@ object WorkflowExecutionsResource {
   }
 
   def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .filter(uri => uri != null && uri.nonEmpty)
-        .map(URI.create)
-    } else {
-      ExecutionResourcesMapping.getResourceURIs(eid)
-    }
+    context
+      .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .fetchInto(classOf[String])
+      .asScala
+      .toList
+      .filter(uri => uri != null && uri.nonEmpty)
+      .map(URI.create)
   }
 
   def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
-    if (UserSystemConfig.isUserSystemEnabled)
-      context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
-        .from(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .filter(uri => uri != null && uri.nonEmpty)
-        .map(URI.create)
-    else Nil
+    context
+      .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .fetchInto(classOf[String])
+      .asScala
+      .toList
+      .filter(uri => uri != null && uri.nonEmpty)
+      .map(URI.create)
 
   def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] =
-    if (UserSystemConfig.isUserSystemEnabled)
-      Option(
-        context
-          .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
-          .from(WORKFLOW_EXECUTIONS)
-          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-          .fetchOneInto(classOf[String])
-      ).filter(_.nonEmpty)
-        .map(URI.create)
-    else None
+    Option(
+      context
+        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+        .from(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .fetchOneInto(classOf[String])
+    ).filter(_.nonEmpty)
+      .map(URI.create)
 
   def getWorkflowExecutions(
       wid: Integer,
@@ -370,18 +361,14 @@ object WorkflowExecutionsResource {
   }
 
   def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .delete(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .execute()
-      context
-        .delete(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .execute()
-    } else {
-      ExecutionResourcesMapping.removeExecutionResources(eid)
-    }
+    context
+      .delete(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .execute()
+    context
+      .delete(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .execute()
   }
 
   /**
@@ -447,22 +434,20 @@ object WorkflowExecutionsResource {
     * @param eid Execution ID associated with the runtime statistics document.
     */
   def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val statsUriOpt = context
-        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
-        .from(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .fetchOptionalInto(classOf[String])
-        .map(URI.create)
+    val statsUriOpt = context
+      .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+      .fetchOptionalInto(classOf[String])
+      .map(URI.create)
 
-      if (statsUriOpt.isPresent) {
-        val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
-        context
-          .update(WORKFLOW_EXECUTIONS)
-          .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
-          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-          .execute()
-      }
+    if (statsUriOpt.isPresent) {
+      val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+      context
+        .update(WORKFLOW_EXECUTIONS)
+        .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .execute()
     }
   }
 
@@ -473,24 +458,22 @@ object WorkflowExecutionsResource {
     * @param opId Operator ID of the corresponding operator.
     */
   def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val uriOpt = context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
-        .from(OPERATOR_EXECUTIONS)
+    val uriOpt = context
+      .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOptionalInto(classOf[String])
+      .map(URI.create)
+
+    if (uriOpt.isPresent) {
+      val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+      context
+        .update(OPERATOR_EXECUTIONS)
+        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
         .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-        .fetchOptionalInto(classOf[String])
-        .map(URI.create)
-
-      if (uriOpt.isPresent) {
-        val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
-        context
-          .update(OPERATOR_EXECUTIONS)
-          .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
-          .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-          .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-          .execute()
-      }
+        .execute()
     }
   }
 
@@ -499,7 +482,6 @@ object WorkflowExecutionsResource {
     * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
     * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
     * TODO: Optimize the lookup once the frontend also has information about physical operators.
-    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
     */
   def getResultUriByLogicalPortId(
       eid: ExecutionIdentity,
@@ -517,18 +499,14 @@ object WorkflowExecutionsResource {
     }
 
     val urisOfEid: List[URI] =
-      if (UserSystemConfig.isUserSystemEnabled) {
-        context
-          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-          .from(OPERATOR_PORT_EXECUTIONS)
-          .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-          .fetchInto(classOf[String])
-          .asScala
-          .toList
-          .map(URI.create)
-      } else {
-        ExecutionResourcesMapping.getResourceURIs(eid)
-      }
+      context
+        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .fetchInto(classOf[String])
+        .asScala
+        .toList
+        .map(URI.create)
 
     urisOfEid.find(isMatchingExternalPortURI)
   }

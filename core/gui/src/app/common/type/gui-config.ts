@@ -21,7 +21,6 @@
 export interface GuiConfig {
   exportExecutionResultEnabled: boolean;
   autoAttributeCorrectionEnabled: boolean;
-  userSystemEnabled: boolean;
   selectingFilesFromDatasetsEnabled: boolean;
   localLogin: boolean;
   googleLogin: boolean;
