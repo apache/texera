@@ -45,7 +45,7 @@ export interface ExportWorkflowJsonResponse {
   message: string;
 }
 
-export interface WorkflowResultDownloadability {
+export interface WorkflowResultDownloadabilityResponse {
   [operatorId: string]: string[]; // operatorId -> array of dataset labels blocking export
 }
 
@@ -127,9 +127,9 @@ export class DownloadService {
    * @param workflowId The workflow ID to check
    * @returns Observable of downloadability information
    */
-  public getWorkflowResultDownloadability(workflowId: number): Observable<WorkflowResultDownloadability> {
+  public getWorkflowResultDownloadability(workflowId: number): Observable<WorkflowResultDownloadabilityResponse> {
     const urlPath = `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${workflowId}/${DOWNLOADABILITY_BASE_URL}`;
-    return this.http.get<WorkflowResultDownloadability>(urlPath);
+    return this.http.get<WorkflowResultDownloadabilityResponse>(urlPath);
   }
 
   /**

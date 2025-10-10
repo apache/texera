@@ -55,15 +55,64 @@ export class ResultExportationComponent implements OnInit {
   containsBinaryData: boolean = false;
   inputDatasetName = "";
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
-  exportableOperatorIds: string[] = [];
-  blockedOperatorIds: string[] = [];
-  isExportRestricted: boolean = false;
-  hasPartialNonDownloadable: boolean = false;
-  blockingDatasetLabels: string[] = [];
-  restrictedOperatorMap = new Map<string, Set<string>>();
+  downloadability?: WorkflowResultDownloadability;
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
+
+  /**
+   * Gets the operator IDs to check for restrictions based on the source trigger.
+   * Menu: all operators, Context menu: highlighted operators only
+   */
+  private getOperatorIdsToCheck(): readonly string[] {
+    if (this.sourceTriggered === "menu") {
+      return this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID);
+    } else {
+      return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    }
+  }
+
+  /**
+   * Computed property: operator IDs that can be exported
+   */
+  get exportableOperatorIds(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getExportableOperatorIds(this.getOperatorIdsToCheck());
+  }
+
+  /**
+   * Computed property: operator IDs that are blocked from export
+   */
+  get blockedOperatorIds(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getBlockedOperatorIds(this.getOperatorIdsToCheck());
+  }
+
+  /**
+   * Computed property: whether all selected operators are blocked
+   */
+  get isExportRestricted(): boolean {
+    const operatorIds = this.getOperatorIdsToCheck();
+    return this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
+  }
+
+  /**
+   * Computed property: whether some (but not all) operators are blocked
+   */
+  get hasPartialNonDownloadable(): boolean {
+    return this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
+  }
+
+  /**
+   * Computed property: dataset labels that are blocking export
+   */
+  get blockingDatasetLabels(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getBlockingDatasets(this.getOperatorIdsToCheck());
+  }
 
   constructor(
     public workflowResultExportService: WorkflowResultExportService,
@@ -87,8 +136,8 @@ export class ResultExportationComponent implements OnInit {
     this.workflowResultExportService
       .computeRestrictionAnalysis()
       .pipe(untilDestroyed(this))
-      .subscribe(restrictionResult => {
-        this.restrictedOperatorMap = restrictionResult.restrictedOperatorMap;
+      .subscribe(downloadability => {
+        this.downloadability = downloadability;
         this.updateOutputType();
       });
 
@@ -101,33 +150,11 @@ export class ResultExportationComponent implements OnInit {
   }
 
   updateOutputType(): void {
-    // Determine if the caller of this component is menu or context menu
-    // if its menu then we need to export all operators else we need to export only highlighted operators
-
-    let operatorIds: readonly string[];
-    if (this.sourceTriggered === "menu") {
-      operatorIds = this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(op => op.operatorID);
-    } else {
-      operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (!this.downloadability) {
+      return;
     }
 
-    this.exportableOperatorIds = this.workflowResultExportService.getExportableOperatorIds(
-      operatorIds,
-      this.restrictedOperatorMap
-    );
-    this.blockedOperatorIds = this.workflowResultExportService.getBlockedOperatorIds(
-      operatorIds,
-      this.restrictedOperatorMap
-    );
-    this.blockingDatasetLabels = this.workflowResultExportService.getBlockingDatasets(
-      operatorIds,
-      this.restrictedOperatorMap
-    );
-    this.isExportRestricted = this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
-    this.hasPartialNonDownloadable = this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
+    const operatorIds = this.getOperatorIdsToCheck();
 
     if (operatorIds.length === 0) {
       // No operators highlighted
@@ -144,8 +171,7 @@ export class ResultExportationComponent implements OnInit {
       return;
     }
 
-    // Assume they're all table or visualization
-    // until we find an operator that isn't
+    // Assume they're all table or visualization until we find an operator that isn't
     let allTable = true;
     let allVisualization = true;
     let anyBinaryData = false;

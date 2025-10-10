@@ -39,7 +39,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
  * Contains information about which operators are restricted from exporting
  * due to non-downloadable dataset dependencies.
  */
-export interface WorkflowResultDownloadability {
+export class WorkflowResultDownloadability {
   /**
    * Map of operator IDs to sets of blocking dataset labels.
    * Key: Operator ID
@@ -50,6 +50,46 @@ export interface WorkflowResultDownloadability {
    * one or more datasets that the current user is not allowed to download.
    */
   restrictedOperatorMap: Map<string, Set<string>>;
+
+  constructor(restrictedOperatorMap: Map<string, Set<string>>) {
+    this.restrictedOperatorMap = restrictedOperatorMap;
+  }
+
+  /**
+   * Filters operator IDs to return only those that are not restricted by dataset access controls.
+   *
+   * @param operatorIds Array of operator IDs to filter
+   * @returns Array of operator IDs that can be exported
+   */
+  getExportableOperatorIds(operatorIds: readonly string[]): string[] {
+    return operatorIds.filter(operatorId => !this.restrictedOperatorMap.has(operatorId));
+  }
+
+  /**
+   * Filters operator IDs to return only those that are restricted by dataset access controls.
+   *
+   * @param operatorIds Array of operator IDs to filter
+   * @returns Array of operator IDs that are blocked from export
+   */
+  getBlockedOperatorIds(operatorIds: readonly string[]): string[] {
+    return operatorIds.filter(operatorId => this.restrictedOperatorMap.has(operatorId));
+  }
+
+  /**
+   * Gets the list of dataset labels that are blocking export for the given operators.
+   * Used to display user-friendly error messages about which datasets are causing restrictions.
+   *
+   * @param operatorIds Array of operator IDs to check
+   * @returns Array of dataset labels (e.g., "Dataset1 (user@example.com)")
+   */
+  getBlockingDatasets(operatorIds: readonly string[]): string[] {
+    const labels = new Set<string>();
+    operatorIds.forEach(operatorId => {
+      const datasets = this.restrictedOperatorMap.get(operatorId);
+      datasets?.forEach(label => labels.add(label));
+    });
+    return Array.from(labels);
+  }
 }
 
 @Injectable({
@@ -94,7 +134,7 @@ export class WorkflowResultExportService {
   public computeRestrictionAnalysis(): Observable<WorkflowResultDownloadability> {
     const workflowId = this.workflowActionService.getWorkflow().wid;
     if (!workflowId) {
-      return of({ restrictedOperatorMap: new Map<string, Set<string>>() });
+      return of(new WorkflowResultDownloadability(new Map<string, Set<string>>()));
     }
 
     return this.downloadService.getWorkflowResultDownloadability(workflowId).pipe(
@@ -104,12 +144,10 @@ export class WorkflowResultExportService {
         Object.entries(backendResponse).forEach(([operatorId, datasetLabels]) => {
           restrictedOperatorMap.set(operatorId, new Set(datasetLabels));
         });
-        return { restrictedOperatorMap };
+        return new WorkflowResultDownloadability(restrictedOperatorMap);
       }),
       catchError(() => {
-        return of({
-          restrictedOperatorMap: new Map<string, Set<string>>(),
-        });
+        return of(new WorkflowResultDownloadability(new Map<string, Set<string>>()));
       })
     );
   }
@@ -153,54 +191,6 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * Filters operator IDs to return only those that are not restricted by dataset access controls.
-   *
-   * @param operatorIds Array of operator IDs to filter
-   * @param restrictedOperatorMap Map of restricted operators to blocking dataset labels
-   * @returns Array of operator IDs that can be exported
-   */
-  public getExportableOperatorIds(
-    operatorIds: readonly string[],
-    restrictedOperatorMap: Map<string, Set<string>>
-  ): string[] {
-    return operatorIds.filter(operatorId => !restrictedOperatorMap.has(operatorId));
-  }
-
-  /**
-   * Filters operator IDs to return only those that are restricted by dataset access controls.
-   *
-   * @param operatorIds Array of operator IDs to filter
-   * @param restrictedOperatorMap Map of restricted operators to blocking dataset labels
-   * @returns Array of operator IDs that are blocked from export
-   */
-  public getBlockedOperatorIds(
-    operatorIds: readonly string[],
-    restrictedOperatorMap: Map<string, Set<string>>
-  ): string[] {
-    return operatorIds.filter(operatorId => restrictedOperatorMap.has(operatorId));
-  }
-
-  /**
-   * Gets the list of dataset labels that are blocking export for the given operators.
-   * Used to display user-friendly error messages about which datasets are causing restrictions.
-   *
-   * @param operatorIds Array of operator IDs to check
-   * @param restrictedOperatorMap Map of restricted operators to blocking dataset labels
-   * @returns Array of dataset labels (e.g., "Dataset1 (user@example.com)")
-   */
-  public getBlockingDatasets(
-    operatorIds: readonly string[],
-    restrictedOperatorMap: Map<string, Set<string>>
-  ): string[] {
-    const labels = new Set<string>();
-    operatorIds.forEach(operatorId => {
-      const datasets = restrictedOperatorMap.get(operatorId);
-      datasets?.forEach(label => labels.add(label));
-    });
-    return Array.from(labels);
-  }
-
-  /**
    * export the workflow execution result according the export type
    */
   exportWorkflowExecutionResult(
@@ -229,7 +219,7 @@ export class WorkflowResultExportService {
           exportAll,
           destination,
           unit,
-          restrictionResult.restrictedOperatorMap
+          restrictionResult
         )
       );
   }
@@ -246,7 +236,7 @@ export class WorkflowResultExportService {
    *
    * Shows error messages if all operators are blocked, warning messages if some are blocked.
    *
-   * @param restrictedOperatorMap Map of restricted operators from restriction analysis
+   * @param downloadability Downloadability analysis result containing restriction information
    */
   private performExport(
     exportType: string,
@@ -258,7 +248,7 @@ export class WorkflowResultExportService {
     exportAll: boolean,
     destination: "dataset" | "local",
     unit: DashboardWorkflowComputingUnit | null,
-    restrictedOperatorMap: Map<string, Set<string>>
+    downloadability: WorkflowResultDownloadability
   ): void {
     // Validates configuration and computing unit availability
     if (!this.config.env.exportExecutionResultEnabled) {
@@ -288,10 +278,10 @@ export class WorkflowResultExportService {
     }
 
     // Applies restriction filtering with user feedback
-    const exportableOperatorIds = this.getExportableOperatorIds(operatorIds, restrictedOperatorMap);
+    const exportableOperatorIds = downloadability.getExportableOperatorIds(operatorIds);
 
     if (exportableOperatorIds.length === 0) {
-      const datasets = this.getBlockingDatasets(operatorIds, restrictedOperatorMap);
+      const datasets = downloadability.getBlockingDatasets(operatorIds);
       const suffix = datasets.length > 0 ? `: ${datasets.join(", ")}` : "";
       this.notificationService.error(
         `Cannot export result: selection depends on dataset(s) that are not downloadable${suffix}`
@@ -300,7 +290,7 @@ export class WorkflowResultExportService {
     }
 
     if (exportableOperatorIds.length < operatorIds.length) {
-      const datasets = this.getBlockingDatasets(operatorIds, restrictedOperatorMap);
+      const datasets = downloadability.getBlockingDatasets(operatorIds);
       const suffix = datasets.length > 0 ? ` (${datasets.join(", ")})` : "";
       this.notificationService.warning(
         `Some operators were skipped because their results depend on dataset(s) that are not downloadable${suffix}`
