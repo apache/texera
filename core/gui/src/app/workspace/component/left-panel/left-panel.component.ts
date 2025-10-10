@@ -49,7 +49,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   items = [
     { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
-    { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: false },
+    { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: true },
     {
       component: SettingsComponent,
       title: "Settings",
@@ -93,9 +93,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   }
 
   private updateItemsWithConfig(): void {
-    this.items[2].enabled = this.config.env.userSystemEnabled; // Versions
     this.items[4].enabled = this.config.env.workflowExecutionsTrackingEnabled; // Execution History
-    this.items[5].enabled = this.config.env.userSystemEnabled && this.config.env.timetravelEnabled; // Time Travel
+    this.items[5].enabled = this.config.env.timetravelEnabled; // Time Travel
   }
 
   ngOnInit(): void {
