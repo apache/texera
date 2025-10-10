@@ -144,6 +144,7 @@ export class DatasetService {
    * with a concurrency limit on how many parts we process in parallel.
    */
   public multipartUpload(
+    ownerEmail: string,
     datasetName: string,
     filePath: string,
     file: File,
@@ -208,7 +209,7 @@ export class DatasetService {
         };
       };
 
-      const subscription = this.initiateMultipartUpload(datasetName, filePath, partCount)
+      const subscription = this.initiateMultipartUpload(ownerEmail, datasetName, filePath, partCount)
         .pipe(
           switchMap(initiateResponse => {
             const { uploadId, presignedUrls, physicalAddress } = initiateResponse;
@@ -313,7 +314,15 @@ export class DatasetService {
               toArray(),
               // 4) Finalize if all parts succeeded
               switchMap(() =>
-                this.finalizeMultipartUpload(datasetName, filePath, uploadId, uploadedParts, physicalAddress, false)
+                this.finalizeMultipartUpload(
+                  ownerEmail,
+                  datasetName,
+                  filePath,
+                  uploadId,
+                  uploadedParts,
+                  physicalAddress,
+                  false
+                )
               ),
               tap(() => {
                 const finalTotalTime = (Date.now() - startTime) / 1000;
@@ -344,6 +353,7 @@ export class DatasetService {
                 });
 
                 return this.finalizeMultipartUpload(
+                  ownerEmail,
                   datasetName,
                   filePath,
                   uploadId,
@@ -364,17 +374,20 @@ export class DatasetService {
 
   /**
    * Initiates a multipart upload and retrieves presigned URLs for each part.
+   * @param ownerEmail Owner's email
    * @param datasetName Dataset Name
    * @param filePath File path within the dataset
    * @param numParts Number of parts for the multipart upload
    */
   private initiateMultipartUpload(
+    ownerEmail: string,
     datasetName: string,
     filePath: string,
     numParts: number
   ): Observable<{ uploadId: string; presignedUrls: string[]; physicalAddress: string }> {
     const params = new HttpParams()
       .set("type", "init")
+      .set("ownerEmail", ownerEmail)
       .set("datasetName", datasetName)
       .set("filePath", encodeURIComponent(filePath))
       .set("numParts", numParts.toString());
@@ -390,6 +403,7 @@ export class DatasetService {
    * Completes or aborts a multipart upload, sending part numbers and ETags to the backend.
    */
   public finalizeMultipartUpload(
+    ownerEmail: string,
     datasetName: string,
     filePath: string,
     uploadId: string,
@@ -399,6 +413,7 @@ export class DatasetService {
   ): Observable<Response> {
     const params = new HttpParams()
       .set("type", isAbort ? "abort" : "finish")
+      .set("ownerEmail", ownerEmail)
       .set("datasetName", datasetName)
       .set("filePath", encodeURIComponent(filePath))
       .set("uploadId", uploadId);
