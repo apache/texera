@@ -16,7 +16,7 @@
 # under the License.
 
 from core.util.expression_evaluator import ExpressionEvaluator
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
+from proto.org.apache.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
 
 
 class TestExpressionEvaluator:

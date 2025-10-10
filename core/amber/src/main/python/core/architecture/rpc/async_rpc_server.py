@@ -24,7 +24,7 @@ from core.architecture.rpc.async_rpc_handler_initializer import (
 )
 from core.models.internal_queue import InternalQueue, DCMElement
 from core.util import get_one_of, set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ReturnInvocation,
     ControlRequest,
     ControlInvocation,
@@ -32,8 +32,8 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlError,
     ErrorLanguage,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
-from proto.edu.uci.ics.amber.core import ChannelIdentity
+from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.amber.core import ChannelIdentity
 
 
 class AsyncRPCServer:

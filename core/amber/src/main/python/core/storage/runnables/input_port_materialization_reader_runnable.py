@@ -39,12 +39,12 @@ from core.storage.document_factory import DocumentFactory
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
 from core.util.virtual_identity import get_from_actor_id_for_input_port_storage
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,
@@ -54,7 +54,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
 )
 from loguru import logger
 from typing import Union
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmptyRequest,
     EmbeddedControlMessageType,

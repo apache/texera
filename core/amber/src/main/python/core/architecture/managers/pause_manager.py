@@ -23,8 +23,8 @@ from typing import Set, Dict
 from loguru import logger
 
 from . import state_manager
-from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
-from proto.edu.uci.ics.amber.core import ChannelIdentity
+from proto.org.apache.amber.engine.architecture.worker import WorkerState
+from proto.org.apache.amber.core import ChannelIdentity
 from ...models import InternalQueue
 
 

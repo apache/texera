@@ -16,13 +16,13 @@
 # under the License.
 
 from core.models import Schema
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     ChannelIdentity,
     ActorVirtualIdentity,
     PortIdentity,
     EmbeddedControlMessageIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     WorkerStateResponse,
     ControlInvocation,
     EmptyRequest,
@@ -31,7 +31,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlRequest,
     EmbeddedControlMessageType,
 )
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.org.apache.amber.engine.architecture.worker import (
     WorkerState,
 )
 from core.architecture.handlers.control.control_handler_base import ControlHandler

@@ -27,7 +27,7 @@ export interface DashboardFile
 /**
  * This interface stores the information about the users' files.
  * These information is used to locate the file for the operators.
- * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
+ * Corresponds to `src/main/scala/org/apache/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
 export interface UserFile {

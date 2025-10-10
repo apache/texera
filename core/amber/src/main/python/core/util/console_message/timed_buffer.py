@@ -19,7 +19,7 @@ from datetime import datetime
 
 from typing import Tuple, List, Iterator
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import PythonConsoleMessageV2
+from proto.org.apache.amber.engine.architecture.worker import PythonConsoleMessageV2
 
 
 class TimedBuffer:

@@ -20,17 +20,17 @@ import datetime
 from core.models.internal_queue import InternalQueue
 from core.util.buffer.timed_buffer import TimedBuffer
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ControlInvocation,
     ControlRequest,
     ConsoleMessage,
     ConsoleMessageType,
 )
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.org.apache.amber.engine.common import (
     DirectControlMessagePayloadV2,
     PythonControlMessage,
 )
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 
 class TestConsoleMessage:

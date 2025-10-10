@@ -22,9 +22,9 @@ from betterproto import Message
 from core.models import Tuple
 from core.models.state import State
 from core.util import get_one_of
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.architecture.sendsemantics import Partitioning
+from proto.org.apache.amber.core import ActorVirtualIdentity
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class Partitioner(ABC):

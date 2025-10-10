@@ -22,7 +22,7 @@ from core.architecture.managers.state_manager import (
     InvalidTransitionException,
     StateManager,
 )
-from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
+from proto.org.apache.amber.engine.architecture.worker import WorkerState
 
 
 class TestStateManager:

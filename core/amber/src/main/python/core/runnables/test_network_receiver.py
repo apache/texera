@@ -31,7 +31,7 @@ from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmbeddedControlMessage,
     EmbeddedControlMessageType,
@@ -39,8 +39,8 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ControlRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
     EmbeddedControlMessageIdentity,

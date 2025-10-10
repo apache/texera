@@ -18,8 +18,8 @@
 from typing import DefaultDict
 from collections import defaultdict
 
-from proto.edu.uci.ics.amber.core import PortIdentity
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.org.apache.amber.core import PortIdentity
+from proto.org.apache.amber.engine.architecture.worker import (
     WorkerStatistics,
     PortTupleMetricsMapping,
     TupleMetrics,
