@@ -18,20 +18,8 @@
 -->
 
 <div id="menu-container">
-  <div
-    *ngIf="!this.config.env.userSystemEnabled"
-    id="logo">
-    <a href="{{this.config.env.userSystemEnabled?'/dashboard/workflow':'/'}}">
-      <img
-        alt="Texera"
-        height="{{this.config.env.userSystemEnabled?75:38}}"
-        src="assets/logos/full_logo_small.png" />
-    </a>
-  </div>
   <div id="menu-content">
-    <div
-      id="menu-user"
-      *ngIf="this.config.env.userSystemEnabled">
+    <div id="menu-user">
       <div id="metadata">
         <button
           (click)="closeParticularVersionDisplay()"
@@ -99,7 +87,6 @@
         *ngIf="!displayParticularWorkflowVersion">
         <a [routerLink]="DASHBOARD_USER_WORKFLOW">
           <button
-            *ngIf="this.config.env.userSystemEnabled"
             nz-button
             title="dashboard">
             <i
@@ -109,7 +96,6 @@
         </a>
         <button
           (click)="onClickCreateNewWorkflow()"
-          *ngIf="this.config.env.userSystemEnabled"
           nz-button
           title="create new">
           <i
@@ -118,7 +104,6 @@
         </button>
         <button
           (click)="persistWorkflow()"
-          *ngIf="this.config.env.userSystemEnabled"
           [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
           nz-button
           title="save">
@@ -361,7 +346,7 @@
           (click)="onClickRunHandler()"
           nz-popover
           nzPopoverTitle="Execution Settings"
-          [nzPopoverTrigger]="this.config.env.userSystemEnabled?'hover':null"
+          [nzPopoverTrigger]="'hover'"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || selectedComputingUnit?.accessPrivilege !== Privilege.WRITE"
@@ -374,10 +359,10 @@
           <span> {{ runButtonText }}</span>
         </button>
         <button
-          *ngIf="this.config.env.userSystemEnabled && this.config.env.timetravelEnabled"
+          *ngIf="this.config.env.timetravelEnabled"
           (click)="handleCheckpoint()"
           title="take checkpoint"
-          [disabled]="!this.config.env.userSystemEnabled || executionState !== ExecutionState.Paused"
+          [disabled]="executionState !== ExecutionState.Paused"
           id="checkpoint-button"
           nz-button
           nzType="primary">
