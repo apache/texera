@@ -76,6 +76,31 @@ object FileResolver {
   }
 
   /**
+    * Parses a dataset file path and extracts its components.
+    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    *
+    * @param fileName The file path to parse
+    * @return Some((ownerEmail, datasetName, versionName, fileRelativePath)) if valid, None otherwise
+    */
+  private def parseDatasetFilePath(
+      fileName: String
+  ): Option[(String, String, String, Array[String])] = {
+    val filePath = Paths.get(fileName)
+    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+
+    if (pathSegments.length < 4) {
+      return None
+    }
+
+    val ownerEmail = pathSegments(0)
+    val datasetName = pathSegments(1)
+    val versionName = pathSegments(2)
+    val fileRelativePathSegments = pathSegments.drop(3)
+
+    Some((ownerEmail, datasetName, versionName, fileRelativePathSegments))
+  }
+
+  /**
     * Attempts to resolve a given fileName to a URI.
     *
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
@@ -88,14 +113,13 @@ object FileResolver {
     * @throws FileNotFoundException if the dataset file does not exist or cannot be created
     */
   private def datasetResolveFunc(fileName: String): URI = {
-    val filePath = Paths.get(fileName)
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+    val (ownerEmail, datasetName, versionName, fileRelativePathSegments) =
+      parseDatasetFilePath(fileName).getOrElse(
+        throw new FileNotFoundException(s"Dataset file $fileName not found.")
+      )
 
-    // extract info from the user-given fileName
-    val ownerEmail = pathSegments(0)
-    val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-    val fileRelativePath = Paths.get(pathSegments.drop(3).head, pathSegments.drop(3).tail: _*)
+    val fileRelativePath =
+      Paths.get(fileRelativePathSegments.head, fileRelativePathSegments.tail: _*)
 
     // fetch the dataset and version from DB to get dataset ID and version hash
     val (dataset, datasetVersion) =
@@ -166,6 +190,22 @@ object FileResolver {
       uri.getScheme != null && uri.getScheme.nonEmpty
     } catch {
       case _: Exception => false // Invalid URI format
+    }
+  }
+
+  /**
+    * Parses a dataset file path to extract owner email and dataset name.
+    * Expected format: /ownerEmail/datasetName/versionName/fileRelativePath
+    *
+    * @param path The file path from operator properties
+    * @return Some((ownerEmail, datasetName)) if path is valid, None otherwise
+    */
+  def parseDatasetOwnerAndName(path: String): Option[(String, String)] = {
+    if (path == null) {
+      return None
+    }
+    parseDatasetFilePath(path).map {
+      case (ownerEmail, datasetName, _, _) => (ownerEmail, datasetName)
     }
   }
 }
