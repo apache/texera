@@ -41,12 +41,9 @@ export class UserService {
     private authService: AuthService,
     private config: GuiConfigService
   ) {
-    if (this.config.env.userSystemEnabled) {
-      const user = this.authService.loginWithExistingToken();
-      this.changeUser(user);
-    }
+    const user = this.authService.loginWithExistingToken();
+    this.changeUser(user);
   }
-
   public getCurrentUser(): User | undefined {
     return this.currentUser;
   }

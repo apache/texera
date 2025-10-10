@@ -72,30 +72,26 @@ class ExecutionStatsService(
 ) extends SubscriptionManager
     with LazyLogging {
   private val (metricsPersistThread, runtimeStatsWriter) = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val thread = Executors.newSingleThreadExecutor()
-      val uri = VFSURIFactory.createRuntimeStatisticsURI(
-        workflowContext.workflowId,
-        workflowContext.executionId
-      )
-      val writer = DocumentFactory
-        .createDocument(uri, ResultSchema.runtimeStatisticsSchema)
-        .writer("runtime_statistics")
-        .asInstanceOf[BufferedItemWriter[Tuple]]
-      WorkflowExecutionsResource.updateRuntimeStatsUri(
-        workflowContext.workflowId.id,
-        workflowContext.executionId.id,
-        uri
-      )
-      writer.open()
-      (Some(thread), Some(writer))
-    } else {
-      (None, None)
-    }
+    val thread = Executors.newSingleThreadExecutor()
+    val uri = VFSURIFactory.createRuntimeStatisticsURI(
+      workflowContext.workflowId,
+      workflowContext.executionId
+    )
+    val writer = DocumentFactory
+      .createDocument(uri, ResultSchema.runtimeStatisticsSchema)
+      .writer("runtime_statistics")
+      .asInstanceOf[BufferedItemWriter[Tuple]]
+    WorkflowExecutionsResource.updateRuntimeStatsUri(
+      workflowContext.workflowId.id,
+      workflowContext.executionId.id,
+      uri
+    )
+    writer.open()
+    (thread, writer)
   }
 
-  private var lastPersistedMetrics: Option[Map[String, OperatorMetrics]] =
-    Option.when(UserSystemConfig.isUserSystemEnabled)(Map.empty[String, OperatorMetrics])
+  private var lastPersistedMetrics: Map[String, OperatorMetrics] =
+    Map.empty[String, OperatorMetrics]
 
   registerCallbacks()
 
@@ -189,12 +185,10 @@ class ExecutionStatsService(
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorMetrics)
           }
-          metricsPersistThread.foreach { thread =>
-            thread.execute(() => {
-              storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
-              lastPersistedMetrics = Some(evt.operatorMetrics)
-            })
-          }
+          metricsPersistThread.execute(() => {
+            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
+            lastPersistedMetrics = evt.operatorMetrics
+          })
         })
     )
   }
@@ -204,13 +198,11 @@ class ExecutionStatsService(
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
           if Set(COMPLETED, FAILED, KILLED).contains(state) =>
         logger.info("Workflow execution terminated. Commit runtime statistics.")
-        runtimeStatsWriter.foreach { writer =>
-          try {
-            writer.close()
-          } catch {
-            case e: Exception =>
-              logger.error("Failed to close runtime statistics writer", e)
-          }
+        try {
+          runtimeStatsWriter.close()
+        } catch {
+          case e: Exception =>
+            logger.error("Failed to close runtime statistics writer", e)
         }
       case _ =>
     }
@@ -225,15 +217,12 @@ class ExecutionStatsService(
       OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
     )
 
-    // Retrieve the last persisted metrics or default to an empty map
-    val lastMetrics = lastPersistedMetrics.getOrElse(Map.empty)
-
     // Determine new and old keys
-    val newKeys = newMetrics.keySet.diff(lastMetrics.keySet)
-    val oldKeys = lastMetrics.keySet.diff(newMetrics.keySet)
+    val newKeys = newMetrics.keySet.diff(lastPersistedMetrics.keySet)
+    val oldKeys = lastPersistedMetrics.keySet.diff(newMetrics.keySet)
 
     // Update last metrics with default metrics for new keys
-    val updatedLastMetrics = lastMetrics ++ newKeys.map(_ -> defaultMetrics)
+    val updatedLastMetrics = lastPersistedMetrics ++ newKeys.map(_ -> defaultMetrics)
 
     // Combine new metrics with old metrics for keys that are no longer present
     val completeMetricsMap = newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
@@ -258,34 +247,29 @@ class ExecutionStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
-    runtimeStatsWriter match {
-      case Some(writer) =>
-        try {
-          operatorStatistics.foreach {
-            case (operatorId, stat) =>
-              val runtimeStats = new Tuple(
-                ResultSchema.runtimeStatisticsSchema,
-                Array(
-                  operatorId,
-                  new java.sql.Timestamp(System.currentTimeMillis()),
-                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-                  stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
-                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-                  stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
-                  stat.operatorStatistics.dataProcessingTime,
-                  stat.operatorStatistics.controlProcessingTime,
-                  stat.operatorStatistics.idleTime,
-                  stat.operatorStatistics.numWorkers,
-                  maptoStatusCode(stat.operatorState).toInt
-                )
-              )
-              writer.putOne(runtimeStats)
-          }
-        } catch {
-          case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
-        }
-      case None =>
-        logger.warn("Runtime statistics writer is not available.")
+    try {
+      operatorStatistics.foreach {
+        case (operatorId, stat) =>
+          val runtimeStats = new Tuple(
+            ResultSchema.runtimeStatisticsSchema,
+            Array(
+              operatorId,
+              new java.sql.Timestamp(System.currentTimeMillis()),
+              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
+              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
+              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+              stat.operatorStatistics.dataProcessingTime,
+              stat.operatorStatistics.controlProcessingTime,
+              stat.operatorStatistics.idleTime,
+              stat.operatorStatistics.numWorkers,
+              maptoStatusCode(stat.operatorState).toInt
+            )
+          )
+          runtimeStatsWriter.putOne(runtimeStats)
+      }
+    } catch {
+      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }
   }
 
