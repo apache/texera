@@ -31,20 +31,15 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
-import edu.uci.ics.texera.dao.jooq.generated.enums.ContributorRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   DatasetUserAccessDao,
-  DatasetVersionDao,
-  DatasetContributorDao
+  DatasetVersionDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
-  DatasetVersion,
-  DatasetContributor,
-  User
+  DatasetVersion
 }
 import edu.uci.ics.texera.service.`type`.DatasetFileNode
 import edu.uci.ics.texera.service.resource.DatasetAccessResource.{
@@ -160,30 +155,12 @@ object DatasetResource {
       .toScala
   }
 
-  /**
-    * Helper function to get the contributors using the did
-    */
-  def getContributorsByDid(did: Integer): List[Contributor] = {
-    val ctx = SqlServer.getInstance().createDSLContext()
-    val dao = new DatasetContributorDao(ctx.configuration())
-    dao.fetchByDid(did).asScala.toList.map { record =>
-      Contributor(
-        name = record.getName,
-        creator = record.getCreator,
-        role = record.getRole.getLiteral,
-        affiliation = record.getAffiliation,
-        email = record.getEmail
-      )
-    }
-  }
-
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
       accessPrivilege: EnumType,
       isOwner: Boolean,
-      size: Long,
-      contributors: Option[List[Contributor]] = Some(Nil)
+      size: Long
   )
 
   case class DashboardDatasetVersion(
@@ -195,8 +172,7 @@ object DatasetResource {
       datasetName: String,
       datasetDescription: String,
       isDatasetPublic: Boolean,
-      isDatasetDownloadable: Boolean,
-      contributors: Option[List[Contributor]]
+      isDatasetDownloadable: Boolean
   )
 
   case class Diff(
@@ -212,15 +188,6 @@ object DatasetResource {
       fileNodes: List[DatasetFileNode],
       size: Long
   )
-
-  case class Contributor(
-      name: String,
-      creator: Boolean,
-      role: String,
-      affiliation: String,
-      email: String
-  )
-
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -251,15 +218,13 @@ class DatasetResource {
       .getOrElse(PrivilegeEnum.READ)
 
     val isOwner = requesterUid.contains(targetDataset.getOwnerUid)
-    val contributors = DatasetResource.getContributorsByDid(did)
 
     DashboardDataset(
       targetDataset,
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
       isOwner,
-      LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName),
-      contributors = Some(contributors)
+      LakeFSStorageClient.retrieveRepositorySize(targetDataset.getRepositoryName)
     )
   }
 
@@ -274,15 +239,12 @@ class DatasetResource {
 
     withTransaction(context) { ctx =>
       val uid = user.getUid
-      val datasetDao: DatasetDao = new DatasetDao(ctx.configuration())
       val datasetUserAccessDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
-      val datasetContributorDao = new DatasetContributorDao(ctx.configuration())
 
       val datasetName = request.datasetName
       val datasetDescription = request.datasetDescription
       val isDatasetPublic = request.isDatasetPublic
       val isDatasetDownloadable = request.isDatasetDownloadable
-      val contributors = request.contributors
 
       // validate dataset name
       try {
@@ -317,20 +279,6 @@ class DatasetResource {
         .returning()
         .fetchOne()
 
-      val did = createdDataset.getDid
-
-      // insert contributors
-      contributors.getOrElse(List()).foreach { contributor =>
-        val datasetContributor = new DatasetContributor()
-        datasetContributor.setDid(did)
-        datasetContributor.setName(contributor.name)
-        datasetContributor.setCreator(contributor.creator)
-        datasetContributor.setRole(ContributorRoleEnum.lookupLiteral(contributor.role))
-        datasetContributor.setAffiliation(contributor.affiliation)
-        datasetContributor.setEmail(contributor.email)
-        datasetContributorDao.insert(datasetContributor)
-      }
-
       // Initialize the repository in LakeFS
       val repositoryName = s"dataset-${createdDataset.getDid}"
       try {
@@ -358,21 +306,11 @@ class DatasetResource {
       datasetUserAccessDao.insert(datasetUserAccess)
 
       DashboardDataset(
-        new Dataset(
-          createdDataset.getDid,
-          createdDataset.getOwnerUid,
-          createdDataset.getName,
-          createdDataset.getIsPublic,
-          createdDataset.getIsDownloadable,
-          createdDataset.getDescription,
-          createdDataset.getCreationTime,
-          createdDataset.getRepositoryName,
-        ),
+        createdDataset.into(classOf[Dataset]),
         user.getEmail,
         PrivilegeEnum.WRITE,
         isOwner = true,
-        0,
-        contributors
+        0
       )
     }
   }
@@ -1368,44 +1306,6 @@ class DatasetResource {
         .get,
       DatasetFileNode.calculateTotalSize(List(ownerFileNode))
     )
-  }
-  @PUT
-  @Path("/{did}/contributors")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def updateDatasetContributors(
-      @PathParam("did") did: Int,
-      request: java.util.Map[String, java.util.List[DatasetResource.Contributor]],
-      @Auth user: SessionUser
-  ): Response = {
-    withTransaction(context) { ctx =>
-      val datasetContributorDao = new DatasetContributorDao(ctx.configuration())
-
-      val contributors = request.get("contributors")
-      if (contributors == null) {
-        throw new BadRequestException("Missing contributors list")
-      }
-
-      // Delete existing contributors for this dataset
-      ctx
-        .delete(DATASET_CONTRIBUTOR)
-        .where(DATASET_CONTRIBUTOR.DID.eq(did))
-        .execute()
-
-      // Re-insert updated contributors
-      contributors.asScala.foreach { contributor: DatasetResource.Contributor =>
-        val datasetContributor = new DatasetContributor()
-        datasetContributor.setDid(did)
-        datasetContributor.setName(contributor.name)
-        datasetContributor.setCreator(contributor.creator)
-        datasetContributor.setRole(ContributorRoleEnum.lookupLiteral(contributor.role))
-        datasetContributor.setAffiliation(contributor.affiliation)
-        datasetContributor.setEmail(contributor.email)
-        datasetContributorDao.insert(datasetContributor)
-      }
-
-      Response.ok().build()
-    }
   }
 
   private def generatePresignedResponse(
