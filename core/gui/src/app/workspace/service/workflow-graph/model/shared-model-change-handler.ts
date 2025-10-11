@@ -153,9 +153,12 @@ export class SharedModelChangeHandler {
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
           const newLink = this.texeraGraph.sharedModel.operatorLinkMap.get(key) as OperatorLink;
-          const jointLinkCell = JointUIService.getJointLinkCell(newLink);
-          jointElementsToAdd.push(jointLinkCell);
-          linksToAdd.push(newLink);
+          // Validate the link first
+          if (this.validateAndRepairNewLink(newLink)) {
+            const jointLinkCell = JointUIService.getJointLinkCell(newLink);
+            jointElementsToAdd.push(jointLinkCell);
+            linksToAdd.push(newLink);
+          }
         }
         if (change.action === "delete") {
           keysToDelete.push(key);
@@ -198,6 +201,33 @@ export class SharedModelChangeHandler {
       //   this.jointGraphWrapper.highlightLinks(...linksToAdd.map(link => link.linkID));
       // }
     });
+  }
+
+  /**
+   * Check the sanity of a newly added link. We have constraints on a new link (it should connect to operators and
+   * ports that exist, and it should not be duplicated with another link connecting to the same operator ports.) Such
+   * constraints are enforced if the change to the shared model comes from local UI (`WorkflowGraph.addLink()`). If
+   * the change is initiated by the `UndoManager` or from remote collaborators, however, due to the limitations of Yjs,
+   * it is not possible to check the sanity of this operation before it is applied to the shared model. To ensure the
+   * integrity of the shared model, we validate the link add operation here instead, and repair the shared model if it
+   * violates the constraints.
+   * @param newLink A new link that has already been added to the shared model
+   * @returns Whether this new link passes the sanity check. If it does, this change can be applied to the UI. Otherwise
+   *          this link is already deleted from the shared model.
+   */
+  private validateAndRepairNewLink(newLink: OperatorLink): boolean {
+    try {
+      this.texeraGraph.assertLinkNotDuplicated(newLink);
+      // Verify the link connects to operators and ports that exist.
+      this.texeraGraph.assertLinkIsValid(newLink);
+      return true;
+    } catch (error) {
+      // Invalid link, repair the shared model
+      this.texeraGraph.sharedModel.operatorLinkMap.delete(newLink.linkID);
+      // This is treated as a normal repair step and not an error.
+      console.log("failed to add link. cause: ", (error as Error).message);
+      return false;
+    }
   }
 
   /**

@@ -30,26 +30,17 @@ import io.dropwizard.setup.Environment
 @Deprecated
 object JwtAuth {
   def setupJwtAuth(environment: Environment): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      // register JWT Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]()
-            .setJwtConsumer(jwtConsumer)
-            .setRealm("realm")
-            .setPrefix("Bearer")
-            .setAuthenticator(UserAuthenticator)
-            .setAuthorizer(UserRoleAuthorizer)
-            .buildAuthFilter()
-        )
+    // register JWT Auth layer
+    environment.jersey.register(
+      new AuthDynamicFeature(
+        new JwtAuthFilter.Builder[SessionUser]()
+          .setJwtConsumer(jwtConsumer)
+          .setRealm("realm")
+          .setPrefix("Bearer")
+          .setAuthenticator(UserAuthenticator)
+          .setAuthorizer(UserRoleAuthorizer)
+          .buildAuthFilter()
       )
-    } else {
-      // register Guest Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
-        )
-      )
-    }
+    )
   }
 }
