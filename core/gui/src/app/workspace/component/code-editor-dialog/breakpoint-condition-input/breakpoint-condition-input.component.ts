@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, } from "@angular/core";
+import { Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges } from "@angular/core";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { isDefined } from "../../../../common/util/predicate";
 import { MonacoEditor } from "monaco-breakpoints/dist/types";
