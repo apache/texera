@@ -21,7 +21,7 @@ import { AfterContentInit, Component, Input } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, filter } from "rxjs/operators";
-import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()
 @Component({

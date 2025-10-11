@@ -15,17 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from itertools import islice
-from threading import RLock
-from typing import Iterator, Optional, Callable, Iterable
-from typing import TypeVar
-from urllib.parse import ParseResult, urlparse
-
 import pyarrow as pa
+from itertools import islice
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
 from readerwriterlock import rwlock
+from threading import RLock
+from typing import Iterator, Optional, Callable, Iterable
+from typing import TypeVar
+from urllib.parse import ParseResult, urlparse
 
 from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.iceberg.iceberg_table_writer import IcebergTableWriter

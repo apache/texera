@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, ComponentRef, ChangeDetectorRef, OnInit, OnDestroy } from "@angular/core";
+import { ChangeDetectorRef, Component, ComponentRef, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component";

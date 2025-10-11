@@ -17,6 +17,7 @@
 
 from dataclasses import dataclass
 from pyarrow.lib import Table
+
 from core.models.state import State
 
 

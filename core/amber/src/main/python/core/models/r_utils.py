@@ -18,8 +18,9 @@
 import rpy2
 import rpy2.rinterface as rinterface
 import rpy2.robjects as robjects
-from core.models import Tuple
 import warnings
+
+from core.models import Tuple
 
 warnings.filterwarnings(action="ignore", category=UserWarning, module=r"rpy2*")
 

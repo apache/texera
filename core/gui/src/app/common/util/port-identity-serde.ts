@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-import { PortIdentity } from "../type/proto/edu/uci/ics/amber/engine/common/workflow";
+import { PortIdentity } from "../type/proto/org/apache/amber/engine/common/workflow";
 
 /**
  * Serializes a PortIdentity object to a string in the format "{isInput}-{id}-{internal}"
  * @param portIdentity The PortIdentity object to serialize
  * @returns A string representation of the PortIdentity (e.g., "1-true", "2-false")
- * This is aligned with the backend serializer: core/workflow-core/src/main/scala/edu/uci/ics/amber/util/serde/PortIdentityKeySerializer.scala
+ * This is aligned with the backend serializer: core/workflow-core/src/main/scala/org/apache/amber/util/serde/PortIdentityKeySerializer.scala
  */
 export function serializePortIdentity(portIdentity: PortIdentity): string {
   return `${portIdentity.id}_${portIdentity.internal}`;

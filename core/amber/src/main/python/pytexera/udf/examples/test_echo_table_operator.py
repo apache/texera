@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import deque
-
 import pytest
+from collections import deque
 
 from core.models.table import all_output_to_tuple
 from pytexera import Tuple

@@ -17,14 +17,10 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { NgxFileDropEntry } from "ngx-file-drop";
-import {
-  DatasetVersionFileTreeManager,
-  DatasetFileNode,
-  getPathsUnderOrEqualDatasetFileNode,
-} from "../../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";

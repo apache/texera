@@ -19,12 +19,12 @@ import threading
 import typing
 from collections import OrderedDict
 from itertools import chain
+from loguru import logger
+from pyarrow import Table
 from queue import Queue
 from threading import Thread
 from typing import Iterable, Iterator
-
-from loguru import logger
-from pyarrow import Table
+from typing import Union
 
 from core.architecture.packaging.input_manager import WorkerPort, Channel
 from core.architecture.sendsemantics.broad_cast_partitioner import (
@@ -42,8 +42,8 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
     RoundRobinPartitioner,
 )
 from core.models import Tuple, Schema, StateFrame
-from core.models.state import State
 from core.models.payload import DataPayload, DataFrame
+from core.models.state import State
 from core.storage.document_factory import DocumentFactory
 from core.storage.runnables.port_storage_writer import (
     PortStorageWriter,
@@ -51,14 +51,14 @@ from core.storage.runnables.port_storage_writer import (
 )
 from core.util import get_one_of
 from core.util.virtual_identity import get_worker_index
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     ActorVirtualIdentity,
     PhysicalLink,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
     Partitioning,
@@ -66,7 +66,6 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
-from typing import Union
 
 
 class OutputManager:

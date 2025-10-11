@@ -23,7 +23,7 @@ from core.util.virtual_identity import (
     serialize_global_port_identity,
     deserialize_global_port_identity,
 )
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     WorkflowIdentity,
     ExecutionIdentity,
     GlobalPortIdentity,

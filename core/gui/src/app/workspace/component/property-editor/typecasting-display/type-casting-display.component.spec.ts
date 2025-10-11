@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 
 import { TypeCastingDisplayComponent } from "./type-casting-display.component";

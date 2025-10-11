@@ -16,19 +16,19 @@
 # under the License.
 
 import typing
+from overrides import overrides
 from typing import Iterator
 
-from overrides import overrides
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
 from core.models.state import State
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.amber.core import ActorVirtualIdentity
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
     Partitioning,
 )
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
 
 
 class OneToOnePartitioner(Partitioner):

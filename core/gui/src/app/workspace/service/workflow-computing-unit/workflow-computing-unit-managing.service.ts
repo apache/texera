@@ -27,7 +27,6 @@ import {
   WorkflowComputingUnitResourceLimit,
   WorkflowComputingUnitType,
 } from "../../types/workflow-computing-unit";
-import { assert } from "../../../common/util/assert";
 import { map } from "rxjs/operators";
 
 export const COMPUTING_UNIT_BASE_URL = "computing-unit";

@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { firstValueFrom, Observable, of } from "rxjs";
+import { Observable, of } from "rxjs";
 import { SearchResult } from "../../type/search-result";
 import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
 import { DashboardEntry, UserInfo } from "../../type/dashboard-entry";

@@ -66,6 +66,10 @@ data:
                       - name: envoy.filters.http.ext_authz
                         typed_config:
                           "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                          with_request_body:
+                            # Max allowed by Envoy (uint32): 4,294,967,295 bytes (~4 GiB)
+                            max_request_bytes: 4294967295
+                            allow_partial_message: true     # forward partial body if larger than limit
                           http_service:
                             server_uri:
                               uri: http://{{ .Release.Name }}-{{ .Values.accessControlService.name }}-svc.{{ .Release.Namespace }}.svc.cluster.local

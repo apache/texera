@@ -18,10 +18,10 @@
 import os
 import sys
 import traceback
-from threading import Event
-
 from loguru import logger
+from threading import Event
 from typing import Iterator, Optional
+
 from core.architecture.managers import Context
 from core.models import ExceptionInfo, State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel
@@ -30,7 +30,7 @@ from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )

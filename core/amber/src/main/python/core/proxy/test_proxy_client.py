@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from queue import Queue
-
 import pytest
 from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
+from queue import Queue
 
 from .proxy_client import ProxyClient
 from .proxy_server import ProxyServer

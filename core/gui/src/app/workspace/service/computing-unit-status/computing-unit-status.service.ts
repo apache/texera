@@ -18,8 +18,8 @@
  */
 
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, Observable, interval, Subscription, Subject, timer, of, merge, forkJoin } from "rxjs";
-import { filter, map, switchMap, tap, take, mergeMap, catchError, distinctUntilChanged } from "rxjs/operators";
+import { BehaviorSubject, interval, Observable, of, Subject, Subscription } from "rxjs";
+import { catchError, distinctUntilChanged, filter, map, switchMap, take, tap } from "rxjs/operators";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { WorkflowComputingUnitManagingService } from "../workflow-computing-unit/workflow-computing-unit-managing.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";

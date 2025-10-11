@@ -28,7 +28,7 @@ interface OpenAIResponse {
 
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { firstValueFrom, of, catchError, Observable } from "rxjs";
+import { catchError, Observable, of } from "rxjs";
 import { map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { AppSettings } from "../../../common/app-setting";

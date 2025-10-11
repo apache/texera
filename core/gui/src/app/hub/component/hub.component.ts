@@ -20,8 +20,8 @@
 import { Component, Input } from "@angular/core";
 import {
   DASHBOARD_HOME,
-  DASHBOARD_HUB_WORKFLOW_RESULT,
   DASHBOARD_HUB_DATASET_RESULT,
+  DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";

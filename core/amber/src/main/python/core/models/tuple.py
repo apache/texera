@@ -16,19 +16,18 @@
 # under the License.
 
 import ctypes
+import pandas
+import pickle
+import pyarrow
 import struct
 import typing
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, List, Iterator, Callable
-
-from typing_extensions import Protocol, runtime_checkable
-import pandas
-import pickle
-import pyarrow
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
+from typing import Any, List, Iterator, Callable
+from typing_extensions import Protocol, runtime_checkable
 
 from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
 from .schema.field import Field
