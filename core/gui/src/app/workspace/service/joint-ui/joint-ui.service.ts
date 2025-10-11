@@ -472,44 +472,6 @@ export class JointUIService {
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
   }
 
-  public getBreakpointButton(): new () => joint.linkTools.Button {
-    return joint.linkTools.Button.extend({
-      name: "info-button",
-      options: {
-        markup: [
-          {
-            tagName: "circle",
-            selector: "info-button",
-            attributes: {
-              r: 10,
-              fill: "#001DFF",
-              cursor: "pointer",
-            },
-          },
-          {
-            tagName: "path",
-            selector: "icon",
-            attributes: {
-              d: "M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4",
-              fill: "none",
-              stroke: "#FFFFFF",
-              "stroke-width": 2,
-              "pointer-events": "none",
-            },
-          },
-        ],
-        distance: 60,
-        offset: 0,
-        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
-          // when this button is clicked, it triggers an joint paper event
-          if (linkView.paper) {
-            linkView.paper.trigger("tool:breakpoint", linkView, event);
-          }
-        },
-      },
-    });
-  }
-
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
     if (commentBox.commentBoxPosition) basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);

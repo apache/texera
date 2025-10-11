@@ -67,6 +67,15 @@
     (nzVisibleChange)="onDropdownVisibilityChange($event)"
     class="computing-units-dropdown-button">
     <div class="button-content">
+      <texera-user-avatar
+        *ngIf="selectedComputingUnit"
+        [googleAvatar]="selectedComputingUnit ? selectedComputingUnit.ownerGoogleAvatar : ''"
+        userColor="grey"
+        [userName]="selectedComputingUnit ? selectedComputingUnit.ownerName : ''"
+        [style.transform]="'scale(0.65)'"
+        [style.opacity]="0.7"
+        [style.padding-right.px]="2">
+      </texera-user-avatar>
       <nz-badge
         [nzStatus]="computeStatus()"
         [nz-tooltip]="selectedComputingUnit ? selectedComputingUnit.status : ''"
@@ -106,6 +115,13 @@
         [nz-tooltip]="cannotSelectUnit(unit) ? getUnitStatusTooltip(unit) + '. Cannot select.' : ''"
         (click)="selectedComputingUnit = unit; selectComputingUnit(this.workflowId, unit?.computingUnit?.cuid)">
         <div class="computing-unit-row">
+          <texera-user-avatar
+            [googleAvatar]="unit.ownerGoogleAvatar"
+            userColor="grey"
+            [userName]="unit.ownerName || ''"
+            [style.transform]="'scale(0.65)'"
+            [style.opacity]="0.7">
+          </texera-user-avatar>
           <div class="computing-unit-name">
             <nz-badge
               [nzColor]="getBadgeColor(unit.status)"

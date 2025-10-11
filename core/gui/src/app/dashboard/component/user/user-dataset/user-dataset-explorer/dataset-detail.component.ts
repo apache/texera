@@ -61,6 +61,7 @@ export class DatasetDetailComponent implements OnInit {
   public datasetIsPublic: boolean = false;
   public datasetIsDownloadable: boolean = true;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
+  public ownerEmail: string = "";
   public isOwner: boolean = false;
 
   public currentDisplayedFileName: string = "";
@@ -85,11 +86,18 @@ export class DatasetDetailComponent implements OnInit {
   public displayPreciseViewCount = false;
 
   userHasPendingChanges: boolean = false;
+  pendingChangesCount: number = 0;
+
   // Uploading setting
   chunkSizeMiB: number = 50;
   maxConcurrentChunks: number = 10;
   private uploadSubscriptions = new Map<string, Subscription>();
   uploadTimeMap = new Map<string, number>();
+
+  // Cap number of concurrent files uploads
+  maxConcurrentFiles: number = 3;
+  private activeUploads: number = 0;
+  private pendingQueue: Array<{ fileName: string; startUpload: () => void }> = [];
 
   versionName: string = "";
   isCreatingVersion: boolean = false;
@@ -100,7 +108,6 @@ export class DatasetDetailComponent implements OnInit {
       filePath: string;
     }
   > = [];
-  private autoHideTimers: number[] = [];
 
   @Output() userMakeChanges = new EventEmitter<void>();
 
@@ -270,6 +277,7 @@ export class DatasetDetailComponent implements OnInit {
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
           this.datasetIsPublic = dataset.isPublic;
           this.datasetIsDownloadable = dataset.isDownloadable;
+          this.ownerEmail = dashboardDataset.ownerEmail;
           this.isOwner = dashboardDataset.isOwner;
           if (typeof dataset.creationTime === "number") {
             const date = new Date(dataset.creationTime);
@@ -329,6 +337,7 @@ export class DatasetDetailComponent implements OnInit {
 
   onStagedObjectsUpdated(stagedObjects: DatasetStagedObject[]) {
     this.userHasPendingChanges = stagedObjects.length > 0;
+    this.pendingChangesCount = stagedObjects.length;
   }
 
   onVersionSelected(version: DatasetVersion): void {
@@ -342,7 +351,7 @@ export class DatasetDetailComponent implements OnInit {
           this.currentDatasetVersionSize = data.size;
           if (typeof version.creationTime === "number") {
             const date = new Date(version.creationTime);
-            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy");
+            this.selectedVersionCreationTime = format(date, "MM/dd/yyyy HH:mm:ss");
           }
           let currentNode = this.fileTreeNodeList[0];
           while (currentNode.type === "directory" && currentNode.children) {
@@ -385,95 +394,158 @@ export class DatasetDetailComponent implements OnInit {
       .getSetting("max_number_of_concurrent_uploading_file_chunks")
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.maxConcurrentChunks = parseInt(value)));
+    this.adminSettingsService
+      .getSetting("max_number_of_concurrent_uploading_file")
+      .pipe(untilDestroyed(this))
+      .subscribe(value => {
+        this.maxConcurrentFiles = parseInt(value);
+      });
   }
 
   onNewUploadFilesChanged(files: FileUploadItem[]) {
     if (this.did) {
-      files.forEach((file, idx) => {
-        // Cancel any existing upload for the same file to prevent progress confusion
-        this.uploadSubscriptions.get(file.name)?.unsubscribe();
-        this.uploadSubscriptions.delete(file.name);
-        this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== file.name);
+      files.forEach(file => {
+        // Check if currently uploading
+        this.cancelExistingUpload(file.name);
 
-        // Add an initializing task placeholder to uploadTasks
-        this.uploadTasks.push({
-          filePath: file.name,
-          percentage: 0,
-          status: "initializing",
-          uploadId: "",
-          physicalAddress: "",
-        });
-        // Start multipart upload
-        const subscription = this.datasetService
-          .multipartUpload(
-            this.datasetName,
-            file.name,
-            file.file,
-            this.chunkSizeMiB * 1024 * 1024,
-            this.maxConcurrentChunks
-          )
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: progress => {
-              // Find the task
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+        // Create upload function
+        const startUpload = () => {
+          this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== file.name);
 
-              if (taskIndex !== -1) {
-                // Update the task with new progress info
-                this.uploadTasks[taskIndex] = {
-                  ...this.uploadTasks[taskIndex],
-                  ...progress,
-                  percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
-                };
+          // Add an initializing task placeholder to uploadTasks
+          this.uploadTasks.unshift({
+            filePath: file.name,
+            percentage: 0,
+            status: "initializing",
+            uploadId: "",
+            physicalAddress: "",
+          });
+          // Start multipart upload
+          const subscription = this.datasetService
+            .multipartUpload(
+              this.ownerEmail,
+              this.datasetName,
+              file.name,
+              file.file,
+              this.chunkSizeMiB * 1024 * 1024,
+              this.maxConcurrentChunks
+            )
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: progress => {
+                // Find the task
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
 
-                // Auto‑hide when upload is truly finished
-                if (progress.status === "finished" && progress.totalTime) {
-                  const filename = file.name.split("/").pop() || file.name;
-                  this.uploadTimeMap.set(filename, progress.totalTime);
-                  this.userMakeChanges.emit();
+                if (taskIndex !== -1) {
+                  // Update the task with new progress info
+                  this.uploadTasks[taskIndex] = {
+                    ...this.uploadTasks[taskIndex],
+                    ...progress,
+                    percentage: progress.percentage ?? this.uploadTasks[taskIndex].percentage ?? 0,
+                  };
+
+                  // Auto-hide when upload is truly finished
+                  if (progress.status === "finished" && progress.totalTime) {
+                    const filename = file.name.split("/").pop() || file.name;
+                    this.uploadTimeMap.set(filename, progress.totalTime);
+                    this.userMakeChanges.emit();
+                    this.scheduleHide(taskIndex);
+                    this.onUploadComplete();
+                  }
+                }
+              },
+              error: () => {
+                // Handle upload error
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+
+                if (taskIndex !== -1) {
+                  this.uploadTasks[taskIndex] = {
+                    ...this.uploadTasks[taskIndex],
+                    percentage: 100,
+                    status: "aborted",
+                  };
                   this.scheduleHide(taskIndex);
                 }
-              }
-            },
-            error: () => {
-              // Handle upload error
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                this.onUploadComplete();
+              },
+              complete: () => {
+                const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
+                if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
+                  this.uploadTasks[taskIndex].status = "finished";
+                  this.userMakeChanges.emit();
+                  this.scheduleHide(taskIndex);
+                  this.onUploadComplete();
+                }
+              },
+            });
+          // Store the subscription for later cleanup
+          this.uploadSubscriptions.set(file.name, subscription);
+        };
 
-              if (taskIndex !== -1) {
-                this.uploadTasks[taskIndex] = {
-                  ...this.uploadTasks[taskIndex],
-                  percentage: 100,
-                  status: "aborted",
-                };
-                this.scheduleHide(taskIndex);
-              }
-            },
-            complete: () => {
-              const taskIndex = this.uploadTasks.findIndex(t => t.filePath === file.name);
-              if (taskIndex !== -1 && this.uploadTasks[taskIndex].status !== "finished") {
-                this.uploadTasks[taskIndex].status = "finished";
-                this.userMakeChanges.emit();
-                this.scheduleHide(taskIndex);
-              }
-            },
-          });
-        // Store the subscription for later cleanup
-        this.uploadSubscriptions.set(file.name, subscription);
+        // Queue management
+        if (this.activeUploads < this.maxConcurrentFiles) {
+          this.activeUploads++;
+          startUpload();
+        } else {
+          this.pendingQueue.push({ fileName: file.name, startUpload });
+        }
       });
     }
   }
 
-  // Hide a task row after 5s (stores timer to clear on destroy) and clean up its subscription
+  cancelExistingUpload(fileName: string): void {
+    const task = this.uploadTasks.find(t => t.filePath === fileName);
+    if (task) {
+      if (task.status === "uploading" || task.status === "initializing") {
+        this.onClickAbortUploadProgress(task);
+        return;
+      }
+    }
+    // Remove from pending queue if present
+    this.pendingQueue = this.pendingQueue.filter(item => item.fileName !== fileName);
+  }
+
+  private processNextQueuedUpload(): void {
+    if (this.pendingQueue.length > 0 && this.activeUploads < this.maxConcurrentFiles) {
+      const next = this.pendingQueue.shift();
+      if (next) {
+        this.activeUploads++;
+        next.startUpload();
+      }
+    }
+  }
+
+  private onUploadComplete(): void {
+    this.activeUploads--;
+    this.processNextQueuedUpload();
+  }
+
+  get queuedFileNames(): string[] {
+    return this.pendingQueue.map(item => item.fileName);
+  }
+
+  get queuedCount(): number {
+    return this.pendingQueue.length;
+  }
+
+  get activeCount(): number {
+    return this.activeUploads;
+  }
+
+  get hasAnyActivity(): boolean {
+    return this.pendingChangesCount > 0 || this.activeCount > 0 || this.queuedCount > 0;
+  }
+
+  // Hide a task row after 5s
   private scheduleHide(idx: number) {
     if (idx === -1) {
       return;
     }
     const key = this.uploadTasks[idx].filePath;
     this.uploadSubscriptions.delete(key);
-    const handle = window.setTimeout(() => {
+    setTimeout(() => {
       this.uploadTasks = this.uploadTasks.filter(t => t.filePath !== key);
     }, 5000);
-    this.autoHideTimers.push(handle);
   }
 
   onClickAbortUploadProgress(task: MultipartUploadProgress & { filePath: string }) {
@@ -482,8 +554,14 @@ export class DatasetDetailComponent implements OnInit {
       subscription.unsubscribe();
       this.uploadSubscriptions.delete(task.filePath);
     }
+
+    if (task.status === "uploading" || task.status === "initializing") {
+      this.onUploadComplete();
+    }
+
     this.datasetService
       .finalizeMultipartUpload(
+        this.ownerEmail,
         this.datasetName,
         task.filePath,
         task.uploadId,
