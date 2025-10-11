@@ -24,8 +24,11 @@
   width: 100%;
 
   p {
-    word-break: break-all;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
     white-space: normal;
+    hyphens: auto;
   }
 }
 

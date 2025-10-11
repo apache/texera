@@ -57,8 +57,6 @@ class GoogleAuthResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
   def login(credential: String): TokenIssueResponse = {
-    if (!UserSystemConfig.isUserSystemEnabled)
-      throw new NotAcceptableException("User System is disabled on the backend!")
     val idToken =
       new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
         .setAudience(

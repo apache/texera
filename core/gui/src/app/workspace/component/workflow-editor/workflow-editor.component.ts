@@ -24,12 +24,7 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import {
-  deleteButtonPath,
-  fromJointPaperEvent,
-  JointUIService,
-  linkPathStrokeColor,
-} from "../../service/joint-ui/joint-ui.service";
+import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
@@ -195,23 +190,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(takeUntil(this._onProcessKeyboardActionObservable))
       .subscribe(displayParticularWorkflowVersion => {
         if (!displayParticularWorkflowVersion) {
-          // Temporarily disabling undo-redo because of a bug that can cause invalid workflow structures.
-          // TODO: enable after fixing the bug.
-          // // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
-          // if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
-          //   // UNDO
-          //   if (this.undoRedoService.canUndo()) {
-          //     this.undoRedoService.undoAction();
-          //   }
-          // } else if (
-          //   ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
-          //   ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
-          // ) {
-          //   // redo
-          //   if (this.undoRedoService.canRedo()) {
-          //     this.undoRedoService.redoAction();
-          //   }
-          // }
+          // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
+          if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+            // UNDO
+            if (this.undoRedoService.canUndo()) {
+              this.undoRedoService.undoAction();
+            }
+          } else if (
+            ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "y") ||
+            ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z")
+          ) {
+            // redo
+            if (this.undoRedoService.canRedo()) {
+              this.undoRedoService.redoAction();
+            }
+          }
           // below for future hotkeys
         }
         this._onProcessKeyboardActionObservable.complete();
@@ -1374,7 +1367,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         this.paper.translate(-targetCoord.x, -targetCoord.y);
       });
   }
-
   /**
    * Info button on link between operator shown when user hovers over links
    */
@@ -1422,9 +1414,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private static RemoveButton: new () => joint.linkTools.Button;
 
   private static getRemoveButton(): new () => joint.linkTools.Button {
-    // Check if the class has already been created.
     if (!WorkflowEditorComponent.RemoveButton) {
-      // If not, create it once and store it in the static property.
       WorkflowEditorComponent.RemoveButton = joint.linkTools.Button.extend({
         name: "remove-button",
         options: {
@@ -1433,11 +1423,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
               tagName: "circle",
               selector: "button",
               attributes: {
-                r: 10,
+                r: 9,
                 fill: "none",
                 stroke: "#D8656A",
                 "stroke-width": 2,
-                "pointer-events": "visibleStroke",
+                "pointer-events": "visibleFill",
                 cursor: "pointer",
               },
             },
@@ -1465,7 +1455,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
     }
 
-    // Return the cached class.
     return WorkflowEditorComponent.RemoveButton;
   }
 }

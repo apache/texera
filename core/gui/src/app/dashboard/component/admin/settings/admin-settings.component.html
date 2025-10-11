@@ -117,8 +117,7 @@
         <span>Hub</span>
         <nz-switch
           class="tab-switch"
-          [(ngModel)]="sidebarTabs.hub_enabled"
-          (ngModelChange)="saveTabs('hub_enabled')">
+          [(ngModel)]="sidebarTabs.hub_enabled">
         </nz-switch>
       </summary>
 
@@ -127,8 +126,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.home_enabled"
-          [nzDisabled]="!sidebarTabs.hub_enabled"
-          (ngModelChange)="saveTabs('home_enabled')">
+          [nzDisabled]="!sidebarTabs.hub_enabled">
         </nz-switch>
       </div>
 
@@ -137,8 +135,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.workflow_enabled"
-          [nzDisabled]="!sidebarTabs.hub_enabled"
-          (ngModelChange)="saveTabs('workflow_enabled')">
+          [nzDisabled]="!sidebarTabs.hub_enabled">
         </nz-switch>
       </div>
 
@@ -147,8 +144,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.dataset_enabled"
-          [nzDisabled]="!sidebarTabs.hub_enabled"
-          (ngModelChange)="saveTabs('dataset_enabled')">
+          [nzDisabled]="!sidebarTabs.hub_enabled">
         </nz-switch>
       </div>
     </details>
@@ -163,8 +159,7 @@
         <span>Your Work</span>
         <nz-switch
           class="tab-switch"
-          [(ngModel)]="sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('your_work_enabled')">
+          [(ngModel)]="sidebarTabs.your_work_enabled">
         </nz-switch>
       </summary>
 
@@ -173,8 +168,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.projects_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('projects_enabled')">
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
 
@@ -183,8 +177,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.workflows_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('workflows_enabled')">
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
 
@@ -193,8 +186,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.datasets_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('datasets_enabled')">
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
 
@@ -203,8 +195,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.quota_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('quota_enabled')">
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
 
@@ -213,8 +204,7 @@
         <nz-switch
           class="tab-switch"
           [(ngModel)]="sidebarTabs.forum_enabled"
-          [nzDisabled]="!sidebarTabs.your_work_enabled"
-          (ngModelChange)="saveTabs('forum_enabled')">
+          [nzDisabled]="!sidebarTabs.your_work_enabled">
         </nz-switch>
       </div>
     </details>
@@ -223,12 +213,17 @@
       <span>About</span>
       <nz-switch
         class="tab-switch"
-        [(ngModel)]="sidebarTabs.about_enabled"
-        (ngModelChange)="saveTabs('about_enabled')">
+        [(ngModel)]="sidebarTabs.about_enabled">
       </nz-switch>
     </div>
 
     <div class="button-row">
+      <button
+        nz-button
+        nzType="primary"
+        (click)="saveTabs()">
+        Save
+      </button>
       <button
         nz-button
         nzType="default"

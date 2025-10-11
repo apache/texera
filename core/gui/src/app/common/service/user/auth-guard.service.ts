@@ -35,7 +35,7 @@ export class AuthGuardService implements CanActivate {
     private config: GuiConfigService
   ) {}
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
-    if (this.userService.isLogin() || !this.config.env.userSystemEnabled) {
+    if (this.userService.isLogin()) {
       return true;
     } else {
       this.router.navigate([DASHBOARD_ABOUT], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });

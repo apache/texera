@@ -170,19 +170,19 @@ export class AdminSettingsComponent implements OnInit {
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 
-  saveTabs(tab: keyof SidebarTabs): void {
-    const displayTab = tab
-      .replace("_enabled", "")
-      .split("_")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+  saveTabs(): void {
+    const saveRequests = (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).map(tab =>
+      this.adminSettingsService.updateSetting(tab, this.sidebarTabs[tab].toString())
+    );
 
-    this.adminSettingsService
-      .updateSetting(tab, this.sidebarTabs[tab].toString())
+    forkJoin(saveRequests)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.message.success(`${displayTab} tab saved successfully.`),
-        error: () => this.message.error(`Failed to save ${displayTab} tab.`),
+        next: () => {
+          this.message.success("Tabs saved successfully.");
+          setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+        },
+        error: () => this.message.error("Failed to save tabs."),
       });
   }
 

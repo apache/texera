@@ -27,7 +27,6 @@ object UserSystemConfig {
   private val logger = Logger.getLogger(getClass.getName)
 
   // User system
-  val isUserSystemEnabled: Boolean = conf.getBoolean("user-sys.enabled")
   val adminUsername: String = conf.getString("user-sys.admin-username")
   val adminPassword: String = conf.getString("user-sys.admin-password")
   val googleClientId: String = conf.getString("user-sys.google.clientId")
