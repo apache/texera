@@ -1,0 +1,1 @@
+../../../../core/scripts/sql/iceberg_postgres_catalog.sql

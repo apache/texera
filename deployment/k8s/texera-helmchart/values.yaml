@@ -157,6 +157,14 @@ configService:
     type: ClusterIP
     port: 9094
 
+accessControlService:
+  name: access-control-service
+  numOfPods: 1
+  imageName: texera/access-control-service:cluster
+  service:
+    type: ClusterIP
+    port: 9096
+
 # Configs of the envoy proxy, used to routerequests to the computing units
 envoy:
   replicas: 1
@@ -302,6 +310,7 @@ metrics-server:
 # Custom Ingress resource configs
 ingressPaths:
   enabled: true
+  ingressClassName: nginx  # Set to "alb" when deploying on AWS
   hostname: ""
   # Optional TLS secret (manually created)
   tlsSecretName: ""  # e.g., "texera-tls"

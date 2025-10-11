@@ -41,6 +41,7 @@ import {
   DASHBOARD_USER_WORKFLOW,
 } from "../../app-routing.constant";
 import { Version } from "../../../environments/version";
+import { SidebarTabs } from "../../common/type/gui-config";
 
 @Component({
   selector: "texera-dashboard",
@@ -57,10 +58,22 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollapsed: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
   logo: string = "";
   miniLogo: string = "";
+  sidebarTabs: SidebarTabs = {
+    hub_enabled: false,
+    home_enabled: false,
+    workflow_enabled: false,
+    dataset_enabled: false,
+    your_work_enabled: false,
+    projects_enabled: false,
+    workflows_enabled: false,
+    datasets_enabled: false,
+    quota_enabled: false,
+    forum_enabled: false,
+    about_enabled: false,
+  };
 
   protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
@@ -122,6 +135,8 @@ export class DashboardComponent implements OnInit {
     });
 
     this.loadLogos();
+
+    this.loadTabs();
   }
 
   loadLogos(): void {
@@ -145,6 +160,15 @@ export class DashboardComponent implements OnInit {
       .subscribe(dataUri => {
         document.querySelectorAll("link[rel*='icon']").forEach(el => ((el as HTMLLinkElement).href = dataUri));
       });
+  }
+
+  loadTabs(): void {
+    (Object.keys(this.sidebarTabs) as (keyof SidebarTabs)[]).forEach(tab => {
+      this.adminSettingsService
+        .getSetting(tab)
+        .pipe(untilDestroyed(this))
+        .subscribe(value => (this.sidebarTabs[tab] = value === "true"));
+    });
   }
 
   forumLogin() {
@@ -176,10 +200,9 @@ export class DashboardComponent implements OnInit {
   }
 
   isNavbarEnabled(currentRoute: string) {
-    for (const routeWithoutNavbar of this.routesWithoutNavbar) {
-      if (currentRoute.includes(routeWithoutNavbar)) {
-        return false;
-      }
+    // Hide navbar for workflow workspace pages (with numeric ID)
+    if (currentRoute.match(/\/dashboard\/user\/workflow\/\d+/)) {
+      return false;
     }
     return true;
   }

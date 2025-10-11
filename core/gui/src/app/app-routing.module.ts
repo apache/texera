@@ -49,9 +49,7 @@ const rootRedirectGuard: CanActivateFn = () => {
   const config = inject(GuiConfigService);
   const router = inject(Router);
   try {
-    if (config.env.userSystemEnabled) {
-      return router.parseUrl(DASHBOARD_ABOUT);
-    }
+    return router.parseUrl(DASHBOARD_ABOUT);
   } catch {
     // config not loaded yet, swallow the error and let the app handle it
   }
@@ -116,12 +114,12 @@ routes.push({
           component: UserProjectSectionComponent,
         },
         {
-          path: "workspace/:id",
-          component: WorkspaceComponent,
-        },
-        {
           path: "workflow",
           component: UserWorkflowComponent,
+        },
+        {
+          path: "workflow/:id",
+          component: WorkspaceComponent,
         },
         {
           path: "dataset",

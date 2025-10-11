@@ -19,8 +19,12 @@
 
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSResourceType, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  VFSResourceType,
+  VFSURIFactory
+}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.virtualidentity._
 import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
@@ -28,13 +32,13 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, Repla
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.auth.SessionUser
-import edu.uci.ics.texera.config.UserSystemConfig
-import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
@@ -102,24 +106,145 @@ object WorkflowExecutionsResource {
     }
   }
 
+  /**
+    * Computes which operators in a workflow are restricted due to dataset access controls.
+    *
+    * This function:
+    * 1. Parses the workflow JSON to find all operators and their dataset dependencies
+    * 2. Identifies operators using non-downloadable datasets that the user doesn't own
+    * 3. Uses BFS to propagate restrictions through the workflow graph
+    * 4. Returns a map of operator IDs to the restricted datasets they depend on
+    *
+    * @param wid The workflow ID
+    * @param currentUser The current user making the export request
+    * @return Map of operator ID -> Set of (ownerEmail, datasetName) tuples that block its export
+    */
+  private def getNonDownloadableOperatorMap(
+      wid: Int,
+      currentUser: UserPojo
+  ): Map[String, Set[(String, String)]] = {
+    // Load workflow
+    val workflowRecord = context
+      .select(WORKFLOW.CONTENT)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid).and(WORKFLOW.CONTENT.isNotNull).and(WORKFLOW.CONTENT.ne("")))
+      .fetchOne()
+
+    if (workflowRecord == null) {
+      return Map.empty
+    }
+
+    val content = workflowRecord.value1()
+
+    val rootNode =
+      try {
+        objectMapper.readTree(content)
+      } catch {
+        case _: Exception => return Map.empty
+      }
+
+    val operatorsNode = rootNode.path("operators")
+    val linksNode = rootNode.path("links")
+
+    // Collect all datasets used by operators (that user doesn't own)
+    val operatorDatasets = mutable.Map.empty[String, (String, String)]
+
+    operatorsNode.elements().asScala.foreach { operatorNode =>
+      val operatorId = operatorNode.path("operatorID").asText("")
+      if (operatorId.nonEmpty) {
+        val fileNameNode = operatorNode.path("operatorProperties").path("fileName")
+        if (fileNameNode.isTextual) {
+          FileResolver.parseDatasetOwnerAndName(fileNameNode.asText()).foreach {
+            case (ownerEmail, datasetName) =>
+              val isOwner =
+                Option(currentUser.getEmail)
+                  .exists(_.equalsIgnoreCase(ownerEmail))
+              if (!isOwner) {
+                operatorDatasets.update(operatorId, (ownerEmail, datasetName))
+              }
+          }
+        }
+      }
+    }
+
+    if (operatorDatasets.isEmpty) {
+      return Map.empty
+    }
+
+    // Query all datasets
+    val uniqueDatasets = operatorDatasets.values.toSet
+    val conditions = uniqueDatasets.map {
+      case (ownerEmail, datasetName) =>
+        USER.EMAIL.equalIgnoreCase(ownerEmail).and(DATASET.NAME.equalIgnoreCase(datasetName))
+    }
+
+    val nonDownloadableDatasets = context
+      .select(USER.EMAIL, DATASET.NAME)
+      .from(DATASET)
+      .join(USER)
+      .on(DATASET.OWNER_UID.eq(USER.UID))
+      .where(conditions.reduce((a, b) => a.or(b)))
+      .and(DATASET.IS_DOWNLOADABLE.eq(false))
+      .fetch()
+      .asScala
+      .map(record => (record.value1(), record.value2()))
+      .toSet
+
+    // Filter to only operators with non-downloadable datasets
+    val restrictedSourceMap = operatorDatasets.filter {
+      case (_, dataset) =>
+        nonDownloadableDatasets.contains(dataset)
+    }
+
+    // Build dependency graph
+    val adjacency = mutable.Map.empty[String, mutable.ListBuffer[String]]
+
+    linksNode.elements().asScala.foreach { linkNode =>
+      val sourceId = linkNode.path("source").path("operatorID").asText("")
+      val targetId = linkNode.path("target").path("operatorID").asText("")
+      if (sourceId.nonEmpty && targetId.nonEmpty) {
+        adjacency.getOrElseUpdate(sourceId, mutable.ListBuffer.empty[String]) += targetId
+      }
+    }
+
+    // BFS to propagate restrictions
+    val restrictionMap = mutable.Map.empty[String, Set[(String, String)]]
+    val queue = mutable.Queue.empty[(String, Set[(String, String)])]
+
+    restrictedSourceMap.foreach {
+      case (operatorId, dataset) =>
+        queue.enqueue(operatorId -> Set(dataset))
+    }
+
+    while (queue.nonEmpty) {
+      val (currentOperatorId, datasetSet) = queue.dequeue()
+      val existing = restrictionMap.getOrElse(currentOperatorId, Set.empty)
+      val merged = existing ++ datasetSet
+      if (merged != existing) {
+        restrictionMap.update(currentOperatorId, merged)
+        adjacency
+          .get(currentOperatorId)
+          .foreach(_.foreach(nextOperator => queue.enqueue(nextOperator -> merged)))
+      }
+    }
+
+    restrictionMap.toMap
+  }
+
   def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity,
       uri: URI
   ): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .insertInto(OPERATOR_PORT_EXECUTIONS)
-        .columns(
-          OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-          OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-          OPERATOR_PORT_EXECUTIONS.RESULT_URI
-        )
-        .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
-        .execute()
-    } else {
-      ExecutionResourcesMapping.addResourceUri(eid, uri)
-    }
+    context
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .columns(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .values(eid.id.toInt, globalPortId.serializeAsString, uri.toString)
+      .execute()
   }
 
   def insertOperatorExecutions(
@@ -158,45 +283,37 @@ object WorkflowExecutionsResource {
   }
 
   def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .filter(uri => uri != null && uri.nonEmpty)
-        .map(URI.create)
-    } else {
-      ExecutionResourcesMapping.getResourceURIs(eid)
-    }
+    context
+      .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .fetchInto(classOf[String])
+      .asScala
+      .toList
+      .filter(uri => uri != null && uri.nonEmpty)
+      .map(URI.create)
   }
 
   def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
-    if (UserSystemConfig.isUserSystemEnabled)
-      context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
-        .from(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .filter(uri => uri != null && uri.nonEmpty)
-        .map(URI.create)
-    else Nil
+    context
+      .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .fetchInto(classOf[String])
+      .asScala
+      .toList
+      .filter(uri => uri != null && uri.nonEmpty)
+      .map(URI.create)
 
   def getRuntimeStatsUriByExecutionId(eid: ExecutionIdentity): Option[URI] =
-    if (UserSystemConfig.isUserSystemEnabled)
-      Option(
-        context
-          .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
-          .from(WORKFLOW_EXECUTIONS)
-          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-          .fetchOneInto(classOf[String])
-      ).filter(_.nonEmpty)
-        .map(URI.create)
-    else None
+    Option(
+      context
+        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+        .from(WORKFLOW_EXECUTIONS)
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .fetchOneInto(classOf[String])
+    ).filter(_.nonEmpty)
+      .map(URI.create)
 
   def getWorkflowExecutions(
       wid: Integer,
@@ -239,18 +356,14 @@ object WorkflowExecutionsResource {
   }
 
   def deleteConsoleMessageAndExecutionResultUris(eid: ExecutionIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      context
-        .delete(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .execute()
-      context
-        .delete(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .execute()
-    } else {
-      ExecutionResourcesMapping.removeExecutionResources(eid)
-    }
+    context
+      .delete(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .execute()
+    context
+      .delete(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .execute()
   }
 
   /**
@@ -316,22 +429,20 @@ object WorkflowExecutionsResource {
     * @param eid Execution ID associated with the runtime statistics document.
     */
   def updateRuntimeStatsSize(eid: ExecutionIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val statsUriOpt = context
-        .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
-        .from(WORKFLOW_EXECUTIONS)
-        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-        .fetchOptionalInto(classOf[String])
-        .map(URI.create)
+    val statsUriOpt = context
+      .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+      .fetchOptionalInto(classOf[String])
+      .map(URI.create)
 
-      if (statsUriOpt.isPresent) {
-        val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
-        context
-          .update(WORKFLOW_EXECUTIONS)
-          .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
-          .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
-          .execute()
-      }
+    if (statsUriOpt.isPresent) {
+      val size = DocumentFactory.openDocument(statsUriOpt.get)._1.getTotalFileSize
+      context
+        .update(WORKFLOW_EXECUTIONS)
+        .set(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE, Integer.valueOf(size.toInt))
+        .where(WORKFLOW_EXECUTIONS.EID.eq(eid.id.toInt))
+        .execute()
     }
   }
 
@@ -342,24 +453,22 @@ object WorkflowExecutionsResource {
     * @param opId Operator ID of the corresponding operator.
     */
   def updateConsoleMessageSize(eid: ExecutionIdentity, opId: OperatorIdentity): Unit = {
-    if (UserSystemConfig.isUserSystemEnabled) {
-      val uriOpt = context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
-        .from(OPERATOR_EXECUTIONS)
+    val uriOpt = context
+      .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+      .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+      .fetchOptionalInto(classOf[String])
+      .map(URI.create)
+
+    if (uriOpt.isPresent) {
+      val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
+      context
+        .update(OPERATOR_EXECUTIONS)
+        .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
         .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
         .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-        .fetchOptionalInto(classOf[String])
-        .map(URI.create)
-
-      if (uriOpt.isPresent) {
-        val size = DocumentFactory.openDocument(uriOpt.get)._1.getTotalFileSize
-        context
-          .update(OPERATOR_EXECUTIONS)
-          .set(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE, Integer.valueOf(size.toInt))
-          .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-          .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
-          .execute()
-      }
+        .execute()
     }
   }
 
@@ -368,7 +477,6 @@ object WorkflowExecutionsResource {
     * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
     * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
     * TODO: Optimize the lookup once the frontend also has information about physical operators.
-    * TODO: Remove the case of using ExecutionResourceMapping when user system is permenantly enabled even in dev mode.
     */
   def getResultUriByLogicalPortId(
       eid: ExecutionIdentity,
@@ -386,18 +494,14 @@ object WorkflowExecutionsResource {
     }
 
     val urisOfEid: List[URI] =
-      if (UserSystemConfig.isUserSystemEnabled) {
-        context
-          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-          .from(OPERATOR_PORT_EXECUTIONS)
-          .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-          .fetchInto(classOf[String])
-          .asScala
-          .toList
-          .map(URI.create)
-      } else {
-        ExecutionResourcesMapping.getResourceURIs(eid)
-      }
+      context
+        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
+        .fetchInto(classOf[String])
+        .asScala
+        .toList
+        .map(URI.create)
 
     urisOfEid.find(isMatchingExternalPortURI)
   }
@@ -687,6 +791,37 @@ class WorkflowExecutionsResource {
     executionsDao.update(execution)
   }
 
+  /**
+    * Returns which operators are restricted from export due to dataset access controls.
+    * This endpoint allows the frontend to check restrictions before attempting export.
+    *
+    * @param wid The workflow ID to check
+    * @param user The authenticated user
+    * @return JSON map of operator ID -> array of {ownerEmail, datasetName} that block its export
+    */
+  @GET
+  @Path("/{wid}/result/downloadability")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def getWorkflowResultDownloadability(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): Response = {
+    validateUserCanAccessWorkflow(user.getUser.getUid, wid)
+
+    val datasetRestrictions = getNonDownloadableOperatorMap(wid, user.user)
+
+    // Convert to frontend-friendly format: Map[operatorId -> Array[datasetLabel]]
+    val restrictionMap = datasetRestrictions.map {
+      case (operatorId, datasets) =>
+        operatorId -> datasets.map {
+          case (ownerEmail, datasetName) => s"$datasetName ($ownerEmail)"
+        }.toArray
+    }.asJava
+
+    Response.ok(restrictionMap).build()
+  }
+
   @POST
   @Path("/result/export")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -701,6 +836,35 @@ class WorkflowExecutionsResource {
         .`type`(MediaType.APPLICATION_JSON)
         .entity(Map("error" -> "No operator selected").asJava)
         .build()
+
+    // Get ALL non-downloadable in workflow
+    val datasetRestrictions = getNonDownloadableOperatorMap(request.workflowId, user.user)
+    // Filter to only user's selection
+    val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
+    // Check if any selected operator is restricted
+    if (restrictedOperators.nonEmpty) {
+      val restrictedDatasets = restrictedOperators.flatMap { op =>
+        datasetRestrictions(op.id).map {
+          case (ownerEmail, datasetName) =>
+            Map(
+              "operatorId" -> op.id,
+              "ownerEmail" -> ownerEmail,
+              "datasetName" -> datasetName
+            ).asJava
+        }
+      }
+
+      return Response
+        .status(Response.Status.FORBIDDEN)
+        .`type`(MediaType.APPLICATION_JSON)
+        .entity(
+          Map(
+            "error" -> "Export blocked due to dataset restrictions",
+            "restrictedDatasets" -> restrictedDatasets.asJava
+          ).asJava
+        )
+        .build()
+    }
 
     try {
       request.destination match {

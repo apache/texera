@@ -33,6 +33,7 @@ import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/work
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
+export const DOWNLOADABILITY_BASE_URL = "result/downloadability";
 
 interface DownloadableItem {
   blob: Blob;
@@ -42,6 +43,10 @@ interface DownloadableItem {
 export interface ExportWorkflowJsonResponse {
   status: string;
   message: string;
+}
+
+export interface WorkflowResultDownloadabilityResponse {
+  [operatorId: string]: string[]; // operatorId -> array of dataset labels blocking export
 }
 
 @Injectable({
@@ -58,8 +63,8 @@ export class DownloadService {
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
-      map(({ wid, creationTime, lastModifiedTime, ...workflowCopy }) => {
-        const workflowJson = JSON.stringify({ ...workflowCopy, readonly: false });
+      map(({ content }) => {
+        const workflowJson = JSON.stringify(content, null, 2);
         const fileName = `${name}.json`;
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };
@@ -93,11 +98,11 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string): Observable<Blob> {
+  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
     const DEFAULT_FILE_NAME = "download";
     const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
+      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
       fileName,
       `Starting to download file ${filePath}`,
       `File ${filePath} has been downloaded`,
@@ -113,6 +118,18 @@ export class DownloadService {
       "Workflows have been downloaded as ZIP",
       "Error downloading workflows as ZIP"
     );
+  }
+
+  /**
+   * Retrieves workflow result downloadability information from the backend.
+   * Returns a map of operator IDs to arrays of dataset labels that block their export.
+   *
+   * @param workflowId The workflow ID to check
+   * @returns Observable of downloadability information
+   */
+  public getWorkflowResultDownloadability(workflowId: number): Observable<WorkflowResultDownloadabilityResponse> {
+    const urlPath = `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${workflowId}/${DOWNLOADABILITY_BASE_URL}`;
+    return this.http.get<WorkflowResultDownloadabilityResponse>(urlPath);
   }
 
   /**

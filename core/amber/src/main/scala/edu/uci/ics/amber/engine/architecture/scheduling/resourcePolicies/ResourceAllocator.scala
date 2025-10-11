@@ -33,7 +33,7 @@ import java.net.URI
 import scala.collection.mutable
 
 trait ResourceAllocator {
-  def allocate(region: Region): (Region, Double)
+  def allocate(region: Region): (ResourceConfig, Double)
 }
 
 class DefaultResourceAllocator(
@@ -58,14 +58,14 @@ class DefaultResourceAllocator(
     *
     * @param region The region for which to allocate resources.
     * @return A tuple containing:
-    *         1) A new Region instance with new resource configuration.
-    *         2) An estimated cost of the workflow with the new resource configuration,
+    *         1) A resource configuration.
+    *         2) An estimated cost of the workflow with the resource configuration,
     *         represented as a Double value (currently set to 0, but will be
     *         updated in the future).
     */
   def allocate(
       region: Region
-  ): (Region, Double) = {
+  ): (ResourceConfig, Double) = {
 
     val opToOperatorConfigMapping = region.getOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
@@ -137,7 +137,7 @@ class DefaultResourceAllocator(
       portConfigs
     )
 
-    (region.copy(resourceConfig = Some(resourceConfig)), 0)
+    (resourceConfig, 0)
   }
 
   /**

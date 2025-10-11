@@ -28,6 +28,7 @@ import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/u
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
+import { checkIfWorkflowBroken } from "../../util/workflow-check";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -66,6 +67,12 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
+    if (checkIfWorkflowBroken(workflow)) {
+      this.notificationService.error(
+        "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
+      );
+    }
+
     return this.http
       .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
         wid: workflow.wid,
@@ -273,20 +280,17 @@ export class WorkflowPersistService {
   }
 
   /**
-   * retrieve the user IDs of all users with direct access (read or write) to the workflow corresponding to the wid
-   * can be used without logging in
-   * @param wid
+   * Batch-fetch the JSON sizes of workflows by their IDs.
+   * Can be used without logging in
+   *
+   * @param wids Array of workflow IDs to query.
+   * @returns An object mapping each workflow ID to its JSON size.
    */
-  public getWorkflowOwners(wid: number): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_USER_ACCESS}?wid=${wid}`);
-  }
-
-  /**
-   * Get JSON size of the workflow corresponding to the wid
-   * can be used without logging in
-   * @param wid
-   */
-  public getSize(wid: number): Observable<number> {
-    return this.http.get<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}?wid=${wid}`);
+  public getSizes(wids: number[]): Observable<Record<number, number>> {
+    let params = new HttpParams();
+    wids.forEach(wid => {
+      params = params.append("wid", wid.toString());
+    });
+    return this.http.get<Record<number, number>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_SIZE}`, { params });
   }
 }

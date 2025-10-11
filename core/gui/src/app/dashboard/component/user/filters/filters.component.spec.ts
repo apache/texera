@@ -30,6 +30,7 @@ import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
 import { FormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "src/app/common/testing/test-utils";
+import { NzModalModule } from "ng-zorro-antd/modal";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -45,7 +46,7 @@ describe("FiltersComponent", () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ...commonTestProviders,
       ],
-      imports: [NzDropDownModule, FormsModule, HttpClientTestingModule],
+      imports: [NzModalModule, NzDropDownModule, FormsModule, HttpClientTestingModule],
     }).compileComponents();
   });
 

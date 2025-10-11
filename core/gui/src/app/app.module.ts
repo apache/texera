@@ -170,11 +170,14 @@ import { ComputingUnitSelectionComponent } from "./workspace/component/power-but
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { AdminSettingsComponent } from "./dashboard/component/admin/settings/admin-settings.component";
 import { catchError, of } from "rxjs";
+import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
+import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    FormlyRepeatDndComponent,
     AdminGmailComponent,
     PublicProjectComponent,
     AppComponent,
@@ -326,6 +329,7 @@ registerLocaleData(en);
     NzEmptyModule,
     NzDividerModule,
     NzProgressModule,
+    NzInputNumberModule,
   ],
   providers: [
     provideNzI18n(en_US),

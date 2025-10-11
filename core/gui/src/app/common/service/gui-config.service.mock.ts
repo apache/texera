@@ -30,7 +30,6 @@ export class MockGuiConfigService {
   private _config: GuiConfig = {
     exportExecutionResultEnabled: false,
     autoAttributeCorrectionEnabled: false,
-    userSystemEnabled: true,
     selectingFilesFromDatasetsEnabled: false,
     localLogin: true,
     googleLogin: true,
@@ -42,17 +41,13 @@ export class MockGuiConfigService {
     timetravelEnabled: false,
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
-    singleFileUploadMaximumSizeMB: 100,
-    maxNumberOfConcurrentUploadingFileChunks: 5,
-    multipartUploadChunkSizeByte: 1048576, // 1MB
     defaultDataTransferBatchSize: 100,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,
-    hubEnabled: false,
-    forumEnabled: false,
-    projectEnabled: true,
     operatorConsoleMessageBufferSize: 1000,
     defaultLocalUser: { username: "", password: "" },
+    expirationTimeInMinutes: 2880,
+    activeTimeInMinutes: 15,
   };
 
   get env(): GuiConfig {

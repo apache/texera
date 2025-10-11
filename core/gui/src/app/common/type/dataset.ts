@@ -34,6 +34,7 @@ export interface Dataset {
   ownerUid: number | undefined;
   name: string;
   isPublic: boolean;
+  isDownloadable: boolean;
   storagePath: string | undefined;
   description: string;
   creationTime: number | undefined;

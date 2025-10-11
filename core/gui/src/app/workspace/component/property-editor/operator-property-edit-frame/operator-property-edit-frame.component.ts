@@ -461,7 +461,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
-        this.config.env.userSystemEnabled &&
         this.config.env.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
@@ -488,6 +487,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //     mappedField.wrappers?.includes("preset-wrapper")
       //   );
       // }
+
+      if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
+        mappedField.type = "repeat-section-dnd";
+        mappedField.props = {
+          ...mappedField.props,
+          reorder: () => this.onFormChanges(cloneDeep(this.formData)),
+        };
+      }
 
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
