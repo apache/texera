@@ -164,7 +164,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
-    this.handleRegionUpdate();
+    this.handleRegion();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -334,7 +334,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private handleRegionUpdate(): void {
+  private handleRegion(): void {
     const Region = joint.dia.Element.define("region", {
       attrs: {
         body: {
@@ -342,7 +342,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           stroke: "#FFD54F",
           "stroke-width": 3,
           "stroke-dasharray": "6,4",
-          pointerEvents: "none"
+          pointerEvents: "none",
+          class: "region"
         }
       }
     }, {
@@ -354,7 +355,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.executeWorkflowService.getRegionStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
-        // clear existing region shapes
         this.paper.model.getCells()
           .filter(shape => shape instanceof Region)
           .forEach(shape => shape.remove());
@@ -368,10 +368,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         });
       });
 
-    // update region shape when any operator in the region moves
-    this.paper.model.on("change:position", op => {
+    this.paper.model.on("change:position", operator => {
       regionMap
-        .filter(region => region.operators.includes(op))
+        .filter(region => region.operators.includes(operator))
         .forEach(region => this.updateRegionShape(region.regionShape, region.operators));
     });
   }

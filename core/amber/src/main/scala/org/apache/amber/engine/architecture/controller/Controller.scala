@@ -21,27 +21,21 @@ package org.apache.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
+import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.virtualidentity.ChannelIdentity
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import org.apache.amber.engine.architecture.controller.execution.OperatorExecution
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  ControlInvocation,
-  EmbeddedControlMessage
-}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{ControlInvocation, EmbeddedControlMessage}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import org.apache.amber.engine.common.ambermessage.{
-  DirectControlMessagePayload,
-  WorkflowFIFOMessage
-}
+import org.apache.amber.engine.common.ambermessage.{DirectControlMessagePayload, WorkflowFIFOMessage}
 import org.apache.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import org.apache.amber.engine.common.{CheckpointState, SerializedState}
+import org.apache.texera.web.SessionState
+
 import scala.concurrent.duration.DurationInt
 
 object ControllerConfig {
