@@ -19,7 +19,7 @@
 
 import { Injectable } from "@angular/core";
 
-import { Observable, of, throwError } from "rxjs";
+import { Observable, of } from "rxjs";
 import { User } from "../../type/user";
 import { PublicInterfaceOf } from "../../util/stub";
 import { AuthService } from "./auth.service";

@@ -26,8 +26,8 @@ import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.i
 import {
   Comment,
   CommentBox,
-  OperatorLink,
   LogicalPort,
+  OperatorLink,
   OperatorPredicate,
   Point,
   PortDescription,
@@ -43,7 +43,6 @@ import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
-import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";

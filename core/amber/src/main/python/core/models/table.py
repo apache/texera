@@ -15,13 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pandas
+from pampy import match
 from typing import Iterator, TypeVar, List
 
-from pampy import match
-import pandas
-
 from core.models import Tuple, TupleLike
-
 
 TableLike = TypeVar("TableLike", pandas.DataFrame, List[TupleLike])
 

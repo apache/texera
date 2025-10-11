@@ -20,13 +20,12 @@
 import {
   ChangeDetectorRef,
   Component,
-  OnInit,
-  Type,
+  ElementRef,
   HostListener,
   OnDestroy,
+  OnInit,
+  Type,
   ViewChild,
-  ElementRef,
-  AfterViewInit,
 } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -46,7 +45,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
-import { CdkDragEnd, CdkDragStart } from "@angular/cdk/drag-drop";
+import { CdkDragEnd } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";

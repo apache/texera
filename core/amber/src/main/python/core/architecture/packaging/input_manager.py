@@ -16,20 +16,21 @@
 # under the License.
 
 import threading
-from typing import Iterator, Optional, Union, Dict, List, Set
 from pyarrow.lib import Table
+from typing import Iterator, Optional, Union, Dict, List, Set
+
 from core.models import Tuple, ArrowTableTupleProvider, Schema, InternalQueue
 from core.models.internal_marker import InternalMarker
 from core.models.payload import DataFrame, DataPayload, StateFrame
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
+from proto.org.apache.amber.engine.architecture.sendsemantics import Partitioning
 
 
 class Channel:

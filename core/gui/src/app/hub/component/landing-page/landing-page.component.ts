@@ -23,14 +23,13 @@ import { ActionType, EntityType, HubService } from "../../service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../dashboard/service/user/search.service";
-import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
+import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 import {
   DASHBOARD_HOME,
   DASHBOARD_HUB_DATASET_RESULT,
   DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../../app-routing.constant";
 import { UserService } from "../../../common/service/user/user.service";
-import { SearchResultItem } from "../../../dashboard/type/search-result";
 
 @UntilDestroy()
 @Component({

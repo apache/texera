@@ -18,8 +18,6 @@
 // The file contains the default environment template
 // it's used to store app settings and flags to turn on or off different features
 
-import { GuiConfig } from "../app/common/type/gui-config";
-
 // AppEnv extends GuiConfig with the build-time production flag
 export type AppEnv = {
   /**

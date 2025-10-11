@@ -16,7 +16,6 @@
 # under the License.
 
 import sys
-
 from loguru import logger
 
 from core.python_worker import PythonWorker

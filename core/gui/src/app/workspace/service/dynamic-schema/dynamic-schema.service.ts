@@ -20,8 +20,7 @@
 import { Injectable } from "@angular/core";
 import { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { cloneDeep, isEqual } from "lodash-es";
-import { Observable } from "rxjs";
-import { Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { OperatorPredicate } from "../../types/workflow-common.interface";

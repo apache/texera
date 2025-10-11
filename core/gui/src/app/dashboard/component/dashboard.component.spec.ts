@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { TestBed, ComponentFixture } from "@angular/core/testing";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
-import { NO_ERRORS_SCHEMA, ChangeDetectorRef, NgZone, EventEmitter } from "@angular/core";
+import { ChangeDetectorRef, EventEmitter, NgZone, NO_ERRORS_SCHEMA } from "@angular/core";
 import { By } from "@angular/platform-browser";
 import { of } from "rxjs";
 
@@ -27,15 +27,15 @@ import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
 import {
-  Router,
-  NavigationEnd,
   ActivatedRoute,
   ActivatedRouteSnapshot,
-  UrlSegment,
-  Params,
+  convertToParamMap,
   Data,
+  NavigationEnd,
+  Params,
+  Router,
+  UrlSegment,
 } from "@angular/router";
-import { convertToParamMap } from "@angular/router";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../common/testing/test-utils";
 

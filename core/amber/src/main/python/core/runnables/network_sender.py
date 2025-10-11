@@ -15,13 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
-
+import pyarrow as pa
 from loguru import logger
 from overrides import overrides
-import pyarrow as pa
-from core.models import DataPayload, InternalQueue, DataFrame, StateFrame, State
+from typing import Optional
 
+from core.models import DataPayload, InternalQueue, DataFrame, StateFrame, State
 from core.models.internal_queue import (
     InternalQueueElement,
     DataElement,
@@ -30,13 +29,13 @@ from core.models.internal_queue import (
 )
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.org.apache.amber.core import ChannelIdentity
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.common import (
     DirectControlMessagePayloadV2,
     PythonControlMessage,
     PythonDataHeader,
 )
-from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):

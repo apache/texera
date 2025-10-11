@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import { ServerOptions, WebSocketServer } from "ws";
-import { IncomingMessage, Server } from "node:http";
-import { fileURLToPath, URL } from "node:url";
-import { Socket } from "node:net";
-import { dirname } from "node:path";
-import { IWebSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
-import { createConnection, createServerProcess, forward } from "vscode-ws-jsonrpc/server";
-import { InitializeParams, InitializeRequest, Message } from "vscode-languageserver";
+import {ServerOptions, WebSocketServer} from "ws";
+import {IncomingMessage, Server} from "node:http";
+import {fileURLToPath, URL} from "node:url";
+import {Socket} from "node:net";
+import {dirname} from "node:path";
+import {IWebSocket, WebSocketMessageReader, WebSocketMessageWriter} from "vscode-ws-jsonrpc";
+import {createConnection, createServerProcess, forward} from "vscode-ws-jsonrpc/server";
+import {InitializeParams, InitializeRequest, Message} from "vscode-languageserver";
 import * as cp from "child_process";
 
 export enum LanguageName {

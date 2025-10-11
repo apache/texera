@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pytest
 import pyarrow as pa
+import pytest
 
 from core.models.schema.attribute_type import AttributeType
 from core.models.schema.schema import Schema

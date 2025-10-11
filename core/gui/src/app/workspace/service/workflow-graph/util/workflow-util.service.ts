@@ -18,9 +18,9 @@
  */
 
 import {
-  OperatorPredicate,
-  CommentBox,
   Comment,
+  CommentBox,
+  OperatorPredicate,
   Point,
   PortDescription,
 } from "../../../types/workflow-common.interface";

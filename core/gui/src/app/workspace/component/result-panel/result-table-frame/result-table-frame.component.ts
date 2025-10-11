@@ -17,24 +17,20 @@
  * under the License.
  */
 
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
-import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
+import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { ChangeDetectorRef } from "@angular/core";
 import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
-import { OperatorState } from "../../../types/execute-workflow.interface";
 
 /**
  * The Component will display the result in an excel table format,

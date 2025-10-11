@@ -18,7 +18,7 @@
  */
 
 import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
-import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
 
 export interface WorkflowSettings {
   dataTransferBatchSize: number;

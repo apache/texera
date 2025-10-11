@@ -15,19 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from typing import Optional
+
+from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
-from .embedded_control_message_manager import EmbeddedControlMessageManager
 from .debug_manager import DebugManager
+from .embedded_control_message_manager import EmbeddedControlMessageManager
 from .exception_manager import ExceptionManager
-from .state_processing_manager import StateProcessingManager
-from .tuple_processing_manager import TupleProcessingManager
 from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
 from .state_manager import StateManager
+from .state_processing_manager import StateProcessingManager
 from .statistics_manager import StatisticsManager
+from .tuple_processing_manager import TupleProcessingManager
 from ..packaging.input_manager import InputManager
 from ..packaging.output_manager import OutputManager
 from ...models import InternalQueue
