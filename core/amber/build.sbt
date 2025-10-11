@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-name := "texera"
+name := "amber"
 organization := "org.apache"
 version := "1.0.0"
 
