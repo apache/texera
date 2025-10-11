@@ -41,7 +41,7 @@ lazy val WorkflowCore = (project in file("core/workflow-core"))
   .dependsOn(DAO, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
-lazy val ComputingUnitManagingService = (project in file("core/computing-unit-managing-service"))
+lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(
