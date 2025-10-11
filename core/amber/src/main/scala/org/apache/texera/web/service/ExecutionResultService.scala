@@ -41,11 +41,7 @@ import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregate
 import org.apache.amber.engine.common.client.AmberClient
 import org.apache.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import org.apache.amber.engine.common.AmberRuntime
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.{

@@ -19,11 +19,7 @@
 
 package org.apache.amber.core.storage
 
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.GlobalPortIdentity
 import org.apache.amber.util.serde.GlobalPortIdentitySerde
 import org.apache.amber.util.serde.GlobalPortIdentitySerde.SerdeOps

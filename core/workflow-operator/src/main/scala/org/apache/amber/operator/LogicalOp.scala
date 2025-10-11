@@ -24,11 +24,7 @@ import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.Schema
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import org.apache.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import org.apache.amber.operator.aggregate.AggregateOpDesc
