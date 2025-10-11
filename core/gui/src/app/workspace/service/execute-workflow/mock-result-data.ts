@@ -18,7 +18,7 @@
  */
 
 import { WebDataUpdate, WebPaginationUpdate } from "../../types/execute-workflow.interface";
-import { Point, OperatorPredicate } from "../../types/workflow-common.interface";
+import { OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { IndexableObject } from "ng-zorro-antd/core/types";
 
 export const mockData: IndexableObject[] = [

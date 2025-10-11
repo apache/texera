@@ -40,7 +40,7 @@ import { LogicalPlan } from "../../types/execute-workflow.interface";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
-import { areAllPortSchemasEqual, addCompilationError } from "../../../common/util/workflow-compilation-utils";
+import { addCompilationError, areAllPortSchemasEqual } from "../../../common/util/workflow-compilation-utils";
 import { parseLogicalOperatorPortID } from "../../../common/util/logical-operator-port-serde";
 
 // endpoint for workflow compile

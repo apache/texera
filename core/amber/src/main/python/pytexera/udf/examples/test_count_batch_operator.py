@@ -16,9 +16,8 @@
 # under the License.
 
 import inspect
-from collections import deque
-
 import pytest
+from collections import deque
 
 from pytexera import *
 from .count_batch_operator import CountBatchOperator

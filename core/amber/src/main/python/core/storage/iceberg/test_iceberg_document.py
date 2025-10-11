@@ -16,18 +16,17 @@
 # under the License.
 
 import datetime
+import pytest
 import random
 import uuid
 from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 
-import pytest
-
 from core.models import Schema, Tuple
 from core.storage.document_factory import DocumentFactory
 from core.storage.storage_config import StorageConfig
 from core.storage.vfs_uri_factory import VFSURIFactory
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     WorkflowIdentity,
     ExecutionIdentity,
     OperatorIdentity,

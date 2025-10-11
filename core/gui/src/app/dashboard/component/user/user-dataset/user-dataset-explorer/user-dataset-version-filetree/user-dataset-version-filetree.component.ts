@@ -19,7 +19,7 @@
 
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
 @UntilDestroy()

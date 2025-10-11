@@ -17,20 +17,17 @@
  * under the License.
  */
 
-import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
-import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
+import { BehaviorSubject, merge, Observable, of } from "rxjs";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
-import { catchError, filter, map, take, tap } from "rxjs/operators";
-import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { DownloadService } from "../../../dashboard/service/user/download/download.service";
+import { catchError, filter, map, take } from "rxjs/operators";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { DownloadService, ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { HttpResponse } from "@angular/common/http";
-import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 

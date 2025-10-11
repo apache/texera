@@ -21,6 +21,7 @@ import { Component, OnInit } from "@angular/core";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+
 @UntilDestroy()
 @Component({
   selector: "texera-gmail",

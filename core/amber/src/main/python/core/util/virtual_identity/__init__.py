@@ -16,7 +16,7 @@
 # under the License.
 
 import re
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     GlobalPortIdentity,
     PhysicalOpIdentity,
     OperatorIdentity,

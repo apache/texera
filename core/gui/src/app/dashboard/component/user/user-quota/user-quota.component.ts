@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { Component, OnInit, inject } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Workflow, ExecutionQuota, WorkflowQuota } from "../../../../common/type/user";
+import { ExecutionQuota, File, Workflow, WorkflowQuota } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";

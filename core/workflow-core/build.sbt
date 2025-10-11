@@ -20,7 +20,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 name := "workflow-core"
-organization := "edu.uci.ics"
+organization := "org.apache"
 version := "1.0.0"
 
 scalaVersion := "2.13.12"

@@ -45,9 +45,9 @@ import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import {
+  mockUserInfo,
   testWorkflowEntries,
   testWorkflowFileNameConflictEntries,
-  mockUserInfo,
 } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
@@ -56,11 +56,10 @@ import { StubUserProjectService } from "../../../service/user/project/stub-user-
 import { SearchService } from "../../../service/user/search.service";
 import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
-import { delay } from "rxjs";
+import { delay, of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { of } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("SavedWorkflowSectionComponent", () => {

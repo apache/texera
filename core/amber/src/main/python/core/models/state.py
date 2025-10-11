@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pandas import DataFrame
 from pyarrow import Table
 from typing import Optional
+
 from .schema import Schema, AttributeType
 from .schema.attribute_type import FROM_PYOBJECT_MAPPING
 

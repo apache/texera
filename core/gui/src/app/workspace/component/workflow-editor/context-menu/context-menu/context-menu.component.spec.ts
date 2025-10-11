@@ -27,7 +27,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
-import { of, BehaviorSubject } from "rxjs";
+import { BehaviorSubject, of } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
