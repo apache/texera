@@ -20,11 +20,11 @@
 package org.apache.amber.error
 
 import com.google.protobuf.timestamp.Timestamp
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import org.apache.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
 import org.apache.amber.util.VirtualIdentityUtils
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.time.Instant
 import scala.util.control.ControlThrowable

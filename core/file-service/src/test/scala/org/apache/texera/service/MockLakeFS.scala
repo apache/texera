@@ -19,18 +19,12 @@
 
 package org.apache.texera.service
 
-import com.dimafeng.testcontainers.{
-  ForAllTestContainer,
-  GenericContainer,
-  PostgreSQLContainer,
-  MinIOContainer,
-  MultipleContainers
-}
+import com.dimafeng.testcontainers._
+import org.apache.amber.config.StorageConfig
+import org.apache.texera.service.util.S3StorageClient
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.testcontainers.containers.Network
 import org.testcontainers.utility.DockerImageName
-import org.apache.amber.config.StorageConfig
-import org.apache.texera.service.util.S3StorageClient
 
 /**
   * Trait to spin up a LakeFS + MinIO + Postgres stack using Testcontainers,

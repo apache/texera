@@ -19,19 +19,11 @@
 
 package org.apache.amber.engine.architecture.worker
 
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, EmbeddedControlMessageIdentity}
 import org.apache.amber.engine.architecture.messaginglayer.{InputGateway, InputManager}
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
-import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
-  NO_ALIGNMENT,
-  PORT_ALIGNMENT,
-  ALL_ALIGNMENT
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{ALL_ALIGNMENT, NO_ALIGNMENT, PORT_ALIGNMENT}
 import org.apache.amber.engine.common.{AmberLogging, CheckpointState}
-import org.apache.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  EmbeddedControlMessageIdentity
-}
 
 import scala.collection.mutable
 

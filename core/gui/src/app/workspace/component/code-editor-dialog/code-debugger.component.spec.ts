@@ -74,7 +74,7 @@ describe("CodeDebuggerComponent", () => {
 
     // Initialize the Monaco editor with the created element
     component.monacoEditor = monaco.editor.create(editorElement, {
-      value: "function hello() {\n\tconsole.log(\"Hello, world!\");\n}",
+      value: 'function hello() {\n\tconsole.log("Hello, world!");\n}',
       language: "javascript",
     });
 

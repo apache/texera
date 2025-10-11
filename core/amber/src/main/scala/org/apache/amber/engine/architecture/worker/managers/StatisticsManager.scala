@@ -20,12 +20,8 @@
 package org.apache.amber.engine.architecture.worker.managers
 
 import org.apache.amber.core.executor.OperatorExecutor
-import org.apache.amber.engine.architecture.worker.statistics.{
-  PortTupleMetricsMapping,
-  TupleMetrics,
-  WorkerStatistics
-}
 import org.apache.amber.core.workflow.PortIdentity
+import org.apache.amber.engine.architecture.worker.statistics.{PortTupleMetricsMapping, TupleMetrics, WorkerStatistics}
 
 import scala.collection.mutable
 

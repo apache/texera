@@ -23,11 +23,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.tuple.{AttributeType, Schema}
-import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.amber.operator.PythonOperatorDescriptor
+import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class GaugeChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)

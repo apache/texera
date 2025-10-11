@@ -23,6 +23,9 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.subjects.PublishSubject
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.amber.engine.architecture.controller.ControllerConfig
 import org.apache.amber.engine.architecture.rpc.controlcommands.ControlRequest
@@ -30,15 +33,8 @@ import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServ
 import org.apache.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import org.apache.amber.engine.common.FutureBijection._
 import org.apache.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import org.apache.amber.engine.common.client.ClientActor.{
-  CommandRequest,
-  InitializeRequest,
-  ObservableRequest
-}
+import org.apache.amber.engine.common.client.ClientActor.{CommandRequest, InitializeRequest, ObservableRequest}
 import org.apache.amber.engine.common.virtualidentity.util.CLIENT
-import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.subjects.PublishSubject
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable

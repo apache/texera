@@ -20,16 +20,12 @@
 package org.apache.amber.engine.common.rpc
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ControlInvocation,
-  ControlRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.{ControlReturn, ReturnInvocation}
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.error.ErrorUtils.mkControlError
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.lang.reflect.Method
 import scala.collection.mutable

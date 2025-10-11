@@ -19,20 +19,12 @@
 
 package org.apache.amber.operator.hashJoin
 
+import org.apache.amber.core.tuple._
+import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+import org.apache.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.apache.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
-import org.apache.amber.core.workflow.PortIdentity
-import org.apache.amber.operator.hashJoin.HashJoinBuildOpExec
-import org.apache.amber.util.JSONUtils.objectMapper
 class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   val build: Int = 0
   val probe: Int = 1

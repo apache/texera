@@ -19,6 +19,10 @@
 
 package org.apache.texera.service.resource
 
+import io.dropwizard.auth.Auth
+import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
@@ -27,16 +31,7 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
-import org.apache.texera.service.resource.DatasetAccessResource.{
-  AccessEntry,
-  context,
-  getOwner,
-  userHasWriteAccess
-}
-import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
-import jakarta.ws.rs.core.{MediaType, Response}
+import org.apache.texera.service.resource.DatasetAccessResource.{AccessEntry, context, getOwner, userHasWriteAccess}
 import org.jooq.{DSLContext, EnumType}
 
 import javax.ws.rs.ForbiddenException

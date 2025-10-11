@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.architecture.worker
 
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.messaginglayer.InputGateway
 import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 

@@ -20,13 +20,12 @@
 package org.apache.amber.operator.source.sql.mysql
 
 import org.apache.amber.core.executor.OpExecWithClassName
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.sql.SQLSourceOpDesc
 import org.apache.amber.operator.source.sql.mysql.MySQLConnUtil.connect
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.OutputPort
 
 import java.sql.{Connection, SQLException}
 

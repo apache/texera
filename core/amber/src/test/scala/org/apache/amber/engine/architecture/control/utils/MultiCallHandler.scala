@@ -20,9 +20,9 @@
 package org.apache.amber.engine.architecture.control.utils
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.rpc.controlcommands._
 import org.apache.amber.engine.architecture.rpc.controlreturns._
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 trait MultiCallHandler {
   this: TesterAsyncRPCHandlerInitializer =>

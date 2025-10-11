@@ -20,11 +20,11 @@
 package org.apache.amber.engine.architecture.control.utils
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.control.utils.TrivialControlTester.ControlTesterRPCClient
 import org.apache.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import org.apache.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import org.apache.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 class TesterAsyncRPCHandlerInitializer(
     val myID: ActorVirtualIdentity,

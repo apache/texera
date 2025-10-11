@@ -19,12 +19,12 @@
 
 package org.apache.texera.web.resource
 
+import io.dropwizard.auth.Auth
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_CONFIG
 import org.apache.texera.dao.jooq.generated.tables.daos.UserConfigDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, UserConfig}
-import org.apache.texera.auth.SessionUser
-import io.dropwizard.auth.Auth
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._

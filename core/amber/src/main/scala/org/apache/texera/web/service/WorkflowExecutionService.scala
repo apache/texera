@@ -22,19 +22,13 @@ package org.apache.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.apache.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
+import org.apache.amber.engine.common.Utils
 import org.apache.amber.engine.common.client.AmberClient
 import org.apache.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import org.apache.amber.engine.common.Utils
-import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.ExecutionStateStore

@@ -18,16 +18,15 @@
 package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import jakarta.ws.rs.core._
+import jakarta.ws.rs.{GET, POST, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import jakarta.ws.rs.core._
-import jakarta.ws.rs.{GET, POST, Path, Produces}
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
-import java.io.StringReader
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Optional

@@ -19,6 +19,7 @@
 
 import { Pipe, PipeTransform } from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+
 @Pipe({
   name: "highlightSearchTerms",
 })
@@ -34,7 +35,7 @@ export class HighlightSearchTermsPipe implements PipeTransform {
     // Escape the terms to be used in a RegExp
     const regex = new RegExp(`(${terms.join("|")})`, "gi");
 
-    const highlightedString = value.replace(regex, "<span class=\"highlight-search-terms\">$1</span>");
+    const highlightedString = value.replace(regex, '<span class="highlight-search-terms">$1</span>');
     // Use the sanitizer to avoid security risks
     return this.sanitizer.bypassSecurityTrustHtml(highlightedString);
   }

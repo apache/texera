@@ -21,11 +21,11 @@ package org.apache.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import org.apache.amber.engine.architecture.controller.ControllerConfig
 import org.apache.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 
 import scala.collection.mutable
 

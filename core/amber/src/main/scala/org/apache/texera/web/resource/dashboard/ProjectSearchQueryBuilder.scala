@@ -22,13 +22,8 @@ package org.apache.texera.web.resource.dashboard
 import org.apache.texera.dao.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
 import org.apache.texera.dao.jooq.generated.tables.pojos.Project
 import org.apache.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFullTextSearchFilter
-}
+import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter}
 import org.jooq.impl.DSL
-
 import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala

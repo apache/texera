@@ -19,40 +19,22 @@
 
 package org.apache.amber.engine.architecture.worker.managers
 
+import io.grpc.MethodDescriptor
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.storage.model.VirtualDocument
 import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  EmbeddedControlMessageIdentity
-}
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, EmbeddedControlMessageIdentity}
 import org.apache.amber.engine.architecture.messaginglayer.OutputManager.toPartitioner
-import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
-  NO_ALIGNMENT,
-  PORT_ALIGNMENT
-}
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EmbeddedControlMessage,
-  EmbeddedControlMessageType,
-  ControlInvocation,
-  EmptyRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{NO_ALIGNMENT, PORT_ALIGNMENT}
+import org.apache.amber.engine.architecture.rpc.controlcommands._
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_END_CHANNEL,
-  METHOD_START_CHANNEL
-}
+import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_CHANNEL, METHOD_START_CHANNEL}
 import org.apache.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  FIFOMessageElement
-}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement}
 import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.apache.amber.util.VirtualIdentityUtils.getFromActorIdForInputPortStorage
-import io.grpc.MethodDescriptor
+
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}

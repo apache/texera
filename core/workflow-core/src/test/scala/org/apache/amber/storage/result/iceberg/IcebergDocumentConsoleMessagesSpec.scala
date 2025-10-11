@@ -19,18 +19,18 @@
 
 package org.apache.amber.storage.result.iceberg
 
-import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.storage.model._
 import org.apache.amber.core.storage.result.ResultSchema
+import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.tuple.{Schema, Tuple}
 import org.apache.amber.core.virtualidentity._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
-import scala.util.{Try, Using}
 import java.net.URI
 import scala.util.Using.Releasable
+import scala.util.{Try, Using}
 
 class IcebergDocumentConsoleMessagesSpec
     extends AnyFlatSpec

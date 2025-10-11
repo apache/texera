@@ -20,20 +20,11 @@
 package org.apache.amber.operator.sklearn.training
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaString, JsonSchemaTitle}
 import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class SklearnTrainingOpDesc extends PythonOperatorDescriptor {

@@ -20,12 +20,7 @@
 package org.apache.amber.core.tuple
 
 import org.apache.amber.core.tuple.AttributeType._
-import org.apache.amber.core.tuple.AttributeTypeUtils.{
-  AttributeTypeException,
-  inferField,
-  inferSchemaFromRows,
-  parseField
-}
+import org.apache.amber.core.tuple.AttributeTypeUtils.{AttributeTypeException, inferField, inferSchemaFromRows, parseField}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {

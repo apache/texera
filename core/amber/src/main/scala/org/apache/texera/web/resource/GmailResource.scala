@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource
 
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
@@ -26,7 +27,6 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.web.resource.EmailTemplate.userRegistrationNotification
 import org.apache.texera.web.resource.GmailResource.{isValidEmail, sendEmail, senderGmail, userDao}
-import io.dropwizard.auth.Auth
 import org.slf4j.LoggerFactory
 
 import javax.annotation.security.RolesAllowed

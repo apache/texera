@@ -20,13 +20,10 @@
 package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EvaluatePythonExpressionRequest
-}
-import org.apache.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
 import org.apache.amber.core.virtualidentity.OperatorIdentity
+import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EvaluatePythonExpressionRequest}
+import org.apache.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
 
 trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>

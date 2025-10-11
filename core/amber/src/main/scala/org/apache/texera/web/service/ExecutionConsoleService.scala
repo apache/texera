@@ -23,48 +23,31 @@ import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.config.ApplicationConfig
-import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  ConsoleMessage,
-  ConsoleMessageType,
-  EvaluatePythonExpressionRequest,
-  DebugCommandRequest => AmberDebugCommandRequest
-}
-import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.common.executionruntimestate.{
-  EvaluatedValueList,
-  ExecutionConsoleStore,
-  OperatorConsole
-}
-import org.apache.amber.util.VirtualIdentityUtils
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
-import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
-import org.apache.texera.web.model.websocket.request.RetryRequest
-import org.apache.texera.web.model.websocket.request.python.{
-  DebugCommandRequest,
-  PythonExpressionEvaluateRequest
-}
-import org.apache.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import org.apache.texera.web.storage.ExecutionStateStore
-import org.apache.texera.web.{SubscriptionManager, WebsocketInput}
 import org.apache.amber.core.storage.model.BufferedItemWriter
 import org.apache.amber.core.storage.result.ResultSchema
 import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.tuple.Tuple
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import org.apache.amber.core.workflow.WorkflowContext
 import org.apache.amber.engine.architecture.controller.ExecutionStateUpdate
+import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
+import org.apache.amber.engine.architecture.rpc.controlcommands.{ConsoleMessage, ConsoleMessageType, EvaluatePythonExpressionRequest, DebugCommandRequest => AmberDebugCommandRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED
-}
-import org.apache.texera.config.UserSystemConfig
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED}
+import org.apache.amber.engine.common.client.AmberClient
+import org.apache.amber.engine.common.executionruntimestate.{EvaluatedValueList, ExecutionConsoleStore, OperatorConsole}
+import org.apache.amber.util.VirtualIdentityUtils
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
+import org.apache.texera.web.model.websocket.request.RetryRequest
+import org.apache.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
+import org.apache.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.web.storage.ExecutionStateStore
+import org.apache.texera.web.{SubscriptionManager, WebsocketInput}
 
-import java.util.concurrent.{ExecutorService, Executors}
 import java.time.Instant
+import java.util.concurrent.{ExecutorService, Executors}
 import scala.collection.mutable
 
 /**

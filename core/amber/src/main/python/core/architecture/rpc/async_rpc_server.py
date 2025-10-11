@@ -15,15 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
 import grpclib.const
 from loguru import logger
-import asyncio
+
 from core.architecture.managers.context import Context
 from core.architecture.rpc.async_rpc_handler_initializer import (
     AsyncRPCHandlerInitializer,
 )
 from core.models.internal_queue import InternalQueue, DCMElement
 from core.util import get_one_of, set_one_of
+from proto.org.apache.amber.core import ChannelIdentity
 from proto.org.apache.amber.engine.architecture.rpc import (
     ReturnInvocation,
     ControlRequest,
@@ -33,7 +35,6 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     ErrorLanguage,
 )
 from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
-from proto.org.apache.amber.core import ChannelIdentity
 
 
 class AsyncRPCServer:

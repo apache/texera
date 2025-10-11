@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
 import random
 import time
 from threading import Thread
-
-import pytest
 
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,

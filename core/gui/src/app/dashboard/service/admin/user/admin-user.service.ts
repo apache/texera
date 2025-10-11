@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { Role, User, File, Workflow, ExecutionQuota } from "../../../../common/type/user";
+import { ExecutionQuota, File, Role, User, Workflow } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;

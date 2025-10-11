@@ -19,10 +19,10 @@
 
 package org.apache.amber.operator.source.apis.twitter
 
-import org.apache.amber.core.executor.SourceOperatorExecutor
-import org.apache.amber.util.JSONUtils.objectMapper
 import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.signature.TwitterCredentials
+import org.apache.amber.core.executor.SourceOperatorExecutor
+import org.apache.amber.util.JSONUtils.objectMapper
 
 abstract class TwitterSourceOpExec(
     descString: String

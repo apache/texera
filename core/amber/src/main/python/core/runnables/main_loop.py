@@ -43,6 +43,12 @@ from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.customized_queue.queue_base import QueueElement
+from proto.org.apache.amber.core import (
+    ActorVirtualIdentity,
+    PortIdentity,
+    ChannelIdentity,
+    EmbeddedControlMessageIdentity,
+)
 from proto.org.apache.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ControlInvocation,
@@ -58,12 +64,6 @@ from proto.org.apache.amber.engine.architecture.rpc import (
 )
 from proto.org.apache.amber.engine.architecture.worker import (
     WorkerState,
-)
-from proto.org.apache.amber.core import (
-    ActorVirtualIdentity,
-    PortIdentity,
-    ChannelIdentity,
-    EmbeddedControlMessageIdentity,
 )
 
 

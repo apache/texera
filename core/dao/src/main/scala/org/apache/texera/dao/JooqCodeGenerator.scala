@@ -23,8 +23,8 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions}
 import org.jooq.codegen.GenerationTool
 import org.jooq.meta.jaxb.{Configuration, Jdbc}
 
-import java.nio.file.{Files, Path}
 import java.io.File
+import java.nio.file.{Files, Path}
 
 object JooqCodeGenerator {
   @throws[Exception]

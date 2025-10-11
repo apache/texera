@@ -21,25 +21,20 @@ package org.apache.amber.storage.result.iceberg
 
 import org.apache.amber.core.storage.model.VirtualDocument
 import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.amber.util.IcebergUtil
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
-import org.apache.iceberg.{Schema => IcebergSchema}
+import org.apache.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
+import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import java.net.URI
 import java.sql.Timestamp
-import java.time.{LocalDate, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, ZoneId}
 import java.util.UUID
 
 class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {

@@ -21,23 +21,13 @@ package org.apache.amber.util
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
-import org.apache.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema, Tuple}
+import org.apache.amber.core.tuple._
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  TimeStampVector,
-  VarBinaryVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.vector.{BigIntVector, BitVector, FieldVector, Float8Vector, IntVector, TimeStampVector, VarBinaryVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.charset.StandardCharsets
 import java.util

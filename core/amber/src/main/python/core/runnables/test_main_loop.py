@@ -16,12 +16,11 @@
 # under the License.
 
 import inspect
-import pickle
-from threading import Thread
-
 import pandas
+import pickle
 import pyarrow
 import pytest
+from threading import Thread
 
 from core.models import (
     DataFrame,

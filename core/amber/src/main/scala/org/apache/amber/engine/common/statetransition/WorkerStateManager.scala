@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.common.statetransition
 
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState._
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 // The following pattern is a good practice of enum in scala
 // We've always used this pattern in the codebase

@@ -19,13 +19,13 @@
 
 package org.apache.texera.web.resource.dashboard.user.quota
 
-import org.apache.texera.dao.SqlServer
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import io.dropwizard.auth.Auth
 
 import java.util
 import javax.ws.rs._

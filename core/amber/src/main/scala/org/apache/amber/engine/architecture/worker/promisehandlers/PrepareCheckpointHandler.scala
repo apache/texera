@@ -20,19 +20,13 @@
 package org.apache.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  PrepareCheckpointRequest
-}
+import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PrepareCheckpointRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import org.apache.amber.engine.architecture.worker.{
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
+import org.apache.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable

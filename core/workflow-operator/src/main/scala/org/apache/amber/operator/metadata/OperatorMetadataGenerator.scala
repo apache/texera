@@ -25,8 +25,8 @@ import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
-import org.apache.amber.operator.LogicalOp
 import org.apache.amber.core.workflow.{InputPort, OutputPort}
+import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.amber.util.JSONUtils.objectMapper
 

@@ -22,10 +22,12 @@ package org.apache.texera.web
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.AuthValueFactoryProvider
+import io.dropwizard.setup.{Bootstrap, Environment}
+import io.dropwizard.websockets.WebsocketBundle
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.engine.common.Utils
 import org.apache.amber.util.ObjectMapperUtils
-import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
@@ -33,24 +35,12 @@ import org.apache.texera.web.resource._
 import org.apache.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import org.apache.texera.web.resource.dashboard.DashboardResource
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
-import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
+import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
-import org.apache.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
+import org.apache.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import org.apache.texera.web.resource.dashboard.user.workflow.{
-  WorkflowAccessResource,
-  WorkflowExecutionsResource,
-  WorkflowResource,
-  WorkflowVersionResource
-}
-import io.dropwizard.auth.AuthValueFactoryProvider
-import io.dropwizard.setup.{Bootstrap, Environment}
-import io.dropwizard.websockets.WebsocketBundle
+import org.apache.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter

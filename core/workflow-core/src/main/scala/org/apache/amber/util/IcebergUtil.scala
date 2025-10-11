@@ -24,7 +24,6 @@ import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
-import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
@@ -32,20 +31,13 @@ import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
-import org.apache.iceberg.{
-  CatalogProperties,
-  DataFile,
-  PartitionSpec,
-  Table,
-  TableProperties,
-  Schema => IcebergSchema
-}
+import org.apache.iceberg.types.Types
+import org.apache.iceberg.{CatalogProperties, DataFile, PartitionSpec, Table, TableProperties, Schema => IcebergSchema}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
-import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.{LocalDateTime, ZoneId}
 import scala.jdk.CollectionConverters._
 
 /**

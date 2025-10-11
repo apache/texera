@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.architecture.logreplay
 
+import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
-import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 import scala.collection.mutable
 

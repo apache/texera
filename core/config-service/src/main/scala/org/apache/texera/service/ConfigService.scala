@@ -19,17 +19,17 @@
 
 package org.apache.texera.service
 
-import io.dropwizard.core.Application
-import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.AuthDynamicFeature
+import io.dropwizard.core.Application
+import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.util.PathUtils.configServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
-import io.dropwizard.auth.AuthDynamicFeature
 import org.eclipse.jetty.server.session.SessionHandler
 import org.jooq.impl.DSL
 

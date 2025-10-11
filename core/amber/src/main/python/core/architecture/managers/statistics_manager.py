@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import DefaultDict
 from collections import defaultdict
+from typing import DefaultDict
 
 from proto.org.apache.amber.core import PortIdentity
 from proto.org.apache.amber.engine.architecture.worker import (

@@ -21,9 +21,9 @@ package org.apache.amber.operator.source.apis.twitter
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
+import org.apache.amber.core.workflow.OutputPort
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.SourceOperatorDescriptor
-import org.apache.amber.core.workflow.OutputPort
 
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
 

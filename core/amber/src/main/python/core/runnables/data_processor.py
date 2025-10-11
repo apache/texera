@@ -18,10 +18,10 @@
 import os
 import sys
 import traceback
-from threading import Event
-
 from loguru import logger
+from threading import Event
 from typing import Iterator, Optional
+
 from core.architecture.managers import Context
 from core.models import ExceptionInfo, State, TupleLike, InternalMarker
 from core.models.internal_marker import StartChannel, EndChannel

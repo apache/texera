@@ -23,16 +23,8 @@ import com.twitter.util.{Await, Promise}
 import org.apache.amber.core.WorkflowRuntimeException
 import org.apache.amber.core.tuple.{Schema, Tuple}
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ActorCommandElement,
-  EmbeddedControlMessageElement,
-  ControlElement,
-  DataElement
-}
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  EmbeddedControlMessage,
-  ControlInvocation
-}
+import org.apache.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, DataElement, EmbeddedControlMessageElement}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{ControlInvocation, EmbeddedControlMessage}
 import org.apache.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
@@ -40,14 +32,13 @@ import org.apache.amber.engine.common.ambermessage._
 import org.apache.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
 import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType}
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
-import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 import scala.jdk.CollectionConverters._
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)

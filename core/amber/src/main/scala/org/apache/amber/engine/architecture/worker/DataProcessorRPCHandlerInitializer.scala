@@ -20,18 +20,13 @@
 package org.apache.amber.engine.architecture.worker
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  DebugCommandRequest,
-  EmptyRequest,
-  EvaluatePythonExpressionRequest
-}
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, DebugCommandRequest, EmptyRequest, EvaluatePythonExpressionRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue}
 import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import org.apache.amber.engine.architecture.worker.promisehandlers._
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)

@@ -24,9 +24,9 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
+import org.jooq.impl.DSL
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.jooq.impl.DSL
 
 import java.sql.Timestamp
 import java.util.UUID

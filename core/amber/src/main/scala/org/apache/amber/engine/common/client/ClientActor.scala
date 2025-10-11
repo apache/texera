@@ -22,38 +22,19 @@ package org.apache.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  NetworkAck,
-  NetworkMessage
-}
+import org.apache.amber.engine.architecture.common.WorkflowActor.{CreditRequest, CreditResponse, NetworkAck, NetworkMessage}
 import org.apache.amber.engine.architecture.controller.{ClientEvent, Controller, ControllerConfig}
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlRequest}
-import org.apache.amber.engine.architecture.rpc.controlreturns.{
-  ControlError,
-  ControlReturn,
-  ReturnInvocation
-}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import org.apache.amber.engine.common.ambermessage.{
-  DirectControlMessagePayload,
-  DataPayload,
-  WorkflowFIFOMessage,
-  WorkflowRecoveryMessage
-}
-import org.apache.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
-  CommandRequest,
-  InitializeRequest,
-  ObservableRequest
-}
+import org.apache.amber.engine.common.ambermessage.{DataPayload, DirectControlMessagePayload, WorkflowFIFOMessage, WorkflowRecoveryMessage}
+import org.apache.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import org.apache.amber.error.ErrorUtils.reconstructThrowable
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 

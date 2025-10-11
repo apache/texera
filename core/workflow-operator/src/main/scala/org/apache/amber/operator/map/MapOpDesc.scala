@@ -19,9 +19,9 @@
 
 package org.apache.amber.operator.map
 
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.PhysicalOp
 import org.apache.amber.operator.{LogicalOp, StateTransferFunc}
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import scala.util.{Success, Try}
 

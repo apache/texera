@@ -21,10 +21,7 @@ package org.apache.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.amber.core.executor._
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  InitializeExecutorRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, InitializeExecutorRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.amber.operator.source.cache.CacheSourceOpExec

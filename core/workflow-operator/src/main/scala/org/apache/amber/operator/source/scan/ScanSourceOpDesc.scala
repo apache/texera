@@ -24,9 +24,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.storage.FileResolver
 import org.apache.amber.core.tuple.Schema
+import org.apache.amber.core.workflow.OutputPort
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.SourceOperatorDescriptor
-import org.apache.amber.core.workflow.OutputPort
 import org.apache.commons.lang3.builder.EqualsBuilder
 
 import java.net.URI

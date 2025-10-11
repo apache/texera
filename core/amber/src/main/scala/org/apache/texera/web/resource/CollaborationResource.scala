@@ -21,11 +21,11 @@ package org.apache.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.util.JSONUtils
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.ServletAwareConfigurator
 import org.apache.texera.web.model.collab.event._
 import org.apache.texera.web.model.collab.request._
 import org.apache.texera.web.model.collab.response.HeartBeatResponse
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.CollaborationResource._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 

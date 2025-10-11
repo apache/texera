@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.messaginglayer
 
-import org.apache.amber.engine.architecture.logreplay.OrderEnforcer
 import org.apache.amber.core.virtualidentity.ChannelIdentity
+import org.apache.amber.engine.architecture.logreplay.OrderEnforcer
 
 trait InputGateway {
 

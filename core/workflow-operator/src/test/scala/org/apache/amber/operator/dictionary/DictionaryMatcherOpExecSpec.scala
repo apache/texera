@@ -19,7 +19,7 @@
 
 package org.apache.amber.operator.dictionary
 
-import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.amber.core.tuple._
 import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter

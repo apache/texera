@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from core.architecture.packaging.input_manager import InputManager
 from core.models import Schema
+from core.models.internal_queue import ECMElement
 from proto.org.apache.amber.core import (
     ChannelIdentity,
     ActorVirtualIdentity,
@@ -34,9 +37,6 @@ from proto.org.apache.amber.engine.architecture.rpc import (
 from proto.org.apache.amber.engine.architecture.worker import (
     WorkerState,
 )
-from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.packaging.input_manager import InputManager
-from core.models.internal_queue import ECMElement
 
 
 class StartWorkerHandler(ControlHandler):

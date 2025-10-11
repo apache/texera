@@ -21,10 +21,7 @@ package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ConsoleMessageTriggeredRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ConsoleMessageTriggeredRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 trait ConsoleMessageHandler {

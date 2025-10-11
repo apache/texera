@@ -26,10 +26,10 @@ import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import org.apache.amber.core.tuple.{AttributeType, Schema}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI

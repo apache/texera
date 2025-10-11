@@ -20,8 +20,8 @@
 package org.apache.amber.engine.common
 
 import com.typesafe.scalalogging.Logger
-import org.apache.amber.util.VirtualIdentityUtils
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.util.VirtualIdentityUtils
 import org.slf4j.LoggerFactory
 
 trait AmberLogging {

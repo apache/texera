@@ -20,9 +20,9 @@
 package org.apache.amber.engine.architecture.scheduling.config
 
 import org.apache.amber.config.ApplicationConfig
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.core.workflow.PhysicalOp
 import org.apache.amber.util.VirtualIdentityUtils
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 case object WorkerConfig {
   def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {

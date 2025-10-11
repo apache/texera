@@ -22,10 +22,10 @@ package org.apache.amber.operator.visualization.figureFactoryTable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.tuple.{AttributeType, Schema}
-import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.amber.operator.PythonOperatorDescriptor
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false)

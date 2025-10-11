@@ -24,8 +24,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 import org.apache.amber.core.workflow.PortIdentity
+import org.apache.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 
 import java.text.SimpleDateFormat
 import scala.jdk.CollectionConverters.IteratorHasAsScala

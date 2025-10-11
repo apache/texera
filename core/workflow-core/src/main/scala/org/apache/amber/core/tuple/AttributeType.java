@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
-import java.util.List;
 
 public enum AttributeType implements Serializable {
 

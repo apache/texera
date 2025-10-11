@@ -19,23 +19,19 @@
 
 package org.apache.texera.web.resource.dashboard.user.project
 
-import org.apache.texera.dao.SqlServer
+import io.dropwizard.auth.Auth
+import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ProjectDao,
-  ProjectUserAccessDao,
-  WorkflowOfProjectDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, WorkflowOfProjectDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos._
 import org.apache.texera.web.resource.dashboard.DashboardResource
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import org.apache.texera.web.resource.dashboard.user.project.ProjectResource._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import io.dropwizard.auth.Auth
-import org.apache.commons.lang3.StringUtils
 
 import java.sql.Timestamp
 import java.util

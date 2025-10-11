@@ -19,12 +19,12 @@
 
 package org.apache.amber.engine.architecture.controller.execution
 
+import org.apache.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateMetrics
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import org.apache.amber.engine.common.executionruntimestate.OperatorMetrics
-import org.apache.amber.core.virtualidentity.PhysicalOpIdentity
 
 import scala.collection.mutable
 

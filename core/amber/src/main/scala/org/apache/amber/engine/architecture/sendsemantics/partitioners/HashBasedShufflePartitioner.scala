@@ -20,8 +20,8 @@
 package org.apache.amber.engine.architecture.sendsemantics.partitioners
 
 import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
     extends Partitioner {

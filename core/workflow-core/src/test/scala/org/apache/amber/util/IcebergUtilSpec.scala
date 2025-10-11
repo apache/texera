@@ -21,9 +21,9 @@ package org.apache.amber.util
 
 import org.apache.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.amber.util.IcebergUtil.toIcebergSchema
+import org.apache.iceberg.data.GenericRecord
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
-import org.apache.iceberg.data.GenericRecord
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.ByteBuffer

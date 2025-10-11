@@ -23,23 +23,13 @@ import akka.actor.{Actor, ActorRef, Address, Stash}
 import akka.pattern.ask
 import akka.util.Timeout
 import org.apache.amber.clustering.ClusterListener.GetAvailableNodeAddresses
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor._
-import org.apache.amber.engine.architecture.logreplay.{
-  ReplayLogGenerator,
-  ReplayLogManager,
-  ReplayLogRecord,
-  ReplayOrderEnforcer
-}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  MainThreadDelegateMessage,
-  StateRestoreConfig,
-  TriggerSend
-}
+import org.apache.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayLogManager, ReplayLogRecord, ReplayOrderEnforcer}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, MainThreadDelegateMessage, StateRestoreConfig, TriggerSend}
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.{AmberLogging, CheckpointState}
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

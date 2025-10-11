@@ -21,9 +21,9 @@ package org.apache.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.storage.FileResolver
+import org.apache.amber.core.virtualidentity.OperatorIdentity
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil

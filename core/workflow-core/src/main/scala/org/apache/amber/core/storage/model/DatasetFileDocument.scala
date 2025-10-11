@@ -21,16 +21,13 @@ package org.apache.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.config.EnvironmentalVariable
-import org.apache.amber.core.storage.model.DatasetFileDocument.{
-  fileServiceGetPresignURLEndpoint,
-  userJwtToken
-}
+import org.apache.amber.core.storage.model.DatasetFileDocument.{fileServiceGetPresignURLEndpoint, userJwtToken}
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import org.apache.amber.util.PathUtils
 
 import java.io.{File, FileOutputStream, InputStream}
-import java.net.{HttpURLConnection, URI, URL, URLDecoder, URLEncoder}
+import java.net._
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala

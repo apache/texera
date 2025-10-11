@@ -20,16 +20,10 @@
 package org.apache.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  FinalizeCheckpointRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, FinalizeCheckpointRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import org.apache.amber.engine.architecture.worker.{
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
+import org.apache.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 

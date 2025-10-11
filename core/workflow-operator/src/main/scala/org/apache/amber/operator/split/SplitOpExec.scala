@@ -21,8 +21,8 @@ package org.apache.amber.operator.split
 
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.amber.util.JSONUtils.objectMapper
 import org.apache.amber.core.workflow.PortIdentity
+import org.apache.amber.util.JSONUtils.objectMapper
 
 import scala.util.Random
 

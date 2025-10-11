@@ -19,6 +19,7 @@
 
 package org.apache.texera.service.resource
 
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
@@ -26,7 +27,6 @@ import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import org.apache.texera.service.MockLakeFS
-import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

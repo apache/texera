@@ -19,22 +19,15 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
-import org.apache.texera.dao.SqlServer
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.web.model.common.AccessEntry
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
-  context,
-  hasWriteAccess
-}
-import io.dropwizard.auth.Auth
+import org.apache.texera.web.model.common.AccessEntry
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{context, hasWriteAccess}
 import org.jooq.DSLContext
 
 import java.util

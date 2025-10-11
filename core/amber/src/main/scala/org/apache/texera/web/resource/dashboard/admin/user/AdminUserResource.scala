@@ -21,6 +21,8 @@ package org.apache.texera.web.resource.dashboard.admin.user
 
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.EmailTemplate.createRoleChangeTemplate
@@ -28,8 +30,6 @@ import org.apache.texera.web.resource.GmailResource.sendEmail
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
-import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.UserLastActiveTime.USER_LAST_ACTIVE_TIME
 
 import java.util
 import javax.annotation.security.RolesAllowed

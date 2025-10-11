@@ -20,6 +20,7 @@
 package org.apache.amber.core.state
 
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+
 import scala.collection.mutable
 
 final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean = false) {

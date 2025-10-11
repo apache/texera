@@ -20,7 +20,6 @@
 package org.apache.texera.web.resource.dashboard.user.dataset
 
 import org.apache.texera.dao.jooq.generated.tables.pojos.Dataset
-
 import org.jooq.EnumType
 
 object DatasetResource {

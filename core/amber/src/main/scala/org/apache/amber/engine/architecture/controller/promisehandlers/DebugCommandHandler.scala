@@ -20,13 +20,10 @@
 package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  DebugCommandRequest
-}
-import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, DebugCommandRequest}
+import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 trait DebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>

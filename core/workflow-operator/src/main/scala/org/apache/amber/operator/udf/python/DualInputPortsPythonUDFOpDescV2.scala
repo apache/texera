@@ -24,11 +24,10 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.executor.OpExecWithCode
 import org.apache.amber.core.tuple.{Attribute, Schema}
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc, UnknownPartition}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow._
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(

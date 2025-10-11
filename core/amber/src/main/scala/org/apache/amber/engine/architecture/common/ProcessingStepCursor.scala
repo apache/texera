@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.common
 
-import org.apache.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
 import org.apache.amber.core.virtualidentity.ChannelIdentity
+import org.apache.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
 
 object ProcessingStepCursor {
   // step value before processing any incoming message

@@ -21,6 +21,7 @@ package org.apache.amber.operator.symmetricDifference
 
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.{Tuple, TupleLike}
+
 import scala.collection.mutable
 
 class SymmetricDifferenceOpExec extends OperatorExecutor {

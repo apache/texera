@@ -19,6 +19,10 @@
 
 package org.apache.texera.service.resource
 
+import io.dropwizard.auth.Auth
+import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs._
+import jakarta.ws.rs.core._
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.core.storage.model.OnDataset
 import org.apache.amber.core.storage.util.LakeFSStorageClient
@@ -27,58 +31,24 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import org.apache.texera.dao.jooq.generated.tables.User.USER
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import org.apache.texera.service.`type`.DatasetFileNode
-import org.apache.texera.service.resource.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  isDatasetPublic,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import org.apache.texera.service.resource.DatasetResource.{
-  CreateDatasetRequest,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetVersionRootFileNodesResponse,
-  Diff,
-  context,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getLatestDatasetVersion,
-  put
-}
+import org.apache.texera.service.resource.DatasetAccessResource._
+import org.apache.texera.service.resource.DatasetResource.{context, _}
 import org.apache.texera.service.util.S3StorageClient
-import org.apache.texera.service.util.S3StorageClient.{
-  MAXIMUM_NUM_OF_MULTIPART_S3_PARTS,
-  MINIMUM_NUM_OF_MULTIPART_S3_PART
-}
-import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs._
-import jakarta.ws.rs.core.{Context, HttpHeaders, MediaType, Response, StreamingOutput}
+import org.apache.texera.service.util.S3StorageClient.{MAXIMUM_NUM_OF_MULTIPART_S3_PARTS, MINIMUM_NUM_OF_MULTIPART_S3_PART}
 import org.jooq.{DSLContext, EnumType}
 
-import java.util
 import java.io.{InputStream, OutputStream}
 import java.net.{HttpURLConnection, URL, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.util
 import java.util.Optional
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable.ListBuffer

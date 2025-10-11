@@ -23,14 +23,13 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.apache.amber.clustering.SingleNodeListener
-import org.apache.amber.core.workflow.{WorkflowContext, WorkflowSettings}
+import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
 import org.apache.amber.engine.architecture.controller._
 import org.apache.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.amber.operator.TestOperators
 import org.apache.amber.operator.aggregate.AggregationFunction
-import org.apache.amber.core.workflow.PortIdentity
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}

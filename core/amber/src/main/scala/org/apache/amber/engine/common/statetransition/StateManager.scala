@@ -20,11 +20,8 @@
 package org.apache.amber.engine.common.statetransition
 
 import org.apache.amber.core.WorkflowRuntimeException
-import org.apache.amber.engine.common.statetransition.StateManager.{
-  InvalidStateException,
-  InvalidTransitionException
-}
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.common.statetransition.StateManager.{InvalidStateException, InvalidTransitionException}
 
 object StateManager {
 

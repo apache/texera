@@ -17,11 +17,12 @@
 
 import pyarrow as pa
 import rpy2.robjects as robjects
-from rpy2_arrow.arrow import rarrow_to_py_table, converter as arrow_converter
+import typing
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
-import typing
+from rpy2_arrow.arrow import rarrow_to_py_table, converter as arrow_converter
 from typing import Iterator, Optional, Union
+
 from core.models import ArrowTableTupleProvider, Tuple, TupleLike, Table, TableLike
 from core.models.operator import SourceOperator, TableOperator
 

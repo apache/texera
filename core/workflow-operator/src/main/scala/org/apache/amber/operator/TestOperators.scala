@@ -20,11 +20,7 @@
 package org.apache.amber.operator
 
 import org.apache.amber.core.storage.FileResolver
-import org.apache.amber.operator.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
+import org.apache.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import org.apache.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.amber.operator.source.scan.csv.CSVScanSourceOpDesc

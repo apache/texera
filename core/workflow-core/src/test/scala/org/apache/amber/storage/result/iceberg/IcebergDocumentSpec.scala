@@ -19,15 +19,10 @@
 
 package org.apache.amber.storage.result.iceberg
 
-import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
+import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog

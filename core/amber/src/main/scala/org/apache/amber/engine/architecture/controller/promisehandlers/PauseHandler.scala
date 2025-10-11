@@ -21,14 +21,10 @@ package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  ExecutionStateUpdate,
-  ExecutionStatsUpdate
-}
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStateUpdate, ExecutionStatsUpdate}
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerMetricsResponse}
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 

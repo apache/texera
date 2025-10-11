@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.logreplay
 
-import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
+import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 abstract class ReplayLogger {
 

@@ -25,10 +25,7 @@ import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.tuple.Tuple
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.{GlobalPortIdentity, PortIdentity, WorkflowContext}
-import org.apache.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import org.apache.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.amber.operator.TestOperators

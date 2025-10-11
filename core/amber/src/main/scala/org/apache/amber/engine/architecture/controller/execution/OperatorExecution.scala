@@ -19,13 +19,13 @@
 
 package org.apache.amber.engine.architecture.controller.execution
 
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import org.apache.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.amber.engine.architecture.worker.statistics.{PortTupleMetricsMapping, WorkerState}
 import org.apache.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.amber.core.workflow.PortIdentity
 
 import java.util
 import scala.jdk.CollectionConverters._

@@ -22,11 +22,11 @@ package org.apache.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.clustering.ClusterListener
-import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import org.apache.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import org.apache.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.util.HeaderField
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User

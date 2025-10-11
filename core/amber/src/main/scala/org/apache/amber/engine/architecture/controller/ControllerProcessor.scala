@@ -19,19 +19,14 @@
 
 package org.apache.amber.engine.architecture.controller
 
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
-  AkkaMessageTransferService,
-  AmberProcessor
-}
+import org.apache.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AkkaMessageTransferService, AmberProcessor}
 import org.apache.amber.engine.architecture.controller.execution.WorkflowExecution
 import org.apache.amber.engine.architecture.logreplay.ReplayLogManager
 import org.apache.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 class ControllerProcessor(
     workflowContext: WorkflowContext,

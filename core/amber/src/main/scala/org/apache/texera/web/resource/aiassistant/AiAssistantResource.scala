@@ -21,10 +21,10 @@ package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
 import kong.unirest.Unirest
+import org.apache.texera.auth.SessionUser
+import org.apache.texera.web.resource.aiassistant.AiAssistantManager
 import play.api.libs.json._
 
 import java.nio.file.Paths

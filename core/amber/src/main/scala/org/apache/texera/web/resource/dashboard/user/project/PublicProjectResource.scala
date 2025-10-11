@@ -19,13 +19,13 @@
 
 package org.apache.texera.web.resource.dashboard.user.project
 
-import org.apache.texera.dao.SqlServer
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
-import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
 import java.sql.Timestamp

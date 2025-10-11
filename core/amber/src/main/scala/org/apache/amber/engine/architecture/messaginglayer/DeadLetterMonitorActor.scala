@@ -20,10 +20,7 @@
 package org.apache.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, DeadLetter}
-import org.apache.amber.engine.architecture.common.WorkflowActor.{
-  MessageBecomesDeadLetter,
-  NetworkMessage
-}
+import org.apache.amber.engine.architecture.common.WorkflowActor.{MessageBecomesDeadLetter, NetworkMessage}
 
 class DeadLetterMonitorActor extends Actor {
   override def receive: Receive = {

@@ -16,12 +16,11 @@
 # under the License.
 
 import datetime
+import pytest
 import random
 import uuid
 from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-
-import pytest
 
 from core.models import Schema, Tuple
 from core.storage.document_factory import DocumentFactory

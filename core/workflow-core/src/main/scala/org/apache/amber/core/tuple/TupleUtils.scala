@@ -20,13 +20,12 @@
 package org.apache.amber.core.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
-import org.apache.amber.util.JSONUtils.JSONToMap
-import org.apache.amber.util.JSONUtils.objectMapper
-import AttributeTypeUtils.{inferSchemaFromRows, parseField}
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.amber.core.tuple.AttributeTypeUtils.{inferSchemaFromRows, parseField}
+import org.apache.amber.util.JSONUtils
+import org.apache.amber.util.JSONUtils.{JSONToMap, objectMapper}
 
 import scala.collection.mutable.ArrayBuffer
-import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.amber.util.JSONUtils
 
 object TupleUtils {
 

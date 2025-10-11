@@ -19,11 +19,11 @@
 
 package org.apache.texera.web.auth
 
+import io.dropwizard.auth.AuthFilter
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.web.auth.GuestAuthFilter.GUEST
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import io.dropwizard.auth.AuthFilter
+import org.apache.texera.web.auth.GuestAuthFilter.GUEST
 
 import java.io.IOException
 import java.util.Optional

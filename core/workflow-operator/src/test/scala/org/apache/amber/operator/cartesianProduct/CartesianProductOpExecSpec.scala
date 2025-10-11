@@ -19,14 +19,7 @@
 
 package org.apache.amber.operator.cartesianProduct
 
-import org.apache.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
+import org.apache.amber.core.tuple._
 import org.apache.amber.core.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec

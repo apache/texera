@@ -25,42 +25,22 @@ import org.apache.amber.core.storage.model.BufferedItemWriter
 import org.apache.amber.core.storage.result.ResultSchema
 import org.apache.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.engine.architecture.controller.{
-  ExecutionStateUpdate,
-  ExecutionStatsUpdate,
-  FatalError,
-  WorkerAssignmentUpdate,
-  WorkflowRecoveryStatus
-}
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED
-}
-import org.apache.amber.engine.common.Utils.maptoStatusCode
-import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.common.executionruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  OperatorWorkerMapping
-}
-import org.apache.amber.engine.common.Utils
-import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
+import org.apache.amber.core.workflow.WorkflowContext
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.amber.engine.architecture.controller._
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED}
+import org.apache.amber.engine.common.Utils
+import org.apache.amber.engine.common.Utils.maptoStatusCode
+import org.apache.amber.engine.common.client.AmberClient
+import org.apache.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics, OperatorWorkerMapping}
+import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import org.apache.texera.web.SubscriptionManager
-import org.apache.texera.web.model.websocket.event.{
-  ExecutionDurationUpdateEvent,
-  OperatorAggregatedMetrics,
-  OperatorStatisticsUpdateEvent,
-  WorkerAssignmentUpdateEvent
-}
+import org.apache.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorAggregatedMetrics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.time.Instant
 import java.util.concurrent.Executors

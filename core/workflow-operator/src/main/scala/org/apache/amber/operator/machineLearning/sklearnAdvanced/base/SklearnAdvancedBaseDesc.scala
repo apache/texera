@@ -24,10 +24,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 trait ParamClass {
   def getName: String

@@ -21,10 +21,7 @@ package org.apache.amber.engine.architecture.controller
 
 import akka.actor.Cancellable
 import org.apache.amber.engine.architecture.common.AkkaActorService
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  QueryStatisticsRequest
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, QueryStatisticsRequest}
 import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.amber.engine.common.virtualidentity.util.SELF

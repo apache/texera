@@ -22,11 +22,7 @@ package org.apache.amber.operator
 import org.apache.amber.core.executor.OpExecSource
 import org.apache.amber.core.storage.VFSURIFactory
 import org.apache.amber.core.tuple.Schema
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow._
 
 import java.net.URI

@@ -27,11 +27,7 @@ import org.apache.amber.engine.architecture.deploysemantics.AddressInfo
 import org.apache.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import org.apache.amber.engine.architecture.scheduling.config.OperatorConfig
 import org.apache.amber.engine.architecture.worker.WorkflowWorker
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig,
-  WorkerReplayInitialization
-}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
 import org.apache.amber.util.VirtualIdentityUtils
 
 object ExecutorDeployment {

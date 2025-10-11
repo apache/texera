@@ -35,22 +35,14 @@ import org.apache.amber.operator.distinct.DistinctOpDesc
 import org.apache.amber.operator.dummy.DummyOpDesc
 import org.apache.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.amber.operator.hashJoin.HashJoinOpDesc
-import org.apache.amber.operator.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceTextSummarizationOpDesc
-}
+import org.apache.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
 import org.apache.amber.operator.ifStatement.IfOpDesc
 import org.apache.amber.operator.intersect.IntersectOpDesc
 import org.apache.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.amber.operator.limit.LimitOpDesc
 import org.apache.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import org.apache.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
-  SklearnAdvancedKNNClassifierTrainerOpDesc,
-  SklearnAdvancedKNNRegressorTrainerOpDesc
-}
+import org.apache.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
 import org.apache.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import org.apache.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import org.apache.amber.operator.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
@@ -59,42 +51,12 @@ import org.apache.amber.operator.randomksampling.RandomKSamplingOpDesc
 import org.apache.amber.operator.regex.RegexOpDesc
 import org.apache.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.amber.operator.sklearn._
+import org.apache.amber.operator.sklearn.training._
 import org.apache.amber.operator.sleep.SleepOpDesc
-import org.apache.amber.operator.sklearn.training.{
-  SklearnTrainingAdaptiveBoostingOpDesc,
-  SklearnTrainingBaggingOpDesc,
-  SklearnTrainingBernoulliNaiveBayesOpDesc,
-  SklearnTrainingComplementNaiveBayesOpDesc,
-  SklearnTrainingDecisionTreeOpDesc,
-  SklearnTrainingDummyClassifierOpDesc,
-  SklearnTrainingExtraTreeOpDesc,
-  SklearnTrainingExtraTreesOpDesc,
-  SklearnTrainingGaussianNaiveBayesOpDesc,
-  SklearnTrainingGradientBoostingOpDesc,
-  SklearnTrainingKNNOpDesc,
-  SklearnTrainingLinearRegressionOpDesc,
-  SklearnTrainingLinearSVMOpDesc,
-  SklearnTrainingLogisticRegressionCVOpDesc,
-  SklearnTrainingLogisticRegressionOpDesc,
-  SklearnTrainingMultiLayerPerceptronOpDesc,
-  SklearnTrainingMultinomialNaiveBayesOpDesc,
-  SklearnTrainingNearestCentroidOpDesc,
-  SklearnTrainingPassiveAggressiveOpDesc,
-  SklearnTrainingPerceptronOpDesc,
-  SklearnTrainingProbabilityCalibrationOpDesc,
-  SklearnTrainingRandomForestOpDesc,
-  SklearnTrainingRidgeCVOpDesc,
-  SklearnTrainingRidgeOpDesc,
-  SklearnTrainingSDGOpDesc,
-  SklearnTrainingSVMOpDesc
-}
 import org.apache.amber.operator.sort.SortOpDesc
 import org.apache.amber.operator.sortPartitions.SortPartitionsOpDesc
 import org.apache.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
-import org.apache.amber.operator.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import org.apache.amber.operator.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import org.apache.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.amber.operator.source.scan.FileScanSourceOpDesc
 import org.apache.amber.operator.source.scan.arrow.ArrowSourceOpDesc
@@ -126,18 +88,20 @@ import org.apache.amber.operator.visualization.candlestickChart.CandlestickChart
 import org.apache.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.amber.operator.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
 import org.apache.amber.operator.visualization.contourPlot.ContourPlotOpDesc
+import org.apache.amber.operator.visualization.dendrogram.DendrogramOpDesc
 import org.apache.amber.operator.visualization.dumbbellPlot.DumbbellPlotOpDesc
 import org.apache.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
 import org.apache.amber.operator.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import org.apache.amber.operator.visualization.funnelPlot.FunnelPlotOpDesc
 import org.apache.amber.operator.visualization.ganttChart.GanttChartOpDesc
 import org.apache.amber.operator.visualization.gaugeChart.GaugeChartOpDesc
-import org.apache.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
 import org.apache.amber.operator.visualization.heatMap.HeatMapOpDesc
 import org.apache.amber.operator.visualization.hierarchychart.HierarchyChartOpDesc
 import org.apache.amber.operator.visualization.histogram.HistogramChartOpDesc
+import org.apache.amber.operator.visualization.histogram2d.Histogram2DOpDesc
 import org.apache.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import org.apache.amber.operator.visualization.lineChart.LineChartOpDesc
+import org.apache.amber.operator.visualization.nestedTable.NestedTableOpDesc
 import org.apache.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import org.apache.amber.operator.visualization.pieChart.PieChartOpDesc
 import org.apache.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
@@ -147,14 +111,12 @@ import org.apache.amber.operator.visualization.scatter3DChart.Scatter3dChartOpDe
 import org.apache.amber.operator.visualization.scatterplot.ScatterplotOpDesc
 import org.apache.amber.operator.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
+import org.apache.amber.operator.visualization.timeSeriesplot.TimeSeriesOpDesc
+import org.apache.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.amber.operator.visualization.urlviz.UrlVizOpDesc
 import org.apache.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.amber.operator.visualization.wordCloud.WordCloudOpDesc
-import org.apache.amber.operator.visualization.dendrogram.DendrogramOpDesc
-import org.apache.amber.operator.visualization.histogram2d.Histogram2DOpDesc
-import org.apache.amber.operator.visualization.nestedTable.NestedTableOpDesc
-import org.apache.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID

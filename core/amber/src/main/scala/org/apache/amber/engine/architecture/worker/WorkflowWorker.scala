@@ -20,6 +20,7 @@
 package org.apache.amber.engine.architecture.worker
 
 import akka.actor.Props
+import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.amber.engine.architecture.controller.ReplayStatusUpdate
@@ -31,7 +32,6 @@ import org.apache.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.amber.engine.common.{CheckpointState, SerializedState}
-import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue

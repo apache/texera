@@ -19,16 +19,9 @@
 
 package org.apache.amber.operator.symmetricDifference
 
+import org.apache.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.apache.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: SymmetricDifferenceOpExec = _
   var counter: Int = 0

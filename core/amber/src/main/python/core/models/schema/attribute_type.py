@@ -16,11 +16,10 @@
 # under the License.
 
 import datetime
-from enum import Enum
-
-from bidict import bidict
-from pyarrow import lib
 import pyarrow as pa
+from bidict import bidict
+from enum import Enum
+from pyarrow import lib
 
 
 class AttributeType(Enum):

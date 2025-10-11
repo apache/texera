@@ -19,13 +19,12 @@
 
 package org.apache.amber.engine.architecture.scheduling
 
-import org.apache.amber.core.workflow.WorkflowContext
+import org.apache.amber.core.virtualidentity.OperatorIdentity
+import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.amber.operator.TestOperators
 import org.apache.amber.operator.split.SplitOpDesc
 import org.apache.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
-import org.apache.amber.core.virtualidentity.OperatorIdentity
-import org.apache.amber.core.workflow.PortIdentity
 import org.apache.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

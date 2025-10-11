@@ -20,10 +20,7 @@
 package org.apache.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AddInputChannelRequest,
-  AsyncRPCContext
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AsyncRPCContext}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}

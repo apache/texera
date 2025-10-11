@@ -23,12 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{AttributeTypeUtils, Schema}
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow._
 import org.apache.amber.operator.map.MapOpDesc
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class TypeCastingOpDesc extends MapOpDesc {
 

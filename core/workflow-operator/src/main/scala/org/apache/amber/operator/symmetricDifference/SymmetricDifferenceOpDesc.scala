@@ -21,17 +21,10 @@ package org.apache.amber.operator.symmetricDifference
 
 import com.google.common.base.Preconditions
 import org.apache.amber.core.executor.OpExecWithClassName
-import org.apache.amber.core.workflow.{
-  HashPartition,
-  InputPort,
-  OutputPort,
-  PhysicalOp,
-  PortIdentity,
-  SchemaPropagationFunc
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow._
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 class SymmetricDifferenceOpDesc extends LogicalOp {
 

@@ -19,12 +19,12 @@
 
 package org.apache.amber.engine.architecture.logreplay
 
+import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 import org.apache.amber.engine.architecture.common.ProcessingStepCursor
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import org.apache.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
-import org.apache.amber.core.virtualidentity.{ChannelIdentity, EmbeddedControlMessageIdentity}
 
 //In-mem formats:
 sealed trait ReplayLogRecord extends Serializable

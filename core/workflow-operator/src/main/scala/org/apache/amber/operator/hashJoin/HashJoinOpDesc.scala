@@ -23,18 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{Attribute, Schema}
-import org.apache.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow._
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
-import org.apache.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.util.JSONUtils.objectMapper
 

@@ -51,8 +51,9 @@ jooqGenerate := {
     import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions}
     import org.jooq.codegen.GenerationTool
     import org.jooq.meta.jaxb.{Configuration, Jdbc}
-    import java.nio.file.{Files, Path}
+
     import java.io.File
+    import java.nio.file.{Files, Path}
 
     // Load jOOQ configuration XML (absolute path from DAO project)
     val jooqXmlPath: Path =

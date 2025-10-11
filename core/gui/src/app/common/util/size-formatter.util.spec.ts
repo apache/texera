@@ -25,7 +25,7 @@ describe("formatSize", () => {
     expect(result).toBe("1.50 KB");
   });
 
-  it("should return \"0 Bytes\" for undefined or non-positive input", () => {
+  it('should return "0 Bytes" for undefined or non-positive input', () => {
     expect(formatSize(undefined)).toBe("0 B");
     expect(formatSize(-100)).toBe("0 B");
     expect(formatSize(0)).toBe("0 B");

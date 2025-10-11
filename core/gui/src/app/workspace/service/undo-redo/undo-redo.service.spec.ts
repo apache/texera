@@ -21,8 +21,8 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { mockScanPredicate, mockResultPredicate, mockPoint } from "../workflow-graph/model/mock-workflow-data";
-import { TestBed, inject } from "@angular/core/testing";
+import { mockPoint, mockResultPredicate, mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { inject, TestBed } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";

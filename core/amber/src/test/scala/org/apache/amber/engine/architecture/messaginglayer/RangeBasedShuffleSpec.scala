@@ -20,9 +20,9 @@
 package org.apache.amber.engine.architecture.messaginglayer
 
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.sendsemantics.partitioners.RangeBasedShufflePartitioner
 import org.apache.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 

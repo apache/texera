@@ -23,20 +23,18 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.tuple.Schema
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.util.ArrowUtils
 import org.apache.amber.util.JSONUtils.objectMapper
-
-import java.io.IOException
-import java.net.URI
-import java.nio.file.Files
-import java.nio.file.StandardOpenOption
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
+import java.io.IOException
+import java.net.URI
+import java.nio.file.{Files, StandardOpenOption}
 import scala.util.Using
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))

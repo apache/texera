@@ -20,8 +20,8 @@
 package org.apache.texera.dao
 
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import org.jooq.{DSLContext, SQLDialect}
 import org.jooq.impl.DSL
+import org.jooq.{DSLContext, SQLDialect}
 
 import java.nio.file.Paths
 import java.sql.{Connection, DriverManager}

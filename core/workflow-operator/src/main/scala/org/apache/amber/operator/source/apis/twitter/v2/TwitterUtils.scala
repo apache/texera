@@ -19,9 +19,9 @@
 
 package org.apache.amber.operator.source.apis.twitter.v2
 
-import org.apache.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, Tuple}
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
+import org.apache.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, Tuple}
 
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}

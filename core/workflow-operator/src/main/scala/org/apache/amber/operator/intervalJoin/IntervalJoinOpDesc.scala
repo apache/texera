@@ -24,16 +24,12 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{Attribute, Schema}
-import org.apache.amber.core.workflow.{HashPartition, PhysicalOp, SchemaPropagationFunc}
-import org.apache.amber.operator.LogicalOp
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import org.apache.amber.util.JSONUtils.objectMapper
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.amber.core.workflow._
+import org.apache.amber.operator.LogicalOp
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.amber.util.JSONUtils.objectMapper
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order

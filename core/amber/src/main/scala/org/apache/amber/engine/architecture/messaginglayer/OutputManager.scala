@@ -25,19 +25,13 @@ import org.apache.amber.core.storage.model.BufferedItemWriter
 import org.apache.amber.core.tuple._
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.core.workflow.{PhysicalLink, PortIdentity}
-import org.apache.amber.engine.architecture.messaginglayer.OutputManager.{
-  DPOutputIterator,
-  getBatchSize,
-  toPartitioner
-}
+import org.apache.amber.engine.architecture.messaginglayer.OutputManager.{DPOutputIterator, getBatchSize, toPartitioner}
 import org.apache.amber.engine.architecture.sendsemantics.partitioners._
 import org.apache.amber.engine.architecture.sendsemantics.partitionings._
-import org.apache.amber.engine.architecture.worker.managers.{
-  OutputPortResultWriterThread,
-  PortStorageWriterTerminateSignal
-}
+import org.apache.amber.engine.architecture.worker.managers.{OutputPortResultWriterThread, PortStorageWriterTerminateSignal}
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.util.VirtualIdentityUtils
+
 import java.net.URI
 import scala.collection.mutable
 

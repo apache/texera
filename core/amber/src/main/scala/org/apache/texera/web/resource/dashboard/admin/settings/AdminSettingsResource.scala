@@ -19,15 +19,16 @@
 
 package org.apache.texera.web.resource.dashboard.admin.settings
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import io.dropwizard.auth.Auth
+import org.apache.texera.auth.SessionUser
+import org.apache.texera.config.DefaultsConfig
+import org.apache.texera.dao.SqlServer
+import org.jooq.impl.DSL
+
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import io.dropwizard.auth.Auth
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.config.DefaultsConfig
-import org.jooq.impl.DSL
-import com.fasterxml.jackson.annotation.JsonProperty
 
 case class AdminSettingsPojo(
     @JsonProperty("key") settingKey: String,

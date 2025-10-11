@@ -21,11 +21,10 @@ package org.apache.amber.operator.reservoirsampling
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.amber.core.executor.OpExecWithClassName
-import org.apache.amber.core.workflow.PhysicalOp
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.amber.util.JSONUtils.objectMapper
 
 class ReservoirSamplingOpDesc extends LogicalOp {

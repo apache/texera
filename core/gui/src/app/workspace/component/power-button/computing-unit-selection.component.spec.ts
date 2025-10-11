@@ -23,10 +23,6 @@ import { ComputingUnitSelectionComponent } from "./computing-unit-selection.comp
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { CommonModule } from "@angular/common";
 import { NzIconModule } from "ng-zorro-antd/icon";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, Data, Params, UrlSegment } from "@angular/router";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";

@@ -16,11 +16,10 @@
 # under the License.
 
 import datetime
-
 import pandas
+import pyarrow
 import pytest
 from copy import deepcopy
-import pyarrow
 from numpy import NaN
 
 from core.models import Tuple, ArrowTableTupleProvider

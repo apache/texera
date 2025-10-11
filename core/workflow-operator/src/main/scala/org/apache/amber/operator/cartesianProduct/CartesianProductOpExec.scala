@@ -22,6 +22,7 @@ package org.apache.amber.operator.cartesianProduct
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.amber.operator.hashJoin.JoinUtils
+
 import scala.collection.mutable.ArrayBuffer
 
 /**

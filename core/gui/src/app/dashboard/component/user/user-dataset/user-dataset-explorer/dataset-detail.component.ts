@@ -38,7 +38,6 @@ import { ActionType, EntityType, HubService, LikedStatus } from "../../../../../
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { DatasetStagedObject } from "../../../../../common/type/dataset-staged-object";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator/user-dataset-version-creator.component";
 import { AdminSettingsService } from "../../../../service/admin/settings/admin-settings.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Subscription } from "rxjs";

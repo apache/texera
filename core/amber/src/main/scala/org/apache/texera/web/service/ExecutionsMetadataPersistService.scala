@@ -20,9 +20,7 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions

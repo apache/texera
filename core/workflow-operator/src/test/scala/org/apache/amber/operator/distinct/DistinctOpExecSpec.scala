@@ -19,9 +19,9 @@
 
 package org.apache.amber.operator.distinct
 
+import org.apache.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))

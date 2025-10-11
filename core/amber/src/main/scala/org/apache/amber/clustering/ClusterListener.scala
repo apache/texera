@@ -26,15 +26,12 @@ import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import org.apache.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import org.apache.amber.config.ApplicationConfig
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
-import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import org.apache.amber.engine.common.AmberLogging
+import org.apache.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import org.apache.texera.web.SessionState
 import org.apache.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import org.apache.texera.web.service.{WorkflowExecutionService, WorkflowService}

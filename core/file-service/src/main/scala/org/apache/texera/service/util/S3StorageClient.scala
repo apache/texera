@@ -22,8 +22,8 @@ package org.apache.texera.service.util
 import org.apache.amber.config.StorageConfig
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import software.amazon.awssdk.services.s3.model._
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.security.MessageDigest
 import scala.jdk.CollectionConverters._

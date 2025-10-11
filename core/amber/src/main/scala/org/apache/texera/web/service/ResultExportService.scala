@@ -30,37 +30,33 @@ import org.apache.amber.core.tuple.Tuple
 import org.apache.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.util.ArrowUtils
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.commons.io.IOUtils
+import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.apache.texera.web.resource.dashboard.user.workflow.{
-  WorkflowExecutionsResource,
-  WorkflowVersionResource
-}
+import org.apache.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
-import scala.jdk.CollectionConverters._
 import java.io.{FilterOutputStream, IOException, OutputStream}
+import java.net.{HttpURLConnection, URL, URLEncoder}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.zip.{ZipEntry, ZipOutputStream}
-import scala.collection.mutable
-import scala.util.Using
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector._
-import org.apache.arrow.vector.ipc.ArrowFileWriter
-import org.apache.commons.lang3.StringUtils
-
 import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import java.net.{HttpURLConnection, URL, URLEncoder}
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import org.apache.commons.io.IOUtils
+import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 object Constants {
   val CHUNK_SIZE = 10

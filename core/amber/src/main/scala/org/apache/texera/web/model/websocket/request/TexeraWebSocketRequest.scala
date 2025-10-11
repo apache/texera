@@ -21,10 +21,7 @@ package org.apache.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import org.apache.texera.web.model.websocket.request.python.{
-  DebugCommandRequest,
-  PythonExpressionEvaluateRequest
-}
+import org.apache.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(

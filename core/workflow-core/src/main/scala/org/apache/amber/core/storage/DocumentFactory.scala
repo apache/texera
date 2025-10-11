@@ -21,9 +21,9 @@ package org.apache.amber.core.storage
 
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
-import org.apache.amber.core.storage.model._
 import org.apache.amber.core.storage.VFSResourceType._
 import org.apache.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
+import org.apache.amber.core.storage.model._
 import org.apache.amber.core.storage.result.iceberg.IcebergDocument
 import org.apache.amber.core.tuple.{Schema, Tuple}
 import org.apache.amber.util.IcebergUtil

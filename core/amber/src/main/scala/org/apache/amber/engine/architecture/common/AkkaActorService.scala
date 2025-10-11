@@ -21,8 +21,8 @@ package org.apache.amber.engine.architecture.common
 
 import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
 import akka.util.Timeout
-import org.apache.amber.engine.common.FutureBijection._
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.common.FutureBijection._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}

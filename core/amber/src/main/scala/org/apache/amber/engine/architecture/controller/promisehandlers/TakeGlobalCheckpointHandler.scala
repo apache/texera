@@ -20,6 +20,7 @@
 package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
 import org.apache.amber.engine.architecture.rpc.controlcommands._
@@ -28,7 +29,6 @@ import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.virtualidentity.util.SELF
 import org.apache.amber.engine.common.{CheckpointState, SerializedState}
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.net.URI
 

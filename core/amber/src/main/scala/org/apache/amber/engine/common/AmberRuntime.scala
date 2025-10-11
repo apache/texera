@@ -21,9 +21,9 @@ package org.apache.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, Cancellable, DeadLetter, Props}
 import akka.serialization.{Serialization, SerializationExtension}
-import org.apache.amber.config.AkkaConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.amber.clustering.ClusterListener
+import org.apache.amber.config.AkkaConfig
 import org.apache.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}

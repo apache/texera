@@ -20,6 +20,7 @@
 package org.apache.amber.engine.architecture.scheduling.config
 
 import org.apache.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+
 import java.net.URI
 
 /**

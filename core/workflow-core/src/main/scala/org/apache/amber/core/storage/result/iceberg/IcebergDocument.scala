@@ -24,21 +24,21 @@ import org.apache.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import org.apache.amber.util.IcebergUtil
 import org.apache.commons.io.IOUtils
-import org.apache.iceberg.{FileScanTask, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.types.{Conversions, Types}
+import org.apache.iceberg.{FileScanTask, Table}
 
 import java.io.{ByteArrayInputStream, InputStream, PipedInputStream, PipedOutputStream}
 import java.net.URI
-import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
-import scala.jdk.CollectionConverters._
 import java.nio.ByteBuffer
-import java.time.{Instant, LocalDate, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, LocalDate, ZoneOffset}
+import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 object Constants {

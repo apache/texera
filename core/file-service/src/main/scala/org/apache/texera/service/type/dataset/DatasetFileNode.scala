@@ -19,8 +19,8 @@
 
 package org.apache.texera.service.`type`
 
-import org.apache.amber.core.storage.util.dataset.PhysicalFileNode
 import io.lakefs.clients.sdk.model.ObjectStats
+import org.apache.amber.core.storage.util.dataset.PhysicalFileNode
 
 import java.util
 import scala.collection.mutable

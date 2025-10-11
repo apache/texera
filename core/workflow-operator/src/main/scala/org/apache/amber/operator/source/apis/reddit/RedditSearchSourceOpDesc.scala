@@ -22,9 +22,9 @@ package org.apache.amber.operator.source.apis.reddit
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.tuple.{AttributeType, Schema}
+import org.apache.amber.core.workflow.{OutputPort, PortIdentity}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.PythonSourceOperatorDescriptor
-import org.apache.amber.core.workflow.{OutputPort, PortIdentity}
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)

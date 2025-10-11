@@ -21,34 +21,30 @@ package org.apache.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.Configuration
+import io.dropwizard.setup.{Bootstrap, Environment}
+import io.dropwizard.websockets.WebsocketBundle
 import org.apache.amber.config.{ApplicationConfig, StorageConfig}
 import org.apache.amber.core.storage.DocumentFactory
+import org.apache.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.amber.engine.architecture.controller.ControllerConfig
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
 import org.apache.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import org.apache.amber.engine.common.Utils.maptoStatusCode
 import org.apache.amber.engine.common.client.AmberClient
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.{AmberRuntime, Utils}
-import org.apache.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.amber.util.JSONUtils.objectMapper
 import org.apache.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.UserSystemConfig
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
-import org.apache.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.service.ExecutionsMetadataPersistService
-import io.dropwizard.Configuration
-import io.dropwizard.setup.{Bootstrap, Environment}
-import io.dropwizard.websockets.WebsocketBundle
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
+import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import org.apache.texera.web.auth.JwtAuth.setupJwtAuth
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.web.resource.{WebsocketPayloadSizeTuner, WorkflowWebsocketResource}
+import org.apache.texera.web.service.ExecutionsMetadataPersistService
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 

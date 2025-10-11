@@ -21,27 +21,20 @@ package org.apache.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
+import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.WorkflowRuntimeException
 import org.apache.amber.core.storage.DocumentFactory
+import org.apache.amber.core.storage.result.iceberg.OnIceberg
+import org.apache.amber.core.virtualidentity.{EmbeddedControlMessageIdentity, ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow.WorkflowContext
-import org.apache.amber.engine.architecture.controller.ControllerConfig
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
-import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import org.apache.amber.core.virtualidentity.{
-  EmbeddedControlMessageIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
+import org.apache.amber.engine.architecture.controller.ControllerConfig
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
@@ -51,16 +44,12 @@ import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import org.apache.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import org.apache.texera.workflow.LogicalPlan
-import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
-import io.reactivex.rxjava3.subjects.BehaviorSubject
 import play.api.libs.json.Json
 
 import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
-import org.apache.amber.core.storage.result.iceberg.OnIceberg
-import org.apache.texera.config.UserSystemConfig
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()

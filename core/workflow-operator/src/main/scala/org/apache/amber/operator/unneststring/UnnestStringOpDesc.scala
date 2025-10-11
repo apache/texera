@@ -22,13 +22,12 @@ package org.apache.amber.operator.unneststring
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.AttributeType
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.amber.operator.flatmap.FlatMapOpDesc
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
-import org.apache.amber.util.JSONUtils.objectMapper
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.{InputPort, OutputPort}
+import org.apache.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.amber.operator.flatmap.FlatMapOpDesc
+import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.amber.util.JSONUtils.objectMapper
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")

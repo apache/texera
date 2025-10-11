@@ -19,9 +19,9 @@
 
 package org.apache.amber.core.tuple
 
-import Tuple.checkSchemaMatchesFields
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
+import org.apache.amber.core.tuple.Tuple.checkSchemaMatchesFields
 import org.ehcache.sizeof.SizeOf
 
 import java.util

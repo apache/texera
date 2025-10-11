@@ -19,11 +19,11 @@
 
 package org.apache.amber.engine.architecture.messaginglayer
 
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.core.workflow.PortIdentity
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable

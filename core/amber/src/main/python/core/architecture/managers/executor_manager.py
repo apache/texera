@@ -15,17 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import fs
 import importlib
 import inspect
 import sys
 from cached_property import cached_property
-
-import fs
+from fs.base import FS
+from loguru import logger
 from pathlib import Path
 from typing import Tuple, Optional
 
-from fs.base import FS
-from loguru import logger
 from core.models import Operator, SourceOperator
 
 

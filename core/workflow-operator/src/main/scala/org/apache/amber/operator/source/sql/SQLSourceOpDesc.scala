@@ -23,12 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  BatchByColumn,
-  EnablePresets,
-  UIWidget
-}
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, BatchByColumn, EnablePresets, UIWidget}
 import org.apache.amber.operator.source.SourceOperatorDescriptor
 
 import java.sql._

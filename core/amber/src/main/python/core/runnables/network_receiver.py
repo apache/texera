@@ -17,9 +17,9 @@
 
 from loguru import logger
 from overrides import overrides
+from pampy import match
 from pyarrow.lib import Table
 from typing import Optional
-from pampy import match
 
 from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,

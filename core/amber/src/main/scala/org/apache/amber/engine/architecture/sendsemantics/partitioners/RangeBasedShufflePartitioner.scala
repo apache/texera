@@ -20,8 +20,8 @@
 package org.apache.amber.engine.architecture.sendsemantics.partitioners
 
 import org.apache.amber.core.tuple.{AttributeType, Tuple}
-import org.apache.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends Partitioner {

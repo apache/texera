@@ -19,9 +19,9 @@
 
 package org.apache.texera.web.auth
 
+import io.dropwizard.auth.Authorizer
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import io.dropwizard.auth.Authorizer
 
 object UserRoleAuthorizer extends Authorizer[SessionUser] {
   override def authorize(user: SessionUser, role: String): Boolean = {

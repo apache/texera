@@ -19,11 +19,11 @@
 
 package org.apache.texera.web.resource.dashboard.admin.execution
 
+import io.dropwizard.auth.Auth
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.auth.SessionUser
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
-import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed

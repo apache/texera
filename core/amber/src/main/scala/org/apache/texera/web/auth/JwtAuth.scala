@@ -20,11 +20,10 @@
 package org.apache.texera.web.auth
 
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import org.apache.texera.auth.JwtAuth.jwtConsumer
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.config.UserSystemConfig
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.setup.Environment
+import org.apache.texera.auth.JwtAuth.jwtConsumer
+import org.apache.texera.auth.SessionUser
 
 // TODO: move this logic to Auth
 @Deprecated

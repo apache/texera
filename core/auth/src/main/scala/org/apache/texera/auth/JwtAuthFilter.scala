@@ -20,14 +20,15 @@
 package org.apache.texera.auth
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import jakarta.ws.rs.container.{ContainerRequestContext, ContainerRequestFilter, ResourceInfo}
 import jakarta.ws.rs.core.{Context, HttpHeaders, SecurityContext}
 import jakarta.ws.rs.ext.Provider
+import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_LAST_ACTIVE_TIME
-import java.time.OffsetDateTime
+import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+
 import java.security.Principal
+import java.time.OffsetDateTime
 
 @Provider
 class JwtAuthFilter extends ContainerRequestFilter with LazyLogging {

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, AfterViewInit, ViewChild, ChangeDetectorRef } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ViewChild } from "@angular/core";
 import { SearchService } from "../../../service/user/search.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";

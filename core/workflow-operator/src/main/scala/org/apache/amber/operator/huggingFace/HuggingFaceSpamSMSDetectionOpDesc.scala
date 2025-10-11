@@ -21,10 +21,10 @@ package org.apache.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.amber.core.tuple.{AttributeType, Schema}
+import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform spam detection on")

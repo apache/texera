@@ -19,13 +19,13 @@
 
 package org.apache.amber.core.storage
 
+import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
-import org.apache.commons.vfs2.FileNotFoundException
 
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets

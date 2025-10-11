@@ -20,20 +20,13 @@
 package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.NO_ALIGNMENT
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EmptyRequest,
-  PropagateEmbeddedControlMessageRequest
-}
-import org.apache.amber.engine.architecture.rpc.controlreturns.{
-  RetrieveWorkflowStateResponse,
-  StringResponse
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, PropagateEmbeddedControlMessageRequest}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{RetrieveWorkflowStateResponse, StringResponse}
 import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_RETRIEVE_STATE
 import org.apache.amber.engine.common.virtualidentity.util.SELF
-import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 
 import java.time.Instant
 

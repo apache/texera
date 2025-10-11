@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.architecture.messaginglayer
 
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.logreplay.OrderEnforcer
 import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 

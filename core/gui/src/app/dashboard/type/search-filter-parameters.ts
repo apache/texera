@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { result } from "lodash";
 import { DashboardEntry } from "./dashboard-entry";
 import { SortMethod } from "./sort-method";
 

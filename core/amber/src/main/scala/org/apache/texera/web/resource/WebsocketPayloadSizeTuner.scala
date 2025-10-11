@@ -18,8 +18,8 @@
 
 package org.apache.texera.web.resource
 
-import javax.websocket.server.ServerContainer
 import javax.servlet.{ServletContextEvent, ServletContextListener}
+import javax.websocket.server.ServerContainer
 
 class WebsocketPayloadSizeTuner(maxKB: Int) // by default, 64 KiB
     extends ServletContextListener {

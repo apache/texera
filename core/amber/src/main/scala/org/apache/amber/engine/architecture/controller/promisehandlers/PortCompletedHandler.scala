@@ -22,15 +22,8 @@ package org.apache.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import org.apache.amber.core.WorkflowRuntimeException
 import org.apache.amber.core.workflow.GlobalPortIdentity
-import org.apache.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  FatalError
-}
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  PortCompletedRequest,
-  QueryStatisticsRequest
-}
+import org.apache.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, FatalError}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PortCompletedRequest, QueryStatisticsRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.amber.util.VirtualIdentityUtils

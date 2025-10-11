@@ -23,13 +23,13 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{AttributeType, Schema}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.LogicalOp
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.workflow.OutputPort.OutputMode
 
 /**
   * URL Visualization operator to render any content in given URL link

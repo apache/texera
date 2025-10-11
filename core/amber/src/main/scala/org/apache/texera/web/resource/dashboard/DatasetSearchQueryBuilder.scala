@@ -19,21 +19,18 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import org.apache.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFullTextSearchFilter
-}
+import org.apache.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter}
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
-import com.typesafe.scalalogging.LazyLogging
+
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object DatasetSearchQueryBuilder extends SearchQueryBuilder with LazyLogging {

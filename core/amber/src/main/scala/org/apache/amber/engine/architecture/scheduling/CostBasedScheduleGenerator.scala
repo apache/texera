@@ -22,19 +22,9 @@ package org.apache.amber.engine.architecture.scheduling
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.storage.VFSURIFactory.createResultURI
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import org.apache.amber.core.workflow.{
-  GlobalPortIdentity,
-  PhysicalLink,
-  PhysicalOp,
-  PhysicalPlan,
-  WorkflowContext
-}
+import org.apache.amber.core.workflow._
 import org.apache.amber.engine.architecture.scheduling.SchedulingUtils.replaceVertex
-import org.apache.amber.engine.architecture.scheduling.config.{
-  IntermediateInputPortConfig,
-  OutputPortConfig,
-  ResourceConfig
-}
+import org.apache.amber.engine.architecture.scheduling.config.{IntermediateInputPortConfig, OutputPortConfig, ResourceConfig}
 import org.apache.amber.engine.common.AmberLogging
 import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
@@ -42,7 +32,6 @@ import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import java.net.URI
 import java.util.concurrent.TimeoutException
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt

@@ -22,12 +22,12 @@ package org.apache.amber.core.storage.result.iceberg
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.core.storage.model.BufferedItemWriter
 import org.apache.amber.util.IcebergUtil
-import org.apache.iceberg.{Schema, Table}
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.data.parquet.GenericParquetWriter
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
+import org.apache.iceberg.{Schema, Table}
 
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer

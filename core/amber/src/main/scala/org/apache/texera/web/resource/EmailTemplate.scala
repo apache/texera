@@ -19,8 +19,8 @@
 
 package org.apache.texera.web.resource
 
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.config.UserSystemConfig
+import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 
 /**
   * EmailTemplate provides factory methods to generate email messages

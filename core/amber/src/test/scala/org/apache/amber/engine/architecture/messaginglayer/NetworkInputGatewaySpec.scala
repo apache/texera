@@ -20,8 +20,8 @@
 package org.apache.amber.engine.architecture.messaginglayer
 
 import org.apache.amber.core.tuple.{AttributeType, Schema, TupleLike}
-import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 

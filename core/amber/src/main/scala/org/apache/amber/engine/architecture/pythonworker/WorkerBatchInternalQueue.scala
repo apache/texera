@@ -19,16 +19,12 @@
 
 package org.apache.amber.engine.architecture.pythonworker
 
-import org.apache.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
-import org.apache.amber.engine.common.actormessage.ActorCommand
-import org.apache.amber.engine.common.ambermessage.{
-  DirectControlMessagePayload,
-  DataFrame,
-  DataPayload
-}
-import org.apache.amber.core.virtualidentity.ChannelIdentity
-import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import lbmq.LinkedBlockingMultiQueue
+import org.apache.amber.core.virtualidentity.ChannelIdentity
+import org.apache.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
+import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
+import org.apache.amber.engine.common.actormessage.ActorCommand
+import org.apache.amber.engine.common.ambermessage.{DataFrame, DataPayload, DirectControlMessagePayload}
 
 import scala.collection.mutable
 

@@ -19,36 +19,11 @@
 
 package org.apache.texera.web.resource.dashboard.hub
 
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables._
-import HubResource.{
-  AccessResponse,
-  CountResponse,
-  LikedResponse,
-  UserRequest,
-  ViewRequest,
-  fetchDashboardDatasetsByDids,
-  fetchDashboardWorkflowsByWids,
-  isLikedHelper,
-  recordLikeAction,
-  recordUserAction
-}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
-  DashboardWorkflow,
-  baseWorkflowSelect,
-  mapWorkflowEntries
-}
-import org.jooq.impl.DSL
-
-import java.util.regex.Pattern
-import javax.servlet.http.HttpServletRequest
-import javax.ws.rs._
-import javax.ws.rs.core.{Context, MediaType}
-import scala.language.existentials
-import scala.jdk.CollectionConverters._
-import EntityTables._
+import io.dropwizard.auth.Auth
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.ActionEnum
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
@@ -56,11 +31,20 @@ import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import org.apache.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import org.apache.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unlike, View}
+import org.apache.texera.web.resource.dashboard.hub.EntityTables._
+import org.apache.texera.web.resource.dashboard.hub.HubResource._
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import io.dropwizard.auth.Auth
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
 import org.jooq.Table
+import org.jooq.impl.DSL
 
+import java.util.regex.Pattern
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs._
+import javax.ws.rs.core.{Context, MediaType}
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
+import scala.language.existentials
 
 object HubResource {
   // Represents an entity reference for general-purpose batch APIs.

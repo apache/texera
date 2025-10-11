@@ -21,10 +21,10 @@ package org.apache.amber.operator.visualization.tablesChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.amber.core.tuple.{AttributeType, Schema}
-import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.amber.operator.PythonOperatorDescriptor
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")

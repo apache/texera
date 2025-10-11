@@ -20,10 +20,10 @@
 package org.apache.amber.engine.architecture.controller
 
 import org.apache.amber.core.tuple.Tuple
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import org.apache.amber.engine.common.executionruntimestate.OperatorMetrics
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 trait ClientEvent extends WorkflowFIFOMessagePayload
 

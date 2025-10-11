@@ -21,26 +21,17 @@ package org.apache.amber.engine.architecture.control
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestKit, TestProbe}
-import org.apache.amber.engine.architecture.common.WorkflowActor.{
-  GetActorRef,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
+import io.grpc.MethodDescriptor
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.amber.engine.architecture.common.WorkflowActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
 import org.apache.amber.engine.architecture.control.utils.TrivialControlTester
 import org.apache.amber.engine.architecture.rpc.controlcommands._
-import org.apache.amber.engine.architecture.rpc.controlreturns.{
-  IntResponse,
-  ReturnInvocation,
-  StringResponse
-}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{IntResponse, ReturnInvocation, StringResponse}
 import org.apache.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc._
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import io.grpc.MethodDescriptor
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 

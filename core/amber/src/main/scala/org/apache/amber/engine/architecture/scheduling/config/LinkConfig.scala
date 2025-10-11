@@ -19,17 +19,9 @@
 
 package org.apache.amber.engine.architecture.scheduling.config
 
-import org.apache.amber.core.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  OneToOnePartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
-import org.apache.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.amber.core.workflow._
+import org.apache.amber.engine.architecture.sendsemantics.partitionings._
 
 case object LinkConfig {
   def toPartitioning(

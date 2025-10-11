@@ -19,15 +19,14 @@
 
 package org.apache.texera.service
 
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.util.ObjectMapperUtils
 import org.apache.amber.util.PathUtils.workflowCompilingServicePath
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.WorkflowCompilationResource
-import org.apache.texera.service.resource.HealthCheckResource
+import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {

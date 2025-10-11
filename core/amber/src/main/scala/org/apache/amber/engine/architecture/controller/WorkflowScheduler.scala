@@ -21,11 +21,7 @@ package org.apache.amber.engine.architecture.controller
 
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.amber.engine.architecture.scheduling.{
-  CostBasedScheduleGenerator,
-  Region,
-  Schedule
-}
+import org.apache.amber.engine.architecture.scheduling.{CostBasedScheduleGenerator, Region, Schedule}
 
 class WorkflowScheduler(
     workflowContext: WorkflowContext,

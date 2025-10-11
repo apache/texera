@@ -19,10 +19,10 @@ import builtins
 import inspect
 from contextlib import redirect_stdout
 from io import StringIO
-
 from typing import ContextManager
-from core.util.console_message.timestamp import current_time_in_local_timezone
+
 from core.util.buffer.buffer_base import IBuffer
+from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.org.apache.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,

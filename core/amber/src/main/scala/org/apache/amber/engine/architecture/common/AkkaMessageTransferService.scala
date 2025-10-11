@@ -21,11 +21,11 @@ package org.apache.amber.engine.architecture.common
 
 import akka.actor.Cancellable
 import org.apache.amber.config.ApplicationConfig
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import org.apache.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
-import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt

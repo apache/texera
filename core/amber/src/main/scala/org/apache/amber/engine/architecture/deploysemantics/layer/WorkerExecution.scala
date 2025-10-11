@@ -19,10 +19,10 @@
 
 package org.apache.amber.engine.architecture.deploysemantics.layer
 
+import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.engine.architecture.controller.execution.WorkerPortExecution
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import org.apache.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import org.apache.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 

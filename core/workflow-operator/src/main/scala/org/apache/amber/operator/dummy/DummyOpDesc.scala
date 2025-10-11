@@ -21,9 +21,9 @@ package org.apache.amber.operator.dummy
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.{LogicalOp, PortDescription, PortDescriptor}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class DummyOpDesc extends LogicalOp with PortDescriptor {
 

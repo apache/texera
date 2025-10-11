@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.pojos._
@@ -26,8 +27,6 @@ import org.apache.texera.web.resource.dashboard.DashboardResource._
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import io.dropwizard.auth.Auth
-
 import org.jooq.{Field, OrderField}
 
 import java.util

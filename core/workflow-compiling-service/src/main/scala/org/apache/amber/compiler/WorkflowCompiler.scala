@@ -21,14 +21,11 @@ package org.apache.amber.compiler
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import org.apache.amber.compiler.WorkflowCompiler.{
-  collectOutputSchemaFromPhysicalPlan,
-  convertErrorListToWorkflowFatalErrorMap
-}
+import org.apache.amber.compiler.WorkflowCompiler.{collectOutputSchemaFromPhysicalPlan, convertErrorListToWorkflowFatalErrorMap}
 import org.apache.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.amber.core.tuple.Schema
-import org.apache.amber.core.workflow.{PhysicalLink, PhysicalPlan, PortIdentity, WorkflowContext}
 import org.apache.amber.core.virtualidentity.OperatorIdentity
+import org.apache.amber.core.workflow.{PhysicalLink, PhysicalPlan, PortIdentity, WorkflowContext}
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
 

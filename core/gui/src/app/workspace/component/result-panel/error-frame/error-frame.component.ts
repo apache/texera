@@ -17,13 +17,10 @@
  * under the License.
  */
 
-import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
-import { render } from "sass";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 

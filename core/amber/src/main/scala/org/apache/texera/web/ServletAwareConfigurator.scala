@@ -20,19 +20,17 @@
 package org.apache.texera.web
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.http.client.utils.URLEncodedUtils
 import org.apache.texera.auth.JwtAuth.jwtConsumer
 import org.apache.texera.auth.util.HeaderField
-import org.apache.texera.config.KubernetesConfig
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.http.client.utils.URLEncodedUtils
 
 import java.net.URI
 import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse
 import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
-import scala.jdk.CollectionConverters.ListHasAsScala
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.{ListHasAsScala, _}
 
 /**
   * This configurator extracts HTTPSession and associates it to ServerEndpointConfig,

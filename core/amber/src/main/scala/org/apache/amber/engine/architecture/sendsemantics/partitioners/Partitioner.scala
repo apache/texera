@@ -22,9 +22,10 @@ package org.apache.amber.engine.architecture.sendsemantics.partitioners
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.state.State
 import org.apache.amber.core.tuple.Tuple
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import org.apache.amber.engine.common.ambermessage.{DataFrame, StateFrame}
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+
 import scala.collection.mutable.ArrayBuffer
 
 trait Partitioner extends Serializable {

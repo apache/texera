@@ -31,11 +31,7 @@ import org.apache.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.amber.engine.common.AmberRuntime
 import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.e2e.TestUtils.{
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
-}
+import org.apache.amber.engine.e2e.TestUtils.{cleanupWorkflowExecutionData, initiateTexeraDBForTestCases, setUpWorkflowExecutionData}
 import org.apache.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike

@@ -29,6 +29,7 @@ import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -115,7 +116,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     setTimeout(() => {
       const topLevelCategories = this.content.nativeElement.querySelectorAll(
-        "nz-collapse-panel.operator-group[data-depth=\"0\"]"
+        'nz-collapse-panel.operator-group[data-depth="0"]'
       );
 
       if (topLevelCategories.length > 0) {

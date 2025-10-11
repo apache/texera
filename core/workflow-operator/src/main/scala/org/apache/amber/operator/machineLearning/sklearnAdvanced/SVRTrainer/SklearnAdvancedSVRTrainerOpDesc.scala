@@ -19,7 +19,6 @@
 
 package org.apache.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer
 
-import org.apache.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRParameters
 import org.apache.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 
 class SklearnAdvancedSVRTrainerOpDesc

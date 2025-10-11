@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import threading
-
 import pytest
+import threading
 from pyarrow import Table
 
 from core.models.internal_queue import (
@@ -31,6 +30,11 @@ from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
+from proto.org.apache.amber.core import (
+    ActorVirtualIdentity,
+    ChannelIdentity,
+    EmbeddedControlMessageIdentity,
+)
 from proto.org.apache.amber.engine.architecture.rpc import (
     ControlInvocation,
     EmbeddedControlMessage,
@@ -40,11 +44,6 @@ from proto.org.apache.amber.engine.architecture.rpc import (
     ControlRequest,
 )
 from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
-from proto.org.apache.amber.core import (
-    ActorVirtualIdentity,
-    ChannelIdentity,
-    EmbeddedControlMessageIdentity,
-)
 
 
 class TestNetworkReceiver:

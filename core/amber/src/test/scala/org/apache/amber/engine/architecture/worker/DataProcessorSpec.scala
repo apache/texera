@@ -21,38 +21,20 @@ package org.apache.amber.engine.architecture.worker
 
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import org.apache.amber.core.virtualidentity._
+import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
+import org.apache.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import org.apache.amber.engine.architecture.messaginglayer.WorkerTimerService
-import org.apache.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EmbeddedControlMessage,
-  EmbeddedControlMessageType,
-  EmptyRequest
-}
-import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_END_CHANNEL,
-  METHOD_FLUSH_NETWORK_BUFFER,
-  METHOD_OPEN_EXECUTOR
-}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  MainThreadDelegateMessage
-}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmbeddedControlMessage, EmbeddedControlMessageType, EmptyRequest}
+import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_END_CHANNEL, METHOD_FLUSH_NETWORK_BUFFER, METHOD_OPEN_EXECUTOR}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState.READY
 import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.amber.util.VirtualIdentityUtils
-import org.apache.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  EmbeddedControlMessageIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import org.apache.amber.core.workflow.PortIdentity
-import org.apache.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
-import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec

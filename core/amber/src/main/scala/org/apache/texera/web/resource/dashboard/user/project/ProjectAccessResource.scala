@@ -19,20 +19,15 @@
 
 package org.apache.texera.web.resource.dashboard.user.project
 
+import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.web.model.common.AccessEntry
-import org.apache.texera.dao.jooq.generated.Tables.{
-  DATASET_USER_ACCESS,
-  PROJECT_USER_ACCESS,
-  USER,
-  WORKFLOW_USER_ACCESS
-}
+import org.apache.texera.dao.jooq.generated.Tables.{DATASET_USER_ACCESS, PROJECT_USER_ACCESS, USER, WORKFLOW_USER_ACCESS}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
+import org.apache.texera.web.model.common.AccessEntry
 import org.apache.texera.web.resource.dashboard.user.project.ProjectAccessResource.userHasWriteAccess
-import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
 import java.util

@@ -19,23 +19,16 @@
 
 package org.apache.amber.operator.intervalJoin
 
+import org.apache.amber.core.tuple._
 import org.apache.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import org.apache.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random.{nextInt, nextLong}
-import org.apache.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
-import org.apache.amber.util.JSONUtils.objectMapper
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1

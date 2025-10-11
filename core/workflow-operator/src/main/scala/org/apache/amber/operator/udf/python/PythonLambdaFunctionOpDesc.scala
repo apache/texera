@@ -22,9 +22,9 @@ package org.apache.amber.operator.udf.python
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.tuple.{AttributeTypeUtils, Schema}
+import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add/Modify column(s)")

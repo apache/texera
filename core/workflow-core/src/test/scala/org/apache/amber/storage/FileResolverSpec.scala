@@ -20,13 +20,13 @@
 package org.apache.amber.storage
 
 import org.apache.amber.core.storage.FileResolver
+import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
-import org.apache.commons.vfs2.FileNotFoundException
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.nio.file.Paths
 

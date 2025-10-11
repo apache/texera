@@ -20,11 +20,7 @@
 package org.apache.amber.operator.source.scan
 
 import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}

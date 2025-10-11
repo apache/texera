@@ -23,14 +23,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.metadata.annotations.UIWidget
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.sql.SQLSourceOpDesc
 import org.apache.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.OutputPort
 
 import java.sql.{Connection, SQLException}
 

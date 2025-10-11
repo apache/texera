@@ -20,12 +20,12 @@
 package org.apache.amber.engine.architecture.controller
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.architecture.controller.promisehandlers._
 import org.apache.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 
 class ControllerAsyncRPCHandlerInitializer(
     val cp: ControllerProcessor

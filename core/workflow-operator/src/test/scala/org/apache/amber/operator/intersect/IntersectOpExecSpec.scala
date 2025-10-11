@@ -19,13 +19,13 @@
 
 package org.apache.amber.operator.intersect
 
+import org.apache.amber.core.tuple._
 import org.apache.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import org.apache.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Random
-import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0

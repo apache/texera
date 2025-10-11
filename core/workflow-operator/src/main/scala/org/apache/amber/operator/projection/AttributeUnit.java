@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName;
 import org.jooq.tools.StringUtils;
+
 import java.util.Objects;
 
 public class AttributeUnit{

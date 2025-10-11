@@ -22,12 +22,12 @@ package org.apache.texera.web.resource.auth
 import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import org.apache.texera.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
-import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
+import org.apache.texera.web.model.http.response.TokenIssueResponse
 import org.apache.texera.web.resource.auth.AuthResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 

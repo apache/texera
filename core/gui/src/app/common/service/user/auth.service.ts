@@ -18,12 +18,11 @@
  */
 
 import { HttpClient } from "@angular/common/http";
-import { Injectable, Inject } from "@angular/core";
-import { interval, Observable, Subscription } from "rxjs";
+import { Injectable } from "@angular/core";
+import { Observable, Subscription, timer } from "rxjs";
 import { AppSettings } from "../../app-setting";
-import { User, Role } from "../../type/user";
-import { timer } from "rxjs";
-import { startWith, ignoreElements } from "rxjs/operators";
+import { Role, User } from "../../type/user";
+import { ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { NotificationService } from "../notification/notification.service";
 import { GmailService } from "../gmail/gmail.service";

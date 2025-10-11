@@ -24,12 +24,12 @@ import {
   WebDataUpdate,
   WebPaginationUpdate,
   WebResultUpdate,
-  WorkflowResultUpdate,
   WorkflowResultTableStats,
+  WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, BehaviorSubject } from "rxjs";
+import { BehaviorSubject, map, Observable, of, pairwise, ReplaySubject, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";

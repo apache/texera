@@ -21,11 +21,7 @@ package org.apache.amber.operator.source.scan.text
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import org.apache.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.amber.operator.source.scan.FileAttributeType
 

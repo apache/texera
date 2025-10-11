@@ -24,13 +24,14 @@ import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.tuple.AttributeTypeUtils.parseField
 import org.apache.amber.core.tuple.TupleLike
 import org.apache.amber.util.JSONUtils.objectMapper
+import org.apache.commons.compress.archivers.ArchiveStreamFactory
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.apache.commons.io.IOUtils.toByteArray
+
 import java.io._
 import java.net.URI
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import org.apache.commons.compress.archivers.ArchiveStreamFactory
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 
 class FileScanSourceOpExec private[scan] (
     descString: String

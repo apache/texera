@@ -19,11 +19,11 @@
 
 package org.apache.texera.web.storage
 
-import org.apache.amber.engine.common.Utils.withLock
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import io.reactivex.rxjava3.core.{Observable, Single}
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import org.apache.amber.engine.common.Utils.withLock
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 
 import java.util
 import java.util.concurrent.locks.ReentrantLock

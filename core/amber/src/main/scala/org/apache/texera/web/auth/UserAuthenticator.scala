@@ -20,10 +20,10 @@
 package org.apache.texera.web.auth
 
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.Authenticator
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import io.dropwizard.auth.Authenticator
 import org.jose4j.jwt.consumer.JwtContext
 
 import java.time.OffsetDateTime

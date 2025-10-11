@@ -18,11 +18,11 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { catchError, map, mergeMap, switchMap, tap, toArray } from "rxjs/operators";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
-import { EMPTY, forkJoin, from, Observable, of, throwError } from "rxjs";
+import { EMPTY, from, Observable, throwError } from "rxjs";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetStagedObject } from "../../../../common/type/dataset-staged-object";

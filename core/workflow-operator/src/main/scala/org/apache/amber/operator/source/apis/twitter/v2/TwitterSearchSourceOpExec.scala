@@ -19,14 +19,14 @@
 
 package org.apache.amber.operator.source.apis.twitter.v2
 
-import org.apache.amber.core.tuple.{Schema, Tuple, TupleLike}
-import org.apache.amber.operator.source.apis.twitter.TwitterSourceOpExec
-import org.apache.amber.operator.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
-import org.apache.amber.util.JSONUtils.objectMapper
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
+import org.apache.amber.core.tuple.{Schema, Tuple, TupleLike}
+import org.apache.amber.operator.source.apis.twitter.TwitterSourceOpExec
+import org.apache.amber.operator.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
+import org.apache.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}

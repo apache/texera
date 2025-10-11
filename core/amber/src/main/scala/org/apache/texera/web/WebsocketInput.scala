@@ -19,9 +19,9 @@
 
 package org.apache.texera.web
 
-import org.apache.texera.web.model.websocket.request.TexeraWebSocketRequest
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
+import org.apache.texera.web.model.websocket.request.TexeraWebSocketRequest
 
 import scala.reflect.{ClassTag, classTag}
 

@@ -20,6 +20,7 @@
 package org.apache.amber.engine.architecture.control.utils
 
 import com.twitter.util.Future
+import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import org.apache.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
 import org.apache.amber.engine.architecture.control.utils.TrivialControlTester.ControlTesterRPCClient
@@ -28,13 +29,8 @@ import org.apache.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import org.apache.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import org.apache.amber.engine.common.CheckpointState
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import org.apache.amber.engine.common.ambermessage.{
-  DirectControlMessagePayload,
-  DataPayload,
-  WorkflowFIFOMessage
-}
+import org.apache.amber.engine.common.ambermessage.{DataPayload, DirectControlMessagePayload, WorkflowFIFOMessage}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 object TrivialControlTester {
   class ControlTesterRPCClient(outputGateway: NetworkOutputGateway, actorId: ActorVirtualIdentity)

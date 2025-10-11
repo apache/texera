@@ -22,8 +22,8 @@ package org.apache.amber.core.tuple;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.io.Serializable;
 import javax.validation.constraints.NotNull;
+import java.io.Serializable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 

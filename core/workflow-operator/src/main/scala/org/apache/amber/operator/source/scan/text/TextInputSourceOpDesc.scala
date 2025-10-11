@@ -23,13 +23,12 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.Schema
-import org.apache.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.amber.operator.metadata.annotations.UIWidget
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.operator.source.SourceOperatorDescriptor
 import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.OutputPort
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)

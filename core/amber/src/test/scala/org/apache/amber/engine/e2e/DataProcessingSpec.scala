@@ -34,12 +34,7 @@ import org.apache.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.amber.engine.common.AmberRuntime
 import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.e2e.TestUtils.{
-  buildWorkflow,
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
-}
+import org.apache.amber.engine.e2e.TestUtils.{buildWorkflow, cleanupWorkflowExecutionData, initiateTexeraDBForTestCases, setUpWorkflowExecutionData}
 import org.apache.amber.operator.TestOperators
 import org.apache.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId

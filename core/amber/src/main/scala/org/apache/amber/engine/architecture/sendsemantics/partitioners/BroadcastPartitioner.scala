@@ -20,8 +20,8 @@
 package org.apache.amber.engine.architecture.sendsemantics.partitioners
 
 import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning
 
 case class BroadcastPartitioner(partitioning: BroadcastPartitioning) extends Partitioner {
 

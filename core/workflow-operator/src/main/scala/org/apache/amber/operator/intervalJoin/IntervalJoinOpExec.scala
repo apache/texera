@@ -24,6 +24,7 @@ import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import org.apache.amber.operator.hashJoin.JoinUtils
 import org.apache.amber.util.JSONUtils.objectMapper
+
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
 

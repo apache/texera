@@ -20,16 +20,12 @@
 package org.apache.amber.operator.machineLearning.Scorer
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import org.apache.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import org.apache.amber.operator.PythonOperatorDescriptor
+import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
+import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")

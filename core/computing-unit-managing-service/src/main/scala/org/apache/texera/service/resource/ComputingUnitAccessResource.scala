@@ -18,26 +18,22 @@
 
 package org.apache.texera.service.resource
 
+import io.dropwizard.auth.Auth
+import jakarta.annotation.security.RolesAllowed
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.config.ComputingUnitConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  UserDao,
-  WorkflowComputingUnitDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
 import org.apache.texera.service.resource.ComputingUnitAccessResource._
-import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
+import org.jooq.{DSLContext, EnumType}
 
 import scala.jdk.CollectionConverters._
-import io.dropwizard.auth.Auth
-import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{DELETE, ForbiddenException, GET, PUT, Path, PathParam, Produces}
-import org.jooq.{DSLContext, EnumType}
 
 object ComputingUnitAccessResource {
   private lazy val context: DSLContext = SqlServer

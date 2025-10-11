@@ -19,10 +19,10 @@
 
 package org.apache.texera.service.resource
 
-import org.apache.texera.config.{ComputingUnitConfig, GuiConfig, UserSystemConfig, AuthConfig}
 import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.{GET, Path, Produces}
 import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.{GET, Path, Produces}
+import org.apache.texera.config.{AuthConfig, ComputingUnitConfig, GuiConfig, UserSystemConfig}
 
 @Path("/config")
 @Produces(Array(MediaType.APPLICATION_JSON))
