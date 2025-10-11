@@ -92,7 +92,7 @@ jooqGenerate := {
     log.info("JOOQ code generation completed successfully")
 
     // Return the generated files
-    val generatedDir = baseDirectory.value / "src" / "main" / "scala" / "edu" / "uci" / "ics" / "texera" / "dao" / "jooq" / "generated"
+    val generatedDir = baseDirectory.value / "src" / "main" / "scala" / "org" / "apache" / "texera" / "dao" / "jooq" / "generated"
     if (generatedDir.exists()) {
       (generatedDir ** "*.java").get ++ (generatedDir ** "*.scala").get
     } else {
