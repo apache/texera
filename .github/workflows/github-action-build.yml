@@ -107,7 +107,7 @@ jobs:
         with:
           extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
-        run: cd core && sbt scalafmtCheckAll
+        run: sbt scalafmtCheckAll
       - name: Create Databases
         run: |
           psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
@@ -120,9 +120,9 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
-        run: cd core && sbt clean package
+        run: sbt clean package
       - name: Run backend tests
-        run: cd core && sbt test
+        run: sbt test
 
   python_udf:
     strategy:
