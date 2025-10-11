@@ -139,8 +139,7 @@ class ExecutionConsoleService(
   private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
     mutable.Map()
 
-  private val consoleWriterThread: Option[ExecutorService] =
-    Option.when(UserSystemConfig.isUserSystemEnabled)(Executors.newSingleThreadExecutor())
+  private val consoleWriterThread: ExecutorService = Executors.newSingleThreadExecutor()
 
   private def getOrCreateWriter(opId: OperatorIdentity): BufferedItemWriter[Tuple] = {
     consoleMessageOpIdToWriterMap.getOrElseUpdate(
@@ -261,21 +260,19 @@ class ExecutionConsoleService(
       consoleMessage: ConsoleMessage
   ): ExecutionConsoleStore = {
     // Write the original full message to the database
-    consoleWriterThread.foreach { thread =>
-      thread.execute(() => {
-        val writer = getOrCreateWriter(OperatorIdentity(opId))
-        try {
-          val tuple = new Tuple(
-            ResultSchema.consoleMessagesSchema,
-            Array(consoleMessage.toProtoString)
-          )
-          writer.putOne(tuple)
-        } catch {
-          case e: Exception =>
-            logger.error(s"Error while writing console message for operator $opId", e)
-        }
-      })
-    }
+    consoleWriterThread.execute(() => {
+      val writer = getOrCreateWriter(OperatorIdentity(opId))
+      try {
+        val tuple = new Tuple(
+          ResultSchema.consoleMessagesSchema,
+          Array(consoleMessage.toProtoString)
+        )
+        writer.putOne(tuple)
+      } catch {
+        case e: Exception =>
+          logger.error(s"Error while writing console message for operator $opId", e)
+      }
+    })
 
     // Process the message (truncate if needed) and update store
     val truncatedMessage = processConsoleMessage(consoleMessage)
