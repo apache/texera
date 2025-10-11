@@ -321,7 +321,7 @@ export class WorkflowResultExportService {
     } else {
       // Dataset export to dataset via API call
       this.downloadService
-        .exportWorkflowResultToDataset(
+        .exportWorkflowResult(
           exportType,
           workflowId,
           workflowName,

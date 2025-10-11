@@ -123,9 +123,22 @@ export class DownloadService {
   }
 
   /**
-   * Export the workflow result to dataset. Returns JSON with a status message.
+   * Retrieves workflow result downloadability information from the backend.
+   * Returns a map of operator IDs to arrays of dataset labels that block their export.
+   *
+   * @param workflowId The workflow ID to check
+   * @returns Observable of downloadability information
    */
-  public exportWorkflowResultToDataset(
+  public getWorkflowResultDownloadability(workflowId: number): Observable<WorkflowResultDownloadabilityResponse> {
+    const urlPath = `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${workflowId}/${DOWNLOADABILITY_BASE_URL}`;
+    return this.http.get<WorkflowResultDownloadabilityResponse>(urlPath);
+  }
+
+  /**
+   * Export the workflow result. If destination = "local", the server returns a BLOB (file).
+   * Otherwise, it returns JSON with a status message.
+   */
+  public exportWorkflowResult(
     exportType: string,
     workflowId: number,
     workflowName: string,
