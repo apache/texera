@@ -62,18 +62,18 @@ private[storage] class DatasetFileDocument(uri: URI)
     if (segments.length < 3)
       throw new IllegalArgumentException("URI format is incorrect")
 
-    // TODO: consider whether use dataset name or did
-    val datasetName = segments(0)
+    // parse uri to dataset components
+    val repositoryName = segments(0)
     val datasetVersionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
     val decodedRelativeSegments =
       segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
     val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
 
-    (datasetName, datasetVersionHash, fileRelativePath)
+    (repositoryName, datasetVersionHash, fileRelativePath)
   }
 
   // Extract components from URI using the utility function
-  private val (datasetName, datasetVersionHash, fileRelativePath) = parseUri(uri)
+  private val (repositoryName, datasetVersionHash, fileRelativePath) = parseUri(uri)
 
   private var tempFile: Option[File] = None
 
@@ -84,7 +84,7 @@ private[storage] class DatasetFileDocument(uri: URI)
     def fallbackToLakeFS(exception: Throwable): InputStream = {
       logger.warn(s"${exception.getMessage}. Falling back to LakeFS direct file fetch.", exception)
       val file = LakeFSStorageClient.getFileFromRepo(
-        getDatasetName(),
+        getRepositoryName(),
         getVersionHash(),
         getFileRelativePath()
       )
@@ -94,7 +94,7 @@ private[storage] class DatasetFileDocument(uri: URI)
     if (userJwtToken.isEmpty) {
       try {
         val presignUrl = LakeFSStorageClient.getFilePresignedUrl(
-          getDatasetName(),
+          getRepositoryName(),
           getVersionHash(),
           getFileRelativePath()
         )
@@ -105,7 +105,7 @@ private[storage] class DatasetFileDocument(uri: URI)
       }
     } else {
       val presignRequestUrl =
-        s"$fileServiceGetPresignURLEndpoint?datasetName=${getDatasetName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
+        s"$fileServiceGetPresignURLEndpoint?repositoryName=${getRepositoryName()}&commitHash=${getVersionHash()}&filePath=${URLEncoder
           .encode(getFileRelativePath(), StandardCharsets.UTF_8.name())}"
 
       val connection = new URL(presignRequestUrl).openConnection().asInstanceOf[HttpURLConnection]
@@ -176,9 +176,9 @@ private[storage] class DatasetFileDocument(uri: URI)
     )
   }
 
-  override def getVersionHash(): String = datasetVersionHash
+  override def getRepositoryName(): String = repositoryName
 
-  override def getDatasetName(): String = datasetName
+  override def getVersionHash(): String = datasetVersionHash
 
   override def getFileRelativePath(): String = fileRelativePath.toString
 }
