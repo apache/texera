@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
 import threading
 from time import sleep
-
-import pytest
 
 from core.models.internal_queue import InternalQueue
 from core.runnables.network_receiver import NetworkReceiver

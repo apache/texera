@@ -15,13 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import overrides
+import pandas
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
-
-import overrides
-import pandas
-
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .state import State

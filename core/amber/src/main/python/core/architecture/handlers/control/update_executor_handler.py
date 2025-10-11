@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# from proto.edu.uci.ics.amber.engine.architecture.worker import UpdateExecutorV2
+# from proto.org.apache.amber.engine.architecture.worker import UpdateExecutorV2
 # from core.architecture.handlers.control.control_handler_base import ControlHandler
 # from core.architecture.managers.context import Context
 #

@@ -15,14 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from proto.org.apache.amber.engine.architecture.rpc import (
     WorkerMetricsResponse,
     EmptyRequest,
 )
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.org.apache.amber.engine.architecture.worker import (
     WorkerMetrics,
 )
-from core.architecture.handlers.control.control_handler_base import ControlHandler
 
 
 class QueryStatisticsHandler(ControlHandler):

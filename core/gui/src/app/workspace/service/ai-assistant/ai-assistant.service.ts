@@ -19,9 +19,9 @@
 
 import { Injectable } from "@angular/core";
 import { AppSettings } from "../../../common/app-setting";
-import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { Observable, of } from "rxjs";
-import { map, catchError } from "rxjs/operators";
+import { catchError, map } from "rxjs/operators";
 
 // The type annotation return from the LLM
 export type TypeAnnotationResponse = {

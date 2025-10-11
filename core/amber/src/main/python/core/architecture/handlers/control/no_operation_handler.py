@@ -16,7 +16,7 @@
 # under the License.
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     EmptyReturn,
     EmptyRequest,
 )

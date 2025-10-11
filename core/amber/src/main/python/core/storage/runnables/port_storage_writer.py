@@ -16,7 +16,6 @@
 # under the License.
 
 from dataclasses import dataclass
-
 from overrides import overrides
 
 from core.models import Tuple

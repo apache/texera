@@ -16,11 +16,10 @@
 # under the License.
 
 import datetime
-from enum import Enum
-
-from bidict import bidict
-from pyarrow import lib
 import pyarrow as pa
+from bidict import bidict
+from enum import Enum
+from pyarrow import lib
 
 
 class AttributeType(Enum):
@@ -28,7 +27,7 @@ class AttributeType(Enum):
     Types supported by PyTexera & PyAmber.
 
     The definitions are mapped and following the AttributeType.java
-    (src/main/scala/edu/uci/ics/texera/workflow/common/tuple/schema/AttributeType.java)
+    (src/main/scala/org/apache/texera/workflow/common/tuple/schema/AttributeType.java)
     """
 
     STRING = 1

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import { dirname, resolve } from "node:path";
-import { runLanguageServer } from "./language-server-runner.ts";
-import { getLocalDirectory, LanguageName } from "./server-commons.ts";
+import {dirname, resolve} from "node:path";
+import {runLanguageServer} from "./language-server-runner.ts";
+import {getLocalDirectory, LanguageName} from "./server-commons.ts";
 import fs from "fs";
-import { fileURLToPath } from "url";
+import {fileURLToPath} from "url";
 
 const runPythonServer = (
   baseDir: string,

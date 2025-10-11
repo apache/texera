@@ -24,8 +24,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { User } from "src/app/common/type/user";
-import { untilDestroyed } from "@ngneat/until-destroy";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";
 import { YType } from "../../../types/shared-editing.interface";
 

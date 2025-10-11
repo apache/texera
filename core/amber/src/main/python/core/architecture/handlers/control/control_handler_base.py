@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from proto.edu.uci.ics.amber.engine.architecture.rpc import WorkerServiceBase
+from proto.org.apache.amber.engine.architecture.rpc import WorkerServiceBase
 
 
 class ControlHandler(WorkerServiceBase):

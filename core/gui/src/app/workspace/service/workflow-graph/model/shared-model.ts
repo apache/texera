@@ -21,11 +21,11 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
 import {
+  BreakpointInfo,
   CommentBox,
   OperatorLink,
   OperatorPredicate,
   Point,
-  BreakpointInfo,
 } from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";

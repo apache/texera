@@ -17,9 +17,8 @@
 
 import typing
 import urllib
-from urllib.parse import urlparse
-
 from typing import Optional
+from urllib.parse import urlparse
 
 from core.models import Schema, Tuple
 from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
