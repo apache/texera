@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-gui:
+frontend:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/gui/**'
+          - 'frontend/**'
 
 backend:
   - all:
@@ -25,7 +25,6 @@ backend:
           - any-glob-to-any-file:
               - 'core/**'
           - all-globs-to-all-files:
-              - '!core/gui/**'
               - '!core/log/**'
               - '!core/scripts/**'
 

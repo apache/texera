@@ -16,7 +16,7 @@
 # under the License.
 
 TEXERA_ROOT="$(git rev-parse --show-toplevel)"
-GUI_DIR="$TEXERA_ROOT/core/gui"
+GUI_DIR="$TEXERA_ROOT/frontend"
 PROTOBUF_DIR="$TEXERA_ROOT/core/workflow-core/src/main/protobuf"
 GUI_PROTO_DIR="$GUI_DIR/src/app/common/type"
 

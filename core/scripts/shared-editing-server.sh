@@ -15,5 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd gui
-npx y-websocket
+(cd ../frontend && npx y-websocket)
