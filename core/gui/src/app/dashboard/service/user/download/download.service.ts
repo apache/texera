@@ -30,9 +30,11 @@ import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../workspace/types/workflow-computing-unit";
+import { TOKEN_KEY } from "../../../../common/service/user/auth.service";
 var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
+const IFRAME_TIMEOUT_MS = 10000;
 export const DOWNLOADABILITY_BASE_URL = "result/downloadability";
 
 interface DownloadableItem {
@@ -148,7 +150,6 @@ export class DownloadService {
     rowIndex: number,
     columnIndex: number,
     filename: string,
-    destination: "local" | "dataset" = "dataset", // "local" or "dataset" => default to "dataset"
     unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
   ): Observable<HttpResponse<Blob> | HttpResponse<ExportWorkflowJsonResponse>> {
     const computingUnitId = unit.computingUnit.cuid;
@@ -161,51 +162,91 @@ export class DownloadService {
       rowIndex,
       columnIndex,
       filename,
-      destination,
       computingUnitId,
     };
 
     const urlPath =
       unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
-        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}?cuid=${unit.computingUnit.cuid}`
-        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}`;
-    if (destination === "local") {
-      return this.http.post(urlPath, requestBody, {
-        responseType: "blob",
-        observe: "response",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/octet-stream",
-        },
-      });
-    } else {
-      // dataset => return JSON
-      return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
-        responseType: "json",
-        observe: "response",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-    }
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/dataset`;
+
+    return this.http.post<ExportWorkflowJsonResponse>(urlPath, requestBody, {
+      responseType: "json",
+      observe: "response",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
   }
 
   /**
-   * Utility function to download a file from the server from blob object.
+   * Export the workflow result to local filesystem. The export is handled by the browser.
    */
-  public saveBlobFile(response: any, defaultFileName: string): void {
-    // If the server sets "Content-Disposition: attachment; filename="someName.csv"" header,
-    // we can parse that out. Otherwise just use defaultFileName.
-    const dispositionHeader = response.headers.get("Content-Disposition");
-    let fileName = defaultFileName;
-    if (dispositionHeader) {
-      const parsed = contentDisposition.parse(dispositionHeader);
-      fileName = parsed.parameters.filename || defaultFileName;
-    }
+  public exportWorkflowResultToLocal(
+    exportType: string,
+    workflowId: number,
+    workflowName: string,
+    operators: {
+      id: string;
+      outputType: string;
+    }[],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string,
+    unit: DashboardWorkflowComputingUnit // computing unit for cluster setting
+  ): void {
+    const computingUnitId = unit.computingUnit.cuid;
+    const datasetIds: number[] = [];
+    const requestBody = {
+      exportType,
+      workflowId,
+      workflowName,
+      operators,
+      datasetIds,
+      rowIndex,
+      columnIndex,
+      filename,
+      computingUnitId,
+    };
+    const token = localStorage.getItem(TOKEN_KEY) ?? "";
 
-    const blob = response.body; // the actual file data
-    this.fileSaverService.saveAs(blob, fileName);
+    const urlPath =
+      unit && unit.computingUnit.type == "kubernetes" && unit.computingUnit?.cuid
+        ? `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local?cuid=${unit.computingUnit.cuid}`
+        : `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${EXPORT_BASE_URL}/local`;
+
+    const iframe = document.createElement("iframe");
+    iframe.name = "download-iframe";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = urlPath;
+    form.target = "download-iframe";
+    form.enctype = "application/x-www-form-urlencoded";
+    form.style.display = "none";
+
+    const requestInput = document.createElement("input");
+    requestInput.type = "hidden";
+    requestInput.name = "request";
+    requestInput.value = JSON.stringify(requestBody);
+    form.appendChild(requestInput);
+
+    const tokenInput = document.createElement("input");
+    tokenInput.type = "hidden";
+    tokenInput.name = "token";
+    tokenInput.value = token;
+    form.appendChild(tokenInput);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(() => {
+      document.body.removeChild(form);
+      document.body.removeChild(iframe);
+    }, IFRAME_TIMEOUT_MS);
   }
 
   downloadOperatorsResult(

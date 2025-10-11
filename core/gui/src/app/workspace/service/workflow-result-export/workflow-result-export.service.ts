@@ -306,27 +306,34 @@ export class WorkflowResultExportService {
     this.notificationService.loading("Exporting...");
 
     // Make request
-    this.downloadService
-      .exportWorkflowResult(
+    if (destination === "local") {
+      // Dataset export to local filesystem (download handled by browser)
+      this.downloadService.exportWorkflowResultToLocal(
         exportType,
         workflowId,
         workflowName,
         operatorArray,
-        [...datasetIds],
         rowIndex,
         columnIndex,
         filename,
-        destination,
         unit
-      )
-      .subscribe({
-        next: response => {
-          if (destination === "local") {
-            // "local" => response is a blob
-            // We can parse the file name from header or use fallback
-            this.downloadService.saveBlobFile(response, filename);
-            this.notificationService.info("Files downloaded successfully");
-          } else {
+      );
+    } else {
+      // Dataset export to dataset via API call
+      this.downloadService
+        .exportWorkflowResult(
+          exportType,
+          workflowId,
+          workflowName,
+          operatorArray,
+          [...datasetIds],
+          rowIndex,
+          columnIndex,
+          filename,
+          unit
+        )
+        .subscribe({
+          next: response => {
             // "dataset" => response is JSON
             // The server should return a JSON with {status, message}
             const jsonResponse = response as HttpResponse<ExportWorkflowJsonResponse>;
@@ -336,13 +343,13 @@ export class WorkflowResultExportService {
             } else {
               this.notificationService.error(responseBody?.message || "An error occurred during export");
             }
-          }
-        },
-        error: (err: unknown) => {
-          const errorMessage = (err as any)?.error?.message || (err as any)?.error || err;
-          this.notificationService.error(`An error happened in exporting operator results: ${errorMessage}`);
-        },
-      });
+          },
+          error: (err: unknown) => {
+            const errorMessage = (err as any)?.error?.message || (err as any)?.error || err;
+            this.notificationService.error(`An error happened in exporting operator results: ${errorMessage}`);
+          },
+        });
+    }
   }
 
   /**

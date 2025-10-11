@@ -19,6 +19,9 @@
 
 package edu.uci.ics.texera.web.service
 
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
 import edu.uci.ics.amber.config.EnvironmentalVariable
 import edu.uci.ics.amber.core.storage.DocumentFactory
@@ -38,6 +41,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 }
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
+import scala.jdk.CollectionConverters._
 import java.io.{FilterOutputStream, IOException, OutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
@@ -53,10 +57,9 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.commons.lang3.StringUtils
 
 import javax.ws.rs.WebApplicationException
-import javax.ws.rs.core.StreamingOutput
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import java.net.{HttpURLConnection, URL, URLEncoder}
 import scala.collection.mutable.ArrayBuffer
-
 import org.apache.commons.io.IOUtils
 
 object Constants {
@@ -91,12 +94,12 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   import ResultExportService._
 
   /**
-    * Export results for all specified operators in the request.
+    * Export operator results to a dataset and return the result.
     */
-  def exportAllOperatorsResultToDataset(
+  def exportToDataset(
       user: User,
       request: ResultExportRequest
-  ): ResultExportResponse = {
+  ): Response = {
     val successMessages = new mutable.ListBuffer[String]()
     val errorMessages = new mutable.ListBuffer[String]()
 
@@ -111,13 +114,49 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
+    var exportResponse: ResultExportResponse = null
     if (errorMessages.isEmpty) {
-      ResultExportResponse("success", successMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
     } else if (successMessages.isEmpty) {
-      ResultExportResponse("error", errorMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("error", errorMessages.mkString("\n"))
     } else {
       // At least one success, so we consider overall success (with partial possible).
-      ResultExportResponse("success", successMessages.mkString("\n"))
+      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
+    }
+
+    Response.ok(exportResponse).build()
+  }
+
+  /**
+    * Export operator results as downloadable files.
+    * If multiple operators are selected, their results are streamed as a ZIP file.
+    * If a single operator is selected, its result is streamed directly.
+    */
+  def exportToLocal(request: ResultExportRequest): Response = {
+    if (request.operators.size > 1) {
+      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
+      if (zipStream == null) {
+        throw new RuntimeException("Zip stream is null")
+      }
+      val fileName = zipFileNameOpt.getOrElse("operators.zip")
+
+      Response
+        .ok(zipStream, "application/zip")
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
+
+    } else {
+      val op = request.operators.head
+      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
+      if (streamingOutput == null) {
+        throw new RuntimeException("Failed to export operator")
+      }
+      val fileName = fileNameOpt.getOrElse("download.dat")
+
+      Response
+        .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
+        .header("Content-Disposition", s"""attachment; filename="$fileName"""")
+        .build()
     }
   }
 
@@ -205,10 +244,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   def exportOperatorsAsZip(
       request: ResultExportRequest
   ): (StreamingOutput, Option[String]) = {
-    if (request.operators.isEmpty) {
-      return (null, None)
-    }
-
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -561,5 +596,30 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
+  }
+
+  /**
+    * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
+    */
+  def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
+    new ObjectMapper()
+      .registerModule(DefaultScalaModule)
+      .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
+  }
+
+  /**
+    * Validate an export request by checking if any operators are selected.
+    * Return an error response if none are selected, otherwise None.
+    */
+  def validateExportRequest(request: ResultExportRequest): Option[Response] = {
+    if (request.operators.isEmpty) {
+      Some(
+        Response
+          .status(Response.Status.BAD_REQUEST)
+          .`type`(MediaType.APPLICATION_JSON)
+          .entity(Map("error" -> "No operator selected").asJava)
+          .build()
+      )
+    } else None
   }
 }

@@ -38,6 +38,13 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.auth.{JwtParser, SessionUser}
+
+import scala.jdk.CollectionConverters._
+import edu.uci.ics.texera.config.UserSystemConfig
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
 import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -52,7 +59,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
+import play.api.libs.json.Json
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer
@@ -823,106 +830,50 @@ class WorkflowExecutionsResource {
   }
 
   @POST
-  @Path("/result/export")
+  @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def exportResult(
-      request: ResultExportRequest,
-      @Auth user: SessionUser
+  def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
+    try {
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.exportToDataset(user.user, request)
+
+    } catch {
+      case ex: Exception =>
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .`type`(MediaType.APPLICATION_JSON)
+          .entity(Map("error" -> ex.getMessage).asJava)
+          .build()
+    }
+  }
+
+  @POST
+  @Path("/result/export/local")
+  @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
+  def exportResultToLocal(
+      @FormParam("request") requestJson: String,
+      @FormParam("token") token: String
   ): Response = {
 
-    if (request.operators.size <= 0)
-      Response
-        .status(Response.Status.BAD_REQUEST)
-        .`type`(MediaType.APPLICATION_JSON)
-        .entity(Map("error" -> "No operator selected").asJava)
-        .build()
-
-    // Get ALL non-downloadable in workflow
-    val datasetRestrictions = getNonDownloadableOperatorMap(request.workflowId, user.user)
-    // Filter to only user's selection
-    val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
-    // Check if any selected operator is restricted
-    if (restrictedOperators.nonEmpty) {
-      val restrictedDatasets = restrictedOperators.flatMap { op =>
-        datasetRestrictions(op.id).map {
-          case (ownerEmail, datasetName) =>
-            Map(
-              "operatorId" -> op.id,
-              "ownerEmail" -> ownerEmail,
-              "datasetName" -> datasetName
-            ).asJava
-        }
-      }
-
-      return Response
-        .status(Response.Status.FORBIDDEN)
-        .`type`(MediaType.APPLICATION_JSON)
-        .entity(
-          Map(
-            "error" -> "Export blocked due to dataset restrictions",
-            "restrictedDatasets" -> restrictedDatasets.asJava
-          ).asJava
-        )
-        .build()
-    }
-
     try {
-      request.destination match {
-        case "local" =>
-          // CASE A: multiple operators => produce ZIP
-          if (request.operators.size > 1) {
-            val resultExportService =
-              new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-            val (zipStream, zipFileNameOpt) =
-              resultExportService.exportOperatorsAsZip(request)
-
-            if (zipStream == null) {
-              throw new RuntimeException("Zip stream is null")
-            }
-
-            val finalFileName = zipFileNameOpt.getOrElse("operators.zip")
-            return Response
-              .ok(zipStream, "application/zip")
-              .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
-              .build()
-          }
-
-          // CASE B: exactly one operator => single file
-          if (request.operators.size != 1) {
-            return Response
-              .status(Response.Status.BAD_REQUEST)
-              .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Local download does not support no operator.").asJava)
-              .build()
-          }
-          val singleOp = request.operators.head
-
-          val resultExportService =
-            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-          val (streamingOutput, fileNameOpt) =
-            resultExportService.exportOperatorResultAsStream(request, singleOp)
-
-          if (streamingOutput == null) {
-            return Response
-              .status(Response.Status.INTERNAL_SERVER_ERROR)
-              .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Failed to export operator").asJava)
-              .build()
-          }
-
-          val finalFileName = fileNameOpt.getOrElse("download.dat")
-          Response
-            .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-            .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
-            .build()
-        case _ =>
-          // destination = "dataset" by default
-          val resultExportService =
-            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-          val exportResponse =
-            resultExportService.exportAllOperatorsResultToDataset(user.user, request)
-          Response.ok(exportResponse).build()
+      val userOpt = JwtParser.parseToken(token)
+      if (userOpt.isPresent) {
+        val user = userOpt.get()
+        val role = user.getUser.getRole
+        val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
+        if (!RolesAllowed.contains(role)) {
+          throw new RuntimeException("User role is not allowed to perform this download")
+        }
+      } else {
+        throw new RuntimeException("Invalid or expired token")
       }
+
+      val request = Json.parse(requestJson).as[ResultExportRequest]
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.exportToLocal(request)
+
     } catch {
       case ex: Exception =>
         Response
