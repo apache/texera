@@ -34,7 +34,11 @@ import org.apache.texera.web.resource.dashboard.hub.ActionType.{Clone, Like, Unl
 import org.apache.texera.web.resource.dashboard.hub.EntityTables._
 import org.apache.texera.web.resource.dashboard.hub.HubResource._
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, baseWorkflowSelect, mapWorkflowEntries}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  baseWorkflowSelect,
+  mapWorkflowEntries
+}
 import org.jooq.Table
 import org.jooq.impl.DSL
 

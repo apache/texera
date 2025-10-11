@@ -21,7 +21,12 @@ package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import org.apache.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AsyncRPCContext, LinkWorkersRequest}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  AddInputChannelRequest,
+  AddPartitioningRequest,
+  AsyncRPCContext,
+  LinkWorkersRequest
+}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 /** add a data transfer partitioning to the sender workers and update input linking

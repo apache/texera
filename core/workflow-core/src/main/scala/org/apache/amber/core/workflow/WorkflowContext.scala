@@ -20,7 +20,11 @@
 package org.apache.amber.core.workflow
 
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID, DEFAULT_WORKFLOW_SETTINGS}
+import org.apache.amber.core.workflow.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID,
+  DEFAULT_WORKFLOW_SETTINGS
+}
 
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)

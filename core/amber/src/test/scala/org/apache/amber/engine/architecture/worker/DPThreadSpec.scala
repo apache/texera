@@ -26,8 +26,15 @@ import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import org.apache.amber.engine.architecture.messaginglayer.WorkerTimerService
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
-import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_PAUSE_WORKER, METHOD_RESUME_WORKER}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement}
+import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_PAUSE_WORKER,
+  METHOD_RESUME_WORKER
+}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  FIFOMessageElement,
+  TimerBasedControlElement
+}
 import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.amber.engine.common.storage.SequentialRecordStorage

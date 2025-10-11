@@ -27,7 +27,10 @@ import org.apache.amber.core.tuple.{Attribute, Schema}
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.amber.core.workflow._
 import org.apache.amber.operator.LogicalOp
-import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import org.apache.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.amber.util.JSONUtils.objectMapper
 

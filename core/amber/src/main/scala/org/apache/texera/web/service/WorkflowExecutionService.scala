@@ -28,7 +28,11 @@ import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregate
 import org.apache.amber.engine.common.Utils
 import org.apache.amber.engine.common.client.AmberClient
 import org.apache.amber.engine.common.executionruntimestate.ExecutionMetadataStore
-import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
+import org.apache.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowErrorEvent,
+  WorkflowStateEvent
+}
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.ExecutionStateStore

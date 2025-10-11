@@ -27,7 +27,11 @@ import org.apache.amber.config.StorageConfig
 import org.apache.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.service.resource.{ComputingUnitAccessResource, ComputingUnitManagingResource, HealthCheckResource}
+import org.apache.texera.service.resource.{
+  ComputingUnitAccessResource,
+  ComputingUnitManagingResource,
+  HealthCheckResource
+}
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
 

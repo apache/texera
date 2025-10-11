@@ -20,7 +20,10 @@
 package org.apache.amber.engine.common.storage
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
+import org.apache.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 

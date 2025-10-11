@@ -26,7 +26,12 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.amber.core.workflow.PortIdentity
-import org.apache.amber.operator.filter.{ComparisonType, FilterOpDesc, FilterPredicate, SpecializedFilterOpDesc}
+import org.apache.amber.operator.filter.{
+  ComparisonType,
+  FilterOpDesc,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import org.apache.amber.operator.limit.LimitOpDesc
 import org.apache.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.amber.operator.source.scan.csv.CSVScanSourceOpDesc

@@ -32,7 +32,14 @@ import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.types.Types
-import org.apache.iceberg.{CatalogProperties, DataFile, PartitionSpec, Table, TableProperties, Schema => IcebergSchema}
+import org.apache.iceberg.{
+  CatalogProperties,
+  DataFile,
+  PartitionSpec,
+  Table,
+  TableProperties,
+  Schema => IcebergSchema
+}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path

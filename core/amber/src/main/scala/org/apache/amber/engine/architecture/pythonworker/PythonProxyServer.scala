@@ -27,7 +27,10 @@ import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdent
 import org.apache.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
 import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.engine.common.ambermessage.DirectControlMessagePayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
+import org.apache.amber.engine.common.ambermessage.DirectControlMessagePayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
+}
 import org.apache.amber.engine.common.ambermessage._
 import org.apache.amber.util.ArrowUtils
 import org.apache.arrow.flight._

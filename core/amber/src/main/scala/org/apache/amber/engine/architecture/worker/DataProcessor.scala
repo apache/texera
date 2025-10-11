@@ -24,18 +24,36 @@ import io.grpc.MethodDescriptor
 import org.apache.amber.core.executor.OperatorExecutor
 import org.apache.amber.core.state.State
 import org.apache.amber.core.tuple._
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, EmbeddedControlMessageIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import org.apache.amber.core.workflow.PortIdentity
 import org.apache.amber.engine.architecture.common.AmberProcessor
 import org.apache.amber.engine.architecture.logreplay.ReplayLogManager
-import org.apache.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
-import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{NO_ALIGNMENT, PORT_ALIGNMENT}
+import org.apache.amber.engine.architecture.messaginglayer.{
+  InputManager,
+  OutputManager,
+  WorkerTimerService
+}
+import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
+  NO_ALIGNMENT,
+  PORT_ALIGNMENT
+}
 import org.apache.amber.engine.architecture.rpc.controlcommands._
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_END_CHANNEL
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import org.apache.amber.engine.architecture.worker.managers.SerializationManager
-import org.apache.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
+import org.apache.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  READY,
+  RUNNING
+}
 import org.apache.amber.engine.architecture.worker.statistics.WorkerStatistics
 import org.apache.amber.engine.common.ambermessage._
 import org.apache.amber.engine.common.statetransition.WorkerStateManager

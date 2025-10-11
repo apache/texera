@@ -19,7 +19,10 @@ package org.apache.texera.auth.util
 
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, WorkflowComputingUnitDao}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  WorkflowComputingUnitDao
+}
 import org.jooq.DSLContext
 
 import scala.jdk.CollectionConverters._

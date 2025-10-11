@@ -22,7 +22,12 @@ package org.apache.amber.operator.source.scan.text
 import org.apache.amber.core.storage.FileResolver
 import org.apache.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import org.apache.amber.operator.TestOperators
-import org.apache.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod, FileScanSourceOpDesc, FileScanSourceOpExec}
+import org.apache.amber.operator.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  FileScanSourceOpDesc,
+  FileScanSourceOpExec
+}
 import org.apache.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec

@@ -29,7 +29,11 @@ import org.apache.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import org.apache.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import org.apache.amber.engine.common.CheckpointState
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import org.apache.amber.engine.common.ambermessage.{DataPayload, DirectControlMessagePayload, WorkflowFIFOMessage}
+import org.apache.amber.engine.common.ambermessage.{
+  DataPayload,
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient
 
 object TrivialControlTester {

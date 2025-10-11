@@ -25,8 +25,18 @@ import org.apache.amber.engine.architecture.controller.Workflow
 import org.apache.amber.operator.LogicalOp
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowExecutionsDao, WorkflowVersionDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowExecutions, WorkflowVersion, Workflow => WorkflowPojo}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowDao,
+  WorkflowExecutionsDao,
+  WorkflowVersionDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  User,
+  WorkflowExecutions,
+  WorkflowVersion,
+  Workflow => WorkflowPojo
+}
 import org.apache.texera.web.model.websocket.request.LogicalPlanPojo
 import org.apache.texera.workflow.{LogicalLink, WorkflowCompiler}
 

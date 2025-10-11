@@ -23,10 +23,19 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestKit, TestProbe}
 import io.grpc.MethodDescriptor
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.engine.architecture.common.WorkflowActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
+import org.apache.amber.engine.architecture.common.WorkflowActor.{
+  GetActorRef,
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
 import org.apache.amber.engine.architecture.control.utils.TrivialControlTester
 import org.apache.amber.engine.architecture.rpc.controlcommands._
-import org.apache.amber.engine.architecture.rpc.controlreturns.{IntResponse, ReturnInvocation, StringResponse}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{
+  IntResponse,
+  ReturnInvocation,
+  StringResponse
+}
 import org.apache.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc._
 import org.apache.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize

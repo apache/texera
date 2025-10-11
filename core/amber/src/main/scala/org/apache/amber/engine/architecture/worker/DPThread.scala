@@ -22,11 +22,18 @@ package org.apache.amber.engine.architecture.worker
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.logreplay.ReplayLogManager
 import org.apache.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessage
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import org.apache.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import org.apache.amber.engine.common.ambermessage.{DataPayload, DirectControlMessagePayload, WorkflowFIFOMessage}
+import org.apache.amber.engine.common.ambermessage.{
+  DataPayload,
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import org.apache.amber.engine.common.virtualidentity.util.SELF
 import org.apache.amber.error.ErrorUtils.safely
 

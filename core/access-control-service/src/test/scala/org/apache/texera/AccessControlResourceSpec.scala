@@ -21,9 +21,21 @@ import jakarta.ws.rs.core.{HttpHeaders, MultivaluedHashMap, Response, UriInfo}
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.auth.util.HeaderField
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum, WorkflowComputingUnitTypeEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{ComputingUnitUserAccess, User, WorkflowComputingUnit}
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  ComputingUnitUserAccess,
+  User,
+  WorkflowComputingUnit
+}
 import org.apache.texera.service.resource.AccessControlResource
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec

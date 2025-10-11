@@ -20,7 +20,11 @@
 package org.apache.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, EmbeddedControlMessageIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import org.apache.amber.engine.architecture.controller.ClientEvent
 import org.apache.amber.engine.architecture.rpc.controlcommands._
 import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc

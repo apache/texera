@@ -21,7 +21,10 @@ package org.apache.amber.engine.common.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.amber.engine.common.AmberRuntime
-import org.apache.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
+import org.apache.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI

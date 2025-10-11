@@ -21,7 +21,12 @@ package org.apache.amber.engine.architecture.common
 
 import akka.actor.ActorRef
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.engine.architecture.common.WorkflowActor.{CreditRequest, GetActorRef, NetworkMessage, RegisterActorRef}
+import org.apache.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  GetActorRef,
+  NetworkMessage,
+  RegisterActorRef
+}
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import org.apache.amber.util.VirtualIdentityUtils

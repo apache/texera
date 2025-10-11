@@ -23,9 +23,18 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.WorkflowRuntimeException
 import org.apache.amber.core.storage.VFSURIFactory.createResultURI
 import org.apache.amber.core.virtualidentity.PhysicalOpIdentity
-import org.apache.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalPlan, WorkflowContext}
+import org.apache.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalLink,
+  PhysicalPlan,
+  WorkflowContext
+}
 import org.apache.amber.engine.architecture.scheduling.SchedulingUtils.replaceVertex
-import org.apache.amber.engine.architecture.scheduling.config.{IntermediateInputPortConfig, OutputPortConfig, ResourceConfig}
+import org.apache.amber.engine.architecture.scheduling.config.{
+  IntermediateInputPortConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator

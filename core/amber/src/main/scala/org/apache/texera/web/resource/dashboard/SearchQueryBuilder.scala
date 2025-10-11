@@ -20,7 +20,10 @@
 package org.apache.texera.web.resource.dashboard
 
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.web.resource.dashboard.DashboardResource.{DashboardClickableFileEntry, SearchQueryParams}
+import org.apache.texera.web.resource.dashboard.DashboardResource.{
+  DashboardClickableFileEntry,
+  SearchQueryParams
+}
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.context
 import org.jooq._
 

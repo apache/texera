@@ -22,7 +22,12 @@ package org.apache.amber.engine.faulttolerance
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.engine.architecture.logreplay.{ProcessingStep, ReplayLogManagerImpl, ReplayLogRecord, ReplayOrderEnforcer}
+import org.apache.amber.engine.architecture.logreplay.{
+  ProcessingStep,
+  ReplayLogManagerImpl,
+  ReplayLogRecord,
+  ReplayOrderEnforcer
+}
 import org.apache.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER

@@ -33,7 +33,11 @@ import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServ
 import org.apache.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import org.apache.amber.engine.common.FutureBijection._
 import org.apache.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import org.apache.amber.engine.common.client.ClientActor.{CommandRequest, InitializeRequest, ObservableRequest}
+import org.apache.amber.engine.common.client.ClientActor.{
+  CommandRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import org.apache.amber.engine.common.virtualidentity.util.CLIENT
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}

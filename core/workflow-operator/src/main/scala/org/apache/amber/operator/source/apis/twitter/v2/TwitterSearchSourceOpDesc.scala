@@ -20,7 +20,11 @@
 package org.apache.amber.operator.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDescription,
+  JsonSchemaInject,
+  JsonSchemaTitle
+}
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}

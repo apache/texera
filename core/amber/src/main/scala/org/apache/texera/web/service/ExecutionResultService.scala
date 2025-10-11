@@ -33,12 +33,22 @@ import org.apache.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentit
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import org.apache.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING, TERMINATED}
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING,
+  TERMINATED
+}
 import org.apache.amber.engine.common.AmberRuntime
 import org.apache.amber.engine.common.client.AmberClient
 import org.apache.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import org.apache.texera.web.SubscriptionManager
-import org.apache.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import org.apache.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import org.apache.texera.web.model.websocket.request.ResultPaginationRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson

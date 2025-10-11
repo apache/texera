@@ -21,7 +21,10 @@ package org.apache.amber.core.storage.model
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.config.EnvironmentalVariable
-import org.apache.amber.core.storage.model.DatasetFileDocument.{fileServiceGetPresignURLEndpoint, userJwtToken}
+import org.apache.amber.core.storage.model.DatasetFileDocument.{
+  fileServiceGetPresignURLEndpoint,
+  userJwtToken
+}
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import org.apache.amber.util.PathUtils

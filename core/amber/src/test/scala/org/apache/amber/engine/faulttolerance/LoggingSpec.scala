@@ -22,15 +22,33 @@ package org.apache.amber.engine.faulttolerance
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.amber.core.tuple.{AttributeType, Schema, TupleLike}
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import org.apache.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.apache.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
-import org.apache.amber.engine.architecture.rpc.controlcommands.{AddPartitioningRequest, AsyncRPCContext, EmptyRequest}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  AddPartitioningRequest,
+  AsyncRPCContext,
+  EmptyRequest
+}
 import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
-import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_ADD_PARTITIONING, METHOD_PAUSE_WORKER, METHOD_RESUME_WORKER, METHOD_START_WORKER}
+import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_ADD_PARTITIONING,
+  METHOD_PAUSE_WORKER,
+  METHOD_RESUME_WORKER,
+  METHOD_START_WORKER
+}
 import org.apache.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import org.apache.amber.engine.common.AmberRuntime
-import org.apache.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
+import org.apache.amber.engine.common.ambermessage.{
+  DataFrame,
+  WorkflowFIFOMessage,
+  WorkflowFIFOMessagePayload
+}
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}

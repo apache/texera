@@ -19,7 +19,10 @@
 
 package org.apache.amber.engine.common.storage
 
-import org.apache.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
+import org.apache.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 import org.apache.commons.io.input.NullInputStream
 import org.apache.hadoop.io.IOUtils.NullOutputStream
 

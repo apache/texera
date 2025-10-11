@@ -21,12 +21,21 @@ package org.apache.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
 import io.grpc.MethodDescriptor
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, EmbeddedControlMessageIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import org.apache.amber.engine.architecture.controller.ClientEvent
 import org.apache.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import org.apache.amber.engine.architecture.rpc.controlcommands._
 import org.apache.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import org.apache.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation, WorkerMetricsResponse}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
+  ControlReturn,
+  ReturnInvocation,
+  WorkerMetricsResponse
+}
 import org.apache.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import org.apache.amber.engine.common.AmberLogging
 import org.apache.amber.engine.common.rpc.AsyncRPCClient.createProxy

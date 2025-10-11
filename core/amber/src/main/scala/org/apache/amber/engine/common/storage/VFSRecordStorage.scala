@@ -20,7 +20,10 @@
 package org.apache.amber.engine.common.storage
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
+import org.apache.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 import org.apache.commons.vfs2.{FileObject, FileSystemManager, VFS}
 
 import java.io.{DataInputStream, DataOutputStream}

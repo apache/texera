@@ -31,7 +31,12 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
-import org.apache.texera.service.resource.DatasetAccessResource.{AccessEntry, context, getOwner, userHasWriteAccess}
+import org.apache.texera.service.resource.DatasetAccessResource.{
+  AccessEntry,
+  context,
+  getOwner,
+  userHasWriteAccess
+}
 import org.jooq.{DSLContext, EnumType}
 
 import javax.ws.rs.ForbiddenException

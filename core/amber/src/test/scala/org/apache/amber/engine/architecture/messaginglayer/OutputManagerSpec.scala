@@ -21,7 +21,12 @@ package org.apache.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import org.apache.amber.core.tuple.{AttributeType, Schema, TupleLike}
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import org.apache.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.apache.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import org.apache.amber.engine.common.ambermessage._

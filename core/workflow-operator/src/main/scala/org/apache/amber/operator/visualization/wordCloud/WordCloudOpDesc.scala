@@ -20,7 +20,11 @@
 package org.apache.amber.operator.visualization.wordCloud
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaInt,
+  JsonSchemaTitle
+}
 import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}

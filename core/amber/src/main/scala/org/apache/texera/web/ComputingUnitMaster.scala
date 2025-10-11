@@ -29,7 +29,10 @@ import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.amber.engine.architecture.controller.ControllerConfig
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
 import org.apache.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import org.apache.amber.engine.common.Utils.maptoStatusCode
 import org.apache.amber.engine.common.client.AmberClient

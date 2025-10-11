@@ -19,7 +19,12 @@
 
 package org.apache.amber.util
 
-import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 
 import scala.util.matching.Regex
 

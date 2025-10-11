@@ -21,7 +21,10 @@ package org.apache.amber.engine.architecture.scheduling
 
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.workflow._
-import org.apache.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import org.apache.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable

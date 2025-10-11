@@ -25,7 +25,10 @@ import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.workflow.OutputPort.OutputMode
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
+import org.apache.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 @JsonSchemaInject(json = """
 {

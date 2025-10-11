@@ -23,7 +23,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.amber.core.executor.OpExecWithClassName
 import org.apache.amber.core.tuple.Schema
-import org.apache.amber.core.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import org.apache.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import org.apache.amber.core.workflow._
 import org.apache.amber.operator.LogicalOp
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeNameList

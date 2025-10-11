@@ -24,7 +24,10 @@ import org.apache.amber.engine.common.client.AmberClient
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
-import org.apache.texera.web.model.websocket.response.{ModifyLogicCompletedEvent, ModifyLogicResponse}
+import org.apache.texera.web.model.websocket.response.{
+  ModifyLogicCompletedEvent,
+  ModifyLogicResponse
+}
 import org.apache.texera.web.storage.ExecutionStateStore
 
 import scala.util.{Failure, Success}

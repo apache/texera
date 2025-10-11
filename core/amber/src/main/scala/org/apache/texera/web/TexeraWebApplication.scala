@@ -38,9 +38,18 @@ import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionRe
 import org.apache.texera.web.resource.dashboard.admin.settings.AdminSettingsResource
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
-import org.apache.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
+import org.apache.texera.web.resource.dashboard.user.project.{
+  ProjectAccessResource,
+  ProjectResource,
+  PublicProjectResource
+}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import org.apache.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
+import org.apache.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowExecutionsResource,
+  WorkflowResource,
+  WorkflowVersionResource
+}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter

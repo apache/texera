@@ -40,7 +40,10 @@ import org.apache.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.apache.texera.web.resource.dashboard.user.workflow.{WorkflowExecutionsResource, WorkflowVersionResource}
+import org.apache.texera.web.resource.dashboard.user.workflow.{
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{FilterOutputStream, IOException, OutputStream}

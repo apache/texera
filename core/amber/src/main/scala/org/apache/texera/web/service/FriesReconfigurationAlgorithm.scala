@@ -21,7 +21,10 @@ package org.apache.texera.web.service
 
 import org.apache.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.amber.core.workflow.PhysicalPlan
-import org.apache.amber.engine.architecture.rpc.controlcommands.{ModifyLogicRequest, PropagateEmbeddedControlMessageRequest}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  ModifyLogicRequest,
+  PropagateEmbeddedControlMessageRequest
+}
 import org.apache.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 

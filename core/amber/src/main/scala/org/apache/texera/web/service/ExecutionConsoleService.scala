@@ -31,16 +31,32 @@ import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIden
 import org.apache.amber.core.workflow.WorkflowContext
 import org.apache.amber.engine.architecture.controller.ExecutionStateUpdate
 import org.apache.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
-import org.apache.amber.engine.architecture.rpc.controlcommands.{ConsoleMessage, ConsoleMessageType, EvaluatePythonExpressionRequest, DebugCommandRequest => AmberDebugCommandRequest}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  ConsoleMessageType,
+  EvaluatePythonExpressionRequest,
+  DebugCommandRequest => AmberDebugCommandRequest
+}
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED}
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED
+}
 import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.common.executionruntimestate.{EvaluatedValueList, ExecutionConsoleStore, OperatorConsole}
+import org.apache.amber.engine.common.executionruntimestate.{
+  EvaluatedValueList,
+  ExecutionConsoleStore,
+  OperatorConsole
+}
 import org.apache.amber.util.VirtualIdentityUtils
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import org.apache.texera.web.model.websocket.request.RetryRequest
-import org.apache.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
+import org.apache.texera.web.model.websocket.request.python.{
+  DebugCommandRequest,
+  PythonExpressionEvaluateRequest
+}
 import org.apache.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.ExecutionStateStore

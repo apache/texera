@@ -23,7 +23,10 @@ import com.github.tototoshi.csv.CSVParser
 import org.apache.amber.core.tuple.AttributeTypeUtils.parseField
 import org.apache.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import org.apache.amber.operator.source.sql.SQLSourceOpExec
-import org.apache.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
+import org.apache.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 import org.apache.amber.util.JSONUtils.objectMapper
 
 import java.sql._

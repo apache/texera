@@ -22,8 +22,15 @@ package org.apache.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, PropagateEmbeddedControlMessageRequest}
-import org.apache.amber.engine.architecture.rpc.controlreturns.{ControlReturn, PropagateEmbeddedControlMessageResponse}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ControlInvocation,
+  PropagateEmbeddedControlMessageRequest
+}
+import org.apache.amber.engine.architecture.rpc.controlreturns.{
+  ControlReturn,
+  PropagateEmbeddedControlMessageResponse
+}
 import org.apache.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.apache.amber.util.VirtualIdentityUtils
 

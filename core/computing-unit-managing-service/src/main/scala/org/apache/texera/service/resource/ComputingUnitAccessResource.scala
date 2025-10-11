@@ -28,7 +28,11 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables.COMPUTING_UNIT_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{ComputingUnitUserAccessDao, UserDao, WorkflowComputingUnitDao}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
 import org.apache.texera.dao.jooq.generated.tables.pojos.ComputingUnitUserAccess
 import org.apache.texera.service.resource.ComputingUnitAccessResource._
 import org.jooq.{DSLContext, EnumType}

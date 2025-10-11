@@ -20,7 +20,10 @@
 package org.apache.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStatsUpdate}
+import org.apache.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ExecutionStatsUpdate
+}
 import org.apache.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import org.apache.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.amber.util.VirtualIdentityUtils

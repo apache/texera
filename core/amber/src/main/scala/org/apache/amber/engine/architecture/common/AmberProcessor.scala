@@ -20,13 +20,20 @@
 package org.apache.amber.engine.architecture.common
 
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.amber.engine.architecture.messaginglayer.{InputGateway, NetworkInputGateway, NetworkOutputGateway}
+import org.apache.amber.engine.architecture.messaginglayer.{
+  InputGateway,
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import org.apache.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import org.apache.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.amber.engine.architecture.worker.managers.StatisticsManager
 import org.apache.amber.engine.common.AmberLogging
-import org.apache.amber.engine.common.ambermessage.{DirectControlMessagePayload, WorkflowFIFOMessage}
+import org.apache.amber.engine.common.ambermessage.{
+  DirectControlMessagePayload,
+  WorkflowFIFOMessage
+}
 import org.apache.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 
 abstract class AmberProcessor(

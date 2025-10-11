@@ -23,7 +23,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.amber.core.tuple.{AttributeType, Schema}
 import org.apache.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.amber.operator.PythonOperatorDescriptor
-import org.apache.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import org.apache.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor {

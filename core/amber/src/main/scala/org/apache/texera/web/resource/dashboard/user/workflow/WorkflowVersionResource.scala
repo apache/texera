@@ -28,7 +28,10 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, assignNewOperatorIds}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  assignNewOperatorIds
+}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import org.jooq.DSLContext
 

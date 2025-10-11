@@ -22,7 +22,10 @@ package org.apache.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 import org.apache.amber.engine.architecture.controller.ExecutionStateUpdate
-import org.apache.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
+import org.apache.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  TakeGlobalCheckpointRequest
+}
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import org.apache.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import org.apache.amber.engine.common.client.AmberClient

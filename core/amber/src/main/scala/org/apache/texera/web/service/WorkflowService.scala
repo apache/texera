@@ -27,13 +27,23 @@ import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.WorkflowRuntimeException
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.storage.result.iceberg.OnIceberg
-import org.apache.amber.core.virtualidentity.{EmbeddedControlMessageIdentity, ExecutionIdentity, WorkflowIdentity}
+import org.apache.amber.core.virtualidentity.{
+  EmbeddedControlMessageIdentity,
+  ExecutionIdentity,
+  WorkflowIdentity
+}
 import org.apache.amber.core.workflow.WorkflowContext
 import org.apache.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.amber.engine.architecture.controller.ControllerConfig
-import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
-import org.apache.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import org.apache.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
 import org.apache.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
