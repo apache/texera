@@ -17,23 +17,16 @@
  * under the License.
  */
 
-import { TestBed, fakeAsync, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { WorkflowResultExportService } from "./workflow-result-export.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import {
-  WorkflowResultService,
-  OperatorPaginationResultService,
-  OperatorResultService,
-} from "../workflow-result/workflow-result.service";
-import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
-import { of, EMPTY } from "rxjs";
-import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { of } from "rxjs";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import * as JSZip from "jszip";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";

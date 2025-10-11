@@ -61,7 +61,7 @@
 
         <target>
             <!-- The destination package of your generated classes (within the destination directory) -->
-            <packageName>edu.uci.ics.texera.dao.jooq.generated</packageName>
+            <packageName>org.apache.texera.dao.jooq.generated</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
             <directory>dao/src/main/scala</directory>

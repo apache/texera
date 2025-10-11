@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import socket
 import threading
 from functools import wraps
 from inspect import signature
-from typing import Callable, Dict, Iterator, Optional, Tuple
-
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table, py_buffer, Buffer
@@ -32,8 +31,7 @@ from pyarrow.flight import (
     Result,
     ServerCallContext,
 )
-
-import socket
+from typing import Callable, Dict, Iterator, Optional, Tuple
 
 
 def get_free_local_port():

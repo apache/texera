@@ -100,7 +100,7 @@ export interface OperatorLink
   }> {}
 
 /**
- * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
+ * refer to src/main/scalapb/org/apache/texera/web/workflowruntimestate/ConsoleMessage.scala
  */
 export type ConsoleMessage = Readonly<{
   workerId: string;

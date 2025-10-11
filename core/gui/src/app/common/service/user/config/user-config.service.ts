@@ -23,7 +23,6 @@ import { Observable, of, Subject } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
 import { UserService } from "../user.service";
 import { shareReplay, tap } from "rxjs/operators";
-import { isType } from "src/app/common/util/assert";
 
 export type UserConfig = {
   [key: string]: string;

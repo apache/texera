@@ -20,7 +20,7 @@ import re
 from collections.abc import Iterator, Mapping
 from typing import Any, Dict, List, Optional, Pattern, Tuple
 
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
+from proto.org.apache.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
 
 
 class ExpressionEvaluator:

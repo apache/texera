@@ -21,9 +21,9 @@ import {
   ExecutionState,
   LogicalOperator,
   LogicalPlan,
+  OperatorStatsUpdate,
   WebOutputMode,
   WorkflowResultUpdateEvent,
-  OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
 import { ConsoleUpdateEvent } from "./workflow-common.interface";

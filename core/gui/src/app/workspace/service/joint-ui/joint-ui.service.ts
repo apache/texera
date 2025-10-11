@@ -26,6 +26,7 @@ import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
+
 /**
  * Defines the SVG path for the delete button
  */

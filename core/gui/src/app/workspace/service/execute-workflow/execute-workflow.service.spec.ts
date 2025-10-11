@@ -28,7 +28,6 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
-import { Role, User } from "../../../common/type/user";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
@@ -37,7 +36,6 @@ import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflo
 import { DOCUMENT } from "@angular/common";
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../computing-unit-status/computing-unit-status.service";
-import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
 import { AuthService } from "src/app/common/service/user/auth.service";
 import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";

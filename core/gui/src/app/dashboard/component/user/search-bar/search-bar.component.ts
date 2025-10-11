@@ -25,7 +25,7 @@ import { SortMethod } from "../../../type/sort-method";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SearchResult, SearchResultItem } from "../../../type/search-result";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { Subject, Observable, of } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
 import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";

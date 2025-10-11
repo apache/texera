@@ -28,9 +28,9 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
-from proto.edu.uci.ics.amber.core import ChannelIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.amber.core import ChannelIdentity
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
 
 
 @dataclass

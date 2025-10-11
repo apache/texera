@@ -50,7 +50,19 @@ button {
 
 .ant-layout-content {
   background-color: white;
-  border: 1px solid #f0f0f0;
+}
+
+.page-content-layout {
+  border-left: 1px solid #f0f0f0;
+}
+
+.ant-layout-sider-has-trigger {
+  border-right: none;
+}
+
+.ant-menu-inline,
+.ant-menu-inline-collapsed {
+  border: none;
 }
 
 .ant-menu {
@@ -74,6 +86,7 @@ button {
 
 nz-content {
   position: relative;
+  overflow-y: auto;
 }
 
 .page-container {

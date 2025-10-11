@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import io
+import os
 import requests
 import urllib.parse
 

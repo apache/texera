@@ -16,10 +16,9 @@
 # under the License.
 
 from abc import ABC, abstractmethod
-from urllib.parse import ParseResult
-
 from overrides import overrides
 from typing import TypeVar, Iterator
+from urllib.parse import ParseResult
 
 from core.storage.model.buffered_item_writer import BufferedItemWriter
 from core.storage.model.readonly_virtual_document import ReadonlyVirtualDocument

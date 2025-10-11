@@ -16,12 +16,11 @@
 # under the License.
 
 import inspect
-import pickle
-from threading import Thread
-
 import pandas
+import pickle
 import pyarrow
 import pytest
+from threading import Thread
 
 from core.models import (
     DataFrame,
@@ -35,7 +34,7 @@ from core.models.internal_queue import (
 )
 from core.runnables import MainLoop
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.core import (
+from proto.org.apache.amber.core import (
     ActorVirtualIdentity,
     PhysicalLink,
     PhysicalOpIdentity,
@@ -46,7 +45,7 @@ from proto.edu.uci.ics.amber.core import (
     OpExecInitInfo,
     EmbeddedControlMessageIdentity,
 )
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.engine.architecture.rpc import (
     ControlRequest,
     AssignPortRequest,
     ControlInvocation,
@@ -64,18 +63,18 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmbeddedControlMessageType,
     EmbeddedControlMessage,
 )
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
+from proto.org.apache.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
     Partitioning,
 )
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.org.apache.amber.engine.architecture.worker import (
     WorkerMetrics,
     WorkerState,
     WorkerStatistics,
     PortTupleMetricsMapping,
     TupleMetrics,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
+from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
 

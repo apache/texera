@@ -19,11 +19,11 @@
 
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import {
-  mockScanPredicate,
-  mockSentimentPredicate,
   mockResultPredicate,
+  mockScanPredicate,
   mockScanResultLink,
   mockScanSentimentLink,
+  mockSentimentPredicate,
   mockSentimentResultLink,
 } from "../workflow-graph/model/mock-workflow-data";
 import { LogicalPlan } from "../../types/execute-workflow.interface";

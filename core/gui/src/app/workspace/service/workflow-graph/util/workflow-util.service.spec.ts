@@ -19,7 +19,7 @@
 
 import { StubOperatorMetadataService } from "./../../operator-metadata/stub-operator-metadata.service";
 import { OperatorMetadataService } from "./../../operator-metadata/operator-metadata.service";
-import { TestBed, inject } from "@angular/core/testing";
+import { inject, TestBed } from "@angular/core/testing";
 
 import { WorkflowUtilService } from "./workflow-util.service";
 import { mockScanSourceSchema } from "../../operator-metadata/mock-operator-metadata.data";

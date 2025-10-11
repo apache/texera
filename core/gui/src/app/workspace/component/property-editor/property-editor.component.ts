@@ -20,11 +20,11 @@
 import {
   ChangeDetectorRef,
   Component,
-  OnInit,
-  OnDestroy,
-  HostListener,
-  Type,
   ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  Type,
   ViewChild,
 } from "@angular/core";
 import { merge } from "rxjs";
@@ -36,6 +36,7 @@ import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
+
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  * Depending on the highlighted operator or link, it displays OperatorPropertyEditFrameComponent

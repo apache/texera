@@ -17,9 +17,9 @@
 
 from loguru import logger
 from overrides import overrides
+from pampy import match
 from pyarrow.lib import Table
 from typing import Optional
-from pampy import match
 
 from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,
@@ -44,8 +44,8 @@ from core.models.state import State
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmbeddedControlMessage
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.org.apache.amber.engine.architecture.rpc import EmbeddedControlMessage
+from proto.org.apache.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
     PythonActorMessage,
