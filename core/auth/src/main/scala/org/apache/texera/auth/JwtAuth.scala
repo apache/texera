@@ -19,7 +19,6 @@
 
 package org.apache.texera.auth
 
-
 import org.apache.texera.config.AuthConfig
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
