@@ -165,7 +165,7 @@ class AccessControlResourceSpec
     when(mockHttpHeaders.getRequestHeader("Authorization")).thenReturn(new util.ArrayList[String]())
 
     val accessControlResource = new AccessControlResource()
-    val response = accessControlResource.authorizePost(mockUriInfo, mockHttpHeaders)
+    val response = accessControlResource.authorizePost(mockUriInfo, mockHttpHeaders, null)
 
     response.getStatus shouldBe Response.Status.FORBIDDEN.getStatusCode
   }

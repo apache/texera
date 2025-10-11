@@ -342,7 +342,8 @@ ingressPaths:
       pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
-    - path: /api/executions/result/export
+    - path: /api/executions/result/export/*
+      pathType: ImplementationSpecific
       serviceName: envoy-svc
       servicePort: 10000
     - path: /api

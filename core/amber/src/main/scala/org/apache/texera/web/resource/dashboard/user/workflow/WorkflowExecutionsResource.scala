@@ -17,26 +17,38 @@
  * under the License.
  */
 
-package org.apache.texera.web.resource.dashboard.user.workflow
+package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import org.apache.amber.core.storage.{DocumentFactory, FileResolver, VFSResourceType, VFSURIFactory}
-import org.apache.amber.core.tuple.Tuple
-import org.apache.amber.core.virtualidentity._
-import org.apache.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
-import org.apache.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
-import org.apache.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
-import org.apache.amber.engine.common.storage.SequentialRecordStorage
-import org.apache.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
-import org.apache.amber.util.JSONUtils.objectMapper
-import org.apache.texera.auth.SessionUser
-import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
-import org.apache.texera.web.model.http.request.result.ResultExportRequest
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
-import org.apache.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  FileResolver,
+  VFSResourceType,
+  VFSURIFactory
+}
+import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity._
+import edu.uci.ics.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
+import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.texera.auth.SessionUser
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.auth.{JwtParser, SessionUser}
+
+import scala.jdk.CollectionConverters._
+import edu.uci.ics.texera.config.UserSystemConfig
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User => UserPojo, WorkflowExecutions}
+import edu.uci.ics.texera.web.model.http.request.result.ResultExportRequest
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
+import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, ResultExportService}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 
@@ -47,7 +59,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters._
+import play.api.libs.json.Json
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer
@@ -818,106 +830,50 @@ class WorkflowExecutionsResource {
   }
 
   @POST
-  @Path("/result/export")
+  @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def exportResult(
-      request: ResultExportRequest,
-      @Auth user: SessionUser
+  def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
+    try {
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.exportToDataset(user.user, request)
+
+    } catch {
+      case ex: Exception =>
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .`type`(MediaType.APPLICATION_JSON)
+          .entity(Map("error" -> ex.getMessage).asJava)
+          .build()
+    }
+  }
+
+  @POST
+  @Path("/result/export/local")
+  @Consumes(Array(MediaType.APPLICATION_FORM_URLENCODED))
+  def exportResultToLocal(
+      @FormParam("request") requestJson: String,
+      @FormParam("token") token: String
   ): Response = {
 
-    if (request.operators.size <= 0)
-      Response
-        .status(Response.Status.BAD_REQUEST)
-        .`type`(MediaType.APPLICATION_JSON)
-        .entity(Map("error" -> "No operator selected").asJava)
-        .build()
-
-    // Get ALL non-downloadable in workflow
-    val datasetRestrictions = getNonDownloadableOperatorMap(request.workflowId, user.user)
-    // Filter to only user's selection
-    val restrictedOperators = request.operators.filter(op => datasetRestrictions.contains(op.id))
-    // Check if any selected operator is restricted
-    if (restrictedOperators.nonEmpty) {
-      val restrictedDatasets = restrictedOperators.flatMap { op =>
-        datasetRestrictions(op.id).map {
-          case (ownerEmail, datasetName) =>
-            Map(
-              "operatorId" -> op.id,
-              "ownerEmail" -> ownerEmail,
-              "datasetName" -> datasetName
-            ).asJava
-        }
-      }
-
-      return Response
-        .status(Response.Status.FORBIDDEN)
-        .`type`(MediaType.APPLICATION_JSON)
-        .entity(
-          Map(
-            "error" -> "Export blocked due to dataset restrictions",
-            "restrictedDatasets" -> restrictedDatasets.asJava
-          ).asJava
-        )
-        .build()
-    }
-
     try {
-      request.destination match {
-        case "local" =>
-          // CASE A: multiple operators => produce ZIP
-          if (request.operators.size > 1) {
-            val resultExportService =
-              new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-            val (zipStream, zipFileNameOpt) =
-              resultExportService.exportOperatorsAsZip(request)
-
-            if (zipStream == null) {
-              throw new RuntimeException("Zip stream is null")
-            }
-
-            val finalFileName = zipFileNameOpt.getOrElse("operators.zip")
-            return Response
-              .ok(zipStream, "application/zip")
-              .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
-              .build()
-          }
-
-          // CASE B: exactly one operator => single file
-          if (request.operators.size != 1) {
-            return Response
-              .status(Response.Status.BAD_REQUEST)
-              .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Local download does not support no operator.").asJava)
-              .build()
-          }
-          val singleOp = request.operators.head
-
-          val resultExportService =
-            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-          val (streamingOutput, fileNameOpt) =
-            resultExportService.exportOperatorResultAsStream(request, singleOp)
-
-          if (streamingOutput == null) {
-            return Response
-              .status(Response.Status.INTERNAL_SERVER_ERROR)
-              .`type`(MediaType.APPLICATION_JSON)
-              .entity(Map("error" -> "Failed to export operator").asJava)
-              .build()
-          }
-
-          val finalFileName = fileNameOpt.getOrElse("download.dat")
-          Response
-            .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-            .header("Content-Disposition", "attachment; filename=\"" + finalFileName + "\"")
-            .build()
-        case _ =>
-          // destination = "dataset" by default
-          val resultExportService =
-            new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
-          val exportResponse =
-            resultExportService.exportAllOperatorsResultToDataset(user.user, request)
-          Response.ok(exportResponse).build()
+      val userOpt = JwtParser.parseToken(token)
+      if (userOpt.isPresent) {
+        val user = userOpt.get()
+        val role = user.getUser.getRole
+        val RolesAllowed = Set(UserRoleEnum.REGULAR, UserRoleEnum.ADMIN)
+        if (!RolesAllowed.contains(role)) {
+          throw new RuntimeException("User role is not allowed to perform this download")
+        }
+      } else {
+        throw new RuntimeException("Invalid or expired token")
       }
+
+      val request = Json.parse(requestJson).as[ResultExportRequest]
+      val resultExportService =
+        new ResultExportService(WorkflowIdentity(request.workflowId), request.computingUnitId)
+      resultExportService.exportToLocal(request)
+
     } catch {
       case ex: Exception =>
         Response
