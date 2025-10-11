@@ -63,7 +63,7 @@ lazy val FileService = (project in file("core/file-service"))
   )
 
 lazy val WorkflowOperator = (project in file("core/workflow-operator")).dependsOn(WorkflowCore)
-lazy val WorkflowCompilingService = (project in file("core/workflow-compiling-service"))
+lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(
     dependencyOverrides ++= Seq(
