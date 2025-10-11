@@ -48,16 +48,16 @@ export class FilesUploaderComponent {
   // four types: "success", "info", "warning" and "error"
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
-  singleFileUploadMaxSizeMB: number = 20;
+  singleFileUploadMaxSizeMiB: number = 20;
 
   constructor(
     private notificationService: NotificationService,
     private adminSettingsService: AdminSettingsService
   ) {
     this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mb")
+      .getSetting("single_file_upload_max_size_mib")
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.singleFileUploadMaxSizeMB = parseInt(value)));
+      .subscribe(value => (this.singleFileUploadMaxSizeMiB = parseInt(value)));
   }
 
   hideBanner() {
@@ -79,10 +79,10 @@ export class FilesUploaderComponent {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
             // Check the file size here
-            if (file.size > this.singleFileUploadMaxSizeMB * 1024 * 1024) {
+            if (file.size > this.singleFileUploadMaxSizeMiB * 1024 * 1024) {
               // If the file is too large, reject the promise
               this.notificationService.error(
-                `File ${file.name}'s size exceeds the maximum limit of ${this.singleFileUploadMaxSizeMB}MB.`
+                `File ${file.name}'s size exceeds the maximum limit of ${this.singleFileUploadMaxSizeMiB}MiB.`
               );
               reject(null);
             } else {

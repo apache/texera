@@ -31,7 +31,6 @@ import { GuiConfigService } from "../gui-config.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 
 export const TOKEN_KEY = "access_token";
-export const TOKEN_REFRESH_INTERVAL_IN_MIN = 16;
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -49,7 +48,6 @@ export class AuthService {
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
 
   private tokenExpirationSubscription?: Subscription;
-  private refreshTokenSubscription?: Subscription;
 
   constructor(
     private http: HttpClient,
@@ -113,7 +111,6 @@ export class AuthService {
   public logout(): undefined {
     AuthService.removeAccessToken();
     this.tokenExpirationSubscription?.unsubscribe();
-    this.refreshTokenSubscription?.unsubscribe();
     return undefined;
   }
 
@@ -146,7 +143,6 @@ export class AuthService {
     }
 
     this.registerAutoLogout();
-    this.registerAutoRefreshToken();
     return {
       uid: this.jwtHelperService.decodeToken(token).userId,
       name: this.jwtHelperService.decodeToken(token).sub,
@@ -156,35 +152,6 @@ export class AuthService {
       role: role,
       comment: this.jwtHelperService.decodeToken(token).comment,
     };
-  }
-
-  /**
-   * Refreshes the current accessToken to get a new accessToken
-   * // TODO: for better security, use a separate refresh token to perform this refresh
-   */
-  private refreshToken(): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${AuthService.REFRESH_TOKEN}`,
-      { accessToken: AuthService.getAccessToken() }
-    );
-  }
-
-  private registerAutoRefreshToken() {
-    this.refreshTokenSubscription?.unsubscribe();
-    this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
-      .pipe(startWith(0)) // to trigger immediately for the first time.
-      .subscribe(() => {
-        this.refreshToken().subscribe(
-          ({ accessToken }) => {
-            AuthService.setAccessToken(accessToken);
-            this.registerAutoLogout();
-          },
-          (_: unknown) => {
-            // failed to refresh the access token, logout instantly.
-            this.logout();
-          }
-        );
-      });
   }
 
   private registerAutoLogout() {

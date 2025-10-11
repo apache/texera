@@ -54,6 +54,7 @@ Compile / scalacOptions ++= Seq(
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
 val assertjVersion = "3.24.2"
+val testcontainersVersion = "0.43.0"
 
 /////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
@@ -65,7 +66,10 @@ libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "com.novocode" % "junit-interface" % "0.11" % Test,                // SBT interface for JUnit
+  "com.dimafeng" %% "testcontainers-scala-scalatest" % testcontainersVersion % Test,   // Testcontainers ScalaTest integration
+  "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test,  // PostgreSQL Testcontainer Scala integration
+  "com.dimafeng" %% "testcontainers-scala-minio" % testcontainersVersion % Test,       // MinIO Testcontainer Scala integration
 )
 
 /////////////////////////////////////////////////////////////////////////////

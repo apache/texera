@@ -207,35 +207,32 @@ class WorkflowService(
       req.computingUnitId
     )
 
-    if (UserSystemConfig.isUserSystemEnabled) {
-      // enable only if we have mysql
-      if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
-        val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
-          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
-        )
-        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
-          execution => execution.setLogLocation(writeLocation.toString)
-        }
-        controllerConf = controllerConf.copy(faultToleranceConfOpt =
-          Some(FaultToleranceConfig(writeTo = writeLocation))
-        )
+    if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {
+      val writeLocation = ApplicationConfig.faultToleranceLogRootFolder.get.resolve(
+        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+      )
+      ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
+        execution => execution.setLogLocation(writeLocation.toString)
       }
-      if (req.replayFromExecution.isDefined) {
-        val replayInfo = req.replayFromExecution.get
-        ExecutionsMetadataPersistService
-          .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
-          .foreach { execution =>
-            val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(stateRestoreConfOpt =
-              Some(
-                StateRestoreConfig(
-                  readFrom = readLocation,
-                  replayDestination = EmbeddedControlMessageIdentity(replayInfo.interaction)
-                )
+      controllerConf = controllerConf.copy(faultToleranceConfOpt =
+        Some(FaultToleranceConfig(writeTo = writeLocation))
+      )
+    }
+    if (req.replayFromExecution.isDefined) {
+      val replayInfo = req.replayFromExecution.get
+      ExecutionsMetadataPersistService
+        .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
+        .foreach { execution =>
+          val readLocation = new URI(execution.getLogLocation)
+          controllerConf = controllerConf.copy(stateRestoreConfOpt =
+            Some(
+              StateRestoreConfig(
+                readFrom = readLocation,
+                replayDestination = EmbeddedControlMessageIdentity(replayInfo.interaction)
               )
             )
-          }
-      }
+          )
+        }
     }
 
     val executionStateStore = new ExecutionStateStore()

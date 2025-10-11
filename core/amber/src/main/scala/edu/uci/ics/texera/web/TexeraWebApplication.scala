@@ -152,8 +152,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AdminSettingsResource])
     environment.jersey.register(classOf[AIAssistantResource])
 
-    if (UserSystemConfig.isUserSystemEnabled) {
-      AuthResource.createAdminUser()
-    }
+    AuthResource.createAdminUser()
   }
 }
