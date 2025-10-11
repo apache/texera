@@ -35,6 +35,7 @@ var contentDisposition = require("content-disposition");
 
 export const EXPORT_BASE_URL = "result/export";
 const IFRAME_TIMEOUT_MS = 10000;
+export const DOWNLOADABILITY_BASE_URL = "result/downloadability";
 
 interface DownloadableItem {
   blob: Blob;
@@ -44,6 +45,10 @@ interface DownloadableItem {
 export interface ExportWorkflowJsonResponse {
   status: string;
   message: string;
+}
+
+export interface WorkflowResultDownloadabilityResponse {
+  [operatorId: string]: string[]; // operatorId -> array of dataset labels blocking export
 }
 
 @Injectable({
