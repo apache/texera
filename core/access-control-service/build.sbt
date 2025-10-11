@@ -76,6 +76,5 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2",
-  "org.playframework" %% "play-json" % "3.1.0-M1",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
 )
