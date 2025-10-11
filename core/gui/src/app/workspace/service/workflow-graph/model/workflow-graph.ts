@@ -1112,6 +1112,19 @@ export class WorkflowGraph {
   }
 
   /**
+   * Checks if a link is unique in the graph. Throws an error if more than one link with the same source and target
+   * as the given link exists.
+   */
+  public assertLinkNotDuplicated(link: OperatorLink): void {
+    const links = this.getAllLinks().filter(
+      value => isEqual(value.source, link.source) && isEqual(value.target, link.target)
+    );
+    if (links.length > 1) {
+      throw new Error(`duplicate link found with same source and target as link ${link}`);
+    }
+  }
+
+  /**
    * Retrieves a subgraph (subDAG) from the workflow graph. This method excludes disabled operators and links.
    *
    * This method can operate in two modes:

@@ -17,6 +17,9 @@
  * under the License.
  */
 
-package edu.uci.ics.texera.web.model.http.request.auth
+package edu.uci.ics.amber.operator.sklearn.training
 
-case class RefreshTokenRequest(accessToken: String)
+class SklearnTrainingLinearRegressionOpDesc extends SklearnTrainingOpDesc {
+  override def getImportStatements = "from sklearn.linear_model import LinearRegression"
+  override def getUserFriendlyModelName = "Training: Linear Regression"
+}
