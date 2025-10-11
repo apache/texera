@@ -26,7 +26,8 @@ from typing import Dict, TypeVar, Callable, Any, Coroutine
 from core.architecture.managers.context import Context
 from core.models.internal_queue import InternalQueue, DCMElement
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.amber.engine.architecture.rpc import (
     AsyncRpcContext,
     ReturnInvocation,
     ControlReturn,
@@ -35,8 +36,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     WorkerServiceStub,
     ControlRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import DirectControlMessagePayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
+from proto.org.apache.amber.engine.common import DirectControlMessagePayloadV2
 
 R = TypeVar("R")
 

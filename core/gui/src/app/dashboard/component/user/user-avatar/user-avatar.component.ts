@@ -20,6 +20,7 @@
 import { Component, Input, OnChanges } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Observable, of } from "rxjs";
+
 @Component({
   selector: "texera-user-avatar",
   templateUrl: "./user-avatar.component.html",

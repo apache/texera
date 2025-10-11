@@ -17,20 +17,17 @@
  * under the License.
  */
 
-import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
-import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
+import { BehaviorSubject, merge, Observable, of } from "rxjs";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
-import { catchError, filter, map, take, tap } from "rxjs/operators";
-import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { DownloadService } from "../../../dashboard/service/user/download/download.service";
+import { catchError, filter, map, take } from "rxjs/operators";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { DownloadService, ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { HttpResponse } from "@angular/common/http";
-import { ExportWorkflowJsonResponse } from "../../../dashboard/service/user/download/download.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
@@ -306,27 +303,34 @@ export class WorkflowResultExportService {
     this.notificationService.loading("Exporting...");
 
     // Make request
-    this.downloadService
-      .exportWorkflowResult(
+    if (destination === "local") {
+      // Dataset export to local filesystem (download handled by browser)
+      this.downloadService.exportWorkflowResultToLocal(
         exportType,
         workflowId,
         workflowName,
         operatorArray,
-        [...datasetIds],
         rowIndex,
         columnIndex,
         filename,
-        destination,
         unit
-      )
-      .subscribe({
-        next: response => {
-          if (destination === "local") {
-            // "local" => response is a blob
-            // We can parse the file name from header or use fallback
-            this.downloadService.saveBlobFile(response, filename);
-            this.notificationService.info("Files downloaded successfully");
-          } else {
+      );
+    } else {
+      // Dataset export to dataset via API call
+      this.downloadService
+        .exportWorkflowResult(
+          exportType,
+          workflowId,
+          workflowName,
+          operatorArray,
+          [...datasetIds],
+          rowIndex,
+          columnIndex,
+          filename,
+          unit
+        )
+        .subscribe({
+          next: response => {
             // "dataset" => response is JSON
             // The server should return a JSON with {status, message}
             const jsonResponse = response as HttpResponse<ExportWorkflowJsonResponse>;
@@ -336,13 +340,13 @@ export class WorkflowResultExportService {
             } else {
               this.notificationService.error(responseBody?.message || "An error occurred during export");
             }
-          }
-        },
-        error: (err: unknown) => {
-          const errorMessage = (err as any)?.error?.message || (err as any)?.error || err;
-          this.notificationService.error(`An error happened in exporting operator results: ${errorMessage}`);
-        },
-      });
+          },
+          error: (err: unknown) => {
+            const errorMessage = (err as any)?.error?.message || (err as any)?.error || err;
+            this.notificationService.error(`An error happened in exporting operator results: ${errorMessage}`);
+          },
+        });
+    }
   }
 
   /**

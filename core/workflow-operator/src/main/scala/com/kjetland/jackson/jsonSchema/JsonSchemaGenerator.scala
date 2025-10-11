@@ -28,15 +28,7 @@ import com.fasterxml.jackson.databind.jsonFormatVisitors._
 import com.fasterxml.jackson.databind.jsontype.impl.MinimalClassNameIdResolver
 import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory, ObjectNode}
 import com.fasterxml.jackson.databind.util.ClassUtil
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaDefault,
-  JsonSchemaDescription,
-  JsonSchemaExamples,
-  JsonSchemaFormat,
-  JsonSchemaInject,
-  JsonSchemaOptions,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations._
 import io.github.classgraph.{ClassGraph, ScanResult}
 import org.slf4j.LoggerFactory
 

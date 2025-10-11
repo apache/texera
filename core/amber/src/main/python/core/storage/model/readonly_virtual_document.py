@@ -16,9 +16,8 @@
 # under the License.
 
 from abc import ABC, abstractmethod
-from urllib.parse import ParseResult
-
 from typing import Generic, TypeVar, Iterator
+from urllib.parse import ParseResult
 
 # Define a type variable
 T = TypeVar("T")

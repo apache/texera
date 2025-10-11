@@ -16,9 +16,8 @@
 # under the License.
 
 import datetime
-import pickle
-
 import pandas
+import pickle
 import pytest
 from pandas import RangeIndex
 

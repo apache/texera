@@ -15,18 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+import psutil
+import signal
+import socket
+import urllib.parse
+from loguru import logger
 from overrides import overrides
 from threading import Event
-from loguru import logger
 
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
-
-import os
-import signal
-import psutil
-import socket
-import urllib.parse
 
 
 class Heartbeat(Runnable, Stoppable):

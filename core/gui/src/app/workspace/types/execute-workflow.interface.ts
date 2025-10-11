@@ -23,7 +23,8 @@
  * These interfaces confront to the backend API.
  */
 
-import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { OperatorCurrentTuples, WorkflowFatalError } from "./workflow-websocket.interface";
+
 export interface PortIdentity
   extends Readonly<{
     id: number;

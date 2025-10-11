@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import { WebSocketServer } from "ws";
-import { Server } from 'node:http';
+import {WebSocketServer} from "ws";
+import {Server} from 'node:http';
 import express from 'express';
-import { getLocalDirectory, LanguageServerRunConfig, upgradeWsServer } from './server-commons.ts';
+import {getLocalDirectory, LanguageServerRunConfig, upgradeWsServer} from './server-commons.ts';
 
 /** LSP server runner */
 export const runLanguageServer = (

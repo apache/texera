@@ -17,8 +17,8 @@
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.util import get_one_of
-from proto.edu.uci.ics.amber.core import OpExecWithCode
-from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+from proto.org.apache.amber.core import OpExecWithCode
+from proto.org.apache.amber.engine.architecture.rpc import (
     EmptyReturn,
     InitializeExecutorRequest,
 )

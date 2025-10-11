@@ -25,8 +25,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import Ajv from "ajv";
 import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
-import { untilDestroyed } from "@ngneat/until-destroy";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowGraph, WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 
 export type ValidationError = {

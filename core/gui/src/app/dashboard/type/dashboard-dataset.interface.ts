@@ -17,8 +17,7 @@
  * under the License.
  */
 
-import { Dataset, DatasetVersion } from "../../common/type/dataset";
-import { DatasetFileNode } from "../../common/type/datasetVersionFileTree";
+import { Dataset } from "../../common/type/dataset";
 
 export interface DashboardDataset {
   isOwner: boolean;

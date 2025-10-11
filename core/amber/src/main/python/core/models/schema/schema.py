@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pyarrow as pa
 from collections import OrderedDict
 from typing import MutableMapping, Optional, Mapping, List, Tuple
-
-import pyarrow as pa
 
 from core.models.schema.attribute_type import (
     AttributeType,

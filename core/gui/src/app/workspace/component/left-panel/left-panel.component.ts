@@ -29,6 +29,7 @@ import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",

@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
+import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from "@angular/router";
 import { GuiConfigService } from "../gui-config.service";
 import { UserService } from "./user.service";
 import { DASHBOARD_ABOUT } from "../../../app-routing.constant";

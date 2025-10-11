@@ -21,18 +21,13 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { TestBed, inject } from "@angular/core/testing";
+import { inject, TestBed } from "@angular/core/testing";
 import { marbles } from "rxjs-marbles";
 
 import { DynamicSchemaService } from "./dynamic-schema.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
-import {
-  mockScanPredicate,
-  mockPoint,
-  mockResultPredicate,
-  mockScanResultLink,
-} from "../workflow-graph/model/mock-workflow-data";
+import { mockPoint, mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
 import { mockScanSourceSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";

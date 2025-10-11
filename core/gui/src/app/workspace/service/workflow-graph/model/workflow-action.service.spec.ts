@@ -23,24 +23,22 @@ import { JointUIService } from "./../../joint-ui/joint-ui.service";
 import { WorkflowGraph } from "./workflow-graph";
 import { UndoRedoService } from "./../../undo-redo/undo-redo.service";
 import {
-  mockScanPredicate,
-  mockResultPredicate,
-  mockSentimentPredicate,
-  mockScanResultLink,
-  mockScanSentimentLink,
-  mockSentimentResultLink,
+  mockCommentBox,
   mockFalseResultSentimentLink,
   mockFalseSentimentScanLink,
   mockPoint,
-  mockCommentBox,
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
+  mockSentimentResultLink,
 } from "./mock-workflow-data";
-import { TestBed, inject } from "@angular/core/testing";
+import { inject, TestBed } from "@angular/core/testing";
 
 import { WorkflowActionService } from "./workflow-action.service";
-import { OperatorPredicate, Point } from "../../../types/workflow-common.interface";
-import { g } from "jointjs";
+import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
-import { join } from "lodash";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 
 describe("WorkflowActionService", () => {
