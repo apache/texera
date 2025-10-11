@@ -57,7 +57,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       environmentVersion: String,
       computingUnitId: Integer
   ): ExecutionIdentity = {
-    if (!UserSystemConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
     val newExecution = new WorkflowExecutions()
@@ -77,7 +76,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryGetExistingExecution(executionId: ExecutionIdentity): Option[WorkflowExecutions] = {
-    if (!UserSystemConfig.isUserSystemEnabled) return None
     try {
       Some(workflowExecutionsDao.fetchOneByEid(executionId.id.toInt))
     } catch {
@@ -90,7 +88,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   def tryUpdateExistingExecution(
       executionId: ExecutionIdentity
   )(updateFunc: WorkflowExecutions => Unit): Unit = {
-    if (!UserSystemConfig.isUserSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(executionId.id.toInt)
       updateFunc(execution)

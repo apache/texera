@@ -35,6 +35,7 @@ import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import * as JSZip from "jszip";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
 describe("WorkflowResultExportService", () => {
@@ -45,6 +46,7 @@ describe("WorkflowResultExportService", () => {
   let executeWorkflowServiceSpy: jasmine.SpyObj<ExecuteWorkflowService>;
   let workflowResultServiceSpy: jasmine.SpyObj<WorkflowResultService>;
   let downloadServiceSpy: jasmine.SpyObj<DownloadService>;
+  let datasetServiceSpy: jasmine.SpyObj<DatasetService>;
 
   let jointGraphWrapperSpy: jasmine.SpyObj<any>;
   let texeraGraphSpy: jasmine.SpyObj<any>;
@@ -60,8 +62,24 @@ describe("WorkflowResultExportService", () => {
     jointGraphWrapperSpy.getJointOperatorHighlightStream.and.returnValue(of());
     jointGraphWrapperSpy.getJointOperatorUnhighlightStream.and.returnValue(of());
 
-    texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", ["getAllOperators"]);
+    texeraGraphSpy = jasmine.createSpyObj("TexeraGraph", [
+      "getAllOperators",
+      "getOperatorAddStream",
+      "getOperatorDeleteStream",
+      "getOperatorPropertyChangeStream",
+      "getLinkAddStream",
+      "getLinkDeleteStream",
+      "getDisabledOperatorsChangedStream",
+      "getAllLinks",
+    ]);
     texeraGraphSpy.getAllOperators.and.returnValue([]);
+    texeraGraphSpy.getOperatorAddStream.and.returnValue(of());
+    texeraGraphSpy.getOperatorDeleteStream.and.returnValue(of());
+    texeraGraphSpy.getOperatorPropertyChangeStream.and.returnValue(of());
+    texeraGraphSpy.getLinkAddStream.and.returnValue(of());
+    texeraGraphSpy.getLinkDeleteStream.and.returnValue(of());
+    texeraGraphSpy.getDisabledOperatorsChangedStream.and.returnValue(of());
+    texeraGraphSpy.getAllLinks.and.returnValue([]);
 
     const wsSpy = jasmine.createSpyObj("WorkflowWebsocketService", ["subscribeToEvent", "send"]);
     wsSpy.subscribeToEvent.and.returnValue(of()); // Return an empty observable
@@ -87,6 +105,9 @@ describe("WorkflowResultExportService", () => {
     const downloadSpy = jasmine.createSpyObj("DownloadService", ["downloadOperatorsResult"]);
     downloadSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
+    const datasetSpy = jasmine.createSpyObj("DatasetService", ["retrieveAccessibleDatasets"]);
+    datasetSpy.retrieveAccessibleDatasets.and.returnValue(of([]));
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
@@ -97,6 +118,7 @@ describe("WorkflowResultExportService", () => {
         { provide: ExecuteWorkflowService, useValue: ewSpy },
         { provide: WorkflowResultService, useValue: wrSpy },
         { provide: DownloadService, useValue: downloadSpy },
+        { provide: DatasetService, useValue: datasetSpy },
         ...commonTestProviders,
       ],
     });
@@ -109,6 +131,7 @@ describe("WorkflowResultExportService", () => {
     executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as jasmine.SpyObj<ExecuteWorkflowService>;
     workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as jasmine.SpyObj<WorkflowResultService>;
     downloadServiceSpy = TestBed.inject(DownloadService) as jasmine.SpyObj<DownloadService>;
+    datasetServiceSpy = TestBed.inject(DatasetService) as jasmine.SpyObj<DatasetService>;
   });
 
   it("should be created", () => {

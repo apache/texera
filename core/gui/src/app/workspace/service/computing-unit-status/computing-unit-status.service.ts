@@ -51,6 +51,7 @@ export class ComputingUnitStatusService implements OnDestroy {
   private readonly REFRESH_INTERVAL_MS = 2000;
   private refreshSubscription: Subscription | null = null;
   private currentConnectedCuid?: number;
+  private currentConnectedWid?: number;
   private selectedUnitPoll?: Subscription;
 
   constructor(
@@ -148,19 +149,23 @@ export class ComputingUnitStatusService implements OnDestroy {
       });
   }
 
+  //
   /**
    * Select a computing unit **by its CUID** and emit the updated selection.
    */
   public selectComputingUnit(wid: number | undefined, cuid: number): void {
     const trySelect = (unit: DashboardWorkflowComputingUnit) => {
       // open websocket if needed
-      if (isDefined(wid) && this.currentConnectedCuid !== cuid) {
+      const shouldReconnect = this.currentConnectedCuid !== cuid || this.currentConnectedWid !== wid;
+      if (isDefined(wid) && shouldReconnect) {
         if (this.workflowWebsocketService.isConnected) {
           this.workflowWebsocketService.closeWebsocket();
           this.workflowStatusService.clearStatus();
         }
+
         this.workflowWebsocketService.openWebsocket(wid, this.userService.getCurrentUser()?.uid, cuid);
         this.currentConnectedCuid = cuid;
+        this.currentConnectedWid = wid;
         this.selectedUnitSubject.next(unit);
         this.startPollingSelectedUnit(cuid);
       }

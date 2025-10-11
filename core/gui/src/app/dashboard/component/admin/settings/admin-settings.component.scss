@@ -64,6 +64,12 @@
   margin-left: auto;
 }
 
+.arrow {
+  width: 12px;
+  height: 12px;
+  transform-origin: center center;
+}
+
 details[open] .arrow {
   transform: rotate(90deg);
 }
