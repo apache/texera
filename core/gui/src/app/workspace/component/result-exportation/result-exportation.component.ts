@@ -19,7 +19,10 @@
 
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, inject, Input, OnInit } from "@angular/core";
-import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
+import {
+  WorkflowResultExportService,
+  WorkflowResultDownloadability,
+} from "../../service/workflow-result-export/workflow-result-export.service";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -52,9 +55,64 @@ export class ResultExportationComponent implements OnInit {
   containsBinaryData: boolean = false;
   inputDatasetName = "";
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
+  downloadability?: WorkflowResultDownloadability;
 
   userAccessibleDatasets: DashboardDataset[] = [];
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
+
+  /**
+   * Gets the operator IDs to check for restrictions based on the source trigger.
+   * Menu: all operators, Context menu: highlighted operators only
+   */
+  private getOperatorIdsToCheck(): readonly string[] {
+    if (this.sourceTriggered === "menu") {
+      return this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(op => op.operatorID);
+    } else {
+      return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    }
+  }
+
+  /**
+   * Computed property: operator IDs that can be exported
+   */
+  get exportableOperatorIds(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getExportableOperatorIds(this.getOperatorIdsToCheck());
+  }
+
+  /**
+   * Computed property: operator IDs that are blocked from export
+   */
+  get blockedOperatorIds(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getBlockedOperatorIds(this.getOperatorIdsToCheck());
+  }
+
+  /**
+   * Computed property: whether all selected operators are blocked
+   */
+  get isExportRestricted(): boolean {
+    const operatorIds = this.getOperatorIdsToCheck();
+    return this.exportableOperatorIds.length === 0 && operatorIds.length > 0;
+  }
+
+  /**
+   * Computed property: whether some (but not all) operators are blocked
+   */
+  get hasPartialNonDownloadable(): boolean {
+    return this.exportableOperatorIds.length > 0 && this.blockedOperatorIds.length > 0;
+  }
+
+  /**
+   * Computed property: dataset labels that are blocking export
+   */
+  get blockingDatasetLabels(): string[] {
+    if (!this.downloadability) return [];
+    return this.downloadability.getBlockingDatasets(this.getOperatorIdsToCheck());
+  }
 
   constructor(
     public workflowResultExportService: WorkflowResultExportService,
@@ -74,7 +132,14 @@ export class ResultExportationComponent implements OnInit {
         this.userAccessibleDatasets = datasets.filter(dataset => dataset.accessPrivilege === "WRITE");
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });
-    this.updateOutputType();
+
+    this.workflowResultExportService
+      .computeRestrictionAnalysis()
+      .pipe(untilDestroyed(this))
+      .subscribe(downloadability => {
+        this.downloadability = downloadability;
+        this.updateOutputType();
+      });
 
     this.computingUnitStatusService
       .getSelectedComputingUnit()
@@ -85,18 +150,11 @@ export class ResultExportationComponent implements OnInit {
   }
 
   updateOutputType(): void {
-    // Determine if the caller of this component is menu or context menu
-    // if its menu then we need to export all operators else we need to export only highlighted operators
-
-    let operatorIds: readonly string[];
-    if (this.sourceTriggered === "menu") {
-      operatorIds = this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(op => op.operatorID);
-    } else {
-      operatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (!this.downloadability) {
+      return;
     }
+
+    const operatorIds = this.getOperatorIdsToCheck();
 
     if (operatorIds.length === 0) {
       // No operators highlighted
@@ -106,13 +164,19 @@ export class ResultExportationComponent implements OnInit {
       return;
     }
 
-    // Assume they're all table or visualization
-    // until we find an operator that isn't
+    if (this.isExportRestricted) {
+      this.isTableOutput = false;
+      this.isVisualizationOutput = false;
+      this.containsBinaryData = false;
+      return;
+    }
+
+    // Assume they're all table or visualization until we find an operator that isn't
     let allTable = true;
     let allVisualization = true;
     let anyBinaryData = false;
 
-    for (const operatorId of operatorIds) {
+    for (const operatorId of this.exportableOperatorIds) {
       const outputTypes = this.workflowResultService.determineOutputTypes(operatorId);
       if (!outputTypes.hasAnyResult) {
         continue;
@@ -180,5 +244,15 @@ export class ResultExportationComponent implements OnInit {
         this.inputDatasetName = result.dataset.name;
       }
     });
+  }
+
+  /**
+   * Getter that returns a comma-separated string of blocking dataset labels.
+   * Used in the template to display which datasets are preventing export.
+   *
+   * @returns String like "Dataset1 (user1@example.com), Dataset2 (user2@example.com)"
+   */
+  get blockingDatasetSummary(): string {
+    return this.blockingDatasetLabels.join(", ");
   }
 }
