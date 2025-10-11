@@ -306,16 +306,7 @@ class DatasetResource {
       datasetUserAccessDao.insert(datasetUserAccess)
 
       DashboardDataset(
-        new Dataset(
-          createdDataset.getDid,
-          createdDataset.getOwnerUid,
-          createdDataset.getName,
-          createdDataset.getRepositoryName,
-          createdDataset.getIsPublic,
-          createdDataset.getIsDownloadable,
-          createdDataset.getDescription,
-          createdDataset.getCreationTime
-        ),
+        createdDataset.into(classOf[Dataset]),
         user.getEmail,
         PrivilegeEnum.WRITE,
         isOwner = true,

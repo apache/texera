@@ -22,7 +22,7 @@ package edu.uci.ics.texera.service.resource
 import edu.uci.ics.amber.core.storage.util.LakeFSStorageClient
 import edu.uci.ics.texera.auth.SessionUser
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
+import edu.uci.ics.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.service.MockLakeFS
@@ -130,6 +130,29 @@ class DatasetResourceSpec
     createdDataset.dataset.getDescription shouldEqual "description for new dataset"
     createdDataset.dataset.getIsPublic shouldBe false
     createdDataset.dataset.getIsDownloadable shouldBe true
+  }
+
+  it should "return DashboardDataset with correct owner email, WRITE privilege, and isOwner=true" in {
+    val createDatasetRequest = DatasetResource.CreateDatasetRequest(
+      datasetName = "dashboard-dataset-test",
+      datasetDescription = "test for DashboardDataset properties",
+      isDatasetPublic = true,
+      isDatasetDownloadable = false
+    )
+
+    val dashboardDataset = datasetResource.createDataset(createDatasetRequest, sessionUser)
+
+    // Verify the DashboardDataset properties
+    dashboardDataset.ownerEmail shouldEqual testUser.getEmail
+    dashboardDataset.accessPrivilege shouldEqual PrivilegeEnum.WRITE
+    dashboardDataset.isOwner shouldBe true
+    dashboardDataset.size shouldEqual 0
+
+    // Verify the underlying dataset properties
+    dashboardDataset.dataset.getName shouldEqual "dashboard-dataset-test"
+    dashboardDataset.dataset.getDescription shouldEqual "test for DashboardDataset properties"
+    dashboardDataset.dataset.getIsPublic shouldBe true
+    dashboardDataset.dataset.getIsDownloadable shouldBe false
   }
 
   it should "delete dataset successfully if user owns it" in {

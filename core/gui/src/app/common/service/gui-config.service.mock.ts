@@ -30,7 +30,6 @@ export class MockGuiConfigService {
   private _config: GuiConfig = {
     exportExecutionResultEnabled: false,
     autoAttributeCorrectionEnabled: false,
-    userSystemEnabled: true,
     selectingFilesFromDatasetsEnabled: false,
     localLogin: true,
     googleLogin: true,

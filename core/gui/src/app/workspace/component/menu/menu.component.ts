@@ -730,7 +730,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     // Regular workflow execution - already connected
     this.executeWorkflowService.executeWorkflowWithEmailNotification(
       this.currentExecutionName || "Untitled Execution",
-      this.config.env.workflowEmailNotificationEnabled && this.config.env.userSystemEnabled
+      this.config.env.workflowEmailNotificationEnabled
     );
   }
 

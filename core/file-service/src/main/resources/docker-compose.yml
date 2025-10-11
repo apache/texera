@@ -15,12 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-version: "3.5"
 name: texera-lakefs
 services:
   minio:
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
-    container_name: minio
+    container_name: texera-lakefs-minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -28,13 +27,13 @@ services:
       - MINIO_ROOT_USER=texera_minio
       - MINIO_ROOT_PASSWORD=password
     command: server --console-address ":9001" /data
-#   Below lines are recommended to uncomment in order to persist your data even if the container dies
-#    volumes:
-#      - /path/to/your/local/directory:/data
+    # The lines below are recommended to mount a host path in order to persist your data even if the container is removed.
+    volumes:
+      - minio_data:/data
 
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: texera-lakefs-postgres
     restart: always
     environment:
       - POSTGRES_DB=texera_lakefs
@@ -45,13 +44,13 @@ services:
       interval: 10s
       retries: 5
       start_period: 5s
-#   Ditto
-#    volumes:
-#      - /path/to/your/local/directory:/var/lib/postgresql/data
+    # Ditto
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   lakefs:
     image: treeverse/lakefs:1.51
-    container_name: lakefs
+    container_name: texera-lakefs-lakefs
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,3 +89,8 @@ services:
 networks:
   default:
     name: texera-lakefs
+
+# Named Docker volumes — uncomment the following lines if you mounted host paths above.
+volumes:
+  minio_data:
+  postgres_data:
