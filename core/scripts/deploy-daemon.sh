@@ -35,10 +35,9 @@ then
   echo "${green}Services compiled.${reset}"
 
   echo "${green}Compiling GUI...${reset}"
-  cd gui && yarn install && ng build --configuration production --deploy-url=/ --base-href=/
+  (cd ../frontend && yarn install && ng build --configuration production --deploy-url=/ --base-href=/)
   echo "${green}GUI compiled.${reset}"
   echo
-  cd ..
 fi
 
 echo "${green}Starting TexeraWebApplication in daemon...${reset}"

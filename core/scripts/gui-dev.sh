@@ -16,5 +16,4 @@
 # limitations under the License.
 #
 
-cd gui
-ng serve
+(cd ../frontend && ng serve)

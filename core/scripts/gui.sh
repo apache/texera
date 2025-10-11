@@ -15,6 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd gui
-yarn install
-yarn run build
+(cd ../frontend && yarn install && yarn run build)
