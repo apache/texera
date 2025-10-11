@@ -129,7 +129,8 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
 
   it should "compile workflow successfully with multiple filter and limit operations" in {
     // construct the LogicalPlan: CSVScan --> Projection --> Limit --> Filter (TotalProfit > 10000) --> Filter (Region != "JPN") --> Limit
-    val localCsvFilePath = "workflow-compiling-service/src/test/resources/country_sales_small.csv"
+    val localCsvFilePath =
+      "core/workflow-compiling-service/src/test/resources/country_sales_small.csv"
     val csvSourceOp = getCsvScanOpDesc(localCsvFilePath, header = true)
     val projectionOpDesc = getProjectionOpDesc(List("Region", "Total Profit"))
     val limitOpDesc1 = getLimitOpDesc(10)

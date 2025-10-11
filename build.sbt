@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-lazy val DAO = project in file("dao")
-lazy val Config = project in file("config")
-lazy val Auth = (project in file("auth"))
+lazy val DAO = project in file("core/dao")
+lazy val Config = project in file("core/config")
+lazy val Auth = (project in file("core/auth"))
   .dependsOn(DAO, Config)
-lazy val ConfigService = (project in file("config-service"))
+lazy val ConfigService = (project in file("core/config-service"))
   .dependsOn(Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(
@@ -27,7 +27,7 @@ lazy val ConfigService = (project in file("config-service"))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
-lazy val AccessControlService = (project in file("access-control-service"))
+lazy val AccessControlService = (project in file("core/access-control-service"))
   .dependsOn(Auth, Config, DAO)
   .settings(
     dependencyOverrides ++= Seq(
@@ -37,11 +37,11 @@ lazy val AccessControlService = (project in file("access-control-service"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test")
-lazy val WorkflowCore = (project in file("workflow-core"))
+lazy val WorkflowCore = (project in file("core/workflow-core"))
   .dependsOn(DAO, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
-lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
+lazy val ComputingUnitManagingService = (project in file("core/computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(
@@ -49,7 +49,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
-lazy val FileService = (project in file("file-service"))
+lazy val FileService = (project in file("core/file-service"))
   .dependsOn(WorkflowCore, Auth, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
@@ -62,8 +62,8 @@ lazy val FileService = (project in file("file-service"))
     )
   )
 
-lazy val WorkflowOperator = (project in file("workflow-operator")).dependsOn(WorkflowCore)
-lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
+lazy val WorkflowOperator = (project in file("core/workflow-operator")).dependsOn(WorkflowCore)
+lazy val WorkflowCompilingService = (project in file("core/workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(
     dependencyOverrides ++= Seq(
@@ -74,7 +74,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
     )
   )
 
-lazy val WorkflowExecutionService = (project in file("amber"))
+lazy val WorkflowExecutionService = (project in file("core/amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(
@@ -94,7 +94,7 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
 
 // root project definition
-lazy val CoreProject = (project in file("."))
+lazy val TexeraProject = (project in file("."))
   .aggregate(
     DAO,
     Config,
@@ -109,7 +109,7 @@ lazy val CoreProject = (project in file("."))
     WorkflowExecutionService
   )
   .settings(
-    name := "core",
+    name := "texera",
     version := "1.0.0",
     organization := "org.apache",
     scalaVersion := "2.13.12",

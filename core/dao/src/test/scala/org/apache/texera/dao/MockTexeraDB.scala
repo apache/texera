@@ -84,7 +84,7 @@ trait MockTexeraDB {
     dbInstance = Some(embedded)
 
     val ddlPath = {
-      Paths.get("./scripts/sql/texera_ddl.sql").toRealPath()
+      Paths.get("core/scripts/sql/texera_ddl.sql").toRealPath()
     }
     val source = Source.fromFile(ddlPath.toString)
     val content =
