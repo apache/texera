@@ -94,7 +94,7 @@ lazy val WorkflowExecutionService = (project in file("core/amber"))
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
 
 // root project definition
-lazy val CoreProject = (project in file("."))
+lazy val TexeraProject = (project in file("."))
   .aggregate(
     DAO,
     Config,
@@ -109,7 +109,7 @@ lazy val CoreProject = (project in file("."))
     WorkflowExecutionService
   )
   .settings(
-    name := "core",
+    name := "texera",
     version := "1.0.0",
     organization := "org.apache",
     scalaVersion := "2.13.12",
