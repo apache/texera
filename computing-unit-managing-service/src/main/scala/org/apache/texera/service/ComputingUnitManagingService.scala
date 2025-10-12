@@ -24,7 +24,6 @@ import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
-import org.apache.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
@@ -32,6 +31,8 @@ import org.apache.texera.service.resource.{
   ComputingUnitManagingResource,
   HealthCheckResource
 }
+
+import java.nio.file.Path
 
 class ComputingUnitManagingService extends Application[ComputingUnitManagingServiceConfiguration] {
 
@@ -68,8 +69,11 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 }
 
 object ComputingUnitManagingService {
+
   def main(args: Array[String]): Unit = {
-    val configFilePath = workflowComputingUnitManagingServicePath
+    val configFilePath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("computing-unit-managing-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
