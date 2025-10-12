@@ -31,7 +31,11 @@ import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
-import org.apache.texera.service.resource.{DatasetAccessResource, DatasetResource, HealthCheckResource}
+import org.apache.texera.service.resource.{
+  DatasetAccessResource,
+  DatasetResource,
+  HealthCheckResource
+}
 import org.apache.texera.service.util.S3StorageClient
 import org.eclipse.jetty.server.session.SessionHandler
 
