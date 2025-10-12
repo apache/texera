@@ -54,8 +54,6 @@ object PathUtils {
     }
   }
 
-  lazy val workflowCompilingServicePath: Path = corePath.resolve("workflow-compiling-service")
-
   lazy val fileServicePath: Path = corePath.resolve("file-service")
 
   lazy val configServicePath: Path = corePath.resolve("config-service")
