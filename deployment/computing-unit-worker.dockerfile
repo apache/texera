@@ -41,10 +41,10 @@ RUN unzip amber/target/universal/texera-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /core/amber
+WORKDIR /amber
 
-COPY --from=build /core/amber/requirements.txt /tmp/requirements.txt
-COPY --from=build /core/amber/operator-requirements.txt /tmp/operator-requirements.txt
+COPY --from=build /amber/requirements.txt /tmp/requirements.txt
+COPY --from=build /amber/operator-requirements.txt /tmp/operator-requirements.txt
 
 # Install Python runtime and dependencies
 RUN apt-get update && apt-get install -y \
@@ -62,9 +62,9 @@ RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/op
     pip3 install --no-cache-dir wordcloud==1.9.2
 
 # Copy the built texera binary from the build phase
-COPY --from=build /core/amber/target/texera-* /core/amber
+COPY --from=build /amber/target/texera-* /amber
 # Copy resources directories under /core from build phase
-COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
+COPY --from=build /amber/src/main/resources /amber/src/main/resources
 COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 
 CMD ["bin/computing-unit-worker"]

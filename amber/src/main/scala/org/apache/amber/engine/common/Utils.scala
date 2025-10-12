@@ -30,7 +30,7 @@ object Utils extends LazyLogging {
 
   /**
     * Gets the real path of the amber home directory by:
-    * 1): check if the current directory is texera/core/amber
+    * 1): check if the current directory is texera/amber
     * if it's not then:
     * 2): search the siblings and children to find the texera home path
     *

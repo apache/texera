@@ -140,8 +140,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
-          if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service
@@ -151,7 +151,7 @@ jobs:
           cd bin/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
-          cd core/amber/src/main/python && flake8 && black . --check
+          cd amber/src/main/python && flake8 && black . --check
       - name: Test with pytest
         run: |
-          cd core/amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py
+          cd amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py

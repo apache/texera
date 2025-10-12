@@ -19,7 +19,7 @@
 
 # dirs
 TEXERA_HOME="$(git rev-parse --show-toplevel)"
-AMBER_DIR="$TEXERA_HOME/core/amber"
+AMBER_DIR="$TEXERA_HOME/amber"
 PYAMBER_DIR="$AMBER_DIR/src/main/python"
 PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"
 

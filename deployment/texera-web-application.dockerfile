@@ -55,14 +55,14 @@ RUN unzip amber/target/universal/texera-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /core/amber
+WORKDIR /amber
 # Copy built GUI files from the build-gui stage
 COPY --from=build-gui /gui/dist /core/gui/dist
 # Copy the built texera binary from the build phase
 COPY --from=build /.git /.git
-COPY --from=build /core/amber/target/texera-* /core/amber
+COPY --from=build /amber/target/texera-* /amber
 # Copy resources directories under /core from build phase
-COPY --from=build /core/amber/src/main/resources /core/amber/src/main/resources
+COPY --from=build /amber/src/main/resources /amber/src/main/resources
 COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
 
 CMD ["bin/texera-web-application"]
