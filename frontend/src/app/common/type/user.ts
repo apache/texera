@@ -24,8 +24,6 @@ import { Point } from "../../workspace/types/workflow-common.interface";
  * Such information is used to identify users and to save their data
  * Corresponds to `amber/src/main/scala/org/apache/texera/web/resource/auth/UserResource.scala`
  */
-
-// Please check Role at \core\amber\src\main\scala\edu\uci\ics\texera\web\model\jooq\generated\enums\UserRole.java
 export enum Role {
   INACTIVE = "INACTIVE",
   RESTRICTED = "RESTRICTED",
