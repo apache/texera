@@ -19,12 +19,12 @@
 
 package org.apache.amber.operator.metadata;
 
-import org.apache.amber.util.PathUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,7 +33,7 @@ public class OPVersion {
     private static Map<String, String> opMap = new HashMap<>();
     static {
         try {
-            git = Git.open(new File(PathUtils.gitDirectoryPath().toString()));
+            git = Git.open(new File(Path.of(System.getenv().getOrDefault("TEXERA_HOME", ".")).toString()));
         } catch (IOException e) {
             e.printStackTrace();
         }

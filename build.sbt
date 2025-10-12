@@ -74,7 +74,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
     )
   )
 
-lazy val WorkflowExecutionService = (project in file("core/amber"))
+lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator, Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(

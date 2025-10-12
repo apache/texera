@@ -23,11 +23,12 @@ import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
-import org.apache.amber.util.PathUtils.accessControlServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{AccessControlResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
+
+import java.nio.file.Path
 
 class AccessControlService extends Application[AccessControlServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[AccessControlServiceConfiguration]): Unit = {
@@ -65,7 +66,9 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 }
 object AccessControlService {
   def main(args: Array[String]): Unit = {
-    val accessControlPath = accessControlServicePath
+    val accessControlPath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("access-control-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")

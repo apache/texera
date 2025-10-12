@@ -34,12 +34,12 @@ service:
 engine:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/amber/**'
+          - 'amber/**'
 
 python:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/amber/src/main/python/**'
+          - 'amber/src/main/python/**'
           - '**/*.py'
 
 docs:

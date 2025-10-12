@@ -41,7 +41,7 @@ StorageConfig.initialize(
     postgres_username="texera",
     postgres_password="password",
     table_result_namespace="operator-port-result",
-    directory_path="../../../../../../core/amber/user-resources/workflow-results",
+    directory_path="../../../../../../amber/user-resources/workflow-results",
     commit_batch_size=4096,
 )
 

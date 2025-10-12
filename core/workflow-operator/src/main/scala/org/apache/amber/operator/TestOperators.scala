@@ -32,11 +32,16 @@ import org.apache.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import org.apache.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.amber.operator.udf.python.PythonUDFOpDescV2
-import org.apache.amber.util.PathUtils
+
+import java.nio.file.Path
 
 object TestOperators {
 
-  val parentDir = PathUtils.corePath.resolve("workflow-operator").toRealPath().toString
+  val parentDir = Path
+    .of(sys.env.getOrElse("TEXERA_HOME", "."))
+    .resolve("core/workflow-operator")
+    .toRealPath()
+    .toString
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"
   val CountrySalesMediumCsvPath = s"$parentDir/src/test/resources/country_sales_medium.csv"
   val CountrySalesHeaderlessSmallCsvPath =

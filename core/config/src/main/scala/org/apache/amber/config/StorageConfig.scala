@@ -20,7 +20,6 @@ package org.apache.amber.config
 
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.amber.util.ConfigParserUtil.parseSizeStringToBytes
-import org.apache.amber.util.PathUtils.corePath
 
 import java.nio.file.Path
 
@@ -86,7 +85,11 @@ object StorageConfig {
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =
-    corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
+    Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("amber")
+      .resolve("user-resources")
+      .resolve("workflow-results")
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"

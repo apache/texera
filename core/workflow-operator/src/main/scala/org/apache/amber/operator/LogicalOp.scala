@@ -427,7 +427,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def operatorInfo: OperatorInfo
 
   private def getOperatorVersion: String = {
-    val path = "core/amber/src/main/scala/"
+    val path = "amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
     OPVersion.getVersion(this.getClass.getSimpleName, operatorPath)
   }

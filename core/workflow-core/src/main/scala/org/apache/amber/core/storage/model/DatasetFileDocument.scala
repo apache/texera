@@ -27,7 +27,6 @@ import org.apache.amber.core.storage.model.DatasetFileDocument.{
 }
 import org.apache.amber.core.storage.util.LakeFSStorageClient
 import org.apache.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
-import org.apache.amber.util.PathUtils
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.net._
@@ -169,10 +168,21 @@ private[storage] class DatasetFileDocument(uri: URI)
       case Some(file) => Files.delete(file.toPath)
       case None       => // Do nothing
     }
+    lazy val datasetsRootPath =
+      Path
+        .of(sys.env.getOrElse("TEXERA_HOME", "."))
+        .resolve("amber")
+        .resolve("user-resources")
+        .resolve("datasets")
+
+    def getDatasetPath(did: Integer): Path = {
+      datasetsRootPath.resolve(did.toString)
+    }
+
     // then remove the dataset file
     GitVersionControlLocalFileStorage.removeFileFromRepo(
-      PathUtils.getDatasetPath(0),
-      PathUtils.getDatasetPath(0).resolve(fileRelativePath)
+      getDatasetPath(0),
+      getDatasetPath(0).resolve(fileRelativePath)
     )
   }
 

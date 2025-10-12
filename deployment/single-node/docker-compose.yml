@@ -122,7 +122,7 @@ services:
     env_file:
       - .env
     volumes:
-      - workflow_result_data:/core/amber/user-resources
+      - workflow_result_data:/amber/user-resources
 
   # TexeraWebApplication provides endpoints for hub resource management.
   texera-web-application:
@@ -139,7 +139,7 @@ services:
     env_file:
       - .env
     volumes:
-      - workflow_result_data:/core/amber/user-resources
+      - workflow_result_data:/amber/user-resources
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/api/healthcheck"]
       interval: 5s
