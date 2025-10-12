@@ -1,5 +1,5 @@
 {
-  "name": "pyright-language-server",
+  "name": "pyright-language-service",
   "version": "0.0.1",
   "main": "src/main.ts",
   "license": "Apache-2.0",
