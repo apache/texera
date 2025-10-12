@@ -15,5 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd amber
-target/texera-*/bin/texera-web-application
+(cd frontend && yarn install && yarn run build)

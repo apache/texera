@@ -1,3 +1,4 @@
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# assuming inside the pytexera executing Python ENV
 
-# dirs
-TEXERA_ROOT="$(git rev-parse --show-toplevel)"
-AMBER_DIR="$TEXERA_ROOT/core/amber"
-PYAMBER_DIR="$AMBER_DIR/src/main/python"
-PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"
+if jps -m | grep -q "TexeraWebApplication"; then
+  echo "TexeraWebApplication is running."
 
-CORE_DIR="$TEXERA_ROOT/core/workflow-core"
-PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
+  # Check if TexeraRunWorker is missing
+  if ! jps -m | grep -q "TexeraRunWorker"; then
+    echo "TexeraRunWorker is missing. Restarting..."
 
-# proto-gen
-protoc --python_betterproto_out="$PYAMBER_DIR/proto" \
- -I="$PROTOBUF_AMBER_DIR" \
- -I="$PROTOBUF_CORE_DIR" \
- $(find "$PROTOBUF_AMBER_DIR" -iname "*.proto") \
- $(find "$PROTOBUF_CORE_DIR" -iname "*.proto")
+    # Restart TexeraRunWorker
+    bin/worker.sh >/dev/null
+
+    echo "TexeraRunWorker restarted."
+  else
+    echo "TexeraRunWorker is already running."
+  fi
+else
+  echo "TexeraWebApplication is not running."
+fi
+

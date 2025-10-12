@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd amber
-if [ ! -z $1 ]
-then 
-    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker --serverAddr $1
-else
-    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker
-fi
+(
+  cd amber &&
+  if [ ! -z $1 ]
+  then
+      target/texera-*/bin/computing-unit-master --cluster $1
+  else
+      target/texera-*/bin/computing-unit-master
+  fi
+)

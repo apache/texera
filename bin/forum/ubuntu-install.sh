@@ -31,10 +31,10 @@ php -r "unlink('composer-setup.php');"
 composer create-project flarum/flarum /opt/flarum
 composer require --working-dir=/opt/flarum michaelbelgium/flarum-discussion-views
 composer require --working-dir=/opt/flarum fof/byobu:"*"
-sudo cp ./scripts/config.php /opt/flarum/config.php
-sudo cp ./scripts/.htaccess /opt/flarum/public/.htaccess
+sudo cp bin/config.php /opt/flarum/config.php
+sudo cp bin/.htaccess /opt/flarum/public/.htaccess
 sudo chown -R www-data:www-data /opt/flarum
-sudo mysql -u root -p < ./scripts/sql/flarum.sql
+sudo mysql -u root -p < bin/sql/flarum.sql
 
 VHOST_CONF="/etc/apache2/sites-available/flarum.conf"
 sudo touch VHOST_CONF

@@ -15,10 +15,5 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd amber
-if [ ! -z $1 ]
-then
-    target/texera-*/bin/computing-unit-master --cluster $1
-else
-    target/texera-*/bin/computing-unit-master
-fi
+bin/build-services.sh
+bin/frontend.sh

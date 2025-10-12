@@ -18,7 +18,7 @@
 
 
 # Start server.sh in the background
-bash scripts/server.sh &
+bash bin/server.sh &
 
 # Wait for server.sh to start by sleeping for a brief period (adjust as needed)
 sleep 5
@@ -30,7 +30,7 @@ if ! ps -p $! > /dev/null; then
 fi
 
 # Start workflow-compiling-service.sh in the background
-bash scripts/workflow-compiling-service.sh &
+bash bin/workflow-compiling-service.sh &
 
 # Wait for workflow-compiling-service.sh to start by sleeping for a brief period (adjust as needed)
 sleep 5
@@ -42,7 +42,7 @@ if ! ps -p $! > /dev/null; then
 fi
 
 # Start computing unit master node in the background
-bash scripts/workflow-computing-unit.sh &
+bash bin/workflow-computing-unit.sh &
 
 # Wait for one of server.sh and computing unit master node to complete
 wait -n

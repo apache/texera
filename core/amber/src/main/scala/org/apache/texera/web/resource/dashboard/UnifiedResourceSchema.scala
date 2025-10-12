@@ -102,7 +102,7 @@ object UnifiedResourceSchema {
 }
 
 /**
-  * Refer to texera/core/scripts/sql/texera_ddl.sql to understand what each attribute is
+  * Refer to texera/bin/sql/texera_ddl.sql to understand what each attribute is
   *
   * Attributes common across all resource types:
   * - `resourceType`: The type of the resource (e.g., project, workflow, file) as a `String`.

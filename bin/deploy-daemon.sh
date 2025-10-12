@@ -31,17 +31,17 @@ done
 if  ! $skipCompilation
 then
   echo "${green}Compiling Services...${reset}"
-  bash scripts/build-services.sh
+  bash bin/build-services.sh
   echo "${green}Services compiled.${reset}"
 
   echo "${green}Compiling GUI...${reset}"
-  (cd ../frontend && yarn install && ng build --configuration production --deploy-url=/ --base-href=/)
+  (cd frontend && yarn install && ng build --configuration production --deploy-url=/ --base-href=/)
   echo "${green}GUI compiled.${reset}"
   echo
 fi
 
 echo "${green}Starting TexeraWebApplication in daemon...${reset}"
-setsid nohup ./scripts/server.sh >/dev/null 2>&1 &
+setsid nohup bin/server.sh >/dev/null 2>&1 &
 echo "${green}Waiting TexeraWebApplication to launch on 8080...${reset}"
 while ! nc -z localhost 8080; do
 	sleep 0.1 # wait 100ms before check again
@@ -50,7 +50,7 @@ echo "${green}TexeraWebApplication launched at $(pgrep -f TexeraWebApplication)$
 echo
 
 echo "${green}Starting WorkflowCompilingService in daemon...${reset}"
-setsid nohup ./scripts/workflow-compiling-service.sh >/dev/null 2>&1 &
+setsid nohup bin/workflow-compiling-service.sh >/dev/null 2>&1 &
 echo "${green}Waiting TexeraWorkflowCompilingService to launch on 9090...${reset}"
 while ! nc -z localhost 9090; do
 	sleep 0.1 # wait 100ms before check again
@@ -59,7 +59,7 @@ echo "${green}WorkflowCompilingService launched at $(pgrep -f TexeraWorkflowComp
 echo
 
 echo "${green}Starting FileService in daemon...${reset}"
-setsid nohup ./scripts/file-service.sh >/dev/null 2>&1 &
+setsid nohup bin/file-service.sh >/dev/null 2>&1 &
 echo "${green}Waiting FileService to launch on 9092...${reset}"
 while ! nc -z localhost 9092; do
 	sleep 0.1 # wait 100ms before check again
@@ -68,7 +68,7 @@ echo "${green}FileService launched at $(pgrep -f FileService)${reset}"
 echo
 
 echo "${green}Starting ConfigService in daemon...${reset}"
-setsid nohup ./scripts/config-service.sh >/dev/null 2>&1 &
+setsid nohup bin/config-service.sh >/dev/null 2>&1 &
 echo "${green}Waiting ConfigService to launch on 9094...${reset}"
 while ! nc -z localhost 9094; do
 	sleep 0.1 # wait 100ms before check again
@@ -77,7 +77,7 @@ echo "${green}ConfigService launched at $(pgrep -f ConfigService)${reset}"
 echo
 
 echo "${green}Starting ComputingUnitManagingService in daemon...${reset}"
-setsid nohup ./scripts/computing-unit-managing-service.sh >/dev/null 2>&1 &
+setsid nohup bin/computing-unit-managing-service.sh >/dev/null 2>&1 &
 echo "${green}Waiting ComputingUnitManagingService to launch on 8888...${reset}"
 while ! nc -z localhost 8888; do
 	sleep 0.1 # wait 100ms before check again
@@ -86,7 +86,7 @@ echo "${green}ComputingUnitManagingService launched at $(pgrep -f ComputingUnitM
 echo
 
 echo "${green}Starting WorkflowComputingUnit in daemon...${reset}"
-setsid nohup ./scripts/workflow-computing-unit.sh >/dev/null 2>&1 &
+setsid nohup bin/workflow-computing-unit.sh >/dev/null 2>&1 &
 echo "${green}Waiting WorkflowComputingUnit to launch on 8085...${reset}"
 while ! nc -z localhost 8085; do
 	sleep 0.1 # wait 100ms before check again
@@ -95,6 +95,6 @@ echo "${green}WorkflowComputingUnit launched at $(pgrep -f WorkflowComputingUnit
 echo
 
 echo "${green}Starting shared editing server...${reset}"
-setsid nohup ./scripts/shared-editing-server.sh >/dev/null 2>&1 &
+setsid nohup bin/shared-editing-server.sh >/dev/null 2>&1 &
 sleep 2
 echo "${green}Shared Editing Server launched at $(pgrep -f y-websocket)${reset}"

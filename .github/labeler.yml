@@ -26,7 +26,6 @@ backend:
               - 'core/**'
           - all-globs-to-all-files:
               - '!core/log/**'
-              - '!core/scripts/**'
 service:
   - changed-files:
       - any-glob-to-any-file:
@@ -59,7 +58,7 @@ ci:
 build:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/scripts/**'
+          - 'bin/**'
           - 'deployment/**'
 
 dependencies:

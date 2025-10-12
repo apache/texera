@@ -82,8 +82,12 @@ echo "Restarting Apache..."
 sudo apachectl restart
 
 # Publish assets
+(
+
 cd /opt/homebrew/var/www/flarum
 echo "Configuring flarum..."
 php flarum assets:publish
 sudo chown -R _www:_www /opt/homebrew/var/www/flarum
 echo "Flarum installation completed\nYou can now access your flarum forum in Texera"
+
+)
