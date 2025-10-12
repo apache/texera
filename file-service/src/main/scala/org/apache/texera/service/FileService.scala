@@ -27,18 +27,15 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.core.storage.util.LakeFSStorageClient
-import org.apache.amber.util.PathUtils.fileServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.`type`.DatasetFileNode
 import org.apache.texera.service.`type`.serde.DatasetFileNodeSerializer
-import org.apache.texera.service.resource.{
-  DatasetAccessResource,
-  DatasetResource,
-  HealthCheckResource
-}
+import org.apache.texera.service.resource.{DatasetAccessResource, DatasetResource, HealthCheckResource}
 import org.apache.texera.service.util.S3StorageClient
 import org.eclipse.jetty.server.session.SessionHandler
+
+import java.nio.file.Path
 
 class FileService extends Application[FileServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[FileServiceConfiguration]): Unit = {
@@ -86,7 +83,9 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
 object FileService {
   def main(args: Array[String]): Unit = {
     // Set the configuration file's path
-    val configFilePath = fileServicePath
+    val configFilePath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("file-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
