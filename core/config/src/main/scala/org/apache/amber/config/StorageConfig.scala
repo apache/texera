@@ -85,7 +85,11 @@ object StorageConfig {
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =
-    Path.of(sys.env.getOrElse("TEXERA_HOME", ".")).resolve("amber").resolve("user-resources").resolve("workflow-results")
+    Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("amber")
+      .resolve("user-resources")
+      .resolve("workflow-results")
 
   // JDBC
   val ENV_JDBC_URL = "STORAGE_JDBC_URL"

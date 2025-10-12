@@ -169,7 +169,11 @@ private[storage] class DatasetFileDocument(uri: URI)
       case None       => // Do nothing
     }
     lazy val datasetsRootPath =
-      Path.of(sys.env.getOrElse("TEXERA_HOME", ".")).resolve("amber").resolve("user-resources").resolve("datasets")
+      Path
+        .of(sys.env.getOrElse("TEXERA_HOME", "."))
+        .resolve("amber")
+        .resolve("user-resources")
+        .resolve("datasets")
 
     def getDatasetPath(did: Integer): Path = {
       datasetsRootPath.resolve(did.toString)

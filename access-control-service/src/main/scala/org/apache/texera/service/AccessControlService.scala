@@ -66,7 +66,8 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
 }
 object AccessControlService {
   def main(args: Array[String]): Unit = {
-    val accessControlPath = Path.of(sys.env.getOrElse("TEXERA_HOME", "."))
+    val accessControlPath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
       .resolve("access-control-service")
       .resolve("src")
       .resolve("main")

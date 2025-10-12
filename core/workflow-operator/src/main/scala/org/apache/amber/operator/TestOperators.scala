@@ -20,7 +20,11 @@
 package org.apache.amber.operator
 
 import org.apache.amber.core.storage.FileResolver
-import org.apache.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
+import org.apache.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import org.apache.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -33,7 +37,11 @@ import java.nio.file.Path
 
 object TestOperators {
 
-  val parentDir = Path.of(sys.env.getOrElse("TEXERA_HOME", ".")).resolve("workflow-operator").toRealPath().toString
+  val parentDir = Path
+    .of(sys.env.getOrElse("TEXERA_HOME", "."))
+    .resolve("workflow-operator")
+    .toRealPath()
+    .toString
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"
   val CountrySalesMediumCsvPath = s"$parentDir/src/test/resources/country_sales_medium.csv"
   val CountrySalesHeaderlessSmallCsvPath =
