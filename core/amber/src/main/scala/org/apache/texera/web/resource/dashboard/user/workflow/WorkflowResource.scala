@@ -57,7 +57,7 @@ import scala.util.control.NonFatal
 /**
   * This file handles various request related to saved-workflows.
   * It sends mysql queries to the MysqlDB regarding the UserWorkflow Table
-  * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
+  * The details of UserWorkflowTable can be found in /bin/sql/texera_ddl.sql
   */
 
 object WorkflowResource {

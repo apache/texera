@@ -35,7 +35,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
   * This class handles requests to read and write the user dictionary,
   * an abstract collection of (key, value) string pairs that is unique for each user
   * This is accomplished using a mysql table called user_dictionary.
-  * The details of user_dictionary can be found in /core/scripts/sql/texera_ddl.sql
+  * The details of user_dictionary can be found in /bin/sql/texera_ddl.sql
   */
 @Path("/user/config")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
