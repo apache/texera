@@ -49,7 +49,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.0"
     )
   )
-lazy val FileService = (project in file("core/file-service"))
+lazy val FileService = (project in file("file-service"))
   .dependsOn(WorkflowCore, Auth, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
