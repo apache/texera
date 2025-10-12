@@ -19,7 +19,7 @@ lazy val DAO = project in file("core/dao")
 lazy val Config = project in file("core/config")
 lazy val Auth = (project in file("core/auth"))
   .dependsOn(DAO, Config)
-lazy val ConfigService = (project in file("core/config-service"))
+lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
   .settings(
     dependencyOverrides ++= Seq(
