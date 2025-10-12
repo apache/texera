@@ -25,13 +25,14 @@ import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
-import org.apache.amber.util.PathUtils.configServicePath
 import org.apache.texera.auth.{JwtAuthFilter, SessionUser}
 import org.apache.texera.config.DefaultsConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{ConfigResource, HealthCheckResource}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.jooq.impl.DSL
+
+import java.nio.file.Path
 
 class ConfigService extends Application[ConfigServiceConfiguration] with LazyLogging {
   override def initialize(bootstrap: Bootstrap[ConfigServiceConfiguration]): Unit = {
@@ -98,7 +99,9 @@ class ConfigService extends Application[ConfigServiceConfiguration] with LazyLog
 
 object ConfigService {
   def main(args: Array[String]): Unit = {
-    val configFilePath = configServicePath
+    val configFilePath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("config-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
