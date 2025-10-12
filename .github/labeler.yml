@@ -20,12 +20,10 @@ frontend:
           - 'frontend/**'
 
 backend:
-  - all:
-      - changed-files:
-          - any-glob-to-any-file:
-              - 'core/**'
-          - all-globs-to-all-files:
-              - '!core/log/**'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/**'
+
 service:
   - changed-files:
       - any-glob-to-any-file:
@@ -76,8 +74,8 @@ ddl-change:
 
 feature:
   - head-branch:
-    - '^feat'
-    - 'feature'
+      - '^feat'
+      - 'feature'
 
 fix:
   - head-branch: '^fix'
