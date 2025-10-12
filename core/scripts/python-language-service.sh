@@ -26,7 +26,7 @@ PROVIDER=""
 PORT=""
 
 BASE_DIR=$(dirname "$0")
-PYRIGHT_DIR="$BASE_DIR/../pyright-language-server"
+PYRIGHT_DIR="$BASE_DIR/../../pyright-language-service"
 
 while [ $# -gt 0 ]; do
   case "$1" in
