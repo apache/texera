@@ -25,9 +25,7 @@ if jps -m | grep -q "TexeraWebApplication"; then
     echo "TexeraRunWorker is missing. Restarting..."
 
     # Restart TexeraRunWorker
-    cd "$(dirname "$0")"
-    cd ../
-    ./scripts/worker.sh >/dev/null
+    bin/worker.sh >/dev/null
 
     echo "TexeraRunWorker restarted."
   else

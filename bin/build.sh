@@ -15,5 +15,5 @@
 # specific language governing permissions and limitations
 # under the License.
 
-./scripts/build-services.sh
-./scripts/gui.sh
+bin/build-services.sh
+bin/frontend.sh

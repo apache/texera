@@ -18,12 +18,12 @@
 # assuming inside the pytexera executing Python ENV
 
 # dirs
-TEXERA_ROOT="$(git rev-parse --show-toplevel)"
-AMBER_DIR="$TEXERA_ROOT/core/amber"
+TEXERA_HOME="$(git rev-parse --show-toplevel)"
+AMBER_DIR="$TEXERA_HOME/core/amber"
 PYAMBER_DIR="$AMBER_DIR/src/main/python"
 PROTOBUF_AMBER_DIR="$AMBER_DIR/src/main/protobuf"
 
-CORE_DIR="$TEXERA_ROOT/core/workflow-core"
+CORE_DIR="$TEXERA_HOME/core/workflow-core"
 PROTOBUF_CORE_DIR="$CORE_DIR/src/main/protobuf"
 
 # proto-gen

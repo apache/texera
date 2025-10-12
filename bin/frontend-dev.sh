@@ -16,4 +16,4 @@
 # limitations under the License.
 #
 
-(cd ../frontend && ng serve)
+(cd frontend && ng serve)

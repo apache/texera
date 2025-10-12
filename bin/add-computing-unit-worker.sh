@@ -15,10 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cd amber
-if [ ! -z $1 ]
-then 
-    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker --serverAddr $1
-else
+(
+  cd amber || { echo "Error: amber directory not found"; exit 1; }
+
+  if [ -n "$1" ]; then
+    echo "Starting worker with server address: $1"
+    target/texera-0.1-SNAPSHOT/bin/computing-unit-worker --serverAddr "$1"
+  else
+    echo "Starting worker without explicit server address"
     target/texera-0.1-SNAPSHOT/bin/computing-unit-worker
-fi
+  fi
+)

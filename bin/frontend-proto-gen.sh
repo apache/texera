@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-TEXERA_ROOT="$(git rev-parse --show-toplevel)"
-GUI_DIR="$TEXERA_ROOT/frontend"
-PROTOBUF_DIR="$TEXERA_ROOT/core/workflow-core/src/main/protobuf"
+TEXERA_HOME="$(git rev-parse --show-toplevel)"
+GUI_DIR="$TEXERA_HOME/frontend"
+PROTOBUF_DIR="$TEXERA_HOME/core/workflow-core/src/main/protobuf"
 GUI_PROTO_DIR="$GUI_DIR/src/app/common/type"
 
 WORKFLOW_PROTO=$(find "$PROTOBUF_DIR" -iname "workflow.proto")
