@@ -24,9 +24,10 @@ import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.amber.config.StorageConfig
 import org.apache.amber.util.ObjectMapperUtils
-import org.apache.amber.util.PathUtils.workflowCompilingServicePath
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{HealthCheckResource, WorkflowCompilationResource}
+
+import java.nio.file.Path
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -59,7 +60,9 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 object WorkflowCompilingService {
   def main(args: Array[String]): Unit = {
     // set the configuration file's path
-    val configFilePath = workflowCompilingServicePath
+    val configFilePath = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("workflow-compiling-service")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
