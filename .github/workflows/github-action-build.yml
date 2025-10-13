@@ -55,20 +55,20 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            core/gui/node_modules
+            frontend/node_modules
           key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-
       - name: Prepare Yarn 4.5.1
-        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd core/gui set version 4.5.1
+        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd frontend set version 4.5.1
       - name: Install dependency
-        run: yarn --cwd core/gui install --immutable --network-timeout=100000
+        run: yarn --cwd frontend install --immutable --network-timeout=100000
       - name: Lint with Prettier & ESLint
-        run: yarn --cwd core/gui format:ci
+        run: yarn --cwd frontend format:ci
       - name: Run frontend unit tests
-        run: yarn --cwd core/gui run test:ci
+        run: yarn --cwd frontend run test:ci
       - name: Prod build
-        run: yarn --cwd core/gui run build:ci
+        run: yarn --cwd frontend run build:ci
 
   core:
     strategy:
@@ -105,24 +105,24 @@ jobs:
         uses: sbt/setup-sbt@v1
       - uses: coursier/cache-action@v6
         with:
-          extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
+          extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
       - name: Lint with scalafmt
-        run: cd core && sbt scalafmtCheckAll
+        run: sbt scalafmtCheckAll
       - name: Create Databases
         run: |
-          psql -h localhost -U postgres -f core/scripts/sql/texera_ddl.sql
-          psql -h localhost -U postgres -f core/scripts/sql/iceberg_postgres_catalog.sql
-          psql -h localhost -U postgres -f core/scripts/sql/texera_lakefs.sql
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
       - name: Create texera_db_for_test_cases
-        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f core/scripts/sql/texera_ddl.sql
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
-        run: cd core && sbt clean package
+        run: sbt clean package
       - name: Run backend tests
-        run: cd core && sbt test
+        run: sbt test
 
   python_udf:
     strategy:
@@ -140,18 +140,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
-          if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
+          if [ -f amber/requirements.txt ]; then pip install -r amber/requirements.txt; fi
+          if [ -f amber/operator-requirements.txt ]; then pip install -r amber/operator-requirements.txt; fi
       - name: Install PostgreSQL
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - name: Start PostgreSQL Service
         run: sudo systemctl start postgresql
       - name: Create Database and User
         run: |
-          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
-          cd core/amber/src/main/python && flake8 && black . --check
+          cd amber/src/main/python && flake8 && black . --check
       - name: Test with pytest
         run: |
-          cd core/amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py
+          cd amber/src/main/python && pytest -sv --ignore=core/models/test_RTableExecutor.py
