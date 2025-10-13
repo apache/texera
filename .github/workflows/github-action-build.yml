@@ -110,13 +110,13 @@ jobs:
         run: sbt scalafmtCheckAll
       - name: Create Databases
         run: |
-          psql -h localhost -U postgres -f bin/sql/texera_ddl.sql
-          psql -h localhost -U postgres -f bin/sql/iceberg_postgres_catalog.sql
-          psql -h localhost -U postgres -f bin/sql/texera_lakefs.sql
+          psql -h localhost -U postgres -f sql/texera_ddl.sql
+          psql -h localhost -U postgres -f sql/iceberg_postgres_catalog.sql
+          psql -h localhost -U postgres -f sql/texera_lakefs.sql
         env:
           PGPASSWORD: postgres
       - name: Create texera_db_for_test_cases
-        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f bin/sql/texera_ddl.sql
+        run: psql -h localhost -U postgres -v DB_NAME=texera_db_for_test_cases -f sql/texera_ddl.sql
         env:
           PGPASSWORD: postgres
       - name: Compile with sbt
@@ -148,7 +148,7 @@ jobs:
         run: sudo systemctl start postgresql
       - name: Create Database and User
         run: |
-          cd bin/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
+          cd sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
           cd amber/src/main/python && flake8 && black . --check

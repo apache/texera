@@ -43,7 +43,7 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to workflows versions.
-  * The details of the mysql tables can be found in /bin/sql/texera_ddl.sql
+  * The details of the mysql tables can be found in /sql/texera_ddl.sql
   */
 
 object WorkflowVersionResource {
