@@ -19,10 +19,10 @@ frontend:
       - any-glob-to-any-file:
           - 'frontend/**'
 
-backend:
+common:
   - changed-files:
       - any-glob-to-any-file:
-          - 'core/**'
+          - 'common/**'
 
 service:
   - changed-files:

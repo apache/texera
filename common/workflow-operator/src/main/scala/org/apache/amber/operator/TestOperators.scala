@@ -39,7 +39,8 @@ object TestOperators {
 
   val parentDir = Path
     .of(sys.env.getOrElse("TEXERA_HOME", "."))
-    .resolve("core/workflow-operator")
+    .resolve("common")
+    .resolve("workflow-operator")
     .toRealPath()
     .toString
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"

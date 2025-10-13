@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-lazy val DAO = project in file("core/dao")
-lazy val Config = project in file("core/config")
-lazy val Auth = (project in file("core/auth"))
+lazy val DAO = project in file("common/dao")
+lazy val Config = project in file("common/config")
+lazy val Auth = (project in file("common/auth"))
   .dependsOn(DAO, Config)
 lazy val ConfigService = (project in file("config-service"))
   .dependsOn(Auth, Config)
@@ -37,7 +37,7 @@ lazy val AccessControlService = (project in file("access-control-service"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test")
-lazy val WorkflowCore = (project in file("core/workflow-core"))
+lazy val WorkflowCore = (project in file("common/workflow-core"))
   .dependsOn(DAO, Config)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
@@ -62,7 +62,7 @@ lazy val FileService = (project in file("file-service"))
     )
   )
 
-lazy val WorkflowOperator = (project in file("core/workflow-operator")).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Config)
   .settings(
