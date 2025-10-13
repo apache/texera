@@ -1,0 +1,207 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: texera-single-node-release-1-0-0
+services:
+  # Part1: Specification of the storage services used by Texera
+  # MinIO is an S3-compatible object storage used to store datasets and files.
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: texera-minio
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+
+  # PostgreSQL with PGroonga extension for full-text search.
+  # Used by lakeFS and Texera's metadata storage.
+  postgres:
+    image: groonga/pgroonga:4.0.1-debian-15
+    container_name: texera-postgres
+    restart: always
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "texera", "-d", "texera_db"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # mount the sql files for initializing the postgres
+      - ../../sql:/docker-entrypoint-initdb.d
+
+  # lakeFS is the underlying storage of Texera's dataset service
+  lakefs:
+    image: treeverse/lakefs:1.51
+    container_name: texera-lakefs
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      # This port also need to be changed if the port of MinIO service is changed
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=${TEXERA_HOST}:9000
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        lakefs setup --user-name "$LAKEFS_INSTALLATION_USER_NAME" --access-key-id "$LAKEFS_INSTALLATION_ACCESS_KEY_ID" --secret-access-key "$LAKEFS_INSTALLATION_SECRET_ACCESS_KEY" || true
+        lakefs run &
+        wait
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/api/v1/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Part2: Specification of Texera's micro-services
+  # FileService provides endpoints for Texera's dataset management
+  file-service:
+    image: texera/file-service:single-node-release-1-0-0
+    container_name: texera-file-service
+    restart: always
+    depends_on:
+      minio:
+        condition: service_started
+      lakefs:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9092/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # WorkflowCompilingService provides endpoints for sanity check and schema propagation while workflows are being edited
+  workflow-compiling-service:
+    image: texera/workflow-compiling-service:single-node-release-1-0-0
+    container_name: texera-workflow-compiling-service
+    restart: always
+    depends_on:
+      file-service:
+        condition: service_started
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9090/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ComputingUnitMaster provides endpoints for executing workflows and interactions during executions.
+  computing-unit-master:
+    # to enable R operators, change the image tag to single-node-release-1-0-0-R
+    image: texera/computing-unit-master:single-node-release-1-0-0
+    container_name: texera-computing-unit-master
+    restart: always
+    depends_on:
+      workflow-compiling-service:
+        condition: service_started
+    env_file:
+      - .env
+    volumes:
+      - workflow_result_data:/amber/user-resources
+
+  # TexeraWebApplication provides endpoints for hub resource management.
+  texera-web-application:
+    image: texera/texera-web-application:single-node-release-1-0-0
+    container_name: texera-web-application
+    restart: always
+    depends_on:
+      computing-unit-master:
+        condition: service_started
+      workflow-compiling-service:
+        condition: service_healthy
+      file-service:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - workflow_result_data:/amber/user-resources
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  texera-example-data-loader:
+    image: texera/texera-example-data-loader:single-node-release-1-0-0
+    container_name: texera-example-data-loader
+    depends_on:
+      texera-web-application:
+        condition: service_healthy
+    environment:
+      TEXERA_WEB_APPLICATION_URL: http://texera-web-application:8080/api
+      TEXERA_FILE_SERVICE_URL: http://texera-file-service:9092/api
+    restart: "no"
+
+  texera-access-message:
+    image: alpine:latest
+    container_name: texera-access-message
+    depends_on:
+      texera-example-data-loader:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    command: >
+      /bin/sh -c "
+        echo '===============================================';
+        echo 'Texera is ready!';
+        echo '===============================================';
+        echo '';
+        echo 'To access Texera, open your browser and navigate to:';
+        echo '    ${TEXERA_HOST}:8080';
+        echo '';
+        echo 'The following account has been created for you:';
+        echo '    Username: texera';
+        echo '    Password: texera';
+        echo '';
+        echo '==============================================='
+      "
+    restart: "no"
+
+  # Part 3: reverse proxy service for Texera's micro services
+  nginx:
+    image: nginx:alpine
+    container_name: texera-nginx
+    depends_on:
+      - workflow-compiling-service
+      - file-service
+      - texera-web-application
+      - computing-unit-master
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:8080"
+
+networks:
+  default:
+    name: texera-single-node-release-1-0-0
+
+# persistent volumes
+volumes:
+  minio_data:
+  postgres_data:
+  workflow_result_data:
