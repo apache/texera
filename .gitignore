@@ -87,7 +87,7 @@ rebel.xml
 *.log.gz
 
 # Ignoring the entire log folder
-log/
+logs/
 
 # Ignoring package-lock.json
 package-lock.json
