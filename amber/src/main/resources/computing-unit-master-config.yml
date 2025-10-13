@@ -40,7 +40,7 @@ logging:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
     - type: file
-      currentLogFilename: ../log/computing-unit-master.log
+      currentLogFilename: logs/computing-unit-master.log
       threshold: ALL
       queueSize: 512
       discardingThreshold: 0
