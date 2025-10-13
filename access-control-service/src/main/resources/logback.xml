@@ -29,10 +29,10 @@
 
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>../log/access-control-service.log</file>
+        <file>logs/access-control-service.log</file>
         <immediateFlush>true</immediateFlush>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>../log/access-control-service-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <fileNamePattern>logs/access-control-service-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
         </rollingPolicy>
         <encoder>
             <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n</pattern>
