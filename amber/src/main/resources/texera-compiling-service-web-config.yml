@@ -31,12 +31,12 @@ server:
     appenders:
       - type: console
       - type: file
-        currentLogFilename: ../log/access.log
+        currentLogFilename: logs/access.log
         threshold: ALL
         queueSize: 512
         discardingThreshold: 0
         archive: true
-        archivedLogFilenamePattern: ../log/access-%d{yyyy-MM-dd}.log.gz
+        archivedLogFilenamePattern: logs/access-%d{yyyy-MM-dd}.log.gz
         archivedFileCount: 7
         bufferSize: 8KiB
         immediateFlush: true
@@ -48,7 +48,7 @@ logging:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
     - type: file
-      currentLogFilename: ../log/texera-workflow-compiling-service.log
+      currentLogFilename: logs/texera-workflow-compiling-service.log
       threshold: ALL
       queueSize: 512
       discardingThreshold: 0
