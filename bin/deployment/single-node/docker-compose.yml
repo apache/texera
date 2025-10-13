@@ -46,7 +46,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # mount the sql files for initializing the postgres
-      - ../../bin/sql:/docker-entrypoint-initdb.d
+      - ../../sql:/docker-entrypoint-initdb.d
 
   # lakeFS is the underlying storage of Texera's dataset service
   lakefs:

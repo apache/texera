@@ -34,7 +34,7 @@ composer require --working-dir=/opt/flarum fof/byobu:"*"
 sudo cp bin/config.php /opt/flarum/config.php
 sudo cp bin/.htaccess /opt/flarum/public/.htaccess
 sudo chown -R www-data:www-data /opt/flarum
-sudo mysql -u root -p < bin/sql/flarum.sql
+sudo mysql -u root -p < sql/flarum.sql
 
 VHOST_CONF="/etc/apache2/sites-available/flarum.conf"
 sudo touch VHOST_CONF

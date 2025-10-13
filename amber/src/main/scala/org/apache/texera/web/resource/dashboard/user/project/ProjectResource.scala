@@ -48,7 +48,7 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   * This file handles various request related to projects.
   * It sends mysql queries to the MysqlDB regarding the 'user_project',
   * 'workflow_of_project', and 'file_of_project' Tables
-  * The details of these tables can be found in /bin/sql/texera_ddl.sql
+  * The details of these tables can be found in /sql/texera_ddl.sql
   */
 
 object ProjectResource {
