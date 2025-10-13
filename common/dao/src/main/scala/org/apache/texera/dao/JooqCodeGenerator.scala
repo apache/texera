@@ -30,13 +30,21 @@ object JooqCodeGenerator {
   @throws[Exception]
   def main(args: Array[String]): Unit = {
     // Load jOOQ configuration XML
-    val jooqXmlPath: Path =
-      Path.of("dao").resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
+    val jooqXmlPath: Path = Path
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("common")
+      .resolve("dao")
+      .resolve("src")
+      .resolve("main")
+      .resolve("resources")
+      .resolve("jooq-conf.xml")
     val jooqConfig: Configuration = GenerationTool.load(Files.newInputStream(jooqXmlPath))
 
     // Load storage.conf from the specified path
     val storageConfPath: Path = Path
-      .of("config")
+      .of(sys.env.getOrElse("TEXERA_HOME", "."))
+      .resolve("common")
+      .resolve("config")
       .resolve("src")
       .resolve("main")
       .resolve("resources")
