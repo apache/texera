@@ -18,10 +18,13 @@
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
-WORKDIR /core
+WORKDIR /texera
 
-# Copy all projects under core to /core
-COPY core/ .
+# Copy modules for building the service
+COPY common/ common/
+COPY access-control-service/ access-control-service/
+COPY project/ project/
+COPY build.sbt build.sbt
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,24 +33,23 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
-COPY .git ../.git
+COPY .git .git
 
 RUN sbt clean AccessControlService/dist
 
 # Unzip the texera binary
-RUN unzip  access-control-service/target/universal/access-control-service-*.zip -d target/
+RUN unzip access-control-service/target/universal/access-control-service-*.zip -d target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /core
+WORKDIR /texera
 
-COPY --from=build /.git /.git
+COPY --from=build /texera/.git /texera/.git
 # Copy the built texera binary from the build phase
-COPY --from=build /core/target/access-control-service* /core/
-# Copy resources directories under /core from build phase
-COPY --from=build /core/access-control-service/src/main/resources /core/access-control-service/src/main/resources
+COPY --from=build /texera/target/access-control-service* /texera/
+# Copy resources directories from build phase
+COPY --from=build /texera/access-control-service/src/main/resources /texera/access-control-service/src/main/resources
 
 CMD ["bin/access-control-service"]
 
