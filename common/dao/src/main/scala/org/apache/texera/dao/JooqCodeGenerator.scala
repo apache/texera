@@ -30,7 +30,7 @@ object JooqCodeGenerator {
   @throws[Exception]
   def main(args: Array[String]): Unit = {
     // Load jOOQ configuration XML
-    val jooqXmlPath: Path =Path
+    val jooqXmlPath: Path = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
       .resolve("common")
       .resolve("dao").resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
