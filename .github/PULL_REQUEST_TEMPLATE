@@ -23,7 +23,7 @@ is to outline the changes.
 <!--
 Please use this section to link other resources if not mentioned already.
   1. If this PR fixes an issue, please include `Fixes #1234`, `Resolves #1234`
-     or `Closes #1234`. If it is only related, simiply mention the issue number.
+     or `Closes #1234`. If it is only related, simply mention the issue number.
   2. If there is design documentation, please add the link.
   3. If there is a discussion in the mailing list, please add the link.
 -->
