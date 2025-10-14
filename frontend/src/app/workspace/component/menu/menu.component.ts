@@ -462,7 +462,9 @@ export class MenuComponent implements OnInit, OnDestroy {
    * This option is only for the current session and will be cleared on refresh.
    */
   public onClickToggleGrids(): void {
-    this.workflowActionService.getJointGraphWrapper().toggleGrids();
+    const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
+    const current = paper.options.gridSize || 1;
+    paper.setGridSize((current % 2) + 1);
   }
 
   /**
