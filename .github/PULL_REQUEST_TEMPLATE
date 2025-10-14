@@ -43,7 +43,7 @@ was difficult to add.
 
 ### Was this PR authored or co-authored using generative AI tooling?
 <!--
-If generative AI tooling has been used in the process of authoring this patch, 
+If generative AI tooling has been used in the process of authoring this PR, 
 please include the phrase: 'Generated-by: ' followed by the name of the tool 
 and its version. If no, write 'No'. 
 Please refer to the [ASF Generative Tooling Guidance](https://www.apache.org/legal/generative-tooling.html) for details.
