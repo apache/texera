@@ -164,6 +164,14 @@
                   >Grid</label
                 >
               </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="region"
+                  (ngModelChange)="onRegionChange()"
+                >Region</label
+                >
+              </li>
             </ul>
           </nz-dropdown-menu>
           <button
@@ -189,14 +197,6 @@
             <i
               nz-icon
               nzType="printer"></i>
-          </button>
-          <button
-            (click)="onClickToggleRegion()"
-            nz-button
-            title="Toggle Region">
-            <i
-              nz-icon
-              nzType="block"></i>
           </button>
           <button
             (click)="onClickRestoreZoomOffsetDefault()"
