@@ -56,6 +56,7 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -89,6 +90,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
   public grid: boolean = false;
+  public showNumWorkers: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -139,7 +141,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    protected config: GuiConfigService
+    protected config: GuiConfigService,
+    public jointUIService: JointUIService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -251,6 +254,13 @@ export class MenuComponent implements OnInit, OnDestroy {
     const width = Math.min(tempSpan.offsetWidth + 20, 800); // +20 for padding
     input.style.width = `${width}px`;
     document.body.removeChild(tempSpan);
+  }
+
+  onWorkerVisibilityChange() {
+    this.jointUIService.handleWorkerVisibilityChange(
+      this.showNumWorkers,
+      this.workflowActionService.getJointGraphWrapper().mainPaper
+    );
   }
 
   public async onClickOpenShareAccess(): Promise<void> {

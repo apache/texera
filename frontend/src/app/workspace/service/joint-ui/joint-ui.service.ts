@@ -111,6 +111,7 @@ export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
+export const operatorWorkerCountClass = "texera-operator-worker-count";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -128,6 +129,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
+      <text class="${operatorWorkerCountClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -286,6 +288,15 @@ export class JointUIService {
     return operatorElement;
   }
 
+  public handleWorkerVisibilityChange(show: boolean, paper: joint.dia.Paper): void {
+    if (!paper) return;
+    paper.model.getElements().forEach(el => {
+      const m = el as joint.shapes.devs.Model;
+      const txt = (m.attr(`.${operatorWorkerCountClass}/text`) as string) || "";
+      m.attr(`.${operatorWorkerCountClass}/visibility`, show && txt ? "visible" : "hidden");
+    });
+  }
+
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
@@ -307,6 +318,9 @@ export class JointUIService {
 
     const inputMetrics = statistics.inputPortMetrics;
     const outputMetrics = statistics.outputPortMetrics;
+
+    const workerCount = (statistics as any).numWorkers ?? 1;
+    element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
     inPorts.forEach(portDef => {
       const portId = portDef.id;
@@ -404,6 +418,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
+      [`.${operatorWorkerCountClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -790,6 +805,17 @@ export class JointUIService {
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
+      },
+      [`.${operatorWorkerCountClass}`]: {
+        text: "",
+        fill: "green",
+        "font-size": "12px",
+        visibility: "hidden",
+        "x-alignment": "middle",
+        "y-alignment": "top",
+        "ref-x": 0.5,
+        "ref-y": -30,
+        ref: "rect.boundary",
       },
       ".delete-button": {
         x: 60,
