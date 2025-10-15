@@ -89,7 +89,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
   private interactive: boolean = true;
-  private gridOn: boolean = false;
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
@@ -172,7 +171,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleElementCut();
     this.handleElementPaste();
     this.handleLinkCursorHover();
-    this.handleGridsToggle();
     if (this.config.env.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
       this.handleLinkBreakpoint();
     }
@@ -1304,25 +1302,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private isSink(operatorID: string): boolean {
     return this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
-  }
-
-  /**
-   * This function handles the event stream from jointGraph to toggle the grids in jointPaper on or off.
-   * @private
-   */
-  private handleGridsToggle(): void {
-    this.wrapper
-      .getJointPaperGridsToggleStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.gridOn) {
-          this.paper.setGridSize(1);
-          this.gridOn = false;
-        } else {
-          this.paper.setGridSize(2);
-          this.gridOn = true;
-        }
-      });
   }
 
   /**
