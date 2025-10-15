@@ -58,6 +58,9 @@ postgresql:
 
 minio:
   mode: standalone
+  image:
+    repository: bitnamilegacy/minio
+    tag: 2025.3.12-debian-12-r0
   customIngress:
     enabled: false
     ingressClassName: "" # e.g., "nginx"
