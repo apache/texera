@@ -89,7 +89,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
   public grid: boolean = false;
-  public region: boolean = false;
+  public showRegion: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -463,8 +463,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.getJointGraphWrapper().mainPaper.setGridSize(this.grid ? 2 : 1);
   }
 
-  public onRegionChange(): void {
-    this.workflowActionService.getJointGraphWrapper().mainPaper.el.classList.toggle("hide-region", !this.region);
+  public toggleRegion(): void {
+    this.workflowActionService.getJointGraphWrapper().mainPaper.el.classList.toggle("hide-region", !this.showRegion);
   }
 
   /**
