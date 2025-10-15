@@ -244,6 +244,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       width: this.editor.offsetWidth,
       height: this.editor.offsetHeight,
     });
+    this.editor.classList.add("hide-worker-count");
   }
 
   private handleDisableJointPaperInteractiveness(): void {
