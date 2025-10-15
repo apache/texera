@@ -79,6 +79,7 @@ import org.apache.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.amber.operator.split.SplitOpDesc
+import org.apache.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.amber.operator.udf.java.JavaUDFOpDesc
