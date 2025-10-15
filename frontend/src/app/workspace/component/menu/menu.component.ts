@@ -467,7 +467,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowActionService.getJointGraphWrapper().mainPaper.el.classList.toggle("hide-region", !this.region);
   }
 
-
   /**
    * This method will run the autoLayout function
    *

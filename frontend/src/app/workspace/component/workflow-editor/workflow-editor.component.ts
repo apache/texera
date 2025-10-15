@@ -333,27 +333,34 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private handleRegion(): void {
-    const Region = joint.dia.Element.define("region", {
-      attrs: {
-        body: {
-          fill: "rgba(255,213,79,0.2)",
-          stroke: "#FFD54F",
-          "stroke-width": 3,
-          "stroke-dasharray": "6,4",
-          pointerEvents: "none",
-          class: "region"
-        }
+    this.editor.classList.add("hide-region");
+    const Region = joint.dia.Element.define(
+      "region",
+      {
+        attrs: {
+          body: {
+            fill: "rgba(255,213,79,0.2)",
+            stroke: "#FFD54F",
+            "stroke-width": 3,
+            "stroke-dasharray": "6,4",
+            pointerEvents: "none",
+            class: "region",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
       }
-    }, {
-      markup: [{ tagName: "path", selector: "body" }]
-    });
+    );
 
     let regionMap: { regionShape: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
     // update region shapes on execution
-    this.executeWorkflowService.getRegionStream()
+    this.executeWorkflowService
+      .getRegionStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
-        this.paper.model.getCells()
+        this.paper.model
+          .getCells()
           .filter(shape => shape instanceof Region)
           .forEach(shape => shape.remove());
 
@@ -375,7 +382,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private updateRegionShape(regionShape: joint.dia.Element, operators: joint.dia.Cell[]) {
     const points = operators.flatMap(op => {
-      const { x, y, width, height } = op.getBBox(), padding = 20;
+      const { x, y, width, height } = op.getBBox(),
+        padding = 20;
       return [
         [x - padding, y - padding],
         [x + width + padding, y - padding],
@@ -383,10 +391,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x + width + padding, y + height + padding + 10],
       ];
     });
-    regionShape.attr(
-      "body/d",
-      line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][])
-    );
+    regionShape.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**
