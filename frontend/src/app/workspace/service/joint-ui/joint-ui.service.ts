@@ -288,15 +288,6 @@ export class JointUIService {
     return operatorElement;
   }
 
-  public handleWorkerVisibilityChange(show: boolean, paper: joint.dia.Paper): void {
-    if (!paper) return;
-    paper.model.getElements().forEach(el => {
-      const m = el as joint.shapes.devs.Model;
-      const txt = (m.attr(`.${operatorWorkerCountClass}/text`) as string) || "";
-      m.attr(`.${operatorWorkerCountClass}/visibility`, show && txt ? "visible" : "hidden");
-    });
-  }
-
   public changeOperatorStatistics(
     jointPaper: joint.dia.Paper,
     operatorID: string,
@@ -807,8 +798,6 @@ export class JointUIService {
         "x-alignment": "middle",
       },
       [`.${operatorWorkerCountClass}`]: {
-        text: "",
-        fill: "green",
         "font-size": "12px",
         visibility: "hidden",
         "x-alignment": "middle",

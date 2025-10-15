@@ -141,8 +141,7 @@ export class MenuComponent implements OnInit, OnDestroy {
     private reportGenerationService: ReportGenerationService,
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
-    protected config: GuiConfigService,
-    public jointUIService: JointUIService
+    protected config: GuiConfigService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -257,10 +256,13 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   onWorkerVisibilityChange() {
-    this.jointUIService.handleWorkerVisibilityChange(
-      this.showNumWorkers,
-      this.workflowActionService.getJointGraphWrapper().mainPaper
-    );
+    const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
+    if (!paper) return;
+    paper.model.getElements().forEach(el => {
+      const m = el as joint.shapes.devs.Model;
+      const txt = (m.attr(".texera-operator-worker-count/text") as string) || "";
+      m.attr(".texera-operator-worker-count/visibility", this.showNumWorkers && txt ? "visible" : "hidden");
+    });
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
