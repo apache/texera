@@ -56,7 +56,6 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
-import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 
 /**
  * MenuComponent is the top level menu bar that shows
