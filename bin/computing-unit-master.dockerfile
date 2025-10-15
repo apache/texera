@@ -18,10 +18,13 @@
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
-WORKDIR /core
+WORKDIR /texera
 
-# Copy all projects under core to /core
-COPY core/ .
+# Copy modules for building the service
+COPY common/ common/
+COPY amber/ amber/
+COPY project/ project/
+COPY build.sbt build.sbt
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,22 +33,21 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
-COPY .git ../.git
+COPY .git .git
 
 RUN sbt clean WorkflowExecutionService/dist
 
 # Unzip the texera binary
-RUN unzip amber/target/universal/texera-*.zip -d amber/target/
+RUN unzip amber/target/universal/amber-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jdk-jammy AS runtime
 
-WORKDIR /amber
+WORKDIR /texera/amber
 
-COPY --from=build /amber/r-requirements.txt /tmp/r-requirements.txt
-COPY --from=build /amber/requirements.txt /tmp/requirements.txt
-COPY --from=build /amber/operator-requirements.txt /tmp/operator-requirements.txt
+COPY --from=build /texera/amber/r-requirements.txt /tmp/r-requirements.txt
+COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
+COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
 
 # Install Python & R runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -97,13 +99,13 @@ RUN Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
 ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:$LD_LIBRARY_PATH
 
 # Copy the built texera binary from the build phase
-COPY --from=build /.git /.git
-COPY --from=build /amber/target/texera-* /amber
-# Copy resources directories under /core from build phase
-COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
-COPY --from=build /amber/src/main/resources /amber/src/main/resources
+COPY --from=build /texera/.git /texera/amber/.git
+COPY --from=build /texera/amber/target/amber-* /texera/amber/
+# Copy resources directories from build phase
+COPY --from=build /texera/common/config/src/main/resources /texera/amber/common/config/src/main/resources
+COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resources
 # Copy code for python & R UDF
-COPY --from=build /amber/src/main/python /amber/src/main/python
+COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
 
 CMD ["bin/computing-unit-master"]
 

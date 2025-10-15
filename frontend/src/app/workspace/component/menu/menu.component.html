@@ -145,6 +145,28 @@
       <ng-template #utilities>
         <nz-button-group>
           <button
+            nz-dropdown
+            [nzDropdownMenu]="menu"
+            [nzClickHide]="false"
+            nz-button
+            title="Layers">
+            <i
+              nz-icon
+              nzType="block"></i>
+          </button>
+          <nz-dropdown-menu #menu="nzDropdownMenu">
+            <ul nz-menu>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="grid"
+                  (ngModelChange)="onGridChange()"
+                  >Grid</label
+                >
+              </li>
+            </ul>
+          </nz-dropdown-menu>
+          <button
             (click)="onClickClosePanels()"
             nz-button
             title="close panels">
