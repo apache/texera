@@ -797,7 +797,7 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      [`.${operatorWorkerCountClass}`]: {
+      ".texera-operator-worker-count": {
         "font-size": "12px",
         visibility: "hidden",
         "x-alignment": "middle",
