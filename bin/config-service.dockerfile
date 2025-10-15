@@ -18,10 +18,13 @@
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
-WORKDIR /core
+WORKDIR /texera
 
-# Copy all projects under core to /core
-COPY core/ .
+# Copy modules for building the service
+COPY common/ common/
+COPY config-service/ config-service/
+COPY project/ project/
+COPY build.sbt build.sbt
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,43 +33,25 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
-COPY .git ../.git
+COPY .git .git
 
-RUN sbt clean WorkflowExecutionService/dist
+RUN sbt clean ConfigService/dist
 
 # Unzip the texera binary
-RUN unzip amber/target/universal/texera-*.zip -d amber/target/
+RUN unzip config-service/target/universal/config-service-*.zip -d target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /amber
+WORKDIR /texera
 
-COPY --from=build /amber/requirements.txt /tmp/requirements.txt
-COPY --from=build /amber/operator-requirements.txt /tmp/operator-requirements.txt
-
-# Install Python runtime and dependencies
-RUN apt-get update && apt-get install -y \
-    python3-pip \
-    python3-dev \
-    libpq-dev \
-    && apt-get clean
-
-RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install python-lsp-server python-lsp-server[websockets]
-
-# Install requirements with a fallback for wordcloud
-RUN pip3 install -r /tmp/requirements.txt
-RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
-    pip3 install --no-cache-dir wordcloud==1.9.2
-
+COPY --from=build /texera/.git /texera/.git
 # Copy the built texera binary from the build phase
-COPY --from=build /amber/target/texera-* /amber
-# Copy resources directories under /core from build phase
-COPY --from=build /amber/src/main/resources /amber/src/main/resources
-COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
+COPY --from=build /texera/target/config-service-* /texera/
+# Copy resources directories from build phase
+COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
+COPY --from=build /texera/config-service/src/main/resources /texera/config-service/src/main/resources
 
-CMD ["bin/computing-unit-worker"]
+CMD ["bin/config-service"]
 
-EXPOSE 8085
+EXPOSE 9094
