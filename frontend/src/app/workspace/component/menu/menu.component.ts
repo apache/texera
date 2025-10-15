@@ -88,7 +88,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
-  public grid: boolean = false;
+  public showGrid: boolean = false;
   public showNumWorkers: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
@@ -465,8 +465,8 @@ export class MenuComponent implements OnInit, OnDestroy {
       });
   }
 
-  public onGridChange(): void {
-    this.workflowActionService.getJointGraphWrapper().mainPaper.setGridSize(this.grid ? 2 : 1);
+  public toggleGrid(): void {
+    this.workflowActionService.getJointGraphWrapper().mainPaper.setGridSize(this.showGrid ? 2 : 1);
   }
 
   /**
