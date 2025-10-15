@@ -19,6 +19,10 @@
 
 @import "@ali-hm/angular-tree-component/css/angular-tree-component.css";
 
+* {
+  user-select: none;
+}
+
 .ant-image-preview-img {
   width: 50%;
   height: 60%;
