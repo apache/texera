@@ -18,10 +18,13 @@
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
-WORKDIR /core
+WORKDIR /texera
 
-# Copy all projects under core to /core
-COPY core/ .
+# Copy modules for building the service
+COPY common/ common/
+COPY file-service/ file-service/
+COPY project/ project/
+COPY build.sbt build.sbt
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,9 +33,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
-COPY .git ../.git
+COPY .git .git
 
 RUN sbt clean FileService/dist
 
@@ -41,13 +43,13 @@ RUN unzip file-service/target/universal/file-service-*.zip -d target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /core
+WORKDIR /texera
 
 # Copy the built texera binary from the build phase
-COPY --from=build /core/target/file-service-* /core/
-# Copy resources directories under /core from build phase
-COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
-COPY --from=build /core/file-service/src/main/resources /core/file-service/src/main/resources
+COPY --from=build /texera/target/file-service-* /texera/
+# Copy resources directories from build phase
+COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
+COPY --from=build /texera/file-service/src/main/resources /texera/file-service/src/main/resources
 
 CMD ["bin/file-service"]
 
