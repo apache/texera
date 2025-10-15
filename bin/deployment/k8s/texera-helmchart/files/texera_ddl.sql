@@ -1,1 +1,0 @@
-../../../../core/scripts/sql/texera_ddl.sql

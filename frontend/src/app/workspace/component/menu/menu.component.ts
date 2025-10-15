@@ -88,6 +88,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
   public isExportDeactivate: boolean = false;
+  public grid: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -457,14 +458,8 @@ export class MenuComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * This method will flip the current status of whether to draw grids in jointPaper.
-   * This option is only for the current session and will be cleared on refresh.
-   */
-  public onClickToggleGrids(): void {
-    const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
-    const current = paper.options.gridSize || 1;
-    paper.setGridSize((current % 2) + 1);
+  public onGridChange(): void {
+    this.workflowActionService.getJointGraphWrapper().mainPaper.setGridSize(this.grid ? 2 : 1);
   }
 
   /**
