@@ -18,10 +18,13 @@
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11 AS build
 
 # Set working directory
-WORKDIR /core
+WORKDIR /texera
 
-# Copy all projects under core to /core
-COPY core/ .
+# Copy modules for building the service
+COPY common/ common/
+COPY workflow-compiling-service/ workflow-compiling-service/
+COPY project/ project/
+COPY build.sbt build.sbt
 
 # Update system and install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,26 +33,25 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && apt-get clean
 
-WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
-COPY .git ../.git
+COPY .git .git
 
-RUN sbt clean ConfigService/dist
+RUN sbt clean WorkflowCompilingService/dist
 
 # Unzip the texera binary
-RUN unzip  config-service/target/universal/config-service-*.zip -d target/
+RUN unzip workflow-compiling-service/target/universal/workflow-compiling-service-*.zip -d target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
-WORKDIR /core
+WORKDIR /texera
 
-COPY --from=build /.git /.git
 # Copy the built texera binary from the build phase
-COPY --from=build /core/target/config-service-* /core/
-# Copy resources directories under /core from build phase
-COPY --from=build /core/config/src/main/resources /core/config/src/main/resources
-COPY --from=build /core/config-service/src/main/resources /core/config-service/src/main/resources
+COPY --from=build /texera/.git /texera/.git
+COPY --from=build /texera/target/workflow-compiling-service-* /texera/
+# Copy resources directories from build phase
+COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
+COPY --from=build /texera/workflow-compiling-service/src/main/resources /texera/workflow-compiling-service/src/main/resources
 
-CMD ["bin/config-service"]
+CMD ["bin/workflow-compiling-service"]
 
-EXPOSE 9094
+EXPOSE 9090
