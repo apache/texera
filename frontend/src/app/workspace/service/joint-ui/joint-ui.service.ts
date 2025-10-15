@@ -111,7 +111,7 @@ export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
-export const operatorWorkerCountClass = "texera-operator-worker-count";
+const operatorWorkerCountClass = "operator-worker-count";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -310,8 +310,8 @@ export class JointUIService {
     const inputMetrics = statistics.inputPortMetrics;
     const outputMetrics = statistics.outputPortMetrics;
 
-    const workerCount = (statistics as any).numWorkers ?? 1;
-    element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
+    const workerCount = statistics.numWorkers ?? 1;
+    element.attr(`.${operatorWorkerCountClass}/text`, "worker: " + String(workerCount));
 
     inPorts.forEach(portDef => {
       const portId = portDef.id;
@@ -797,14 +797,8 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-worker-count": {
-        "font-size": "12px",
-        visibility: "hidden",
-        "x-alignment": "middle",
-        "y-alignment": "top",
-        "ref-x": 0.5,
-        "ref-y": -30,
-        ref: "rect.boundary",
+      [`.${operatorWorkerCountClass}`]: {
+        "ref-y": -35,
       },
       ".delete-button": {
         x: 60,

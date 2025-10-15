@@ -37,3 +37,7 @@
 ::ng-deep #workflow-editor .link-tools .tool-remove circle {
   fill-opacity: 0;
 }
+
+::ng-deep .hide-worker-count .operator-worker-count {
+  display: none;
+}

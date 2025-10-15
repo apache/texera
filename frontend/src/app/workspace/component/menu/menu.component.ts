@@ -254,14 +254,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     document.body.removeChild(tempSpan);
   }
 
-  onWorkerVisibilityChange() {
-    const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
-    if (!paper) return;
-    paper.model.getElements().forEach(el => {
-      const m = el as joint.shapes.devs.Model;
-      const txt = (m.attr(".texera-operator-worker-count/text") as string) || "";
-      m.attr(".texera-operator-worker-count/visibility", this.showNumWorkers && txt ? "visible" : "hidden");
-    });
+  toggleNumWorkers() {
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .mainPaper.el.classList.toggle("hide-worker-count", !this.showNumWorkers);
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
