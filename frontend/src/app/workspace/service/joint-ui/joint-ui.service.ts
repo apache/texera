@@ -311,7 +311,7 @@ export class JointUIService {
     const outputMetrics = statistics.outputPortMetrics;
 
     const workerCount = statistics.numWorkers ?? 1;
-    element.attr(`.${operatorWorkerCountClass}/text`, "worker: " + String(workerCount));
+    element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
 
     inPorts.forEach(portDef => {
       const portId = portDef.id;
@@ -798,6 +798,7 @@ export class JointUIService {
         "x-alignment": "middle",
       },
       [`.${operatorWorkerCountClass}`]: {
+        "ref-x": -5,
         "ref-y": -35,
       },
       ".delete-button": {
