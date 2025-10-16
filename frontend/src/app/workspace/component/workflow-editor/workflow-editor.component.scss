@@ -26,7 +26,7 @@
 }
 
 ::ng-deep .hide-region .region {
-  visibility: hidden;
+  display: none;
 }
 
 ::ng-deep .hide-worker-count .operator-worker-count {
