@@ -129,6 +129,7 @@ import org.apache.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.amber.operator.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
+import org.apache.amber.operator.visualization.stripChart.StripChartOpDesc
 
 import java.util.UUID
 import scala.util.Try
@@ -169,6 +170,7 @@ trait StateTransferFunc
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
+    new Type(value = classOf[StripChartOpDesc], name = "StripChart"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
