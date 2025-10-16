@@ -61,7 +61,7 @@ github:
     rebase:  false
     
   protected_branches:
-    master:
+    main:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: true
@@ -78,3 +78,6 @@ notifications:
   pullrequests:         dev@texera.apache.org
   discussions:          dev@texera.apache.org
   jobs:                 commits@texera.apache.org
+
+publish:
+  whoami: asf-site

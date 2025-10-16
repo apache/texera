@@ -20,7 +20,7 @@ on:
   push:
     branches:
       - 'ci-enable/**'
-      - 'master'
+      - 'main'
   pull_request:
   workflow_dispatch:
 

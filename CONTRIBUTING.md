@@ -61,10 +61,10 @@ Do not include any of the following in your PR:
 - To check format, under `core` run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
 - When you need to execute both, scalafmt is supposed to be executed after scalafix.
 #### Testing the backend
-1. The test framework is `scalatest`, for the amber engine, tests are located under `core/amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
+1. The test framework is `scalatest`, for the amber engine, tests are located under `amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
 2. To execute it, navigate to `core` directory in the command line and execute `sbt test`.
 3. If using IntelliJ to execute the test cases please make sure to be at the correct working directory.
-* For the amber engine's tests, the working directory should be `core/amber`
+* For the amber engine's tests, the working directory should be `amber`
 * For the other services' tests, the working directory should be `core`
 #### Testing the frontend 
 Before merging your code to the master branch, you need to pass the existing unit tests first.
@@ -106,23 +106,24 @@ If you are modifying existing files, you may skip this step. For new files, you 
 1. Go to **Settings → Editor → Copyright → Copyright Profiles**.
 2. Create a new profile and name it **Apache**.
 3. Use the following license text:
-   ```
-   Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
-   
-       http://www.apache.org/licenses/LICENSE-2.0
-   
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and 
-   limitations under the License.
-   ```
+  ```
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+  ```
 4. Go to "Editor" → "Copyright" and choose the "Apache" profile as the default profile for this
    project.
 5. Click "Apply".

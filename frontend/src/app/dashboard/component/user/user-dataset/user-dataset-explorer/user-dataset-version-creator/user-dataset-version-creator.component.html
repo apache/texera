@@ -1,0 +1,72 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div>
+  <nz-spin
+    [nzSpinning]="isCreating"
+    nzSize="large"
+    nzTip="Creating...">
+    <div
+      class="texera-user-dataset-creator-form"
+      [ngClass]="{'disabled-backdrop': isCreating}">
+      <formly-form
+        [form]="form"
+        [fields]="fields"
+        [model]="model"></formly-form>
+      <div
+        *ngIf="!isCreatingVersion"
+        class="dataset-toggles">
+        <div class="toggle-item">
+          <label>Visibility:</label>
+          <nz-switch
+            [ngModel]="isDatasetPublic"
+            (ngModelChange)="onPublicStatusChange($event)"
+            nzCheckedChildren="public"
+            nzUnCheckedChildren="private"></nz-switch>
+        </div>
+        <div class="toggle-item">
+          <label>Downloadable:</label>
+          <nz-switch
+            [ngModel]="isDatasetDownloadable"
+            (ngModelChange)="onDownloadableStatusChange($event)"
+            nzCheckedChildren="enabled"
+            nzUnCheckedChildren="disabled"></nz-switch>
+        </div>
+      </div>
+    </div>
+
+    <button
+      nz-button
+      nzType="primary"
+      (click)="onClickCreate()"
+      [disabled]="isCreateButtonDisabled || isCreating"
+      class="create-btn">
+      Create
+    </button>
+
+    <button
+      nz-button
+      nzType="default"
+      (click)="onClickCancel()"
+      class="cancel-btn"
+      [disabled]="isCreating">
+      Cancel
+    </button>
+  </nz-spin>
+</div>

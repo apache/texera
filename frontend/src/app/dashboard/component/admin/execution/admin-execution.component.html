@@ -1,0 +1,192 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  class="section-title"
+  style="background-color: lightcoral">
+  <h2
+    class="page-title"
+    style="color: white">
+    Executions
+  </h2>
+</nz-card>
+
+<nz-table
+  #basicTable
+  nzShowSizeChanger
+  [nzScroll]="{y: '500px'}"
+  [nzData]="listOfExecutions"
+  [nzLoading]="isLoading"
+  [nzLoadingIndicator]="loadingTemplate"
+  [nzTemplateMode]="true"
+  [nzFrontPagination]="false"
+  [nzTotal]="totalWorkflows"
+  [nzPageSize]="pageSize"
+  [nzPageIndex]="currentPageIndex + 1"
+  [nzPageSizeOptions]="[5, 10, 20, 50]"
+  (nzQueryParams)="onQueryParamsChange($event)"
+  class="execution-table">
+  <thead>
+    <tr>
+      <th
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('workflow_name', $event)"
+        nzWidth="16%">
+        Workflow (ID)
+      </th>
+      <th
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('execution_name', $event)"
+        nzWidth="16%">
+        Execution Name (ID)
+      </th>
+      <th
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('initiator', $event)"
+        nzWidth="12%">
+        Initiator
+      </th>
+      <th
+        nzShowFilter
+        [nzFilters]="[
+          { text: 'READY', value: 'READY' },
+          { text: 'RUNNING', value: 'RUNNING'},
+          { text: 'PAUSED', value: 'PAUSED'},
+          { text: 'COMPLETED', value: 'COMPLETED'},
+          { text: 'FAILED', value: 'FAILED'},
+          { text: 'KILLED', value: 'KILLED'},
+          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
+          { text: 'UNKNOWN', value: 'UNKNOWN'}]"
+        [nzFilterFn]="true"
+        (nzFilterChange)="onFilterChange($event)"
+        nzWidth="13%">
+        Status
+      </th>
+      <th nzWidth="10%">Time Used (hh:mm:ss)</th>
+      <th
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('end_time', $event)"
+        nzWidth="20%">
+        End Time
+      </th>
+      <th nzWidth="13%">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let execution of basicTable.data">
+      <td>
+        <div *ngIf="execution.access; else normalWorkflowName">
+          <a href="/dashboard/user/workflow/{{execution.workflowId}}">
+            {{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})
+          </a>
+        </div>
+        <ng-template #normalWorkflowName>
+          <div>{{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})</div>
+        </ng-template>
+      </td>
+      <td>{{ maxStringLength(execution.executionName, 20) }} ({{ execution.executionId }})</td>
+      <td>{{ execution.userName }}</td>
+      <td [ngStyle]="{ 'color': getStatusColor(execution.executionStatus) }"><b>{{ execution.executionStatus }}</b></td>
+      <td>
+        <div *ngIf="execution.executionTime >= 0; else endTimeNotAvailable">
+          {{ convertSecondsToTime(execution.executionTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+
+      <td>
+        <div *ngIf="execution.endTime !== 0; else endTimeNotAvailable">
+          {{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+      <td>
+        <button
+          type="button"
+          (click)="killExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus === 'COMPLETED' ||
+                        execution.executionStatus === 'JUST COMPLETED' ||
+                        execution.executionStatus === 'FAILED' ||
+                        execution.executionStatus === 'KILLED'"
+          nz-button
+          nz-tooltip="kill execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="stop"></i>
+        </button>
+        <button
+          type="button"
+          (click)="pauseExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus !== 'RUNNING'"
+          nz-button
+          nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="pause"></i>
+        </button>
+        <button
+          type="button"
+          (click)="resumeExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus !== 'PAUSED'"
+          nz-button
+          nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="redo"></i>
+        </button>
+        <button
+          (click)="clickToViewHistory(execution.workflowId, execution.workflowName)"
+          nz-button
+          nz-tooltip="previous execution of the workflow: {{
+                      execution.workflowName
+                    }}"
+          type="button">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="history"></i>
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <nz-spin
+      nzTip="Loading..."
+      [nzSpinning]="true"
+      nzSize="large"></nz-spin>
+  </div>
+</ng-template>

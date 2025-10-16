@@ -1,0 +1,117 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="hub-workflow-detail-container">
+  <button
+    *ngIf="isHub"
+    nz-button
+    nzType="text"
+    nzSize="large"
+    class="go-back-button"
+    (click)="goBack()">
+    <span
+      nz-icon
+      nzType="arrow-left"></span>
+  </button>
+
+  <div class="container">
+    <div class="header-info">
+      <div class="detail-title">
+        <h1>Workflow Detail Page</h1>
+      </div>
+      <div class="workflow-panel">
+        <!-- View button -->
+        <button
+          nz-button
+          nzType="text"
+          class="dropdown-item like-button"
+          title="View"
+          (click)="changeViewDisplayStyle()">
+          <i
+            nz-icon
+            [nzType]="'eye'"
+            class="like-icon">
+          </i>
+          <span>{{ formatCount(viewCount) }}</span>
+        </button>
+
+        <button
+          nz-button
+          class="like-button"
+          title="Like"
+          [disabled]="!isLogin"
+          (click)="toggleLike()">
+          <i
+            nz-icon
+            nzType="like"
+            [ngClass]="{liked: isLiked}"
+            class="like-icon">
+          </i>
+          <span>{{ formatCount(likeCount) }}</span>
+        </button>
+
+        <button
+          nz-button
+          class="clone-button"
+          title="Copy">
+          <i
+            nz-icon
+            nzType="user"></i>
+          <span>{{ formatCount(cloneCount) }}</span>
+        </button>
+
+        <button
+          nz-button
+          nzType="primary"
+          class="clone-button"
+          title="Copy"
+          [disabled]="!isLogin || !isHub || !isActivatedUser"
+          (click)="cloneWorkflow()">
+          <span>Clone</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="workflow-info">
+      <div>
+        <h2>ID</h2>
+        <p>{{ wid }}</p>
+      </div>
+      <div>
+        <h2>Workflow Name</h2>
+        <p>{{ workflowName }}</p>
+      </div>
+      <div>
+        <h2>Created By</h2>
+        <p>{{ ownerName }}</p>
+      </div>
+    </div>
+    <div class="workflow-description">
+      <h2>Description</h2>
+      <p>{{workflowDescription}}</p>
+    </div>
+
+    <h2>Preview</h2>
+    <div class="preview-containers">
+      <texera-workflow-editor></texera-workflow-editor>
+      <texera-mini-map class="box"></texera-mini-map>
+    </div>
+    <ng-template #codeEditor></ng-template>
+  </div>
+</div>

@@ -16,6 +16,7 @@ header:
     - 'NOTICE'
     - '.dockerignore'
     - '.gitattributes'
+    - '.github/PULL_REQUEST_TEMPLATE'
     - 'yarn.lock'
     - '.nvmrc'
     - '.htaccess'
@@ -23,4 +24,4 @@ header:
     - 'site.webmanifest'
     - '.gitignore'
     - '.licenserc.yaml'
-
+    - 'frontend/.yarn/**'

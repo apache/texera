@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: texera-lakefs
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: texera-lakefs-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=texera_minio
+      - MINIO_ROOT_PASSWORD=password
+    command: server --console-address ":9001" /data
+    # The lines below are recommended to mount a host path in order to persist your data even if the container is removed.
+    volumes:
+      - minio_data:/data
+
+  postgres:
+    image: postgres:15
+    container_name: texera-lakefs-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=texera_lakefs
+      - POSTGRES_USER=texera_lakefs_admin
+      - POSTGRES_PASSWORD=password
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "texera_lakefs_admin", "-d", "texera_lakefs"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    # Ditto
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  lakefs:
+    image: treeverse/lakefs:1.51
+    container_name: texera-lakefs-lakefs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    environment:
+      - LAKEFS_BLOCKSTORE_TYPE=s3
+      - LAKEFS_BLOCKSTORE_S3_FORCE_PATH_STYLE=true
+      - LAKEFS_BLOCKSTORE_S3_ENDPOINT=http://minio:9000
+      - LAKEFS_BLOCKSTORE_S3_PRE_SIGNED_ENDPOINT=http://localhost:9000
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_ACCESS_KEY_ID=texera_minio
+      - LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password
+      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs
+      - LAKEFS_LOGGING_LEVEL=INFO
+      - LAKEFS_STATS_ENABLED=1
+      - LAKEFS_DATABASE_TYPE=postgres
+      - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://texera_lakefs_admin:password@postgres:5432/texera_lakefs?sslmode=disable
+      - LAKEFS_INSTALLATION_USER_NAME=texera-admin
+      - LAKEFS_INSTALLATION_ACCESS_KEY_ID=AKIAIOSFOLKFSSAMPLES
+      - LAKEFS_INSTALLATION_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        lakefs setup --user-name "$$LAKEFS_INSTALLATION_USER_NAME" --access-key-id "$$LAKEFS_INSTALLATION_ACCESS_KEY_ID" --secret-access-key "$$LAKEFS_INSTALLATION_SECRET_ACCESS_KEY" || true
+        lakefs run &
+        echo "---- lakeFS Web UI ----"
+        echo "http://127.0.0.1:8000/"
+        echo ""
+        echo "Access Key ID    : $$LAKEFS_INSTALLATION_ACCESS_KEY_ID"
+        echo "Secret Access Key: $$LAKEFS_INSTALLATION_SECRET_ACCESS_KEY"
+        echo ""
+        wait
+
+networks:
+  default:
+    name: texera-lakefs
+
+# Named Docker volumes — uncomment the following lines if you mounted host paths above.
+volumes:
+  minio_data:
+  postgres_data:
