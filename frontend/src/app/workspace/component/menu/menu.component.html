@@ -159,8 +159,8 @@
               <li nz-menu-item>
                 <label
                   nz-checkbox
-                  [(ngModel)]="grid"
-                  (ngModelChange)="onGridChange()"
+                  [(ngModel)]="showGrid"
+                  (ngModelChange)="toggleGrid()"
                   >Grid</label
                 >
               </li>
@@ -170,6 +170,16 @@
                   [(ngModel)]="showRegion"
                   (ngModelChange)="toggleRegion()"
                   >Region</label
+                >
+              </li>
+            </ul>
+            <ul nz-menu>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showNumWorkers"
+                  (ngModelChange)="toggleNumWorkers()"
+                  >#Workers</label
                 >
               </li>
             </ul>
