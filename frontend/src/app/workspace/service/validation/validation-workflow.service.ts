@@ -134,13 +134,13 @@ export class ValidationWorkflowService {
   }
 
   private updateValidationState(operatorID: string, validation: Validation) {
-    this.operatorValidationStream.next({ validation, operatorID });
     if (!validation.isValid) {
       this.workflowErrors[operatorID] = validation;
     } else {
       delete this.workflowErrors[operatorID];
-      this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
+    this.operatorValidationStream.next({ validation, operatorID });
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   private checkIfWorkflowEmpty() {
