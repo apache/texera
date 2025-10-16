@@ -1,0 +1,26 @@
+# Dropwizard Configuration for MCP Service
+# MCP-specific settings are now in common/config/src/main/resources/mcp.conf
+
+server:
+  applicationConnectors:
+    - type: http
+      port: 9098
+  adminConnectors: []
+
+logging:
+  level: INFO
+  loggers:
+    "io.dropwizard": INFO
+    "org.apache.texera": DEBUG
+  appenders:
+    - type: console
+    - type: file
+      currentLogFilename: log/mcp-service.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: true
+      archivedLogFilenamePattern: log/mcp-service-%d{yyyy-MM-dd}.log.gz
+      archivedFileCount: 7
+      bufferSize: 8KiB
+      immediateFlush: true

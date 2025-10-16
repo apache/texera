@@ -28,5 +28,8 @@ rm config-service/target/universal/config-service-*.zip
 unzip computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip -d target/
 rm computing-unit-managing-service/target/universal/computing-unit-managing-service-*.zip
 
+unzip mcp-service/target/universal/mcp-service-*.zip -d target/
+rm mcp-service/target/universal/mcp-service-*.zip
+
 unzip amber/target/universal/texera-*.zip -d amber/target/
 rm amber/target/universal/texera-*.zip
