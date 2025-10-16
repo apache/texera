@@ -115,7 +115,7 @@ class Controller(
     cp.workflowScheduler.updateSchedule(physicalPlan)
 
     val regions: List[List[String]] =
-      cp.workflowScheduler.schedule.getRegions.map { region =>
+      cp.workflowScheduler.getSchedule.getRegions.map { region =>
         region.physicalOps.map(_.id.logicalOpId.id).toList
       }
 
