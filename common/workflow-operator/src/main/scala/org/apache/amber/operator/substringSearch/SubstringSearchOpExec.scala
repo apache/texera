@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,27 +17,24 @@
  * under the License.
  */
 
-#workflow-editor-wrapper {
-  height: 100%;
-}
+package org.apache.amber.operator.substringSearch
 
-#workflow-editor {
-  height: 100%;
-}
+import org.apache.amber.core.tuple.Tuple
+import org.apache.amber.operator.filter.FilterOpExec
+import org.apache.amber.util.JSONUtils.objectMapper
 
-::ng-deep #workflow-editor .connection-wrap {
-  stroke-width: 0;
-}
+class SubstringSearchOpExec(descString: String) extends FilterOpExec {
+  private val desc: SubstringSearchOpDesc =
+    objectMapper.readValue(descString, classOf[SubstringSearchOpDesc])
 
-::ng-deep #workflow-editor .link-tools .tool-remove path {
-  fill: #d8656a;
-  transform: translate(-12px, -12px);
-}
+  this.setFilterFunc(findSubstring)
 
-::ng-deep #workflow-editor .link-tools .tool-remove circle {
-  fill-opacity: 0;
-}
-
-::ng-deep .hide-worker-count .operator-worker-count {
-  display: none;
+  private def findSubstring(tuple: Tuple): Boolean = {
+    val content = tuple.getField(desc.attribute).toString
+    if (desc.isCaseSensitive) {
+      content.contains(desc.substring)
+    } else {
+      content.toLowerCase.contains(desc.substring.toLowerCase)
+    }
+  }
 }
