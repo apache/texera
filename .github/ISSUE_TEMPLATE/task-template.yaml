@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Task
+description: Create a new development or maintenance task.
+labels: ["triage"]
+type: "Task"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating a task! Please describe what needs to be done and why.
+
+  - type: textarea
+    id: task-summary
+    attributes:
+      label: Task Summary
+      description: Briefly describe what needs to be done, try to do a single step in a task.
+      placeholder: Example — Refactor workflow scheduler module for better modularity.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent or important is this task?
+      options:
+        - P0 – Critical
+        - P1 – High
+        - P2 – Medium
+        - P3 – Low
+      default: 2
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Task Type
+      description: Select the type of work involved.
+      options:
+        - label: Code Implementation
+        - label: Documentation
+        - label: Refactor / Cleanup
+        - label: Testing / QA
+        - label: DevOps / Deployment
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow [Apache Code of Conduct](https://www.apache.org/foundation/policies/conduct).
+      options:
+        - label: I agree to follow Apache Code of Conduct
+          required: true
