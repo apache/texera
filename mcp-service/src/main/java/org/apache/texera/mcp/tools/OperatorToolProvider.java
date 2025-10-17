@@ -20,10 +20,15 @@
 package org.apache.texera.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.scala.DefaultScalaModule;
+import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.amber.operator.metadata.AllOperatorMetadata;
 import org.apache.amber.operator.metadata.GroupInfo;
 import org.apache.amber.operator.metadata.OperatorMetadata;
 import org.apache.amber.operator.metadata.OperatorMetadataGenerator;
+import org.apache.texera.mcp.tools.inputs.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -39,6 +44,12 @@ import java.util.stream.Collectors;
 public class OperatorToolProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(OperatorToolProvider.class);
+    private final ObjectMapper objectMapper;
+
+    public OperatorToolProvider() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new DefaultScalaModule());
+    }
 
     /**
      * List all available Texera operators
@@ -193,5 +204,198 @@ public class OperatorToolProvider {
                 logger.warn("Unknown capability: {}", capability);
                 return List.of();
         }
+    }
+
+    /**
+     * Register all operator tools with the MCP server builder.
+     * Uses annotation-based schema generation for type-safe input schemas.
+     */
+    public void registerAllTools(McpServer.SyncSpecification<McpServer.StreamableSyncSpecification> serverBuilder) {
+        logger.info("Registering operator tools");
+
+        // Tool 1: List all operators
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("list_operators")
+                        .description("List all available Texera operators with their metadata, groups, and schemas")
+                        .inputSchema(McpSchemaGenerator.generateEmptySchema())
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        var result = listOperators();
+                        String jsonResult = objectMapper.writeValueAsString(result);
+                        return new McpSchema.CallToolResult(jsonResult, false);
+                    } catch (Exception e) {
+                        logger.error("Error in list_operators tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 2: Get specific operator
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("get_operator")
+                        .description("Get detailed metadata for a specific operator by its type identifier")
+                        .inputSchema(McpSchemaGenerator.generateSchema(OperatorTypeInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String operatorType = getStringArg(request, "operatorType");
+                        var result = getOperator(operatorType);
+
+                        if (result.isDefined()) {
+                            String jsonResult = objectMapper.writeValueAsString(result.get());
+                            return new McpSchema.CallToolResult(jsonResult, false);
+                        } else {
+                            return new McpSchema.CallToolResult("Operator not found: " + operatorType, true);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error in get_operator tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 3: Get operator schema
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("get_operator_schema")
+                        .description("Get the JSON schema for a specific operator's configuration")
+                        .inputSchema(McpSchemaGenerator.generateSchema(OperatorTypeInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String operatorType = getStringArg(request, "operatorType");
+                        var result = getOperatorSchema(operatorType);
+
+                        if (result.isDefined()) {
+                            String jsonResult = objectMapper.writeValueAsString(result.get());
+                            return new McpSchema.CallToolResult(jsonResult, false);
+                        } else {
+                            return new McpSchema.CallToolResult("Operator schema not found: " + operatorType, true);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error in get_operator_schema tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 4: Search operators
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("search_operators")
+                        .description("Search operators by name, description, or type using a query string")
+                        .inputSchema(McpSchemaGenerator.generateSchema(SearchQueryInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String query = getStringArg(request, "query");
+                        var result = searchOperators(query);
+                        String jsonResult = objectMapper.writeValueAsString(result);
+                        return new McpSchema.CallToolResult(jsonResult, false);
+                    } catch (Exception e) {
+                        logger.error("Error in search_operators tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 5: Get operators by group
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("get_operators_by_group")
+                        .description("Get all operators in a specific group")
+                        .inputSchema(McpSchemaGenerator.generateSchema(GroupNameInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String groupName = getStringArg(request, "groupName");
+                        var result = getOperatorsByGroup(groupName);
+                        String jsonResult = objectMapper.writeValueAsString(result);
+                        return new McpSchema.CallToolResult(jsonResult, false);
+                    } catch (Exception e) {
+                        logger.error("Error in get_operators_by_group tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 6: Get operator groups
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("get_operator_groups")
+                        .description("Get all operator groups in their hierarchical structure")
+                        .inputSchema(McpSchemaGenerator.generateEmptySchema())
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        var result = getOperatorGroups();
+                        String jsonResult = objectMapper.writeValueAsString(result);
+                        return new McpSchema.CallToolResult(jsonResult, false);
+                    } catch (Exception e) {
+                        logger.error("Error in get_operator_groups tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 7: Describe operator
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("describe_operator")
+                        .description("Get a detailed human-readable description of an operator including ports, capabilities, and schema")
+                        .inputSchema(McpSchemaGenerator.generateSchema(OperatorTypeInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String operatorType = getStringArg(request, "operatorType");
+                        var result = describeOperator(operatorType);
+
+                        if (result.isDefined()) {
+                            return new McpSchema.CallToolResult(result.get(), false);
+                        } else {
+                            return new McpSchema.CallToolResult("Operator not found: " + operatorType, true);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error in describe_operator tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        // Tool 8: Get operators by capability
+        serverBuilder.toolCall(
+                McpSchema.Tool.builder()
+                        .name("get_operators_by_capability")
+                        .description("Get operators that support specific capabilities")
+                        .inputSchema(McpSchemaGenerator.generateSchema(CapabilityInput.class))
+                        .build(),
+                (exchange, request) -> {
+                    try {
+                        String capability = getStringArg(request, "capability");
+                        var result = getOperatorsByCapability(capability);
+                        String jsonResult = objectMapper.writeValueAsString(result);
+                        return new McpSchema.CallToolResult(jsonResult, false);
+                    } catch (Exception e) {
+                        logger.error("Error in get_operators_by_capability tool: {}", e.getMessage(), e);
+                        return new McpSchema.CallToolResult("Error: " + e.getMessage(), true);
+                    }
+                }
+        );
+
+        logger.info("Registered 8 operator tools");
+    }
+
+    /**
+     * Helper to extract string argument from CallToolRequest
+     */
+    private String getStringArg(McpSchema.CallToolRequest request, String key) {
+        if (request.arguments() == null) {
+            return "";
+        }
+        Object value = request.arguments().get(key);
+        return value != null ? value.toString() : "";
     }
 }
