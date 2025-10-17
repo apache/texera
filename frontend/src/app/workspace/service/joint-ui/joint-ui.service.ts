@@ -111,6 +111,7 @@ export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 export const operatorPortMetricsClass = "texera-operator-port-metrics";
+const operatorWorkerCountClass = "operator-worker-count";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -128,6 +129,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorPortMetricsClass}"></text>
+      <text class="${operatorWorkerCountClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorReuseCacheTextClass}"></text>
       <text class="${operatorCoeditorEditingClass}"></text>
@@ -308,6 +310,9 @@ export class JointUIService {
     const inputMetrics = statistics.inputPortMetrics;
     const outputMetrics = statistics.outputPortMetrics;
 
+    const workerCount = statistics.numWorkers ?? 1;
+    element.attr(`.${operatorWorkerCountClass}/text`, "#workers: " + String(workerCount));
+
     inPorts.forEach(portDef => {
       const portId = portDef.id;
       if (portId != null) {
@@ -404,6 +409,7 @@ export class JointUIService {
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorPortMetricsClass}`]: { fill: fillColor },
+      [`.${operatorWorkerCountClass}`]: { fill: fillColor },
     });
     const element = jointPaper.getModelById(operatorID) as joint.shapes.devs.Model;
     const allPorts = element.getPorts();
@@ -790,6 +796,10 @@ export class JointUIService {
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
+      },
+      [`.${operatorWorkerCountClass}`]: {
+        "ref-x": -5,
+        "ref-y": -35,
       },
       ".delete-button": {
         x: 60,

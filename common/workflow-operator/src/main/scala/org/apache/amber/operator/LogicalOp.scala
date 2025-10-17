@@ -61,7 +61,7 @@ import org.apache.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.amber.operator.sklearn._
 import org.apache.amber.operator.sklearn.training._
 import org.apache.amber.operator.sleep.SleepOpDesc
-import org.apache.amber.operator.sort.SortOpDesc
+import org.apache.amber.operator.sort.{SortOpDesc, StableMergeSortOpDesc}
 import org.apache.amber.operator.sortPartitions.SortPartitionsOpDesc
 import org.apache.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
 import org.apache.amber.operator.source.apis.twitter.v2.{
@@ -79,6 +79,7 @@ import org.apache.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.amber.operator.split.SplitOpDesc
+import org.apache.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.amber.operator.udf.java.JavaUDFOpDesc
@@ -173,6 +174,7 @@ trait StateTransferFunc
     new Type(value = classOf[StripChartOpDesc], name = "StripChart"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
+    new Type(value = classOf[SubstringSearchOpDesc], name = "SubstringSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
@@ -242,6 +244,7 @@ trait StateTransferFunc
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
+    new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
       value = classOf[SklearnLogisticRegressionCVOpDesc],
