@@ -44,7 +44,6 @@ public class OperatorToolProvider {
      * List all available Texera operators
      */
     public AllOperatorMetadata listOperators() {
-        logger.info("MCP Tool: Listing all operators");
         return OperatorMetadataGenerator.allOperatorMetadata();
     }
 
@@ -52,7 +51,6 @@ public class OperatorToolProvider {
      * Get specific operator by type
      */
     public Option<OperatorMetadata> getOperator(String operatorType) {
-        logger.info("MCP Tool: Getting operator metadata for type: {}", operatorType);
         List<OperatorMetadata> operators = CollectionConverters.asJava(
             OperatorMetadataGenerator.allOperatorMetadata().operators()
         );
@@ -68,7 +66,6 @@ public class OperatorToolProvider {
      * Get operator JSON schema
      */
     public Option<JsonNode> getOperatorSchema(String operatorType) {
-        logger.info("MCP Tool: Getting operator schema for type: {}", operatorType);
         Option<OperatorMetadata> operator = getOperator(operatorType);
 
         if (operator.isDefined()) {
@@ -81,7 +78,6 @@ public class OperatorToolProvider {
      * Get operators by group name
      */
     public List<OperatorMetadata> getOperatorsByGroup(String groupName) {
-        logger.info("MCP Tool: Getting operators for group: {}", groupName);
         List<OperatorMetadata> operators = CollectionConverters.asJava(
             OperatorMetadataGenerator.allOperatorMetadata().operators()
         );
