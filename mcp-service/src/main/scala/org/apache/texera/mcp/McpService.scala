@@ -30,7 +30,6 @@ import org.apache.texera.config.McpConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.mcp.resource.HealthCheckResource
 import org.apache.texera.mcp.server.TexeraMcpServerImpl
-import org.eclipse.jetty.servlets.CrossOriginFilter
 
 import java.nio.file.Path
 
@@ -67,7 +66,8 @@ class McpService extends Application[Configuration] {
     // Register the MCP SDK servlet at /api/mcp and /api/mcp/*
     // The servlet handles all MCP protocol requests (GET for SSE, POST for messages)
     // Both paths are needed: /api/mcp for base endpoint, /api/mcp/* for any subpaths
-    val mcpServletRegistration = env.servlets()
+    val mcpServletRegistration = env
+      .servlets()
       .addServlet("mcp-protocol", mcpServer.getServlet)
     mcpServletRegistration.addMapping("/api/mcp")
     mcpServletRegistration.addMapping("/api/mcp/*")
@@ -82,20 +82,6 @@ class McpService extends Application[Configuration] {
         new AuthValueFactoryProvider.Binder(classOf[SessionUser])
       )
     }
-
-    val cors = new CrossOriginFilter
-    val holder = env.servlets().addFilter("cors", cors)
-    holder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, "*")
-    holder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, "GET,POST,OPTIONS")
-    holder.setInitParameter(
-      CrossOriginFilter.ALLOWED_HEADERS_PARAM,
-      "Content-Type,Accept,Origin,User-Agent,Mcp-Session-Id"
-    )
-    holder.setInitParameter(
-      CrossOriginFilter.EXPOSED_HEADERS_PARAM,
-      "Mcp-Session-Id"
-    )
-    holder.addMappingForUrlPatterns(null, false, "/*")
 
     // Add shutdown hook for MCP server
     env.lifecycle.addServerLifecycleListener(server => {

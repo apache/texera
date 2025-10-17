@@ -11,7 +11,10 @@ logging:
   level: INFO
   loggers:
     "io.dropwizard": INFO
-    "org.apache.texera": DEBUG
+    "org.apache.texera": INFO
+#    "org.eclipse.jetty": DEBUG
+#    "jakarta.servlet": DEBUG
+    "io.modelcontextprotocol": DEBUG
   appenders:
     - type: console
     - type: file
@@ -24,3 +27,4 @@ logging:
       archivedFileCount: 7
       bufferSize: 8KiB
       immediateFlush: true
+      logFormat: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
