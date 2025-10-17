@@ -77,7 +77,6 @@ body:
 
   - type: markdown
     attributes:
-      label: Code of Conduct
       value: |
         By submitting this issue, you agree to follow the [Apache Code of Conduct](https://www.apache.org/foundation/policies/conduct). 
   
