@@ -70,11 +70,7 @@ body:
         - Deployment / Infrastructure
         - Other
 
-  - type: checkboxes
-    id: terms
+  - type: markdown
     attributes:
-      label: Code of Conduct
-      description: By submitting this issue, you agree to follow [Apache Code of Conduct](https://www.apache.org/foundation/policies/conduct).
-      options:
-        - label: I agree to follow Apache Code of Conduct
-          required: true
+      value: |
+        By submitting this issue, you agree to follow the [Apache Code of Conduct](https://www.apache.org/foundation/policies/conduct).
