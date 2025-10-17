@@ -357,7 +357,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     let regionMap: { regionShape: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
     // update region shapes on execution
     this.executeWorkflowService
-      .getRegionStream()
+      .getRegionUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
         this.paper.model
