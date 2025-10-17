@@ -354,7 +354,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       }
     );
 
-    let regionMap: { regionShape: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
+    let regionMap: { regionElement: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
     // update region shapes on execution
     this.executeWorkflowService
       .getRegionUpdateStream()
@@ -370,14 +370,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           const ops = region.map(id => this.paper.getModelById(id));
           this.paper.model.addCell(shape);
           this.updateRegionShape(shape, ops);
-          return { regionShape: shape, operators: ops };
+          return { regionElement: shape, operators: ops };
         });
       });
 
     this.paper.model.on("change:position", operator => {
       regionMap
         .filter(region => region.operators.includes(operator))
-        .forEach(region => this.updateRegionShape(region.regionShape, region.operators));
+        .forEach(region => this.updateRegionShape(region.regionElement, region.operators));
     });
   }
 
