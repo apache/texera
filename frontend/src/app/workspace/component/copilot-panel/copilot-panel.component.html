@@ -1,0 +1,223 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="copilot-panel">
+  <!-- Header -->
+  <div class="copilot-header">
+    <h3>Texera Copilot</h3>
+    <div class="header-actions">
+      <button
+        nz-button
+        nzType="text"
+        nz-tooltip="Quick Actions"
+        (click)="toggleQuickActions()">
+        <i
+          nz-icon
+          nzType="thunderbolt"
+          [nzTheme]="showQuickActions ? 'fill' : 'outline'"></i>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nz-tooltip="Toggle Thinking Log"
+        (click)="toggleThinkingLog()">
+        <i
+          nz-icon
+          nzType="bulb"
+          [nzTheme]="showThinkingLog ? 'fill' : 'outline'"></i>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nz-tooltip="Clear Conversation"
+        (click)="clearConversation()">
+        <i
+          nz-icon
+          nzType="clear"></i>
+      </button>
+      <button
+        nz-button
+        [nzType]="copilotState.isEnabled ? 'primary' : 'default'"
+        (click)="toggleCopilot()">
+        <i
+          nz-icon
+          [nzType]="copilotState.isEnabled ? 'robot' : 'robot'"
+          [style.color]="copilotState.isEnabled ? '#52c41a' : '#d9d9d9'"></i>
+        {{ copilotState.isEnabled ? 'Enabled' : 'Disabled' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div
+    class="status-bar"
+    *ngIf="copilotState.isEnabled">
+    <nz-tag [nzColor]="copilotState.isConnected ? 'green' : 'red'">
+      {{ copilotState.isConnected ? 'Connected' : 'Disconnected' }}
+    </nz-tag>
+    <nz-tag
+      *ngIf="copilotState.isProcessing"
+      nzColor="blue">
+      <i
+        nz-icon
+        nzType="loading"></i>
+      Processing...
+    </nz-tag>
+  </div>
+
+  <!-- Quick Actions Panel -->
+  <div
+    class="quick-actions"
+    *ngIf="showQuickActions && copilotState.isEnabled">
+    <div class="quick-actions-header">Quick Actions</div>
+    <div class="quick-actions-content">
+      <button
+        nz-button
+        nzType="text"
+        nzBlock
+        (click)="suggestWorkflow()">
+        <i
+          nz-icon
+          nzType="bulb"></i>
+        Suggest Workflow
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzBlock
+        (click)="analyzeWorkflow()">
+        <i
+          nz-icon
+          nzType="fund"></i>
+        Analyze Current Workflow
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzBlock
+        (click)="listOperators()">
+        <i
+          nz-icon
+          nzType="appstore"></i>
+        List Available Operators
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzBlock
+        (click)="autoLayout()">
+        <i
+          nz-icon
+          nzType="layout"></i>
+        Auto Layout
+      </button>
+    </div>
+  </div>
+
+  <!-- Thinking Log Panel -->
+  <div
+    class="thinking-log"
+    *ngIf="showThinkingLog && copilotState.thinkingLog.length > 0">
+    <div class="log-header">
+      <span>Agent Thinking Log</span>
+    </div>
+    <div class="log-content">
+      <div
+        class="log-entry"
+        *ngFor="let log of copilotState.thinkingLog">
+        <code>{{ log }}</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages Area -->
+  <div
+    class="messages-container"
+    [class.with-thinking-log]="showThinkingLog">
+    <div class="messages-scroll">
+      <div
+        class="message"
+        *ngFor="let message of copilotState.messages"
+        [ngClass]="'message-' + message.role">
+        <!-- Message Header -->
+        <div class="message-header">
+          <span class="role">
+            <i
+              nz-icon
+              [nzType]="message.role === 'user' ? 'user' :
+                        message.role === 'assistant' ? 'robot' : 'info-circle'">
+            </i>
+            {{ message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Copilot' : 'System' }}
+          </span>
+          <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+        </div>
+
+        <!-- Message Content -->
+        <div class="message-content">{{ message.content }}</div>
+      </div>
+
+      <!-- Empty State -->
+      <div
+        class="empty-state"
+        *ngIf="copilotState.messages.length === 0">
+        <i
+          nz-icon
+          nzType="robot"
+          style="font-size: 48px; color: #d9d9d9"></i>
+        <p>Start a conversation with Texera Copilot</p>
+        <p class="hint">Ask me to help you build or modify your workflow!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div
+    class="input-area"
+    *ngIf="copilotState.isEnabled">
+    <nz-input-group
+      [nzSuffix]="sendButton"
+      nzSize="large">
+      <input
+        nz-input
+        [formControl]="inputControl"
+        placeholder="Ask Copilot to help with your workflow..."
+        (keyup.enter)="sendMessage()"
+        [disabled]="!copilotState.isConnected || copilotState.isProcessing" />
+    </nz-input-group>
+
+    <ng-template #sendButton>
+      <button
+        nz-button
+        nzType="text"
+        (click)="sendMessage()"
+        [disabled]="!inputControl.value?.trim() || !copilotState.isConnected || copilotState.isProcessing">
+        <i
+          nz-icon
+          nzType="send"></i>
+      </button>
+    </ng-template>
+  </div>
+
+  <!-- Disabled State -->
+  <div
+    class="disabled-overlay"
+    *ngIf="!copilotState.isEnabled">
+    <p>Copilot is disabled. Click the enable button to start.</p>
+  </div>
+</div>

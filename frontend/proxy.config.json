@@ -1,4 +1,15 @@
 {
+  "/api/copilot/mcp": {
+    "target": "http://localhost:9098",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true
+  },
+  "/api/copilot/agent": {
+    "target": "http://localhost:8001",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/compile": {
     "target": "http://localhost:9090",
     "secure": false,
