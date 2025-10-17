@@ -1,0 +1,161 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="centered-container">
+  <div
+    class="input-wrapper"
+    *ngIf="hasPartialNonDownloadable && blockingDatasetLabels.length > 0">
+    <nz-alert
+      nzType="warning"
+      nzMessage="Some operators will be skipped"
+      [nzDescription]="blockingDatasetSummary || null"></nz-alert>
+  </div>
+  <ng-container *ngIf="!isExportRestricted; else restrictedExport">
+    <div class="input-wrapper">
+      <form nz-form>
+        <nz-row *ngIf="exportType !== 'data'">
+          <nz-col [nzSpan]="24">
+            <nz-form-item>
+              <nz-form-label nzFor="exportTypeInput">Export Type</nz-form-label>
+              <nz-form-control>
+                <nz-select
+                  id="exportTypeInput"
+                  [(ngModel)]="exportType"
+                  name="exportType"
+                  nzPlaceHolder="Select export type">
+                  <nz-option
+                    *ngIf="isTableOutput"
+                    nzValue="arrow"
+                    nzLabel="Binary Format (.arrow)"></nz-option>
+                  <nz-option
+                    *ngIf="isTableOutput && !containsBinaryData"
+                    nzValue="csv"
+                    nzLabel="Comma Separated Values (.csv)"></nz-option>
+                  <nz-option
+                    *ngIf="isVisualizationOutput"
+                    nzValue="html"
+                    nzLabel="Web Page (.html)"></nz-option>
+                  <nz-option
+                    nzValue="parquet"
+                    nzLabel="Parquet (.parquet)"></nz-option>
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+          </nz-col>
+        </nz-row>
+        <nz-row *ngIf="exportType === 'data'">
+          <nz-col [nzSpan]="24">
+            <nz-form-item>
+              <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
+              <nz-form-control>
+                <input
+                  id="filenameInput"
+                  [(ngModel)]="inputFileName"
+                  name="filename"
+                  type="text"
+                  nz-input
+                  placeholder="Enter filename for binary data" />
+              </nz-form-control>
+            </nz-form-item>
+          </nz-col>
+        </nz-row>
+        <nz-row>
+          <nz-col [nzSpan]="24">
+            <nz-form-item>
+              <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
+              <nz-form-control>
+                <nz-select
+                  id="destinationInput"
+                  [(ngModel)]="destination"
+                  name="destination"
+                  nzPlaceHolder="Select destination">
+                  <nz-option
+                    nzValue="dataset"
+                    nzLabel="Dataset"></nz-option>
+                  <nz-option
+                    nzValue="local"
+                    nzLabel="Local"></nz-option>
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+          </nz-col>
+        </nz-row>
+      </form>
+    </div>
+    <div
+      class="input-wrapper"
+      *ngIf="destination === 'dataset'">
+      <input
+        [(ngModel)]="inputDatasetName"
+        (input)="onUserInputDatasetName($event)"
+        type="text"
+        nz-input
+        name="datasetName"
+        placeholder="Search for dataset by name..."
+        [nzAutocomplete]="auto" />
+      <nz-autocomplete #auto>
+        <nz-auto-option
+          *ngFor="let dataset of filteredUserAccessibleDatasets"
+          [nzLabel]="dataset.dataset.name">
+          <div class="auto-option-content">
+            <div class="dataset-id-container">{{dataset.dataset.did?.toString()}}</div>
+
+            <span class="dataset-name">{{ dataset.dataset.name }}</span>
+
+            <button
+              nz-button
+              nzType="primary"
+              class="dataset-option-link-btn"
+              (click)="onClickExportResult('dataset', dataset)">
+              Save
+            </button>
+          </div>
+        </nz-auto-option>
+      </nz-autocomplete>
+      <nz-divider
+        nzText="or"
+        nzOrientation="center"></nz-divider>
+      <button
+        nz-button
+        nzType="dashed"
+        nzBlock
+        (click)="onClickCreateNewDataset()">
+        <span
+          nz-icon
+          nzType="plus-circle"></span>
+        Create New Dataset
+      </button>
+    </div>
+    <button
+      nz-button
+      nzType="default"
+      *ngIf="destination === 'local'"
+      (click)="onClickExportResult( 'local')">
+      Export
+    </button>
+  </ng-container>
+  <ng-template #restrictedExport>
+    <div class="input-wrapper">
+      <nz-alert
+        nzType="error"
+        nzMessage="Export unavailable"
+        [nzDescription]="blockingDatasetSummary || null"></nz-alert>
+    </div>
+  </ng-template>
+</div>

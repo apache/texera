@@ -1,7 +1,7 @@
 <h1 align="center">Apache Texera - Collaborative Data Science and AI/ML Using Workflows</h1>
 
 <p align="center">
-  <a href="https://texera.io"> <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" height="150px"/> </a>
+  <a href="https://texera.io"> <img src="frontend/src/assets/logos/full_logo_small.png" alt="texera-logo" height="150px"/> </a>
   <br>
   <i>Apache Texera (Incubating) supports scalable data computation and enables advanced AI/ML techniques.</i>
   <br>

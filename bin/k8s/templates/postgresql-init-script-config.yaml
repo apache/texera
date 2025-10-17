@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.postgresql.primary.initdb.scriptsConfigMap }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+data:
+  init.sh: |
+    #!/bin/bash
+    echo "Running Texera schema initialization..."
+    export PGPASSWORD=$POSTGRES_PASSWORD
+
+    # Execute SQL files in order
+    echo "Initializing LakeFS database..."
+    cat <<'EOF' > /tmp/texera_lakefs.sql
+{{ .Files.Get "files/texera_lakefs.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/texera_lakefs.sql
+
+    echo "Initializing Iceberg catalog database..."
+    cat <<'EOF' > /tmp/iceberg_postgres_catalog.sql
+{{ .Files.Get "files/iceberg_postgres_catalog.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/iceberg_postgres_catalog.sql
+
+    echo "Initializing Texera database..."
+    cat <<'EOF' > /tmp/texera_ddl.sql
+{{ .Files.Get "files/texera_ddl.sql" | indent 6 }}
+    EOF
+    psql -U postgres -f /tmp/texera_ddl.sql
+
+    echo "Schema initialization complete."
