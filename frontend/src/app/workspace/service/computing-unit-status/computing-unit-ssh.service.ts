@@ -36,7 +36,7 @@ export class ComputingUnitSshService {
     const baseUrl = ComputingUnitSshService.SSH_ENDPOINT;
     const params = new URLSearchParams({
       uid: uid.toString(),
-      cuid: cuid.toString()
+      cuid: cuid.toString(),
     });
 
     const accessToken = AuthService.getAccessToken();
