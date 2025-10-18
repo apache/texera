@@ -87,6 +87,7 @@ github:
           - python_udf (ubuntu-latest, 3.11)
           - python_udf (ubuntu-latest, 3.12)
           - Check License Headers
+          - Validate PR title
 
       required_pull_request_reviews:
         dismiss_stale_reviews: false
