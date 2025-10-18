@@ -101,5 +101,3 @@ notifications:
   discussions:          dev@texera.apache.org
   jobs:                 commits@texera.apache.org
 
-
-whoami: test-ci
