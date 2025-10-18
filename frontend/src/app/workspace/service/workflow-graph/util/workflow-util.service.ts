@@ -60,6 +60,13 @@ export class WorkflowUtilService {
   }
 
   /**
+   * Returns a list of all available operator types
+   */
+  public getOperatorTypeList(): string[] {
+    return this.operatorSchemaList.map(schema => schema.operatorType);
+  }
+
+  /**
    * Generates a new UUID for operator
    */
   public getOperatorRandomUUID(): string {

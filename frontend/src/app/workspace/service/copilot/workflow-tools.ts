@@ -17,48 +17,46 @@
  * under the License.
  */
 
-import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
+import { OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 
+// Tool interface compatible with AI SDK
+interface AITool {
+  description: string;
+  parameters: z.ZodTypeAny;
+  execute: (args: any) => Promise<any>;
+}
+
 /**
- * Create workflow manipulation tools that work with WorkflowActionService
+ * Create workflow manipulation tools for Vercel AI SDK
  */
 export function createWorkflowTools(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService
-) {
+): Record<string, AITool> {
+
   // Tool: Add Operator
-  const addOperator = createTool({
-    id: "addOperator",
+  const addOperator: AITool = {
     description: "Add a new operator to the workflow",
-    inputSchema: z.object({
+    parameters: z.object({
       operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
     }),
-    outputSchema: z.object({
-      success: z.boolean(),
-      operatorId: z.string().optional(),
-      message: z.string().optional(),
-      error: z.string().optional(),
-    }),
-    execute: async ({ context }) => {
-      const { operatorType } = context;
-
+    execute: async (args: { operatorType: string }) => {
       try {
         // Validate operator type exists
-        if (!operatorMetadataService.operatorTypeExists(operatorType)) {
+        if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
           return {
             success: false,
-            error: `Unknown operator type: ${operatorType}. Use listOperatorTypes tool to see available types.`,
+            error: `Unknown operator type: ${args.operatorType}. Use listOperatorTypes tool to see available types.`,
           };
         }
 
         // Get a new operator predicate with default settings
-        const operator = workflowUtilService.getNewOperatorPredicate(operatorType);
+        const operator = workflowUtilService.getNewOperatorPredicate(args.operatorType);
 
         // Calculate a default position (can be adjusted by auto-layout later)
         const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
@@ -72,46 +70,37 @@ export function createWorkflowTools(
         return {
           success: true,
           operatorId: operator.operatorID,
-          message: `Added ${operatorType} operator to workflow`,
+          message: `Added ${args.operatorType} operator to workflow`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
     },
-  });
+  };
 
   // Tool: Add Link
-  const addLink = createTool({
-    id: "addLink",
+  const addLink: AITool = {
     description: "Connect two operators with a link",
-    inputSchema: z.object({
+    parameters: z.object({
       sourceOperatorId: z.string().describe("ID of the source operator"),
       sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
       targetOperatorId: z.string().describe("ID of the target operator"),
       targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
     }),
-    outputSchema: z.object({
-      success: z.boolean(),
-      linkId: z.string().optional(),
-      message: z.string().optional(),
-      error: z.string().optional(),
-    }),
-    execute: async ({ context }) => {
-      const { sourceOperatorId, sourcePortId, targetOperatorId, targetPortId } = context;
-
+    execute: async (args: { sourceOperatorId: string; sourcePortId?: string; targetOperatorId: string; targetPortId?: string }) => {
       try {
         // Default port IDs if not specified
-        const sourcePId = sourcePortId || "output-0";
-        const targetPId = targetPortId || "input-0";
+        const sourcePId = args.sourcePortId || "output-0";
+        const targetPId = args.targetPortId || "input-0";
 
         const link: OperatorLink = {
           linkID: `link_${Date.now()}`,
           source: {
-            operatorID: sourceOperatorId,
+            operatorID: args.sourceOperatorId,
             portID: sourcePId,
           },
           target: {
-            operatorID: targetOperatorId,
+            operatorID: args.targetOperatorId,
             portID: targetPId,
           },
         };
@@ -121,17 +110,74 @@ export function createWorkflowTools(
         return {
           success: true,
           linkId: link.linkID,
-          message: `Connected ${sourceOperatorId}:${sourcePId} to ${targetOperatorId}:${targetPId}`,
+          message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
     },
-  });
+  };
+
+  // Tool: List Operators
+  const listOperators: AITool = {
+    description: "Get all operators in the current workflow",
+    parameters: z.object({}),
+    execute: async () => {
+      try {
+        const operators = workflowActionService.getTexeraGraph().getAllOperators();
+        return {
+          success: true,
+          operators: operators,
+          count: operators.length,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  };
+
+  // Tool: List Links
+  const listLinks: AITool = {
+    description: "Get all links in the current workflow",
+    parameters: z.object({}),
+    execute: async () => {
+      try {
+        const links = workflowActionService.getTexeraGraph().getAllLinks();
+        return {
+          success: true,
+          links: links,
+          count: links.length,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  };
+
+  // Tool: List Operator Types
+  const listOperatorTypes: AITool = {
+    description: "Get all available operator types in the system",
+    parameters: z.object({}),
+    execute: async () => {
+      try {
+        const operatorTypes = workflowUtilService.getOperatorTypeList();
+        return {
+          success: true,
+          operatorTypes: operatorTypes,
+          count: operatorTypes.length,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  };
 
   // Return the tools
   return {
     addOperator,
     addLink,
+    listOperators,
+    listLinks,
+    listOperatorTypes,
   };
 }

@@ -18,17 +18,20 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { Mastra, Agent } from "@mastra/core";
-import { MCPClient } from "@mastra/mcp";
+import { BehaviorSubject, Subject } from "rxjs";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { createWorkflowTools } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
+import { generateText } from "ai";
+import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { AppSettings } from "../../../common/app-setting";
 
 // API endpoints as constants
-export const COPILOT_MCP_URL = "api/mcp";
-export const COPILOT_AGENT_URL = "api/copilot/agent";
+export const COPILOT_MCP_URL = "mcp";
+export const AGENT_MODEL_ID = "claude-3.7"
 
 export interface CopilotMessage {
   role: "user" | "assistant" | "system";
@@ -46,19 +49,18 @@ export interface CopilotState {
 }
 
 /**
- * Texera Copilot - A Mastra-based AI assistant for workflow manipulation
- * Combines MCP tools from backend with frontend workflow manipulation tools
+ * Texera Copilot - An AI assistant for workflow manipulation
+ * Uses Vercel AI SDK for chat completion and MCP SDK for tool discovery
  */
 @Injectable({
   providedIn: "root",
 })
 export class TexeraCopilot {
-  private mastra: Mastra;
-  private agent?: Agent; // Store agent reference
-  private mcpClient?: MCPClient; // Keep reference for cleanup
-  private mcpTools: Record<string, any> = {};
+  private mcpClient?: Client;
+  private mcpTools: any[] = [];
+  private model: any;
 
-  // State management (integrated from service)
+  // State management
   private stateSubject = new BehaviorSubject<CopilotState>({
     isEnabled: false,
     isConnected: false,
@@ -73,73 +75,25 @@ export class TexeraCopilot {
 
   constructor(
     private workflowActionService: WorkflowActionService,
+    private workflowUtilService: WorkflowUtilService,
     private operatorMetadataService: OperatorMetadataService
   ) {
-    // Initialize Mastra
-    this.mastra = new Mastra();
-
-    // Initialize on construction
-    this.initialize();
+    // Don't auto-initialize, wait for user to enable
   }
 
   /**
-   * Initialize the copilot with MCP and local tools
+   * Initialize the copilot with MCP and AI model
    */
   private async initialize(): Promise<void> {
     try {
-      // 1. Connect to MCP server using Mastra's MCP client
+      // 1. Connect to MCP server
       await this.connectMCP();
 
-      // 2. Get workflow manipulation tools
-      const workflowTools = createWorkflowTools(this.workflowActionService, this.operatorMetadataService);
-
-      // 3. Combine MCP tools with local workflow tools
-      const allTools = {
-        ...this.mcpTools,
-        ...workflowTools,
-      };
-
-      // 4. Create and store the agent
-      this.agent = new Agent({
-        name: "texera-copilot",
-        instructions: `You are Texera Copilot, an AI assistant for building and modifying data workflows.
-
-CAPABILITIES:
-1. Workflow Manipulation (Local Tools):
-   - Add/delete operators
-   - Connect operators with links
-   - Modify operator properties
-   - Auto-layout workflows
-   - Add comment boxes
-
-2. Operator Discovery (MCP Tools):
-   - List available operator types
-   - Get operator schemas
-   - Search operators by capability
-   - Get operator metadata
-
-CURRENT WORKFLOW STATE:
-- Operators: ${this.workflowActionService.getTexeraGraph().getAllOperators().length}
-- Links: ${this.workflowActionService.getTexeraGraph().getAllLinks().length}
-- Workflow Name: ${this.workflowActionService.getWorkflowMetadata().name}
-
-GUIDELINES:
-- Use meaningful operator IDs (e.g., csv_source_1, filter_age, aggregate_results)
-- Validate operator types before adding them
-- Ensure proper port connections when creating links
-- Use MCP tools to discover available operators first
-- Suggest auto-layout after adding multiple operators
-
-WORKFLOW PATTERNS:
-- ETL Pipeline: Source → Transform → Sink
-- Filtering: Source → Filter → Results
-- Aggregation: Source → GroupBy → Aggregate → Results
-- Join: Source1 + Source2 → Join → Results`,
-        tools: allTools,
-        model: createOpenAI({
-          baseURL: COPILOT_AGENT_URL,
-        })("gpt-4"),
-      });
+      // 2. Initialize OpenAI model
+      this.model = createOpenAI({
+        baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
+        apiKey: "dummy"
+      }).chat(AGENT_MODEL_ID);
 
       this.updateState({
         isEnabled: true,
@@ -162,27 +116,28 @@ WORKFLOW PATTERNS:
    */
   private async connectMCP(): Promise<void> {
     try {
-      // Create MCP client with HTTP server configuration
-      // Note: Auth headers can be added if needed in the future
-      const mcpClient = new MCPClient({
-        servers: {
-          texeraMcp: {
-            url: new URL(`${window.location.origin}/${COPILOT_MCP_URL}`),
-          },
-        },
-        timeout: 30000, // 30 second timeout
-      });
+      // Create MCP client with SSE transport for HTTP streaming
+      const transport = new StreamableHTTPClientTransport(
+        new URL(`${AppSettings.getApiEndpoint()}/${COPILOT_MCP_URL}`, document.baseURI)
+      );
 
-      // Store reference for cleanup
-      this.mcpClient = mcpClient;
+      this.mcpClient = new Client(
+        {
+          name: "texera-copilot-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {},
+        }
+      );
+
+      await this.mcpClient.connect(transport);
 
       // Get all available MCP tools
-      const tools = await mcpClient.getTools();
+      const toolsResponse = await this.mcpClient.listTools();
+      this.mcpTools = toolsResponse.tools || [];
 
-      // The tools from MCP are already in the correct format
-      this.mcpTools = tools || {};
-
-      console.log(`Connected to MCP server. Retrieved ${Object.keys(this.mcpTools).length} tools.`);
+      console.log(`Connected to MCP server. Retrieved ${this.mcpTools.length} tools.`);
     } catch (error) {
       console.error("Failed to connect to MCP:", error);
       throw error;
@@ -190,12 +145,37 @@ WORKFLOW PATTERNS:
   }
 
   /**
+   * Convert MCP tools to AI SDK tool format
+   */
+  private getMCPToolsForAI(): Record<string, any> {
+    const tools: Record<string, any> = {};
+
+    for (const mcpTool of this.mcpTools) {
+      tools[mcpTool.name] = {
+        description: mcpTool.description || "",
+        parameters: mcpTool.inputSchema || {},
+        execute: async (args: any) => {
+          if (!this.mcpClient) {
+            throw new Error("MCP client not connected");
+          }
+          const result = await this.mcpClient.callTool({
+            name: mcpTool.name,
+            arguments: args,
+          });
+          return result.content;
+        },
+      };
+    }
+
+    return tools;
+  }
+
+  /**
    * Send a message to the copilot
    */
   public async sendMessage(message: string): Promise<void> {
-    // Check if agent is initialized
-    if (!this.agent) {
-      throw new Error("Copilot agent not initialized");
+    if (!this.model) {
+      throw new Error("Copilot not initialized");
     }
 
     // Add user message
@@ -203,20 +183,49 @@ WORKFLOW PATTERNS:
     this.updateState({ isProcessing: true });
 
     try {
-      // Use Mastra's built-in message handling
-      const response = await this.agent.generate(message);
+      // Get workflow manipulation tools
+      const workflowTools = createWorkflowTools(
+        this.workflowActionService,
+        this.workflowUtilService,
+        this.operatorMetadataService
+      );
+
+      // Get MCP tools in AI SDK format
+      const mcpToolsForAI = this.getMCPToolsForAI();
+
+      // Combine all tools
+      const allTools = {
+        ...mcpToolsForAI,
+        ...workflowTools,
+      };
+
+      // Generate response using Vercel AI SDK
+      const response = await generateText({
+        model: this.model,
+        messages: this.getConversationHistory().map(msg => ({
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content,
+        })),
+        tools: allTools,
+        system: `You are Texera Copilot, an AI assistant for building and modifying data workflows.
+
+CAPABILITIES:
+1. Workflow Manipulation (Local Tools):
+   - Add/delete operators
+   - Connect operators with links
+   - Modify operator properties
+   - Auto-layout workflows
+   - Add comment boxes
+
+2. Operator Discovery (MCP Tools):
+   - List available operator types
+   - Get operator schemas
+   - Search operators by capability
+   - Get operator metadata`,
+      });
 
       // Add assistant response
       this.addAssistantMessage(response.text, response.toolCalls);
-
-      // Update thinking log if available
-      if (response.reasoning && Array.isArray(response.reasoning)) {
-        // Extract text content from reasoning chunks
-        const reasoningTexts = response.reasoning.map((chunk: any) =>
-          typeof chunk === "string" ? chunk : chunk.content || JSON.stringify(chunk)
-        );
-        this.updateThinkingLog(reasoningTexts);
-      }
     } catch (error: any) {
       console.error("Error processing request:", error);
       this.addSystemMessage(`Error: ${error.message}`);
@@ -240,8 +249,6 @@ WORKFLOW PATTERNS:
       messages: [],
       thinkingLog: [],
     });
-
-    // Reset agent conversation
 
     this.addSystemMessage("Conversation cleared. Ready for new requests.");
   }
@@ -279,7 +286,7 @@ WORKFLOW PATTERNS:
   private async disable(): Promise<void> {
     // Disconnect the MCP client if it exists
     if (this.mcpClient) {
-      await this.mcpClient.disconnect();
+      await this.mcpClient.close();
       this.mcpClient = undefined;
     }
 

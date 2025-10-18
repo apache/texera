@@ -1,0 +1,172 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div
+  *ngIf="isVisible"
+  class="copilot-avatar-container">
+  <!-- AI Avatar -->
+  <nz-avatar
+    class="copilot-avatar"
+    [nzIcon]="'robot'"
+    [nzSize]="32"
+    [style.backgroundColor]="'#1890ff'"
+    [style.cursor]="'pointer'"
+    (click)="toggleChat()"
+    nz-tooltip
+    [nzTooltipTitle]="getStatusTooltip()">
+  </nz-avatar>
+
+  <!-- Status Indicator -->
+  <nz-badge
+    class="status-indicator"
+    [nzColor]="getStatusColor()"
+    [nzDot]="true">
+  </nz-badge>
+
+  <!-- Floating Chat Box -->
+  <div
+    *ngIf="isChatVisible"
+    class="chat-box">
+    <!-- Header -->
+    <div class="chat-header">
+      <div class="chat-title">
+        <i
+          nz-icon
+          nzType="robot"
+          nzTheme="outline"></i>
+        <span>Texera Copilot</span>
+        <nz-badge
+          [nzColor]="getStatusColor()"
+          [nzDot]="true"
+          style="margin-left: 8px">
+        </nz-badge>
+      </div>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="toggleChat()">
+        <i
+          nz-icon
+          nzType="close"></i>
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages">
+      <div
+        *ngFor="let message of messages"
+        class="message"
+        [ngClass]="'message-' + message.role">
+        <div class="message-content">
+          <div class="message-role">
+            <i
+              *ngIf="message.role === 'user'"
+              nz-icon
+              nzType="user"></i>
+            <i
+              *ngIf="message.role === 'assistant'"
+              nz-icon
+              nzType="robot"></i>
+            <i
+              *ngIf="message.role === 'system'"
+              nz-icon
+              nzType="info-circle"></i>
+            <strong>{{ message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Copilot' : 'System' }}</strong>
+          </div>
+          <div class="message-text">{{ message.content }}</div>
+          <div
+            *ngIf="message.toolCalls && message.toolCalls.length > 0"
+            class="tool-calls">
+            <div
+              *ngFor="let tool of message.toolCalls"
+              class="tool-call">
+              <i
+                nz-icon
+                nzType="tool"></i>
+              <span>{{ tool.name || 'Tool' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading indicator -->
+      <div
+        *ngIf="isProcessing"
+        class="message message-assistant">
+        <div class="message-content">
+          <div class="message-role">
+            <i
+              nz-icon
+              nzType="robot"></i>
+            <strong>Copilot</strong>
+          </div>
+          <div class="message-text">
+            <nz-spin nzSimple></nz-spin>
+            <span style="margin-left: 8px">Thinking...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div
+        *ngIf="messages.length === 0 && !isProcessing"
+        class="empty-state">
+        <i
+          nz-icon
+          nzType="message"
+          style="font-size: 48px; color: #bfbfbf"></i>
+        <p>Start a conversation with the copilot</p>
+        <p class="empty-hint">Ask me to help you build workflows!</p>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input">
+      <textarea
+        nz-input
+        [(ngModel)]="userInput"
+        (keypress)="onKeyPress($event)"
+        [disabled]="isProcessing || !isConnected"
+        placeholder="Type a message... (Press Enter to send)"
+        rows="2">
+      </textarea>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="sendMessage()"
+        [disabled]="!userInput.trim() || isProcessing || !isConnected">
+        <i
+          nz-icon
+          nzType="send"></i>
+      </button>
+    </div>
+
+    <!-- Connection Status -->
+    <div
+      *ngIf="!isConnected"
+      class="connection-warning">
+      <i
+        nz-icon
+        nzType="warning"
+        nzTheme="fill"></i>
+      <span>Copilot is disconnected. Please check your connection.</span>
+    </div>
+  </div>
+</div>

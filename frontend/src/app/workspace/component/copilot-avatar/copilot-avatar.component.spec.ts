@@ -17,30 +17,26 @@
  * under the License.
  */
 
-module.exports = {
-  resolve: {
-    fallback: {
-      // Minimal polyfill for path (needed by some dependencies)
-      "path": require.resolve("path-browserify"),
-    }
-  },
-  module: {
-    rules: [
-      {
-        test: /\.css$/,
-        use: ["style-loader", "css-loader"],
-        include: [
-          require("path").resolve(__dirname, "node_modules/monaco-editor"),
-          require("path").resolve(__dirname, "node_modules/monaco-breakpoints")
-        ],
-      },
-    ],
-    // this is required for loading .wasm (and other) files.
-    // For context, see https://stackoverflow.com/a/75252098 and https://github.com/angular/angular-cli/issues/24617
-    parser: {
-      javascript: {
-        url: true,
-      },
-    },
-  },
-};
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { CopilotAvatarComponent } from "./copilot-avatar.component";
+
+describe("CopilotAvatarComponent", () => {
+  let component: CopilotAvatarComponent;
+  let fixture: ComponentFixture<CopilotAvatarComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [CopilotAvatarComponent],
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(CopilotAvatarComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
+});
