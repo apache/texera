@@ -69,7 +69,7 @@ class ComputingUnitManagingService extends Application[ComputingUnitManagingServ
 }
 
 object ComputingUnitManagingService {
-
+  introduce some error
   def main(args: Array[String]): Unit = {
     val configFilePath = Path
       .of(sys.env.getOrElse("TEXERA_HOME", "."))
