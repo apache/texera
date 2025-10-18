@@ -44,6 +44,12 @@ data:
                           domains: ["*"]
                           routes:
                             - match:
+                                prefix: "/wsapi/cu-ssh"
+                              route:
+                                cluster: dynamic_service
+                                prefix_rewrite: "/"
+                                timeout: "0s" # disables timeout for SSH connections
+                            - match:
                                 prefix: "/wsapi"
                               route:
                                 cluster: dynamic_service
@@ -97,8 +103,19 @@ data:
                                 local uri = request_handle:headers():get(":path")
                                 local cuid = string.match(uri, "cuid=(%d+)")
                                 if cuid then
-                                  local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
-                                  request_handle:headers():replace(":authority", new_host)
+                                  -- Handle SSH WebSocket connections and ttyd resources
+                                  if string.match(uri, "^/wsapi/cu%-ssh") then
+                                    -- For SSH connections, route to ttyd WebSocket port
+                                    local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:7681"
+                                    request_handle:headers():replace(":authority", new_host)
+
+                                    -- Store the cuid in a header for later use
+                                    request_handle:headers():add("x-ttyd-cuid", cuid)
+                                  else
+                                    -- For regular WebSocket connections, route to the standard port
+                                    local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
+                                    request_handle:headers():replace(":authority", new_host)
+                                  end
                                 end
                               end
                       - name: envoy.filters.http.dynamic_forward_proxy

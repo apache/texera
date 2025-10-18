@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef, OnDestroy } from "@angular/core";
 import { take } from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit, WorkflowComputingUnitType } from "../../types/workflow-computing-unit";
@@ -33,6 +33,9 @@ import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-execut
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { ComputingUnitSshService } from "../../service/computing-unit-status/computing-unit-ssh.service";
+import { UserService } from "../../../common/service/user/user.service";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 
 @UntilDestroy()
 @Component({
@@ -40,13 +43,18 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
   templateUrl: "./computing-unit-selection.component.html",
   styleUrls: ["./computing-unit-selection.component.scss"],
 })
-export class ComputingUnitSelectionComponent implements OnInit {
+export class ComputingUnitSelectionComponent implements OnInit, OnDestroy {
   // current workflow's Id, will change with wid in the workflowActionService.metadata
   workflowId: number | undefined;
 
   lastSelectedCuid?: number;
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
+
+  // SSH Terminal properties
+  sshModalVisible = false;
+  sshModalTitle = "SSH Terminal";
+  terminalUrl: SafeResourceUrl | null = null;
 
   // variables for creating a computing unit
   addComputeUnitModalVisible = false;
@@ -86,7 +94,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private computingUnitStatusService: ComputingUnitStatusService,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NzModalService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private sshService: ComputingUnitSshService,
+    private userService: UserService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -156,6 +167,10 @@ export class ComputingUnitSelectionComponent implements OnInit {
       });
 
     this.registerWorkflowMetadataSubscription();
+  }
+
+  ngOnDestroy(): void {
+    this.closeSshTerminal();
   }
 
   /**
@@ -923,4 +938,26 @@ export class ComputingUnitSelectionComponent implements OnInit {
       terminateTooltip: "Terminate this computing unit",
     },
   } as const;
+
+  /**
+   * Open SSH Terminal modal
+   */
+  openSshTerminal(unit: DashboardWorkflowComputingUnit): void {
+    this.sshModalTitle = `SSH Terminal - ${unit.computingUnit.name}`;
+
+    const uid = this.userService.getCurrentUser()?.uid || 1;
+    const cuid = unit.computingUnit.cuid;
+    const url = this.sshService.getComputingUnitSshUrl(uid, cuid);
+    this.terminalUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+
+    this.sshModalVisible = true;
+  }
+
+  /**
+   * Close SSH Terminal modal
+   */
+  closeSshTerminal(): void {
+    this.sshModalVisible = false;
+    this.terminalUrl = null;
+  }
 }

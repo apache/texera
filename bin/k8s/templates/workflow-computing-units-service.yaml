@@ -28,3 +28,7 @@ spec:
     - protocol: TCP
       port: {{ .Values.workflowComputingUnitPool.service.port }}
       targetPort: {{ .Values.workflowComputingUnitPool.service.targetPort }}
+    - name: ttyd
+      protocol: TCP
+      port: 7681
+      targetPort: 7681

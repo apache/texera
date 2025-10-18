@@ -133,6 +133,7 @@ object KubernetesClient {
       specBuilder.withRuntimeClassName("nvidia")
     }
 
+    // Add main computing unit container
     val containerBuilder = specBuilder
       .addNewContainer()
       .withName("computing-unit-master")
@@ -140,6 +141,7 @@ object KubernetesClient {
       .withImagePullPolicy(KubernetesConfig.computingUnitImagePullPolicy)
       .addNewPort()
       .withContainerPort(KubernetesConfig.computeUnitPortNumber)
+      .withName("http")
       .endPort()
       .withEnv(envList)
       .withResources(resourceBuilder.build())
