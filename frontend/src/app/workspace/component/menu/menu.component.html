@@ -79,6 +79,7 @@
         <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
 
+      <texera-copilot-avatar></texera-copilot-avatar>
       <texera-user-icon></texera-user-icon>
     </div>
     <div id="button-groups">
@@ -231,6 +232,15 @@
             <i
               nz-icon
               nzType="comment"></i>
+          </button>
+          <button
+            (click)="onClickToggleCopilot()"
+            nz-button
+            [title]="copilotEnabled ? 'disable copilot' : 'enable copilot'">
+            <i
+              nz-icon
+              nzType="robot"
+              [nzTheme]="copilotEnabled ? 'twotone' : 'outline'"></i>
           </button>
           <button
             nz-button

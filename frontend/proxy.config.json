@@ -1,12 +1,12 @@
 {
-  "/api/copilot/mcp": {
+  "/api/mcp": {
     "target": "http://localhost:9098",
     "secure": false,
     "changeOrigin": true,
     "ws": true
   },
-  "/api/copilot/agent": {
-    "target": "http://localhost:8001",
+  "/api/chat/completion": {
+    "target": "http://0.0.0.0:4000",
     "secure": false,
     "changeOrigin": true
   },
