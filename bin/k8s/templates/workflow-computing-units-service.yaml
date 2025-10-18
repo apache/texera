@@ -25,7 +25,8 @@ spec:
   selector:
     type: computing-unit # TODO: consider change this
   ports:
-    - protocol: TCP
+    - name: amber
+      protocol: TCP
       port: {{ .Values.workflowComputingUnitPool.service.port }}
       targetPort: {{ .Values.workflowComputingUnitPool.service.targetPort }}
     - name: ttyd
