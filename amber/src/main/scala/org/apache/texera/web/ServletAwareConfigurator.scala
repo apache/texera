@@ -67,20 +67,11 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           s"User ID: $userId, User Name: $userName, User Email: $userEmail with CU Access: $cuAccess"
         )
 
-        config.getUserProperties.put(
-          classOf[User].getName,
-          new User(
-            userId,
-            userName,
-            userEmail,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-          )
-        )
+        val user = new User()
+        user.setUid(userId)
+        user.setName(userName)
+        user.setEmail(userEmail)
+        config.getUserProperties.put(classOf[User].getName, user)
         logger.debug(s"User created from headers: ID=$userId, Name=$userName")
       } else {
         // SINGLE NODE MODE: Construct the User object from JWT in query parameters.
@@ -96,20 +87,11 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           .get("access-token")
           .map(token => {
             val claims = jwtConsumer.process(token).getJwtClaims
-            config.getUserProperties.put(
-              classOf[User].getName,
-              new User(
-                claims.getClaimValue("userId").asInstanceOf[Long].toInt,
-                claims.getSubject,
-                String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-              )
-            )
+            val user = new User()
+            user.setUid(claims.getClaimValue("userId").asInstanceOf[Long].toInt)
+            user.setName(claims.getSubject)
+            user.setEmail(String.valueOf(claims.getClaimValue("email").asInstanceOf[String]))
+            config.getUserProperties.put(classOf[User].getName, user)
           })
       }
     } catch {

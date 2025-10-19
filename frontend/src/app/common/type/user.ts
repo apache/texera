@@ -46,6 +46,7 @@ export interface User
     comment: string;
     lastLogin?: number;
     accountCreation?: Second;
+    permission?: string; // JSON string representing user permissions
   }> {}
 
 export interface File

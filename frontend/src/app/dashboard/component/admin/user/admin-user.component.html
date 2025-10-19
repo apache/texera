@@ -92,6 +92,7 @@
         User Role
       </th>
       <th>Quota</th>
+      <th>Permission</th>
       <th>Account Creation Time</th>
     </tr>
   </thead>
@@ -295,6 +296,18 @@
         </button>
       </td>
       <td>
+        <button
+          (click)="openPermissionModal(user)"
+          nz-button
+          nzSize="small"
+          nz-tooltip="View and edit permissions">
+          <i
+            nz-icon
+            nzType="setting"></i>
+          Permissions
+        </button>
+      </td>
+      <td>
         <ng-container *ngIf="getAccountCreation(user) as ac; else noAC">
           {{ ac | date:'MM/dd/y, h:mm a' }}
         </ng-container>
@@ -310,3 +323,11 @@
     Add
   </button>
 </nz-table>
+
+<texera-permission-edit-modal
+  [isVisible]="isPermissionModalVisible"
+  [permissionTemplate]="permissionTemplate"
+  [user]="selectedUserForPermission"
+  (save)="handlePermissionSave($event)"
+  (cancel)="handlePermissionCancel()">
+</texera-permission-edit-modal>

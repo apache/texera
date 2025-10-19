@@ -24,10 +24,24 @@ import { AppSettings } from "../../../../common/app-setting";
 import { ExecutionQuota, File, Role, User, Workflow } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 
+// Permission field schema definition
+export interface PermissionFieldSchema {
+  fieldType: string; // "boolean", "number", or "string"
+  possibleValues: any[]; // List of possible values, empty list if not a category field
+  defaultValue: any; // Default value for this permission
+  description: string; // Human-readable description of what this permission does
+}
+
+// Permission template containing all available permissions
+export interface PermissionTemplate {
+  permissions: { [key: string]: PermissionFieldSchema };
+}
+
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
 export const USER_ADD_URL = `${USER_BASE_URL}/add`;
+export const USER_PERMISSION_TEMPLATE_URL = `${USER_BASE_URL}/permission`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
 export const USER_UPLOADED_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
 export const USER_UPLOADED_DATASET_COUNT = `${USER_BASE_URL}/uploaded_dataset`;
@@ -48,14 +62,26 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<User>>(`${USER_LIST_URL}`);
   }
 
-  public updateUser(uid: number, name: string, email: string, role: Role, comment: string): Observable<void> {
+  public updateUser(
+    uid: number,
+    name: string,
+    email: string,
+    role: Role,
+    comment: string,
+    permission?: string
+  ): Observable<void> {
     return this.http.put<void>(`${USER_UPDATE_URL}`, {
       uid: uid,
       name: name,
       email: email,
       role: role,
       comment: comment,
+      permission: permission,
     });
+  }
+
+  public getPermissionTemplate(): Observable<PermissionTemplate> {
+    return this.http.get<PermissionTemplate>(`${USER_PERMISSION_TEMPLATE_URL}`);
   }
 
   public addUser(): Observable<Response> {

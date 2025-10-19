@@ -1,0 +1,77 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-modal
+  [(nzVisible)]="isVisible"
+  [nzTitle]="modalTitle"
+  [nzWidth]="600"
+  (nzOnCancel)="handleCancel()"
+  (nzOnOk)="handleSave()">
+  <ng-container *nzModalContent>
+    <div class="permission-edit-modal">
+      <div
+        *ngFor="let permKey of getPermissionKeys()"
+        class="permission-item">
+        <ng-container *ngIf="permissionTemplate && permissionTemplate.permissions[permKey] as permSchema">
+          <div class="permission-header">
+            <label class="permission-label">{{ permKey }}</label>
+            <div class="permission-control">
+              <!-- Boolean permission -->
+              <nz-switch
+                *ngIf="permSchema.fieldType === 'boolean'"
+                [(ngModel)]="permissionObject[permKey]"
+                (ngModelChange)="updatePermissionValue(permKey, $event)">
+              </nz-switch>
+
+              <!-- String/Number with category values -->
+              <nz-select
+                *ngIf="permSchema.fieldType !== 'boolean' && permSchema.possibleValues.length > 0"
+                [(ngModel)]="permissionObject[permKey]"
+                (ngModelChange)="updatePermissionValue(permKey, $event)"
+                style="width: 200px">
+                <nz-option
+                  *ngFor="let value of permSchema.possibleValues"
+                  [nzLabel]="value.toString()"
+                  [nzValue]="value">
+                </nz-option>
+              </nz-select>
+
+              <!-- String/Number without category values -->
+              <input
+                *ngIf="permSchema.fieldType !== 'boolean' && permSchema.possibleValues.length === 0"
+                [(ngModel)]="permissionObject[permKey]"
+                (ngModelChange)="updatePermissionValue(permKey, $event)"
+                [type]="permSchema.fieldType === 'number' ? 'number' : 'text'"
+                nz-input
+                style="width: 200px"
+                [placeholder]="'Enter ' + permKey" />
+            </div>
+          </div>
+          <p class="permission-description">{{ permSchema.description }}</p>
+        </ng-container>
+      </div>
+
+      <div
+        *ngIf="getPermissionKeys().length === 0"
+        class="no-permissions">
+        <nz-empty nzNotFoundContent="No permissions available"></nz-empty>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
