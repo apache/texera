@@ -43,25 +43,76 @@ RUN unzip amber/target/universal/amber-*.zip -d amber/target/
 
 FROM eclipse-temurin:11-jre-jammy AS runtime
 
+# Build argument to enable/disable R support (default: false for backward compatibility)
+ARG WITH_R_SUPPORT=false
+
 WORKDIR /texera/amber
 
+COPY --from=build /texera/amber/r-requirements.txt /tmp/r-requirements.txt
 COPY --from=build /texera/amber/requirements.txt /tmp/requirements.txt
 COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirements.txt
 
-# Install Python runtime and dependencies
+# Install Python runtime dependencies (always) and R runtime dependencies (conditional)
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     libpq-dev \
+    $(if [ "$WITH_R_SUPPORT" = "true" ]; then echo "\
+    gfortran \
+    curl \
+    build-essential \
+    libreadline-dev \
+    libncurses-dev \
+    libssl-dev \
+    libxml2-dev \
+    xorg-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libpcre++-dev \
+    libpango1.0-dev \
+    libcurl4-openssl-dev"; fi) \
     && apt-get clean
 
-RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install python-lsp-server python-lsp-server[websockets]
+# Install R and needed libraries (conditional)
+ENV R_VERSION=4.3.3
+RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
+        curl -O https://cran.r-project.org/src/base/R-4/R-${R_VERSION}.tar.gz && \
+        tar -xf R-${R_VERSION}.tar.gz && \
+        cd R-${R_VERSION} && \
+        ./configure --prefix=/usr/local \
+                    --enable-R-shlib \
+                    --with-blas \
+                    --with-lapack && \
+        make -j 4 && \
+        make install && \
+        cd .. && \
+        rm -rf R-${R_VERSION}* && R --version && pip3 install --upgrade pip setuptools wheel && \
+        pip3 install python-lsp-server python-lsp-server[websockets] && \
+        pip3 install -r /tmp/requirements.txt && \
+        pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
+        pip3 install --no-cache-dir wordcloud==1.9.2 && \
+        pip3 install -r /tmp/r-requirements.txt; \
+    else \
+        pip3 install --upgrade pip setuptools wheel && \
+        pip3 install python-lsp-server python-lsp-server[websockets] && \
+        pip3 install -r /tmp/requirements.txt && \
+        pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
+        pip3 install --no-cache-dir wordcloud==1.9.2; \
+    fi
 
-# Install requirements with a fallback for wordcloud
-RUN pip3 install -r /tmp/requirements.txt
-RUN pip3 install --no-cache-dir --find-links https://pypi.org/simple/ -r /tmp/operator-requirements.txt || \
-    pip3 install --no-cache-dir wordcloud==1.9.2
+# Install R packages, pinning arrow to 14.0.2.1 explicitly (conditional)
+RUN if [ "$WITH_R_SUPPORT" = "true" ]; then \
+        Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
+                    install.packages(c('coro', 'dplyr'), \
+                                     Ncpus = parallel::detectCores())" && \
+        Rscript -e "options(repos = c(CRAN = 'https://cran.r-project.org')); \
+                    if (!requireNamespace('remotes', quietly=TRUE)) \
+                      install.packages('remotes'); \
+                    remotes::install_version('arrow', version='14.0.2.1', \
+                      repos='https://cran.r-project.org', upgrade='never'); \
+                    cat('R arrow version: ', as.character(packageVersion('arrow')), '\n')"; \
+    fi
+ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:$LD_LIBRARY_PATH
 
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/amber/target/amber-* /texera/amber/
