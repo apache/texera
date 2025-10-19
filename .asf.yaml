@@ -66,6 +66,17 @@ github:
         # strict means "Require branches to be up to date before merging".
         strict: true
         # contexts are the names of checks that must pass
+        contexts:
+          - gui (ubuntu-latest, 18)
+          - gui (windows-latest, 18)
+          - gui (macos-latest, 18)
+          - core (ubuntu-22.04, 11)
+          - python_udf (ubuntu-latest, 3.9)
+          - python_udf (ubuntu-latest, 3.10)
+          - python_udf (ubuntu-latest, 3.11)
+          - python_udf (ubuntu-latest, 3.12)
+          - Check License Headers
+          - Validate PR title
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
@@ -88,7 +99,6 @@ github:
           - python_udf (ubuntu-latest, 3.12)
           - Check License Headers
           - Validate PR title
-
       required_pull_request_reviews:
         dismiss_stale_reviews: false
         require_code_owner_reviews: false
