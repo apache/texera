@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS "user"
     google_avatar           VARCHAR(100),
     role                    user_role_enum NOT NULL DEFAULT 'INACTIVE',
     comment                 TEXT,
+    permission              JSONB NOT NULL DEFAULT '{}'::jsonb,
     account_creation_time   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- check that either password or google_id is not null
     CONSTRAINT ck_nulltest CHECK ((password IS NOT NULL) OR (google_id IS NOT NULL))
