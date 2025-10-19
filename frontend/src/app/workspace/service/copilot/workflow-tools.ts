@@ -18,31 +18,24 @@
  */
 
 import { z } from "zod";
+import { tool } from "ai";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 
-// Tool interface compatible with AI SDK
-interface AITool {
-  description: string;
-  parameters: z.ZodTypeAny;
-  execute: (args: any) => Promise<any>;
-}
-
 /**
- * Create workflow manipulation tools for Vercel AI SDK
+ * Create addOperator tool for adding a new operator to the workflow
  */
-export function createWorkflowTools(
+export function createAddOperatorTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService
-): Record<string, AITool> {
-
-  // Tool: Add Operator
-  const addOperator: AITool = {
+) {
+  return tool({
+    name: "addOperator",
     description: "Add a new operator to the workflow",
-    parameters: z.object({
+    inputSchema: z.object({
       operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
     }),
     execute: async (args: { operatorType: string }) => {
@@ -76,12 +69,17 @@ export function createWorkflowTools(
         return { success: false, error: error.message };
       }
     },
-  };
+  });
+}
 
-  // Tool: Add Link
-  const addLink: AITool = {
+/**
+ * Create addLink tool for connecting two operators
+ */
+export function createAddLinkTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "addLink",
     description: "Connect two operators with a link",
-    parameters: z.object({
+    inputSchema: z.object({
       sourceOperatorId: z.string().describe("ID of the source operator"),
       sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
       targetOperatorId: z.string().describe("ID of the target operator"),
@@ -116,12 +114,17 @@ export function createWorkflowTools(
         return { success: false, error: error.message };
       }
     },
-  };
+  });
+}
 
-  // Tool: List Operators
-  const listOperators: AITool = {
+/**
+ * Create listOperators tool for getting all operators in the workflow
+ */
+export function createListOperatorsTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "listOperators",
     description: "Get all operators in the current workflow",
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async () => {
       try {
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
@@ -134,12 +137,17 @@ export function createWorkflowTools(
         return { success: false, error: error.message };
       }
     },
-  };
+  });
+}
 
-  // Tool: List Links
-  const listLinks: AITool = {
+/**
+ * Create listLinks tool for getting all links in the workflow
+ */
+export function createListLinksTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "listLinks",
     description: "Get all links in the current workflow",
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async () => {
       try {
         const links = workflowActionService.getTexeraGraph().getAllLinks();
@@ -152,12 +160,17 @@ export function createWorkflowTools(
         return { success: false, error: error.message };
       }
     },
-  };
+  });
+}
 
-  // Tool: List Operator Types
-  const listOperatorTypes: AITool = {
+/**
+ * Create listOperatorTypes tool for getting all available operator types
+ */
+export function createListOperatorTypesTool(workflowUtilService: WorkflowUtilService) {
+  return tool({
+    name: "listOperatorTypes",
     description: "Get all available operator types in the system",
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async () => {
       try {
         const operatorTypes = workflowUtilService.getOperatorTypeList();
@@ -170,14 +183,5 @@ export function createWorkflowTools(
         return { success: false, error: error.message };
       }
     },
-  };
-
-  // Return the tools
-  return {
-    addOperator,
-    addLink,
-    listOperators,
-    listLinks,
-    listOperatorTypes,
-  };
+  });
 }

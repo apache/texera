@@ -22,10 +22,16 @@ import { BehaviorSubject, Subject } from "rxjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { createWorkflowTools } from "./workflow-tools";
+import {
+  createAddOperatorTool,
+  createAddLinkTool,
+  createListOperatorsTool,
+  createListLinksTool,
+  createListOperatorTypesTool,
+} from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateText, type ModelMessage} from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 
@@ -184,19 +190,27 @@ export class TexeraCopilot {
 
     try {
       // Get workflow manipulation tools
-      const workflowTools = createWorkflowTools(
+      const addOperatorTool = createAddOperatorTool(
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService
       );
+      const addLinkTool = createAddLinkTool(this.workflowActionService);
+      const listOperatorsTool = createListOperatorsTool(this.workflowActionService);
+      const listLinksTool = createListLinksTool(this.workflowActionService);
+      const listOperatorTypesTool = createListOperatorTypesTool(this.workflowUtilService);
 
       // Get MCP tools in AI SDK format
-      const mcpToolsForAI = this.getMCPToolsForAI();
+      // const mcpToolsForAI = this.getMCPToolsForAI();
 
       // Combine all tools
       const allTools = {
-        ...mcpToolsForAI,
-        ...workflowTools,
+        // ...mcpToolsForAI,
+        addOperator: addOperatorTool,
+        addLink: addLinkTool,
+        listOperators: listOperatorsTool,
+        listLinks: listLinksTool,
+        listOperatorTypes: listOperatorTypesTool,
       };
 
       // Generate response using Vercel AI SDK
@@ -362,45 +376,5 @@ CAPABILITIES:
       ...currentState,
       ...partialState,
     });
-  }
-
-  /**
-   * Execute a workflow suggestion (convenience method)
-   */
-  public async suggestWorkflow(description: string): Promise<void> {
-    const prompt = `Create a workflow for: ${description}
-
-Please analyze the requirement and:
-1. First, list the operators needed
-2. Create the workflow step by step
-3. Connect the operators appropriately
-4. Add helpful comments
-
-Start by checking what operator types are available.`;
-
-    await this.sendMessage(prompt);
-  }
-
-  /**
-   * Analyze current workflow (convenience method)
-   */
-  public async analyzeWorkflow(): Promise<void> {
-    const prompt = `Analyze the current workflow and provide:
-1. A summary of what it does
-2. Any potential issues or improvements
-3. Missing connections or operators
-4. Performance optimization suggestions
-
-Start by getting the workflow statistics and all operators.`;
-
-    await this.sendMessage(prompt);
-  }
-
-  /**
-   * Get auth token from session/local storage
-   */
-  private getAuthToken(): string {
-    // This should get the actual JWT token from your auth service
-    return sessionStorage.getItem("authToken") || "";
   }
 }
