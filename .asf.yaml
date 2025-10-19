@@ -67,14 +67,14 @@ github:
         strict: true
         # contexts are the names of checks that must pass
         contexts:
-          - gui (ubuntu-latest, 18)
-          - gui (windows-latest, 18)
-          - gui (macos-latest, 18)
-          - core (ubuntu-22.04, 11)
-          - python_udf (ubuntu-latest, 3.9)
-          - python_udf (ubuntu-latest, 3.10)
-          - python_udf (ubuntu-latest, 3.11)
-          - python_udf (ubuntu-latest, 3.12)
+          - frontend (ubuntu-latest, 18)
+          - frontend (windows-latest, 18)
+          - frontend (macos-latest, 18)
+          - scala (ubuntu-22.04, 11)
+          - python (ubuntu-latest, 3.9)
+          - python (ubuntu-latest, 3.10)
+          - python (ubuntu-latest, 3.11)
+          - python (ubuntu-latest, 3.12)
           - Check License Headers
           - Validate PR title
       required_pull_request_reviews:
