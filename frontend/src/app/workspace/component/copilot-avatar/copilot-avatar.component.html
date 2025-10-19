@@ -39,7 +39,7 @@
     [nzDot]="true">
   </nz-badge>
 
-  <!-- Floating Chat Box -->
+  <!-- Floating Chat Box with deep-chat -->
   <div
     *ngIf="isChatVisible"
     class="chat-box">
@@ -68,95 +68,19 @@
       </button>
     </div>
 
-    <!-- Messages -->
-    <div class="chat-messages">
-      <div
-        *ngFor="let message of messages"
-        class="message"
-        [ngClass]="'message-' + message.role">
-        <div class="message-content">
-          <div class="message-role">
-            <i
-              *ngIf="message.role === 'user'"
-              nz-icon
-              nzType="user"></i>
-            <i
-              *ngIf="message.role === 'assistant'"
-              nz-icon
-              nzType="robot"></i>
-            <i
-              *ngIf="message.role === 'system'"
-              nz-icon
-              nzType="info-circle"></i>
-            <strong>{{ message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Copilot' : 'System' }}</strong>
-          </div>
-          <div class="message-text">{{ message.content }}</div>
-          <div
-            *ngIf="message.toolCalls && message.toolCalls.length > 0"
-            class="tool-calls">
-            <div
-              *ngFor="let tool of message.toolCalls"
-              class="tool-call">
-              <i
-                nz-icon
-                nzType="tool"></i>
-              <span>{{ tool.name || 'Tool' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading indicator -->
-      <div
-        *ngIf="isProcessing"
-        class="message message-assistant">
-        <div class="message-content">
-          <div class="message-role">
-            <i
-              nz-icon
-              nzType="robot"></i>
-            <strong>Copilot</strong>
-          </div>
-          <div class="message-text">
-            <nz-spin nzSimple></nz-spin>
-            <span style="margin-left: 8px">Thinking...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty state -->
-      <div
-        *ngIf="messages.length === 0 && !isProcessing"
-        class="empty-state">
-        <i
-          nz-icon
-          nzType="message"
-          style="font-size: 48px; color: #bfbfbf"></i>
-        <p>Start a conversation with the copilot</p>
-        <p class="empty-hint">Ask me to help you build workflows!</p>
-      </div>
-    </div>
-
-    <!-- Input -->
-    <div class="chat-input">
-      <textarea
-        nz-input
-        [(ngModel)]="userInput"
-        (keypress)="onKeyPress($event)"
-        [disabled]="isProcessing || !isConnected"
-        placeholder="Type a message... (Press Enter to send)"
-        rows="2">
-      </textarea>
-      <button
-        nz-button
-        nzType="primary"
-        (click)="sendMessage()"
-        [disabled]="!userInput.trim() || isProcessing || !isConnected">
-        <i
-          nz-icon
-          nzType="send"></i>
-      </button>
-    </div>
+    <!-- Deep Chat Component -->
+    <deep-chat
+      #deepChat
+      class="deep-chat-container"
+      [style.borderRadius]="'0 0 8px 8px'"
+      [style.width]="'100%'"
+      [style.height]="'calc(100% - 60px)'"
+      [style.border]="'none'"
+      [connect]="deepChatConfig.connect"
+      [demo]="deepChatConfig.demo"
+      [introMessage]="deepChatConfig.introMessage"
+      [textInput]="deepChatConfig.textInput">
+    </deep-chat>
 
     <!-- Connection Status -->
     <div

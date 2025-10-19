@@ -85,7 +85,12 @@ export function createAddLinkTool(workflowActionService: WorkflowActionService) 
       targetOperatorId: z.string().describe("ID of the target operator"),
       targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
     }),
-    execute: async (args: { sourceOperatorId: string; sourcePortId?: string; targetOperatorId: string; targetPortId?: string }) => {
+    execute: async (args: {
+      sourceOperatorId: string;
+      sourcePortId?: string;
+      targetOperatorId: string;
+      targetPortId?: string;
+    }) => {
       try {
         // Default port IDs if not specified
         const sourcePId = args.sourcePortId || "output-0";

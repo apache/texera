@@ -54,6 +54,7 @@
     "content-disposition": "0.5.4",
     "d3": "6.4.0",
     "dagre": "0.8.5",
+    "deep-chat": "^2.2.2",
     "deep-map": "2.0.0",
     "edit-distance": "1.0.4",
     "es6-weak-map": "2.0.3",

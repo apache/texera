@@ -3578,6 +3578,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@microsoft/fetch-event-source@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@microsoft/fetch-event-source@npm:2.0.1"
+  checksum: 10c0/38c69e9b9990e6cee715c7bbfa2752f943b42575acadb36facf19bb831f1520c469f854277439154258e0e1dc8650cc85038230d1f451e3f6b62e8faeaa1126c
+  languageName: node
+  linkType: hard
+
 "@modelcontextprotocol/sdk@npm:^1.20.1":
   version: 1.20.1
   resolution: "@modelcontextprotocol/sdk@npm:1.20.1"
@@ -6654,7 +6661,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"argparse@npm:^1.0.7":
+"argparse@npm:^1.0.10, argparse@npm:^1.0.7":
   version: 1.0.10
   resolution: "argparse@npm:1.0.10"
   dependencies:
@@ -6840,6 +6847,15 @@ __metadata:
   version: 1.0.0
   resolution: "at-least-node@npm:1.0.0"
   checksum: 10c0/4c058baf6df1bc5a1697cf182e2029c58cd99975288a13f9e70068ef5d6f4e1f1fd7c4d2c3c4912eae44797d1725be9700995736deca441b39f3e66d8dee97ef
+  languageName: node
+  linkType: hard
+
+"autolinker@npm:^3.11.0":
+  version: 3.16.2
+  resolution: "autolinker@npm:3.16.2"
+  dependencies:
+    tslib: "npm:^2.3.0"
+  checksum: 10c0/91e083bfa4393fdcd29f595e1db657d852fd74cbd1fec719f30f3d57c910e72d5e0a0b10f2b17e1e6297b52b2f5c12eb6d0cbe024c0d92671e81d8ab906fe981
   languageName: node
   linkType: hard
 
@@ -8967,6 +8983,17 @@ __metadata:
   version: 10.4.3
   resolution: "decimal.js@npm:10.4.3"
   checksum: 10c0/6d60206689ff0911f0ce968d40f163304a6c1bc739927758e6efc7921cfa630130388966f16bf6ef6b838cb33679fbe8e7a78a2f3c478afce841fd55ac8fb8ee
+  languageName: node
+  linkType: hard
+
+"deep-chat@npm:^2.2.2":
+  version: 2.2.2
+  resolution: "deep-chat@npm:2.2.2"
+  dependencies:
+    "@microsoft/fetch-event-source": "npm:^2.0.1"
+    remarkable: "npm:^2.0.1"
+    speech-to-element: "npm:^1.0.4"
+  checksum: 10c0/67a4fa2062d6f170394c46e4ea57f63685b4f024f5390d8878a430e16ba99753e3a30322e0de0ac00629cc3249a73e37eb3297bfe5c73461b13ed6861cf3e578
   languageName: node
   linkType: hard
 
@@ -11581,6 +11608,7 @@ __metadata:
     concurrently: "npm:7.4.0"
     content-disposition: "npm:0.5.4"
     dagre: "npm:0.8.5"
+    deep-chat: "npm:^2.2.2"
     deep-map: "npm:2.0.0"
     edit-distance: "npm:1.0.4"
     es6-weak-map: "npm:2.0.3"
@@ -16733,6 +16761,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"remarkable@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "remarkable@npm:2.0.1"
+  dependencies:
+    argparse: "npm:^1.0.10"
+    autolinker: "npm:^3.11.0"
+  bin:
+    remarkable: bin/remarkable.js
+  checksum: 10c0/e2c23bfd2e45234110bc3220e44fcac5e4a8199691ff6959d9cd0bac34ffca2f123d3913946cbef517018bc8e5ab00beafc527a04782b7afbe5e9706d1c0c77a
+  languageName: node
+  linkType: hard
+
 "require-directory@npm:^2.1.1":
   version: 2.1.1
   resolution: "require-directory@npm:2.1.1"
@@ -17823,6 +17863,13 @@ __metadata:
     select-hose: "npm:^2.0.0"
     spdy-transport: "npm:^3.0.0"
   checksum: 10c0/983509c0be9d06fd00bb9dff713c5b5d35d3ffd720db869acdd5ad7aa6fc0e02c2318b58f75328957d8ff772acdf1f7d19382b6047df342044ff3e2d6805ccdf
+  languageName: node
+  linkType: hard
+
+"speech-to-element@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "speech-to-element@npm:1.0.4"
+  checksum: 10c0/ae9e5bbefb13fa6920df6817ed02f463fa29a0cfd52a1fcc4b7864da816085d185087571e72bd1557c43255592ad39e17d403a2e4950c1233eaa822efd923268
   languageName: node
   linkType: hard
 
