@@ -26,11 +26,10 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.servlet.http.HttpServlet;
 import lombok.Getter;
 import org.apache.texera.config.McpConfig;
-import org.apache.texera.mcp.tools.OperatorToolProvider;
+import org.apache.texera.mcp.tool.operator.OperatorToolProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 

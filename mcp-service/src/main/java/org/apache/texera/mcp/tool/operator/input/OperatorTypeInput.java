@@ -17,26 +17,27 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools.inputs;
+package org.apache.texera.mcp.tool.operator.input;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 
 /**
- * Input schema for the search_operators tool.
+ * Input schema for MCP tools that accept an operator type parameter.
+ * Used by: get_operator, get_operator_schema, describe_operator
  */
-public class SearchQueryInput {
+public class OperatorTypeInput {
 
     @JsonProperty(required = true)
-    @JsonSchemaTitle("Search Query")
-    @JsonPropertyDescription("Search query string to match against operator names, descriptions, or types")
-    public String query;
+    @JsonSchemaTitle("Operator Type")
+    @JsonPropertyDescription("The operator type identifier (e.g., 'CSVScanSource')")
+    public String operatorType;
 
-    public SearchQueryInput() {
+    public OperatorTypeInput() {
     }
 
-    public SearchQueryInput(String query) {
-        this.query = query;
+    public OperatorTypeInput(String operatorType) {
+        this.operatorType = operatorType;
     }
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools;
+package org.apache.texera.mcp.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
