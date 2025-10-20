@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools.inputs;
+package org.apache.texera.mcp.tool.operator.input;
 
 /**
  * Input schema for MCP tools that accept no parameters.

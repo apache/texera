@@ -17,26 +17,26 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools.inputs;
+package org.apache.texera.mcp.tool.operator.input;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 
 /**
- * Input schema for the get_operators_by_capability tool.
+ * Input schema for the search_operators tool.
  */
-public class CapabilityInput {
+public class SearchQueryInput {
 
     @JsonProperty(required = true)
-    @JsonSchemaTitle("Capability")
-    @JsonPropertyDescription("The capability to filter by (reconfiguration, dynamic_input, dynamic_output, port_customization)")
-    public String capability;
+    @JsonSchemaTitle("Search Query")
+    @JsonPropertyDescription("Search query string to match against operator names, descriptions, or types")
+    public String query;
 
-    public CapabilityInput() {
+    public SearchQueryInput() {
     }
 
-    public CapabilityInput(String capability) {
-        this.capability = capability;
+    public SearchQueryInput(String query) {
+        this.query = query;
     }
 }

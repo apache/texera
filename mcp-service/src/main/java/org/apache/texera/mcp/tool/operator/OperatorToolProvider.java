@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools;
+package org.apache.texera.mcp.tool.operator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +28,11 @@ import org.apache.amber.operator.metadata.AllOperatorMetadata;
 import org.apache.amber.operator.metadata.GroupInfo;
 import org.apache.amber.operator.metadata.OperatorMetadata;
 import org.apache.amber.operator.metadata.OperatorMetadataGenerator;
-import org.apache.texera.mcp.tools.inputs.*;
+import org.apache.texera.mcp.tool.McpSchemaGenerator;
+import org.apache.texera.mcp.tool.operator.input.CapabilityInput;
+import org.apache.texera.mcp.tool.operator.input.GroupNameInput;
+import org.apache.texera.mcp.tool.operator.input.OperatorTypeInput;
+import org.apache.texera.mcp.tool.operator.input.SearchQueryInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;

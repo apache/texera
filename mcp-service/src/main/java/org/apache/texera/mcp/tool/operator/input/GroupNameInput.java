@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools.inputs;
+package org.apache.texera.mcp.tool.operator.input;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;

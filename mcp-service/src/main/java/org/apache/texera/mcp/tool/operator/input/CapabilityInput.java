@@ -17,27 +17,26 @@
  * under the License.
  */
 
-package org.apache.texera.mcp.tools.inputs;
+package org.apache.texera.mcp.tool.operator.input;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 
 /**
- * Input schema for MCP tools that accept an operator type parameter.
- * Used by: get_operator, get_operator_schema, describe_operator
+ * Input schema for the get_operators_by_capability tool.
  */
-public class OperatorTypeInput {
+public class CapabilityInput {
 
     @JsonProperty(required = true)
-    @JsonSchemaTitle("Operator Type")
-    @JsonPropertyDescription("The operator type identifier (e.g., 'CSVScanSource')")
-    public String operatorType;
+    @JsonSchemaTitle("Capability")
+    @JsonPropertyDescription("The capability to filter by (reconfiguration, dynamic_input, dynamic_output, port_customization)")
+    public String capability;
 
-    public OperatorTypeInput() {
+    public CapabilityInput() {
     }
 
-    public OperatorTypeInput(String operatorType) {
-        this.operatorType = operatorType;
+    public CapabilityInput(String capability) {
+        this.capability = capability;
     }
 }
