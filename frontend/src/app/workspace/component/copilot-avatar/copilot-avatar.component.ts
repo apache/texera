@@ -1,8 +1,7 @@
 // copilot-avatar.component.ts
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from "@angular/core";
+import { Component, OnInit, ViewChild, ElementRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { TexeraCopilot } from "../../service/copilot/texera-copilot";
-import type { ModelMessage } from "ai";
+import { TexeraCopilot, AgentResponse } from "../../service/copilot/texera-copilot";
 
 @UntilDestroy()
 @Component({
@@ -10,7 +9,7 @@ import type { ModelMessage } from "ai";
   templateUrl: "copilot-avatar.component.html",
   styleUrls: ["copilot-avatar.component.scss"],
 })
-export class CopilotAvatarComponent implements OnInit, AfterViewInit {
+export class CopilotAvatarComponent implements OnInit {
   @ViewChild("deepChat", { static: false }) deepChatElement?: ElementRef;
 
   public isVisible = false;
@@ -26,12 +25,32 @@ export class CopilotAvatarComponent implements OnInit, AfterViewInit {
         const last = body?.messages?.[body.messages.length - 1];
         const userText: string = typeof last?.text === "string" ? last.text : "";
 
+        // Send message to copilot and process AgentResponse
         this.copilotService
           .sendMessage(userText)
           .pipe(untilDestroyed(this))
           .subscribe({
-            next: (reply: string) => {
-              signals.onResponse({ text: reply });
+            next: (response: AgentResponse) => {
+              // Format the response based on type
+              let displayText = "";
+
+              if (response.type === "trace") {
+                // Format tool traces
+                displayText = this.formatToolTrace(response);
+              } else if (response.type === "response") {
+                // Use the final response text as-is
+                displayText = response.content;
+              }
+
+              // Use deep-chat's addMessage API to add each message as it arrives
+              if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
+                this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
+              }
+
+              // If generation is done, signal completion to deep-chat
+              if (response.isDone) {
+                signals.onResponse({ text: response.content });
+              }
             },
             error: (e: unknown) => {
               signals.onResponse({ error: e ?? "Unknown error" });
@@ -44,38 +63,27 @@ export class CopilotAvatarComponent implements OnInit, AfterViewInit {
     textInput: { placeholder: { text: "Ask me anything about workflows..." } },
   };
 
+  /**
+   * Format tool trace for display
+   */
+  private formatToolTrace(response: AgentResponse): string {
+    if (!response.toolCalls || response.toolCalls.length === 0) {
+      return "";
+    }
+
+    const traces = response.toolCalls.map(tc => {
+      const result = response.toolResults?.find(tr => tr.toolCallId === tc.toolCallId);
+      return `🔧 ${tc.toolName}(${JSON.stringify(tc.args, null, 2)})\n→ ${JSON.stringify(result?.result, null, 2)}`;
+    });
+
+    return `[Tool Trace]\n${traces.join("\n\n")}`;
+  }
+
   constructor(public copilotService: TexeraCopilot) {}
 
   ngOnInit(): void {
-    // Subscribe to message stream for real-time updates (including tool traces)
-    this.copilotService.messages$.pipe(untilDestroyed(this)).subscribe(message => {
-      if (this.deepChatElement?.nativeElement) {
-        const newMessage = {
-          role: message.role === "assistant" ? "ai" : "user",
-          text: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
-        };
-
-        // Add message to deep-chat
-        const currentMessages = this.deepChatElement.nativeElement.messages || [];
-        this.deepChatElement.nativeElement.messages = [...currentMessages, newMessage];
-      }
-    });
-
     // Update connection status
     this.updateConnectionStatus();
-  }
-
-  ngAfterViewInit(): void {
-    // Load existing messages if any
-    if (this.deepChatElement?.nativeElement) {
-      const existing = this.copilotService.getMessages();
-      if (existing.length > 0) {
-        this.deepChatElement.nativeElement.messages = existing.map((m: ModelMessage) => ({
-          role: m.role === "assistant" ? "ai" : "user",
-          text: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-        }));
-      }
-    }
   }
 
   public async toggleChat(): Promise<void> {
