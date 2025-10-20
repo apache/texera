@@ -207,6 +207,14 @@ export class AdminUserComponent implements OnInit {
     if (!list.length) return true;
     if (list.includes("active")) return this.isUserActive(user);
     return true;
+  }
+
+  sortByActive: NzTableSortFn<User> = (a: User, b: User) => {
+    const aActive = this.isUserActive(a);
+    const bActive = this.isUserActive(b);
+
+    if (aActive === bActive) return 0;        // tie → keep original order
+    return aActive ? -1 : 1;
   };
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>

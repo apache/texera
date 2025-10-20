@@ -32,8 +32,8 @@
   <thead>
     <tr>
       <th
-        [nzFilters]="[{ text: 'Active', value: 'active' }]"
-        [nzFilterFn]="filterActive">
+        [nzSortFn]="sortByActive"
+        [nzSortDirections]="['ascend', 'descend']">
         Avatar
       </th>
       <th
