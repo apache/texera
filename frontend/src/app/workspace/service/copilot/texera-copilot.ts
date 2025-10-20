@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { Subject, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -44,6 +44,18 @@ export const COPILOT_MCP_URL = "mcp";
 export const AGENT_MODEL_ID = "claude-3.7";
 
 /**
+ * Agent response structure for streaming intermediate and final results
+ */
+export interface AgentResponse {
+  type: "trace" | "response";
+  content: string;
+  isDone: boolean;
+  // Raw data for subscribers to process
+  toolCalls?: any[];
+  toolResults?: any[];
+}
+
+/**
  * Texera Copilot - An AI assistant for workflow manipulation
  * Uses Vercel AI SDK for chat completion and MCP SDK for tool discovery
  */
@@ -57,10 +69,6 @@ export class TexeraCopilot {
 
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
-
-  // Message stream for real-time updates
-  private messageStream = new Subject<ModelMessage>();
-  public readonly messages$ = this.messageStream.asObservable();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -150,17 +158,16 @@ export class TexeraCopilot {
     return tools;
   }
 
-  public sendMessage(message: string): Observable<string> {
-    return new Observable<string>(observer => {
+  public sendMessage(message: string): Observable<AgentResponse> {
+    return new Observable<AgentResponse>(observer => {
       if (!this.model) {
         observer.error(new Error("Copilot not initialized"));
         return;
       }
 
-      // 1) push the user message
+      // 1) push the user message (don't emit to stream - already handled by UI)
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
-      this.messageStream.next(userMessage);
 
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
@@ -178,18 +185,18 @@ export class TexeraCopilot {
           // Log each step for debugging
           console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
 
-          // If there are tool calls, send a trace message to the chat
+          // If there are tool calls, emit raw trace data
           if (toolCalls && toolCalls.length > 0) {
-            const traceContent = toolCalls
-              .map(tc => {
-                const result = toolResults?.find(tr => tr.toolCallId === tc.toolCallId);
-                return `🔧 ${tc.toolName}(${JSON.stringify(tc.args, null, 2)})\n→ ${JSON.stringify(result?.result, null, 2)}`;
-              })
-              .join("\n\n");
+            const traceResponse: AgentResponse = {
+              type: "trace",
+              content: text || "",
+              isDone: false,
+              toolCalls,
+              toolResults,
+            };
 
-            // Send as a system-style message to the stream
-            const traceMessage: AssistantModelMessage = { role: "assistant", content: `[Tool Trace]\n${traceContent}` };
-            this.messageStream.next(traceMessage);
+            // Emit raw trace data
+            observer.next(traceResponse);
           }
         },
       })
@@ -197,7 +204,6 @@ export class TexeraCopilot {
           // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
           //    This keeps your history perfectly aligned with the SDK's internal state.
           this.messages.push(...response.messages);
-          for (const m of response.messages) this.messageStream.next(m);
 
           // 5) optional diagnostics
           if (steps?.length) {
@@ -205,16 +211,20 @@ export class TexeraCopilot {
             console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
           }
 
-          observer.next(text);
+          // Emit final response with raw data
+          const finalResponse: AgentResponse = {
+            type: "response",
+            content: text,
+            isDone: true,
+          };
+          observer.next(finalResponse);
           observer.complete();
         })
         .catch((err: any) => {
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
-          this.messageStream.next(assistantError);
-          observer.next(errorText);
-          observer.complete();
+          observer.error(err);
         });
     });
   }
@@ -266,7 +276,6 @@ export class TexeraCopilot {
    */
   public addMessage(message: ModelMessage): void {
     this.messages.push(message);
-    this.messageStream.next(message);
   }
 
   /**
