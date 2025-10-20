@@ -204,6 +204,14 @@ export class AdminUserComponent implements OnInit {
     return user.accountCreation * 1000;
   }
 
+  sortByActive: NzTableSortFn<User> = (a: User, b: User) => {
+    const aActive = this.isUserActive(a);
+    const bActive = this.isUserActive(b);
+
+    if (aActive === bActive) return 0;
+    return aActive ? -1 : 1;
+  };
+
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
 }
