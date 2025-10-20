@@ -23,6 +23,10 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 /**
  * Create addOperator tool for adding a new operator to the workflow
@@ -285,6 +289,185 @@ export function createSetOperatorPropertyTool(workflowActionService: WorkflowAct
           success: true,
           message: `Updated properties for operator ${args.operatorId}`,
           properties: args.properties,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getDynamicSchema tool for getting operator schema information
+ */
+export function createGetDynamicSchemaTool(dynamicSchemaService: DynamicSchemaService) {
+  return tool({
+    name: "getDynamicSchema",
+    description:
+      "Get the dynamic schema of an operator, which includes all available properties and their types. Use this to understand what properties can be edited on an operator before modifying it.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get schema for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const schema = dynamicSchemaService.getDynamicSchema(args.operatorId);
+        return {
+          success: true,
+          schema: schema,
+          message: `Retrieved schema for operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create executeWorkflow tool for running the workflow
+ */
+export function createExecuteWorkflowTool(executeWorkflowService: ExecuteWorkflowService) {
+  return tool({
+    name: "executeWorkflow",
+    description: "Execute the current workflow",
+    inputSchema: z.object({
+      executionName: z.string().optional().describe("Name for this execution (default: 'Copilot Execution')"),
+      targetOperatorId: z
+        .string()
+        .optional()
+        .describe("Optional operator ID to execute up to (executes entire workflow if not specified)"),
+    }),
+    execute: async (args: { executionName?: string; targetOperatorId?: string }) => {
+      try {
+        const name = args.executionName || "Copilot Execution";
+        executeWorkflowService.executeWorkflow(name, args.targetOperatorId);
+        return {
+          success: true,
+          message: args.targetOperatorId
+            ? `Started workflow execution up to operator ${args.targetOperatorId}`
+            : "Started workflow execution",
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getExecutionState tool for checking workflow execution status
+ */
+export function createGetExecutionStateTool(executeWorkflowService: ExecuteWorkflowService) {
+  return tool({
+    name: "getExecutionState",
+    description: "Get the current execution state of the workflow",
+    inputSchema: z.object({}),
+    execute: async () => {
+      try {
+        const stateInfo = executeWorkflowService.getExecutionState();
+        const stateString = ExecutionState[stateInfo.state];
+        return {
+          success: true,
+          state: stateString,
+          stateInfo: stateInfo,
+          message: `Workflow execution state: ${stateString}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create hasOperatorResult tool for checking if an operator has results
+ */
+export function createHasOperatorResultTool(workflowResultService: WorkflowResultService) {
+  return tool({
+    name: "hasOperatorResult",
+    description: "Check if an operator has any execution results available",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to check"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const hasResult = workflowResultService.hasAnyResult(args.operatorId);
+        return {
+          success: true,
+          hasResult: hasResult,
+          message: hasResult
+            ? `Operator ${args.operatorId} has results available`
+            : `Operator ${args.operatorId} has no results`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorResultSnapshot tool for getting operator result data
+ */
+export function createGetOperatorResultSnapshotTool(workflowResultService: WorkflowResultService) {
+  return tool({
+    name: "getOperatorResultSnapshot",
+    description: "Get the result snapshot data for an operator (for visualization outputs)",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get results for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const resultService = workflowResultService.getResultService(args.operatorId);
+        if (!resultService) {
+          return {
+            success: false,
+            error: `No result snapshot available for operator ${args.operatorId}. It may use paginated results instead.`,
+          };
+        }
+        const snapshot = resultService.getCurrentResultSnapshot();
+        return {
+          success: true,
+          operatorId: args.operatorId,
+          result: snapshot,
+          message: `Retrieved result snapshot for operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorResultInfo tool for getting operator result information
+ */
+export function createGetOperatorResultInfoTool(workflowResultService: WorkflowResultService) {
+  return tool({
+    name: "getOperatorResultInfo",
+    description: "Get information about an operator's results, including total count and pagination details",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get result info for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
+        if (!paginatedResultService) {
+          return {
+            success: false,
+            error: `No paginated results available for operator ${args.operatorId}`,
+          };
+        }
+        const totalTuples = paginatedResultService.getCurrentTotalNumTuples();
+        const currentPage = paginatedResultService.getCurrentPageIndex();
+        const schema = paginatedResultService.getSchema();
+        return {
+          success: true,
+          operatorId: args.operatorId,
+          totalTuples: totalTuples,
+          currentPage: currentPage,
+          schema: schema,
+          message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
