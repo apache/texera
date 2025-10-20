@@ -46,7 +46,7 @@ data:
                             - match:
                                 prefix: "/wsapi"
                               route:
-                                cluster: dynamic_service
+                                cluster: slurm_service_cluster
                                 prefix_rewrite: "/wsapi"
                                 timeout: "0s" # disables timeout
                             - match:
@@ -54,12 +54,12 @@ data:
                                   google_re2: {}
                                   regex: "^/api/executions/\\d+/stats/\\d+$"
                               route:
-                                cluster: dynamic_service
+                                cluster: slurm_service_cluster
                                 timeout: "0s"
                             - match:
                                 prefix: "/api/executions/result/export"
                               route:
-                                cluster: dynamic_service
+                                cluster: slurm_service_cluster
                                 prefix_rewrite: "/api/executions/result/export"
                                 timeout: "0s"
                     http_filters:
@@ -97,8 +97,8 @@ data:
                                 local uri = request_handle:headers():get(":path")
                                 local cuid = string.match(uri, "cuid=(%d+)")
                                 if cuid then
-                                  local new_host = "computing-unit-" .. cuid .. ".{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}"
-                                  request_handle:headers():replace(":authority", new_host)
+                                  -- Add a header for the router to match on
+                                  request_handle:headers():add("x-route-to-slurm", "true")
                                 end
                               end
                       - name: envoy.filters.http.dynamic_forward_proxy
@@ -121,6 +121,19 @@ data:
                               inline_string: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" AuthHeaders[user-id:\"%REQ(X-USER-ID)%\" email:\"%REQ(X-USER-EMAIL)%\" cu-access:\"%REQ(X-USER-CU-ACCESS)%\"]\n"
 
       clusters:
+        - name: slurm_service_cluster
+          connect_timeout: 0.25s
+          type: STATIC
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: slurm_service_cluster
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: 128.195.52.129
+                          port_value: 8085
         - name: dynamic_service
           connect_timeout: 0.25s
           lb_policy: CLUSTER_PROVIDED
