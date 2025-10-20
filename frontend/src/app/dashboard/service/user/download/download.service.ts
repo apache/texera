@@ -100,7 +100,7 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+  downloadSingleFile(filePath: string, isLogin: boolean = true): void {
       this.notificationService.info(`Starting to download file ${filePath}`);
       this.datasetService.retrieveDatasetVersionSingleFileViaBrowser(filePath, isLogin);
   }

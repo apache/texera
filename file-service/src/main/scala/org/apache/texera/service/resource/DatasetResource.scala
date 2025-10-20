@@ -1295,7 +1295,7 @@ class DatasetResource {
       commitHash: String,
       uid: Integer
   ): Response = {
-    resolveDatasetAndPath(encodedUrl, repositoryName, commitHash, uid) match {
+    resolveRepositoryAndPath(encodedUrl, repositoryName, commitHash, uid) match {
       case Left(errorResponse) =>
         errorResponse
 
@@ -1312,19 +1312,19 @@ class DatasetResource {
 
   private def generatePresignedResponseWithS3(
                                                encodedUrl: String,
-                                               datasetName: String,
+                                               repositoryName: String,
                                                commitHash: String,
                                                uid: Integer
                                              ): Response = {
-    resolveDatasetAndPath(encodedUrl, datasetName, commitHash, uid) match {
+    resolveRepositoryAndPath(encodedUrl, repositoryName, commitHash, uid) match {
       case Left(errorResponse) =>
         errorResponse
 
-      case Right((resolvedDatasetName, resolvedCommitHash, resolvedFilePath)) =>
+      case Right((resolvedRepositoryName, resolvedCommitHash, resolvedFilePath)) =>
         val fileName = resolvedFilePath.split("/").lastOption.getOrElse("download")
         val contentType = "application/octet-stream"
         val url = S3StorageClient.getFilePresignedUrl(
-          resolvedDatasetName,
+          resolvedRepositoryName,
           resolvedCommitHash,
           resolvedFilePath,
           fileName,
@@ -1336,7 +1336,7 @@ class DatasetResource {
     }
   }
 
-  private def resolveDatasetAndPath(
+  private def resolveRepositoryAndPath(
       encodedUrl: String,
       repositoryName: String,
       commitHash: String,
