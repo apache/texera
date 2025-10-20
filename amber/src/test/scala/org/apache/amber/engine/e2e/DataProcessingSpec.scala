@@ -23,6 +23,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
+import com.typesafe.scalalogging.Logger
 import org.apache.amber.clustering.SingleNodeListener
 import org.apache.amber.core.storage.DocumentFactory
 import org.apache.amber.core.storage.model.VirtualDocument
@@ -57,6 +58,8 @@ class DataProcessingSpec
     with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
+
+  val logger: Logger = Logger("DataProcessingSpecLogger")
 
   val workflowContext: WorkflowContext = new WorkflowContext()
 
@@ -151,11 +154,12 @@ class DataProcessingSpec
         case _: com.twitter.util.TimeoutException =>
           attempt += 1
           if (attempt > maxRetries) {
-            throw new com.twitter.util.TimeoutException("executeWorkflow timed out after retries")
+            throw new com.twitter.util.TimeoutException("executeWorkflow failed after all retries!")
           }
           // Need to reset test texera_db state before retry
           cleanupWorkflowExecutionData()
           setUpWorkflowExecutionData()
+          logger.info(s"executeWorkflow timed out. Retrying...")
         case otherError: Throwable =>
           throw otherError
       }
