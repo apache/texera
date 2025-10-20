@@ -636,6 +636,8 @@ export class WorkflowActionService {
         .getAllCommentBoxes()
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
 
+      this.jointGraphWrapper.jointGraph.clear();
+
       if (workflow === undefined) {
         this.setNewSharedModel();
         return;

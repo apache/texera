@@ -21,6 +21,7 @@ package org.apache.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
+import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.virtualidentity.ChannelIdentity
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}
@@ -42,6 +43,7 @@ import org.apache.amber.engine.common.ambermessage.{
 }
 import org.apache.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import org.apache.amber.engine.common.{CheckpointState, SerializedState}
+import org.apache.texera.web.SessionState
 
 import scala.concurrent.duration.DurationInt
 
@@ -111,6 +113,16 @@ class Controller(
   override def initState(): Unit = {
     attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
+
+    val regions: List[List[String]] =
+      cp.workflowScheduler.getSchedule.getRegions.map { region =>
+        region.physicalOps.map(_.id.logicalOpId.id).toList
+      }
+
+    SessionState.getAllSessionStates.foreach { state =>
+      state.send(RegionUpdateEvent(regions))
+    }
+
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
