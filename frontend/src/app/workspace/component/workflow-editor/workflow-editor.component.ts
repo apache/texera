@@ -41,6 +41,8 @@ import * as _ from "lodash";
 import * as joint from "jointjs";
 import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { line, curveCatmullRomClosed } from "d3-shape";
+import concaveman from "concaveman";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -161,6 +163,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
+    this.handleRegionUpdate();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -328,6 +331,65 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
       });
+  }
+
+  private handleRegionUpdate(): void {
+    this.editor.classList.add("hide-region");
+    const Region = joint.dia.Element.define(
+      "region",
+      {
+        attrs: {
+          body: {
+            fill: "rgba(255,213,79,0.2)",
+            pointerEvents: "none",
+            class: "region",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
+      }
+    );
+
+    let regionMap: { regionElement: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
+    // update region elements on execution
+    this.executeWorkflowService
+      .getRegionUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(regions => {
+        this.paper.model
+          .getCells()
+          .filter(element => element instanceof Region)
+          .forEach(element => element.remove());
+
+        regionMap = regions.map(region => {
+          const element = new Region();
+          const ops = region.map(id => this.paper.getModelById(id));
+          this.paper.model.addCell(element);
+          this.updateRegionElement(element, ops);
+          return { regionElement: element, operators: ops };
+        });
+      });
+
+    this.paper.model.on("change:position", operator => {
+      regionMap
+        .filter(region => region.operators.includes(operator))
+        .forEach(region => this.updateRegionElement(region.regionElement, region.operators));
+    });
+  }
+
+  private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
+    const points = operators.flatMap(op => {
+      const { x, y, width, height } = op.getBBox(),
+        padding = 15;
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding + 10],
+        [x + width + padding, y + height + padding + 10],
+      ];
+    });
+    regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**
