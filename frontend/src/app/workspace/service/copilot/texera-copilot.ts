@@ -31,7 +31,7 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, type ModelMessage } from "ai";
+import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 
@@ -173,96 +173,84 @@ export class TexeraCopilot {
     return tools;
   }
 
-  /**
-   * Send a message to the copilot and get a response
-   */
   public async sendMessage(message: string): Promise<string> {
-    if (!this.model) {
-      throw new Error("Copilot not initialized");
-    }
+    if (!this.model) throw new Error("Copilot not initialized");
 
-    // Add user message to history
-    const userMessage: ModelMessage = {
-      role: "user",
-      content: message,
-    };
+    // 1) push the user message
+    const userMessage: UserModelMessage = { role: "user", content: message };
     this.messages.push(userMessage);
     this.messageStream.next(userMessage);
-
     this.updateState({ isProcessing: true });
 
     try {
-      // Get workflow manipulation tools
-      const addOperatorTool = createAddOperatorTool(
-        this.workflowActionService,
-        this.workflowUtilService,
-        this.operatorMetadataService
-      );
-      const addLinkTool = createAddLinkTool(this.workflowActionService);
-      const listOperatorsTool = createListOperatorsTool(this.workflowActionService);
-      const listLinksTool = createListLinksTool(this.workflowActionService);
-      const listOperatorTypesTool = createListOperatorTypesTool(this.workflowUtilService);
+      // 2) define tools (your existing helpers)
+      const tools = this.createWorkflowTools();
 
-      // Get MCP tools in AI SDK format
-      // const mcpToolsForAI = this.getMCPToolsForAI();
-
-      // Combine all tools
-      const allTools = {
-        // ...mcpToolsForAI,
-        addOperator: addOperatorTool,
-        addLink: addLinkTool,
-        listOperators: listOperatorsTool,
-        listLinks: listLinksTool,
-        listOperatorTypes: listOperatorTypesTool,
-      };
-
-      // Generate response using Vercel AI SDK
-      const response = await generateText({
+      // 3) run multi-step with stopWhen
+      const { text, steps, response } = await generateText({
         model: this.model,
-        messages: [...this.messages],
-        tools: allTools,
-        system: `You are Texera Copilot, an AI assistant for building and modifying data workflows.
+        messages: this.messages,           // full history
+        tools,
+        system: "You are Texera Copilot, an AI assistant for building and modifying data workflows.",
+        // <-- THIS enables looping: the SDK will call tools, inject results,
+        // and re-generate until the condition is met or no more tool calls.
+        stopWhen: stepCountIs(10),
 
-CAPABILITIES:
-1. Workflow Manipulation (Local Tools):
-   - Add/delete operators
-   - Connect operators with links
-   - Modify operator properties
-   - Auto-layout workflows
-   - Add comment boxes
-
-2. Operator Discovery (MCP Tools):
-   - List available operator types
-   - Get operator schemas
-   - Search operators by capability
-   - Get operator metadata`,
+        // optional: observe every completed step (tool calls + results available)
+        onStepFinish({ text, toolCalls, toolResults, finishReason, usage }) {
+          // e.g., log or trace each iteration
+          // console.debug('step finished', { text, toolCalls, toolResults, finishReason, usage });
+        },
       });
 
-      // Add assistant response to history
-      const assistantMessage: ModelMessage = {
-        role: "assistant",
-        content: response.text,
-      };
-      this.messages.push(assistantMessage);
-      this.messageStream.next(assistantMessage);
+      // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
+      //    This keeps your history perfectly aligned with the SDK's internal state.
+      this.messages.push(...response.messages);
+      for (const m of response.messages) this.messageStream.next(m);
 
-      return response.text;
-    } catch (error: any) {
-      console.error("Error processing request:", error);
-      const errorMessage = `Error: ${error.message}`;
+      // 5) optional diagnostics
+      if (steps?.length) {
+        const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
+        console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
+      }
 
-      // Add error as assistant message
-      const assistantMessage: ModelMessage = {
-        role: "assistant",
-        content: errorMessage,
-      };
-      this.messages.push(assistantMessage);
-      this.messageStream.next(assistantMessage);
-
-      return errorMessage;
+      return text;
+    } catch (err: any) {
+      const errorText = `Error: ${err?.message ?? String(err)}`;
+      const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+      this.messages.push(assistantError);
+      this.messageStream.next(assistantError);
+      return errorText;
     } finally {
       this.updateState({ isProcessing: false });
     }
+  }
+
+  /**
+   * Create workflow manipulation tools
+   */
+  private createWorkflowTools(): Record<string, any> {
+    const addOperatorTool = createAddOperatorTool(
+      this.workflowActionService,
+      this.workflowUtilService,
+      this.operatorMetadataService
+    );
+    const addLinkTool = createAddLinkTool(this.workflowActionService);
+    const listOperatorsTool = createListOperatorsTool(this.workflowActionService);
+    const listLinksTool = createListLinksTool(this.workflowActionService);
+    const listOperatorTypesTool = createListOperatorTypesTool(this.workflowUtilService);
+
+    // Get MCP tools in AI SDK format
+    // const mcpToolsForAI = this.getMCPToolsForAI();
+
+    return {
+      // ...mcpToolsForAI,
+      addOperator: addOperatorTool,
+      addLink: addLinkTool,
+      listOperators: listOperatorsTool,
+      listLinks: listLinksTool,
+      listOperatorTypes: listOperatorTypesTool,
+    };
   }
 
   /**
@@ -278,13 +266,6 @@ CAPABILITIES:
   public addMessage(message: ModelMessage): void {
     this.messages.push(message);
     this.messageStream.next(message);
-  }
-
-  /**
-   * Clear conversation history
-   */
-  public clearConversation(): void {
-    this.messages = [];
   }
 
   /**
