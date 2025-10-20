@@ -31,7 +31,11 @@
   [nzData]="listOfDisplayUser">
   <thead>
     <tr>
-      <th>Avatar</th>
+      <th
+        [nzFilters]="[{ text: 'Active', value: 'active' }]"
+        [nzFilterFn]="filterActive">
+        Avatar
+      </th>
       <th
         [nzSortFn]="sortByID"
         [nzSortDirections]="['ascend', 'descend']">

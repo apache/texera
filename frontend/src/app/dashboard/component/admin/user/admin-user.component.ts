@@ -203,6 +203,12 @@ export class AdminUserComponent implements OnInit {
     return user.accountCreation * 1000;
   }
 
+  filterActive: NzTableFilterFn<User> = (list: string[], user: User) => {
+    if (!list.length) return true;
+    if (list.includes("active")) return this.isUserActive(user);
+    return true;
+  };
+
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
 }
