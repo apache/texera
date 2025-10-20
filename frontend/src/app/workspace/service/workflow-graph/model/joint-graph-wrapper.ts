@@ -585,16 +585,19 @@ export class JointGraphWrapper {
   }
 
   public autoLayoutJoint(): void {
-    joint.layout.DirectedGraph.layout(this.jointGraph, {
-      dagre: dagre,
-      graphlib: graphlib,
-      nodeSep: 100,
-      edgeSep: 150,
-      rankSep: 80,
-      ranker: "tight-tree",
-      rankDir: "LR",
-      resizeClusters: true,
-    });
+    joint.layout.DirectedGraph.layout(
+      [...this.jointGraph.getElements().filter(el => el.attributes.type !== "region"), ...this.jointGraph.getLinks()],
+      {
+        dagre: dagre,
+        graphlib: graphlib,
+        nodeSep: 100,
+        edgeSep: 150,
+        rankSep: 80,
+        ranker: "tight-tree",
+        rankDir: "LR",
+        resizeClusters: true,
+      }
+    );
   }
 
   /**

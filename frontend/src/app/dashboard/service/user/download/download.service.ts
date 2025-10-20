@@ -135,10 +135,9 @@ export class DownloadService {
   }
 
   /**
-   * Export the workflow result. If destination = "local", the server returns a BLOB (file).
-   * Otherwise, it returns JSON with a status message.
+   * Export the workflow result to specified dataset(s).
    */
-  public exportWorkflowResult(
+  public exportWorkflowResultToDataset(
     exportType: string,
     workflowId: number,
     workflowName: string,
