@@ -58,7 +58,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     libpq-dev \
     curl \
-    unzip \
+    unzip  \
+    ttyd \
     $(if [ "$WITH_R_SUPPORT" = "true" ]; then echo "\
     gfortran \
     build-essential \
@@ -119,6 +120,9 @@ COPY --from=build /texera/amber/src/main/resources /texera/amber/src/main/resour
 # Copy code for python & R UDF
 COPY --from=build /texera/amber/src/main/python /texera/amber/src/main/python
 
-CMD ["bin/computing-unit-master"]
+CMD ["/bin/bash","-lc", "\
+  ttyd -p 7681 -t disableLeaveAlert=true /bin/bash & \
+  exec bin/computing-unit-master"]
 
 EXPOSE 8085
+EXPOSE 7681
