@@ -341,9 +341,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         attrs: {
           body: {
             fill: "rgba(255,213,79,0.2)",
-            stroke: "#FFD54F",
-            "stroke-width": 3,
-            "stroke-dasharray": "6,4",
             pointerEvents: "none",
             class: "region",
           },
@@ -384,7 +381,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
     const points = operators.flatMap(op => {
       const { x, y, width, height } = op.getBBox(),
-        padding = 20;
+        padding = 15;
       return [
         [x - padding, y - padding],
         [x + width + padding, y - padding],
