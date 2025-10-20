@@ -28,6 +28,10 @@ import {
   createListOperatorsTool,
   createListLinksTool,
   createListOperatorTypesTool,
+  createGetOperatorTool,
+  createDeleteOperatorTool,
+  createDeleteLinkTool,
+  createSetOperatorPropertyTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -189,7 +193,7 @@ export class TexeraCopilot {
       // 3) run multi-step with stopWhen
       const { text, steps, response } = await generateText({
         model: this.model,
-        messages: this.messages,           // full history
+        messages: this.messages, // full history
         tools,
         system: "You are Texera Copilot, an AI assistant for building and modifying data workflows.",
         // <-- THIS enables looping: the SDK will call tools, inject results,
@@ -197,9 +201,26 @@ export class TexeraCopilot {
         stopWhen: stepCountIs(10),
 
         // optional: observe every completed step (tool calls + results available)
-        onStepFinish({ text, toolCalls, toolResults, finishReason, usage }) {
-          // e.g., log or trace each iteration
-          // console.debug('step finished', { text, toolCalls, toolResults, finishReason, usage });
+        onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
+          // Log each step for debugging
+          console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
+
+          // If there are tool calls, send a trace message to the chat
+          if (toolCalls && toolCalls.length > 0) {
+            const traceContent = toolCalls
+              .map(tc => {
+                const result = toolResults?.find(tr => tr.toolCallId === tc.toolCallId);
+                return `🔧 ${tc.toolName}(${JSON.stringify(tc.args, null, 2)})\n→ ${JSON.stringify(result?.result, null, 2)}`;
+              })
+              .join("\n\n");
+
+            // Send as a system-style message to the stream
+            const traceMessage: ModelMessage = {
+              role: "assistant",
+              content: `[Tool Trace]\n${traceContent}`,
+            };
+            this.messageStream.next(traceMessage);
+          }
         },
       });
 
@@ -239,6 +260,10 @@ export class TexeraCopilot {
     const listOperatorsTool = createListOperatorsTool(this.workflowActionService);
     const listLinksTool = createListLinksTool(this.workflowActionService);
     const listOperatorTypesTool = createListOperatorTypesTool(this.workflowUtilService);
+    const getOperatorTool = createGetOperatorTool(this.workflowActionService);
+    const deleteOperatorTool = createDeleteOperatorTool(this.workflowActionService);
+    const deleteLinkTool = createDeleteLinkTool(this.workflowActionService);
+    const setOperatorPropertyTool = createSetOperatorPropertyTool(this.workflowActionService);
 
     // Get MCP tools in AI SDK format
     // const mcpToolsForAI = this.getMCPToolsForAI();
@@ -250,6 +275,10 @@ export class TexeraCopilot {
       listOperators: listOperatorsTool,
       listLinks: listLinksTool,
       listOperatorTypes: listOperatorTypesTool,
+      getOperator: getOperatorTool,
+      deleteOperator: deleteOperatorTool,
+      deleteLink: deleteLinkTool,
+      setOperatorProperty: setOperatorPropertyTool,
     };
   }
 
