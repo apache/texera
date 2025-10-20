@@ -32,12 +32,21 @@ import {
   createDeleteOperatorTool,
   createDeleteLinkTool,
   createSetOperatorPropertyTool,
+  createGetDynamicSchemaTool,
+  createExecuteWorkflowTool,
+  createGetExecutionStateTool,
+  createHasOperatorResultTool,
+  createGetOperatorResultSnapshotTool,
+  createGetOperatorResultInfoTool,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
 import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -73,7 +82,10 @@ export class TexeraCopilot {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private dynamicSchemaService: DynamicSchemaService,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private workflowResultService: WorkflowResultService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -246,6 +258,12 @@ export class TexeraCopilot {
     const deleteOperatorTool = createDeleteOperatorTool(this.workflowActionService);
     const deleteLinkTool = createDeleteLinkTool(this.workflowActionService);
     const setOperatorPropertyTool = createSetOperatorPropertyTool(this.workflowActionService);
+    const getDynamicSchemaTool = createGetDynamicSchemaTool(this.dynamicSchemaService);
+    const executeWorkflowTool = createExecuteWorkflowTool(this.executeWorkflowService);
+    const getExecutionStateTool = createGetExecutionStateTool(this.executeWorkflowService);
+    const hasOperatorResultTool = createHasOperatorResultTool(this.workflowResultService);
+    const getOperatorResultSnapshotTool = createGetOperatorResultSnapshotTool(this.workflowResultService);
+    const getOperatorResultInfoTool = createGetOperatorResultInfoTool(this.workflowResultService);
 
     // Get MCP tools in AI SDK format
     // const mcpToolsForAI = this.getMCPToolsForAI();
@@ -261,6 +279,12 @@ export class TexeraCopilot {
       deleteOperator: deleteOperatorTool,
       deleteLink: deleteLinkTool,
       setOperatorProperty: setOperatorPropertyTool,
+      getDynamicSchema: getDynamicSchemaTool,
+      executeWorkflow: executeWorkflowTool,
+      getExecutionState: getExecutionStateTool,
+      hasOperatorResult: hasOperatorResultTool,
+      getOperatorResultSnapshot: getOperatorResultSnapshotTool,
+      getOperatorResultInfo: getOperatorResultInfoTool,
     };
   }
 
