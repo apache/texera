@@ -164,8 +164,14 @@
                   >Grid</label
                 >
               </li>
-            </ul>
-            <ul nz-menu>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
+                  [(ngModel)]="showRegion"
+                  (ngModelChange)="toggleRegion()"
+                  >Region</label
+                >
+              </li>
               <li nz-menu-item>
                 <label
                   nz-checkbox

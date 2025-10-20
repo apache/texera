@@ -17,18 +17,8 @@
  * under the License.
  */
 
-package org.apache.amber.engine.architecture.scheduling
+package org.apache.texera.web.model.websocket.response
 
-case class Schedule(private val levelSets: Map[Int, Set[Region]]) extends Iterator[Set[Region]] {
-  private var currentLevel = levelSets.keys.minOption.getOrElse(0)
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 
-  def getRegions: List[Region] = levelSets.values.flatten.toList
-
-  override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
-
-  override def next(): Set[Region] = {
-    val regions = levelSets(currentLevel)
-    currentLevel += 1
-    regions
-  }
-}
+case class RegionUpdateEvent(regions: List[List[String]]) extends TexeraWebSocketEvent
