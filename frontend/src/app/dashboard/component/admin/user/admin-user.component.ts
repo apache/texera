@@ -163,9 +163,7 @@ export class AdminUserComponent implements OnInit {
   searchByName(): void {
     this.nameSearchVisible = false;
     const q = (this.nameSearchValue ?? "").trim().toLowerCase();
-    this.listOfDisplayUser = this.userList.filter(u =>
-      (u.name ?? "").toLowerCase().includes(q)
-    );
+    this.listOfDisplayUser = this.userList.filter(u => (u.name ?? "").toLowerCase().includes(q));
   }
 
   searchByEmail(): void {
