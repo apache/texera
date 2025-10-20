@@ -1311,11 +1311,11 @@ class DatasetResource {
   }
 
   private def generatePresignedResponseWithS3(
-                                               encodedUrl: String,
-                                               repositoryName: String,
-                                               commitHash: String,
-                                               uid: Integer
-                                             ): Response = {
+      encodedUrl: String,
+      repositoryName: String,
+      commitHash: String,
+      uid: Integer
+  ): Response = {
     resolveRepositoryAndPath(encodedUrl, repositoryName, commitHash, uid) match {
       case Left(errorResponse) =>
         errorResponse
