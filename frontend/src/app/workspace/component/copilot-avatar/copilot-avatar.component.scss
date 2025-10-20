@@ -101,3 +101,30 @@
     color: #faad14;
   }
 }
+
+.tool-trace {
+  padding: 6px 8px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+.tool-trace-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tool-trace-item + .tool-trace-item {
+  margin-top: 8px;
+}
+.tool-trace-head {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.tool-trace-json {
+  margin: 0;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  padding: 8px;
+  border-radius: 4px;
+  overflow: auto;
+}
