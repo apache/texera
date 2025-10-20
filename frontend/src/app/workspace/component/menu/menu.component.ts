@@ -56,7 +56,6 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
-import { CopilotAvatarComponent } from "../copilot-avatar/copilot-avatar.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -120,10 +119,6 @@ export class MenuComponent implements OnInit, OnDestroy {
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
-  @ViewChild(CopilotAvatarComponent) copilotAvatarComponent?: CopilotAvatarComponent;
-
-  // Copilot status
-  public copilotEnabled: boolean = false;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -746,13 +741,6 @@ export class MenuComponent implements OnInit, OnDestroy {
       this.currentExecutionName || "Untitled Execution",
       this.config.env.workflowEmailNotificationEnabled
     );
-  }
-
-  /**
-   * Toggle copilot avatar visibility
-   */
-  public onClickToggleCopilot(): void {
-    this.copilotAvatarComponent?.toggleVisibility();
   }
 
   protected readonly Privilege = Privilege;

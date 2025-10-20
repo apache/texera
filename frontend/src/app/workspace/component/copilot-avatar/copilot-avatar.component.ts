@@ -12,7 +12,7 @@ import { TexeraCopilot, AgentResponse } from "../../service/copilot/texera-copil
 export class CopilotAvatarComponent implements OnInit {
   @ViewChild("deepChat", { static: false }) deepChatElement?: ElementRef;
 
-  public isVisible = false;
+  public isVisible = true;
   public isChatVisible = false;
   public isConnected = false;
   public isProcessing = false;
@@ -37,19 +37,16 @@ export class CopilotAvatarComponent implements OnInit {
               if (response.type === "trace") {
                 // Format tool traces
                 displayText = this.formatToolTrace(response);
+                // Add trace message via addMessage API
+                if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
+                  this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
+                }
               } else if (response.type === "response") {
-                // Use the final response text as-is
-                displayText = response.content;
-              }
-
-              // Use deep-chat's addMessage API to add each message as it arrives
-              if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
-                this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
-              }
-
-              // If generation is done, signal completion to deep-chat
-              if (response.isDone) {
-                signals.onResponse({ text: response.content });
+                // For final response, signal completion with the content
+                // This will let deep-chat handle adding the message
+                if (response.isDone) {
+                  signals.onResponse({ text: response.content });
+                }
               }
             },
             error: (e: unknown) => {
