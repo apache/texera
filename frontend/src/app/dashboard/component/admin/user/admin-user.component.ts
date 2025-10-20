@@ -207,7 +207,7 @@ export class AdminUserComponent implements OnInit {
     const aActive = this.isUserActive(a);
     const bActive = this.isUserActive(b);
 
-    if (aActive === bActive) return 0;        // tie → keep original order
+    if (aActive === bActive) return 0;
     return aActive ? -1 : 1;
   };
 
