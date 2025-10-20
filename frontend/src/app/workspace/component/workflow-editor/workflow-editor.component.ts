@@ -355,33 +355,33 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     );
 
     let regionMap: { regionElement: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
-    // update region shapes on execution
+    // update region elements on execution
     this.executeWorkflowService
       .getRegionUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(regions => {
         this.paper.model
           .getCells()
-          .filter(shape => shape instanceof Region)
-          .forEach(shape => shape.remove());
+          .filter(element => element instanceof Region)
+          .forEach(element => element.remove());
 
         regionMap = regions.map(region => {
-          const shape = new Region();
+          const element = new Region();
           const ops = region.map(id => this.paper.getModelById(id));
-          this.paper.model.addCell(shape);
-          this.updateRegionShape(shape, ops);
-          return { regionElement: shape, operators: ops };
+          this.paper.model.addCell(element);
+          this.updateRegionElement(element, ops);
+          return { regionElement: element, operators: ops };
         });
       });
 
     this.paper.model.on("change:position", operator => {
       regionMap
         .filter(region => region.operators.includes(operator))
-        .forEach(region => this.updateRegionShape(region.regionElement, region.operators));
+        .forEach(region => this.updateRegionElement(region.regionElement, region.operators));
     });
   }
 
-  private updateRegionShape(regionShape: joint.dia.Element, operators: joint.dia.Cell[]) {
+  private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
     const points = operators.flatMap(op => {
       const { x, y, width, height } = op.getBBox(),
         padding = 20;
@@ -392,7 +392,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x + width + padding, y + height + padding + 10],
       ];
     });
-    regionShape.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+    regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**
