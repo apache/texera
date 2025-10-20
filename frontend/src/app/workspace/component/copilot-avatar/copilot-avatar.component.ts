@@ -17,19 +17,26 @@ export class CopilotAvatarComponent implements OnInit, AfterViewInit {
   public isChatVisible = false;
   public isConnected = false;
   public isProcessing = false;
+  private isInitialized = false;
 
   // Deep-chat configuration
   public deepChatConfig = {
     connect: {
-      handler: async (body: any, signals: any) => {
-        try {
-          const last = body?.messages?.[body.messages.length - 1];
-          const userText: string = typeof last?.text === "string" ? last.text : "";
-          const reply = await this.copilotService.sendMessage(userText);
-          signals.onResponse({ text: reply });
-        } catch (e: any) {
-          signals.onResponse({ error: e?.message ?? "Unknown error" });
-        }
+      handler: (body: any, signals: any) => {
+        const last = body?.messages?.[body.messages.length - 1];
+        const userText: string = typeof last?.text === "string" ? last.text : "";
+
+        this.copilotService
+          .sendMessage(userText)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: (reply: string) => {
+              signals.onResponse({ text: reply });
+            },
+            error: (e: unknown) => {
+              signals.onResponse({ error: e ?? "Unknown error" });
+            },
+          });
       },
     },
     demo: false,
@@ -40,11 +47,22 @@ export class CopilotAvatarComponent implements OnInit, AfterViewInit {
   constructor(public copilotService: TexeraCopilot) {}
 
   ngOnInit(): void {
-    this.copilotService.state$.pipe(untilDestroyed(this)).subscribe(state => {
-      this.isVisible = state.isEnabled;
-      this.isConnected = state.isConnected;
-      this.isProcessing = state.isProcessing;
+    // Subscribe to message stream for real-time updates (including tool traces)
+    this.copilotService.messages$.pipe(untilDestroyed(this)).subscribe(message => {
+      if (this.deepChatElement?.nativeElement) {
+        const newMessage = {
+          role: message.role === "assistant" ? "ai" : "user",
+          text: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+        };
+
+        // Add message to deep-chat
+        const currentMessages = this.deepChatElement.nativeElement.messages || [];
+        this.deepChatElement.nativeElement.messages = [...currentMessages, newMessage];
+      }
     });
+
+    // Update connection status
+    this.updateConnectionStatus();
   }
 
   ngAfterViewInit(): void {
@@ -60,8 +78,36 @@ export class CopilotAvatarComponent implements OnInit, AfterViewInit {
     }
   }
 
-  public toggleChat(): void {
+  public async toggleChat(): Promise<void> {
+    // Initialize copilot on first toggle if not already initialized
+    if (!this.isInitialized) {
+      try {
+        await this.copilotService.initialize();
+        this.isInitialized = true;
+        this.updateConnectionStatus();
+      } catch (error) {
+        console.error("Failed to initialize copilot:", error);
+        return;
+      }
+    }
+
     this.isChatVisible = !this.isChatVisible;
+  }
+
+  public toggleVisibility(): void {
+    this.isVisible = !this.isVisible;
+
+    // If hiding and copilot is initialized, disconnect
+    if (!this.isVisible && this.isInitialized) {
+      this.copilotService.disconnect().then(() => {
+        this.isInitialized = false;
+        this.updateConnectionStatus();
+      });
+    }
+  }
+
+  private updateConnectionStatus(): void {
+    this.isConnected = this.copilotService.isConnected();
   }
 
   public getStatusColor(): string {

@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Subject } from "rxjs";
+import { Subject, Observable } from "rxjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -35,28 +35,13 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import {
-  AssistantModelMessage,
-  generateText,
-  type ModelMessage,
-  stepCountIs,
-  UserModelMessage,
-} from "ai";
+import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
 export const AGENT_MODEL_ID = "claude-3.7";
-
-/**
- * Simplified copilot state for UI
- */
-export interface CopilotState {
-  isEnabled: boolean;
-  isConnected: boolean;
-  isProcessing: boolean;
-}
 
 /**
  * Texera Copilot - An AI assistant for workflow manipulation
@@ -73,15 +58,6 @@ export class TexeraCopilot {
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
 
-  // State management
-  private stateSubject = new BehaviorSubject<CopilotState>({
-    isEnabled: false,
-    isConnected: false,
-    isProcessing: false,
-  });
-
-  public readonly state$ = this.stateSubject.asObservable();
-
   // Message stream for real-time updates
   private messageStream = new Subject<ModelMessage>();
   public readonly messages$ = this.messageStream.asObservable();
@@ -97,7 +73,7 @@ export class TexeraCopilot {
   /**
    * Initialize the copilot with MCP and AI model
    */
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     try {
       // 1. Connect to MCP server
       await this.connectMCP();
@@ -108,18 +84,9 @@ export class TexeraCopilot {
         apiKey: "dummy",
       }).chat(AGENT_MODEL_ID);
 
-      this.updateState({
-        isEnabled: true,
-        isConnected: true,
-      });
-
       console.log("Texera Copilot initialized successfully");
     } catch (error: unknown) {
       console.error("Failed to initialize copilot:", error);
-      this.updateState({
-        isEnabled: false,
-        isConnected: false,
-      });
       throw error;
     }
   }
@@ -183,27 +150,27 @@ export class TexeraCopilot {
     return tools;
   }
 
-  public async sendMessage(message: string): Promise<string> {
-    if (!this.model) throw new Error("Copilot not initialized");
+  public sendMessage(message: string): Observable<string> {
+    return new Observable<string>(observer => {
+      if (!this.model) {
+        observer.error(new Error("Copilot not initialized"));
+        return;
+      }
 
-    // 1) push the user message
-    const userMessage: UserModelMessage = { role: "user", content: message };
-    this.messages.push(userMessage);
-    this.messageStream.next(userMessage);
-    this.updateState({ isProcessing: true });
+      // 1) push the user message
+      const userMessage: UserModelMessage = { role: "user", content: message };
+      this.messages.push(userMessage);
+      this.messageStream.next(userMessage);
 
-    try {
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
 
       // 3) run multi-step with stopWhen
-      const { text, steps, response } = await generateText({
+      generateText({
         model: this.model,
         messages: this.messages, // full history
         tools,
         system: "You are Texera Copilot, an AI assistant for building and modifying data workflows.",
-        // <-- THIS enables looping: the SDK will call tools, inject results,
-        // and re-generate until the condition is met or no more tool calls.
         stopWhen: stepCountIs(10),
 
         // optional: observe every completed step (tool calls + results available)
@@ -225,29 +192,31 @@ export class TexeraCopilot {
             this.messageStream.next(traceMessage);
           }
         },
-      });
+      })
+        .then(({ text, steps, response }) => {
+          // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
+          //    This keeps your history perfectly aligned with the SDK's internal state.
+          this.messages.push(...response.messages);
+          for (const m of response.messages) this.messageStream.next(m);
 
-      // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
-      //    This keeps your history perfectly aligned with the SDK's internal state.
-      this.messages.push(...response.messages);
-      for (const m of response.messages) this.messageStream.next(m);
+          // 5) optional diagnostics
+          if (steps?.length) {
+            const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
+            console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
+          }
 
-      // 5) optional diagnostics
-      if (steps?.length) {
-        const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
-        console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
-      }
-
-      return text;
-    } catch (err: any) {
-      const errorText = `Error: ${err?.message ?? String(err)}`;
-      const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-      this.messages.push(assistantError);
-      this.messageStream.next(assistantError);
-      return errorText;
-    } finally {
-      this.updateState({ isProcessing: false });
-    }
+          observer.next(text);
+          observer.complete();
+        })
+        .catch((err: any) => {
+          const errorText = `Error: ${err?.message ?? String(err)}`;
+          const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+          this.messages.push(assistantError);
+          this.messageStream.next(assistantError);
+          observer.next(errorText);
+          observer.complete();
+        });
+    });
   }
 
   /**
@@ -301,58 +270,22 @@ export class TexeraCopilot {
   }
 
   /**
-   * Toggle copilot enabled state
+   * Disconnect and cleanup copilot resources
    */
-  public async toggle(): Promise<void> {
-    const currentState = this.stateSubject.getValue();
-
-    if (currentState.isEnabled) {
-      await this.disable();
-    } else {
-      await this.enable();
-    }
-  }
-
-  /**
-   * Enable copilot
-   */
-  private async enable(): Promise<void> {
-    await this.initialize();
-  }
-
-  /**
-   * Disable copilot
-   */
-  private async disable(): Promise<void> {
+  public async disconnect(): Promise<void> {
     // Disconnect the MCP client if it exists
     if (this.mcpClient) {
       await this.mcpClient.close();
       this.mcpClient = undefined;
     }
 
-    this.updateState({
-      isEnabled: false,
-      isConnected: false,
-    });
-
-    console.log("Copilot disabled");
+    console.log("Copilot disconnected");
   }
 
   /**
-   * Get current state
+   * Check if copilot is connected
    */
-  public getState(): CopilotState {
-    return this.stateSubject.getValue();
-  }
-
-  /**
-   * Update state
-   */
-  private updateState(partialState: Partial<CopilotState>): void {
-    const currentState = this.stateSubject.getValue();
-    this.stateSubject.next({
-      ...currentState,
-      ...partialState,
-    });
+  public isConnected(): boolean {
+    return this.mcpClient !== undefined && this.model !== undefined;
   }
 }
