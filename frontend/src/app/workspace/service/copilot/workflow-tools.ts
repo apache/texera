@@ -190,3 +190,105 @@ export function createListOperatorTypesTool(workflowUtilService: WorkflowUtilSer
     },
   });
 }
+
+/**
+ * Create getOperator tool for getting detailed information about a specific operator
+ */
+export function createGetOperatorTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "getOperator",
+    description: "Get detailed information about a specific operator in the workflow",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to retrieve"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+        return {
+          success: true,
+          operator: operator,
+          message: `Retrieved operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || `Operator ${args.operatorId} not found`,
+        };
+      }
+    },
+  });
+}
+
+/**
+ * Create deleteOperator tool for removing an operator from the workflow
+ */
+export function createDeleteOperatorTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "deleteOperator",
+    description: "Delete an operator from the workflow",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to delete"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        workflowActionService.deleteOperator(args.operatorId);
+        return {
+          success: true,
+          message: `Deleted operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create deleteLink tool for removing a link from the workflow
+ */
+export function createDeleteLinkTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "deleteLink",
+    description: "Delete a link between two operators in the workflow by link ID",
+    inputSchema: z.object({
+      linkId: z.string().describe("ID of the link to delete"),
+    }),
+    execute: async (args: { linkId: string }) => {
+      try {
+        workflowActionService.deleteLinkWithID(args.linkId);
+        return {
+          success: true,
+          message: `Deleted link ${args.linkId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create setOperatorProperty tool for modifying operator properties
+ */
+export function createSetOperatorPropertyTool(workflowActionService: WorkflowActionService) {
+  return tool({
+    name: "setOperatorProperty",
+    description: "Set or update properties of an operator in the workflow",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to modify"),
+      properties: z.record(z.any()).describe("Properties object to set on the operator"),
+    }),
+    execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
+      try {
+        workflowActionService.setOperatorProperty(args.operatorId, args.properties);
+        return {
+          success: true,
+          message: `Updated properties for operator ${args.operatorId}`,
+          properties: args.properties,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
