@@ -23,7 +23,7 @@
   <!-- AI Avatar -->
   <nz-avatar
     class="copilot-avatar"
-    [nzIcon]="'robot'"
+    nzIcon="customer-service"
     [nzSize]="32"
     [style.backgroundColor]="'#1890ff'"
     [style.cursor]="'pointer'"
@@ -31,13 +31,6 @@
     nz-tooltip
     [nzTooltipTitle]="getStatusTooltip()">
   </nz-avatar>
-
-  <!-- Status Indicator -->
-  <nz-badge
-    class="status-indicator"
-    [nzColor]="getStatusColor()"
-    [nzDot]="true">
-  </nz-badge>
 
   <!-- Floating Chat Box with deep-chat -->
   <div
@@ -48,14 +41,9 @@
       <div class="chat-title">
         <i
           nz-icon
-          nzType="robot"
+          nzType="customer-service"
           nzTheme="outline"></i>
         <span>Texera Copilot</span>
-        <nz-badge
-          [nzColor]="getStatusColor()"
-          [nzDot]="true"
-          style="margin-left: 8px">
-        </nz-badge>
       </div>
       <button
         nz-button

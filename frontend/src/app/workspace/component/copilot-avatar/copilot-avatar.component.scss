@@ -18,8 +18,8 @@
  */
 
 .copilot-avatar-container {
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-right: 8px;
 }
 
@@ -33,19 +33,12 @@
   }
 }
 
-.status-indicator {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  pointer-events: none;
-}
-
 .chat-box {
   position: fixed;
   top: 60px;
   right: 20px;
   width: 400px;
-  height: 600px;
+  height: 500px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -72,7 +65,7 @@
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1890ff;
   color: white;
   border-radius: 8px 8px 0 0;
 }

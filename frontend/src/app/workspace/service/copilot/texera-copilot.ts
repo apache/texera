@@ -35,7 +35,13 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
+import {
+  AssistantModelMessage,
+  generateText,
+  type ModelMessage,
+  stepCountIs,
+  UserModelMessage,
+} from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 
@@ -215,10 +221,7 @@ export class TexeraCopilot {
               .join("\n\n");
 
             // Send as a system-style message to the stream
-            const traceMessage: ModelMessage = {
-              role: "assistant",
-              content: `[Tool Trace]\n${traceContent}`,
-            };
+            const traceMessage: AssistantModelMessage = { role: "assistant", content: `[Tool Trace]\n${traceContent}` };
             this.messageStream.next(traceMessage);
           }
         },
