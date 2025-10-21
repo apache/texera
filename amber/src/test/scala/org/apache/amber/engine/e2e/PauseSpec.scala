@@ -22,7 +22,7 @@ package org.apache.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import com.twitter.util.{Await, Duration, Promise}
+import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.amber.clustering.SingleNodeListener
 import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext}
@@ -95,54 +95,21 @@ class PauseSpec
           completion.setDone()
         }
       })
-    try {
-      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-      Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-      Thread.sleep(4000)
-      Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-      Thread.sleep(400)
-      Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-      Thread.sleep(4000)
-      Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-      Await.result(completion, Duration.fromMinutes(1))
-    } finally {
-      client.shutdown()
-    }
-  }
-
-  /**
-    * In the CI environment, there is a chance that shouldPause does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
-    */
-  def shouldPauseWithRetries(
-      operators: List[LogicalOp],
-      links: List[LogicalLink],
-      maxRetries: Int = 3
-  ): Unit = {
-    var attempt = 0
-    while (attempt <= maxRetries) {
-      try {
-        shouldPause(operators, links)
-        return
-      } catch {
-        case _: com.twitter.util.TimeoutException =>
-          attempt += 1
-          if (attempt > maxRetries) {
-            throw new com.twitter.util.TimeoutException("shouldPause timed out after retries")
-          }
-          // Need to reset test texera_db state before retry
-          cleanupWorkflowExecutionData()
-          setUpWorkflowExecutionData()
-        case otherError: Throwable =>
-          throw otherError
-      }
-    }
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Thread.sleep(4000)
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Thread.sleep(400)
+    Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
+    Thread.sleep(4000)
+    Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
+    Await.result(completion)
   }
 
   "Engine" should "be able to pause csv workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
     logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}")
-    shouldPauseWithRetries(
+    shouldPause(
       List(csvOpDesc),
       List()
     )
@@ -154,7 +121,7 @@ class PauseSpec
     logger.info(
       s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}"
     )
-    shouldPauseWithRetries(
+    shouldPause(
       List(csvOpDesc, keywordOpDesc),
       List(
         LogicalLink(

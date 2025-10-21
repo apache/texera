@@ -126,42 +126,9 @@ class DataProcessingSpec
           completion.setDone()
         }
       })
-    try {
-      Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
-      Await.result(completion, Duration.fromMinutes(1))
-      results
-    } finally {
-      client.shutdown()
-    }
-  }
-
-  /**
-    * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
-    */
-  def executeWorkflowWithRetries(
-      workflow: Workflow,
-      maxRetries: Int = 3
-  ): Map[OperatorIdentity, List[Tuple]] = {
-    var attempt = 0
-    while (attempt <= maxRetries) {
-      try {
-        return executeWorkflow(workflow)
-      } catch {
-        case _: com.twitter.util.TimeoutException =>
-          attempt += 1
-          if (attempt > maxRetries) {
-            throw new com.twitter.util.TimeoutException("executeWorkflow timed out after retries")
-          }
-          // Need to reset test texera_db state before retry
-          cleanupWorkflowExecutionData()
-          setUpWorkflowExecutionData()
-        case otherError: Throwable =>
-          throw otherError
-      }
-    }
-    // Code should not reach here.
-    throw new RuntimeException("unreachable")
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
+    Await.result(completion, Duration.fromMinutes(1))
+    results
   }
 
   "Engine" should "execute headerlessCsv workflow normally" in {
@@ -171,7 +138,7 @@ class DataProcessingSpec
       List(),
       workflowContext
     )
-    val results = executeWorkflowWithRetries(workflow)(headerlessCsvOpDesc.operatorIdentifier)
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
 
     assert(results.size == 100)
   }
@@ -183,7 +150,7 @@ class DataProcessingSpec
       List(),
       workflowContext
     )
-    val results = executeWorkflowWithRetries(workflow)(headerlessCsvOpDesc.operatorIdentifier)
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
 
     assert(results.size == 100)
   }
@@ -195,7 +162,7 @@ class DataProcessingSpec
       List(),
       workflowContext
     )
-    val results = executeWorkflowWithRetries(workflow)(jsonlOp.operatorIdentifier)
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
 
     assert(results.size == 100)
 
@@ -218,7 +185,7 @@ class DataProcessingSpec
       List(),
       workflowContext
     )
-    val results = executeWorkflowWithRetries(workflow)(jsonlOp.operatorIdentifier)
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
 
     assert(results.size == 1000)
 
@@ -249,7 +216,7 @@ class DataProcessingSpec
       ),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 
   "Engine" should "execute csv workflow normally" in {
@@ -259,7 +226,7 @@ class DataProcessingSpec
       List(),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 
   "Engine" should "execute csv->keyword workflow normally" in {
@@ -277,7 +244,7 @@ class DataProcessingSpec
       ),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 
   "Engine" should "execute csv->keyword->count workflow normally" in {
@@ -303,7 +270,7 @@ class DataProcessingSpec
       ),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 
   "Engine" should "execute csv->keyword->averageAndGroupBy workflow normally" in {
@@ -333,7 +300,7 @@ class DataProcessingSpec
       ),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 
   "Engine" should "execute csv->(csv->)->join workflow normally" in {
@@ -362,6 +329,6 @@ class DataProcessingSpec
       ),
       workflowContext
     )
-    executeWorkflowWithRetries(workflow)
+    executeWorkflow(workflow)
   }
 }
