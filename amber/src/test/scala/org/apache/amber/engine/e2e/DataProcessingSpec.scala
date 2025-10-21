@@ -34,18 +34,13 @@ import org.apache.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import org.apache.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import org.apache.amber.engine.common.AmberRuntime
 import org.apache.amber.engine.common.client.AmberClient
-import org.apache.amber.engine.e2e.TestUtils.{
-  buildWorkflow,
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
-}
+import org.apache.amber.engine.e2e.TestUtils.{buildWorkflow, cleanupWorkflowExecutionData, initiateTexeraDBForTestCases, setUpWorkflowExecutionData}
 import org.apache.amber.operator.TestOperators
 import org.apache.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Canceled, Failed, Outcome, Retries}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 
 import scala.concurrent.duration.DurationInt
 
