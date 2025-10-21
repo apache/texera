@@ -100,7 +100,7 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
-import { CopilotAvatarComponent } from "./workspace/component/copilot-avatar/copilot-avatar.component";
+import { CopilotChatComponent } from "./workspace/component/copilot-chat/copilot-chat.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
@@ -244,7 +244,7 @@ registerLocaleData(en);
     LocalLoginComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
-    CopilotAvatarComponent,
+    CopilotChatComponent,
     InputAutoCompleteComponent,
     FileSelectionComponent,
     CollabWrapperComponent,

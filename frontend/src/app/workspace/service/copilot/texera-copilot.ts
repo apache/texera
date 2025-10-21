@@ -47,6 +47,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { CopilotCoeditorService } from "./copilot-coeditor.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -85,7 +86,8 @@ export class TexeraCopilot {
     private operatorMetadataService: OperatorMetadataService,
     private dynamicSchemaService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private copilotCoeditorService: CopilotCoeditorService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -190,7 +192,7 @@ export class TexeraCopilot {
         messages: this.messages, // full history
         tools,
         system: "You are Texera Copilot, an AI assistant for building and modifying data workflows.",
-        stopWhen: stepCountIs(10),
+        stopWhen: stepCountIs(50),
 
         // optional: observe every completed step (tool calls + results available)
         onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
@@ -248,22 +250,42 @@ export class TexeraCopilot {
     const addOperatorTool = createAddOperatorTool(
       this.workflowActionService,
       this.workflowUtilService,
-      this.operatorMetadataService
+      this.operatorMetadataService,
+      this.copilotCoeditorService
     );
     const addLinkTool = createAddLinkTool(this.workflowActionService);
-    const listOperatorsTool = createListOperatorsTool(this.workflowActionService);
+    const listOperatorsTool = createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService);
     const listLinksTool = createListLinksTool(this.workflowActionService);
     const listOperatorTypesTool = createListOperatorTypesTool(this.workflowUtilService);
-    const getOperatorTool = createGetOperatorTool(this.workflowActionService);
-    const deleteOperatorTool = createDeleteOperatorTool(this.workflowActionService);
+    const getOperatorTool = createGetOperatorTool(this.workflowActionService, this.copilotCoeditorService);
+    const deleteOperatorTool = createDeleteOperatorTool(this.workflowActionService, this.copilotCoeditorService);
     const deleteLinkTool = createDeleteLinkTool(this.workflowActionService);
-    const setOperatorPropertyTool = createSetOperatorPropertyTool(this.workflowActionService);
-    const getDynamicSchemaTool = createGetDynamicSchemaTool(this.dynamicSchemaService);
+    const setOperatorPropertyTool = createSetOperatorPropertyTool(
+      this.workflowActionService,
+      this.copilotCoeditorService
+    );
+    const getDynamicSchemaTool = createGetDynamicSchemaTool(
+      this.dynamicSchemaService,
+      this.workflowActionService,
+      this.copilotCoeditorService
+    );
     const executeWorkflowTool = createExecuteWorkflowTool(this.executeWorkflowService);
     const getExecutionStateTool = createGetExecutionStateTool(this.executeWorkflowService);
-    const hasOperatorResultTool = createHasOperatorResultTool(this.workflowResultService);
-    const getOperatorResultSnapshotTool = createGetOperatorResultSnapshotTool(this.workflowResultService);
-    const getOperatorResultInfoTool = createGetOperatorResultInfoTool(this.workflowResultService);
+    const hasOperatorResultTool = createHasOperatorResultTool(
+      this.workflowResultService,
+      this.workflowActionService,
+      this.copilotCoeditorService
+    );
+    const getOperatorResultSnapshotTool = createGetOperatorResultSnapshotTool(
+      this.workflowResultService,
+      this.workflowActionService,
+      this.copilotCoeditorService
+    );
+    const getOperatorResultInfoTool = createGetOperatorResultInfoTool(
+      this.workflowResultService,
+      this.workflowActionService,
+      this.copilotCoeditorService
+    );
 
     // Get MCP tools in AI SDK format
     // const mcpToolsForAI = this.getMCPToolsForAI();

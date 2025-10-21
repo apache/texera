@@ -56,6 +56,7 @@ import { ComputingUnitSelectionComponent } from "../power-button/computing-unit-
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
+import { CopilotChatComponent } from "../copilot-chat/copilot-chat.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -119,6 +120,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
+  @ViewChild(CopilotChatComponent) copilotChat?: CopilotChatComponent;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -517,6 +519,23 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getAllOperators()
       .map(op => op.operatorID);
     this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
+  }
+
+  /**
+   * Toggle AI Copilot connection
+   * - If not connected: registers copilot as coeditor and shows chat
+   * - If connected: unregisters copilot, disconnects, and clears messages
+   */
+  public async toggleCopilotChat(): Promise<void> {
+    if (!this.copilotChat) return;
+
+    if (this.copilotChat.isActive()) {
+      // Disconnect: remove from coeditors, clear messages
+      this.copilotChat.disconnect();
+    } else {
+      // Connect: register as coeditor, show chat
+      await this.copilotChat.connect();
+    }
   }
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {

@@ -18,20 +18,20 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { CopilotAvatarComponent } from "./copilot-avatar.component";
+import { CopilotChatComponent } from "./copilot-chat.component";
 
-describe("CopilotAvatarComponent", () => {
-  let component: CopilotAvatarComponent;
-  let fixture: ComponentFixture<CopilotAvatarComponent>;
+describe("CopilotChatComponent", () => {
+  let component: CopilotChatComponent;
+  let fixture: ComponentFixture<CopilotChatComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [CopilotAvatarComponent],
+      declarations: [CopilotChatComponent],
     }).compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(CopilotAvatarComponent);
+    fixture = TestBed.createComponent(CopilotChatComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

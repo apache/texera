@@ -27,6 +27,7 @@ import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
+import { CopilotCoeditorService } from "./copilot-coeditor.service";
 
 /**
  * Create addOperator tool for adding a new operator to the workflow
@@ -34,7 +35,8 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 export function createAddOperatorTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
-  operatorMetadataService: OperatorMetadataService
+  operatorMetadataService: OperatorMetadataService,
+  copilotCoeditor: CopilotCoeditorService
 ) {
   return tool({
     name: "addOperator",
@@ -61,8 +63,16 @@ export function createAddOperatorTool(
         const defaultY = 100 + Math.floor(existingOperators.length / 5) * 150;
         const position = { x: defaultX, y: defaultY };
 
+        // Show copilot is adding this operator
+        copilotCoeditor.showEditingOperator(operator.operatorID);
+
         // Add the operator to the workflow
         workflowActionService.addOperator(operator, position);
+
+        // Clear presence indicator after a brief delay
+        setTimeout(() => {
+          copilotCoeditor.clearEditingOperator();
+        }, 1000);
 
         return {
           success: true,
@@ -129,7 +139,10 @@ export function createAddLinkTool(workflowActionService: WorkflowActionService) 
 /**
  * Create listOperators tool for getting all operators in the workflow
  */
-export function createListOperatorsTool(workflowActionService: WorkflowActionService) {
+export function createListOperatorsTool(
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "listOperators",
     description: "Get all operators in the current workflow",
@@ -137,12 +150,23 @@ export function createListOperatorsTool(workflowActionService: WorkflowActionSer
     execute: async () => {
       try {
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
+
+        // Highlight all operators to show copilot is inspecting them
+        const operatorIds = operators.map(op => op.operatorID);
+        copilotCoeditor.highlightOperators(operatorIds);
+
+        // Clear highlights after a brief delay
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1500);
+
         return {
           success: true,
           operators: operators,
           count: operators.length,
         };
       } catch (error: any) {
+        // Can't clear highlights without operator IDs
         return { success: false, error: error.message };
       }
     },
@@ -198,7 +222,10 @@ export function createListOperatorTypesTool(workflowUtilService: WorkflowUtilSer
 /**
  * Create getOperator tool for getting detailed information about a specific operator
  */
-export function createGetOperatorTool(workflowActionService: WorkflowActionService) {
+export function createGetOperatorTool(
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "getOperator",
     description: "Get detailed information about a specific operator in the workflow",
@@ -207,13 +234,26 @@ export function createGetOperatorTool(workflowActionService: WorkflowActionServi
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Show copilot is viewing this operator
+        copilotCoeditor.showEditingOperator(args.operatorId);
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+
+        // Clear viewing state after a brief delay
+        setTimeout(() => {
+          copilotCoeditor.clearEditingOperator();
+          copilotCoeditor.clearHighlights();
+        }, 1200);
+
         return {
           success: true,
           operator: operator,
           message: `Retrieved operator ${args.operatorId}`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearEditingOperator();
+        copilotCoeditor.clearHighlights();
         return {
           success: false,
           error: error.message || `Operator ${args.operatorId} not found`,
@@ -226,7 +266,10 @@ export function createGetOperatorTool(workflowActionService: WorkflowActionServi
 /**
  * Create deleteOperator tool for removing an operator from the workflow
  */
-export function createDeleteOperatorTool(workflowActionService: WorkflowActionService) {
+export function createDeleteOperatorTool(
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "deleteOperator",
     description: "Delete an operator from the workflow",
@@ -235,12 +278,20 @@ export function createDeleteOperatorTool(workflowActionService: WorkflowActionSe
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Show copilot is editing this operator before deletion
+        copilotCoeditor.showEditingOperator(args.operatorId);
+
         workflowActionService.deleteOperator(args.operatorId);
+
+        // Clear editing state after deletion
+        copilotCoeditor.clearEditingOperator();
+
         return {
           success: true,
           message: `Deleted operator ${args.operatorId}`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -274,7 +325,10 @@ export function createDeleteLinkTool(workflowActionService: WorkflowActionServic
 /**
  * Create setOperatorProperty tool for modifying operator properties
  */
-export function createSetOperatorPropertyTool(workflowActionService: WorkflowActionService) {
+export function createSetOperatorPropertyTool(
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "setOperatorProperty",
     description: "Set or update properties of an operator in the workflow",
@@ -284,13 +338,26 @@ export function createSetOperatorPropertyTool(workflowActionService: WorkflowAct
     }),
     execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
       try {
+        // Show copilot is editing this operator
+        copilotCoeditor.showEditingOperator(args.operatorId);
+
         workflowActionService.setOperatorProperty(args.operatorId, args.properties);
+
+        // Show property was changed
+        copilotCoeditor.showPropertyChanged(args.operatorId);
+
+        // Clear currently editing state
+        setTimeout(() => {
+          copilotCoeditor.clearEditingOperator();
+        }, 1000);
+
         return {
           success: true,
           message: `Updated properties for operator ${args.operatorId}`,
           properties: args.properties,
         };
       } catch (error: any) {
+        copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -300,7 +367,11 @@ export function createSetOperatorPropertyTool(workflowActionService: WorkflowAct
 /**
  * Create getDynamicSchema tool for getting operator schema information
  */
-export function createGetDynamicSchemaTool(dynamicSchemaService: DynamicSchemaService) {
+export function createGetDynamicSchemaTool(
+  dynamicSchemaService: DynamicSchemaService,
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "getDynamicSchema",
     description:
@@ -310,13 +381,23 @@ export function createGetDynamicSchemaTool(dynamicSchemaService: DynamicSchemaSe
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Highlight the operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
         const schema = dynamicSchemaService.getDynamicSchema(args.operatorId);
+
+        // Clear highlight after a brief delay
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1200);
+
         return {
           success: true,
           schema: schema,
           message: `Retrieved schema for operator ${args.operatorId}`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -382,7 +463,11 @@ export function createGetExecutionStateTool(executeWorkflowService: ExecuteWorkf
 /**
  * Create hasOperatorResult tool for checking if an operator has results
  */
-export function createHasOperatorResultTool(workflowResultService: WorkflowResultService) {
+export function createHasOperatorResultTool(
+  workflowResultService: WorkflowResultService,
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "hasOperatorResult",
     description: "Check if an operator has any execution results available",
@@ -391,7 +476,16 @@ export function createHasOperatorResultTool(workflowResultService: WorkflowResul
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Highlight operator being checked
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
         const hasResult = workflowResultService.hasAnyResult(args.operatorId);
+
+        // Clear highlight
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1000);
+
         return {
           success: true,
           hasResult: hasResult,
@@ -400,6 +494,7 @@ export function createHasOperatorResultTool(workflowResultService: WorkflowResul
             : `Operator ${args.operatorId} has no results`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -409,7 +504,11 @@ export function createHasOperatorResultTool(workflowResultService: WorkflowResul
 /**
  * Create getOperatorResultSnapshot tool for getting operator result data
  */
-export function createGetOperatorResultSnapshotTool(workflowResultService: WorkflowResultService) {
+export function createGetOperatorResultSnapshotTool(
+  workflowResultService: WorkflowResultService,
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "getOperatorResultSnapshot",
     description: "Get the result snapshot data for an operator (for visualization outputs)",
@@ -418,14 +517,24 @@ export function createGetOperatorResultSnapshotTool(workflowResultService: Workf
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Highlight operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
         const resultService = workflowResultService.getResultService(args.operatorId);
         if (!resultService) {
+          copilotCoeditor.clearHighlights();
           return {
             success: false,
             error: `No result snapshot available for operator ${args.operatorId}. It may use paginated results instead.`,
           };
         }
         const snapshot = resultService.getCurrentResultSnapshot();
+
+        // Clear highlight
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1000);
+
         return {
           success: true,
           operatorId: args.operatorId,
@@ -433,6 +542,7 @@ export function createGetOperatorResultSnapshotTool(workflowResultService: Workf
           message: `Retrieved result snapshot for operator ${args.operatorId}`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -442,7 +552,11 @@ export function createGetOperatorResultSnapshotTool(workflowResultService: Workf
 /**
  * Create getOperatorResultInfo tool for getting operator result information
  */
-export function createGetOperatorResultInfoTool(workflowResultService: WorkflowResultService) {
+export function createGetOperatorResultInfoTool(
+  workflowResultService: WorkflowResultService,
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService
+) {
   return tool({
     name: "getOperatorResultInfo",
     description: "Get information about an operator's results, including total count and pagination details",
@@ -451,8 +565,12 @@ export function createGetOperatorResultInfoTool(workflowResultService: WorkflowR
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Highlight operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
         if (!paginatedResultService) {
+          copilotCoeditor.clearHighlights();
           return {
             success: false,
             error: `No paginated results available for operator ${args.operatorId}`,
@@ -461,6 +579,12 @@ export function createGetOperatorResultInfoTool(workflowResultService: WorkflowR
         const totalTuples = paginatedResultService.getCurrentTotalNumTuples();
         const currentPage = paginatedResultService.getCurrentPageIndex();
         const schema = paginatedResultService.getSchema();
+
+        // Clear highlight
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1000);
+
         return {
           success: true,
           operatorId: args.operatorId,
@@ -470,6 +594,7 @@ export function createGetOperatorResultInfoTool(workflowResultService: WorkflowR
           message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
