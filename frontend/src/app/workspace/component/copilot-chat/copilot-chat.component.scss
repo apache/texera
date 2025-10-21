@@ -114,12 +114,54 @@
   }
 }
 
+.chat-content-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .deep-chat-container {
   flex: 1;
   overflow: hidden;
 
   &.collapsed {
     display: none;
+  }
+}
+
+.processing-indicator {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(24, 144, 255, 0.95);
+  color: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  z-index: 10;
+  animation: fadeIn 0.3s ease;
+
+  nz-spin {
+    ::ng-deep .ant-spin-dot-item {
+      background-color: white;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

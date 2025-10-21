@@ -33,7 +33,7 @@ export class CopilotCoeditorService {
   // Virtual copilot coeditor
   private readonly COPILOT_COEDITOR: Coeditor = {
     uid: -1,
-    name: "AI Agent",
+    name: "AI",
     email: "copilot@texera.ai",
     role: "ADMIN" as any,
     color: "#9333ea", // Purple color for copilot

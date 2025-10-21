@@ -32,7 +32,9 @@ import {
   createDeleteOperatorTool,
   createDeleteLinkTool,
   createSetOperatorPropertyTool,
-  createGetDynamicSchemaTool,
+  createGetOperatorSchemaTool,
+  createGetOperatorInputSchemaTool,
+  createGetWorkflowCompilationStateTool,
   createExecuteWorkflowTool,
   createGetExecutionStateTool,
   createHasOperatorResultTool,
@@ -48,6 +50,7 @@ import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { CopilotCoeditorService } from "./copilot-coeditor.service";
+import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -93,7 +96,8 @@ export class TexeraCopilot {
     private dynamicSchemaService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private copilotCoeditorService: CopilotCoeditorService
+    private copilotCoeditorService: CopilotCoeditorService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -197,7 +201,12 @@ export class TexeraCopilot {
         model: this.model,
         messages: this.messages, // full history
         tools,
-        system: "You are Texera Copilot, an AI assistant for building and modifying data workflows.",
+        system:
+          "You are Texera Copilot, an AI assistant for building and modifying data workflows. " +
+          "Your task is helping user explore the data using operators. " +
+          "Common operators would be Limit to limit the size of data; " +
+          "Aggregate to do some aggregation; and some visualization operator. " +
+          "A good generation style is adding an operator, configuring its property and then executing it to make sure each editing is valid. Generate 3-5 operators is enough for every round of generation",
         stopWhen: stepCountIs(50),
 
         // optional: observe every completed step (tool calls + results available)
@@ -271,11 +280,16 @@ export class TexeraCopilot {
       this.workflowActionService,
       this.copilotCoeditorService
     );
-    const getDynamicSchemaTool = createGetDynamicSchemaTool(
-      this.dynamicSchemaService,
+    const getOperatorSchemaTool = createGetOperatorSchemaTool(
       this.workflowActionService,
+      this.operatorMetadataService,
       this.copilotCoeditorService
     );
+    const getOperatorInputSchemaTool = createGetOperatorInputSchemaTool(
+      this.workflowCompilingService,
+      this.copilotCoeditorService
+    );
+    const getWorkflowCompilationStateTool = createGetWorkflowCompilationStateTool(this.workflowCompilingService);
     const executeWorkflowTool = createExecuteWorkflowTool(this.executeWorkflowService);
     const getExecutionStateTool = createGetExecutionStateTool(this.executeWorkflowService);
     const hasOperatorResultTool = createHasOperatorResultTool(
@@ -308,7 +322,9 @@ export class TexeraCopilot {
       deleteOperator: deleteOperatorTool,
       deleteLink: deleteLinkTool,
       setOperatorProperty: setOperatorPropertyTool,
-      getDynamicSchema: getDynamicSchemaTool,
+      getOperatorSchema: getOperatorSchemaTool,
+      getOperatorInputSchema: getOperatorInputSchemaTool,
+      getWorkflowCompilationState: getWorkflowCompilationStateTool,
       executeWorkflow: executeWorkflowTool,
       getExecutionState: getExecutionStateTool,
       hasOperatorResult: hasOperatorResultTool,

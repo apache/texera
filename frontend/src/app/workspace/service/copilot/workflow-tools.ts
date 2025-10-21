@@ -28,6 +28,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { CopilotCoeditorService } from "./copilot-coeditor.service";
+import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 
 /**
  * Create addOperator tool for adding a new operator to the workflow
@@ -369,17 +370,18 @@ export function createSetOperatorPropertyTool(
 }
 
 /**
- * Create getDynamicSchema tool for getting operator schema information
+ * Create getOperatorSchema tool for getting operator schema information
+ * Returns the original operator schema (not the dynamic one) to save tokens
  */
-export function createGetDynamicSchemaTool(
-  dynamicSchemaService: DynamicSchemaService,
+export function createGetOperatorSchemaTool(
   workflowActionService: WorkflowActionService,
+  operatorMetadataService: OperatorMetadataService,
   copilotCoeditor: CopilotCoeditorService
 ) {
   return tool({
-    name: "getDynamicSchema",
+    name: "getOperatorSchema",
     description:
-      "Get the dynamic schema of an operator, which includes all available properties and their types. Use this to understand what properties can be edited on an operator before modifying it.",
+      "Get the original schema of an operator, which includes all available properties and their types. Use this to understand what properties can be edited on an operator before modifying it.",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to get schema for"),
     }),
@@ -388,7 +390,15 @@ export function createGetDynamicSchemaTool(
         // Highlight the operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
-        const schema = dynamicSchemaService.getDynamicSchema(args.operatorId);
+        // Get the operator to find its type
+        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+        if (!operator) {
+          copilotCoeditor.clearHighlights();
+          return { success: false, error: `Operator ${args.operatorId} not found` };
+        }
+
+        // Get the original operator schema from metadata
+        const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
 
         // Clear highlight after a brief delay
         setTimeout(() => {
@@ -398,10 +408,89 @@ export function createGetDynamicSchemaTool(
         return {
           success: true,
           schema: schema,
-          message: `Retrieved schema for operator ${args.operatorId}`,
+          message: `Retrieved original schema for operator ${args.operatorId} (type: ${operator.operatorType})`,
         };
       } catch (error: any) {
         copilotCoeditor.clearHighlights();
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorInputSchema tool for getting operator's input schema from compilation
+ */
+export function createGetOperatorInputSchemaTool(
+  workflowCompilingService: WorkflowCompilingService,
+  copilotCoeditor: CopilotCoeditorService
+) {
+  return tool({
+    name: "getOperatorInputSchema",
+    description:
+      "Get the input schema for an operator, which shows what columns/attributes are available from upstream operators. This is determined by workflow compilation and schema propagation.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get input schema for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        // Highlight the operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
+        const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
+
+        // Clear highlight after a brief delay
+        setTimeout(() => {
+          copilotCoeditor.clearHighlights();
+        }, 1200);
+
+        if (!inputSchemaMap) {
+          return {
+            success: true,
+            inputSchema: null,
+            message: `Operator ${args.operatorId} has no input schema (may be a source operator or not connected)`,
+          };
+        }
+
+        return {
+          success: true,
+          inputSchema: inputSchemaMap,
+          message: `Retrieved input schema for operator ${args.operatorId}`,
+        };
+      } catch (error: any) {
+        copilotCoeditor.clearHighlights();
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getWorkflowCompilationState tool for checking compilation status and errors
+ */
+export function createGetWorkflowCompilationStateTool(workflowCompilingService: WorkflowCompilingService) {
+  return tool({
+    name: "getWorkflowCompilationState",
+    description:
+      "Get the current workflow compilation state and any compilation errors. Use this to check if the workflow is valid and identify any operator configuration issues.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      try {
+        const compilationState = workflowCompilingService.getWorkflowCompilationState();
+        const compilationErrors = workflowCompilingService.getWorkflowCompilationErrors();
+
+        const hasErrors = Object.keys(compilationErrors).length > 0;
+
+        return {
+          success: true,
+          state: compilationState,
+          hasErrors: hasErrors,
+          errors: hasErrors ? compilationErrors : undefined,
+          message: hasErrors
+            ? `Workflow compilation failed with ${Object.keys(compilationErrors).length} error(s)`
+            : `Workflow compilation state: ${compilationState}`,
+        };
+      } catch (error: any) {
         return { success: false, error: error.message };
       }
     },
