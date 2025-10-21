@@ -67,19 +67,32 @@
   </div>
 
   <!-- Deep Chat Component (use display to hide/show instead of *ngIf to preserve messages) -->
-  <deep-chat
-    #deepChat
-    class="deep-chat-container"
-    [class.collapsed]="!isExpanded"
-    [style.borderRadius]="'0 0 8px 8px'"
-    [style.width]="'100%'"
-    [style.height]="'calc(100% - 60px)'"
-    [style.border]="'none'"
-    [connect]="deepChatConfig.connect"
-    [demo]="deepChatConfig.demo"
-    [introMessage]="deepChatConfig.introMessage"
-    [textInput]="deepChatConfig.textInput">
-  </deep-chat>
+  <div class="chat-content-wrapper">
+    <deep-chat
+      #deepChat
+      class="deep-chat-container"
+      [class.collapsed]="!isExpanded"
+      [style.borderRadius]="'0 0 8px 8px'"
+      [style.width]="'100%'"
+      [style.height]="'100%'"
+      [style.border]="'none'"
+      [connect]="deepChatConfig.connect"
+      [demo]="deepChatConfig.demo"
+      [introMessage]="deepChatConfig.introMessage"
+      [textInput]="deepChatConfig.textInput"
+      [requestBodyLimits]="deepChatConfig.requestBodyLimits">
+    </deep-chat>
+
+    <!-- Loading overlay to keep visible during processing -->
+    <div
+      *ngIf="isProcessing && isExpanded"
+      class="processing-indicator">
+      <nz-spin
+        nzSimple
+        nzSize="small"></nz-spin>
+      <span>Processing...</span>
+    </div>
+  </div>
 
   <!-- Connection Status -->
   <div

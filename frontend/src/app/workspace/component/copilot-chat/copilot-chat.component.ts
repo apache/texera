@@ -1,5 +1,5 @@
 // copilot-chat.component.ts
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from "@angular/core";
+import { Component, OnDestroy, ViewChild, ElementRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilot, AgentResponse } from "../../service/copilot/texera-copilot";
 import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.service";
@@ -10,14 +10,14 @@ import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.s
   templateUrl: "copilot-chat.component.html",
   styleUrls: ["copilot-chat.component.scss"],
 })
-export class CopilotChatComponent implements OnInit, OnDestroy {
+export class CopilotChatComponent implements OnDestroy {
   @ViewChild("deepChat", { static: false }) deepChatElement?: ElementRef;
 
   public isChatVisible = false; // Whether chat panel is shown at all
   public isExpanded = true; // Whether chat content is expanded or minimized
   public showToolResults = false; // Whether to show tool call results
   public isConnected = false;
-  public isProcessing = false;
+  public isProcessing = false; // Whether agent is currently processing a request
   private isInitialized = false;
 
   // Deep-chat configuration
@@ -27,31 +27,36 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
         const last = body?.messages?.[body.messages.length - 1];
         const userText: string = typeof last?.text === "string" ? last.text : "";
 
+        // Set processing state to show loading indicator
+        this.isProcessing = true;
+
         // Send message to copilot and process AgentResponse
         this.copilotService
           .sendMessage(userText)
           .pipe(untilDestroyed(this))
           .subscribe({
             next: (response: AgentResponse) => {
-              // Format the response based on type
-              let displayText = "";
-
               if (response.type === "trace") {
                 // Format tool traces
-                displayText = this.formatToolTrace(response);
+                const displayText = this.formatToolTrace(response);
+
                 // Add trace message via addMessage API
                 if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
                   this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
                 }
+
+                // Keep processing state true - loading indicator stays visible
               } else if (response.type === "response") {
                 // For final response, signal completion with the content
-                // This will let deep-chat handle adding the message
+                // This will let deep-chat handle adding the message and clearing loading
                 if (response.isDone) {
+                  this.isProcessing = false; // Clear processing state
                   signals.onResponse({ text: response.content });
                 }
               }
             },
             error: (e: unknown) => {
+              this.isProcessing = false; // Clear processing state on error
               signals.onResponse({ error: e ?? "Unknown error" });
             },
           });
@@ -60,6 +65,7 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
     demo: false,
     introMessage: { text: "Hi! I'm Texera Copilot. I can help you build and modify workflows." },
     textInput: { placeholder: { text: "Ask me anything about workflows..." } },
+    requestBodyLimits: { maxMessages: -1 }, // Allow unlimited message history
   };
 
   /**
@@ -139,10 +145,6 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
     public copilotService: TexeraCopilot,
     private copilotCoeditorService: CopilotCoeditorService
   ) {}
-
-  ngOnInit(): void {
-    // Component initialization - copilot connection is triggered by menu button
-  }
 
   ngOnDestroy(): void {
     // Cleanup when component is destroyed
