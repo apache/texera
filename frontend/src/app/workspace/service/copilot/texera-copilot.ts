@@ -63,6 +63,12 @@ export interface AgentResponse {
   // Raw data for subscribers to process
   toolCalls?: any[];
   toolResults?: any[];
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    cachedInputTokens?: number;
+  };
 }
 
 /**
@@ -207,6 +213,7 @@ export class TexeraCopilot {
               isDone: false,
               toolCalls,
               toolResults,
+              usage,
             };
 
             // Emit raw trace data

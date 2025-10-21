@@ -13,7 +13,9 @@ import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.s
 export class CopilotChatComponent implements OnInit, OnDestroy {
   @ViewChild("deepChat", { static: false }) deepChatElement?: ElementRef;
 
-  public isChatVisible = false;
+  public isChatVisible = false; // Whether chat panel is shown at all
+  public isExpanded = true; // Whether chat content is expanded or minimized
+  public showToolResults = false; // Whether to show tool call results
   public isConnected = false;
   public isProcessing = false;
   private isInitialized = false;
@@ -74,8 +76,8 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
       output += `💭 **Agent:** ${response.content}\n\n`;
     }
 
-    // Format each tool call - show only tool name and parameters
-    const traces = response.toolCalls.map((tc: any) => {
+    // Format each tool call - show tool name, parameters, and optionally results
+    const traces = response.toolCalls.map((tc: any, index: number) => {
       // Log the actual structure to debug
       console.log("Tool call structure:", tc);
 
@@ -92,10 +94,44 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
         argsDisplay = "  *(no parameters)*";
       }
 
-      return `🔧 **${tc.toolName}**\n${argsDisplay}`;
+      let toolTrace = `🔧 **${tc.toolName}**\n${argsDisplay}`;
+
+      // Add tool result if showToolResults is enabled
+      if (this.showToolResults && response.toolResults && response.toolResults[index]) {
+        const result = response.toolResults[index];
+        const resultOutput = result.output || result.result || {};
+
+        // Format result based on success/error
+        if (resultOutput.success === false) {
+          toolTrace += `\n  ❌ **Error:** ${resultOutput.error || "Unknown error"}`;
+        } else if (resultOutput.success === true) {
+          toolTrace += `\n  ✅ **Success:** ${resultOutput.message || "Operation completed"}`;
+          // Include additional result details if present
+          const details = Object.entries(resultOutput)
+            .filter(([key]) => key !== "success" && key !== "message")
+            .map(([key, value]) => `  **${key}:** \`${JSON.stringify(value)}\``)
+            .join("\n");
+          if (details) {
+            toolTrace += `\n${details}`;
+          }
+        } else {
+          // Show raw result if format is unexpected
+          toolTrace += `\n  **Result:** \`${JSON.stringify(resultOutput)}\``;
+        }
+      }
+
+      return toolTrace;
     });
 
     output += traces.join("\n\n");
+
+    // Add token usage information if available
+    if (response.usage) {
+      const inputTokens = response.usage.inputTokens || 0;
+      const outputTokens = response.usage.outputTokens || 0;
+      output += `\n\n📊 **Tokens:** ${inputTokens} input, ${outputTokens} output`;
+    }
+
     return output;
   }
 
@@ -105,7 +141,7 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Don't auto-initialize, wait for user to toggle chat
+    // Component initialization - copilot connection is triggered by menu button
   }
 
   ngOnDestroy(): void {
@@ -128,7 +164,8 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
       await this.copilotService.initialize();
 
       this.isInitialized = true;
-      this.isChatVisible = true; // Show chat on connect
+      this.isChatVisible = true; // Show chat panel on connect
+      this.isExpanded = true; // Expand chat content by default
       this.updateConnectionStatus();
       console.log("Copilot connected and registered as coeditor");
     } catch (error) {
@@ -166,17 +203,10 @@ export class CopilotChatComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Show the chat box (expand)
+   * Toggle expand/collapse of chat content (keeps header visible)
    */
-  public showChat(): void {
-    this.isChatVisible = true;
-  }
-
-  /**
-   * Collapse the chat box (hide without disconnecting)
-   */
-  public collapseChat(): void {
-    this.isChatVisible = false;
+  public toggleExpand(): void {
+    this.isExpanded = !this.isExpanded;
   }
 
   /**

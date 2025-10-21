@@ -20,8 +20,9 @@
 <!-- Floating Chat Box (no avatar - that's shown via coeditor-user-icon) -->
 <div
   *ngIf="isChatVisible"
-  class="chat-box">
-  <!-- Header with collapse button -->
+  class="chat-box"
+  [class.minimized]="!isExpanded">
+  <!-- Header with collapse and disconnect buttons -->
   <div class="chat-header">
     <div class="chat-title">
       <i
@@ -30,23 +31,46 @@
         nzTheme="outline"></i>
       <span>Texera Copilot</span>
     </div>
-    <button
-      nz-button
-      nzType="text"
-      nzSize="small"
-      (click)="collapseChat()"
-      nz-tooltip
-      nzTooltipTitle="Collapse chat">
-      <i
-        nz-icon
-        nzType="down"></i>
-    </button>
+    <div class="chat-header-controls">
+      <nz-switch
+        [(ngModel)]="showToolResults"
+        nzSize="small"
+        nz-tooltip
+        nzTooltipTitle="Show tool results">
+      </nz-switch>
+      <span class="toggle-label">Show Results</span>
+      <div class="chat-header-buttons">
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="toggleExpand()"
+          nz-tooltip
+          [nzTooltipTitle]="isExpanded ? 'Minimize chat' : 'Expand chat'">
+          <i
+            nz-icon
+            [nzType]="isExpanded ? 'down' : 'up'"></i>
+        </button>
+        <button
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="disconnect()"
+          nz-tooltip
+          nzTooltipTitle="Disconnect copilot">
+          <i
+            nz-icon
+            nzType="close"></i>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- Deep Chat Component -->
+  <!-- Deep Chat Component (use display to hide/show instead of *ngIf to preserve messages) -->
   <deep-chat
     #deepChat
     class="deep-chat-container"
+    [class.collapsed]="!isExpanded"
     [style.borderRadius]="'0 0 8px 8px'"
     [style.width]="'100%'"
     [style.height]="'calc(100% - 60px)'"

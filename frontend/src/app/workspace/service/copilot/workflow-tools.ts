@@ -63,16 +63,20 @@ export function createAddOperatorTool(
         const defaultY = 100 + Math.floor(existingOperators.length / 5) * 150;
         const position = { x: defaultX, y: defaultY };
 
-        // Show copilot is adding this operator
-        copilotCoeditor.showEditingOperator(operator.operatorID);
-
-        // Add the operator to the workflow
+        // Add the operator to the workflow first
         workflowActionService.addOperator(operator, position);
+
+        // Show copilot is adding this operator (after it's added to graph)
+        setTimeout(() => {
+          copilotCoeditor.showEditingOperator(operator.operatorID);
+          copilotCoeditor.highlightOperators([operator.operatorID]);
+        }, 100);
 
         // Clear presence indicator after a brief delay
         setTimeout(() => {
           copilotCoeditor.clearEditingOperator();
-        }, 1000);
+          copilotCoeditor.clearHighlights();
+        }, 1500);
 
         return {
           success: true,
