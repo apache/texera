@@ -212,6 +212,14 @@ export class CopilotChatComponent implements OnDestroy {
   }
 
   /**
+   * Stop the current generation
+   */
+  public stopGeneration(): void {
+    this.copilotService.stopGeneration();
+    this.isProcessing = false;
+  }
+
+  /**
    * Get the copilot coeditor object (for displaying in UI)
    */
   public getCopilot() {

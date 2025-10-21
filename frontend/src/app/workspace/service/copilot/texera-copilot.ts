@@ -89,6 +89,9 @@ export class TexeraCopilot {
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
 
+  // AbortController for stopping generation
+  private currentAbortController?: AbortController;
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
@@ -189,6 +192,9 @@ export class TexeraCopilot {
         return;
       }
 
+      // Create new AbortController for this generation
+      this.currentAbortController = new AbortController();
+
       // 1) push the user message (don't emit to stream - already handled by UI)
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
@@ -201,12 +207,19 @@ export class TexeraCopilot {
         model: this.model,
         messages: this.messages, // full history
         tools,
+        abortSignal: this.currentAbortController.signal,
         system:
           "You are Texera Copilot, an AI assistant for building and modifying data workflows. " +
           "Your task is helping user explore the data using operators. " +
           "Common operators would be Limit to limit the size of data; " +
           "Aggregate to do some aggregation; and some visualization operator. " +
-          "A good generation style is adding an operator, configuring its property and then executing it to make sure each editing is valid. Generate 3-5 operators is enough for every round of generation",
+          "A good generation style is, " +
+          "1. listing what operators are available" +
+          "2. add the operator" +
+          "3. retrieve the OperatorSchema" +
+          "4. Configuring its property based on the schema" +
+          "5. executing it to make sure each editing is valid. " +
+          "Generate 3-5 operators is enough for every round of generation",
         stopWhen: stepCountIs(50),
 
         // optional: observe every completed step (tool calls + results available)
@@ -241,6 +254,9 @@ export class TexeraCopilot {
             console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
           }
 
+          // Clear all copilot presence indicators when generation completes
+          this.copilotCoeditorService.clearAll();
+
           // Emit final response with raw data
           const finalResponse: AgentResponse = {
             type: "response",
@@ -251,10 +267,21 @@ export class TexeraCopilot {
           observer.complete();
         })
         .catch((err: any) => {
-          const errorText = `Error: ${err?.message ?? String(err)}`;
-          const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-          this.messages.push(assistantError);
-          observer.error(err);
+          // Clear all copilot presence indicators on error
+          this.copilotCoeditorService.clearAll();
+
+          // Check if error is due to user abort
+          if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            console.log("Generation stopped by user");
+            // Just complete the observable without adding error message to history
+            observer.complete();
+          } else {
+            // For real errors, add to message history and propagate error
+            const errorText = `Error: ${err?.message ?? String(err)}`;
+            const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+            this.messages.push(assistantError);
+            observer.error(err);
+          }
         });
     });
   }
@@ -348,9 +375,23 @@ export class TexeraCopilot {
   }
 
   /**
+   * Stop the current generation without clearing messages
+   */
+  public stopGeneration(): void {
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = undefined;
+      console.log("Generation stopped");
+    }
+  }
+
+  /**
    * Disconnect and cleanup copilot resources
    */
   public async disconnect(): Promise<void> {
+    // Stop any ongoing generation
+    this.stopGeneration();
+
     // Disconnect the MCP client if it exists
     if (this.mcpClient) {
       await this.mcpClient.close();

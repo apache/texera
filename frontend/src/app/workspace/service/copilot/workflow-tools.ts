@@ -47,6 +47,9 @@ export function createAddOperatorTool(
     }),
     execute: async (args: { operatorType: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Validate operator type exists
         if (!operatorMetadataService.operatorTypeExists(args.operatorType)) {
           return {
@@ -72,12 +75,6 @@ export function createAddOperatorTool(
           copilotCoeditor.showEditingOperator(operator.operatorID);
           copilotCoeditor.highlightOperators([operator.operatorID]);
         }, 100);
-
-        // Clear presence indicator after a brief delay
-        setTimeout(() => {
-          copilotCoeditor.clearEditingOperator();
-          copilotCoeditor.clearHighlights();
-        }, 1500);
 
         return {
           success: true,
@@ -154,16 +151,14 @@ export function createListOperatorsTool(
     inputSchema: z.object({}),
     execute: async () => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         const operators = workflowActionService.getTexeraGraph().getAllOperators();
 
         // Highlight all operators to show copilot is inspecting them
         const operatorIds = operators.map(op => op.operatorID);
         copilotCoeditor.highlightOperators(operatorIds);
-
-        // Clear highlights after a brief delay
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1500);
 
         return {
           success: true,
@@ -239,17 +234,14 @@ export function createGetOperatorTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Show copilot is viewing this operator
         copilotCoeditor.showEditingOperator(args.operatorId);
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
-
-        // Clear viewing state after a brief delay
-        setTimeout(() => {
-          copilotCoeditor.clearEditingOperator();
-          copilotCoeditor.clearHighlights();
-        }, 1200);
 
         return {
           success: true,
@@ -257,8 +249,6 @@ export function createGetOperatorTool(
           message: `Retrieved operator ${args.operatorId}`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearEditingOperator();
-        copilotCoeditor.clearHighlights();
         return {
           success: false,
           error: error.message || `Operator ${args.operatorId} not found`,
@@ -283,20 +273,19 @@ export function createDeleteOperatorTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Show copilot is editing this operator before deletion
         copilotCoeditor.showEditingOperator(args.operatorId);
 
         workflowActionService.deleteOperator(args.operatorId);
-
-        // Clear editing state after deletion
-        copilotCoeditor.clearEditingOperator();
 
         return {
           success: true,
           message: `Deleted operator ${args.operatorId}`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },
@@ -343,6 +332,9 @@ export function createSetOperatorPropertyTool(
     }),
     execute: async (args: { operatorId: string; properties: Record<string, any> }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Show copilot is editing this operator
         copilotCoeditor.showEditingOperator(args.operatorId);
 
@@ -350,11 +342,6 @@ export function createSetOperatorPropertyTool(
 
         // Show property was changed
         copilotCoeditor.showPropertyChanged(args.operatorId);
-
-        // Clear currently editing state
-        setTimeout(() => {
-          copilotCoeditor.clearEditingOperator();
-        }, 1000);
 
         return {
           success: true,
@@ -387,23 +374,20 @@ export function createGetOperatorSchemaTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Highlight the operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         // Get the operator to find its type
         const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
         if (!operator) {
-          copilotCoeditor.clearHighlights();
           return { success: false, error: `Operator ${args.operatorId} not found` };
         }
 
         // Get the original operator schema from metadata
         const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
-
-        // Clear highlight after a brief delay
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1200);
 
         return {
           success: true,
@@ -411,7 +395,6 @@ export function createGetOperatorSchemaTool(
           message: `Retrieved original schema for operator ${args.operatorId} (type: ${operator.operatorType})`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -434,15 +417,13 @@ export function createGetOperatorInputSchemaTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Highlight the operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         const inputSchemaMap = workflowCompilingService.getOperatorInputSchemaMap(args.operatorId);
-
-        // Clear highlight after a brief delay
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1200);
 
         if (!inputSchemaMap) {
           return {
@@ -458,7 +439,6 @@ export function createGetOperatorInputSchemaTool(
           message: `Retrieved input schema for operator ${args.operatorId}`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -569,15 +549,13 @@ export function createHasOperatorResultTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Highlight operator being checked
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         const hasResult = workflowResultService.hasAnyResult(args.operatorId);
-
-        // Clear highlight
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1000);
 
         return {
           success: true,
@@ -587,7 +565,6 @@ export function createHasOperatorResultTool(
             : `Operator ${args.operatorId} has no results`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -610,23 +587,20 @@ export function createGetOperatorResultSnapshotTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Highlight operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         const resultService = workflowResultService.getResultService(args.operatorId);
         if (!resultService) {
-          copilotCoeditor.clearHighlights();
           return {
             success: false,
             error: `No result snapshot available for operator ${args.operatorId}. It may use paginated results instead.`,
           };
         }
         const snapshot = resultService.getCurrentResultSnapshot();
-
-        // Clear highlight
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1000);
 
         return {
           success: true,
@@ -635,7 +609,6 @@ export function createGetOperatorResultSnapshotTool(
           message: `Retrieved result snapshot for operator ${args.operatorId}`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
@@ -658,12 +631,14 @@ export function createGetOperatorResultInfoTool(
     }),
     execute: async (args: { operatorId: string }) => {
       try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
         // Highlight operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
         if (!paginatedResultService) {
-          copilotCoeditor.clearHighlights();
           return {
             success: false,
             error: `No paginated results available for operator ${args.operatorId}`,
@@ -672,11 +647,6 @@ export function createGetOperatorResultInfoTool(
         const totalTuples = paginatedResultService.getCurrentTotalNumTuples();
         const currentPage = paginatedResultService.getCurrentPageIndex();
         const schema = paginatedResultService.getSchema();
-
-        // Clear highlight
-        setTimeout(() => {
-          copilotCoeditor.clearHighlights();
-        }, 1000);
 
         return {
           success: true,
@@ -687,7 +657,6 @@ export function createGetOperatorResultInfoTool(
           message: `Operator ${args.operatorId} has ${totalTuples} result tuples`,
         };
       } catch (error: any) {
-        copilotCoeditor.clearHighlights();
         return { success: false, error: error.message };
       }
     },
