@@ -59,6 +59,13 @@ export class CopilotChatComponent implements OnDestroy {
               this.isProcessing = false; // Clear processing state on error
               signals.onResponse({ error: e ?? "Unknown error" });
             },
+            complete: () => {
+              // Handle completion without final response (happens when generation is stopped)
+              if (this.isProcessing) {
+                this.isProcessing = false;
+                signals.onResponse({ text: "_Generation stopped by user._" });
+              }
+            },
           });
       },
     },
