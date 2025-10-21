@@ -41,6 +41,19 @@
       <span class="toggle-label">Show Results</span>
       <div class="chat-header-buttons">
         <button
+          *ngIf="isProcessing"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="stopGeneration()"
+          nz-tooltip
+          nzTooltipTitle="Stop generation">
+          <i
+            nz-icon
+            nzType="stop"
+            nzTheme="fill"></i>
+        </button>
+        <button
           nz-button
           nzType="text"
           nzSize="small"
