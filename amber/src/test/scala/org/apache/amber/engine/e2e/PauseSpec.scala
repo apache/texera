@@ -52,7 +52,7 @@ class PauseSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val logger: Logger = Logger("PauseSpecLogger")
+  val logger = Logger("PauseSpecLogger")
 
   override protected def beforeEach(): Unit = {
     setUpWorkflowExecutionData()
@@ -128,12 +128,11 @@ class PauseSpec
         case _: com.twitter.util.TimeoutException =>
           attempt += 1
           if (attempt > maxRetries) {
-            throw new com.twitter.util.TimeoutException("shouldPause failed after all retries!")
+            throw new com.twitter.util.TimeoutException("shouldPause timed out after retries")
           }
           // Need to reset test texera_db state before retry
           cleanupWorkflowExecutionData()
           setUpWorkflowExecutionData()
-          logger.info(s"shouldPause timed out. Retrying...")
         case otherError: Throwable =>
           throw otherError
       }
