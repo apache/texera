@@ -33,7 +33,7 @@ export class CopilotCoeditorService {
   // Virtual copilot coeditor
   private readonly COPILOT_COEDITOR: Coeditor = {
     uid: -1,
-    name: "AI",
+    name: "AI Agent",
     email: "copilot@texera.ai",
     role: "ADMIN" as any,
     color: "#9333ea", // Purple color for copilot
@@ -102,7 +102,10 @@ export class CopilotCoeditorService {
    * Show that the copilot is currently viewing/editing an operator
    */
   public showEditingOperator(operatorId: string): void {
-    if (!this.isRegistered) return;
+    if (!this.isRegistered) {
+      console.warn("Copilot not registered, cannot show editing indicator");
+      return;
+    }
 
     const jointWrapper = this.workflowActionService.getJointGraphWrapper();
 
@@ -116,6 +119,7 @@ export class CopilotCoeditorService {
     }
 
     // Set new editing indicator
+    console.log(`Copilot showing editing for operator: ${operatorId}`);
     this.currentEditingIntervalId = jointWrapper.setCurrentEditing(this.COPILOT_COEDITOR, operatorId);
     this.currentState.currentlyEditing = operatorId;
   }
