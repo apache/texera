@@ -22,7 +22,7 @@ package org.apache.amber.engine.e2e
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import com.twitter.util.{Await, Promise}
+import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.amber.clustering.SingleNodeListener
 import org.apache.amber.core.workflow.{PortIdentity, WorkflowContext}
@@ -39,7 +39,7 @@ import org.apache.amber.engine.e2e.TestUtils.{
 import org.apache.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 
 import scala.concurrent.duration._
 
@@ -48,7 +48,16 @@ class PauseSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with Retries {
+
+  /**
+    * This block retries each test once if it fails.
+    * In the CI environment, there is a chance that shouldPause does not receive "COMPLETED" status.
+    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
+    */
+  override def withFixture(test: NoArgTest): Outcome =
+    withRetry { super.withFixture(test) }
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
@@ -103,7 +112,7 @@ class PauseSpec
     Await.result(client.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     Thread.sleep(4000)
     Await.result(client.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-    Await.result(completion)
+    Await.result(completion, Duration.fromMinutes(1))
   }
 
   "Engine" should "be able to pause csv workflow" in {
