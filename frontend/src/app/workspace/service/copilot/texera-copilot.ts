@@ -61,7 +61,7 @@ import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
-export const AGENT_MODEL_ID = "claude-4";
+export const AGENT_MODEL_ID = "claude-3.7";
 
 /**
  * Agent response structure for streaming intermediate and final results
