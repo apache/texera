@@ -162,7 +162,8 @@ export class AdminUserComponent implements OnInit {
 
   searchByName(): void {
     this.nameSearchVisible = false;
-    this.listOfDisplayUser = this.userList.filter(user => (user.name || "").indexOf(this.nameSearchValue) !== -1);
+    const q = (this.nameSearchValue ?? "").trim().toLowerCase();
+    this.listOfDisplayUser = this.userList.filter(u => (u.name ?? "").toLowerCase().includes(q));
   }
 
   searchByEmail(): void {
@@ -202,6 +203,14 @@ export class AdminUserComponent implements OnInit {
     }
     return user.accountCreation * 1000;
   }
+
+  sortByActive: NzTableSortFn<User> = (a: User, b: User) => {
+    const aActive = this.isUserActive(a);
+    const bActive = this.isUserActive(b);
+
+    if (aActive === bActive) return 0;
+    return aActive ? -1 : 1;
+  };
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>
     list.some(role => user.role.indexOf(role) !== -1);
