@@ -35,6 +35,7 @@ const TOOL_TIMEOUT_MS = 120000;
 
 /**
  * Wraps a tool definition to add timeout protection to its execute function
+ * Uses AbortController to properly cancel operations on timeout
  */
 export function toolWithTimeout(toolConfig: any): any {
   const originalExecute = toolConfig.execute;
@@ -42,14 +43,21 @@ export function toolWithTimeout(toolConfig: any): any {
   return {
     ...toolConfig,
     execute: async (args: any) => {
+      // Create an AbortController for this execution
+      const abortController = new AbortController();
+
+      // Create a timeout promise that will abort the controller
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
+          abortController.abort(); // Signal cancellation to the operation
           reject(new Error("timeout"));
         }, TOOL_TIMEOUT_MS);
       });
 
       try {
-        return await Promise.race([originalExecute(args), timeoutPromise]);
+        // Pass the abort signal in args so tools can check it
+        const argsWithSignal = { ...args, signal: abortController.signal };
+        return await Promise.race([originalExecute(argsWithSignal), timeoutPromise]);
       } catch (error: any) {
         // If it's a timeout error, return a properly formatted error response
         if (error.message === "timeout") {
@@ -356,11 +364,13 @@ export function createDeleteLinkTool(workflowActionService: WorkflowActionServic
  */
 export function createSetOperatorPropertyTool(
   workflowActionService: WorkflowActionService,
-  copilotCoeditor: CopilotCoeditorService
+  copilotCoeditor: CopilotCoeditorService,
+  validationWorkflowService: ValidationWorkflowService
 ) {
   return tool({
     name: "setOperatorProperty",
-    description: "Set or update properties of an operator in the workflow",
+    description:
+      "Set or update properties of an operator in the workflow. Properties must match the operator's schema. Use getOperatorPropertiesSchema first to understand required properties and their types.",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to modify"),
       properties: z.record(z.any()).describe("Properties object to set on the operator"),
@@ -373,7 +383,22 @@ export function createSetOperatorPropertyTool(
         // Show copilot is editing this operator
         copilotCoeditor.showEditingOperator(args.operatorId);
 
+        // Set the properties first
         workflowActionService.setOperatorProperty(args.operatorId, args.properties);
+
+        // Validate the operator after setting properties
+        const validation = validationWorkflowService.validateOperator(args.operatorId);
+
+        if (!validation.isValid) {
+          // Properties are set but invalid - return error with details
+          copilotCoeditor.clearEditingOperator();
+          return {
+            success: false,
+            error: "Property validation failed",
+            validationErrors: validation.messages,
+            hint: "Use getOperatorPropertiesSchema tool to see the expected schema structure for this operator",
+          };
+        }
 
         // Show property was changed
         copilotCoeditor.showPropertyChanged(args.operatorId);
@@ -381,6 +406,70 @@ export function createSetOperatorPropertyTool(
         return {
           success: true,
           message: `Updated properties for operator ${args.operatorId}`,
+          properties: args.properties,
+        };
+      } catch (error: any) {
+        copilotCoeditor.clearEditingOperator();
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create setPortProperty tool for modifying port properties
+ */
+export function createSetPortPropertyTool(
+  workflowActionService: WorkflowActionService,
+  copilotCoeditor: CopilotCoeditorService,
+  validationWorkflowService: ValidationWorkflowService
+) {
+  return tool({
+    name: "setPortProperty",
+    description:
+      "Set or update properties of a port on an operator (e.g., partition information, dependencies). Use getOperatorPortsInfo first to see available ports.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator that owns the port"),
+      portId: z.string().describe("ID of the port to modify (e.g., 'input-0', 'output-0')"),
+      properties: z.record(z.any()).describe("Port properties to set (partitionInfo, dependencies)"),
+    }),
+    execute: async (args: { operatorId: string; portId: string; properties: Record<string, any> }) => {
+      try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
+        // Show copilot is editing this operator
+        copilotCoeditor.showEditingOperator(args.operatorId);
+
+        // Create LogicalPort object
+        const logicalPort = {
+          operatorID: args.operatorId,
+          portID: args.portId,
+        };
+
+        // Set the port properties using the high-level service method
+        workflowActionService.setPortProperty(logicalPort, args.properties);
+
+        // Validate the operator after setting port properties
+        const validation = validationWorkflowService.validateOperator(args.operatorId);
+
+        if (!validation.isValid) {
+          // Properties are set but invalid - return error with details
+          copilotCoeditor.clearEditingOperator();
+          return {
+            success: false,
+            error: "Port property validation failed",
+            validationErrors: validation.messages,
+            hint: "Use getOperatorPortsInfo tool to see the available ports and their current configuration",
+          };
+        }
+
+        // Show property was changed
+        copilotCoeditor.showPropertyChanged(args.operatorId);
+
+        return {
+          success: true,
+          message: `Updated port ${args.portId} properties for operator ${args.operatorId}`,
           properties: args.properties,
         };
       } catch (error: any) {
@@ -428,6 +517,163 @@ export function createGetOperatorSchemaTool(
           success: true,
           schema: schema,
           message: `Retrieved original schema for operator ${args.operatorId} (type: ${operator.operatorType})`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorPropertiesSchema tool for getting just the properties schema
+ * More token-efficient than getOperatorSchema for property-focused queries
+ */
+export function createGetOperatorPropertiesSchemaTool(
+  workflowActionService: WorkflowActionService,
+  operatorMetadataService: OperatorMetadataService,
+  copilotCoeditor: CopilotCoeditorService
+) {
+  return tool({
+    name: "getOperatorPropertiesSchema",
+    description:
+      "Get just the properties schema for an operator. This is more token-efficient than getOperatorSchema and returns only the properties structure and required fields. Use this before setting operator properties.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get properties schema for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
+        // Highlight the operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
+        // Get the operator to find its type
+        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+        if (!operator) {
+          return { success: false, error: `Operator ${args.operatorId} not found` };
+        }
+
+        // Get the original operator schema from metadata
+        const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
+
+        // Extract just the properties and required fields from the JSON schema
+        const propertiesSchema = {
+          properties: schema.jsonSchema.properties,
+          required: schema.jsonSchema.required,
+          definitions: schema.jsonSchema.definitions, // Include definitions for $ref resolution
+        };
+
+        return {
+          success: true,
+          propertiesSchema: propertiesSchema,
+          operatorType: operator.operatorType,
+          message: `Retrieved properties schema for operator ${args.operatorId} (type: ${operator.operatorType})`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorPortsInfo tool for getting just the port information
+ * More token-efficient than getOperatorSchema for port-focused queries
+ */
+export function createGetOperatorPortsInfoTool(
+  workflowActionService: WorkflowActionService,
+  operatorMetadataService: OperatorMetadataService,
+  copilotCoeditor: CopilotCoeditorService
+) {
+  return tool({
+    name: "getOperatorPortsInfo",
+    description:
+      "Get input and output port information for an operator. This is more token-efficient than getOperatorSchema and returns only port details (display names, multi-input support, etc.).",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get port information for"),
+    }),
+    execute: async (args: { operatorId: string }) => {
+      try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
+        // Highlight the operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
+        // Get the operator to find its type
+        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+        if (!operator) {
+          return { success: false, error: `Operator ${args.operatorId} not found` };
+        }
+
+        // Get the original operator schema from metadata
+        const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
+
+        // Extract just the port information from the additional metadata
+        const portsInfo = {
+          inputPorts: schema.additionalMetadata.inputPorts,
+          outputPorts: schema.additionalMetadata.outputPorts,
+          dynamicInputPorts: schema.additionalMetadata.dynamicInputPorts,
+          dynamicOutputPorts: schema.additionalMetadata.dynamicOutputPorts,
+        };
+
+        return {
+          success: true,
+          portsInfo: portsInfo,
+          operatorType: operator.operatorType,
+          message: `Retrieved port information for operator ${args.operatorId} (type: ${operator.operatorType})`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create getOperatorMetadata tool for getting operator's semantic metadata
+ * Returns information about what the operator does, its description, and capabilities
+ */
+export function createGetOperatorMetadataTool(
+  workflowActionService: WorkflowActionService,
+  operatorMetadataService: OperatorMetadataService,
+  copilotCoeditor: CopilotCoeditorService
+) {
+  return tool({
+    name: "getOperatorMetadata",
+    description:
+      "Get semantic metadata for an operator, including user-friendly name, description, operator group, and capabilities. This is very useful to understand the semantics and purpose of each operator - what it does, how it works, and what kind of data transformation it performs.",
+    inputSchema: z.object({
+      operatorId: z.string().describe("ID of the operator to get metadata for"),
+    }),
+    execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
+      try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
+        // Highlight the operator being inspected
+        copilotCoeditor.highlightOperators([args.operatorId]);
+
+        // Get the operator to find its type
+        const operator = workflowActionService.getTexeraGraph().getOperator(args.operatorId);
+        if (!operator) {
+          return { success: false, error: `Operator ${args.operatorId} not found` };
+        }
+
+        // Get the original operator schema from metadata
+        const schema = operatorMetadataService.getOperatorSchema(operator.operatorType);
+
+        // Return the additional metadata which contains semantic information
+        const metadata = schema.additionalMetadata;
+
+        return {
+          success: true,
+          metadata: metadata,
+          operatorType: operator.operatorType,
+          operatorVersion: schema.operatorVersion,
+          message: `Retrieved metadata for operator ${args.operatorId} (type: ${operator.operatorType})`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
@@ -644,7 +890,7 @@ export function createGetOperatorResultPageTool(
       operatorId: z.string().describe("ID of the operator to get results for"),
       pageSize: z.number().optional().describe("Number of rows to retrieve (default: 100, max: 100)"),
     }),
-    execute: async (args: { operatorId: string; pageSize?: number }) => {
+    execute: async (args: { operatorId: string; pageSize?: number; signal?: AbortSignal }) => {
       try {
         // Clear previous highlights at start of tool execution
         copilotCoeditor.clearAll();
@@ -664,11 +910,26 @@ export function createGetOperatorResultPageTool(
         const pageSize = Math.min(args.pageSize || 100, 100);
 
         // Get page 0 with the specified page size
+        // Handle abort signal to properly unsubscribe
         const resultEvent = await new Promise((resolve, reject) => {
-          paginatedResultService.selectPage(0, pageSize).subscribe({
-            next: event => resolve(event),
-            error: err => reject(err),
+          const subscription = paginatedResultService.selectPage(0, pageSize).subscribe({
+            next: event => {
+              subscription.unsubscribe(); // Clean up after success
+              resolve(event);
+            },
+            error: (err: unknown) => {
+              subscription.unsubscribe(); // Clean up after error
+              reject(err);
+            },
           });
+
+          // If abort signal is provided, unsubscribe when aborted
+          if (args.signal) {
+            args.signal.addEventListener("abort", () => {
+              subscription.unsubscribe(); // Cancel the subscription
+              reject(new Error("Operation aborted"));
+            });
+          }
         });
 
         return {
