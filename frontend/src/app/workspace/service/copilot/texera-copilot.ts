@@ -32,7 +32,11 @@ import {
   createDeleteOperatorTool,
   createDeleteLinkTool,
   createSetOperatorPropertyTool,
+  createSetPortPropertyTool,
   createGetOperatorSchemaTool,
+  createGetOperatorPropertiesSchemaTool,
+  createGetOperatorPortsInfoTool,
+  createGetOperatorMetadataTool,
   createGetOperatorInputSchemaTool,
   createGetWorkflowCompilationStateTool,
   createExecuteWorkflowTool,
@@ -309,10 +313,38 @@ export class TexeraCopilot {
     );
     const deleteLinkTool = toolWithTimeout(createDeleteLinkTool(this.workflowActionService));
     const setOperatorPropertyTool = toolWithTimeout(
-      createSetOperatorPropertyTool(this.workflowActionService, this.copilotCoeditorService)
+      createSetOperatorPropertyTool(
+        this.workflowActionService,
+        this.copilotCoeditorService,
+        this.validationWorkflowService
+      )
+    );
+    const setPortPropertyTool = toolWithTimeout(
+      createSetPortPropertyTool(this.workflowActionService, this.copilotCoeditorService, this.validationWorkflowService)
     );
     const getOperatorSchemaTool = toolWithTimeout(
       createGetOperatorSchemaTool(this.workflowActionService, this.operatorMetadataService, this.copilotCoeditorService)
+    );
+    const getOperatorPropertiesSchemaTool = toolWithTimeout(
+      createGetOperatorPropertiesSchemaTool(
+        this.workflowActionService,
+        this.operatorMetadataService,
+        this.copilotCoeditorService
+      )
+    );
+    const getOperatorPortsInfoTool = toolWithTimeout(
+      createGetOperatorPortsInfoTool(
+        this.workflowActionService,
+        this.operatorMetadataService,
+        this.copilotCoeditorService
+      )
+    );
+    const getOperatorMetadataTool = toolWithTimeout(
+      createGetOperatorMetadataTool(
+        this.workflowActionService,
+        this.operatorMetadataService,
+        this.copilotCoeditorService
+      )
     );
     const getOperatorInputSchemaTool = toolWithTimeout(
       createGetOperatorInputSchemaTool(this.workflowCompilingService, this.copilotCoeditorService)
@@ -364,7 +396,11 @@ export class TexeraCopilot {
       deleteOperator: deleteOperatorTool,
       deleteLink: deleteLinkTool,
       setOperatorProperty: setOperatorPropertyTool,
-      getOperatorSchema: getOperatorSchemaTool,
+      setPortProperty: setPortPropertyTool,
+      // getOperatorSchema: getOperatorSchemaTool,
+      getOperatorPropertiesSchema: getOperatorPropertiesSchemaTool,
+      getOperatorPortsInfo: getOperatorPortsInfoTool,
+      getOperatorMetadata: getOperatorMetadataTool,
       getOperatorInputSchema: getOperatorInputSchemaTool,
       getWorkflowCompilationState: getWorkflowCompilationStateTool,
       executeWorkflow: executeWorkflowTool,
