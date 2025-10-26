@@ -139,6 +139,8 @@ export class ValidationWorkflowService {
     } else {
       delete this.workflowErrors[operatorID];
     }
+
+    // emit event to streams after updating workflowErrors to keep subscribers' view of the state consistent
     this.operatorValidationStream.next({ validation, operatorID });
     this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
