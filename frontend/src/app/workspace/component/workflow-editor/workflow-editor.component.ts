@@ -382,9 +382,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(untilDestroyed(this))
       .subscribe(region => {
         const colorMap: Record<string, string> = {
-          ExecutingDependeePortsPhase: "rgba(244,67,54,0.2)", // soft red
-          ExecutingNonDependeePortsPhase: "rgba(255,213,79,0.2)", // warm amber yellow
-          Completed: "rgba(76,175,80,0.2)", // soft green
+          ExecutingDependeePortsPhase: "rgba(244,67,54,0.2)",
+          ExecutingNonDependeePortsPhase: "rgba(255,213,79,0.2)",
+          Completed: "rgba(76,175,80,0.2)",
         };
         this.paper.getModelById("region-" + region.id).attr("body/fill", colorMap[region.state]);
       });
