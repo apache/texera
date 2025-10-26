@@ -33,6 +33,24 @@ import { ValidationWorkflowService } from "../validation/validation-workflow.ser
 // Tool execution timeout in milliseconds (5 seconds)
 const TOOL_TIMEOUT_MS = 120000;
 
+// Maximum token limit for operator result data to prevent overwhelming LLM context
+// Estimated as characters / 4 (common approximation for token counting)
+const MAX_OPERATOR_RESULT_TOKEN_LIMIT = 3000;
+
+/**
+ * Estimates the number of tokens in a JSON-serializable object
+ * Uses a common approximation: tokens ≈ characters / 4
+ */
+function estimateTokenCount(data: any): number {
+  try {
+    const jsonString = JSON.stringify(data);
+    return Math.ceil(jsonString.length / 4);
+  } catch (error) {
+    // Fallback if JSON.stringify fails
+    return 0;
+  }
+}
+
 /**
  * Wraps a tool definition to add timeout protection to its execute function
  * Uses AbortController to properly cancel operations on timeout
@@ -875,22 +893,20 @@ export function createHasOperatorResultTool(
 }
 
 /**
- * Create getOperatorResultPage tool for getting operator result data page
+ * Create unified getOperatorResult tool that automatically handles both pagination and snapshot modes
  */
-export function createGetOperatorResultPageTool(
+export function createGetOperatorResultTool(
   workflowResultService: WorkflowResultService,
-  workflowActionService: WorkflowActionService,
   copilotCoeditor: CopilotCoeditorService
 ) {
   return tool({
-    name: "getOperatorResultPage",
+    name: "getOperatorResult",
     description:
-      "Get a page of result data for an operator. Returns the first page (page 0) with up to 100 rows. Use this to inspect execution results.",
+      "Get result data for an operator. Automatically detects and uses the appropriate mode (pagination for tables, snapshot for visualizations). Returns rows limited by token count (~3000 tokens) to avoid overwhelming LLM context.",
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to get results for"),
-      pageSize: z.number().optional().describe("Number of rows to retrieve (default: 100, max: 100)"),
     }),
-    execute: async (args: { operatorId: string; pageSize?: number; signal?: AbortSignal }) => {
+    execute: async (args: { operatorId: string; signal?: AbortSignal }) => {
       try {
         // Clear previous highlights at start of tool execution
         copilotCoeditor.clearAll();
@@ -898,49 +914,119 @@ export function createGetOperatorResultPageTool(
         // Highlight operator being inspected
         copilotCoeditor.highlightOperators([args.operatorId]);
 
+        // First, try pagination mode (for table results)
         const paginatedResultService = workflowResultService.getPaginatedResultService(args.operatorId);
-        if (!paginatedResultService) {
+        if (paginatedResultService) {
+          try {
+            // Request first page with reasonable size (200 rows)
+            // We'll filter by token limit after receiving
+            const pageSize = 200;
+            const resultEvent: any = await new Promise((resolve, reject) => {
+              const subscription = paginatedResultService.selectPage(1, pageSize).subscribe({
+                next: event => {
+                  subscription.unsubscribe();
+                  resolve(event);
+                },
+                error: (err: unknown) => {
+                  subscription.unsubscribe();
+                  reject(err);
+                },
+              });
+
+              // Handle abort signal
+              if (args.signal) {
+                args.signal.addEventListener("abort", () => {
+                  subscription.unsubscribe();
+                  reject(new Error("Operation aborted"));
+                });
+              }
+            });
+
+            // Filter results by token limit
+            const limitedResult: any[] = [];
+            let currentTokenCount = 0;
+
+            for (const row of resultEvent.table || []) {
+              const rowTokens = estimateTokenCount(row);
+              if (currentTokenCount + rowTokens > MAX_OPERATOR_RESULT_TOKEN_LIMIT) {
+                break; // Stop if adding this row exceeds limit
+              }
+              limitedResult.push(row);
+              currentTokenCount += rowTokens;
+            }
+
+            const totalRows = paginatedResultService.getCurrentTotalNumTuples();
+            const wasLimited = limitedResult.length < (resultEvent.table?.length || 0);
+
+            return {
+              success: true,
+              operatorId: args.operatorId,
+              mode: "pagination",
+              totalRows: totalRows,
+              displayedRows: limitedResult.length,
+              estimatedTokens: currentTokenCount,
+              truncated: wasLimited,
+              result: { ...resultEvent, table: limitedResult },
+              message: wasLimited
+                ? `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, limited by token count ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`
+                : `Retrieved ${limitedResult.length} rows (out of ${totalRows} total, ~${currentTokenCount} tokens) from paginated table results for operator ${args.operatorId}`,
+            };
+          } catch (error: any) {
+            return {
+              success: false,
+              error: `Failed to fetch paginated results: ${error.message}. This may be due to backend storage issues or results not being ready yet.`,
+            };
+          }
+        }
+
+        // If pagination mode is not available, try snapshot mode (for visualization results)
+        const resultService = workflowResultService.getResultService(args.operatorId);
+        if (resultService) {
+          const snapshot = resultService.getCurrentResultSnapshot();
+          if (!snapshot || snapshot.length === 0) {
+            return {
+              success: false,
+              error: `Result snapshot is empty for operator ${args.operatorId}. Results might not be ready yet.`,
+            };
+          }
+
+          // Filter by token limit
+          const limitedResult: any[] = [];
+          let currentTokenCount = 0;
+
+          for (const row of snapshot) {
+            const rowTokens = estimateTokenCount(row);
+            if (currentTokenCount + rowTokens > MAX_OPERATOR_RESULT_TOKEN_LIMIT) {
+              break; // Stop if adding this row exceeds limit
+            }
+            limitedResult.push(row);
+            currentTokenCount += rowTokens;
+          }
+
+          const wasLimited = limitedResult.length < snapshot.length;
+
           return {
-            success: false,
-            error: `No paginated results available for operator ${args.operatorId}`,
+            success: true,
+            operatorId: args.operatorId,
+            mode: "snapshot",
+            totalRows: snapshot.length,
+            displayedRows: limitedResult.length,
+            estimatedTokens: currentTokenCount,
+            truncated: wasLimited,
+            result: limitedResult,
+            message: wasLimited
+              ? `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, limited by token count ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`
+              : `Retrieved ${limitedResult.length} rows (out of ${snapshot.length} total, ~${currentTokenCount} tokens) from snapshot results for operator ${args.operatorId}`,
           };
         }
 
-        // Use provided pageSize, default to 100, cap at 100
-        const pageSize = Math.min(args.pageSize || 100, 100);
-
-        // Get page 0 with the specified page size
-        // Handle abort signal to properly unsubscribe
-        const resultEvent = await new Promise((resolve, reject) => {
-          const subscription = paginatedResultService.selectPage(0, pageSize).subscribe({
-            next: event => {
-              subscription.unsubscribe(); // Clean up after success
-              resolve(event);
-            },
-            error: (err: unknown) => {
-              subscription.unsubscribe(); // Clean up after error
-              reject(err);
-            },
-          });
-
-          // If abort signal is provided, unsubscribe when aborted
-          if (args.signal) {
-            args.signal.addEventListener("abort", () => {
-              subscription.unsubscribe(); // Cancel the subscription
-              reject(new Error("Operation aborted"));
-            });
-          }
-        });
-
+        // No results available at all
         return {
-          success: true,
-          operatorId: args.operatorId,
-          pageIndex: 0,
-          pageSize: pageSize,
-          result: resultEvent,
-          message: `Retrieved page 0 with ${pageSize} rows for operator ${args.operatorId}`,
+          success: false,
+          error: `No results available for operator ${args.operatorId}. The operator may not have been executed yet, or it may not produce viewable results.`,
         };
       } catch (error: any) {
+        copilotCoeditor.clearEditingOperator();
         return { success: false, error: error.message };
       }
     },

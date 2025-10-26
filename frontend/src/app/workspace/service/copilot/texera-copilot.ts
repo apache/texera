@@ -43,7 +43,7 @@ import {
   createGetExecutionStateTool,
   createKillWorkflowTool,
   createHasOperatorResultTool,
-  createGetOperatorResultPageTool,
+  createGetOperatorResultTool,
   createGetOperatorResultInfoTool,
   createGetWorkflowValidationErrorsTool,
   createValidateOperatorTool,
@@ -358,12 +358,8 @@ export class TexeraCopilot {
     const hasOperatorResultTool = toolWithTimeout(
       createHasOperatorResultTool(this.workflowResultService, this.workflowActionService, this.copilotCoeditorService)
     );
-    const getOperatorResultPageTool = toolWithTimeout(
-      createGetOperatorResultPageTool(
-        this.workflowResultService,
-        this.workflowActionService,
-        this.copilotCoeditorService
-      )
+    const getOperatorResultTool = toolWithTimeout(
+      createGetOperatorResultTool(this.workflowResultService, this.copilotCoeditorService)
     );
     const getOperatorResultInfoTool = toolWithTimeout(
       createGetOperatorResultInfoTool(
@@ -405,8 +401,8 @@ export class TexeraCopilot {
       getWorkflowCompilationState: getWorkflowCompilationStateTool,
       executeWorkflow: executeWorkflowTool,
       // killWorkflow: killWorkflowTool,
-      // hasOperatorResult: hasOperatorResultTool,
-      // getOperatorResultPage: getOperatorResultPageTool,
+      hasOperatorResult: hasOperatorResultTool,
+      getOperatorResult: getOperatorResultTool,
       getOperatorResultInfo: getOperatorResultInfoTool,
       getWorkflowValidationErrors: getWorkflowValidationErrorsTool,
       validateOperator: validateOperatorTool,
