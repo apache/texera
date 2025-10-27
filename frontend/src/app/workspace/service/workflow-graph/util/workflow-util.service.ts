@@ -113,7 +113,7 @@ export class WorkflowUtilService {
    * @param operatorType type of an Operator
    * @returns a new OperatorPredicate of the operatorType
    */
-  public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
+  public getNewOperatorPredicate(operatorType: string, customDisplayName?: string): OperatorPredicate {
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
@@ -138,8 +138,8 @@ export class WorkflowUtilService {
     // by default, the operator is not disabled
     const isDisabled = false;
 
-    // by default, the operator name is the user friendly name
-    const customDisplayName = operatorSchema.additionalMetadata.userFriendlyName;
+    // Use provided customDisplayName or default to the user friendly name from schema
+    const displayName = customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName;
 
     const dynamicInputPorts = operatorSchema.additionalMetadata.dynamicInputPorts ?? false;
     const dynamicOutputPorts = operatorSchema.additionalMetadata.dynamicOutputPorts ?? false;
@@ -167,7 +167,7 @@ export class WorkflowUtilService {
       outputPorts,
       showAdvanced,
       isDisabled,
-      customDisplayName,
+      customDisplayName: displayName,
       dynamicInputPorts,
       dynamicOutputPorts,
     };
