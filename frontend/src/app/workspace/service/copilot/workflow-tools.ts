@@ -105,8 +105,12 @@ export function createAddOperatorTool(
     description: "Add a new operator to the workflow",
     inputSchema: z.object({
       operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
+      customDisplayName: z
+        .string()
+        .optional()
+        .describe("Brief custom name summarizing what this operator does in one sentence"),
     }),
-    execute: async (args: { operatorType: string }) => {
+    execute: async (args: { operatorType: string; customDisplayName?: string }) => {
       try {
         // Clear previous highlights at start of tool execution
         copilotCoeditor.clearAll();
@@ -119,8 +123,8 @@ export function createAddOperatorTool(
           };
         }
 
-        // Get a new operator predicate with default settings
-        const operator = workflowUtilService.getNewOperatorPredicate(args.operatorType);
+        // Get a new operator predicate with default settings and optional custom display name
+        const operator = workflowUtilService.getNewOperatorPredicate(args.operatorType, args.customDisplayName);
 
         // Calculate a default position (can be adjusted by auto-layout later)
         const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
