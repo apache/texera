@@ -28,6 +28,8 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
+import javax.validation.constraints.NotNull
+
 @JsonSchemaInject(
   json =
     "{" +
@@ -47,12 +49,14 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("X Column")
   @AutofillAttributeName
+  @NotNull(message = "X-Column cannot be null")
   private val xColumn: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
   @AutofillAttributeName
+  @NotNull(message = "Y-Column cannot be null")
   private val yColumn: String = ""
 
   @JsonProperty(required = false)
