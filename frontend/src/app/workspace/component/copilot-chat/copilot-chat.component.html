@@ -40,8 +40,9 @@
       </nz-switch>
       <span class="toggle-label">Show Results</span>
       <div class="chat-header-buttons">
+        <!-- Stop button (when generating) -->
         <button
-          *ngIf="isProcessing"
+          *ngIf="isGenerating()"
           nz-button
           nzType="text"
           nzSize="small"
@@ -51,7 +52,21 @@
           <i
             nz-icon
             nzType="stop"
-            nzTheme="fill"></i>
+            nzTheme="outline"></i>
+        </button>
+        <!-- Clear button (when available) -->
+        <button
+          *ngIf="isAvailable()"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="clearMessages()"
+          nz-tooltip
+          nzTooltipTitle="Clear chat history">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
         </button>
         <button
           nz-button
@@ -96,14 +111,14 @@
       [requestBodyLimits]="deepChatConfig.requestBodyLimits">
     </deep-chat>
 
-    <!-- Loading overlay to keep visible during processing -->
+    <!-- Processing/Stopping indicator -->
     <div
-      *ngIf="isProcessing && isExpanded"
+      *ngIf="(isGenerating() || isStopping()) && isExpanded"
       class="processing-indicator">
       <nz-spin
         nzSimple
         nzSize="small"></nz-spin>
-      <span>Processing...</span>
+      <span>{{ isStopping() ? 'Stopping...' : 'Processing...' }}</span>
     </div>
   </div>
 

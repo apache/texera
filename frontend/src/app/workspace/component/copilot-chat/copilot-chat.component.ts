@@ -1,7 +1,7 @@
 // copilot-chat.component.ts
 import { Component, OnDestroy, ViewChild, ElementRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { TexeraCopilot, AgentResponse } from "../../service/copilot/texera-copilot";
+import { TexeraCopilot, AgentResponse, CopilotState } from "../../service/copilot/texera-copilot";
 import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.service";
 
 @UntilDestroy()
@@ -17,7 +17,6 @@ export class CopilotChatComponent implements OnDestroy {
   public isExpanded = true; // Whether chat content is expanded or minimized
   public showToolResults = false; // Whether to show tool call results
   public isConnected = false;
-  public isProcessing = false; // Whether agent is currently processing a request
   private isInitialized = false;
 
   // Deep-chat configuration
@@ -26,9 +25,6 @@ export class CopilotChatComponent implements OnDestroy {
       handler: (body: any, signals: any) => {
         const last = body?.messages?.[body.messages.length - 1];
         const userText: string = typeof last?.text === "string" ? last.text : "";
-
-        // Set processing state to show loading indicator
-        this.isProcessing = true;
 
         // Send message to copilot and process AgentResponse
         this.copilotService
@@ -50,20 +46,22 @@ export class CopilotChatComponent implements OnDestroy {
                 // For final response, signal completion with the content
                 // This will let deep-chat handle adding the message and clearing loading
                 if (response.isDone) {
-                  this.isProcessing = false; // Clear processing state
                   signals.onResponse({ text: response.content });
                 }
               }
             },
             error: (e: unknown) => {
-              this.isProcessing = false; // Clear processing state on error
               signals.onResponse({ error: e ?? "Unknown error" });
             },
             complete: () => {
               // Handle completion without final response (happens when generation is stopped)
-              if (this.isProcessing) {
-                this.isProcessing = false;
-                signals.onResponse({ text: "_Generation stopped by user._" });
+              const currentState = this.copilotService.getState();
+              if (currentState === CopilotState.STOPPING) {
+                // Generation was stopped by user - show completion message
+                signals.onResponse({ text: "_Generation stopped._" });
+              } else if (currentState === CopilotState.GENERATING) {
+                // Generation completed unexpectedly
+                signals.onResponse({ text: "_Generation completed._" });
               }
             },
           });
@@ -223,7 +221,39 @@ export class CopilotChatComponent implements OnDestroy {
    */
   public stopGeneration(): void {
     this.copilotService.stopGeneration();
-    this.isProcessing = false;
+  }
+
+  /**
+   * Clear message history
+   */
+  public clearMessages(): void {
+    this.copilotService.clearMessages();
+
+    // Clear deep-chat UI messages
+    if (this.deepChatElement?.nativeElement?.clearMessages) {
+      this.deepChatElement.nativeElement.clearMessages(true);
+    }
+  }
+
+  /**
+   * Check if copilot is currently generating
+   */
+  public isGenerating(): boolean {
+    return this.copilotService.getState() === CopilotState.GENERATING;
+  }
+
+  /**
+   * Check if copilot is currently stopping
+   */
+  public isStopping(): boolean {
+    return this.copilotService.getState() === CopilotState.STOPPING;
+  }
+
+  /**
+   * Check if copilot is available (can send messages)
+   */
+  public isAvailable(): boolean {
+    return this.copilotService.getState() === CopilotState.AVAILABLE;
   }
 
   /**
