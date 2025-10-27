@@ -31,6 +31,6 @@ class HierarchySection {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute Name")
   @AutofillAttributeName
-  @NotNull
+  @NotNull(message = "Attribute Name cannot be empty")
   var attributeName: String = ""
 }
