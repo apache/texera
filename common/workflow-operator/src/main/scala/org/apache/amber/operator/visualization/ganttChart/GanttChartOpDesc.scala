@@ -61,8 +61,8 @@ class GanttChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "task", required = true)
   @JsonSchemaTitle("Task Column")
   @JsonPropertyDescription("the name of the task")
-  @NotNull(message = "Task Column cannot be empty")
   @AutofillAttributeName
+  @NotNull(message = "Task Column cannot be empty")
   var task: String = ""
 
   @JsonProperty(value = "color", required = false)
