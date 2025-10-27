@@ -28,7 +28,7 @@ import org.apache.amber.operator.PythonOperatorDescriptor
 import org.apache.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-import javax.validation.constraints.{NotBlank, NotNull}
+import javax.validation.constraints.NotNull
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
