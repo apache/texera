@@ -39,6 +39,10 @@
   right: 20px;
   width: 500px;
   height: 500px;
+  min-width: 350px;
+  min-height: 300px;
+  max-width: 90vw;
+  max-height: 90vh;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -46,10 +50,19 @@
   flex-direction: column;
   z-index: 1000;
   animation: slideIn 0.3s ease;
-  transition: height 0.3s ease;
+  overflow: auto;
+  resize: both;
+  // Flip horizontally to move resize handle to bottom-left
+  transform: scaleX(-1);
+
+  // Flip content back to normal
+  > * {
+    transform: scaleX(-1);
+  }
 
   &.minimized {
     height: 60px;
+    resize: none;
   }
 }
 
@@ -150,6 +163,26 @@
   nz-spin {
     ::ng-deep .ant-spin-dot-item {
       background-color: white;
+    }
+  }
+
+  .stop-button {
+    color: white;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-left: 4px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    i {
+      font-size: 14px;
     }
   }
 }

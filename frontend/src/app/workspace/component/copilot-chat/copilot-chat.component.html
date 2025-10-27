@@ -40,20 +40,6 @@
       </nz-switch>
       <span class="toggle-label">Show Results</span>
       <div class="chat-header-buttons">
-        <!-- Stop button (when generating) -->
-        <button
-          *ngIf="isGenerating()"
-          nz-button
-          nzType="text"
-          nzSize="small"
-          (click)="stopGeneration()"
-          nz-tooltip
-          nzTooltipTitle="Stop generation">
-          <i
-            nz-icon
-            nzType="stop"
-            nzTheme="outline"></i>
-        </button>
         <!-- Clear button (when available) -->
         <button
           *ngIf="isAvailable()"
@@ -119,6 +105,21 @@
         nzSimple
         nzSize="small"></nz-spin>
       <span>{{ isStopping() ? 'Stopping...' : 'Processing...' }}</span>
+      <!-- Stop button (only when generating, not when stopping) -->
+      <button
+        *ngIf="isGenerating()"
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="stopGeneration()"
+        class="stop-button"
+        nz-tooltip
+        nzTooltipTitle="Stop generation">
+        <i
+          nz-icon
+          nzType="stop"
+          nzTheme="outline"></i>
+      </button>
     </div>
   </div>
 
