@@ -68,6 +68,16 @@ export const COPILOT_MCP_URL = "mcp";
 export const AGENT_MODEL_ID = "claude-3.7";
 
 /**
+ * Copilot state enum
+ */
+export enum CopilotState {
+  UNAVAILABLE = "Unavailable",
+  AVAILABLE = "Available",
+  GENERATING = "Generating",
+  STOPPING = "Stopping",
+}
+
+/**
  * Agent response structure for streaming intermediate and final results
  */
 export interface AgentResponse {
@@ -100,8 +110,8 @@ export class TexeraCopilot {
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
 
-  // AbortController for stopping generation
-  private currentAbortController?: AbortController;
+  // Copilot state management
+  private state: CopilotState = CopilotState.UNAVAILABLE;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -131,9 +141,13 @@ export class TexeraCopilot {
         apiKey: "dummy",
       }).chat(AGENT_MODEL_ID);
 
+      // 3. Set state to Available
+      this.state = CopilotState.AVAILABLE;
+
       console.log("Texera Copilot initialized successfully");
     } catch (error: unknown) {
       console.error("Failed to initialize copilot:", error);
+      this.state = CopilotState.UNAVAILABLE;
       throw error;
     }
   }
@@ -204,8 +218,8 @@ export class TexeraCopilot {
         return;
       }
 
-      // Create new AbortController for this generation
-      this.currentAbortController = new AbortController();
+      // Set state to Generating
+      this.state = CopilotState.GENERATING;
 
       // 1) push the user message (don't emit to stream - already handled by UI)
       const userMessage: UserModelMessage = { role: "user", content: message };
@@ -214,15 +228,22 @@ export class TexeraCopilot {
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
 
-      // 3) run multi-step with stopWhen
+      // 3) run multi-step with stopWhen to check for user stop request
       generateText({
         model: this.model,
         messages: this.messages, // full history
         tools,
-        abortSignal: this.currentAbortController.signal,
         system: COPILOT_SYSTEM_PROMPT,
-        stopWhen: stepCountIs(50),
-
+        // Stop when: user requested stop OR reached 50 steps
+        stopWhen: ({ steps }) => {
+          // Check if user requested stop
+          if (this.state === CopilotState.STOPPING) {
+            console.log("Stopping generation due to user request");
+            return true;
+          }
+          // Otherwise use the default step count limit
+          return stepCountIs(50)({ steps });
+        },
         // optional: observe every completed step (tool calls + results available)
         onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
           // Log each step for debugging
@@ -258,6 +279,9 @@ export class TexeraCopilot {
           // Clear all copilot presence indicators when generation completes
           this.copilotCoeditorService.clearAll();
 
+          // Set state back to Available
+          this.state = CopilotState.AVAILABLE;
+
           // Emit final response with raw data
           const finalResponse: AgentResponse = {
             type: "response",
@@ -271,18 +295,14 @@ export class TexeraCopilot {
           // Clear all copilot presence indicators on error
           this.copilotCoeditorService.clearAll();
 
-          // Check if error is due to user abort
-          if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
-            console.log("Generation stopped by user");
-            // Just complete the observable without adding error message to history
-            observer.complete();
-          } else {
-            // For real errors, add to message history and propagate error
-            const errorText = `Error: ${err?.message ?? String(err)}`;
-            const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
-            this.messages.push(assistantError);
-            observer.error(err);
-          }
+          // Set state back to Available
+          this.state = CopilotState.AVAILABLE;
+
+          // For errors, add to message history and propagate error
+          const errorText = `Error: ${err?.message ?? String(err)}`;
+          const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
+          this.messages.push(assistantError);
+          observer.error(err);
         });
     });
   }
@@ -425,14 +445,34 @@ export class TexeraCopilot {
   }
 
   /**
-   * Stop the current generation without clearing messages
+   * Stop the current generation (async - waits for generation to actually stop)
    */
   public stopGeneration(): void {
-    if (this.currentAbortController) {
-      this.currentAbortController.abort();
-      this.currentAbortController = undefined;
-      console.log("Generation stopped");
+    if (this.state !== CopilotState.GENERATING) {
+      console.log("Not generating, nothing to stop");
+      return;
     }
+
+    // Set state to Stopping - stopWhen callback will detect this and stop generation
+    this.state = CopilotState.STOPPING;
+    console.log("Stopping generation...");
+
+    // State will be set back to Available when the generation completes via stopWhen
+  }
+
+  /**
+   * Clear message history
+   */
+  public clearMessages(): void {
+    this.messages = [];
+    console.log("Message history cleared");
+  }
+
+  /**
+   * Get current copilot state
+   */
+  public getState(): CopilotState {
+    return this.state;
   }
 
   /**
@@ -440,13 +480,21 @@ export class TexeraCopilot {
    */
   public async disconnect(): Promise<void> {
     // Stop any ongoing generation
-    this.stopGeneration();
+    if (this.state === CopilotState.GENERATING) {
+      this.stopGeneration();
+    }
+
+    // Clear message history
+    this.clearMessages();
 
     // Disconnect the MCP client if it exists
     if (this.mcpClient) {
       await this.mcpClient.close();
       this.mcpClient = undefined;
     }
+
+    // Set state to Unavailable
+    this.state = CopilotState.UNAVAILABLE;
 
     console.log("Copilot disconnected");
   }
@@ -455,6 +503,6 @@ export class TexeraCopilot {
    * Check if copilot is connected
    */
   public isConnected(): boolean {
-    return this.mcpClient !== undefined && this.model !== undefined;
+    return this.state !== CopilotState.UNAVAILABLE;
   }
 }
