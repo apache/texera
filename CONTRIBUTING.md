@@ -57,8 +57,8 @@ Do not include any of the following in your PR:
 
 ### Final Steps Before Review
 #### Your PR should pass scalafix check (lint) and scalafmt check. 
-- To check lint, under `core` run command `sbt "scalafixAll --check"`; to fix lint issues, run `sbt scalafixAll`.
-- To check format, under `core` run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
+- To check lint, run command `sbt "scalafixAll --check"`; to fix lint issues, run `sbt scalafixAll`.
+- To check format, run command `sbt scalafmtCheckAll`; to fix format, run `sbt scalafmtAll`. 
 - When you need to execute both, scalafmt is supposed to be executed after scalafix.
 #### Testing the backend
 1. The test framework is `scalatest`, for the amber engine, tests are located under `amber/src/test`; for `WorkflowCompilingService`, tests are located under `core/workflow-compiling-service`. You can find unit tests and e2e tests.
