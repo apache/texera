@@ -52,7 +52,7 @@ import {
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { createOpenAI } from "@ai-sdk/openai";
-import { AssistantModelMessage, generateText, type ModelMessage, stepCountIs, UserModelMessage } from "ai";
+import { AssistantModelMessage, streamText, type ModelMessage, UserModelMessage } from "ai";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { AppSettings } from "../../../common/app-setting";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
@@ -228,70 +228,111 @@ export class TexeraCopilot {
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
 
-      // 3) run multi-step with stopWhen to check for user stop request
-      generateText({
-        model: this.model,
-        messages: this.messages, // full history
-        tools,
-        system: COPILOT_SYSTEM_PROMPT,
-        // Stop when: user requested stop OR reached 50 steps
-        stopWhen: ({ steps }) => {
-          // Check if user requested stop
-          if (this.state === CopilotState.STOPPING) {
-            console.log("Stopping generation due to user request");
-            return true;
-          }
-          // Otherwise use the default step count limit
-          return stepCountIs(50)({ steps });
-        },
-        // optional: observe every completed step (tool calls + results available)
-        onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-          // Log each step for debugging
-          console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
+      // 3) use streamText with onChunk callback
+      (async () => {
+        try {
+          // Accumulate text deltas
+          let accumulatedText = "";
 
-          // If there are tool calls, emit raw trace data
-          if (toolCalls && toolCalls.length > 0) {
-            const traceResponse: AgentResponse = {
-              type: "trace",
-              content: text || "",
-              isDone: false,
-              toolCalls,
-              toolResults,
-              usage,
-            };
+          const flushText = () => {
+            if (accumulatedText.trim()) {
+              // Emit accumulated text as a message to append
+              observer.next({
+                type: "response",
+                content: accumulatedText,
+                isDone: false,
+              });
+              accumulatedText = ""; // Clear after flushing
+            }
+          };
 
-            // Emit raw trace data
-            observer.next(traceResponse);
-          }
-        },
-      })
-        .then(({ text, steps, response }) => {
-          // 4) append ALL messages the SDK produced this turn (assistant + tool messages)
-          //    This keeps your history perfectly aligned with the SDK's internal state.
-          this.messages.push(...response.messages);
+          const result = streamText({
+            model: this.model,
+            messages: this.messages, // full history
+            tools,
+            system: COPILOT_SYSTEM_PROMPT,
+            // Stop when: user requested stop OR reached 50 steps
+            stopWhen: ({ steps }: any) => {
+              if (this.state === CopilotState.STOPPING) {
+                console.log("Stopping generation due to user request");
+                return true;
+              }
+              if (steps && steps.length >= 50) {
+                console.log(`Reached maximum steps (50)`);
+                return true;
+              }
+              return false;
+            },
+            // Callback for each chunk as it arrives
+            onChunk: ({ chunk }: any) => {
+              if (this.state === CopilotState.STOPPING) {
+                console.log("User stop detected in onChunk");
+                return;
+              }
 
-          // 5) optional diagnostics
-          if (steps?.length) {
-            const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
-            console.log(`Agent loop finished in ${steps.length} step(s), ${totalToolCalls} tool call(s).`);
-          }
+              if (chunk.type === "text-delta") {
+                // Accumulate text delta
+                accumulatedText += chunk.text;
+              } else if (chunk.type === "tool-call") {
+                // Flush accumulated text before tool call
+                flushText();
 
-          // Clear all copilot presence indicators when generation completes
+                // Emit tool call as separate message
+                observer.next({
+                  type: "trace",
+                  content: `🔧 **${chunk.toolName}**`,
+                  isDone: false,
+                  toolCalls: [chunk],
+                  toolResults: undefined,
+                });
+              }
+            },
+            // Observe every completed step
+            onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }: any) => {
+              console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
+
+              // Flush any remaining text after step completes
+              flushText();
+
+              // If there are tool results, emit them
+              if (toolResults && toolResults.length > 0) {
+                const traceResponse: AgentResponse = {
+                  type: "trace",
+                  content: "", // Will be formatted in frontend
+                  isDone: false,
+                  toolCalls,
+                  toolResults,
+                  usage,
+                };
+                observer.next(traceResponse);
+              }
+            },
+          });
+
+          // Wait for the final result
+          const finalText = await result.text;
+          const responseMetadata = await result.response;
+
+          // Flush any remaining text
+          flushText();
+
+          // Append ALL messages the SDK produced this turn
+          this.messages.push(...responseMetadata.messages);
+
+          // Clear all copilot presence indicators
           this.copilotCoeditorService.clearAll();
 
           // Set state back to Available
           this.state = CopilotState.AVAILABLE;
 
-          // Emit final response with raw data
-          const finalResponse: AgentResponse = {
+          // Signal completion
+          observer.next({
             type: "response",
-            content: text,
+            content: "",
             isDone: true,
-          };
-          observer.next(finalResponse);
+          });
           observer.complete();
-        })
-        .catch((err: any) => {
+        } catch (err: any) {
           // Clear all copilot presence indicators on error
           this.copilotCoeditorService.clearAll();
 
@@ -303,7 +344,8 @@ export class TexeraCopilot {
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
           observer.error(err);
-        });
+        }
+      })();
     });
   }
 
