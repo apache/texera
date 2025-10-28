@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.control
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
-import akka.testkit.{TestKit, TestProbe}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import org.apache.pekko.testkit.{TestKit, TestProbe}
 import io.grpc.MethodDescriptor
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.engine.architecture.common.WorkflowActor.{

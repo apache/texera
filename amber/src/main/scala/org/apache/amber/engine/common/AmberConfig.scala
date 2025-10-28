@@ -18,8 +18,8 @@
 
 package org.apache.amber.engine.common
 
-import akka.actor.Address
+import org.apache.pekko.actor.Address
 
 object AmberConfig {
-  var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
+  var masterNodeAddr: Address = Address("pekko", "Amber", "localhost", 2552)
 }

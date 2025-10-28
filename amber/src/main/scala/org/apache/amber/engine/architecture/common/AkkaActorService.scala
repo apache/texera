@@ -19,8 +19,9 @@
 
 package org.apache.amber.engine.architecture.common
 
-import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
-import akka.util.Timeout
+import org.apache.pekko
+import pekko.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
+import pekko.util.Timeout
 import org.apache.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.amber.engine.common.FutureBijection._
 
@@ -78,7 +79,7 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
   }
 
   def ask(ref: ActorRef, message: Any): com.twitter.util.Future[Any] = {
-    akka.pattern.ask(ref, message).asTwitter()
+    pekko.pattern.ask(ref, message).asTwitter()
   }
 
 }

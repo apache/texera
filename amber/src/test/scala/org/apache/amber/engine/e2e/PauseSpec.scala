@@ -19,9 +19,9 @@
 
 package org.apache.amber.engine.e2e
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestKit}
-import akka.util.Timeout
+import org.apache.pekko.actor.{ActorSystem, Props}
+import org.apache.pekko.testkit.{ImplicitSender, TestKit}
+import org.apache.pekko.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.amber.clustering.SingleNodeListener

@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.architecture.controller
 
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
+import org.apache.pekko.actor.SupervisorStrategy.Stop
+import org.apache.pekko.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
 import org.apache.amber.config.ApplicationConfig
 import org.apache.amber.core.virtualidentity.ChannelIdentity

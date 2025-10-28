@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.deploysemantics.deploystrategy
 
-import akka.actor.Address
+import org.apache.pekko.actor.Address
 
 object OneOnEach {
   def apply() = new OneOnEach()

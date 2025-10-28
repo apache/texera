@@ -19,8 +19,8 @@
 
 package org.apache.amber.engine.common.client
 
-import akka.actor.{Actor, ActorRef}
-import akka.pattern.StatusReply.Ack
+import org.apache.pekko.actor.{Actor, ActorRef}
+import org.apache.pekko.pattern.StatusReply.Ack
 import com.twitter.util.Promise
 import org.apache.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.amber.core.workflow.{PhysicalPlan, WorkflowContext}

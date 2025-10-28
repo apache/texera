@@ -19,7 +19,7 @@
 
 package org.apache.amber.engine.architecture.pythonworker
 
-import akka.actor.Props
+import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
 import org.apache.amber.config.{StorageConfig, UdfConfig}
 import org.apache.amber.core.virtualidentity.ChannelIdentity
