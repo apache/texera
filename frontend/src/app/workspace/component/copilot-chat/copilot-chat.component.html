@@ -97,6 +97,42 @@
       [requestBodyLimits]="deepChatConfig.requestBodyLimits">
     </deep-chat>
 
+    <!-- Message action buttons (shown when a message is clicked) -->
+    <div
+      *ngIf="selectedMessageIndex !== null && isExpanded"
+      class="message-action-buttons">
+      <button
+        nz-button
+        nzType="default"
+        nzSize="small">
+        <i
+          nz-icon
+          nzType="copy"
+          nzTheme="outline"></i>
+        <span>Copy</span>
+      </button>
+      <button
+        nz-button
+        nzType="default"
+        nzSize="small">
+        <i
+          nz-icon
+          nzType="more"
+          nzTheme="outline"></i>
+        <span>More</span>
+      </button>
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="closeMessageActions()">
+        <i
+          nz-icon
+          nzType="close"
+          nzTheme="outline"></i>
+      </button>
+    </div>
+
     <!-- Processing/Stopping indicator -->
     <div
       *ngIf="(isGenerating() || isStopping()) && isExpanded"
