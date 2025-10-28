@@ -41,13 +41,14 @@ import scala.jdk.CollectionConverters._
 object S3StorageClient {
   val MINIMUM_NUM_OF_MULTIPART_S3_PART: Long = 5L * 1024 * 1024 // 5 MiB
   val MAXIMUM_NUM_OF_MULTIPART_S3_PARTS = 10_000
-  val credentials = AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
 
   // Initialize MinIO-compatible S3 Client
   private lazy val s3Client: S3Client = {
+    val s3Credentials =
+      AwsBasicCredentials.create(StorageConfig.s3Username, StorageConfig.s3Password)
     S3Client
       .builder()
-      .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .credentialsProvider(StaticCredentialsProvider.create(s3Credentials))
       .region(Region.of(StorageConfig.s3Region))
       .endpointOverride(java.net.URI.create(StorageConfig.s3Endpoint)) // MinIO URL
       .serviceConfiguration(
@@ -58,6 +59,8 @@ object S3StorageClient {
 
   // Initialize S3-compatible presigner for LakeFS S3 Gateway
   private lazy val s3Presigner: S3Presigner = {
+    val lakefsCredentials =
+      AwsBasicCredentials.create(StorageConfig.lakefsUsername, StorageConfig.lakefsPassword)
     val fullUri = new URI(StorageConfig.lakefsEndpoint)
     val baseUri = new URI(
       fullUri.getScheme,
@@ -70,7 +73,7 @@ object S3StorageClient {
     ) // Extract just the base (scheme + host + port)
     S3Presigner
       .builder()
-      .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .credentialsProvider(StaticCredentialsProvider.create(lakefsCredentials))
       .region(Region.of(StorageConfig.s3Region))
       .endpointOverride(baseUri) // LakeFS base URL ("http://localhost:8000" on local)
       .serviceConfiguration(
