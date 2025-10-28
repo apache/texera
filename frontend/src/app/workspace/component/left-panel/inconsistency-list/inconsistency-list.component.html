@@ -54,7 +54,9 @@
         <nz-card
           [nzTitle]="inconsistency.name"
           [nzExtra]="extraTemplate"
-          class="inconsistency-card">
+          class="inconsistency-card"
+          (click)="onInconsistencyClick(inconsistency)"
+          style="cursor: pointer;">
           <p>{{ inconsistency.description }}</p>
           <p class="operator-id"><strong>Operator:</strong> {{ inconsistency.operatorId }}</p>
 
@@ -64,7 +66,7 @@
               nzType="text"
               nzSize="small"
               nzDanger
-              (click)="deleteInconsistency(inconsistency.id)"
+              (click)="deleteInconsistency(inconsistency.id); $event.stopPropagation()"
               nz-tooltip
               nzTooltipTitle="Delete">
               <i
