@@ -33,22 +33,20 @@ export class CopilotChatComponent implements OnDestroy {
           .subscribe({
             next: (response: AgentResponse) => {
               if (response.type === "trace") {
-                // Append tool trace message
-                if (response.toolCalls && response.toolCalls.length > 0) {
-                  const displayText = this.formatToolTrace(response);
-                  if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
-                    this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
-                  }
+                // Format tool traces
+                const displayText = this.formatToolTrace(response);
+
+                // Add trace message via addMessage API
+                if (displayText && this.deepChatElement?.nativeElement?.addMessage) {
+                  this.deepChatElement.nativeElement.addMessage({ role: "ai", text: displayText });
                 }
+
+                // Keep processing state true - loading indicator stays visible
               } else if (response.type === "response") {
+                // For final response, signal completion with the content
+                // This will let deep-chat handle adding the message and clearing loading
                 if (response.isDone) {
-                  // Final signal - clear loading indicator
-                  signals.onResponse({ text: "" });
-                } else {
-                  // Append accumulated text as a new message
-                  if (response.content && this.deepChatElement?.nativeElement?.addMessage) {
-                    this.deepChatElement.nativeElement.addMessage({ role: "ai", text: response.content });
-                  }
+                  signals.onResponse({ text: response.content });
                 }
               }
             },
@@ -56,7 +54,15 @@ export class CopilotChatComponent implements OnDestroy {
               signals.onResponse({ error: e ?? "Unknown error" });
             },
             complete: () => {
-              // Observable complete
+              // Handle completion without final response (happens when generation is stopped)
+              const currentState = this.copilotService.getState();
+              if (currentState === CopilotState.STOPPING) {
+                // Generation was stopped by user - show completion message
+                signals.onResponse({ text: "_Generation stopped._" });
+              } else if (currentState === CopilotState.GENERATING) {
+                // Generation completed unexpectedly
+                signals.onResponse({ text: "_Generation completed._" });
+              }
             },
           });
       },
@@ -75,36 +81,53 @@ export class CopilotChatComponent implements OnDestroy {
       return "";
     }
 
+    // Include agent's thinking/text if available
     let output = "";
+    if (response.content && response.content.trim()) {
+      output += `💭 **Agent:** ${response.content}\n\n`;
+    }
 
-    // Format each tool call
+    // Format each tool call - show tool name, parameters, and optionally results
     const traces = response.toolCalls.map((tc: any, index: number) => {
-      // Handle tool call chunk (from onChunk) or full tool call (from onStepFinish)
-      const toolName = tc.toolName || tc.name || "unknown";
-      const args = tc.args || tc.arguments || {};
+      // Log the actual structure to debug
+      console.log("Tool call structure:", tc);
+
+      // Try multiple possible property names for arguments
+      const args = tc.args || tc.arguments || tc.parameters || tc.input || {};
 
       // Format args nicely
       let argsDisplay = "";
       if (Object.keys(args).length > 0) {
-        argsDisplay = "\n" + Object.entries(args)
+        argsDisplay = Object.entries(args)
           .map(([key, value]) => `  **${key}:** \`${JSON.stringify(value)}\``)
           .join("\n");
+      } else {
+        argsDisplay = "  *(no parameters)*";
       }
 
-      let toolTrace = `🔧 **${toolName}**${argsDisplay}`;
+      let toolTrace = `🔧 **${tc.toolName}**\n${argsDisplay}`;
 
-      // Add tool result if available and enabled
+      // Add tool result if showToolResults is enabled
       if (this.showToolResults && response.toolResults && response.toolResults[index]) {
         const result = response.toolResults[index];
         const resultOutput = result.output || result.result || {};
 
         // Format result based on success/error
         if (resultOutput.success === false) {
-          toolTrace += `\n❌ **Error:** ${resultOutput.error || "Unknown error"}`;
+          toolTrace += `\n  ❌ **Error:** ${resultOutput.error || "Unknown error"}`;
         } else if (resultOutput.success === true) {
-          toolTrace += `\n✅ **Success:** ${resultOutput.message || "Operation completed"}`;
+          toolTrace += `\n  ✅ **Success:** ${resultOutput.message || "Operation completed"}`;
+          // Include additional result details if present
+          const details = Object.entries(resultOutput)
+            .filter(([key]) => key !== "success" && key !== "message")
+            .map(([key, value]) => `  **${key}:** \`${JSON.stringify(value)}\``)
+            .join("\n");
+          if (details) {
+            toolTrace += `\n${details}`;
+          }
         } else {
-          toolTrace += `\n**Result:** \`${JSON.stringify(resultOutput)}\``;
+          // Show raw result if format is unexpected
+          toolTrace += `\n  **Result:** \`${JSON.stringify(resultOutput)}\``;
         }
       }
 
@@ -113,7 +136,7 @@ export class CopilotChatComponent implements OnDestroy {
 
     output += traces.join("\n\n");
 
-    // Add token usage if available
+    // Add token usage information if available
     if (response.usage) {
       const inputTokens = response.usage.inputTokens || 0;
       const outputTokens = response.usage.outputTokens || 0;
