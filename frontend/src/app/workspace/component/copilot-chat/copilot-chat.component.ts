@@ -1,5 +1,5 @@
 // copilot-chat.component.ts
-import { Component, OnDestroy, AfterViewInit, ViewChild, ElementRef } from "@angular/core";
+import { Component, OnDestroy, ViewChild, ElementRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilot, AgentResponse, CopilotState } from "../../service/copilot/texera-copilot";
 import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.service";
@@ -10,7 +10,7 @@ import { CopilotCoeditorService } from "../../service/copilot/copilot-coeditor.s
   templateUrl: "copilot-chat.component.html",
   styleUrls: ["copilot-chat.component.scss"],
 })
-export class CopilotChatComponent implements OnDestroy, AfterViewInit {
+export class CopilotChatComponent implements OnDestroy {
   @ViewChild("deepChat", { static: false }) deepChatElement?: ElementRef;
 
   public isChatVisible = false; // Whether chat panel is shown at all
@@ -18,7 +18,6 @@ export class CopilotChatComponent implements OnDestroy, AfterViewInit {
   public showToolResults = false; // Whether to show tool call results
   public isConnected = false;
   private isInitialized = false;
-  public selectedMessageIndex: number | null = null; // Track which message is selected
 
   // Deep-chat configuration
   public deepChatConfig = {
@@ -152,165 +151,6 @@ export class CopilotChatComponent implements OnDestroy, AfterViewInit {
     private copilotCoeditorService: CopilotCoeditorService
   ) {}
 
-  ngAfterViewInit(): void {
-    // Click listeners will be set up in connect() method when chat becomes visible
-  }
-
-  /**
-   * Set up click listeners for agent messages
-   */
-  private setupMessageClickListeners(): void {
-    const deepChatElement = this.deepChatElement?.nativeElement;
-
-    console.log("Setting up message click listeners...");
-    console.log("deepChatElement:", deepChatElement);
-
-    if (!deepChatElement) {
-      console.error("Deep chat element not found!");
-      return;
-    }
-
-    // Deep-chat is a web component that uses Shadow DOM
-    // We need to access its shadow root to interact with internal elements
-    const shadowRoot = deepChatElement.shadowRoot;
-
-    console.log("Shadow root:", shadowRoot);
-
-    if (shadowRoot) {
-      // Attach click listener to the shadow root
-      shadowRoot.addEventListener("click", (event: MouseEvent) => {
-        this.handleDeepChatClick(event);
-      });
-      console.log("Click listener attached to shadow root");
-    } else {
-      // Fallback: try attaching to the element itself
-      deepChatElement.addEventListener("click", (event: MouseEvent) => {
-        this.handleDeepChatClick(event);
-      });
-      console.log("Click listener attached to deep-chat element (no shadow root)");
-    }
-
-    // Also set up a MutationObserver to handle dynamically added messages
-    const targetNode = shadowRoot || deepChatElement;
-    const observer = new MutationObserver(() => {
-      console.log("DOM mutation detected in deep-chat");
-    });
-
-    observer.observe(targetNode, {
-      childList: true,
-      subtree: true,
-    });
-  }
-
-  /**
-   * Handle clicks within the deep-chat component
-   */
-  private handleDeepChatClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement;
-
-    // Log the clicked element for debugging
-    console.log("Clicked element:", target);
-    console.log("Element classes:", target.className);
-    console.log("Element tag:", target.tagName);
-
-    // Try to find the message bubble by traversing up the DOM tree
-    let messageElement = this.findMessageBubble(target);
-
-    if (messageElement) {
-      // Check if it's an AI message (not a user message)
-      const isAiMessage = this.isAiMessage(messageElement);
-
-      console.log("Found message element, is AI:", isAiMessage);
-
-      if (isAiMessage) {
-        this.onMessageClick(messageElement);
-      }
-    }
-  }
-
-  /**
-   * Find the message bubble element by traversing up the DOM
-   */
-  private findMessageBubble(element: HTMLElement): HTMLElement | null {
-    let current: HTMLElement | null = element;
-    let depth = 0;
-    const maxDepth = 10; // Prevent infinite loops
-
-    while (current && depth < maxDepth) {
-      // Log each level for debugging
-      console.log(`Level ${depth}:`, current.className, current.tagName);
-
-      // Check if this element looks like a message bubble
-      // Common patterns: message-bubble, message, bubble, etc.
-      const className = current.className || "";
-      if (
-        className.includes("message") ||
-        className.includes("bubble") ||
-        current.hasAttribute("data-message") ||
-        current.classList?.contains("message")
-      ) {
-        console.log("Found message bubble:", current);
-        return current;
-      }
-
-      current = current.parentElement;
-      depth++;
-    }
-
-    return null;
-  }
-
-  /**
-   * Check if a message element is from the AI
-   */
-  private isAiMessage(element: HTMLElement): boolean {
-    const className = element.className || "";
-    const parent = element.parentElement;
-    const parentClass = parent?.className || "";
-
-    // Check various patterns that might indicate an AI message
-    return (
-      className.includes("ai") ||
-      className.includes("assistant") ||
-      className.includes("bot") ||
-      parentClass.includes("ai") ||
-      parentClass.includes("assistant") ||
-      parentClass.includes("bot") ||
-      (element.hasAttribute("role") && element.getAttribute("role") === "ai")
-    );
-  }
-
-  /**
-   * Handle message click event
-   */
-  private onMessageClick(messageElement: HTMLElement): void {
-    // Remove 'selected' class from all previously selected messages
-    const deepChat = this.deepChatElement?.nativeElement;
-    if (deepChat) {
-      const allElements = deepChat.querySelectorAll(".selected");
-      allElements.forEach((el: Element) => el.classList.remove("selected"));
-    }
-
-    // Add 'selected' class to clicked message
-    messageElement.classList.add("selected");
-
-    // Update selected message index (use a timestamp or unique ID)
-    this.selectedMessageIndex = Date.now();
-
-    console.log("Agent message selected!");
-  }
-
-  /**
-   * Close message action buttons
-   */
-  public closeMessageActions(): void {
-    this.selectedMessageIndex = null;
-
-    // Remove 'selected' class from all messages
-    const allMessages = this.deepChatElement?.nativeElement.querySelectorAll(".ai-message, [class*=\"ai\"], [role=\"ai\"]");
-    allMessages?.forEach((msg: Element) => msg.classList.remove("selected"));
-  }
-
   ngOnDestroy(): void {
     // Cleanup when component is destroyed
     this.disconnect();
@@ -335,11 +175,6 @@ export class CopilotChatComponent implements OnDestroy, AfterViewInit {
       this.isExpanded = true; // Expand chat content by default
       this.updateConnectionStatus();
       console.log("Copilot connected and registered as coeditor");
-
-      // Set up click listeners after the chat panel is rendered
-      setTimeout(() => {
-        this.setupMessageClickListeners();
-      }, 1000);
     } catch (error) {
       console.error("Failed to connect copilot:", error);
       this.copilotCoeditorService.unregister();
