@@ -48,6 +48,11 @@ import {
   createGetWorkflowValidationErrorsTool,
   createValidateOperatorTool,
   createGetValidOperatorsTool,
+  createAddInconsistencyTool,
+  createListInconsistenciesTool,
+  createUpdateInconsistencyTool,
+  createDeleteInconsistencyTool,
+  createClearInconsistenciesTool,
   toolWithTimeout,
 } from "./workflow-tools";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -62,6 +67,7 @@ import { CopilotCoeditorService } from "./copilot-coeditor.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
+import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -122,7 +128,8 @@ export class TexeraCopilot {
     private workflowResultService: WorkflowResultService,
     private copilotCoeditorService: CopilotCoeditorService,
     private workflowCompilingService: WorkflowCompilingService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private dataInconsistencyService: DataInconsistencyService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -398,6 +405,13 @@ export class TexeraCopilot {
       createGetValidOperatorsTool(this.validationWorkflowService, this.workflowActionService)
     );
 
+    // Inconsistency tools
+    const addInconsistencyTool = toolWithTimeout(createAddInconsistencyTool(this.dataInconsistencyService));
+    const listInconsistenciesTool = toolWithTimeout(createListInconsistenciesTool(this.dataInconsistencyService));
+    const updateInconsistencyTool = toolWithTimeout(createUpdateInconsistencyTool(this.dataInconsistencyService));
+    const deleteInconsistencyTool = toolWithTimeout(createDeleteInconsistencyTool(this.dataInconsistencyService));
+    const clearInconsistenciesTool = toolWithTimeout(createClearInconsistenciesTool(this.dataInconsistencyService));
+
     // Get MCP tools in AI SDK format
     // const mcpToolsForAI = this.getMCPToolsForAI();
 
@@ -427,6 +441,12 @@ export class TexeraCopilot {
       getWorkflowValidationErrors: getWorkflowValidationErrorsTool,
       validateOperator: validateOperatorTool,
       getValidOperators: getValidOperatorsTool,
+      // Data inconsistency tools
+      addInconsistency: addInconsistencyTool,
+      listInconsistencies: listInconsistenciesTool,
+      updateInconsistency: updateInconsistencyTool,
+      deleteInconsistency: deleteInconsistencyTool,
+      clearInconsistencies: clearInconsistenciesTool,
     };
   }
 

@@ -41,17 +41,15 @@ Use basic data wrangling operations like:
   - Aggregate
   - PythonUDF for basic data wrangling
 DO NOT USE View Result Operator
-After the wrangling and detecting, you may add basic chart like bar chart, pie chart or line chart to visualize the result. DO NOT USE other charts.
 
 ### Generation Strategy
 A good generation style follows these steps:
-1. Use operators like **projection** to reduce the amount of columns
-2. Use wrangling operators like **filter** or python udf to detect errors
-3. After adding an operator, configure it properly
-4. After configure it, validate the workflow to make sure you modification is valid
-4. Run the workflow to see the operator's result page
-6. For Projection operator, please only specify at most 3 columns to project and configure them properly
-7. ONLY EXECUTE THE WORKFLOW when workflow is invalid.
+1. After adding an operator, check the properties of that operator in order to properly configure it.
+2. After configure it, validate the workflow to make sure your modification is valid.
+3. If workflow is invalid, use the corresponding tools to check the validity and see how to fix it.
+4. Run the workflow to see the operator's result
+5. ONLY EXECUTE THE WORKFLOW when workflow is invalid.
+6. After you identify a data inconsistency, please use the corresponding tool to record the finding
 ---
 
 ## PythonUDFV2 Operator
