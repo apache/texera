@@ -23,6 +23,7 @@ import {
   DataInconsistencyService,
   DataInconsistency,
 } from "../../../service/data-inconsistency/data-inconsistency.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({
@@ -33,7 +34,10 @@ import {
 export class InconsistencyListComponent implements OnInit, OnDestroy {
   inconsistencies: DataInconsistency[] = [];
 
-  constructor(private inconsistencyService: DataInconsistencyService) {}
+  constructor(
+    private inconsistencyService: DataInconsistencyService,
+    private workflowActionService: WorkflowActionService
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to inconsistency updates
@@ -61,5 +65,27 @@ export class InconsistencyListComponent implements OnInit, OnDestroy {
    */
   clearAll(): void {
     this.inconsistencyService.clearAll();
+  }
+
+  /**
+   * Handle click on inconsistency card to highlight the upstream path
+   */
+  onInconsistencyClick(inconsistency: DataInconsistency): void {
+    if (!inconsistency.operatorId) {
+      return;
+    }
+
+    // Clear any existing highlights first
+    const currentHighlights = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
+    this.workflowActionService.getJointGraphWrapper().unhighlightElements(currentHighlights);
+
+    // Find all upstream operators and links leading to this operator
+    const pathResult = this.workflowActionService.findUpstreamPath(inconsistency.operatorId);
+
+    if (pathResult.operators.length > 0 || pathResult.links.length > 0) {
+      // Highlight operators and links on the upstream path
+      this.workflowActionService.highlightOperators(false, ...pathResult.operators);
+      this.workflowActionService.highlightLinks(false, ...pathResult.links);
+    }
   }
 }
