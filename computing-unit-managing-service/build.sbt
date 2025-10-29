@@ -33,7 +33,7 @@ libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
   "io.kubernetes" % "client-java" % "21.0.0",
-  "org.jooq" % "jooq" % "3.16.18",
+  "org.jooq" % "jooq" % "3.16.23",
   "mysql" % "mysql-connector-java" % "8.0.33",
   "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6",
   "com.typesafe" % "config" % "1.4.2",
