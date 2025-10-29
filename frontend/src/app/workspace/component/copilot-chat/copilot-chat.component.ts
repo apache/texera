@@ -26,6 +26,9 @@ export class CopilotChatComponent implements OnDestroy {
         const last = body?.messages?.[body.messages.length - 1];
         const userText: string = typeof last?.text === "string" ? last.text : "";
 
+        // Track if we've sent a final response
+        let finalResponseSent = false;
+
         // Send message to copilot and process AgentResponse
         this.copilotService
           .sendMessage(userText)
@@ -47,21 +50,39 @@ export class CopilotChatComponent implements OnDestroy {
                 // This will let deep-chat handle adding the message and clearing loading
                 if (response.isDone) {
                   signals.onResponse({ text: response.content });
+                  finalResponseSent = true;
                 }
               }
             },
             error: (e: unknown) => {
-              signals.onResponse({ error: e ?? "Unknown error" });
+              // Format error message properly
+              let errorMessage = "Unknown error";
+              if (e instanceof Error) {
+                errorMessage = e.message;
+              } else if (typeof e === "string") {
+                errorMessage = e;
+              } else if (e && typeof e === "object") {
+                errorMessage = JSON.stringify(e);
+              }
+              signals.onResponse({ error: errorMessage });
+              console.error("Copilot error:", e);
             },
             complete: () => {
-              // Handle completion without final response (happens when generation is stopped)
-              const currentState = this.copilotService.getState();
-              if (currentState === CopilotState.STOPPING) {
-                // Generation was stopped by user - show completion message
-                signals.onResponse({ text: "_Generation stopped._" });
-              } else if (currentState === CopilotState.GENERATING) {
-                // Generation completed unexpectedly
-                signals.onResponse({ text: "_Generation completed._" });
+              // Only send a response if we haven't already sent the final response
+              if (!finalResponseSent) {
+                const currentState = this.copilotService.getState();
+                if (currentState === CopilotState.STOPPING) {
+                  // Generation was stopped by user - show completion message
+                  signals.onResponse({ text: "_Generation stopped._" });
+                } else if (currentState === CopilotState.GENERATING) {
+                  // Generation completed unexpectedly
+                  signals.onResponse({ text: "_Generation completed._" });
+                } else {
+                  // Observable completed without a final response and state is not STOPPING or GENERATING
+                  // This might happen if there was an issue - send a generic completion message
+                  console.warn("Observable completed without final response. State:", currentState);
+                  signals.onResponse({ text: "_Response completed._" });
+                }
               }
             },
           });
