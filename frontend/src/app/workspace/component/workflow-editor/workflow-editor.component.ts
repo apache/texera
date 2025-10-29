@@ -163,7 +163,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
-    this.handleRegionUpdate();
+    this.handleRegionEvents();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -333,7 +333,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private handleRegionUpdate(): void {
+  private handleRegionEvents(): void {
     this.editor.classList.add("hide-region");
     const Region = joint.dia.Element.define(
       "region",
@@ -377,6 +377,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         .forEach(region => this.updateRegionElement(region.regionElement, region.operators));
     });
 
+    // update region element colors on execution
     this.executeWorkflowService
       .getRegionStateStream()
       .pipe(untilDestroyed(this))
