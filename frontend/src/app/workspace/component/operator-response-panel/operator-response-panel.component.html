@@ -1,0 +1,82 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+
+<div
+  class="operator-response-panel"
+  *ngIf="isVisible"
+  [style.top.px]="panelTop"
+  [style.left.px]="panelLeft">
+  <div class="panel-header">
+    <h4>Copilot Actions</h4>
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      (click)="closePanel()">
+      <span
+        nz-icon
+        nzType="close"
+        nzTheme="outline"></span>
+    </button>
+  </div>
+
+  <div class="panel-content">
+    <div
+      *ngIf="relatedResponses.length === 0"
+      class="no-responses">
+      <p>No copilot actions found for this operator.</p>
+    </div>
+
+    <div
+      *ngIf="relatedResponses.length > 0"
+      class="responses-list">
+      <nz-collapse>
+        <nz-collapse-panel
+          *ngFor="let response of relatedResponses; let i = index"
+          [nzHeader]="'Action ' + (i + 1) + ' - ' + formatTimestamp(response.timestamp)">
+          <div class="response-details">
+            <div class="response-type"><strong>Type:</strong> {{ response.type }}</div>
+            <div class="response-content">
+              <strong>Content:</strong>
+              <div class="content-text">{{ response.content || '(No content)' }}</div>
+            </div>
+            <div
+              *ngIf="response.toolCalls && response.toolCalls.length > 0"
+              class="tool-calls">
+              <strong>Tool Calls:</strong>
+              <ul>
+                <li *ngFor="let toolCall of response.toolCalls">{{ toolCall.toolName }}</li>
+              </ul>
+            </div>
+            <div
+              *ngIf="response.usage"
+              class="usage-info">
+              <strong>Token Usage:</strong>
+              <div class="usage-details">
+                <span *ngIf="response.usage.inputTokens">Input: {{ response.usage.inputTokens }}</span>
+                <span *ngIf="response.usage.outputTokens">Output: {{ response.usage.outputTokens }}</span>
+                <span *ngIf="response.usage.totalTokens">Total: {{ response.usage.totalTokens }}</span>
+              </div>
+            </div>
+          </div>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </div>
+  </div>
+</div>
