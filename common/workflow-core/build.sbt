@@ -165,7 +165,7 @@ libraryDependencies ++= Seq(
     excludeJackson,
     excludeJacksonModule
   ),
-  "org.postgresql" % "postgresql" % "42.7.3"
+  "org.postgresql" % "postgresql" % "42.7.8"
 )
 
 /////////////////////////////////////////////////////////////////////////////

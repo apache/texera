@@ -178,6 +178,6 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.postgresql" % "postgresql" % "42.7.4",
+  "org.postgresql" % "postgresql" % "42.7.8",
   "com.typesafe" % "config" % "1.4.3"    // config reader
 )

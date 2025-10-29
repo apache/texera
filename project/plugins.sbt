@@ -27,5 +27,5 @@ addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.5.0")
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq-codegen" % "3.16.23",
   "com.typesafe" % "config" % "1.4.3",
-  "org.postgresql" % "postgresql" % "42.7.4"
+  "org.postgresql" % "postgresql" % "42.7.8"
 )
