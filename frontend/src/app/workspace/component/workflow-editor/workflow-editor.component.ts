@@ -96,6 +96,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private removeButton!: new () => joint.linkTools.Button;
   private breakpointButton!: new () => joint.linkTools.Button;
 
+  // Action plan feedback panel state
+  public showActionPlanFeedback: boolean = false;
+  public actionPlanSummary: string = "";
+  public actionPlanPanelLeft: number = 0;
+  public actionPlanPanelTop: number = 0;
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
@@ -429,41 +435,128 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       }
     );
 
+    // Track current highlight element and cleanup handler
+    let currentElement: joint.dia.Element | null = null;
+    let currentPositionHandler: ((operator: joint.dia.Cell) => void) | null = null;
+
     // Subscribe to action plan highlight events
     this.actionPlanService
       .getActionPlanHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(actionPlan => {
         // Get operator elements from IDs
-        const operators = actionPlan.operatorIds
-          .map(id => this.paper.getModelById(id))
-          .filter(op => op !== undefined);
+        const operators = actionPlan.operatorIds.map(id => this.paper.getModelById(id)).filter(op => op !== undefined);
 
         if (operators.length === 0) {
           return; // No valid operators found
         }
 
         // Create action plan highlight element
-        const element = new ActionPlan();
-        this.paper.model.addCell(element);
+        currentElement = new ActionPlan();
+        this.paper.model.addCell(currentElement);
 
         // Update the highlight to wrap around operators
-        this.updateActionPlanElement(element, operators);
+        this.updateActionPlanElement(currentElement, operators);
 
-        // Listen to operator position changes to update the highlight
-        const positionHandler = (operator: joint.dia.Cell) => {
-          if (operators.includes(operator)) {
-            this.updateActionPlanElement(element, operators);
+        // Calculate panel position (to the right of the highlighted area)
+        const bbox = this.getOperatorsBoundingBox(operators);
+        const panelPosition = this.calculatePanelPosition(bbox);
+        this.actionPlanPanelLeft = panelPosition.x;
+        this.actionPlanPanelTop = panelPosition.y;
+        this.actionPlanSummary = actionPlan.summary;
+        this.showActionPlanFeedback = true;
+
+        // Listen to operator position changes to update the highlight and panel
+        currentPositionHandler = (operator: joint.dia.Cell) => {
+          if (operators.includes(operator) && currentElement) {
+            this.updateActionPlanElement(currentElement, operators);
+            // Update panel position when operators move
+            const newBbox = this.getOperatorsBoundingBox(operators);
+            const newPosition = this.calculatePanelPosition(newBbox);
+            this.actionPlanPanelLeft = newPosition.x;
+            this.actionPlanPanelTop = newPosition.y;
+            this.changeDetectorRef.detectChanges();
           }
         };
-        this.paper.model.on("change:position", positionHandler);
-
-        // Remove highlight after 5 seconds
-        setTimeout(() => {
-          element.remove();
-          this.paper.model.off("change:position", positionHandler);
-        }, 5000);
+        this.paper.model.on("change:position", currentPositionHandler);
       });
+
+    // Subscribe to cleanup stream - triggered when user accepts/rejects
+    this.actionPlanService
+      .getCleanupStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        // Remove highlight element
+        if (currentElement) {
+          currentElement.remove();
+          currentElement = null;
+        }
+
+        // Remove position handler
+        if (currentPositionHandler) {
+          this.paper.model.off("change:position", currentPositionHandler);
+          currentPositionHandler = null;
+        }
+
+        // Hide panel
+        this.showActionPlanFeedback = false;
+        this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /**
+   * Calculate bounding box that encompasses all operators
+   */
+  private getOperatorsBoundingBox(operators: joint.dia.Cell[]): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } {
+    const bboxes = operators.map(op => op.getBBox());
+    const minX = Math.min(...bboxes.map(b => b.x));
+    const minY = Math.min(...bboxes.map(b => b.y));
+    const maxX = Math.max(...bboxes.map(b => b.x + b.width));
+    const maxY = Math.max(...bboxes.map(b => b.y + b.height));
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
+  /**
+   * Calculate panel position to the right of the operators, considering canvas boundaries
+   */
+  private calculatePanelPosition(bbox: { x: number; y: number; width: number; height: number }): {
+    x: number;
+    y: number;
+  } {
+    const panelWidth = 400;
+    const panelOffset = 40; // Space between operators and panel
+
+    // Try to position to the right of operators
+    let x = bbox.x + bbox.width + panelOffset;
+    let y = bbox.y;
+
+    // If panel would go off the right edge, position it to the left
+    const paperWidth = this.paper.getComputedSize().width;
+    if (x + panelWidth > paperWidth) {
+      x = bbox.x - panelWidth - panelOffset;
+    }
+
+    // Ensure panel stays within vertical bounds
+    const paperHeight = this.paper.getComputedSize().height;
+    if (y < 20) {
+      y = 20;
+    } else if (y + 300 > paperHeight) {
+      // Approximate panel height
+      y = paperHeight - 320;
+    }
+
+    return { x, y };
   }
 
   private updateActionPlanElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {

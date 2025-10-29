@@ -367,17 +367,38 @@ export function createActionPlanTool(
           copilotCoeditor.highlightOperators(createdOperatorIds);
         }, 100);
 
-        // Trigger action plan highlight (5-second visual indicator)
-        setTimeout(() => {
-          actionPlanService.showActionPlanHighlight(createdOperatorIds, args.summary);
-        }, 150);
+        // Show action plan and wait for user feedback
+        const feedback = await new Promise<any>((resolve, reject) => {
+          setTimeout(() => {
+            actionPlanService
+              .showActionPlanAndWaitForFeedback(createdOperatorIds, createdLinkIds, args.summary)
+              .subscribe({
+                next: feedback => resolve(feedback),
+                error: (err: unknown) => reject(err),
+              });
+          }, 150);
+        });
 
+        // Handle user feedback
+        if (!feedback.accepted) {
+          // User rejected - remove the created operators and links
+          workflowActionService.deleteOperatorsAndLinks(createdOperatorIds);
+
+          return {
+            success: false,
+            rejected: true,
+            userFeedback: feedback.message || "User rejected this action plan",
+            message: `Action plan rejected by user: ${feedback.message || "No reason provided"}`,
+          };
+        }
+
+        // User accepted - return success
         return {
           success: true,
           summary: args.summary,
           operatorIds: createdOperatorIds,
           linkIds: createdLinkIds,
-          message: `Action Plan: ${args.summary}. Added ${args.operators.length} operator(s) and ${args.links.length} link(s) to workflow.`,
+          message: `Action Plan: ${args.summary}. Added ${args.operators.length} operator(s) and ${args.links.length} link(s) to workflow. User accepted the plan.`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
