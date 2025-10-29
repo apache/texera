@@ -25,6 +25,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import {
   createAddOperatorTool,
   createAddLinkTool,
+  createActionPlanTool,
   createListOperatorsTool,
   createListLinksTool,
   createListOperatorTypesTool,
@@ -327,6 +328,14 @@ export class TexeraCopilot {
       )
     );
     const addLinkTool = toolWithTimeout(createAddLinkTool(this.workflowActionService));
+    const actionPlanTool = toolWithTimeout(
+      createActionPlanTool(
+        this.workflowActionService,
+        this.workflowUtilService,
+        this.operatorMetadataService,
+        this.copilotCoeditorService
+      )
+    );
     const listOperatorsTool = toolWithTimeout(
       createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService)
     );
@@ -419,6 +428,7 @@ export class TexeraCopilot {
       // ...mcpToolsForAI,
       addOperator: addOperatorTool,
       addLink: addLinkTool,
+      actionPlan: actionPlanTool,
       listOperators: listOperatorsTool,
       listLinks: listLinksTool,
       listOperatorTypes: listOperatorTypesTool,
