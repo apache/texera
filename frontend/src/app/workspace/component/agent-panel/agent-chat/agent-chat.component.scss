@@ -1,0 +1,169 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.agent-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: white;
+  border: 2px solid #1890ff; // Debug border to verify rendering
+}
+
+.chat-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.chat-toolbar-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .toggle-label {
+    font-size: 12px;
+    margin-left: 4px;
+    color: #666;
+  }
+}
+
+.chat-toolbar-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.chat-content-wrapper {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 85%;
+
+  &.user-message {
+    align-self: flex-end;
+
+    .message-content {
+      background: #1890ff;
+      color: white;
+    }
+  }
+
+  &.ai-message {
+    align-self: flex-start;
+
+    .message-content {
+      background: #f5f5f5;
+      color: #262626;
+    }
+  }
+
+  &.loading-message {
+    .message-content {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+    }
+  }
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+
+  i {
+    font-size: 14px;
+  }
+}
+
+.message-content {
+  padding: 10px 14px;
+  border-radius: 8px;
+  line-height: 1.6;
+  word-wrap: break-word;
+
+  ::ng-deep {
+    code {
+      background: rgba(0, 0, 0, 0.06);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 13px;
+    }
+
+    strong {
+      font-weight: 600;
+    }
+  }
+}
+
+.input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #ffffff;
+
+  textarea {
+    flex: 1;
+  }
+
+  button {
+    align-self: flex-end;
+  }
+}
+
+.connection-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fff7e6;
+  border-top: 1px solid #ffd666;
+  color: #d46b08;
+  font-size: 12px;
+
+  i {
+    color: #faad14;
+  }
+}

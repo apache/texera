@@ -1,0 +1,138 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!-- Agent Chat Container (used within tabs) -->
+<div class="agent-chat-container">
+  <!-- Toolbar -->
+  <div class="chat-toolbar">
+    <div class="chat-toolbar-controls">
+      <nz-switch
+        [(ngModel)]="showToolResults"
+        nzSize="small"
+        nz-tooltip
+        nzTooltipTitle="Show tool results">
+      </nz-switch>
+      <span class="toggle-label">Show Results</span>
+      <div class="chat-toolbar-buttons">
+        <!-- Clear button (when available) -->
+        <button
+          *ngIf="isAvailable()"
+          nz-button
+          nzType="text"
+          nzSize="small"
+          (click)="clearMessages()"
+          nz-tooltip
+          nzTooltipTitle="Clear chat history">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Chat Interface -->
+  <div class="chat-content-wrapper">
+    <!-- Messages List -->
+    <div
+      #messageContainer
+      class="messages-container">
+      <div
+        *ngFor="let message of messages"
+        class="message"
+        [class.user-message]="message.role === 'user'"
+        [class.ai-message]="message.role === 'ai'">
+        <div class="message-header">
+          <i
+            nz-icon
+            [nzType]="message.role === 'user' ? 'user' : 'robot'"
+            nzTheme="outline"></i>
+          <span class="message-role">{{ message.role === 'user' ? 'You' : agentInfo.name }}</span>
+        </div>
+        <div
+          class="message-content"
+          [innerHTML]="formatMessageContent(message.text)"></div>
+      </div>
+
+      <!-- Loading indicator -->
+      <div
+        *ngIf="isGenerating()"
+        class="message ai-message loading-message">
+        <div class="message-header">
+          <i
+            nz-icon
+            nzType="robot"
+            nzTheme="outline"></i>
+          <span class="message-role">{{ agentInfo.name }}</span>
+        </div>
+        <div class="message-content">
+          <nz-spin
+            nzSimple
+            nzSize="small"></nz-spin>
+          <span style="margin-left: 8px">Thinking...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <textarea
+        #messageInput
+        nz-input
+        [(ngModel)]="currentMessage"
+        placeholder="Ask me anything about workflows..."
+        [nzAutosize]="{ minRows: 1, maxRows: 4 }"
+        (keydown.enter)="onEnterPress($any($event))"
+        [disabled]="isGenerating()"></textarea>
+      <button
+        nz-button
+        nzType="primary"
+        [disabled]="!currentMessage.trim() || isGenerating()"
+        (click)="sendMessage()">
+        <i
+          nz-icon
+          nzType="send"
+          nzTheme="outline"></i>
+      </button>
+      <button
+        *ngIf="isGenerating()"
+        nz-button
+        nzType="default"
+        nzDanger
+        (click)="stopGeneration()">
+        <i
+          nz-icon
+          nzType="stop"
+          nzTheme="outline"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Connection Status -->
+  <div
+    *ngIf="!isConnected()"
+    class="connection-warning">
+    <i
+      nz-icon
+      nzType="warning"
+      nzTheme="fill"></i>
+    <span>Agent is disconnected. Please check your connection.</span>
+  </div>
+</div>

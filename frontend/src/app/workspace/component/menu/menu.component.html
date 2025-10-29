@@ -79,7 +79,6 @@
         <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
       </ng-container>
 
-      <texera-copilot-chat></texera-copilot-chat>
       <texera-user-icon></texera-user-icon>
     </div>
     <div id="button-groups">
@@ -141,16 +140,6 @@
           <i
             nz-icon
             nzType="download"></i>
-        </button>
-        <button
-          (click)="toggleCopilotChat()"
-          nz-button
-          nz-tooltip
-          [nzTooltipTitle]="copilotChat?.isActive() ? 'Disconnect AI Copilot' : 'Connect AI Copilot'">
-          <i
-            nz-icon
-            nzType="robot"
-            nzTheme="outline"></i>
         </button>
       </nz-button-group>
       <ng-template #utilities>
