@@ -179,7 +179,6 @@ import { AdminSettingsComponent } from "./dashboard/component/admin/settings/adm
 import { FormlyRepeatDndComponent } from "./common/formly/repeat-dnd/repeat-dnd.component";
 import { NzInputNumberModule } from "ng-zorro-antd/input-number";
 import { NzCheckboxModule } from "ng-zorro-antd/checkbox";
-import { OperatorResponsePanelComponent } from "./workspace/component/operator-response-panel/operator-response-panel.component";
 import "deep-chat";
 
 registerLocaleData(en);
@@ -276,7 +275,6 @@ registerLocaleData(en);
     HubSearchResultComponent,
     ComputingUnitSelectionComponent,
     AdminSettingsComponent,
-    OperatorResponsePanelComponent,
   ],
   imports: [
     BrowserModule,

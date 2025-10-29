@@ -21,7 +21,6 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp";
-import { v4 as uuid } from "uuid";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import {
   createAddOperatorTool,
@@ -69,7 +68,6 @@ import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
-import { ActionLineageService, AffectedEntity } from "./action-lineage.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -89,8 +87,6 @@ export enum CopilotState {
  * Agent response structure for streaming intermediate and final results
  */
 export interface AgentResponse {
-  id: string; // Unique identifier for this response
-  timestamp: number; // Unix timestamp in milliseconds
   type: "trace" | "response";
   content: string;
   isDone: boolean;
@@ -120,9 +116,6 @@ export class TexeraCopilot {
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
 
-  // Map from message UUID to ModelMessage for tracking
-  private messageMap: Map<string, ModelMessage> = new Map();
-
   // Copilot state management
   private state: CopilotState = CopilotState.UNAVAILABLE;
 
@@ -136,8 +129,7 @@ export class TexeraCopilot {
     private copilotCoeditorService: CopilotCoeditorService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private dataInconsistencyService: DataInconsistencyService,
-    private actionLineageService: ActionLineageService
+    private dataInconsistencyService: DataInconsistencyService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -238,9 +230,7 @@ export class TexeraCopilot {
 
       // 1) push the user message (don't emit to stream - already handled by UI)
       const userMessage: UserModelMessage = { role: "user", content: message };
-      const userMessageId = uuid();
       this.messages.push(userMessage);
-      this.messageMap.set(userMessageId, userMessage);
 
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
@@ -269,8 +259,6 @@ export class TexeraCopilot {
           // If there are tool calls, emit raw trace data
           if (toolCalls && toolCalls.length > 0) {
             const traceResponse: AgentResponse = {
-              id: uuid(),
-              timestamp: Date.now(),
               type: "trace",
               content: text || "",
               isDone: false,
@@ -278,15 +266,6 @@ export class TexeraCopilot {
               toolResults,
               usage,
             };
-
-            // Extract and record affected entities
-            try {
-              const affectedEntities = this.extractAffectedEntities(toolCalls, toolResults);
-              this.actionLineageService.recordResponseAction(traceResponse, affectedEntities);
-            } catch (error) {
-              console.error("Failed to record action lineage:", error);
-              // Continue execution even if lineage recording fails
-            }
 
             // Emit raw trace data
             observer.next(traceResponse);
@@ -312,21 +291,10 @@ export class TexeraCopilot {
 
           // Emit final response with raw data
           const finalResponse: AgentResponse = {
-            id: uuid(),
-            timestamp: Date.now(),
             type: "response",
             content: text,
             isDone: true,
           };
-
-          // Record final response (may not have specific affected entities)
-          try {
-            this.actionLineageService.recordResponseAction(finalResponse, []);
-          } catch (error) {
-            console.error("Failed to record final response lineage:", error);
-            // Continue execution even if lineage recording fails
-          }
-
           observer.next(finalResponse);
           observer.complete();
         })
@@ -480,70 +448,6 @@ export class TexeraCopilot {
       deleteInconsistency: deleteInconsistencyTool,
       clearInconsistencies: clearInconsistenciesTool,
     };
-  }
-
-  /**
-   * Extract affected entities (operators and links) from tool calls and results
-   */
-  private extractAffectedEntities(toolCalls: any[], toolResults?: any[]): AffectedEntity[] {
-    const affected: AffectedEntity[] = [];
-
-    for (const toolCall of toolCalls) {
-      // Safely access toolName and args
-      if (!toolCall || typeof toolCall !== "object") {
-        continue;
-      }
-
-      const toolName = toolCall.toolName;
-      const args = toolCall.args;
-
-      // Skip if toolName or args are missing
-      if (!toolName || !args || typeof args !== "object") {
-        continue;
-      }
-
-      // Extract based on tool type
-      switch (toolName) {
-        case "addOperator":
-        case "deleteOperator":
-        case "getOperator":
-        case "setOperatorProperty":
-        case "setPortProperty":
-        case "getOperatorPropertiesSchema":
-        case "getOperatorPortsInfo":
-        case "getOperatorMetadata":
-        case "getOperatorInputSchema":
-        case "hasOperatorResult":
-        case "getOperatorResult":
-        case "getOperatorResultInfo":
-        case "validateOperator":
-          if (args.operatorId) {
-            affected.push({ type: "operator", id: args.operatorId });
-          }
-          break;
-
-        case "addLink":
-        case "deleteLink":
-          if (args.linkId) {
-            affected.push({ type: "link", id: args.linkId });
-          }
-          // Links also involve source and target operators
-          if (args.source?.operatorId) {
-            affected.push({ type: "operator", id: args.source.operatorId });
-          }
-          if (args.target?.operatorId) {
-            affected.push({ type: "operator", id: args.target.operatorId });
-          }
-          break;
-
-        default:
-          // For other tools, we don't track specific entities
-          break;
-      }
-    }
-
-    // Remove duplicates
-    return Array.from(new Map(affected.map(item => [`${item.type}:${item.id}`, item])).values());
   }
 
   /**
