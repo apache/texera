@@ -193,7 +193,7 @@ libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.13"
 libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.6"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.5.6"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.7.8"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
@@ -217,7 +217,7 @@ libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
-libraryDependencies += "org.jooq" % "jooq" % "3.16.23"
+libraryDependencies += "org.jooq" % "jooq" % "3.16.18"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
