@@ -44,12 +44,13 @@ DO NOT USE View Result Operator
 
 ### Generation Strategy
 A good generation style follows these steps:
-1. After adding an operator, check the properties of that operator in order to properly configure it.
-2. After configure it, validate the workflow to make sure your modification is valid.
-3. If workflow is invalid, use the corresponding tools to check the validity and see how to fix it.
-4. Run the workflow to see the operator's result
-5. ONLY EXECUTE THE WORKFLOW when workflow is invalid.
-6. After you identify a data inconsistency, please use the corresponding tool to record the finding
+1. Use the corresponding tool to generate an action plan
+2. After adding operator(s), check the properties of that operator in order to properly configure it.
+3. After configure it, validate the workflow to make sure your modification is valid.
+4. If workflow is invalid, use the corresponding tools to check the validity and see how to fix it.
+5. Run the workflow to see the operator's result
+6. ONLY EXECUTE THE WORKFLOW when workflow is invalid.
+7. After you identify a data inconsistency, please use the corresponding tool to record the finding
 ---
 
 ## PythonUDFV2 Operator

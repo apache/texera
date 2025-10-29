@@ -38,6 +38,17 @@ const TOOL_TIMEOUT_MS = 120000;
 // Estimated as characters / 4 (common approximation for token counting)
 const MAX_OPERATOR_RESULT_TOKEN_LIMIT = 1000;
 
+export interface ActionPlan {
+  summary: string;
+  operators: Array<{ operatorType: string; customDisplayName?: string; description?: string }>;
+  links: Array<{
+    sourceOperatorId: string;
+    targetOperatorId: string;
+    sourcePortId?: string;
+    targetPortId?: string;
+  }>;
+}
+
 /**
  * Estimates the number of tokens in a JSON-serializable object
  * Uses a common approximation: tokens ≈ characters / 4
@@ -196,6 +207,170 @@ export function createAddLinkTool(workflowActionService: WorkflowActionService) 
           success: true,
           linkId: link.linkID,
           message: `Connected ${args.sourceOperatorId}:${sourcePId} to ${args.targetOperatorId}:${targetPId}`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create actionPlan tool for adding batch operators and links
+ */
+export function createActionPlanTool(
+  workflowActionService: WorkflowActionService,
+  workflowUtilService: WorkflowUtilService,
+  operatorMetadataService: OperatorMetadataService,
+  copilotCoeditor: CopilotCoeditorService
+) {
+  return tool({
+    name: "actionPlan",
+    description:
+      "Add a batch of operators and links to the workflow as part of an action plan. This tool is used to show the structure of what you plan to add without filling in detailed operator properties. It creates a workflow skeleton that demonstrates the planned data flow.",
+    inputSchema: z.object({
+      summary: z.string().describe("A brief summary of what this action plan does"),
+      operators: z
+        .array(
+          z.object({
+            operatorType: z.string().describe("Type of operator (e.g., 'CSVSource', 'Filter', 'Aggregate')"),
+            customDisplayName: z
+              .string()
+              .optional()
+              .describe("Brief custom name summarizing what this operator does in one sentence"),
+            description: z.string().optional().describe("Detailed description of what this operator will do"),
+          })
+        )
+        .describe("List of operators to add to the workflow"),
+      links: z
+        .array(
+          z.object({
+            sourceOperatorId: z
+              .string()
+              .describe(
+                "ID of the source operator - can be either an existing operator ID from the workflow, or an index (e.g., '0', '1', '2') referring to operators in the plan array (0-based)"
+              ),
+            targetOperatorId: z
+              .string()
+              .describe(
+                "ID of the target operator - can be either an existing operator ID from the workflow, or an index (e.g., '0', '1', '2') referring to operators in the plan array (0-based)"
+              ),
+            sourcePortId: z.string().optional().describe("Port ID on source operator (e.g., 'output-0')"),
+            targetPortId: z.string().optional().describe("Port ID on target operator (e.g., 'input-0')"),
+          })
+        )
+        .describe("List of links to connect the operators"),
+    }),
+    execute: async (args: { summary: string; operators: ActionPlan["operators"]; links: ActionPlan["links"] }) => {
+      try {
+        // Clear previous highlights at start of tool execution
+        copilotCoeditor.clearAll();
+
+        // Validate all operator types exist
+        for (let i = 0; i < args.operators.length; i++) {
+          const operatorSpec = args.operators[i];
+          if (!operatorMetadataService.operatorTypeExists(operatorSpec.operatorType)) {
+            return {
+              success: false,
+              error: `Unknown operator type at index ${i}: ${operatorSpec.operatorType}. Use listOperatorTypes tool to see available types.`,
+            };
+          }
+        }
+
+        // Helper function to resolve operator ID (can be existing ID or index string)
+        const resolveOperatorId = (idOrIndex: string, createdIds: string[]): string | null => {
+          // Check if it's a numeric index (referring to operators array)
+          const indexMatch = idOrIndex.match(/^(\d+)$/);
+          if (indexMatch) {
+            const index = parseInt(indexMatch[1], 10);
+            if (index >= 0 && index < createdIds.length) {
+              return createdIds[index];
+            }
+            return null; // Invalid index
+          }
+
+          // Otherwise, treat as existing operator ID
+          const existingOp = workflowActionService.getTexeraGraph().getOperator(idOrIndex);
+          return existingOp ? idOrIndex : null;
+        };
+
+        // Create all operators and store their IDs
+        const createdOperatorIds: string[] = [];
+        const existingOperators = workflowActionService.getTexeraGraph().getAllOperators();
+        const startIndex = existingOperators.length;
+
+        for (let i = 0; i < args.operators.length; i++) {
+          const operatorSpec = args.operators[i];
+
+          // Get a new operator predicate with default settings and optional custom display name
+          const operator = workflowUtilService.getNewOperatorPredicate(
+            operatorSpec.operatorType,
+            operatorSpec.customDisplayName
+          );
+
+          // Calculate a default position with better spacing for batch operations
+          const defaultX = 100 + ((startIndex + i) % 5) * 200;
+          const defaultY = 100 + Math.floor((startIndex + i) / 5) * 150;
+          const position = { x: defaultX, y: defaultY };
+
+          // Add the operator to the workflow
+          workflowActionService.addOperator(operator, position);
+          createdOperatorIds.push(operator.operatorID);
+        }
+
+        // Create all links using the operator IDs
+        const createdLinkIds: string[] = [];
+        for (let i = 0; i < args.links.length; i++) {
+          const linkSpec = args.links[i];
+
+          // Resolve source and target operator IDs
+          const sourceOperatorId = resolveOperatorId(linkSpec.sourceOperatorId, createdOperatorIds);
+          const targetOperatorId = resolveOperatorId(linkSpec.targetOperatorId, createdOperatorIds);
+
+          if (!sourceOperatorId) {
+            return {
+              success: false,
+              error: `Invalid source operator ID at link ${i}: '${linkSpec.sourceOperatorId}'. Must be either an existing operator ID or a valid index (0-${createdOperatorIds.length - 1}).`,
+            };
+          }
+
+          if (!targetOperatorId) {
+            return {
+              success: false,
+              error: `Invalid target operator ID at link ${i}: '${linkSpec.targetOperatorId}'. Must be either an existing operator ID or a valid index (0-${createdOperatorIds.length - 1}).`,
+            };
+          }
+
+          const sourcePId = linkSpec.sourcePortId || "output-0";
+          const targetPId = linkSpec.targetPortId || "input-0";
+
+          const link: OperatorLink = {
+            linkID: `link_${Date.now()}_${Math.random()}`,
+            source: {
+              operatorID: sourceOperatorId,
+              portID: sourcePId,
+            },
+            target: {
+              operatorID: targetOperatorId,
+              portID: targetPId,
+            },
+          };
+
+          workflowActionService.addLink(link);
+          createdLinkIds.push(link.linkID);
+        }
+
+        // Show copilot is adding these operators (after they're added to graph)
+        setTimeout(() => {
+          copilotCoeditor.highlightOperators(createdOperatorIds);
+        }, 100);
+
+        return {
+          success: true,
+          summary: args.summary,
+          operatorIds: createdOperatorIds,
+          linkIds: createdLinkIds,
+          message: `Action Plan: ${args.summary}. Added ${args.operators.length} operator(s) and ${args.links.length} link(s) to workflow.`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
