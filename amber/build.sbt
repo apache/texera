@@ -217,7 +217,7 @@ libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
-libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
+libraryDependencies += "org.jooq" % "jooq" % "3.20.8"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
