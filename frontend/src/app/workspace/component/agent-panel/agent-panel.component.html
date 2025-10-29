@@ -1,0 +1,93 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  id="agent-container"
+  class="agent-panel-box"
+  nz-resizable
+  [nzMinWidth]="400"
+  [nzMinHeight]="450"
+  [nzMaxWidth]="window.innerWidth * 0.9"
+  [nzMaxHeight]="window.innerHeight * 0.9"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  (cdkDragStarted)="handleDragStart()"
+  [cdkDragFreeDragPosition]="dragPosition">
+  <!-- Panel Header -->
+  <div
+    class="panel-header"
+    cdkDragHandle>
+    <div class="header-title">
+      <i
+        nz-icon
+        nzType="robot"
+        nzTheme="outline"></i>
+      <span>AI Agents</span>
+    </div>
+    <div class="header-actions">
+      <button
+        nz-button
+        nzType="text"
+        nzSize="small"
+        (click)="resetPanelPosition()"
+        nz-tooltip
+        nzTooltipTitle="Reset position">
+        <i
+          nz-icon
+          nzType="enter"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <nz-tabset
+    [(nzSelectedIndex)]="selectedTabIndex"
+    class="agent-tabs"
+    nzType="card"
+    [nzTabBarExtraContent]="tabBarExtra">
+    <!-- Registration Tab -->
+    <nz-tab nzTitle="New Agent">
+      <ng-template nz-tab>
+        <texera-agent-registration (agentCreated)="onAgentCreated($event)"></texera-agent-registration>
+      </ng-template>
+    </nz-tab>
+
+    <!-- Agent Tabs -->
+    <nz-tab
+      *ngFor="let agent of agents"
+      [nzTitle]="agent.name">
+      <ng-template nz-tab>
+        <texera-agent-chat [agentInfo]="agent"></texera-agent-chat>
+      </ng-template>
+    </nz-tab>
+  </nz-tabset>
+
+  <!-- Resize handles -->
+  <nz-resize-handles [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+</div>
+
+<!-- Tab Bar Extra Content Template -->
+<ng-template #tabBarExtra>
+  <div class="tab-bar-extra">
+    <span class="agent-count">{{ agents.length }} agent(s)</span>
+  </div>
+</ng-template>

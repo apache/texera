@@ -73,7 +73,7 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
-export const AGENT_MODEL_ID = "claude-3.7";
+export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
 
 // Message window size: -1 means no limit, positive value keeps only latest N messages
 export const MESSAGE_WINDOW_SIZE = 3;
@@ -109,14 +109,15 @@ export interface AgentResponse {
 /**
  * Texera Copilot - An AI assistant for workflow manipulation
  * Uses Vercel AI SDK for chat completion and MCP SDK for tool discovery
+ *
+ * Note: Not a singleton - each agent has its own instance
  */
-@Injectable({
-  providedIn: "root",
-})
+@Injectable()
 export class TexeraCopilot {
   private mcpClient?: Client;
   private mcpTools: any[] = [];
   private model: any;
+  private modelType: string;
 
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
@@ -137,7 +138,15 @@ export class TexeraCopilot {
     private dataInconsistencyService: DataInconsistencyService,
     private actionPlanService: ActionPlanService
   ) {
-    // Don't auto-initialize, wait for user to enable
+    // Default model type
+    this.modelType = DEFAULT_AGENT_MODEL_ID;
+  }
+
+  /**
+   * Set the model type for this agent
+   */
+  public setModelType(modelType: string): void {
+    this.modelType = modelType;
   }
 
   /**
@@ -148,11 +157,11 @@ export class TexeraCopilot {
       // 1. Connect to MCP server
       await this.connectMCP();
 
-      // 2. Initialize OpenAI model
+      // 2. Initialize OpenAI model with the configured model type
       this.model = createOpenAI({
         baseURL: new URL(`${AppSettings.getApiEndpoint()}`, document.baseURI).toString(),
         apiKey: "dummy",
-      }).chat(AGENT_MODEL_ID);
+      }).chat(this.modelType);
 
       // 3. Set state to Available
       this.state = CopilotState.AVAILABLE;
