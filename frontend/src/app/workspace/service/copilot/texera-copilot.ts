@@ -267,6 +267,26 @@ export class TexeraCopilot {
           // Log each step for debugging
           console.debug("step finished", { text, toolCalls, toolResults, finishReason, usage });
 
+          // Check if any tool result was an action plan rejection
+          if (toolResults && toolResults.length > 0) {
+            for (const result of toolResults) {
+              // Check if this was an actionPlan tool that was rejected
+              const toolCall = toolCalls?.find(tc => tc.toolCallId === result.toolCallId);
+              if (toolCall?.toolName === "actionPlan" && result.result) {
+                const parsedResult = typeof result.result === "string" ? JSON.parse(result.result) : result.result;
+                if (parsedResult.rejected) {
+                  // Add user's rejection feedback as a user message
+                  const userFeedbackMessage: UserModelMessage = {
+                    role: "user",
+                    content: parsedResult.userFeedback || "I rejected the action plan",
+                  };
+                  this.messages.push(userFeedbackMessage);
+                  console.log("Action plan rejected, added user feedback to messages");
+                }
+              }
+            }
+          }
+
           // If there are tool calls, emit raw trace data
           if (toolCalls && toolCalls.length > 0) {
             const traceResponse: AgentResponse = {
