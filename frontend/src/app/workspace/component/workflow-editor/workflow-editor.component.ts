@@ -43,6 +43,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { line, curveCatmullRomClosed } from "d3-shape";
 import concaveman from "concaveman";
+import { ActionPlanService } from "../../service/action-plan/action-plan.service";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -112,7 +113,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     private router: Router,
     public nzContextMenu: NzContextMenuService,
     private elementRef: ElementRef,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private actionPlanService: ActionPlanService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -164,6 +166,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatisticsUpdate();
     this.handleRegionEvents();
+    this.handleActionPlanHighlight();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -403,6 +406,78 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       ];
     });
     regionElement.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
+  }
+
+  private handleActionPlanHighlight(): void {
+    // Define ActionPlan JointJS element with blue color
+    const ActionPlan = joint.dia.Element.define(
+      "action-plan",
+      {
+        attrs: {
+          body: {
+            fill: "rgba(79,195,255,0.2)",
+            stroke: "rgba(79,195,255,0.6)",
+            strokeWidth: 2,
+            strokeDasharray: "5,5",
+            pointerEvents: "none",
+            class: "action-plan",
+          },
+        },
+      },
+      {
+        markup: [{ tagName: "path", selector: "body" }],
+      }
+    );
+
+    // Subscribe to action plan highlight events
+    this.actionPlanService
+      .getActionPlanHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(actionPlan => {
+        // Get operator elements from IDs
+        const operators = actionPlan.operatorIds
+          .map(id => this.paper.getModelById(id))
+          .filter(op => op !== undefined);
+
+        if (operators.length === 0) {
+          return; // No valid operators found
+        }
+
+        // Create action plan highlight element
+        const element = new ActionPlan();
+        this.paper.model.addCell(element);
+
+        // Update the highlight to wrap around operators
+        this.updateActionPlanElement(element, operators);
+
+        // Listen to operator position changes to update the highlight
+        const positionHandler = (operator: joint.dia.Cell) => {
+          if (operators.includes(operator)) {
+            this.updateActionPlanElement(element, operators);
+          }
+        };
+        this.paper.model.on("change:position", positionHandler);
+
+        // Remove highlight after 5 seconds
+        setTimeout(() => {
+          element.remove();
+          this.paper.model.off("change:position", positionHandler);
+        }, 5000);
+      });
+  }
+
+  private updateActionPlanElement(element: joint.dia.Element, operators: joint.dia.Cell[]) {
+    const points = operators.flatMap(op => {
+      const { x, y, width, height } = op.getBBox(),
+        padding = 20; // Slightly larger padding than regions
+      return [
+        [x - padding, y - padding],
+        [x + width + padding, y - padding],
+        [x - padding, y + height + padding + 10],
+        [x + width + padding, y + height + padding + 10],
+      ];
+    });
+    element.attr("body/d", line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]));
   }
 
   /**
