@@ -69,6 +69,7 @@ import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { COPILOT_SYSTEM_PROMPT } from "./copilot-prompts";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
+import { ActionPlanService } from "../action-plan/action-plan.service";
 
 // API endpoints as constants
 export const COPILOT_MCP_URL = "mcp";
@@ -133,7 +134,8 @@ export class TexeraCopilot {
     private copilotCoeditorService: CopilotCoeditorService,
     private workflowCompilingService: WorkflowCompilingService,
     private validationWorkflowService: ValidationWorkflowService,
-    private dataInconsistencyService: DataInconsistencyService
+    private dataInconsistencyService: DataInconsistencyService,
+    private actionPlanService: ActionPlanService
   ) {
     // Don't auto-initialize, wait for user to enable
   }
@@ -352,7 +354,8 @@ export class TexeraCopilot {
         this.workflowActionService,
         this.workflowUtilService,
         this.operatorMetadataService,
-        this.copilotCoeditorService
+        this.copilotCoeditorService,
+        this.actionPlanService
       )
     );
     const listOperatorsTool = toolWithTimeout(

@@ -30,6 +30,7 @@ import { CopilotCoeditorService } from "./copilot-coeditor.service";
 import { WorkflowCompilingService } from "../compile-workflow/workflow-compiling.service";
 import { ValidationWorkflowService } from "../validation/validation-workflow.service";
 import { DataInconsistencyService } from "../data-inconsistency/data-inconsistency.service";
+import { ActionPlanService } from "../action-plan/action-plan.service";
 
 // Tool execution timeout in milliseconds (5 seconds)
 const TOOL_TIMEOUT_MS = 120000;
@@ -222,7 +223,8 @@ export function createActionPlanTool(
   workflowActionService: WorkflowActionService,
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService,
-  copilotCoeditor: CopilotCoeditorService
+  copilotCoeditor: CopilotCoeditorService,
+  actionPlanService: ActionPlanService
 ) {
   return tool({
     name: "actionPlan",
@@ -364,6 +366,11 @@ export function createActionPlanTool(
         setTimeout(() => {
           copilotCoeditor.highlightOperators(createdOperatorIds);
         }, 100);
+
+        // Trigger action plan highlight (5-second visual indicator)
+        setTimeout(() => {
+          actionPlanService.showActionPlanHighlight(createdOperatorIds, args.summary);
+        }, 150);
 
         return {
           success: true,
