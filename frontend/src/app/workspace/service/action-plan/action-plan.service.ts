@@ -63,6 +63,7 @@ export interface ActionPlan {
   id: string; // Unique identifier for the action plan
   agentId: string; // ID of the agent that created this plan
   agentName: string; // Name of the agent
+  executorAgentId: string; // ID of the agent that will execute/handle feedback for this plan (can be different from creator)
   summary: string; // Overall summary of the action plan
   tasks: ActionPlanTask[]; // List of operator tasks
   status$: BehaviorSubject<ActionPlanStatus>; // Current status
@@ -142,13 +143,15 @@ export class ActionPlanService {
     summary: string,
     tasks: Array<{ operatorId: string; description: string }>,
     operatorIds: string[],
-    linkIds: string[]
+    linkIds: string[],
+    executorAgentId?: string // Optional: defaults to agentId if not specified
   ): ActionPlan {
     const id = this.generateId();
     const actionPlan: ActionPlan = {
       id,
       agentId,
       agentName,
+      executorAgentId: executorAgentId || agentId, // Default to creator if not specified
       summary,
       tasks: tasks.map(task => ({
         operatorId: task.operatorId,

@@ -17,13 +17,11 @@
  * under the License.
  */
 
-import { Component, Input, OnInit, OnDestroy } from "@angular/core";
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {
-  ActionPlan,
-  ActionPlanStatus,
-  ActionPlanService,
-} from "../../service/action-plan/action-plan.service";
+import { ActionPlan, ActionPlanStatus, ActionPlanService } from "../../service/action-plan/action-plan.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import * as joint from "jointjs";
 
 @UntilDestroy()
 @Component({
@@ -34,6 +32,7 @@ import {
 export class ActionPlanViewComponent implements OnInit, OnDestroy {
   @Input() actionPlan!: ActionPlan;
   @Input() showFeedbackControls: boolean = false; // Show accept/reject buttons
+  @Output() userDecision = new EventEmitter<{ accepted: boolean; message: string }>();
 
   public rejectMessage: string = "";
   public ActionPlanStatus = ActionPlanStatus; // Expose enum to template
@@ -41,7 +40,10 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
   // Track task completion states
   public taskCompletionStates: { [operatorId: string]: boolean } = {};
 
-  constructor(private actionPlanService: ActionPlanService) {}
+  constructor(
+    private actionPlanService: ActionPlanService,
+    private workflowActionService: WorkflowActionService
+  ) {}
 
   ngOnInit(): void {
     if (!this.actionPlan) {
@@ -66,6 +68,13 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
    * User accepted the action plan
    */
   public onAccept(): void {
+    // Emit user decision event for chat component to show as user message
+    this.userDecision.emit({
+      accepted: true,
+      message: `✅ Accepted action plan: "${this.actionPlan.summary}"`,
+    });
+
+    // Trigger the feedback to resolve the tool's promise
     this.actionPlanService.acceptPlan(this.actionPlan.id);
   }
 
@@ -73,9 +82,69 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
    * User rejected the action plan with optional feedback
    */
   public onReject(): void {
-    const message = this.rejectMessage.trim() || "I don't want this action plan.";
-    this.actionPlanService.rejectPlan(message, this.actionPlan.id);
+    const userFeedback = this.rejectMessage.trim() || "I don't want this action plan.";
+
+    // Emit user decision event for chat component to show as user message
+    this.userDecision.emit({
+      accepted: false,
+      message: `❌ Rejected action plan: "${this.actionPlan.summary}". Feedback: ${userFeedback}`,
+    });
+
+    // Trigger the feedback to resolve the tool's promise
+    // Note: Operators will be deleted by workflow-tools.ts when it receives the rejection
+    this.actionPlanService.rejectPlan(userFeedback, this.actionPlan.id);
+
     this.rejectMessage = "";
+  }
+
+  /**
+   * Highlight an operator when clicking on its task
+   */
+  public highlightOperator(operatorId: string): void {
+    // Get the operator from workflow
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+    if (!operator) {
+      return;
+    }
+
+    // Get the joint graph wrapper to access the paper
+    const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
+    if (!jointGraphWrapper) {
+      return;
+    }
+
+    const paper = jointGraphWrapper.getMainJointPaper();
+    const operatorElement = paper.getModelById(operatorId);
+
+    if (operatorElement) {
+      // Create a temporary highlight using Joint.js highlight API
+      const operatorView = paper.findViewByModel(operatorElement);
+      if (operatorView) {
+        // Add light blue halo effect using joint.highlighters
+        const highlighterNamespace = joint.highlighters;
+
+        // Remove any existing highlight with same name
+        highlighterNamespace.mask.remove(operatorView, "action-plan-click");
+
+        // Add new highlight with light blue color
+        highlighterNamespace.mask.add(operatorView, "body", "action-plan-click", {
+          padding: 10,
+          deep: true,
+          attrs: {
+            stroke: "#69b7ff",
+            "stroke-width": 3,
+            "stroke-opacity": 0.8,
+            fill: "#69b7ff",
+            "fill-opacity": 0.1,
+          },
+        });
+
+        // Remove the highlight after 2 seconds
+        setTimeout(() => {
+          highlighterNamespace.mask.remove(operatorView, "action-plan-click");
+        }, 2000);
+      }
+    }
   }
 
   /**

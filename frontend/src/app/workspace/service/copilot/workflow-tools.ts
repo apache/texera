@@ -409,7 +409,7 @@ export function createActionPlanTool(
             success: false,
             rejected: true,
             userFeedback: feedback.message || "User rejected this action plan",
-            message: `Action plan rejected by user: ${feedback.message || "No reason provided"}`,
+            message: `User rejected the action plan. Feedback: "${feedback.message || "No specific feedback provided"}"`,
           };
         }
 
@@ -422,7 +422,7 @@ export function createActionPlanTool(
           operatorIds: createdOperatorIds,
           linkIds: createdLinkIds,
           actionPlanId: actionPlan.id,
-          message: `Action Plan: ${args.summary}. Added ${args.operators.length} operator(s) and ${args.links.length} link(s) to workflow. User accepted the plan.`,
+          message: "User accepted the action plan. Proceeding with execution.",
         };
       } catch (error: any) {
         return { success: false, error: error.message };
