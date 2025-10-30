@@ -64,21 +64,15 @@ export class TexeraCopilotManagerService {
   private modelTypes: ModelType[] = [
     {
       id: "claude-3.7",
-      name: "Claude 3.7 (Sonnet)",
-      description: "Balanced performance and speed for most workflow tasks",
-      icon: "robot",
-    },
-    {
-      id: "claude-opus",
-      name: "Claude Opus",
-      description: "Most capable model for complex workflow operations",
-      icon: "star",
-    },
-    {
-      id: "claude-haiku",
-      name: "Claude Haiku",
-      description: "Fastest model for simple and quick workflow edits",
+      name: "Claude Sonnet 3.7",
+      description: "Balanced performance for workflow editing",
       icon: "thunderbolt",
+    },
+    {
+      id: "claude-sonnet-4-5",
+      name: "Claude Sonnet 4.5",
+      description: "Most capable model for complex planning",
+      icon: "star",
     },
   ];
 

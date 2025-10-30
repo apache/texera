@@ -141,6 +141,7 @@ class ProcessTableOperator(UDFTableOperator):
 4. **Tuple field access** - Use \`tuple_["field"]\` ONLY. DO NOT use \`tuple_.get()\`, \`tuple_.set()\`, or \`tuple_.values()\`
 5. **Think of types:**
    - \`Tuple\` = Python dict (key-value pairs)
+    For Tuple, DO NOT USE APIs like tuple.get, just use ["key"] to access/change the kv pairs
    - \`Table\` = pandas DataFrame
 6. **Use yield** - Return results with \`yield\`; emit at most once per API call
 7. **Handle None values** - \`tuple_["key"]\` or \`df["column"]\` can be None
