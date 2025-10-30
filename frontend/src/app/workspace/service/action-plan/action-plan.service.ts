@@ -205,15 +205,17 @@ export class ActionPlanService {
   /**
    * Delete an action plan
    */
-  public deleteActionPlan(id: string): void {
+  public deleteActionPlan(id: string): boolean {
     const plan = this.actionPlans.get(id);
     if (plan) {
       // Complete all subjects
       plan.status$.complete();
       plan.tasks.forEach(task => task.completed$.complete());
+      this.actionPlans.delete(id);
+      this.emitActionPlans();
+      return true;
     }
-    this.actionPlans.delete(id);
-    this.emitActionPlans();
+    return false;
   }
 
   /**
