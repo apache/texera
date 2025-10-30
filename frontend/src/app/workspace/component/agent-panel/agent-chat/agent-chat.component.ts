@@ -2,9 +2,10 @@
 import { Component, OnDestroy, ViewChild, ElementRef, Input, OnInit, AfterViewChecked } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilot, AgentResponse, CopilotState } from "../../../service/copilot/texera-copilot";
-import { AgentInfo, ChatMessage } from "../../../service/copilot/texera-copilot-manager.service";
+import { AgentInfo } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
+import { ModelMessage } from "ai";
 
 @UntilDestroy()
 @Component({
@@ -18,7 +19,7 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild("messageInput", { static: false }) messageInput?: ElementRef;
 
   public showToolResults = false;
-  public messages: ChatMessage[] = [];
+  public messages: ModelMessage[] = [];
   public currentMessage = "";
   public pendingActionPlan: ActionPlan | null = null;
   private copilotService!: TexeraCopilot;
@@ -51,9 +52,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.shouldScrollToBottom = true;
     } else {
       // Add initial greeting message for new agent
-      const greeting: ChatMessage = {
-        role: "ai",
-        text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
+      const greeting: ModelMessage = {
+        role: "assistant",
+        content: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
       };
       this.messages.push(greeting);
       // Save the greeting to the persistent history
@@ -92,7 +93,19 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Format message content to display markdown-like text
    */
-  public formatMessageContent(text: string): SafeHtml {
+  public formatMessageContent(content: string | any[]): SafeHtml {
+    // Handle array content (from ModelMessage)
+    let text: string;
+    if (Array.isArray(content)) {
+      // Extract text from content array (handle text parts)
+      text = content
+        .filter((part: any) => part.type === "text" || typeof part === "string")
+        .map((part: any) => (typeof part === "string" ? part : part.text || ""))
+        .join(" ");
+    } else {
+      text = content || "";
+    }
+
     // Simple markdown-like formatting
     let formatted = text
       // Bold: **text**
@@ -117,9 +130,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.currentMessage = "";
 
     // Add user message to chat and persistent history
-    const userMsg: ChatMessage = {
+    const userMsg: ModelMessage = {
       role: "user",
-      text: userMessage,
+      content: userMessage,
     };
     this.messages.push(userMsg);
     this.agentInfo.messageHistory.push(userMsg);
@@ -136,9 +149,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             // Format and add trace message
             const traceText = this.formatToolTrace(response);
             if (traceText) {
-              const traceMsg: ChatMessage = {
-                role: "ai",
-                text: traceText,
+              const traceMsg: ModelMessage = {
+                role: "assistant",
+                content: traceText,
               };
               this.messages.push(traceMsg);
               this.agentInfo.messageHistory.push(traceMsg);
@@ -147,9 +160,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           } else if (response.type === "response") {
             currentAiMessage = response.content;
             if (response.isDone && currentAiMessage) {
-              const aiMsg: ChatMessage = {
-                role: "ai",
-                text: currentAiMessage,
+              const aiMsg: ModelMessage = {
+                role: "assistant",
+                content: currentAiMessage,
               };
               this.messages.push(aiMsg);
               this.agentInfo.messageHistory.push(aiMsg);
@@ -159,9 +172,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         },
         error: (error: unknown) => {
           console.error("Error sending message:", error);
-          const errorMsg: ChatMessage = {
-            role: "ai",
-            text: `Error: ${error || "Unknown error occurred"}`,
+          const errorMsg: ModelMessage = {
+            role: "assistant",
+            content: `Error: ${error || "Unknown error occurred"}`,
           };
           this.messages.push(errorMsg);
           this.agentInfo.messageHistory.push(errorMsg);
@@ -170,9 +183,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         complete: () => {
           const currentState = this.copilotService.getState();
           if (currentState === CopilotState.STOPPING) {
-            const stoppedMsg: ChatMessage = {
-              role: "ai",
-              text: "_Generation stopped._",
+            const stoppedMsg: ModelMessage = {
+              role: "assistant",
+              content: "_Generation stopped._",
             };
             this.messages.push(stoppedMsg);
             this.agentInfo.messageHistory.push(stoppedMsg);
@@ -263,9 +276,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.messages = [];
     this.agentInfo.messageHistory = []; // Clear persistent history
     // Add greeting message back
-    const greeting: ChatMessage = {
-      role: "ai",
-      text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
+    const greeting: ModelMessage = {
+      role: "assistant",
+      content: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
     };
     this.messages.push(greeting);
     this.agentInfo.messageHistory.push(greeting);
@@ -304,9 +317,9 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   public onUserDecision(decision: { accepted: boolean; message: string }): void {
     // Add the user's decision as a user message in the chat
-    const decisionMsg: ChatMessage = {
+    const decisionMsg: ModelMessage = {
       role: "user",
-      text: decision.message,
+      content: decision.message,
     };
     this.messages.push(decisionMsg);
     this.agentInfo.messageHistory.push(decisionMsg);

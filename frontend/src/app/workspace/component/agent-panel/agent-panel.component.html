@@ -81,7 +81,27 @@
     <!-- Agent Tabs -->
     <nz-tab
       *ngFor="let agent of agents"
-      [nzTitle]="agent.name">
+      [nzTitle]="agentTabTitle">
+      <ng-template
+        #agentTabTitle
+        let-active="active">
+        <div class="agent-tab-title">
+          <span class="agent-tab-name">{{ agent.name }}</span>
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            class="agent-tab-close"
+            (click)="deleteAgent(agent.id, $event)"
+            nz-tooltip
+            nzTooltipTitle="Close agent">
+            <i
+              nz-icon
+              nzType="close"
+              nzTheme="outline"></i>
+          </button>
+        </div>
+      </ng-template>
       <ng-template nz-tab>
         <texera-agent-chat [agentInfo]="agent"></texera-agent-chat>
       </ng-template>

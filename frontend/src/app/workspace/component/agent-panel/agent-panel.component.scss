@@ -109,6 +109,32 @@
   display: flex;
   align-items: center;
   gap: 8px;
+
+  .agent-tab-name {
+    flex: 1;
+  }
+}
+
+.agent-tab-close {
+  padding: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  margin-left: 4px;
+
+  &:hover {
+    opacity: 1;
+    color: #ff4d4f !important;
+    background: rgba(255, 77, 79, 0.1) !important;
+  }
+
+  i {
+    font-size: 12px;
+  }
 }
 
 .delete-agent-btn {
