@@ -1,0 +1,144 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.action-plan-view {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  margin-bottom: 12px;
+
+  .plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+
+    .plan-info {
+      flex: 1;
+
+      h4 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .plan-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #8c8c8c;
+
+        span {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          i {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    .plan-status {
+      flex-shrink: 0;
+    }
+  }
+
+  .progress-section {
+    margin-bottom: 16px;
+  }
+
+  .tasks-section {
+    margin-bottom: 16px;
+
+    h5 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .task-item {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+
+      .task-checkbox {
+        flex-shrink: 0;
+        font-size: 18px;
+
+        .task-completed {
+          color: #52c41a;
+        }
+
+        .task-pending {
+          color: #d9d9d9;
+        }
+      }
+
+      .task-content {
+        flex: 1;
+
+        .task-description {
+          font-size: 14px;
+          margin-bottom: 4px;
+        }
+
+        .task-operator-id {
+          font-size: 12px;
+          color: #8c8c8c;
+        }
+      }
+    }
+  }
+
+  .feedback-section {
+    margin-bottom: 16px;
+  }
+
+  .controls-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+
+    .feedback-input {
+      margin-bottom: 12px;
+
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+
+      button {
+        i {
+          margin-right: 4px;
+        }
+      }
+    }
+  }
+}

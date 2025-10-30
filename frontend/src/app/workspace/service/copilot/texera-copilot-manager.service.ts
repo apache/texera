@@ -95,6 +95,9 @@ export class TexeraCopilotManagerService {
       // Create new TexeraCopilot instance using Angular's Injector
       const agentInstance = this.createCopilotInstance(modelType);
 
+      // Set agent information
+      agentInstance.setAgentInfo(agentId, agentName);
+
       // Initialize the agent
       await agentInstance.initialize();
 

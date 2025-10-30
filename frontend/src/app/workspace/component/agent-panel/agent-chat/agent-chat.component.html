@@ -89,6 +89,24 @@
           <span style="margin-left: 8px">Thinking...</span>
         </div>
       </div>
+
+      <!-- Pending Action Plan -->
+      <div
+        *ngIf="pendingActionPlan"
+        class="message ai-message action-plan-message">
+        <div class="message-header">
+          <i
+            nz-icon
+            nzType="robot"
+            nzTheme="outline"></i>
+          <span class="message-role">{{ agentInfo.name }}</span>
+        </div>
+        <div class="message-content">
+          <texera-action-plan-view
+            [actionPlan]="pendingActionPlan"
+            [showFeedbackControls]="true"></texera-action-plan-view>
+        </div>
+      </div>
     </div>
 
     <!-- Input Area -->
