@@ -476,6 +476,167 @@ export function createUpdateActionPlanProgressTool(actionPlanService: ActionPlan
 }
 
 /**
+ * Create getActionPlan tool for retrieving a specific action plan by ID
+ */
+export function createGetActionPlanTool(actionPlanService: ActionPlanService) {
+  return tool({
+    name: "getActionPlan",
+    description: "Retrieve a specific action plan by its ID",
+    inputSchema: z.object({
+      actionPlanId: z.string().describe("The ID of the action plan to retrieve"),
+    }),
+    execute: async (args: { actionPlanId: string }) => {
+      try {
+        const plan = actionPlanService.getActionPlan(args.actionPlanId);
+        if (!plan) {
+          return { success: false, error: "Action plan not found" };
+        }
+
+        // Convert to a serializable format
+        return {
+          success: true,
+          actionPlan: {
+            id: plan.id,
+            agentId: plan.agentId,
+            agentName: plan.agentName,
+            executorAgentId: plan.executorAgentId,
+            summary: plan.summary,
+            status: plan.status$.value,
+            createdAt: plan.createdAt.toISOString(),
+            userFeedback: plan.userFeedback,
+            operatorIds: plan.operatorIds,
+            linkIds: plan.linkIds,
+            tasks: plan.tasks.map(task => ({
+              operatorId: task.operatorId,
+              description: task.description,
+              completed: task.completed$.value,
+            })),
+          },
+        };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : "Failed to retrieve action plan" };
+      }
+    },
+  });
+}
+
+/**
+ * Create listActionPlans tool for retrieving all action plans
+ */
+export function createListActionPlansTool(actionPlanService: ActionPlanService) {
+  return tool({
+    name: "listActionPlans",
+    description: "List all action plans in the system",
+    inputSchema: z.object({
+      filterByAgent: z.string().optional().describe("Optional: Filter by agent ID"),
+      filterByStatus: z.string().optional().describe("Optional: Filter by status (pending, accepted, rejected, completed)"),
+    }),
+    execute: async (args: { filterByAgent?: string; filterByStatus?: string }) => {
+      try {
+        const allPlans = actionPlanService.getAllActionPlans();
+
+        // Apply filters if provided
+        let filteredPlans = allPlans;
+        if (args.filterByAgent) {
+          filteredPlans = filteredPlans.filter(plan => plan.agentId === args.filterByAgent);
+        }
+        if (args.filterByStatus) {
+          filteredPlans = filteredPlans.filter(plan => plan.status$.value === args.filterByStatus);
+        }
+
+        // Convert to serializable format
+        const plans = filteredPlans.map(plan => ({
+          id: plan.id,
+          agentId: plan.agentId,
+          agentName: plan.agentName,
+          executorAgentId: plan.executorAgentId,
+          summary: plan.summary,
+          status: plan.status$.value,
+          createdAt: plan.createdAt.toISOString(),
+          taskCount: plan.tasks.length,
+          completedTasks: plan.tasks.filter(t => t.completed$.value).length,
+        }));
+
+        return {
+          success: true,
+          actionPlans: plans,
+          totalCount: plans.length,
+        };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : "Failed to list action plans" };
+      }
+    },
+  });
+}
+
+/**
+ * Create deleteActionPlan tool for deleting an action plan
+ */
+export function createDeleteActionPlanTool(actionPlanService: ActionPlanService) {
+  return tool({
+    name: "deleteActionPlan",
+    description: "Delete an action plan by its ID",
+    inputSchema: z.object({
+      actionPlanId: z.string().describe("The ID of the action plan to delete"),
+    }),
+    execute: async (args: { actionPlanId: string }) => {
+      try {
+        const success = actionPlanService.deleteActionPlan(args.actionPlanId);
+        if (!success) {
+          return { success: false, error: "Action plan not found or could not be deleted" };
+        }
+        return { success: true, message: `Action plan ${args.actionPlanId} deleted successfully` };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : "Failed to delete action plan" };
+      }
+    },
+  });
+}
+
+/**
+ * Create updateActionPlan tool for updating an action plan
+ */
+export function createUpdateActionPlanTool(actionPlanService: ActionPlanService) {
+  return tool({
+    name: "updateActionPlan",
+    description: "Update an action plan's properties",
+    inputSchema: z.object({
+      actionPlanId: z.string().describe("The ID of the action plan to update"),
+      summary: z.string().optional().describe("New summary for the action plan"),
+      status: z.enum(["pending", "accepted", "rejected", "completed"]).optional().describe("New status for the action plan"),
+      userFeedback: z.string().optional().describe("User feedback to add"),
+    }),
+    execute: async (args: { actionPlanId: string; summary?: string; status?: string; userFeedback?: string }) => {
+      try {
+        const plan = actionPlanService.getActionPlan(args.actionPlanId);
+        if (!plan) {
+          return { success: false, error: "Action plan not found" };
+        }
+
+        // Update fields if provided
+        if (args.summary !== undefined) {
+          plan.summary = args.summary;
+        }
+        if (args.status !== undefined) {
+          plan.status$.next(args.status as any);
+        }
+        if (args.userFeedback !== undefined) {
+          plan.userFeedback = args.userFeedback;
+        }
+
+        return {
+          success: true,
+          message: `Action plan ${args.actionPlanId} updated successfully`,
+          updatedFields: Object.keys(args).filter(k => k !== 'actionPlanId'),
+        };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : "Failed to update action plan" };
+      }
+    },
+  });
+}
+
+/**
  * Create listOperators tool for getting all operators in the workflow
  */
 export function createListOperatorsTool(

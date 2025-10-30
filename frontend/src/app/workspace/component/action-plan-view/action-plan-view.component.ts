@@ -77,20 +77,18 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
         // Create new agent with Claude 3.7
         const newAgent = await this.copilotManagerService.createAgent(
           "claude-3.7",
-          `Actor for: ${this.actionPlan.summary}`
+          `Actor for Plan ${this.actionPlan.id}`
         );
 
-        // Build initial message with action plan details
-        const initialMessage = `Execute the following action plan:
+        // Simple message for the actor to work on the plan
+        const initialMessage = `Please work on action plan with id: ${this.actionPlan.id}`;
 
-**${this.actionPlan.summary}**
-
-Tasks to complete:
-${this.actionPlan.tasks
-  .map((task, index) => `${index + 1}. ${task.description} (Operator: ${task.operatorId})`)
-  .join("\n")}
-
-Please proceed with implementing these tasks in order.`;
+        // Add the message to the new agent's history as a user message
+        const userMessage = {
+          role: "user" as const,
+          text: initialMessage,
+        };
+        newAgent.messageHistory.push(userMessage);
 
         // Send the initial message to the new agent
         setTimeout(() => {
@@ -99,7 +97,7 @@ Please proceed with implementing these tasks in order.`;
             .sendMessage(initialMessage)
             .subscribe({
               next: (response) => {
-                console.log("Actor agent started with plan:", this.actionPlan.summary);
+                console.log(`Actor agent started for plan: ${this.actionPlan.id}`);
               },
               error: (error) => {
                 console.error("Error starting actor agent:", error);
@@ -110,7 +108,7 @@ Please proceed with implementing these tasks in order.`;
         // Emit user decision with note about new agent
         this.userDecision.emit({
           accepted: true,
-          message: `✅ Accepted action plan: "${this.actionPlan.summary}" (Running in new agent: ${newAgent.name})`,
+          message: `✅ Accepted action plan: "${this.actionPlan.summary}" (Running in ${newAgent.name})`,
         });
       } catch (error) {
         console.error("Failed to create actor agent:", error);

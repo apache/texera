@@ -27,6 +27,10 @@ import {
   createAddLinkTool,
   createActionPlanTool,
   createUpdateActionPlanProgressTool,
+  createGetActionPlanTool,
+  createListActionPlansTool,
+  createDeleteActionPlanTool,
+  createUpdateActionPlanTool,
   createListOperatorsTool,
   createListLinksTool,
   createListOperatorTypesTool,
@@ -403,6 +407,10 @@ export class TexeraCopilot {
       )
     );
     const updateActionPlanProgressTool = toolWithTimeout(createUpdateActionPlanProgressTool(this.actionPlanService));
+    const getActionPlanTool = toolWithTimeout(createGetActionPlanTool(this.actionPlanService));
+    const listActionPlansTool = toolWithTimeout(createListActionPlansTool(this.actionPlanService));
+    const deleteActionPlanTool = toolWithTimeout(createDeleteActionPlanTool(this.actionPlanService));
+    const updateActionPlanTool = toolWithTimeout(createUpdateActionPlanTool(this.actionPlanService));
     const listOperatorsTool = toolWithTimeout(
       createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService)
     );
@@ -497,6 +505,10 @@ export class TexeraCopilot {
       addLink: addLinkTool,
       actionPlan: actionPlanTool,
       updateActionPlanProgress: updateActionPlanProgressTool,
+      getActionPlan: getActionPlanTool,
+      listActionPlans: listActionPlansTool,
+      deleteActionPlan: deleteActionPlanTool,
+      updateActionPlan: updateActionPlanTool,
       listOperators: listOperatorsTool,
       listLinks: listLinksTool,
       listOperatorTypes: listOperatorTypesTool,
