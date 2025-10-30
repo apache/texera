@@ -174,7 +174,12 @@ export type ClusterStatusUpdateEvent = Readonly<{
 }>;
 
 export type RegionUpdateEvent = Readonly<{
-  regions: readonly string[][];
+  regions: readonly [number, string[]][];
+}>;
+
+export type RegionStateEvent = Readonly<{
+  id: number;
+  state: string;
 }>;
 
 export type ModifyLogicResponse = Readonly<{
@@ -234,6 +239,7 @@ export type TexeraWebsocketEventTypeMap = {
   ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
   ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
   RegionUpdateEvent: RegionUpdateEvent;
+  RegionStateEvent: RegionStateEvent;
 };
 
 // helper type definitions to generate the request and event types

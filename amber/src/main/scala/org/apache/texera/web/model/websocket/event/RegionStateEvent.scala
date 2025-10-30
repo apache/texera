@@ -17,8 +17,6 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.response
+package org.apache.texera.web.model.websocket.event
 
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
-
-case class RegionUpdateEvent(regions: List[(Long, List[String])]) extends TexeraWebSocketEvent
+case class RegionStateEvent(id: Long, state: String) extends TexeraWebSocketEvent
