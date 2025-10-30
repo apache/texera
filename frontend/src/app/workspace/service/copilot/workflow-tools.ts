@@ -39,17 +39,6 @@ const TOOL_TIMEOUT_MS = 120000;
 // Estimated as characters / 4 (common approximation for token counting)
 const MAX_OPERATOR_RESULT_TOKEN_LIMIT = 1000;
 
-export interface ActionPlan {
-  summary: string;
-  operators: Array<{ operatorType: string; customDisplayName?: string; description?: string }>;
-  links: Array<{
-    sourceOperatorId: string;
-    targetOperatorId: string;
-    sourcePortId?: string;
-    targetPortId?: string;
-  }>;
-}
-
 /**
  * Estimates the number of tokens in a JSON-serializable object
  * Uses a common approximation: tokens ≈ characters / 4
@@ -231,7 +220,7 @@ export function createActionPlanTool(
     description:
       "Add a batch of operators and links to the workflow as part of an action plan. This tool is used to show the structure of what you plan to add without filling in detailed operator properties. It creates a workflow skeleton that demonstrates the planned data flow.",
     inputSchema: z.object({
-      summary: z.string().describe("A brief summary of what this action plan does"),
+      summary: z.string().describe("A summary of what this action plan does"),
       operators: z
         .array(
           z.object({
@@ -263,7 +252,16 @@ export function createActionPlanTool(
         )
         .describe("List of links to connect the operators"),
     }),
-    execute: async (args: { summary: string; operators: ActionPlan["operators"]; links: ActionPlan["links"] }) => {
+    execute: async (args: {
+      summary: string;
+      operators: Array<{ operatorType: string; customDisplayName?: string; description?: string }>;
+      links: Array<{
+        sourceOperatorId: string;
+        targetOperatorId: string;
+        sourcePortId?: string;
+        targetPortId?: string;
+      }>;
+    }) => {
       try {
         // Clear previous highlights at start of tool execution
         copilotCoeditor.clearAll();
