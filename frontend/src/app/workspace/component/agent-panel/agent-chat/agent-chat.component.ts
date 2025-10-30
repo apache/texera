@@ -4,6 +4,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TexeraCopilot, AgentResponse, CopilotState } from "../../../service/copilot/texera-copilot";
 import { AgentInfo } from "../../../service/copilot/texera-copilot-manager.service";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { ActionPlan, ActionPlanService } from "../../../service/action-plan/action-plan.service";
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -24,10 +25,11 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   public showToolResults = false;
   public messages: ChatMessage[] = [];
   public currentMessage = "";
+  public pendingActionPlan: ActionPlan | null = null;
   private copilotService!: TexeraCopilot;
   private shouldScrollToBottom = false;
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(private sanitizer: DomSanitizer, private actionPlanService: ActionPlanService) {}
 
   ngOnInit(): void {
     console.log("AgentChatComponent ngOnInit - agentInfo:", this.agentInfo);
@@ -49,6 +51,22 @@ export class AgentChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       role: "ai",
       text: `Hi! I'm ${this.agentInfo.name}. I can help you build and modify workflows.`,
     });
+
+    // Subscribe to pending action plans
+    this.actionPlanService
+      .getPendingActionPlanStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(plan => {
+        // Only show plans from this agent
+        if (plan && plan.agentId === this.agentInfo.id) {
+          this.pendingActionPlan = plan;
+          this.shouldScrollToBottom = true;
+        } else if (plan === null || (plan && plan.agentId !== this.agentInfo.id)) {
+          // Clear pending plan if it's null or belongs to another agent
+          this.pendingActionPlan = null;
+        }
+      });
+
     console.log("AgentChatComponent initialized successfully");
   }
 

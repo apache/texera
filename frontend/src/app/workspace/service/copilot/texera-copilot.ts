@@ -26,6 +26,7 @@ import {
   createAddOperatorTool,
   createAddLinkTool,
   createActionPlanTool,
+  createUpdateActionPlanProgressTool,
   createListOperatorsTool,
   createListLinksTool,
   createListOperatorTypesTool,
@@ -119,6 +120,10 @@ export class TexeraCopilot {
   private model: any;
   private modelType: string;
 
+  // Agent identification
+  private agentId: string = "";
+  private agentName: string = "";
+
   // Message history using AI SDK's ModelMessage type
   private messages: ModelMessage[] = [];
 
@@ -140,6 +145,14 @@ export class TexeraCopilot {
   ) {
     // Default model type
     this.modelType = DEFAULT_AGENT_MODEL_ID;
+  }
+
+  /**
+   * Set the agent identification
+   */
+  public setAgentInfo(agentId: string, agentName: string): void {
+    this.agentId = agentId;
+    this.agentName = agentName;
   }
 
   /**
@@ -384,8 +397,13 @@ export class TexeraCopilot {
         this.workflowUtilService,
         this.operatorMetadataService,
         this.copilotCoeditorService,
-        this.actionPlanService
+        this.actionPlanService,
+        this.agentId,
+        this.agentName
       )
+    );
+    const updateActionPlanProgressTool = toolWithTimeout(
+      createUpdateActionPlanProgressTool(this.actionPlanService)
     );
     const listOperatorsTool = toolWithTimeout(
       createListOperatorsTool(this.workflowActionService, this.copilotCoeditorService)
@@ -480,6 +498,7 @@ export class TexeraCopilot {
       addOperator: addOperatorTool,
       addLink: addLinkTool,
       actionPlan: actionPlanTool,
+      updateActionPlanProgress: updateActionPlanProgressTool,
       listOperators: listOperatorsTool,
       listLinks: listLinksTool,
       listOperatorTypes: listOperatorTypesTool,

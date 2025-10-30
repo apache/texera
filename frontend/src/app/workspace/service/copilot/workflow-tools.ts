@@ -213,7 +213,9 @@ export function createActionPlanTool(
   workflowUtilService: WorkflowUtilService,
   operatorMetadataService: OperatorMetadataService,
   copilotCoeditor: CopilotCoeditorService,
-  actionPlanService: ActionPlanService
+  actionPlanService: ActionPlanService,
+  agentId: string = "",
+  agentName: string = ""
 ) {
   return tool({
     name: "actionPlan",
@@ -318,6 +320,21 @@ export function createActionPlanTool(
           createdOperatorIds.push(operator.operatorID);
         }
 
+        // Create action plan with tasks
+        const tasks = args.operators.map((operatorSpec, index) => ({
+          operatorId: createdOperatorIds[index],
+          description: operatorSpec.description || operatorSpec.customDisplayName || operatorSpec.operatorType,
+        }));
+
+        const actionPlan = actionPlanService.createActionPlan(
+          agentId,
+          agentName || "AI Agent",
+          args.summary,
+          tasks,
+          createdOperatorIds,
+          [] // linkIds will be added after links are created
+        );
+
         // Create all links using the operator IDs
         const createdLinkIds: string[] = [];
         for (let i = 0; i < args.links.length; i++) {
@@ -360,6 +377,9 @@ export function createActionPlanTool(
           createdLinkIds.push(link.linkID);
         }
 
+        // Update action plan with link IDs
+        actionPlan.linkIds = createdLinkIds;
+
         // Show copilot is adding these operators (after they're added to graph)
         setTimeout(() => {
           copilotCoeditor.highlightOperators(createdOperatorIds);
@@ -382,6 +402,9 @@ export function createActionPlanTool(
           // User rejected - remove the created operators and links
           workflowActionService.deleteOperatorsAndLinks(createdOperatorIds);
 
+          // Update action plan status to rejected
+          actionPlanService.rejectPlan(feedback.message, actionPlan.id);
+
           return {
             success: false,
             rejected: true,
@@ -390,13 +413,60 @@ export function createActionPlanTool(
           };
         }
 
-        // User accepted - return success
+        // User accepted - update action plan status
+        actionPlanService.acceptPlan(actionPlan.id);
+
         return {
           success: true,
           summary: args.summary,
           operatorIds: createdOperatorIds,
           linkIds: createdLinkIds,
+          actionPlanId: actionPlan.id,
           message: `Action Plan: ${args.summary}. Added ${args.operators.length} operator(s) and ${args.links.length} link(s) to workflow. User accepted the plan.`,
+        };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    },
+  });
+}
+
+/**
+ * Create updateActionPlanProgress tool for marking tasks as complete
+ */
+export function createUpdateActionPlanProgressTool(actionPlanService: ActionPlanService) {
+  return tool({
+    name: "updateActionPlanProgress",
+    description:
+      "Mark a specific task in an action plan as completed. Use this after you've finished configuring an operator from an accepted action plan.",
+    inputSchema: z.object({
+      actionPlanId: z.string().describe("ID of the action plan"),
+      operatorId: z.string().describe("ID of the operator task to mark as complete"),
+      completed: z.boolean().describe("Whether the task is completed (true) or not (false)"),
+    }),
+    execute: async (args: { actionPlanId: string; operatorId: string; completed: boolean }) => {
+      try {
+        const plan = actionPlanService.getActionPlan(args.actionPlanId);
+        if (!plan) {
+          return {
+            success: false,
+            error: `Action plan with ID ${args.actionPlanId} not found`,
+          };
+        }
+
+        const task = plan.tasks.find(t => t.operatorId === args.operatorId);
+        if (!task) {
+          return {
+            success: false,
+            error: `Task with operator ID ${args.operatorId} not found in action plan ${args.actionPlanId}`,
+          };
+        }
+
+        actionPlanService.updateTaskCompletion(args.actionPlanId, args.operatorId, args.completed);
+
+        return {
+          success: true,
+          message: `Task for operator ${args.operatorId} marked as ${args.completed ? "completed" : "incomplete"}`,
         };
       } catch (error: any) {
         return { success: false, error: error.message };
