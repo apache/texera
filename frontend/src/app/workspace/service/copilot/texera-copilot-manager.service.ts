@@ -22,6 +22,14 @@ import { TexeraCopilot } from "./texera-copilot";
 import { Subject } from "rxjs";
 
 /**
+ * Chat message interface for persisting conversation history
+ */
+export interface ChatMessage {
+  role: "user" | "ai";
+  text: string;
+}
+
+/**
  * Agent info for tracking created agents
  */
 export interface AgentInfo {
@@ -30,6 +38,7 @@ export interface AgentInfo {
   modelType: string;
   instance: TexeraCopilot;
   createdAt: Date;
+  messageHistory: ChatMessage[]; // Persist conversation history
 }
 
 /**
@@ -101,6 +110,7 @@ export class TexeraCopilotManagerService {
         modelType,
         instance: agentInstance,
         createdAt: new Date(),
+        messageHistory: [], // Initialize empty message history
       };
 
       this.agents.set(agentId, agentInfo);

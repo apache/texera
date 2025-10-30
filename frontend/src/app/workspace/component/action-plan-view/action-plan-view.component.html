@@ -103,6 +103,14 @@
   <div
     *ngIf="showFeedbackControls && actionPlan.status$.value === ActionPlanStatus.PENDING"
     class="controls-section">
+    <div class="new-agent-toggle">
+      <label
+        nz-checkbox
+        [(ngModel)]="runInNewAgent">
+        <span>Run in new agent (Actor)</span>
+      </label>
+      <span class="toggle-hint">Creates a dedicated agent to execute this action plan</span>
+    </div>
     <div class="feedback-input">
       <label>Feedback (optional):</label>
       <textarea
