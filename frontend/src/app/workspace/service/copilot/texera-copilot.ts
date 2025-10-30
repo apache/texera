@@ -80,9 +80,6 @@ import { ActionPlanService } from "../action-plan/action-plan.service";
 export const COPILOT_MCP_URL = "mcp";
 export const DEFAULT_AGENT_MODEL_ID = "claude-3.7";
 
-// Message window size: -1 means no limit, positive value keeps only latest N messages
-export const MESSAGE_WINDOW_SIZE = 3;
-
 /**
  * Copilot state enum
  */
@@ -264,11 +261,6 @@ export class TexeraCopilot {
       const userMessage: UserModelMessage = { role: "user", content: message };
       this.messages.push(userMessage);
 
-      // Trim messages array to keep only the latest MESSAGE_WINDOW_SIZE messages if window size is set
-      if (MESSAGE_WINDOW_SIZE > 0 && this.messages.length > MESSAGE_WINDOW_SIZE) {
-        this.messages = this.messages.slice(-MESSAGE_WINDOW_SIZE);
-      }
-
       // 2) define tools (your existing helpers)
       const tools = this.createWorkflowTools();
 
@@ -334,11 +326,6 @@ export class TexeraCopilot {
           //    This keeps your history perfectly aligned with the SDK's internal state.
           this.messages.push(...response.messages);
 
-          // Trim messages array to keep only the latest MESSAGE_WINDOW_SIZE messages if window size is set
-          if (MESSAGE_WINDOW_SIZE > 0 && this.messages.length > MESSAGE_WINDOW_SIZE) {
-            this.messages = this.messages.slice(-MESSAGE_WINDOW_SIZE);
-          }
-
           // 5) optional diagnostics
           if (steps?.length) {
             const totalToolCalls = steps.flatMap(s => s.toolCalls || []).length;
@@ -371,11 +358,6 @@ export class TexeraCopilot {
           const errorText = `Error: ${err?.message ?? String(err)}`;
           const assistantError: AssistantModelMessage = { role: "assistant", content: errorText };
           this.messages.push(assistantError);
-
-          // Trim messages array to keep only the latest MESSAGE_WINDOW_SIZE messages if window size is set
-          if (MESSAGE_WINDOW_SIZE > 0 && this.messages.length > MESSAGE_WINDOW_SIZE) {
-            this.messages = this.messages.slice(-MESSAGE_WINDOW_SIZE);
-          }
 
           observer.error(err);
         });
@@ -552,11 +534,6 @@ export class TexeraCopilot {
    */
   public addMessage(message: ModelMessage): void {
     this.messages.push(message);
-
-    // Trim messages array to keep only the latest MESSAGE_WINDOW_SIZE messages if window size is set
-    if (MESSAGE_WINDOW_SIZE > 0 && this.messages.length > MESSAGE_WINDOW_SIZE) {
-      this.messages = this.messages.slice(-MESSAGE_WINDOW_SIZE);
-    }
   }
 
   /**

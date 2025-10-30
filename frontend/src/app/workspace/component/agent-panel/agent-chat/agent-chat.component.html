@@ -58,7 +58,7 @@
         *ngFor="let message of messages"
         class="message"
         [class.user-message]="message.role === 'user'"
-        [class.ai-message]="message.role === 'ai'">
+        [class.ai-message]="message.role === 'assistant'">
         <div class="message-header">
           <i
             nz-icon
@@ -68,7 +68,7 @@
         </div>
         <div
           class="message-content"
-          [innerHTML]="formatMessageContent(message.text)"></div>
+          [innerHTML]="formatMessageContent(message.content)"></div>
       </div>
 
       <!-- Loading indicator -->

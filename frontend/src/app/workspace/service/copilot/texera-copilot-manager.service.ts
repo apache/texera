@@ -20,14 +20,7 @@
 import { Injectable, Injector } from "@angular/core";
 import { TexeraCopilot } from "./texera-copilot";
 import { Subject } from "rxjs";
-
-/**
- * Chat message interface for persisting conversation history
- */
-export interface ChatMessage {
-  role: "user" | "ai";
-  text: string;
-}
+import { ModelMessage } from "ai";
 
 /**
  * Agent info for tracking created agents
@@ -38,7 +31,7 @@ export interface AgentInfo {
   modelType: string;
   instance: TexeraCopilot;
   createdAt: Date;
-  messageHistory: ChatMessage[]; // Persist conversation history
+  messageHistory: ModelMessage[]; // Persist conversation history using AI SDK format
 }
 
 /**

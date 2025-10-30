@@ -86,23 +86,21 @@ export class ActionPlanViewComponent implements OnInit, OnDestroy {
         // Add the message to the new agent's history as a user message
         const userMessage = {
           role: "user" as const,
-          text: initialMessage,
+          content: initialMessage,
         };
         newAgent.messageHistory.push(userMessage);
 
         // Send the initial message to the new agent
         setTimeout(() => {
           // Send message to the new agent
-          newAgent.instance
-            .sendMessage(initialMessage)
-            .subscribe({
-              next: (response) => {
-                console.log(`Actor agent started for plan: ${this.actionPlan.id}`);
-              },
-              error: (error) => {
-                console.error("Error starting actor agent:", error);
-              },
-            });
+          newAgent.instance.sendMessage(initialMessage).subscribe({
+            next: response => {
+              console.log(`Actor agent started for plan: ${this.actionPlan.id}`);
+            },
+            error: (error: unknown) => {
+              console.error("Error starting actor agent:", error);
+            },
+          });
         }, 500);
 
         // Emit user decision with note about new agent

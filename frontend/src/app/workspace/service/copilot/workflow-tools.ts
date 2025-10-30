@@ -529,7 +529,10 @@ export function createListActionPlansTool(actionPlanService: ActionPlanService) 
     description: "List all action plans in the system",
     inputSchema: z.object({
       filterByAgent: z.string().optional().describe("Optional: Filter by agent ID"),
-      filterByStatus: z.string().optional().describe("Optional: Filter by status (pending, accepted, rejected, completed)"),
+      filterByStatus: z
+        .string()
+        .optional()
+        .describe("Optional: Filter by status (pending, accepted, rejected, completed)"),
     }),
     execute: async (args: { filterByAgent?: string; filterByStatus?: string }) => {
       try {
@@ -603,7 +606,10 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
     inputSchema: z.object({
       actionPlanId: z.string().describe("The ID of the action plan to update"),
       summary: z.string().optional().describe("New summary for the action plan"),
-      status: z.enum(["pending", "accepted", "rejected", "completed"]).optional().describe("New status for the action plan"),
+      status: z
+        .enum(["pending", "accepted", "rejected", "completed"])
+        .optional()
+        .describe("New status for the action plan"),
       userFeedback: z.string().optional().describe("User feedback to add"),
     }),
     execute: async (args: { actionPlanId: string; summary?: string; status?: string; userFeedback?: string }) => {
@@ -627,7 +633,7 @@ export function createUpdateActionPlanTool(actionPlanService: ActionPlanService)
         return {
           success: true,
           message: `Action plan ${args.actionPlanId} updated successfully`,
-          updatedFields: Object.keys(args).filter(k => k !== 'actionPlanId'),
+          updatedFields: Object.keys(args).filter(k => k !== "actionPlanId"),
         };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : "Failed to update action plan" };
