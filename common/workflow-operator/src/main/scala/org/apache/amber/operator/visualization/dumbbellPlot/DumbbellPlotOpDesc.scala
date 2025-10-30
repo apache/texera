@@ -79,7 +79,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "dots", required = false)
   var dots: util.List[DumbbellDotConfig] = _
 
-  @JsonProperty(value = "showLegends", required = false, defaultValue = "false")
+  @JsonProperty(value = "showLegends", required = false)
   @JsonSchemaTitle("Show Legends?")
   @JsonPropertyDescription("whether show legends in the graph")
   var showLegends: Boolean = false;
